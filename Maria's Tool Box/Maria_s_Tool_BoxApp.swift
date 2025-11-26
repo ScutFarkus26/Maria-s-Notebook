@@ -20,7 +20,11 @@ struct Maria_s_Tool_BoxApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+#if DEBUG
+            print("Warning: Could not create persistent ModelContainer: \(error). Falling back to in-memory store.")
+#endif
+            let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            return try! ModelContainer(for: schema, configurations: [memoryConfig])
         }
     }()
 
@@ -31,3 +35,4 @@ struct Maria_s_Tool_BoxApp: App {
         .modelContainer(sharedModelContainer)
     }
 }
+

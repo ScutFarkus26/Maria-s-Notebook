@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Foundation
 
 /// Top-level view for managing and browsing students.
 /// Shows a filter sidebar and a grid of student cards.
@@ -7,24 +8,72 @@ struct StudentsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var students: [Student]
 
+    @State private var sortOrder: SortOrder = .manual
+
     @State private var showingAddStudent = false
     @State private var selectedStudent: Student?
     @State private var selectedFilter: StudentsFilter = .all
     @Namespace private var gridNamespace
 
-    // MARK: - Derived data
+    /// Returns students ordered by the persisted manual order, with any missing/extra appended.
+    private func applyManualOrder(to students: [Student]) -> [Student] {
+        return students.sorted { (lhs: Student, rhs: Student) -> Bool in
+            lhs.manualOrder < rhs.manualOrder
+        }
+    }
 
-    /// Students after applying the current filter.
-    /// For now this returns all students; the visual filter UI is in place
-    /// and can be wired to actual level data later.
+    /// Assigns sequential manualOrder values based on the provided ordered IDs.
+    private func assignManualOrder(from orderedIDs: [UUID]) {
+        for (idx, id) in orderedIDs.enumerated() {
+            if let s = students.first(where: { $0.id == id }) {
+                s.manualOrder = idx
+            }
+        }
+    }
+
+    /// If no manual order has been assigned yet, seed it alphabetically.
+    private func ensureInitialManualOrderIfNeeded() {
+        let all = students
+        guard !all.isEmpty else { return }
+        let allZero = all.allSatisfy { $0.manualOrder == 0 }
+        if allZero {
+            let sorted = all.sorted { (lhs: Student, rhs: Student) -> Bool in
+                lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
+            }
+            for (idx, s) in sorted.enumerated() {
+                s.manualOrder = idx
+            }
+            try? modelContext.save()
+        }
+    }
+
+    /// Students after applying the current filter and sort order.
     private var filteredStudents: [Student] {
+        let base: [Student]
         switch selectedFilter {
         case .all:
-            return students
+            base = students
         case .upper:
-            return students.filter { $0.level == .upper }
+            base = students.filter { $0.level == .upper }
         case .lower:
-            return students.filter { $0.level == .lower }
+            base = students.filter { $0.level == .lower }
+        }
+
+        switch sortOrder {
+        case .alphabetical:
+            return base.sorted(by: { (lhs: Student, rhs: Student) -> Bool in
+                let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
+                if nameOrder == .orderedSame { return lhs.manualOrder < rhs.manualOrder }
+                return nameOrder == .orderedAscending
+            })
+        case .age:
+            // Sort by birthday (younger first): later birthday comes first
+            return base.sorted(by: { (lhs: Student, rhs: Student) -> Bool in
+                if lhs.birthday == rhs.birthday { return lhs.manualOrder < rhs.manualOrder }
+                return lhs.birthday > rhs.birthday
+            })
+        case .manual:
+            return applyManualOrder(to: base)
         }
     }
 
@@ -32,11 +81,6 @@ struct StudentsView: View {
     private var levelFilters: [StudentsFilter] {
         [.upper, .lower]
     }
-
-    /// Grid layout for the student cards.
-    private let columns: [GridItem] = [
-        GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)
-    ]
 
     // MARK: - Body
 
@@ -65,6 +109,35 @@ struct StudentsView: View {
                 }
             }
         }
+        .onAppear {
+            ensureInitialManualOrderIfNeeded()
+        }
+        .onChange(of: students.map { $0.id }) { _ in
+            // Seed initial order alphabetically if everything is zero
+            ensureInitialManualOrderIfNeeded()
+
+            // Ensure manualOrder values remain unique; assign new students to the end
+            let all = students
+            guard !all.isEmpty else { return }
+            var seen = Set<Int>()
+            var duplicates: [Student] = []
+            // Keep first occurrence of each order and collect duplicates (e.g., newly added with default 0)
+            for s in all.sorted(by: { $0.manualOrder < $1.manualOrder }) {
+                if seen.contains(s.manualOrder) {
+                    duplicates.append(s)
+                } else {
+                    seen.insert(s.manualOrder)
+                }
+            }
+            if !duplicates.isEmpty {
+                var maxOrder = seen.max() ?? -1
+                for s in duplicates {
+                    maxOrder += 1
+                    s.manualOrder = maxOrder
+                }
+                try? modelContext.save()
+            }
+        }
     }
 
     // MARK: - Subviews
@@ -72,6 +145,45 @@ struct StudentsView: View {
     /// Left-hand filter sidebar (All / levels).
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Text("Sort Order")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+
+            FilterButton(
+                icon: "arrow.up.arrow.down",
+                title: "Manual",
+                color: .accentColor,
+                isSelected: sortOrder == .manual
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    sortOrder = .manual
+                }
+            }
+
+            FilterButton(
+                icon: "textformat.abc",
+                title: "A–Z",
+                color: .accentColor,
+                isSelected: sortOrder == .alphabetical
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    sortOrder = .alphabetical
+                }
+            }
+
+            FilterButton(
+                icon: "calendar",
+                title: "Age",
+                color: .accentColor,
+                isSelected: sortOrder == .age
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    sortOrder = .age
+                }
+            }
+            .padding(.bottom, 8)
+
             Text("Filters")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
@@ -124,24 +236,22 @@ struct StudentsView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                        ForEach(Array(filteredStudents.enumerated()), id: \.element.id) { index, student in
-                            StudentCard(student: student)
-                                .matchedGeometryEffect(id: student.id, in: gridNamespace)
-                                .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                                .animation(
-                                    .spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1).delay(Double(index) * 0.02),
-                                    value: filteredStudents
-                                )
-                                .onTapGesture {
-                                    selectedStudent = student
-                                }
-                        }
+                StudentsCardsGridView(
+                    students: filteredStudents,
+                    isManualMode: sortOrder == .manual,
+                    onTapStudent: { selectedStudent = $0 },
+                    onReorder: { movingStudent, fromIndex, toIndex, subset in
+                        // Reuse existing merge logic from StudentsView
+                        let newAllIDs = mergeReorderedSubsetIntoAll(
+                            movingID: movingStudent.id,
+                            from: fromIndex,
+                            to: toIndex,
+                            current: subset
+                        )
+                        assignManualOrder(from: newAllIDs)
+                        try? modelContext.save()
                     }
-                    .padding(24)
-                    .animation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1), value: filteredStudents)
-                }
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -158,6 +268,45 @@ struct StudentsView: View {
             .padding()
         }
     }
+
+    /// Merge a reordered filtered subset back into the full ordered list and return the new full ID order.
+    private func mergeReorderedSubsetIntoAll(movingID: UUID, from fromIndex: Int, to toIndex: Int, current: [Student]) -> [UUID] {
+        // Full list ordered by current manualOrder
+        let allOrdered = students.sorted { $0.manualOrder < $1.manualOrder }
+
+        // IDs of the currently visible (filtered) subset
+        let subsetIDs = current.map { $0.id }
+        var subset = subsetIDs
+        // Reorder within the subset
+        if let sFrom = subset.firstIndex(of: movingID) {
+            let item = subset.remove(at: sFrom)
+            let boundedIndex = max(0, min(subset.count, toIndex))
+            subset.insert(item, at: boundedIndex)
+        }
+
+        // Merge: replace the positions of subset items in the full list with the new subset order
+        let subsetSet = Set(subsetIDs)
+        var subsetQueue = subset
+        var newAllIDs: [UUID] = []
+        for s in allOrdered {
+            if subsetSet.contains(s.id) {
+                // Take next from the reordered subset
+                if !subsetQueue.isEmpty {
+                    newAllIDs.append(subsetQueue.removeFirst())
+                }
+            } else {
+                newAllIDs.append(s.id)
+            }
+        }
+        return newAllIDs
+    }
+}
+
+/// Sort options for the students list.
+private enum SortOrder: Hashable {
+    case manual
+    case alphabetical
+    case age
 }
 
 // MARK: - Filter support types
@@ -227,6 +376,7 @@ private struct FilterButton: View {
 /// Card UI for a single student in the grid.
 private struct StudentCard: View {
     let student: Student
+    let showDragHandle: Bool
 
     private var levelColor: Color {
         switch student.level {
@@ -266,6 +416,14 @@ private struct StudentCard: View {
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                 Spacer(minLength: 0)
                 levelBadge
+                if showDragHandle {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                }
             }
             Spacer(minLength: 0)
         }

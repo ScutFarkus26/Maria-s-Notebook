@@ -21,6 +21,7 @@ final class Student {
     var birthday: Date
     var level: Level
     var nextLessons: [UUID]    // Store lesson UUIDs
+    var manualOrder: Int = 0
 
     var fullName: String {
         "\(firstName) \(lastName)"
@@ -32,7 +33,8 @@ final class Student {
         lastName: String,
         birthday: Date,
         level: Level,
-        nextLessons: [UUID] = []
+        nextLessons: [UUID] = [],
+        manualOrder: Int = 0
     ) {
         self.id = id
         self.firstName = firstName
@@ -40,5 +42,6 @@ final class Student {
         self.birthday = birthday
         self.level = level
         self.nextLessons = nextLessons
+        self.manualOrder = manualOrder
     }
 }
