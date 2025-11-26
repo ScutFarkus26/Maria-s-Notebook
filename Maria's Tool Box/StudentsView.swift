@@ -8,7 +8,7 @@ struct StudentsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var students: [Student]
 
-    @State private var sortOrder: SortOrder = .manual
+    @State private var sortOrder: SortOrder = .alphabetical
 
     @State private var showingAddStudent = false
     @State private var selectedStudent: Student?
@@ -151,17 +151,6 @@ struct StudentsView: View {
                 .padding(.horizontal, 8)
 
             FilterButton(
-                icon: "arrow.up.arrow.down",
-                title: "Manual",
-                color: .accentColor,
-                isSelected: sortOrder == .manual
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    sortOrder = .manual
-                }
-            }
-
-            FilterButton(
                 icon: "textformat.abc",
                 title: "A–Z",
                 color: .accentColor,
@@ -180,6 +169,17 @@ struct StudentsView: View {
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                     sortOrder = .age
+                }
+            }
+
+            FilterButton(
+                icon: "arrow.up.arrow.down",
+                title: "Manual",
+                color: .accentColor,
+                isSelected: sortOrder == .manual
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    sortOrder = .manual
                 }
             }
             .padding(.bottom, 8)
@@ -440,3 +440,4 @@ private struct StudentCard: View {
         )
     }
 }
+
