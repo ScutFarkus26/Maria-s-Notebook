@@ -9,12 +9,16 @@
 /* Begin PBXBuildFile section */
 		5141E8362ED7B78F004F918F /* MariasToolboxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5141E8352ED7B78F004F918F /* MariasToolboxApp.swift */; };
 		5141E8382ED7BAC5004F918F /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5141E8372ED7BAC5004F918F /* BackupManager.swift */; };
+		5141E83A2ED7C0EB004F918F /* DatabaseStatsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5141E8392ED7C0EB004F918F /* DatabaseStatsStrip.swift */; };
+		5141E83C2ED7C157004F918F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5141E83B2ED7C157004F918F /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5141E8352ED7B78F004F918F /* MariasToolboxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MariasToolboxApp.swift; sourceTree = "<group>"; };
 		5141E8372ED7BAC5004F918F /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
+		5141E8392ED7C0EB004F918F /* DatabaseStatsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseStatsStrip.swift; sourceTree = "<group>"; };
+		5141E83B2ED7C157004F918F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -56,6 +60,8 @@
 				5141E7F62ED77B0F004F918F /* Products */,
 				5141E8352ED7B78F004F918F /* MariasToolboxApp.swift */,
 				5141E8372ED7BAC5004F918F /* BackupManager.swift */,
+				5141E8392ED7C0EB004F918F /* DatabaseStatsStrip.swift */,
+				5141E83B2ED7C157004F918F /* SettingsView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -141,6 +147,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5141E83C2ED7C157004F918F /* SettingsView.swift in Sources */,
+				5141E83A2ED7C0EB004F918F /* DatabaseStatsStrip.swift in Sources */,
 				5141E8382ED7BAC5004F918F /* BackupManager.swift in Sources */,
 				5141E8362ED7B78F004F918F /* MariasToolboxApp.swift in Sources */,
 			);
