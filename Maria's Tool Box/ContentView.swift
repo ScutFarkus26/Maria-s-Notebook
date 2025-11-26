@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  Maria's Tool Box
+//  Maria's Toolbox
 //
 //  Created by Danny De Berry on 11/26/25.
 //
