@@ -9,6 +9,14 @@ struct StudentDetailView: View {
     var onDone: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var isEditing = false
+    @State private var draftFirstName = ""
+    @State private var draftLastName = ""
+    @State private var draftBirthday = Date()
+    @State private var draftLevel: Student.Level = .lower
+    @State private var showDeleteAlert = false
 
     // MARK: - Derived
     private var levelColor: Color {
@@ -66,12 +74,16 @@ struct StudentDetailView: View {
                     headerContent
                         .padding(.top, 36)
 
-                    infoRows
+                    if isEditing {
+                        editForm
+                    } else {
+                        infoRows
 
-                    Divider()
-                        .padding(.top, 8)
+                        Divider()
+                            .padding(.top, 8)
 
-                    nextLessonsSection
+                        nextLessonsSection
+                    }
                 }
                 .padding(.horizontal, 32)
                 .padding(.bottom, 24)
@@ -80,6 +92,15 @@ struct StudentDetailView: View {
         .frame(minWidth: 520, minHeight: 560)
         .safeAreaInset(edge: .bottom) {
             bottomBar
+        }
+        .alert("Delete Student?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                modelContext.delete(student)
+                if let onDone { onDone() } else { dismiss() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action cannot be undone.")
         }
     }
 
@@ -121,6 +142,24 @@ struct StudentDetailView: View {
             infoRow(icon: "calendar", title: "Birthday", value: formattedBirthday)
             infoRow(icon: "gift", title: "Age", value: ageDescription)
             infoRow(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private var editForm: some View {
+        VStack(spacing: 14) {
+            HStack {
+                TextField("First Name", text: $draftFirstName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Last Name", text: $draftLastName)
+                    .textFieldStyle(.roundedBorder)
+            }
+            DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
+            Picker("Level", selection: $draftLevel) {
+                Text(Student.Level.lower.rawValue).tag(Student.Level.lower)
+                Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
+            }
+            .pickerStyle(.segmented)
         }
         .padding(.horizontal, 8)
     }
@@ -191,13 +230,41 @@ struct StudentDetailView: View {
             Divider()
             HStack {
                 Spacer()
-                Button("Edit") {}
-                    .disabled(true)
-                Button("Done") {
-                    if let onDone { onDone() } else { dismiss() }
+                if isEditing {
+                    Button("Cancel") {
+                        isEditing = false
+                    }
+                    Button("Save") {
+                        let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !fn.isEmpty, !ln.isEmpty else { return }
+                        student.firstName = fn
+                        student.lastName = ln
+                        student.birthday = draftBirthday
+                        student.level = draftLevel
+                        try? modelContext.save()
+                        isEditing = false
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } else {
+                    Button("Edit") {
+                        draftFirstName = student.firstName
+                        draftLastName = student.lastName
+                        draftBirthday = student.birthday
+                        draftLevel = student.level
+                        isEditing = true
+                    }
+                    Button("Delete", role: .destructive) {
+                        showDeleteAlert = true
+                    }
+                    Button("Done") {
+                        if let onDone { onDone() } else { dismiss() }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
                 }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)

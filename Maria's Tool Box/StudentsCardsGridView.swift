@@ -1,6 +1,17 @@
 import SwiftUI
 import Foundation
 
+extension View {
+    @ViewBuilder
+    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
+    }
+}
+
 struct StudentsCardsGridView: View {
     let students: [Student]
     let isManualMode: Bool
@@ -54,7 +65,9 @@ struct StudentsCardsGridView: View {
                             }
                         )
                         .onTapGesture { onTapStudent(student) }
-                        .highPriorityGesture(longPressThenDrag(for: student))
+                        .if(isManualMode) { view in
+                            view.highPriorityGesture(longPressThenDrag(for: student))
+                        }
                 }
             }
             .padding(24)

@@ -95,18 +95,9 @@ struct StudentsView: View {
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
         }
-        .sheet(isPresented: Binding(
-            get: { selectedStudent != nil },
-            set: { isPresented in
-                if !isPresented {
-                    selectedStudent = nil
-                }
-            }
-        )) {
-            if let student = selectedStudent {
-                StudentDetailView(student: student) {
-                    selectedStudent = nil
-                }
+        .sheet(item: $selectedStudent) { student in
+            StudentDetailView(student: student) {
+                selectedStudent = nil
             }
         }
         .onAppear {

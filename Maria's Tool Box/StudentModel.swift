@@ -9,7 +9,7 @@ import Foundation
 import SwiftData
 
 @Model
-final class Student {
+final class Student: Identifiable {
     enum Level: String, Codable, CaseIterable {
         case lower = "Lower"
         case upper = "Upper"
