@@ -6,27 +6,8 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		5141E8362ED7B78F004F918F /* MariasToolboxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5141E8352ED7B78F004F918F /* MariasToolboxApp.swift */; };
-		5141E8382ED7BAC5004F918F /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5141E8372ED7BAC5004F918F /* BackupManager.swift */; };
-		5141E83A2ED7C0EB004F918F /* DatabaseStatsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5141E8392ED7C0EB004F918F /* DatabaseStatsStrip.swift */; };
-		5141E83C2ED7C157004F918F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5141E83B2ED7C157004F918F /* SettingsView.swift */; };
-		51426FAF2ED9125F008E7E12 /* PlatformColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51426FAE2ED9125F008E7E12 /* PlatformColor.swift */; };
-		51426FB12ED92634008E7E12 /* .swift-format.json in Resources */ = {isa = PBXBuildFile; fileRef = 51426FB02ED92634008E7E12 /* .swift-format.json */; };
-		51426FB32ED92637008E7E12 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51426FB22ED92637008E7E12 /* Theme.swift */; };
-		51426FB52ED92649008E7E12 /* .swiftlint.yml in Resources */ = {isa = PBXBuildFile; fileRef = 51426FB42ED92649008E7E12 /* .swiftlint.yml */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		5141E8352ED7B78F004F918F /* MariasToolboxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MariasToolboxApp.swift; sourceTree = "<group>"; };
-		5141E8372ED7BAC5004F918F /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
-		5141E8392ED7C0EB004F918F /* DatabaseStatsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseStatsStrip.swift; sourceTree = "<group>"; };
-		5141E83B2ED7C157004F918F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		51426FAE2ED9125F008E7E12 /* PlatformColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformColor.swift; sourceTree = "<group>"; };
-		51426FB02ED92634008E7E12 /* .swift-format.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ".swift-format.json"; sourceTree = "<group>"; };
-		51426FB22ED92637008E7E12 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
-		51426FB42ED92649008E7E12 /* .swiftlint.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = .swiftlint.yml; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -66,14 +47,6 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
-				5141E8352ED7B78F004F918F /* MariasToolboxApp.swift */,
-				5141E8372ED7BAC5004F918F /* BackupManager.swift */,
-				5141E8392ED7C0EB004F918F /* DatabaseStatsStrip.swift */,
-				5141E83B2ED7C157004F918F /* SettingsView.swift */,
-				51426FAE2ED9125F008E7E12 /* PlatformColor.swift */,
-				51426FB02ED92634008E7E12 /* .swift-format.json */,
-				51426FB22ED92637008E7E12 /* Theme.swift */,
-				51426FB42ED92649008E7E12 /* .swiftlint.yml */,
 			);
 			sourceTree = "<group>";
 		};
@@ -149,8 +122,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				51426FB52ED92649008E7E12 /* .swiftlint.yml in Resources */,
-				51426FB12ED92634008E7E12 /* .swift-format.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -161,12 +132,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5141E83C2ED7C157004F918F /* SettingsView.swift in Sources */,
-				5141E83A2ED7C0EB004F918F /* DatabaseStatsStrip.swift in Sources */,
-				5141E8382ED7BAC5004F918F /* BackupManager.swift in Sources */,
-				51426FAF2ED9125F008E7E12 /* PlatformColor.swift in Sources */,
-				51426FB32ED92637008E7E12 /* Theme.swift in Sources */,
-				5141E8362ED7B78F004F918F /* MariasToolboxApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
