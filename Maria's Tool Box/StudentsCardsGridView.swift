@@ -28,21 +28,22 @@ struct StudentsCardsGridView: View {
         GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)
     ]
 
+    private var idList: [UUID] { students.map { $0.id } }
+
+    private var gridAnimation: Animation? {
+        draggingStudentID != nil ? nil : .spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
+    }
+
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                ForEach(students.indices, id: \.self) { index in
-                    let student = students[index]
+                ForEach(students, id: \.id) { student in
                     let isDragging = isManualMode && draggingStudentID == student.id
                     let isHover = hoverTargetID == student.id
 
                     StudentCard(student: student)
                         .matchedGeometryEffect(id: student.id, in: gridNamespace)
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                        .animation(
-                            isDragging ? nil : .spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1).delay(Double(index) * 0.02),
-                            value: student.id
-                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
                                 .stroke(isDragging ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 2)
@@ -69,6 +70,7 @@ struct StudentsCardsGridView: View {
                         }
                 }
             }
+            .animation(gridAnimation, value: idList)
             .padding(24)
         }
         .coordinateSpace(name: "gridScroll")
