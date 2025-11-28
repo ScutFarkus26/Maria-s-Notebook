@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
@@ -88,7 +89,19 @@ struct LessonsRootView: View {
     @State private var selectedLesson: Lesson? = nil
     @State private var showingAddLesson: Bool = false
 
+    @State private var showingLessonCSVImporter = false
+    @State private var importAlert: ImportAlert? = nil
+
     @State private var selectedSubject: String? = nil
+
+    @State private var pendingParsedImport: LessonCSVImporter.Parsed? = nil
+    @State private var showingImportPreview: Bool = false
+
+    private struct ImportAlert: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
 
     private var subjects: [String] {
         let unique = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })
@@ -139,6 +152,13 @@ struct LessonsRootView: View {
                                     .foregroundStyle(.green)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button {
+                                    showingLessonCSVImporter = true
+                                } label: {
+                                    Label("Import Lessons from CSV…", systemImage: "arrow.down.doc")
+                                }
+                            }
                             .padding()
                         }
                     }
@@ -187,6 +207,64 @@ struct LessonsRootView: View {
         }
         .sheet(isPresented: $showingAddLesson) {
             AddLessonView()
+        }
+        .fileImporter(
+            isPresented: $showingLessonCSVImporter,
+            allowedContentTypes: [.commaSeparatedText, .plainText]
+        ) { result in
+            do {
+                let url = try result.get()
+
+                // Begin security-scoped access if needed (macOS sandbox / file providers)
+                let needsAccess = url.startAccessingSecurityScopedResource()
+                defer {
+                    if needsAccess {
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                }
+
+                let data = try Data(contentsOf: url)
+                let parsed = try LessonCSVImporter.parse(data: data, existingLessons: lessons)
+                self.pendingParsedImport = parsed
+                self.showingImportPreview = true
+            } catch {
+                importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+            }
+        }
+        .alert(item: $importAlert) { alert in
+            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
+        }
+        .sheet(isPresented: $showingImportPreview, onDismiss: {
+            // Clear parsed data on dismiss
+            pendingParsedImport = nil
+        }) {
+            if let parsed = pendingParsedImport {
+                LessonImportPreviewView(parsed: parsed, onCancel: {
+                    showingImportPreview = false
+                }, onConfirm: { filtered in
+                    do {
+                        let inserted = try LessonCSVImporter.commit(parsed: filtered, into: modelContext)
+                        var message = "Imported \(inserted) row(s)."
+                        if filtered.potentialDuplicates.count > 0 {
+                            let firstFew = filtered.potentialDuplicates.prefix(5).joined(separator: "\n• ")
+                            message += "\n\nPotential duplicates detected: \(filtered.potentialDuplicates.count)."
+                            if !firstFew.isEmpty {
+                                message += "\n\nExamples:\n• \(firstFew)"
+                            }
+                        }
+                        if !filtered.warnings.isEmpty {
+                            message += "\n\nWarnings:\n" + filtered.warnings.joined(separator: "\n")
+                        }
+                        importAlert = ImportAlert(title: "CSV Import Complete", message: message)
+                    } catch {
+                        importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                    }
+                    showingImportPreview = false
+                })
+                .frame(minWidth: 620, minHeight: 520)
+            } else {
+                EmptyView()
+            }
         }
     }
 
@@ -298,3 +376,5 @@ struct PlanningRootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+
+

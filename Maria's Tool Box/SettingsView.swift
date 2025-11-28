@@ -142,6 +142,15 @@ struct SettingsView: View {
         ) { result in
             do {
                 let url = try result.get()
+
+                // Begin security-scoped access if needed (macOS sandbox / file providers)
+                let needsAccess = url.startAccessingSecurityScopedResource()
+                defer {
+                    if needsAccess {
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                }
+
                 let data = try Data(contentsOf: url)
                 try BackupManager.restore(from: data, using: modelContext)
                 importError = nil
