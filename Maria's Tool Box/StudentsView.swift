@@ -45,6 +45,37 @@ struct StudentsView: View {
         }
     }
 
+    /// Returns the next occurrence of a birthday (month/day) relative to `today`.
+    private func nextBirthday(from birthday: Date, relativeTo today: Date = Date()) -> Date {
+        let cal = Calendar.current
+        let todayStart = cal.startOfDay(for: today)
+        let comps = cal.dateComponents([.month, .day], from: birthday)
+        guard let month = comps.month, let day = comps.day else { return .distantFuture }
+
+        var year = cal.component(.year, from: todayStart)
+        var thisYearComponents = DateComponents(year: year, month: month, day: day)
+        var thisYearDate = cal.date(from: thisYearComponents)
+        // Handle Feb 29 on non-leap years by using Feb 28
+        if thisYearDate == nil && month == 2 && day == 29 {
+            thisYearComponents.day = 28
+            thisYearDate = cal.date(from: thisYearComponents)
+        }
+        guard let thisYear = thisYearDate else { return .distantFuture }
+
+        if thisYear >= todayStart {
+            return thisYear
+        } else {
+            year += 1
+            var nextComponents = DateComponents(year: year, month: month, day: day)
+            var nextDate = cal.date(from: nextComponents)
+            if nextDate == nil && month == 2 && day == 29 {
+                nextComponents.day = 28
+                nextDate = cal.date(from: nextComponents)
+            }
+            return nextDate ?? thisYear
+        }
+    }
+
     /// Students after applying the current filter and sort order.
     private var filteredStudents: [Student] {
         let base: [Student]
@@ -69,6 +100,14 @@ struct StudentsView: View {
             return base.sorted(by: { (lhs: Student, rhs: Student) -> Bool in
                 if lhs.birthday == rhs.birthday { return lhs.manualOrder < rhs.manualOrder }
                 return lhs.birthday > rhs.birthday
+            })
+        case .birthday:
+            let today = Calendar.current.startOfDay(for: Date())
+            return base.sorted(by: { (lhs: Student, rhs: Student) -> Bool in
+                let l = nextBirthday(from: lhs.birthday, relativeTo: today)
+                let r = nextBirthday(from: rhs.birthday, relativeTo: today)
+                if l == r { return lhs.manualOrder < rhs.manualOrder }
+                return l < r
             })
         case .manual:
             return applyManualOrder(to: base)
@@ -158,6 +197,17 @@ struct StudentsView: View {
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                     sortOrder = .age
+                }
+            }
+
+            FilterButton(
+                icon: "gift",
+                title: "Birthday",
+                color: .accentColor,
+                isSelected: sortOrder == .birthday
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    sortOrder = .birthday
                 }
             }
 
@@ -296,6 +346,7 @@ private enum SortOrder: Hashable {
     case manual
     case alphabetical
     case age
+    case birthday
 }
 
 // MARK: - Filter support types
