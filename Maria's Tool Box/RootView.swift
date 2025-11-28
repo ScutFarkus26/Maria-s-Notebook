@@ -277,7 +277,7 @@ struct LessonsRootView: View {
                 .padding(.horizontal, 8)
 
             // All filter
-            FilterButton(
+            SidebarFilterButton(
                 icon: "books.vertical.fill",
                 title: "All",
                 color: .accentColor,
@@ -290,7 +290,7 @@ struct LessonsRootView: View {
 
             // Individual subject filters based on data
             ForEach(subjects, id: \.self) { subject in
-                FilterButton(
+                SidebarFilterButton(
                     icon: "circle.fill",
                     title: subject,
                     color: subjectColor(for: subject),
@@ -319,39 +319,6 @@ struct LessonsRootView: View {
         }
     }
 
-    // Reusable row used in the filter sidebar (mirrors StudentsView style)
-    private struct FilterButton: View {
-        let icon: String
-        let title: String
-        let color: Color
-        let isSelected: Bool
-        let action: () -> Void
-
-        var body: some View {
-            Button(action: action) {
-                HStack(spacing: 8) {
-                    Image(systemName: icon)
-                        .foregroundStyle(color)
-                        .frame(width: 20)
-
-                    Text(title)
-                        .font(.system(size: AppTheme.FontSize.caption))
-                        .lineLimit(1)
-
-                    Spacer(minLength: 0)
-                }
-                .frame(height: 28, alignment: .leading)
-                .padding(.horizontal, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
-                )
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
     private func seedSamplesOnce() {
         guard lessons.isEmpty else { return }
         let samples = [
@@ -376,5 +343,4 @@ struct PlanningRootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
 

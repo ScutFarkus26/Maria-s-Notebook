@@ -178,7 +178,7 @@ struct StudentsView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
 
-            FilterButton(
+            SidebarFilterButton(
                 icon: "textformat.abc",
                 title: "A–Z",
                 color: .accentColor,
@@ -189,7 +189,7 @@ struct StudentsView: View {
                 }
             }
 
-            FilterButton(
+            SidebarFilterButton(
                 icon: "calendar",
                 title: "Age",
                 color: .accentColor,
@@ -200,7 +200,7 @@ struct StudentsView: View {
                 }
             }
 
-            FilterButton(
+            SidebarFilterButton(
                 icon: "gift",
                 title: "Birthday",
                 color: .accentColor,
@@ -211,7 +211,7 @@ struct StudentsView: View {
                 }
             }
 
-            FilterButton(
+            SidebarFilterButton(
                 icon: "arrow.up.arrow.down",
                 title: "Manual",
                 color: .accentColor,
@@ -229,7 +229,7 @@ struct StudentsView: View {
                 .padding(.horizontal, 8)
 
             // All filter
-            FilterButton(
+            SidebarFilterButton(
                 icon: "person.3.fill",
                 title: "All",
                 color: .accentColor,
@@ -242,7 +242,7 @@ struct StudentsView: View {
 
             // Individual level filters (Upper, Lower, etc.) based on actual data
             ForEach(levelFilters, id: \.self) { filter in
-                FilterButton(
+                SidebarFilterButton(
                     icon: "circle.fill",
                     title: filter.title,
                     color: filter.color,
@@ -379,39 +379,6 @@ private enum StudentsFilter: Hashable {
         case .lower:
             return Color.blue
         }
-    }
-}
-
-/// Reusable row used in the filter sidebar.
-private struct FilterButton: View {
-    let icon: String
-    let title: String
-    let color: Color
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                    .frame(width: 20)
-
-                Text(title)
-                    .font(.system(size: AppTheme.FontSize.caption))
-                    .lineLimit(1)
-
-                Spacer(minLength: 0)
-            }
-            .frame(height: 28, alignment: .leading)
-            .padding(.horizontal, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 

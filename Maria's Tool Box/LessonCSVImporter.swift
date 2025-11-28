@@ -179,9 +179,18 @@ enum LessonCSVImporter {
             i = text.index(after: i)
         }
 
-        // Flush last field/row if any content
-        endField()
-        if !row.isEmpty { endRow() }
+        // Flush last field/row if appropriate
+        if inQuotes {
+            // Unterminated quote: treat as end of field/row anyway
+            endField()
+            if !row.isEmpty { endRow() }
+        } else {
+            // Only append if there was any data in the current field or row
+            if !field.isEmpty || !row.isEmpty {
+                endField()
+                endRow()
+            }
+        }
 
         return records
     }
@@ -208,3 +217,4 @@ enum LessonCSVImporter {
         return result
     }
 }
+
