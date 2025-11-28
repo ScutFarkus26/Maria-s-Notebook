@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5166D2BC2ED9F6A8005980B7 /* AddLessonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166D2BB2ED9F6A8005980B7 /* AddLessonView.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5166D2BB2ED9F6A8005980B7 /* AddLessonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddLessonView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -47,6 +52,7 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
+				5166D2BB2ED9F6A8005980B7 /* AddLessonView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -132,6 +138,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5166D2BC2ED9F6A8005980B7 /* AddLessonView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

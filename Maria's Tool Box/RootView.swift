@@ -86,35 +86,70 @@ struct LessonsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
     @State private var selectedLesson: Lesson? = nil
+    @State private var showingAddLesson: Bool = false
+
+    @State private var selectedSubject: String? = nil
+
+    private var subjects: [String] {
+        let unique = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })
+        return unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private var filteredLessons: [Lesson] {
+        guard let subject = selectedSubject else { return lessons }
+        return lessons.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
+    }
 
     var body: some View {
-        Group {
-            if lessons.isEmpty {
-                VStack(spacing: 8) {
-                    Text("No lessons yet")
-                        .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
-                    Text("Create your first lesson to get started.")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                sidebar
+
+                Divider()
+
+                Group {
+                    if lessons.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No lessons yet")
+                                .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                            Text("Create your first lesson to get started.")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onAppear(perform: seedSamplesOnce)
+                    } else {
+                        Group {
+                            LessonsCardsGridView(
+                                lessons: filteredLessons,
+                                isManualMode: false,
+                                onTapLesson: { lesson in
+                                    selectedLesson = lesson
+                                },
+                                onReorder: nil
+                            )
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .overlay(alignment: .topTrailing) {
+                            Button {
+                                showingAddLesson = true
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: AppTheme.FontSize.titleXLarge))
+                                    .foregroundStyle(.green)
+                            }
+                            .buttonStyle(.plain)
+                            .padding()
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .onAppear(perform: seedSamplesOnce)
-            } else {
-                LessonsCardsGridView(
-                    lessons: lessons,
-                    isManualMode: false,
-                    onTapLesson: { lesson in
-                        selectedLesson = lesson
-                    },
-                    onReorder: nil
-                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay {
             if let selected = selectedLesson {
                 ZStack {
-                    // Dim background
                     Color.black.opacity(0.2)
                         .ignoresSafeArea()
                         .transition(.opacity)
@@ -124,7 +159,6 @@ struct LessonsRootView: View {
                             }
                         }
 
-                    // Centered card
                     LessonDetailCard(
                         lesson: selected,
                         onSave: { updated in
@@ -150,6 +184,93 @@ struct LessonsRootView: View {
                 }
                 .animation(.spring(response: 0.35, dampingFraction: 0.9), value: selectedLesson?.id)
             }
+        }
+        .sheet(isPresented: $showingAddLesson) {
+            AddLessonView()
+        }
+    }
+
+    // MARK: - Sidebar
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Filters")
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+
+            // All filter
+            FilterButton(
+                icon: "books.vertical.fill",
+                title: "All",
+                color: .accentColor,
+                isSelected: selectedSubject == nil
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    selectedSubject = nil
+                }
+            }
+
+            // Individual subject filters based on data
+            ForEach(subjects, id: \.self) { subject in
+                FilterButton(
+                    icon: "circle.fill",
+                    title: subject,
+                    color: subjectColor(for: subject),
+                    isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
+                ) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                        selectedSubject = subject
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 16)
+        .padding(.leading, 16)
+        .frame(width: 180, alignment: .topLeading)
+        .background(Color.gray.opacity(0.08))
+    }
+
+    private func subjectColor(for subject: String) -> Color {
+        switch subject.lowercased() {
+        case "math": return .blue
+        case "language": return .purple
+        case "science": return .teal
+        default: return .accentColor
+        }
+    }
+
+    // Reusable row used in the filter sidebar (mirrors StudentsView style)
+    private struct FilterButton: View {
+        let icon: String
+        let title: String
+        let color: Color
+        let isSelected: Bool
+        let action: () -> Void
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .foregroundStyle(color)
+                        .frame(width: 20)
+
+                    Text(title)
+                        .font(.system(size: AppTheme.FontSize.caption))
+                        .lineLimit(1)
+
+                    Spacer(minLength: 0)
+                }
+                .frame(height: 28, alignment: .leading)
+                .padding(.horizontal, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 
