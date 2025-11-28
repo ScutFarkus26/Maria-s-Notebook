@@ -14,6 +14,7 @@ struct MariasToolboxApp: App {
         let schema = Schema([
             Item.self,
             Student.self,
+            Lesson.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -35,3 +36,4 @@ struct MariasToolboxApp: App {
         .modelContainer(sharedModelContainer)
     }
 }
+

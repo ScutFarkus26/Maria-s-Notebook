@@ -76,7 +76,7 @@ struct StudentsCardsGridView: View {
                     )
                     .onTapGesture { onTapStudent(student) }
                     .if(isManualMode) { view in
-                        view.highPriorityGesture(longPressThenDrag(for: student))
+                        view.simultaneousGesture(longPressThenDrag(for: student))
                     }
                 }
             }

@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
@@ -82,9 +83,84 @@ struct RootView: View {
 // MARK: - Root views for each tab
 
 struct LessonsRootView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var lessons: [Lesson]
+    @State private var selectedLesson: Lesson? = nil
+
     var body: some View {
-        Text("Lessons View")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Group {
+            if lessons.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No lessons yet")
+                        .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                    Text("Create your first lesson to get started.")
+                        .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear(perform: seedSamplesOnce)
+            } else {
+                LessonsCardsGridView(
+                    lessons: lessons,
+                    isManualMode: false,
+                    onTapLesson: { lesson in
+                        selectedLesson = lesson
+                    },
+                    onReorder: nil
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            if let selected = selectedLesson {
+                ZStack {
+                    // Dim background
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                                selectedLesson = nil
+                            }
+                        }
+
+                    // Centered card
+                    LessonDetailCard(
+                        lesson: selected,
+                        onSave: { updated in
+                            if let existing = lessons.first(where: { $0.id == updated.id }) {
+                                existing.name = updated.name
+                                existing.subject = updated.subject
+                                existing.group = updated.group
+                                existing.subheading = updated.subheading
+                                existing.writeUp = updated.writeUp
+                                try? modelContext.save()
+                            }
+                        },
+                        onClose: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                                selectedLesson = nil
+                            }
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.98).combined(with: .opacity),
+                        removal: .scale(scale: 0.98).combined(with: .opacity)
+                    ))
+                }
+                .animation(.spring(response: 0.35, dampingFraction: 0.9), value: selectedLesson?.id)
+            }
+        }
+    }
+
+    private func seedSamplesOnce() {
+        guard lessons.isEmpty else { return }
+        let samples = [
+            Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "A foundational presentation of the decimal system."),
+            Lesson(name: "Parts of Speech", subject: "Language", group: "Grammar", subheading: "Nouns and Verbs", writeUp: "Identify and classify parts of speech in simple sentences.")
+        ]
+        for l in samples { modelContext.insert(l) }
+        try? modelContext.save()
     }
 }
 
