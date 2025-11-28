@@ -83,7 +83,7 @@ struct LessonDetailCard: View {
                         showDeleteAlert = true
                     }
                     Button("Save") {
-                        var updated = lesson
+                        let updated = lesson
                         updated.name = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
                         updated.subject = draftSubject.trimmingCharacters(in: .whitespacesAndNewlines)
                         updated.group = draftGroup.trimmingCharacters(in: .whitespacesAndNewlines)

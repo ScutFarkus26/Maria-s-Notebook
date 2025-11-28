@@ -197,7 +197,7 @@ private struct DefaultStudentCard: View {
     // Age helpers
     private func roundedAgeComponents(birthday: Date, today: Date = Date()) -> (years: Int, months: Int) {
         let cal = Calendar.current
-        var comps = cal.dateComponents([.year, .month, .day], from: birthday, to: today)
+        let comps = cal.dateComponents([.year, .month, .day], from: birthday, to: today)
         var years = comps.year ?? 0
         var months = comps.month ?? 0
         let days = comps.day ?? 0
@@ -288,7 +288,7 @@ private struct AgeStudentCard: View {
     // Age helpers (duplicated from DefaultStudentCard for local use)
     private func roundedAgeComponents(birthday: Date, today: Date = Date()) -> (years: Int, months: Int) {
         let cal = Calendar.current
-        var comps = cal.dateComponents([.year, .month, .day], from: birthday, to: today)
+        let comps = cal.dateComponents([.year, .month, .day], from: birthday, to: today)
         var years = comps.year ?? 0
         var months = comps.month ?? 0
         let days = comps.day ?? 0
