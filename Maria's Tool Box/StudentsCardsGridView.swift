@@ -169,10 +169,7 @@ private struct DefaultStudentCard: View {
     var showAge: Bool = false
 
     private var levelColor: Color {
-        switch student.level {
-        case .upper: return .pink
-        case .lower: return .blue
-        }
+        AppColors.color(forLevel: student.level)
     }
 
     private var displayName: String {
@@ -194,38 +191,6 @@ private struct DefaultStudentCard: View {
         .background(Capsule().fill(levelColor.opacity(0.12)))
     }
 
-    // Age helpers
-    private func roundedAgeComponents(birthday: Date, today: Date = Date()) -> (years: Int, months: Int) {
-        let cal = Calendar.current
-        let comps = cal.dateComponents([.year, .month, .day], from: birthday, to: today)
-        var years = comps.year ?? 0
-        var months = comps.month ?? 0
-        let days = comps.day ?? 0
-        guard let anchor = cal.date(byAdding: DateComponents(year: years, month: months), to: birthday),
-              let daysInThisMonth = cal.range(of: .day, in: .month, for: anchor)?.count else {
-            return (max(0, years), max(0, months))
-        }
-        if days * 2 >= daysInThisMonth { months += 1 }
-        if months >= 12 { years += months / 12; months = months % 12 }
-        return (max(0, years), max(0, months))
-    }
-
-    private func ageStrings(birthday: Date) -> (verbose: String, concise: String) {
-        let age = roundedAgeComponents(birthday: birthday)
-        let y = age.years, m = age.months
-        let verbose: String = {
-            if y == 0 { return m == 1 ? "1 month" : "\(m) months" }
-            if m == 0 { return y == 1 ? "1 year" : "\(y) years" }
-            return "\(y) years, \(m) months"
-        }()
-        let concise: String = {
-            if y == 0 { return m == 1 ? "1 mo" : "\(m) mo" }
-            if m == 0 { return y == 1 ? "1 yr" : "\(y) yr" }
-            return "\(y)y \(m)m"
-        }()
-        return (verbose, concise)
-    }
-
     @ViewBuilder
     private func ageBadge(text: String) -> some View {
         Text(text)
@@ -245,8 +210,8 @@ private struct DefaultStudentCard: View {
                 HStack(spacing: 6) {
                     if showAge {
                         ViewThatFits(in: .horizontal) {
-                            ageBadge(text: ageStrings(birthday: student.birthday).verbose)
-                            ageBadge(text: ageStrings(birthday: student.birthday).concise)
+                            ageBadge(text: AgeUtils.verboseAgeString(for: student.birthday))
+                            ageBadge(text: AgeUtils.conciseAgeString(for: student.birthday))
                         }
                         .transition(.opacity)
                     }
@@ -272,10 +237,7 @@ private struct AgeStudentCard: View {
     @State private var bob = false
 
     private var levelColor: Color {
-        switch student.level {
-        case .upper: return .pink
-        case .lower: return .blue
-        }
+        AppColors.color(forLevel: student.level)
     }
 
     private var displayName: String {
@@ -285,31 +247,12 @@ private struct AgeStudentCard: View {
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
-    // Age helpers (duplicated from DefaultStudentCard for local use)
-    private func roundedAgeComponents(birthday: Date, today: Date = Date()) -> (years: Int, months: Int) {
-        let cal = Calendar.current
-        let comps = cal.dateComponents([.year, .month, .day], from: birthday, to: today)
-        var years = comps.year ?? 0
-        var months = comps.month ?? 0
-        let days = comps.day ?? 0
-        guard let anchor = cal.date(byAdding: DateComponents(year: years, month: months), to: birthday),
-              let daysInThisMonth = cal.range(of: .day, in: .month, for: anchor)?.count else {
-            return (max(0, years), max(0, months))
-        }
-        if days * 2 >= daysInThisMonth { months += 1 }
-        if months >= 12 { years += months / 12; months = months % 12 }
-        return (max(0, years), max(0, months))
-    }
-
     private var age: (years: Int, months: Int) {
-        roundedAgeComponents(birthday: student.birthday)
+        AgeUtils.roundedAgeComponents(birthday: student.birthday)
     }
 
     private var ageVerboseLabel: String {
-        let y = age.years, m = age.months
-        if y == 0 { return m == 1 ? "1 month" : "\(m) months" }
-        if m == 0 { return y == 1 ? "1 year" : "\(y) years" }
-        return "\(y) years, \(m) months"
+        AgeUtils.verboseAgeString(for: student.birthday)
     }
 
     private var sparklesOverlay: some View {

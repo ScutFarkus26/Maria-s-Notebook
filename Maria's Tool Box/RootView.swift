@@ -311,12 +311,7 @@ struct LessonsRootView: View {
     }
 
     private func subjectColor(for subject: String) -> Color {
-        switch subject.lowercased() {
-        case "math": return .blue
-        case "language": return .purple
-        case "science": return .teal
-        default: return .accentColor
-        }
+        AppColors.color(forSubject: subject)
     }
 
     private func seedSamplesOnce() {

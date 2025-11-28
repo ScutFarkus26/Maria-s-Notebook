@@ -157,13 +157,7 @@ private struct LessonCard: View {
     let lesson: Lesson
 
     private var subjectColor: Color {
-        // Simple mapping; customize as needed
-        switch lesson.subject.lowercased() {
-        case "math": return .blue
-        case "language": return .purple
-        case "science": return .teal
-        default: return .accentColor
-        }
+        AppColors.color(forSubject: lesson.subject)
     }
 
     private var subjectBadge: some View {
