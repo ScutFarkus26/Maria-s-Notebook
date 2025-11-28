@@ -277,6 +277,8 @@ struct StudentsView: View {
             } else {
                 StudentsCardsGridView(
                     students: filteredStudents,
+                    isBirthdayMode: sortOrder == .birthday,
+                    isAgeMode: sortOrder == .age,
                     isManualMode: sortOrder == .manual,
                     onTapStudent: { selectedStudent = $0 },
                     onReorder: { movingStudent, fromIndex, toIndex, subset in
