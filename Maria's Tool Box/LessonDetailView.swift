@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct LessonDetailView: View {
     var lesson: Lesson
@@ -6,6 +7,7 @@ struct LessonDetailView: View {
     var onDone: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var isEditing = false
     @State private var draftName: String = ""
@@ -13,6 +15,7 @@ struct LessonDetailView: View {
     @State private var draftGroup: String = ""
     @State private var draftSubheading: String = ""
     @State private var draftWriteUp: String = ""
+    @State private var showDeleteAlert = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,6 +49,15 @@ struct LessonDetailView: View {
         .frame(minWidth: 520, minHeight: 560)
         .safeAreaInset(edge: .bottom) {
             bottomBar
+        }
+        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                modelContext.delete(lesson)
+                if let onDone { onDone() } else { dismiss() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action cannot be undone.")
         }
         .onAppear(perform: seedDrafts)
     }
@@ -170,6 +182,9 @@ struct LessonDetailView: View {
                     Button("Edit") {
                         seedDrafts()
                         isEditing = true
+                    }
+                    Button("Delete", role: .destructive) {
+                        showDeleteAlert = true
                     }
                     Button("Done") {
                         if let onDone { onDone() } else { dismiss() }

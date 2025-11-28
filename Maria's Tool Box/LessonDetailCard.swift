@@ -1,9 +1,12 @@
 import SwiftUI
+import SwiftData
 
 struct LessonDetailCard: View {
     var lesson: Lesson
     var onSave: (Lesson) -> Void
     var onClose: () -> Void
+
+    @Environment(\.modelContext) private var modelContext
 
     @State private var isEditing = false
     @State private var draftName: String = ""
@@ -11,6 +14,7 @@ struct LessonDetailCard: View {
     @State private var draftGroup: String = ""
     @State private var draftSubheading: String = ""
     @State private var draftWriteUp: String = ""
+    @State private var showDeleteAlert = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -75,6 +79,9 @@ struct LessonDetailCard: View {
                     Button("Cancel") {
                         isEditing = false
                     }
+                    Button("Delete", role: .destructive) {
+                        showDeleteAlert = true
+                    }
                     Button("Save") {
                         var updated = lesson
                         updated.name = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -113,6 +120,15 @@ struct LessonDetailCard: View {
                 .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 10)
         )
         .onAppear(perform: seedDrafts)
+        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                modelContext.delete(lesson)
+                onClose()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action cannot be undone.")
+        }
         .accessibilityElement(children: .contain)
     }
 
