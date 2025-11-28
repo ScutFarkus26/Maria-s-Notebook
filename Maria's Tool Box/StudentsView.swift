@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import Foundation
 
 /// Top-level view for managing and browsing students.
 /// Shows a filter sidebar and a grid of student cards.
@@ -13,7 +12,6 @@ struct StudentsView: View {
     @State private var showingAddStudent = false
     @State private var selectedStudent: Student?
     @State private var selectedFilter: StudentsFilter = .all
-    @Namespace private var gridNamespace
 
     /// Returns students ordered by the persisted manual order, with any missing/extra appended.
     private func applyManualOrder(to students: [Student]) -> [Student] {
@@ -137,7 +135,7 @@ struct StudentsView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Sort Order")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
 
@@ -176,7 +174,7 @@ struct StudentsView: View {
             .padding(.bottom, 8)
 
             Text("Filters")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
 
@@ -220,9 +218,9 @@ struct StudentsView: View {
             if filteredStudents.isEmpty {
                 VStack(spacing: 8) {
                     Text("No students yet")
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
                     Text("Click the plus button to add your first student.")
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -252,7 +250,7 @@ struct StudentsView: View {
                 showingAddStudent = true
             } label: {
                 Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 32))
+                    .font(.system(size: AppTheme.FontSize.titleXLarge))
                     .foregroundStyle(.green)
             }
             .buttonStyle(.plain)
@@ -347,7 +345,7 @@ private struct FilterButton: View {
                     .frame(width: 20)
 
                 Text(title)
-                    .font(.system(size: 13))
+                    .font(.system(size: AppTheme.FontSize.caption))
                     .lineLimit(1)
 
                 Spacer(minLength: 0)
@@ -361,74 +359,6 @@ private struct FilterButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-/// Card UI for a single student in the grid.
-private struct StudentCard: View {
-    let student: Student
-    let showDragHandle: Bool
-
-    private var levelColor: Color {
-        switch student.level {
-        case .upper: return .pink
-        case .lower: return .blue
-        }
-    }
-
-    private var displayName: String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
-    }
-
-    private var levelBadge: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(levelColor)
-                .frame(width: 6, height: 6)
-            Text(student.level.rawValue)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(levelColor)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(levelColor.opacity(0.12))
-        )
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(displayName)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                Spacer(minLength: 0)
-                levelBadge
-                if showDragHandle {
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(14)
-        .frame(minHeight: 100)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(NSColor.windowBackgroundColor))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
-        )
     }
 }
 

@@ -35,7 +35,7 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Settings")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
 
             // Fun horizontal database stats
             DatabaseStatsStrip(stats: stats)

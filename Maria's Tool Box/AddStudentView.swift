@@ -14,7 +14,7 @@ struct AddStudentView: View {
         VStack(alignment: .leading, spacing: 20) {
 
             Text("Add Student")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
 
             Form {
                 Section {

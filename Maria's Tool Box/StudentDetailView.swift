@@ -27,10 +27,7 @@ struct StudentDetailView: View {
     }
 
     private var formattedBirthday: String {
-        let df = DateFormatter()
-        df.dateStyle = .long
-        df.timeStyle = .none
-        return df.string(from: student.birthday)
+        return Self.birthdayFormatter.string(from: student.birthday)
     }
 
     private var ageDescription: String {
@@ -60,7 +57,7 @@ struct StudentDetailView: View {
             // Header
             HStack {
                 Text("Student Info")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                 Spacer()
             }
             .padding(.horizontal, 24)
@@ -126,10 +123,10 @@ struct StudentDetailView: View {
             }
 
             Text(student.fullName)
-                .font(.system(size: 32, weight: .black, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.titleXLarge, weight: .black, design: .rounded))
 
             Text(student.level.rawValue)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(Capsule().fill(levelColor.opacity(0.12)))
@@ -171,12 +168,12 @@ struct StudentDetailView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
             Text(value)
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
         }
     }
 
@@ -184,10 +181,10 @@ struct StudentDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Next Lessons")
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .font(.system(size: AppTheme.FontSize.header, weight: .heavy, design: .rounded))
                 Spacer()
                 Text("\(student.nextLessons.count)")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 4)
@@ -271,6 +268,13 @@ struct StudentDetailView: View {
             .background(.bar)
         }
     }
+
+    private static let birthdayFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateStyle = .long
+        df.timeStyle = .none
+        return df
+    }()
 }
 
 #Preview {

@@ -1,7 +1,4 @@
 import SwiftUI
-#if os(macOS)
-import AppKit
-#endif
 
 struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
@@ -27,7 +24,7 @@ struct RootView: View {
                             selectedTab = tab
                         } label: {
                             Text(tab.rawValue)
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 8)
                                 .frame(minHeight: 30)
@@ -69,7 +66,7 @@ struct RootView: View {
         if tab == selectedTab {
             return AnyShapeStyle(Color.accentColor)
         } else {
-            return AnyShapeStyle(Color(NSColor.windowBackgroundColor))
+            return AnyShapeStyle(Color.platformBackground)
         }
     }
 

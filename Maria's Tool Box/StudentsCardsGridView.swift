@@ -20,7 +20,6 @@ struct StudentsCardsGridView: View {
     let onReorder: (_ movingStudent: Student, _ fromIndex: Int, _ toIndex: Int, _ subset: [Student]) -> Void
 
     @State private var draggingStudentID: UUID?
-    @State private var dragStartIndex: Int?
     @State private var hoverTargetID: UUID?
     @State private var itemFrames: [UUID: CGRect] = [:]
     @Namespace private var gridNamespace
@@ -88,8 +87,6 @@ struct StudentsCardsGridView: View {
                 switch value {
                 case .first(true):
                     draggingStudentID = student.id
-                    dragStartIndex = students.firstIndex(where: { $0.id == student.id })
-                    hoverTargetID = student.id
                 case .second(true, let drag?):
                     if draggingStudentID == nil { draggingStudentID = student.id }
                     // Compute nearest target using measured frames and the current drag translation
@@ -114,7 +111,6 @@ struct StudentsCardsGridView: View {
                 defer {
                     hoverTargetID = nil
                     draggingStudentID = nil
-                    dragStartIndex = nil
                 }
                 guard isManualMode else { return }
                 guard let fromIndex = students.firstIndex(where: { $0.id == student.id }) else { return }
@@ -179,7 +175,7 @@ private struct StudentCard: View {
                 .fill(levelColor)
                 .frame(width: 6, height: 6)
             Text(student.level.rawValue)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
                 .foregroundStyle(levelColor)
         }
         .padding(.horizontal, 8)
@@ -194,7 +190,7 @@ private struct StudentCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(displayName)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                 Spacer(minLength: 0)
                 levelBadge
             }

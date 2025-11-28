@@ -32,7 +32,7 @@ struct DatabaseStatsStrip: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(stat.icon)
-                        .font(.system(size: 18))
+                        .font(.system(size: AppTheme.FontSize.titleSmall))
                         .accessibilityHidden(true)
                     Text(stat.title)
                         .font(.caption)
