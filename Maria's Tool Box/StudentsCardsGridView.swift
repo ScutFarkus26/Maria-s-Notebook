@@ -46,8 +46,10 @@ struct StudentsCardsGridView: View {
                     Group {
                         if isBirthdayMode {
                             BirthdayStudentCard(student: student)
+                        } else if isAgeMode {
+                            AgeStudentCard(student: student)
                         } else {
-                            DefaultStudentCard(student: student, showAge: isAgeMode)
+                            DefaultStudentCard(student: student, showAge: false)
                         }
                     }
                     .matchedGeometryEffect(id: student.id, in: gridNamespace)
@@ -264,17 +266,145 @@ private struct DefaultStudentCard: View {
     }
 }
 
-// MARK: - Birthday Card
-private struct BirthdayStudentCard: View {
+// MARK: - Age Card
+private struct AgeStudentCard: View {
     let student: Student
-    @Environment(\.calendar) private var calendar
     @State private var bob = false
+
+    private var levelColor: Color {
+        switch student.level {
+        case .upper: return .pink
+        case .lower: return .blue
+        }
+    }
+
+    private var displayName: String {
+        let parts = student.fullName.split(separator: " ")
+        guard let first = parts.first else { return student.fullName }
+        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
+        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+    }
+
+    // Age helpers (duplicated from DefaultStudentCard for local use)
+    private func roundedAgeComponents(birthday: Date, today: Date = Date()) -> (years: Int, months: Int) {
+        let cal = Calendar.current
+        var comps = cal.dateComponents([.year, .month, .day], from: birthday, to: today)
+        var years = comps.year ?? 0
+        var months = comps.month ?? 0
+        let days = comps.day ?? 0
+        guard let anchor = cal.date(byAdding: DateComponents(year: years, month: months), to: birthday),
+              let daysInThisMonth = cal.range(of: .day, in: .month, for: anchor)?.count else {
+            return (max(0, years), max(0, months))
+        }
+        if days * 2 >= daysInThisMonth { months += 1 }
+        if months >= 12 { years += months / 12; months = months % 12 }
+        return (max(0, years), max(0, months))
+    }
+
+    private var age: (years: Int, months: Int) {
+        roundedAgeComponents(birthday: student.birthday)
+    }
+
+    private var ageVerboseLabel: String {
+        let y = age.years, m = age.months
+        if y == 0 { return m == 1 ? "1 month" : "\(m) months" }
+        if m == 0 { return y == 1 ? "1 year" : "\(y) years" }
+        return "\(y) years, \(m) months"
+    }
+
+    private var sparklesOverlay: some View {
+        ZStack {
+            ForEach(0..<14, id: \.self) { _ in
+                Group {
+                    if NSImage(systemSymbolName: "star.fill", accessibilityDescription: nil) != nil {
+                        Image(systemName: "star.fill")
+                            .foregroundStyle(.white.opacity(0.35))
+                    } else {
+                        Text("⭐️")
+                    }
+                }
+                .font(.system(size: CGFloat(Int.random(in: 8...12))))
+                .rotationEffect(.degrees(Double(Int.random(in: 0...360))))
+                .offset(x: CGFloat(Int.random(in: -140...140)), y: CGFloat(Int.random(in: -60...60)))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var ageBadge: some View {
+        let y = age.years
+        let m = age.months
+        return HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(colors: [.mint, .cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
+                    .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+                Text(String(y == 0 ? m : y))
+                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .offset(y: bob ? -2 : 2)
+                    .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+            }
+            .frame(width: 56, height: 56)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                if y > 0 {
+                    HStack(spacing: 6) {
+                        Text(y == 1 ? "year" : "years")
+                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                        if m > 0 {
+                            Text("+ \(m) \(m == 1 ? "month" : "months")")
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.18), in: Capsule())
+                        }
+                    }
+                } else {
+                    Text(m == 1 ? "1 month old" : "\(m) months old")
+                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .accessibilityLabel("Age: \(ageVerboseLabel)")
+    }
+
+    private var levelBadge: some View {
+        HStack(spacing: 6) {
+            Circle().fill(levelColor).frame(width: 6, height: 6)
+            Text(student.level.rawValue)
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .foregroundStyle(levelColor)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Color.white.opacity(0.18)))
+        .accessibilityLabel("Level: \(student.level.rawValue)")
+    }
+
+    private var headerIcon: some View {
+        Group {
+            if NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil) != nil {
+                Image(systemName: "sparkles")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .yellow)
+            } else {
+                Text("✨")
+            }
+        }
+        .font(.title2)
+        .accessibilityHidden(true)
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Fun birthday background
-            LinearGradient(colors: [.pink, .orange, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .overlay(confettiOverlay.opacity(0.18))
+            LinearGradient(colors: [.mint, .teal, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .overlay(sparklesOverlay.opacity(0.22))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             VStack(alignment: .leading, spacing: 10) {
@@ -283,48 +413,112 @@ private struct BirthdayStudentCard: View {
                         .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
                     Spacer(minLength: 0)
-                    balloon
+                    headerIcon
                 }
 
-                // Turning age text
-                if daysUntil == 0 {
-                    Text("Turning \(turningAge) Today!")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 12)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .accessibilityLabel("\(student.fullName) is turning \(turningAge) today.")
-                } else {
-                    let dayWord = daysUntil == 1 ? "Day" : "Days"
-                    Text("Turning \(turningAge) in \(daysUntil) \(dayWord)")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 12)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .accessibilityLabel("\(student.fullName) is turning \(turningAge) in \(daysUntil) \(dayWord) on \(dateLabel).")
-                }
-
-                // Date chip
-                Text(dateLabel)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 10)
-                    .background(Color.white.opacity(0.18), in: Capsule())
+                ageBadge
 
                 Spacer(minLength: 0)
+
+                HStack {
+                    levelBadge
+                }
             }
             .padding(14)
         }
         .frame(minHeight: 100)
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
-                bob.toggle()
-            }
+            bob = true
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Birthday Card
+private struct BirthdayStudentCard: View {
+    let student: Student
+    @Environment(\.calendar) private var calendar
+    @State private var bob = false
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // Keep celebratory background
+            LinearGradient(colors: [.pink, .orange, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .overlay(confettiOverlay.opacity(0.18))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 12) {
+                // Top: name + balloon (subtle, not competing)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(displayName)
+                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer(minLength: 0)
+                    balloon
+                        .opacity(0.95)
+                }
+
+                // Centered stacked age + countdown + date
+                VStack(spacing: 8) {
+                    turningNumberBadge
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 2)
+
+                    if daysUntil == 0 {
+                        Text("Today!")
+                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 12)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .accessibilityHidden(true)
+                    } else {
+                        Text("in \(daysUntil) \(daysUntil == 1 ? "Day" : "Days")")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 12)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .accessibilityHidden(true)
+                    }
+
+                    Text(dateLabel)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 10)
+                        .background(Color.white.opacity(0.18), in: Capsule())
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityLabel(daysUntil == 0 ?
+                    "\(student.fullName) is \(turningAge) today." :
+                    "\(student.fullName) is turning \(turningAge) in \(daysUntil) \(daysUntil == 1 ? "day" : "days") on \(dateLabel)."
+                )
+
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+        }
+    }
+
+    // MARK: - New computed property for turning number badge
+    private var turningNumberBadge: some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(colors: [.pink, .orange, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
+                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+            Text(String(turningAge))
+                .font(.system(size: 38, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .offset(y: bob ? -2 : 2)
+                .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+        }
+        .frame(width: 68, height: 68)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Derived
@@ -345,7 +539,7 @@ private struct BirthdayStudentCard: View {
                 Text("🎈")
             }
         }
-        .font(.title2)
+        .font(.title3)
         .offset(y: bob ? -6 : 6)
         .accessibilityHidden(true)
     }
@@ -401,3 +595,4 @@ private struct BirthdayStudentCard: View {
         .allowsHitTesting(false)
     }
 }
+
