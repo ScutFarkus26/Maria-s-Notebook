@@ -4,10 +4,4 @@
    <FileRef
       location = "self:">
    </FileRef>
-   <FileRef
-      location = "group:LessonCSVImporter.swift">
-   </FileRef>
-   <FileRef
-      location = "group:LessonImportPreviewView.swift">
-   </FileRef>
 </Workspace>
