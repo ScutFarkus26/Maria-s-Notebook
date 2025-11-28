@@ -13,6 +13,29 @@ struct BackupPayload: Codable {
     var createdAt: Date
     var items: [ItemDTO]
     var students: [StudentDTO]
+    var lessons: [LessonDTO]
+
+    private enum CodingKeys: String, CodingKey {
+        case version, createdAt, items, students, lessons
+    }
+
+    init(version: Int, createdAt: Date, items: [ItemDTO], students: [StudentDTO], lessons: [LessonDTO]) {
+        self.version = version
+        self.createdAt = createdAt
+        self.items = items
+        self.students = students
+        self.lessons = lessons
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.version = try container.decode(Int.self, forKey: .version)
+        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+        self.items = try container.decode([ItemDTO].self, forKey: .items)
+        self.students = try container.decode([StudentDTO].self, forKey: .students)
+        // Default to empty if missing (backward compatibility with v1 backups)
+        self.lessons = try container.decodeIfPresent([LessonDTO].self, forKey: .lessons) ?? []
+    }
 }
 
 struct ItemDTO: Codable {
@@ -34,11 +57,20 @@ struct StudentDTO: Codable {
     var manualOrder: Int
 }
 
+struct LessonDTO: Codable {
+    var id: UUID
+    var name: String
+    var subject: String
+    var group: String
+    var subheading: String
+    var writeUp: String
+}
+
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 1
+    static let currentVersion: Int = 2
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -67,11 +99,26 @@ enum BackupManager {
             )
         }
 
+        // Fetch all Lessons
+        let lessonsFetch = FetchDescriptor<Lesson>()
+        let lessons = try context.fetch(lessonsFetch)
+        let lessonsDTO: [LessonDTO] = lessons.map { l in
+            LessonDTO(
+                id: l.id,
+                name: l.name,
+                subject: l.subject,
+                group: l.group,
+                subheading: l.subheading,
+                writeUp: l.writeUp
+            )
+        }
+
         let payload = BackupPayload(
             version: currentVersion,
             createdAt: Date(),
             items: itemsDTO,
-            students: studentsDTO
+            students: studentsDTO,
+            lessons: lessonsDTO
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -80,7 +127,7 @@ enum BackupManager {
     }
 
     /// Import JSON backup data into the database, replacing existing content.
-    /// - Note: This will delete all existing Items and Students before inserting from backup.
+    /// - Note: This will delete all existing Items, Lessons and Students before inserting from backup.
     static func restore(from data: Data, using context: ModelContext) throws {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -98,6 +145,19 @@ enum BackupManager {
         for dto in payload.items {
             let newItem = Item(timestamp: dto.timestamp)
             context.insert(newItem)
+        }
+
+        // Insert Lessons (preserving IDs)
+        for dto in payload.lessons {
+            let lesson = Lesson(
+                id: dto.id,
+                name: dto.name,
+                subject: dto.subject,
+                group: dto.group,
+                subheading: dto.subheading,
+                writeUp: dto.writeUp
+            )
+            context.insert(lesson)
         }
 
         // Insert Students (preserving IDs)
@@ -118,12 +178,17 @@ enum BackupManager {
         try context.save()
     }
 
-    /// Delete all Items and Students from the store.
+    /// Delete all Items, Lessons, and Students from the store.
     static func deleteAll(using context: ModelContext) throws {
         // Delete Items
         do {
             let items = try context.fetch(FetchDescriptor<Item>())
             for obj in items { context.delete(obj) }
+        }
+        // Delete Lessons
+        do {
+            let lessons = try context.fetch(FetchDescriptor<Lesson>())
+            for obj in lessons { context.delete(obj) }
         }
         // Delete Students
         do {

@@ -12,6 +12,7 @@ struct SettingsView: View {
     // Live data for stats
     @Query private var students: [Student]
     @Query private var items: [Item]
+    @Query private var lessons: [Lesson]
 
     // Export / Import state
     @State private var showingExporter = false
@@ -39,6 +40,11 @@ struct SettingsView: View {
                                      value: "\(items.count)",
                                      subtitle: "records",
                                      systemImage: "square.stack.3d.up.fill")
+
+                            StatCard(title: "Lessons",
+                                     value: "\(lessons.count)",
+                                     subtitle: "records",
+                                     systemImage: "text.book.closed.fill")
 
                             StatCard(title: "Next Lessons",
                                      value: "\(totalNextLessonsCount)",
