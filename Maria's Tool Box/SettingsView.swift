@@ -87,7 +87,7 @@ struct SettingsView: View {
 
                             if let lastBackupDate = lastBackupDate {
                                 Label {
-                                    Text("Last backup: ") + Text(lastBackupDate, style: .relative)
+                                    Text("Last backup: \(lastBackupDate, style: .relative)")
                                 } icon: {
                                     Image(systemName: "clock")
                                 }
