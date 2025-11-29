@@ -364,7 +364,7 @@ struct LessonsRootView: View {
         .onAppear {
             ensureInitialOrderInGroupIfNeeded()
         }
-        .onChange(of: lessons.map { $0.id }) { _ in
+        .onChange(of: lessons.map { $0.id }) {
             ensureInitialOrderInGroupIfNeeded()
         }
     }
