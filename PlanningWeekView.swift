@@ -278,7 +278,7 @@ private struct DropZone: View {
                     .allowsHitTesting(false)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 if scheduledLessonsForSlot.isEmpty {
                     Text("Drop lesson here")
                         .font(.system(size: 13, weight: .regular, design: .rounded))
@@ -335,26 +335,86 @@ private struct DropZone: View {
 private struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
+    @Query private var students: [Student]
     let lesson: StudentLesson
-    private var lessonName: String {
-        lessons.first(where: { $0.id == lesson.lessonID })?.name ?? "Lesson"
+
+    private var lessonObject: Lesson? {
+        lessons.first(where: { $0.id == lesson.lessonID })
     }
+
+    private var lessonName: String {
+        lessonObject?.name ?? "Lesson"
+    }
+
+    private var subjectColor: Color {
+        if let subject = lessonObject?.subject {
+            return AppColors.color(forSubject: subject)
+        }
+        return .accentColor
+    }
+
+    private var accessibilityLabel: String {
+        let studentsText = studentLine
+        if studentsText.isEmpty { return lessonName }
+        return "\(lessonName), \(studentsText)"
+    }
+
+    private var studentLine: String {
+        let names: [String] = lesson.studentIDs.compactMap { id -> String? in
+            guard let s = students.first(where: { $0.id == id }) else { return nil }
+            return displayName(for: s)
+        }
+        if !names.isEmpty {
+            return names.joined(separator: ", ")
+        }
+        let count = lesson.studentIDs.count
+        return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
+    }
+
+    private func displayName(for student: Student) -> String {
+        let parts = student.fullName.split(separator: " ")
+        guard let first = parts.first else { return student.fullName }
+        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
+        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "bookmark.fill").foregroundStyle(.tint)
-            Text(lessonName)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-            if !lesson.studentIDs.isEmpty {
-                Text("• \(lesson.studentIDs.count) student\(lesson.studentIDs.count == 1 ? "" : "s")")
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 8) {
+            Circle()
+                .fill(subjectColor)
+                .frame(width: 6, height: 6)
+                .padding(.top, 3)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(lessonName)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                if !studentLine.isEmpty {
+                    Text(studentLine)
+                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
+
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(Capsule().fill(Color.primary.opacity(0.08)))
+        .background(
+            Capsule()
+                .fill(Color.primary.opacity(0.06))
+        )
+        .overlay(
+            Capsule()
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+        .contentShape(Capsule())
         .draggable(lesson.id.uuidString)
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 
