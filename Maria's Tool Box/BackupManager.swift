@@ -14,17 +14,19 @@ struct BackupPayload: Codable {
     var items: [ItemDTO]
     var students: [StudentDTO]
     var lessons: [LessonDTO]
+    var studentLessons: [StudentLessonDTO]
 
     private enum CodingKeys: String, CodingKey {
-        case version, createdAt, items, students, lessons
+        case version, createdAt, items, students, lessons, studentLessons
     }
 
-    init(version: Int, createdAt: Date, items: [ItemDTO], students: [StudentDTO], lessons: [LessonDTO]) {
+    init(version: Int, createdAt: Date, items: [ItemDTO], students: [StudentDTO], lessons: [LessonDTO], studentLessons: [StudentLessonDTO]) {
         self.version = version
         self.createdAt = createdAt
         self.items = items
         self.students = students
         self.lessons = lessons
+        self.studentLessons = studentLessons
     }
 
     init(from decoder: Decoder) throws {
@@ -35,6 +37,7 @@ struct BackupPayload: Codable {
         self.students = try container.decode([StudentDTO].self, forKey: .students)
         // Default to empty if missing (backward compatibility with v1 backups)
         self.lessons = try container.decodeIfPresent([LessonDTO].self, forKey: .lessons) ?? []
+        self.studentLessons = try container.decodeIfPresent([StudentLessonDTO].self, forKey: .studentLessons) ?? []
     }
 }
 
@@ -66,11 +69,24 @@ struct LessonDTO: Codable {
     var writeUp: String
 }
 
+struct StudentLessonDTO: Codable {
+    var id: UUID
+    var lessonID: UUID
+    var studentIDs: [UUID]
+    var createdAt: Date
+    var scheduledFor: Date?
+    var givenAt: Date?
+    var notes: String
+    var needsPractice: Bool
+    var needsAnotherPresentation: Bool
+    var followUpWork: String
+}
+
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 2
+    static let currentVersion: Int = 3
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -112,13 +128,32 @@ enum BackupManager {
                 writeUp: l.writeUp
             )
         }
+        
+        // Fetch all StudentLessons
+        let slFetch = FetchDescriptor<StudentLesson>()
+        let sls = try context.fetch(slFetch)
+        let studentLessonsDTO: [StudentLessonDTO] = sls.map { sl in
+            StudentLessonDTO(
+                id: sl.id,
+                lessonID: sl.lessonID,
+                studentIDs: sl.studentIDs,
+                createdAt: sl.createdAt,
+                scheduledFor: sl.scheduledFor,
+                givenAt: sl.givenAt,
+                notes: sl.notes,
+                needsPractice: sl.needsPractice,
+                needsAnotherPresentation: sl.needsAnotherPresentation,
+                followUpWork: sl.followUpWork
+            )
+        }
 
         let payload = BackupPayload(
             version: currentVersion,
             createdAt: Date(),
             items: itemsDTO,
             students: studentsDTO,
-            lessons: lessonsDTO
+            lessons: lessonsDTO,
+            studentLessons: studentLessonsDTO
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -175,6 +210,46 @@ enum BackupManager {
             context.insert(student)
         }
 
+        // Insert StudentLessons (preserving IDs)
+        for dto in payload.studentLessons {
+            let sl = StudentLesson(
+                id: dto.id,
+                lessonID: dto.lessonID,
+                studentIDs: dto.studentIDs,
+                createdAt: dto.createdAt,
+                scheduledFor: dto.scheduledFor,
+                givenAt: dto.givenAt,
+                notes: dto.notes,
+                needsPractice: dto.needsPractice,
+                needsAnotherPresentation: dto.needsAnotherPresentation,
+                followUpWork: dto.followUpWork
+            )
+            context.insert(sl)
+        }
+        
+        // Backward compatibility: synthesize unscheduled StudentLesson records if missing but nextLessons present
+        if payload.studentLessons.isEmpty {
+            let existingLessonIDs = Set(try context.fetch(FetchDescriptor<Lesson>()).map { $0.id })
+            let studentMap = try context.fetch(FetchDescriptor<Student>()).reduce(into: [UUID: Student]()) { $0[$1.id] = $1 }
+            for sDTO in payload.students where !sDTO.nextLessons.isEmpty {
+                guard let student = studentMap[sDTO.id] else { continue }
+                for lID in sDTO.nextLessons where existingLessonIDs.contains(lID) {
+                    let sl = StudentLesson(
+                        lessonID: lID,
+                        studentIDs: [student.id],
+                        createdAt: payload.createdAt,
+                        scheduledFor: nil,
+                        givenAt: nil,
+                        notes: "",
+                        needsPractice: false,
+                        needsAnotherPresentation: false,
+                        followUpWork: ""
+                    )
+                    context.insert(sl)
+                }
+            }
+        }
+
         try context.save()
     }
 
@@ -194,6 +269,11 @@ enum BackupManager {
         do {
             let students = try context.fetch(FetchDescriptor<Student>())
             for obj in students { context.delete(obj) }
+        }
+        // Delete StudentLessons
+        do {
+            let sls = try context.fetch(FetchDescriptor<StudentLesson>())
+            for obj in sls { context.delete(obj) }
         }
         try context.save()
     }

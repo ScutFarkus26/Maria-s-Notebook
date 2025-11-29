@@ -13,6 +13,11 @@
 		51341B992EDA6D9400088D80 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51341B982EDA6D9400088D80 /* AppColors.swift */; };
 		5166D2BC2ED9F6A8005980B7 /* AddLessonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166D2BB2ED9F6A8005980B7 /* AddLessonView.swift */; };
 		51C6CD5A2EDAB1BC00DCA067 /* FilterOrderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD592EDAB1BC00DCA067 /* FilterOrderStore.swift */; };
+		51C6CD992EDB3C4900DCA067 /* StudentsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD982EDB3C4900DCA067 /* StudentsRootView.swift */; };
+		51C6CD9B2EDB3C4A00DCA067 /* LessonsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD9A2EDB3C4A00DCA067 /* LessonsRootView.swift */; };
+		51C6CD9D2EDB3D4E00DCA067 /* LessonsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD9C2EDB3D4E00DCA067 /* LessonsViewModel.swift */; };
+		51C6CD9F2EDB3DAD00DCA067 /* StudentsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */; };
+		51C6CDA12EDB454400DCA067 /* StudentsTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +28,11 @@
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5166D2BB2ED9F6A8005980B7 /* AddLessonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddLessonView.swift; sourceTree = "<group>"; };
 		51C6CD592EDAB1BC00DCA067 /* FilterOrderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterOrderStore.swift; sourceTree = "<group>"; };
+		51C6CD982EDB3C4900DCA067 /* StudentsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsRootView.swift; sourceTree = "<group>"; };
+		51C6CD9A2EDB3C4A00DCA067 /* LessonsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsRootView.swift; sourceTree = "<group>"; };
+		51C6CD9C2EDB3D4E00DCA067 /* LessonsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsViewModel.swift; sourceTree = "<group>"; };
+		51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsViewModel.swift; sourceTree = "<group>"; };
+		51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsTypes.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -68,6 +78,11 @@
 				51341B982EDA6D9400088D80 /* AppColors.swift */,
 				511D1ED62EDA7650005658D3 /* PlanningWeekView.swift */,
 				51C6CD592EDAB1BC00DCA067 /* FilterOrderStore.swift */,
+				51C6CD982EDB3C4900DCA067 /* StudentsRootView.swift */,
+				51C6CD9A2EDB3C4A00DCA067 /* LessonsRootView.swift */,
+				51C6CD9C2EDB3D4E00DCA067 /* LessonsViewModel.swift */,
+				51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */,
+				51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -155,6 +170,11 @@
 			files = (
 				51341B952EDA6C1B00088D80 /* SidebarFilterButton.swift in Sources */,
 				511D1ED72EDA7650005658D3 /* PlanningWeekView.swift in Sources */,
+				51C6CD992EDB3C4900DCA067 /* StudentsRootView.swift in Sources */,
+				51C6CD9F2EDB3DAD00DCA067 /* StudentsViewModel.swift in Sources */,
+				51C6CD9B2EDB3C4A00DCA067 /* LessonsRootView.swift in Sources */,
+				51C6CD9D2EDB3D4E00DCA067 /* LessonsViewModel.swift in Sources */,
+				51C6CDA12EDB454400DCA067 /* StudentsTypes.swift in Sources */,
 				5166D2BC2ED9F6A8005980B7 /* AddLessonView.swift in Sources */,
 				51341B992EDA6D9400088D80 /* AppColors.swift in Sources */,
 				51341B972EDA6CC200088D80 /* AgeUtils.swift in Sources */,

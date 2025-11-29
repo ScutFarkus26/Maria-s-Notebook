@@ -10,6 +10,8 @@ struct StudentDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query private var lessons: [Lesson]
+    @Query private var studentLessons: [StudentLesson]
 
     @State private var isEditing = false
     @State private var draftFirstName = ""
@@ -49,6 +51,23 @@ struct StudentDetailView: View {
         } else {
             return "?"
         }
+    }
+    
+    private var nextLessonsForStudent: [StudentLesson] {
+        studentLessons
+            .filter { $0.givenAt == nil && $0.studentIDs.contains(student.id) }
+            .sorted { (lhs, rhs) in
+                switch (lhs.scheduledFor, rhs.scheduledFor) {
+                case let (l?, r?):
+                    return l < r
+                case (nil, nil):
+                    return lhs.createdAt < rhs.createdAt
+                case (nil, _?):
+                    return false
+                case (_?, nil):
+                    return true
+                }
+            }
     }
 
     // MARK: - Body
@@ -177,43 +196,49 @@ struct StudentDetailView: View {
         }
     }
 
+    private func lessonName(for sl: StudentLesson) -> String {
+        lessons.first(where: { $0.id == sl.lessonID })?.name ?? "Lesson"
+    }
+
+    private func lessonSubject(for sl: StudentLesson) -> String? {
+        lessons.first(where: { $0.id == sl.lessonID })?.subject
+    }
+
     private var nextLessonsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Next Lessons")
                     .font(.system(size: AppTheme.FontSize.header, weight: .heavy, design: .rounded))
                 Spacer()
-                Text("\(student.nextLessons.count)")
+                Text("\(nextLessonsForStudent.count)")
                     .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 4)
 
-            if student.nextLessons.isEmpty {
+            if nextLessonsForStudent.isEmpty {
                 Text("No lessons scheduled yet.")
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
             } else {
-                // Placeholder list rows — real content will be supplied by future data model
                 VStack(spacing: 10) {
-                    ForEach(student.nextLessons, id: \.self) { _ in
+                    ForEach(nextLessonsForStudent, id: \.id) { sl in
                         HStack(spacing: 12) {
-                            Image(systemName: "function")
+                            Image(systemName: "book")
                                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.blue)
                                 .frame(width: 28)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Lesson")
+                                Text(lessonName(for: sl))
                                     .font(.system(size: 17, weight: .semibold, design: .rounded))
-                                Text("Subject")
-                                    .foregroundStyle(.secondary)
+                                if let subject = lessonSubject(for: sl), !subject.isEmpty {
+                                    Text(subject)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
 
                             Spacer()
-
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary.opacity(0.6))
                         }
                         .padding(.vertical, 8)
                     }
@@ -290,3 +315,4 @@ struct StudentDetailView: View {
     // The preview below is a visual placeholder and not compiled with the app target.
     return Text("StudentDetailView Preview requires app data model.")
 }
+

@@ -13,6 +13,7 @@ struct SettingsView: View {
     @Query private var students: [Student]
     @Query private var items: [Item]
     @Query private var lessons: [Lesson]
+    @Query private var studentLessons: [StudentLesson]
 
     // Export / Import state
     @State private var showingExporter = false
@@ -173,7 +174,8 @@ struct SettingsView: View {
     }
 
     private var totalNextLessonsCount: Int {
-        students.reduce(0) { $0 + $1.nextLessons.count }
+        // Count all student lessons that have not yet been given
+        studentLessons.filter { $0.givenAt == nil }.count
     }
 
     private var lastBackupDate: Date? {

@@ -6,6 +6,8 @@ import SwiftData
 struct StudentsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var students: [Student]
+    
+    private let viewModel = StudentsViewModel()
 
     @State private var sortOrder: SortOrder = .alphabetical
 
@@ -31,16 +33,7 @@ struct StudentsView: View {
 
     /// If no manual order has been assigned yet, seed it alphabetically.
     private func ensureInitialManualOrderIfNeeded() {
-        let all = students
-        guard !all.isEmpty else { return }
-        let allZero = all.allSatisfy { $0.manualOrder == 0 }
-        if allZero {
-            let sorted = all.sorted { (lhs: Student, rhs: Student) -> Bool in
-                lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-            }
-            for (idx, s) in sorted.enumerated() {
-                s.manualOrder = idx
-            }
+        if viewModel.ensureInitialManualOrderIfNeeded(students) {
             try? modelContext.save()
         }
     }
@@ -78,40 +71,7 @@ struct StudentsView: View {
 
     /// Students after applying the current filter and sort order.
     private var filteredStudents: [Student] {
-        let base: [Student]
-        switch selectedFilter {
-        case .all:
-            base = students
-        case .upper:
-            base = students.filter { $0.level == .upper }
-        case .lower:
-            base = students.filter { $0.level == .lower }
-        }
-
-        switch sortOrder {
-        case .alphabetical:
-            return base.sorted(by: { (lhs: Student, rhs: Student) -> Bool in
-                let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
-                if nameOrder == .orderedSame { return lhs.manualOrder < rhs.manualOrder }
-                return nameOrder == .orderedAscending
-            })
-        case .age:
-            // Sort by birthday (younger first): later birthday comes first
-            return base.sorted(by: { (lhs: Student, rhs: Student) -> Bool in
-                if lhs.birthday == rhs.birthday { return lhs.manualOrder < rhs.manualOrder }
-                return lhs.birthday > rhs.birthday
-            })
-        case .birthday:
-            let today = Calendar.current.startOfDay(for: Date())
-            return base.sorted(by: { (lhs: Student, rhs: Student) -> Bool in
-                let l = nextBirthday(from: lhs.birthday, relativeTo: today)
-                let r = nextBirthday(from: rhs.birthday, relativeTo: today)
-                if l == r { return lhs.manualOrder < rhs.manualOrder }
-                return l < r
-            })
-        case .manual:
-            return applyManualOrder(to: base)
-        }
+        viewModel.filteredStudents(students: students, filter: selectedFilter, sortOrder: sortOrder)
     }
 
     /// Available level filters.
@@ -145,24 +105,7 @@ struct StudentsView: View {
             ensureInitialManualOrderIfNeeded()
 
             // Ensure manualOrder values remain unique; assign new students to the end
-            let all = students
-            guard !all.isEmpty else { return }
-            var seen = Set<Int>()
-            var duplicates: [Student] = []
-            // Keep first occurrence of each order and collect duplicates (e.g., newly added with default 0)
-            for s in all.sorted(by: { $0.manualOrder < $1.manualOrder }) {
-                if seen.contains(s.manualOrder) {
-                    duplicates.append(s)
-                } else {
-                    seen.insert(s.manualOrder)
-                }
-            }
-            if !duplicates.isEmpty {
-                var maxOrder = seen.max() ?? -1
-                for s in duplicates {
-                    maxOrder += 1
-                    s.manualOrder = maxOrder
-                }
+            if viewModel.repairManualOrderUniquenessIfNeeded(students) {
                 try? modelContext.save()
             }
         }
@@ -282,12 +225,13 @@ struct StudentsView: View {
                     isManualMode: sortOrder == .manual,
                     onTapStudent: { selectedStudent = $0 },
                     onReorder: { movingStudent, fromIndex, toIndex, subset in
-                        // Reuse existing merge logic from StudentsView
-                        let newAllIDs = mergeReorderedSubsetIntoAll(
+                        // Reuse existing merge logic from StudentsViewModel
+                        let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(
                             movingID: movingStudent.id,
                             from: fromIndex,
                             to: toIndex,
-                            current: subset
+                            current: subset,
+                            allStudents: students
                         )
                         assignManualOrder(from: newAllIDs)
                         try? modelContext.save()
@@ -307,77 +251,6 @@ struct StudentsView: View {
             }
             .buttonStyle(.plain)
             .padding()
-        }
-    }
-
-    /// Merge a reordered filtered subset back into the full ordered list and return the new full ID order.
-    private func mergeReorderedSubsetIntoAll(movingID: UUID, from fromIndex: Int, to toIndex: Int, current: [Student]) -> [UUID] {
-        // Full list ordered by current manualOrder
-        let allOrdered = students.sorted { $0.manualOrder < $1.manualOrder }
-
-        // IDs of the currently visible (filtered) subset
-        let subsetIDs = current.map { $0.id }
-        var subset = subsetIDs
-        // Reorder within the subset
-        if let sFrom = subset.firstIndex(of: movingID) {
-            let item = subset.remove(at: sFrom)
-            let boundedIndex = max(0, min(subset.count, toIndex))
-            subset.insert(item, at: boundedIndex)
-        }
-
-        // Merge: replace the positions of subset items in the full list with the new subset order
-        let subsetSet = Set(subsetIDs)
-        var subsetQueue = subset
-        var newAllIDs: [UUID] = []
-        for s in allOrdered {
-            if subsetSet.contains(s.id) {
-                // Take next from the reordered subset
-                if !subsetQueue.isEmpty {
-                    newAllIDs.append(subsetQueue.removeFirst())
-                }
-            } else {
-                newAllIDs.append(s.id)
-            }
-        }
-        return newAllIDs
-    }
-}
-
-/// Sort options for the students list.
-private enum SortOrder: Hashable {
-    case manual
-    case alphabetical
-    case age
-    case birthday
-}
-
-// MARK: - Filter support types
-
-/// Logical filter for the students list.
-private enum StudentsFilter: Hashable {
-    case all
-    case upper
-    case lower
-
-    var title: String {
-        switch self {
-        case .all:
-            return "All"
-        case .upper:
-            return "Upper"
-        case .lower:
-            return "Lower"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .all:
-            return .accentColor
-        case .upper:
-            return Color.pink
-        case .lower:
-            return Color.blue
         }
     }
 }
