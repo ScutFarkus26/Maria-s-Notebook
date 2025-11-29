@@ -30,31 +30,32 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Database stats strip
-                    MTSummaryStrip(stats: databaseStats)
-
-                    // Database Overview
                     SettingsGroup(title: "Database Overview", systemImage: "rectangle.grid.2x2") {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 16)], spacing: 16) {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ], spacing: 16) {
                             StatCard(title: "Students",
                                      value: "\(students.count)",
                                      subtitle: "total",
                                      systemImage: "person.3.fill")
-
-                            StatCard(title: "Items",
-                                     value: "\(items.count)",
-                                     subtitle: "records",
-                                     systemImage: "square.stack.3d.up.fill")
 
                             StatCard(title: "Lessons",
                                      value: "\(lessons.count)",
                                      subtitle: "records",
                                      systemImage: "text.book.closed.fill")
 
-                            StatCard(title: "Next Lessons",
-                                     value: "\(totalNextLessonsCount)",
+                            StatCard(title: "Lessons Planned",
+                                     value: "\(studentLessons.filter { $0.givenAt == nil }.count)",
                                      subtitle: "scheduled",
                                      systemImage: "books.vertical.fill")
+
+                            StatCard(title: "Lessons Given",
+                                     value: "\(studentLessons.filter { $0.givenAt != nil }.count)",
+                                     subtitle: "given",
+                                     systemImage: "checkmark.circle.fill")
                         }
                     }
 
@@ -167,44 +168,6 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
-
-    private var databaseStats: [MTSummaryStat] {
-        var stats: [MTSummaryStat] = []
-
-        // Students
-        stats.append(MTSummaryStat(title: "Students", value: "\(students.count)", icon: "👨‍👩‍👧", tint: .blue, progress: nil))
-
-        // Lessons
-        stats.append(MTSummaryStat(title: "Lessons", value: "\(lessons.count)", icon: "📚", tint: .purple, progress: nil))
-
-        // Subjects (unique)
-        let subjects: [String] = Array(Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }))
-        stats.append(MTSummaryStat(title: "Subjects", value: "\(subjects.count)", icon: "📁", tint: .teal, progress: nil))
-
-        // Groups (unique)
-        let groups: [String] = Array(Set(lessons.map { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }))
-        stats.append(MTSummaryStat(title: "Groups", value: "\(groups.count)", icon: "🏷️", tint: .orange, progress: nil))
-
-        // Student Lessons given vs pending
-        let given = studentLessons.filter { $0.givenAt != nil }.count
-        let pending = studentLessons.filter { $0.givenAt == nil }.count
-        let total = max(1, given + pending)
-        let progress = Double(given) / Double(total)
-        stats.append(MTSummaryStat(title: "Given", value: "\(given)/\(total)", icon: "✅", tint: .green, progress: progress))
-
-        // Last Backup
-        let lastBackupValue: String
-        if let date = lastBackupDate {
-            let rel = RelativeDateTimeFormatter()
-            rel.unitsStyle = .abbreviated
-            lastBackupValue = rel.localizedString(for: date, relativeTo: Date())
-        } else {
-            lastBackupValue = "Never"
-        }
-        stats.append(MTSummaryStat(title: "Last Backup", value: lastBackupValue, icon: "💾", tint: .gray, progress: nil))
-
-        return stats
-    }
 
     private func defaultBackupFilename() -> String {
         let formatter = DateFormatter()

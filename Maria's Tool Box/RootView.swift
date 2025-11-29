@@ -8,6 +8,7 @@ struct RootView: View {
         case lessons = "Albums"         // Lessons library (albums view)
         case planning = "Planning"
         case studentLessons = "Lessons" // Student lessons (pills)
+        case work = "Work"
         case settings = "Settings"
 
         var id: String { rawValue }
@@ -57,6 +58,8 @@ struct RootView: View {
                     StudentsRootView()
                 case .planning:
                     PlanningRootView()
+                case .work:
+                    WorkView()
                 case .settings:
                     SettingsView()
                 }
