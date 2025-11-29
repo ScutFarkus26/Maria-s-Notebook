@@ -12,6 +12,7 @@ struct PlanningWeekView: View {
     @Query private var studentLessons: [StudentLesson]
     @State private var weekStart: Date = Self.monday(for: Date())
     @State private var selectedLessonForDetail: StudentLesson? = nil
+    @State private var isSidebarTargeted: Bool = false
 
     private var days: [Date] {
         (0..<5).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
@@ -98,6 +99,26 @@ struct PlanningWeekView: View {
             .frame(maxWidth: .infinity)
         }
         .frame(width: 280)
+        .contentShape(Rectangle())
+        .overlay(
+            RoundedRectangle(cornerRadius: 0)
+                .stroke(isSidebarTargeted ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 3)
+        )
+        .dropDestination(for: String.self, action: { items, _ in
+            guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
+            if let sl = studentLessons.first(where: { $0.id == id }) {
+                sl.scheduledFor = nil
+                do {
+                    try modelContext.save()
+                } catch {
+                    return false
+                }
+                return true
+            }
+            return false
+        }, isTargeted: { hovering in
+            isSidebarTargeted = hovering
+        })
     }
 
     // MARK: - Header
