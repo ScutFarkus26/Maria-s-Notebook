@@ -115,6 +115,7 @@ struct LessonsRootView: View {
     }
 
     private var filteredLessons: [Lesson] {
+        // Start with filtered base set
         var base = lessons
         if let subject = selectedSubject {
             base = base.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
@@ -122,7 +123,78 @@ struct LessonsRootView: View {
         if let group = selectedGroup {
             base = base.filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
         }
-        return base
+
+        // Helpers for ordering
+        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+
+        // Subject order from FilterOrderStore (already used by sidebar)
+        let subjectOrderList: [String] = subjects
+        let subjectIndex: [String: Int] = subjectOrderList.enumerated().reduce(into: [:]) { dict, pair in
+            dict[norm(pair.element)] = pair.offset
+        }
+
+        // Cache group index maps per subject to avoid recomputing
+        var groupIndexCache: [String: [String: Int]] = [:]
+        func indexForGroup(_ group: String, inSubject subject: String) -> Int {
+            let sKey = norm(subject)
+            if groupIndexCache[sKey] == nil {
+                let orderedGroups = groups(for: subject)
+                let map = orderedGroups.enumerated().reduce(into: [:]) { (d: inout [String: Int], p) in
+                    d[norm(p.element)] = p.offset
+                }
+                groupIndexCache[sKey] = map
+            }
+            return groupIndexCache[sKey]?[norm(group)] ?? Int.max
+        }
+
+        // Sorting according to rules
+        if selectedGroup != nil {
+            // When filtered by group: order by orderInGroup
+            return base.sorted { lhs, rhs in
+                if lhs.orderInGroup == rhs.orderInGroup {
+                    // tie-breaker by name, then id for stability
+                    let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                    if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
+                    return nameOrder == .orderedAscending
+                }
+                return lhs.orderInGroup < rhs.orderInGroup
+            }
+        } else if let subject = selectedSubject {
+            // When filtered by subject: first by group order (from sidebar), then by orderInGroup
+            return base.sorted { lhs, rhs in
+                let lg = indexForGroup(lhs.group, inSubject: subject)
+                let rg = indexForGroup(rhs.group, inSubject: subject)
+                if lg == rg {
+                    if lhs.orderInGroup == rhs.orderInGroup {
+                        let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                        if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
+                        return nameOrder == .orderedAscending
+                    }
+                    return lhs.orderInGroup < rhs.orderInGroup
+                }
+                return lg < rg
+            }
+        } else {
+            // No filters: subject order, then group order within subject, then orderInGroup
+            return base.sorted { lhs, rhs in
+                let ls = subjectIndex[norm(lhs.subject)] ?? Int.max
+                let rs = subjectIndex[norm(rhs.subject)] ?? Int.max
+                if ls == rs {
+                    let lg = indexForGroup(lhs.group, inSubject: lhs.subject)
+                    let rg = indexForGroup(rhs.group, inSubject: rhs.subject)
+                    if lg == rg {
+                        if lhs.orderInGroup == rhs.orderInGroup {
+                            let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                            if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
+                            return nameOrder == .orderedAscending
+                        }
+                        return lhs.orderInGroup < rhs.orderInGroup
+                    }
+                    return lg < rg
+                }
+                return ls < rs
+            }
+        }
     }
 
     var body: some View {
@@ -144,16 +216,27 @@ struct LessonsRootView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .onAppear(perform: seedSamplesOnce)
                     } else {
-                        Group {
-                            LessonsCardsGridView(
-                                lessons: filteredLessons,
-                                isManualMode: false,
-                                onTapLesson: { lesson in
-                                    selectedLesson = lesson
-                                },
-                                onReorder: nil
-                            )
-                        }
+                        LessonsCardsGridView(
+                            lessons: filteredLessons,
+                            isManualMode: selectedGroup != nil,
+                            onTapLesson: { lesson in
+                                selectedLesson = lesson
+                            },
+                            onReorder: { movingLesson, fromIndex, toIndex, subset in
+                                // Only allow reordering when a group is selected (subset corresponds to the full group for the selected subject)
+                                guard selectedGroup != nil else { return }
+                                var ordered = subset
+                                let boundedFrom = max(0, min(ordered.count - 1, fromIndex))
+                                let item = ordered.remove(at: boundedFrom)
+                                let boundedTo = max(0, min(ordered.count, toIndex))
+                                ordered.insert(item, at: boundedTo)
+                                // Assign sequential orderInGroup values based on new order
+                                for (idx, l) in ordered.enumerated() {
+                                    l.orderInGroup = idx
+                                }
+                                try? modelContext.save()
+                            }
+                        )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .overlay(alignment: .topTrailing) {
                             Button {
@@ -278,6 +361,12 @@ struct LessonsRootView: View {
                 EmptyView()
             }
         }
+        .onAppear {
+            ensureInitialOrderInGroupIfNeeded()
+        }
+        .onChange(of: lessons.map { $0.id }) { _ in
+            ensureInitialOrderInGroupIfNeeded()
+        }
     }
 
     // MARK: - Sidebar
@@ -398,6 +487,51 @@ struct LessonsRootView: View {
         )
         let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         return FilterOrderStore.loadGroupOrder(for: trimmedSubject, existing: existing)
+    }
+
+    private func ensureInitialOrderInGroupIfNeeded() {
+        var changed = false
+        let all = lessons
+
+        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        var buckets: [String: [Lesson]] = [:]
+        for l in all {
+            let key = norm(l.subject) + "|" + norm(l.group)
+            buckets[key, default: []].append(l)
+        }
+
+        for (_, arr) in buckets {
+            guard !arr.isEmpty else { continue }
+            let allZero = arr.allSatisfy { $0.orderInGroup == 0 }
+            if allZero {
+                let sorted = arr.sorted { lhs, rhs in
+                    lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+                for (idx, l) in sorted.enumerated() {
+                    if l.orderInGroup != idx { l.orderInGroup = idx; changed = true }
+                }
+                continue
+            }
+            // Ensure uniqueness; keep first occurrence of each order and push duplicates to the end
+            var seen = Set<Int>()
+            var duplicates: [Lesson] = []
+            for l in arr.sorted(by: { $0.orderInGroup < $1.orderInGroup }) {
+                if seen.contains(l.orderInGroup) {
+                    duplicates.append(l)
+                } else {
+                    seen.insert(l.orderInGroup)
+                }
+            }
+            if !duplicates.isEmpty {
+                var maxOrder = seen.max() ?? -1
+                for l in duplicates {
+                    maxOrder += 1
+                    if l.orderInGroup != maxOrder { l.orderInGroup = maxOrder; changed = true }
+                }
+            }
+        }
+
+        if changed { try? modelContext.save() }
     }
 
     private func isExpanded(_ subject: String) -> Bool {
