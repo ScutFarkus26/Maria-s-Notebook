@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		511D1ED72EDA7650005658D3 /* PlanningWeekView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 511D1ED62EDA7650005658D3 /* PlanningWeekView.swift */; };
 		51341B952EDA6C1B00088D80 /* SidebarFilterButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51341B942EDA6C1B00088D80 /* SidebarFilterButton.swift */; };
 		51341B972EDA6CC200088D80 /* AgeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51341B962EDA6CC200088D80 /* AgeUtils.swift */; };
 		51341B992EDA6D9400088D80 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51341B982EDA6D9400088D80 /* AppColors.swift */; };
@@ -14,6 +15,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		511D1ED62EDA7650005658D3 /* PlanningWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningWeekView.swift; sourceTree = "<group>"; };
 		51341B942EDA6C1B00088D80 /* SidebarFilterButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarFilterButton.swift; sourceTree = "<group>"; };
 		51341B962EDA6CC200088D80 /* AgeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeUtils.swift; sourceTree = "<group>"; };
 		51341B982EDA6D9400088D80 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
@@ -62,6 +64,7 @@
 				51341B942EDA6C1B00088D80 /* SidebarFilterButton.swift */,
 				51341B962EDA6CC200088D80 /* AgeUtils.swift */,
 				51341B982EDA6D9400088D80 /* AppColors.swift */,
+				511D1ED62EDA7650005658D3 /* PlanningWeekView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -148,6 +151,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				51341B952EDA6C1B00088D80 /* SidebarFilterButton.swift in Sources */,
+				511D1ED72EDA7650005658D3 /* PlanningWeekView.swift in Sources */,
 				5166D2BC2ED9F6A8005980B7 /* AddLessonView.swift in Sources */,
 				51341B992EDA6D9400088D80 /* AppColors.swift in Sources */,
 				51341B972EDA6CC200088D80 /* AgeUtils.swift in Sources */,

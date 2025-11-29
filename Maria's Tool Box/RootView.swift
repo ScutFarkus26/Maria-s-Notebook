@@ -334,7 +334,7 @@ struct StudentsRootView: View {
 
 struct PlanningRootView: View {
     var body: some View {
-        Text("Planning View")
+        PlanningWeekView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
