@@ -332,7 +332,7 @@ private struct DropZone: View {
     }
 }
 
-private struct StudentLessonPill: View {
+struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]

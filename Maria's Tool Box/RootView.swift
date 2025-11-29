@@ -4,9 +4,10 @@ import UniformTypeIdentifiers
 
 struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
-        case lessons = "Lessons"
         case students = "Students"
+        case lessons = "Albums"         // Lessons library (albums view)
         case planning = "Planning"
+        case studentLessons = "Lessons" // Student lessons (pills)
         case settings = "Settings"
 
         var id: String { rawValue }
@@ -48,6 +49,8 @@ struct RootView: View {
             // Active view
             Group {
                 switch selectedTab {
+                case .studentLessons:
+                    StudentLessonsRootView()
                 case .lessons:
                     LessonsRootView()
                 case .students:

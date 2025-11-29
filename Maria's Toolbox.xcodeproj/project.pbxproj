@@ -18,6 +18,7 @@
 		51C6CD9D2EDB3D4E00DCA067 /* LessonsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD9C2EDB3D4E00DCA067 /* LessonsViewModel.swift */; };
 		51C6CD9F2EDB3DAD00DCA067 /* StudentsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */; };
 		51C6CDA12EDB454400DCA067 /* StudentsTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */; };
+		51C6CDA32EDB622C00DCA067 /* StudentLessonsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 		51C6CD9C2EDB3D4E00DCA067 /* LessonsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsViewModel.swift; sourceTree = "<group>"; };
 		51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsViewModel.swift; sourceTree = "<group>"; };
 		51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsTypes.swift; sourceTree = "<group>"; };
+		51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonsRootView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -83,6 +85,7 @@
 				51C6CD9C2EDB3D4E00DCA067 /* LessonsViewModel.swift */,
 				51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */,
 				51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */,
+				51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -171,6 +174,7 @@
 				51341B952EDA6C1B00088D80 /* SidebarFilterButton.swift in Sources */,
 				511D1ED72EDA7650005658D3 /* PlanningWeekView.swift in Sources */,
 				51C6CD992EDB3C4900DCA067 /* StudentsRootView.swift in Sources */,
+				51C6CDA32EDB622C00DCA067 /* StudentLessonsRootView.swift in Sources */,
 				51C6CD9F2EDB3DAD00DCA067 /* StudentsViewModel.swift in Sources */,
 				51C6CD9B2EDB3C4A00DCA067 /* LessonsRootView.swift in Sources */,
 				51C6CD9D2EDB3D4E00DCA067 /* LessonsViewModel.swift in Sources */,
