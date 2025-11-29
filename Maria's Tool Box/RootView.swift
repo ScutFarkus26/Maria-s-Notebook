@@ -451,6 +451,8 @@ struct LessonsRootView: View {
                     }
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                        // Clear any active search so the subject filter takes effect immediately
+                        searchText = ""
                         selectedSubject = subject
                         selectedGroup = nil
                     }
@@ -483,6 +485,8 @@ struct LessonsRootView: View {
                             isSelected: (selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (selectedGroup?.caseInsensitiveCompare(group) == .orderedSame)
                         ) {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                                // Clear any active search so the group filter takes effect immediately
+                                searchText = ""
                                 selectedSubject = subject
                                 selectedGroup = group
                                 if !isExpanded(subject) { toggleExpanded(subject) }
