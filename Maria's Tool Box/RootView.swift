@@ -101,6 +101,7 @@ struct LessonsRootView: View {
 
     @State private var subjectDragState: (from: Int?, to: Int?) = (nil, nil)
     @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
+    @State private var searchText: String = ""
 
     private struct ImportAlert: Identifiable {
         let id = UUID()
@@ -115,13 +116,25 @@ struct LessonsRootView: View {
     }
 
     private var filteredLessons: [Lesson] {
-        // Start with filtered base set
-        var base = lessons
-        if let subject = selectedSubject {
-            base = base.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
-        }
-        if let group = selectedGroup {
-            base = base.filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
+        // Start with base set: if searching, ignore subject/group filters and search across all lessons
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        var base: [Lesson]
+        if !query.isEmpty {
+            base = lessons.filter { l in
+                l.name.localizedCaseInsensitiveContains(query)
+                || l.subject.localizedCaseInsensitiveContains(query)
+                || l.group.localizedCaseInsensitiveContains(query)
+                || l.subheading.localizedCaseInsensitiveContains(query)
+                || l.writeUp.localizedCaseInsensitiveContains(query)
+            }
+        } else {
+            base = lessons
+            if let subject = selectedSubject {
+                base = base.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
+            }
+            if let group = selectedGroup {
+                base = base.filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
+            }
         }
 
         // Helpers for ordering
@@ -148,7 +161,27 @@ struct LessonsRootView: View {
         }
 
         // Sorting according to rules
-        if selectedGroup != nil {
+        if !query.isEmpty {
+            // When searching across all lessons: subject order, then group order within subject, then orderInGroup
+            return base.sorted { lhs, rhs in
+                let ls = subjectIndex[norm(lhs.subject)] ?? Int.max
+                let rs = subjectIndex[norm(rhs.subject)] ?? Int.max
+                if ls == rs {
+                    let lg = indexForGroup(lhs.group, inSubject: lhs.subject)
+                    let rg = indexForGroup(rhs.group, inSubject: rhs.subject)
+                    if lg == rg {
+                        if lhs.orderInGroup == rhs.orderInGroup {
+                            let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                            if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
+                            return nameOrder == .orderedAscending
+                        }
+                        return lhs.orderInGroup < rhs.orderInGroup
+                    }
+                    return lg < rg
+                }
+                return ls < rs
+            }
+        } else if selectedGroup != nil {
             // When filtered by group: order by orderInGroup
             return base.sorted { lhs, rhs in
                 if lhs.orderInGroup == rhs.orderInGroup {
@@ -218,7 +251,7 @@ struct LessonsRootView: View {
                     } else {
                         LessonsCardsGridView(
                             lessons: filteredLessons,
-                            isManualMode: selectedGroup != nil,
+                            isManualMode: (selectedGroup != nil) && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                             onTapLesson: { lesson in
                                 selectedLesson = lesson
                             },
@@ -377,18 +410,29 @@ struct LessonsRootView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
 
-            // All filter
-            SidebarFilterButton(
-                icon: "books.vertical.fill",
-                title: "All",
-                color: .accentColor,
-                isSelected: selectedSubject == nil
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    selectedSubject = nil
-                    selectedGroup = nil
+            // Search field replacing the previous "All" filter
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search all lessons", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
 
             ForEach(Array(subjects.enumerated()), id: \.element) { pair in
                 let index = pair.offset
