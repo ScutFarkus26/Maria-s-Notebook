@@ -93,6 +93,8 @@ struct LessonsRootView: View {
     @State private var importAlert: ImportAlert? = nil
 
     @State private var selectedSubject: String? = nil
+    @State private var selectedGroup: String? = nil
+    @State private var expandedSubjects: Set<String> = []
 
     @State private var pendingParsedImport: LessonCSVImporter.Parsed? = nil
     @State private var showingImportPreview: Bool = false
@@ -109,8 +111,14 @@ struct LessonsRootView: View {
     }
 
     private var filteredLessons: [Lesson] {
-        guard let subject = selectedSubject else { return lessons }
-        return lessons.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
+        var base = lessons
+        if let subject = selectedSubject {
+            base = base.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
+        }
+        if let group = selectedGroup {
+            base = base.filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
+        }
+        return base
     }
 
     var body: some View {
@@ -285,19 +293,48 @@ struct LessonsRootView: View {
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                     selectedSubject = nil
+                    selectedGroup = nil
                 }
             }
 
             // Individual subject filters based on data
             ForEach(subjects, id: \.self) { subject in
+                // Subject row with inline disclosure chevron
                 SidebarFilterButton(
-                    icon: "circle.fill",
+                    icon: "folder.fill",
                     title: subject,
                     color: subjectColor(for: subject),
-                    isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
+                    isSelected: (selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (selectedGroup == nil),
+                    trailingIcon: "chevron.right",
+                    trailingIconRotationDegrees: isExpanded(subject) ? 90 : 0,
+                    trailingIconAction: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                            toggleExpanded(subject)
+                        }
+                    }
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         selectedSubject = subject
+                        selectedGroup = nil
+                    }
+                }
+
+                // Group rows under this subject (indented, only when expanded)
+                if isExpanded(subject) {
+                    ForEach(groups(for: subject), id: \.self) { group in
+                        SidebarFilterButton(
+                            icon: "tag.fill",
+                            title: group,
+                            color: subjectColor(for: subject),
+                            isSelected: (selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (selectedGroup?.caseInsensitiveCompare(group) == .orderedSame)
+                        ) {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                                selectedSubject = subject
+                                selectedGroup = group
+                                if !isExpanded(subject) { toggleExpanded(subject) }
+                            }
+                        }
+                        .padding(.leading, 16)
                     }
                 }
             }
@@ -308,6 +345,30 @@ struct LessonsRootView: View {
         .padding(.leading, 16)
         .frame(width: 180, alignment: .topLeading)
         .background(Color.gray.opacity(0.08))
+    }
+
+    private func groups(for subject: String) -> [String] {
+        let trimmedSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let unique = Set(
+            lessons
+                .filter { $0.subject.caseInsensitiveCompare(trimmedSubject) == .orderedSame }
+                .map { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        )
+        return unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func isExpanded(_ subject: String) -> Bool {
+        expandedSubjects.contains(subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
+    private func toggleExpanded(_ subject: String) {
+        let key = subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if expandedSubjects.contains(key) {
+            expandedSubjects.remove(key)
+        } else {
+            expandedSubjects.insert(key)
+        }
     }
 
     private func subjectColor(for subject: String) -> Color {

@@ -12,6 +12,8 @@ final class Lesson: Identifiable {
     var subject: String
     /// Group or category (e.g., Decimal System)
     var group: String
+    /// Manual order within a group
+    var orderInGroup: Int = 0
     /// Short subheading/strapline
     var subheading: String
     /// Markdown or rich text source for the lesson write-up
