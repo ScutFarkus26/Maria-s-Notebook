@@ -15,20 +15,22 @@ struct BackupPayload: Codable {
     var students: [StudentDTO]
     var lessons: [LessonDTO]
     var studentLessons: [StudentLessonDTO]
+    var works: [WorkDTO]
     var subjectOrder: [String]
     var groupOrders: [String: [String]]
 
     private enum CodingKeys: String, CodingKey {
-        case version, createdAt, items, students, lessons, studentLessons, subjectOrder, groupOrders
+        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders
     }
 
-    init(version: Int, createdAt: Date, items: [ItemDTO], students: [StudentDTO], lessons: [LessonDTO], studentLessons: [StudentLessonDTO], subjectOrder: [String], groupOrders: [String: [String]]) {
+    init(version: Int, createdAt: Date, items: [ItemDTO], students: [StudentDTO], lessons: [LessonDTO], studentLessons: [StudentLessonDTO], works: [WorkDTO], subjectOrder: [String], groupOrders: [String: [String]]) {
         self.version = version
         self.createdAt = createdAt
         self.items = items
         self.students = students
         self.lessons = lessons
         self.studentLessons = studentLessons
+        self.works = works
         self.subjectOrder = subjectOrder
         self.groupOrders = groupOrders
     }
@@ -41,6 +43,7 @@ struct BackupPayload: Codable {
         self.students = try container.decode([StudentDTO].self, forKey: .students)
         self.lessons = try container.decodeIfPresent([LessonDTO].self, forKey: .lessons) ?? []
         self.studentLessons = try container.decodeIfPresent([StudentLessonDTO].self, forKey: .studentLessons) ?? []
+        self.works = try container.decodeIfPresent([WorkDTO].self, forKey: .works) ?? []
         self.subjectOrder = try container.decodeIfPresent([String].self, forKey: .subjectOrder) ?? []
         self.groupOrders = try container.decodeIfPresent([String: [String]].self, forKey: .groupOrders) ?? [:]
     }
@@ -113,11 +116,20 @@ struct StudentLessonDTO: Codable {
     var followUpWork: String
 }
 
+struct WorkDTO: Codable {
+    var id: UUID
+    var studentIDs: [UUID]
+    var workType: String
+    var studentLessonID: UUID?
+    var notes: String
+    var createdAt: Date
+}
+
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 4
+    static let currentVersion: Int = 5
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -179,6 +191,20 @@ enum BackupManager {
             )
         }
 
+        // Fetch all WorkModel objects
+        let worksFetch = FetchDescriptor<WorkModel>()
+        let works = try context.fetch(worksFetch)
+        let worksDTO: [WorkDTO] = works.map { w in
+            WorkDTO(
+                id: w.id,
+                studentIDs: w.studentIDs,
+                workType: w.workType.rawValue,
+                studentLessonID: w.studentLessonID,
+                notes: w.notes,
+                createdAt: w.createdAt
+            )
+        }
+
         // Compute subjects and per-subject group orders from current data and saved preferences
         let existingSubjects: [String] = Array(Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
         let subjectOrder: [String] = FilterOrderStore.loadSubjectOrder(existing: existingSubjects)
@@ -205,6 +231,7 @@ enum BackupManager {
             students: studentsDTO,
             lessons: lessonsDTO,
             studentLessons: studentLessonsDTO,
+            works: worksDTO,
             subjectOrder: subjectOrder,
             groupOrders: groupOrders
         )
@@ -281,6 +308,25 @@ enum BackupManager {
             context.insert(sl)
         }
         
+        // Insert Works (preserving IDs) if present
+        if !payload.works.isEmpty {
+            for dto in payload.works {
+                guard let workTypeEnum = WorkModel.WorkType(rawValue: dto.workType) else {
+                    // skip unknown workTypes
+                    continue
+                }
+                let work = WorkModel(
+                    id: dto.id,
+                    studentIDs: dto.studentIDs,
+                    workType: workTypeEnum,
+                    studentLessonID: dto.studentLessonID,
+                    notes: dto.notes,
+                    createdAt: dto.createdAt
+                )
+                context.insert(work)
+            }
+        }
+
         // Backward compatibility: synthesize unscheduled StudentLesson records if missing but nextLessons present
         if payload.studentLessons.isEmpty {
             let existingLessonIDs = Set(try context.fetch(FetchDescriptor<Lesson>()).map { $0.id })
@@ -317,7 +363,7 @@ enum BackupManager {
         try context.save()
     }
 
-    /// Delete all Items, Lessons, and Students from the store.
+    /// Delete all Items, Lessons, Students, StudentLessons and Works from the store.
     static func deleteAll(using context: ModelContext) throws {
         // Delete Items
         do {
@@ -339,6 +385,12 @@ enum BackupManager {
             let sls = try context.fetch(FetchDescriptor<StudentLesson>())
             for obj in sls { context.delete(obj) }
         }
+        // Delete Works
+        do {
+            let works = try context.fetch(FetchDescriptor<WorkModel>())
+            for obj in works { context.delete(obj) }
+        }
         try context.save()
     }
 }
+

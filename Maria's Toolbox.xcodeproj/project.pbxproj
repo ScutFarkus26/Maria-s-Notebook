@@ -19,6 +19,7 @@
 		51C6CD9F2EDB3DAD00DCA067 /* StudentsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */; };
 		51C6CDA12EDB454400DCA067 /* StudentsTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */; };
 		51C6CDA32EDB622C00DCA067 /* StudentLessonsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */; };
+		51C6CE972EDBAC9400DCA067 /* WorkModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CE962EDBAC9400DCA067 /* WorkModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +36,7 @@
 		51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsViewModel.swift; sourceTree = "<group>"; };
 		51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsTypes.swift; sourceTree = "<group>"; };
 		51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonsRootView.swift; sourceTree = "<group>"; };
+		51C6CE962EDBAC9400DCA067 /* WorkModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -86,6 +88,7 @@
 				51C6CD9E2EDB3DAD00DCA067 /* StudentsViewModel.swift */,
 				51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */,
 				51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */,
+				51C6CE962EDBAC9400DCA067 /* WorkModel.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -182,6 +185,7 @@
 				5166D2BC2ED9F6A8005980B7 /* AddLessonView.swift in Sources */,
 				51341B992EDA6D9400088D80 /* AppColors.swift in Sources */,
 				51341B972EDA6CC200088D80 /* AgeUtils.swift in Sources */,
+				51C6CE972EDBAC9400DCA067 /* WorkModel.swift in Sources */,
 				51C6CD5A2EDAB1BC00DCA067 /* FilterOrderStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
