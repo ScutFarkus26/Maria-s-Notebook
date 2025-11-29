@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct DatabaseStat: Identifiable, Equatable {
+struct MTSummaryStat: Identifiable, Equatable {
     let id = UUID()
     let title: String
     let value: String
@@ -9,8 +9,8 @@ struct DatabaseStat: Identifiable, Equatable {
     let progress: Double? // Optional 0.0 ... 1.0
 }
 
-struct DatabaseStatsStrip: View {
-    let stats: [DatabaseStat]
+struct MTSummaryStrip: View {
+    let stats: [MTSummaryStat]
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -26,7 +26,7 @@ struct DatabaseStatsStrip: View {
     }
 
     private struct StatCard: View {
-        let stat: DatabaseStat
+        let stat: MTSummaryStat
 
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
@@ -68,11 +68,11 @@ struct DatabaseStatsStrip: View {
 }
 
 #Preview {
-    DatabaseStatsStrip(stats: [
-        DatabaseStat(title: "Records", value: "12,480", icon: "📦", tint: .blue, progress: nil),
-        DatabaseStat(title: "Storage", value: "245 MB", icon: "💾", tint: .purple, progress: 0.62),
-        DatabaseStat(title: "Last Sync", value: "2h ago", icon: "🔄", tint: .green, progress: nil),
-        DatabaseStat(title: "Errors", value: "0", icon: "✅", tint: .teal, progress: 1.0)
+    MTSummaryStrip(stats: [
+        MTSummaryStat(title: "Records", value: "12,480", icon: "📦", tint: .blue, progress: nil),
+        MTSummaryStat(title: "Storage", value: "245 MB", icon: "💾", tint: .purple, progress: 0.62),
+        MTSummaryStat(title: "Last Sync", value: "2h ago", icon: "🔄", tint: .green, progress: nil),
+        MTSummaryStat(title: "Errors", value: "0", icon: "✅", tint: .teal, progress: 1.0)
     ])
-    .frame(maxWidth: .infinity, maxHeight: 140)
+    .frame(maxWidth: CGFloat.infinity, maxHeight: 140)
 }

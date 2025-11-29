@@ -15,18 +15,22 @@ struct BackupPayload: Codable {
     var students: [StudentDTO]
     var lessons: [LessonDTO]
     var studentLessons: [StudentLessonDTO]
+    var subjectOrder: [String]
+    var groupOrders: [String: [String]]
 
     private enum CodingKeys: String, CodingKey {
-        case version, createdAt, items, students, lessons, studentLessons
+        case version, createdAt, items, students, lessons, studentLessons, subjectOrder, groupOrders
     }
 
-    init(version: Int, createdAt: Date, items: [ItemDTO], students: [StudentDTO], lessons: [LessonDTO], studentLessons: [StudentLessonDTO]) {
+    init(version: Int, createdAt: Date, items: [ItemDTO], students: [StudentDTO], lessons: [LessonDTO], studentLessons: [StudentLessonDTO], subjectOrder: [String], groupOrders: [String: [String]]) {
         self.version = version
         self.createdAt = createdAt
         self.items = items
         self.students = students
         self.lessons = lessons
         self.studentLessons = studentLessons
+        self.subjectOrder = subjectOrder
+        self.groupOrders = groupOrders
     }
 
     init(from decoder: Decoder) throws {
@@ -35,9 +39,10 @@ struct BackupPayload: Codable {
         self.createdAt = try container.decode(Date.self, forKey: .createdAt)
         self.items = try container.decode([ItemDTO].self, forKey: .items)
         self.students = try container.decode([StudentDTO].self, forKey: .students)
-        // Default to empty if missing (backward compatibility with v1 backups)
         self.lessons = try container.decodeIfPresent([LessonDTO].self, forKey: .lessons) ?? []
         self.studentLessons = try container.decodeIfPresent([StudentLessonDTO].self, forKey: .studentLessons) ?? []
+        self.subjectOrder = try container.decodeIfPresent([String].self, forKey: .subjectOrder) ?? []
+        self.groupOrders = try container.decodeIfPresent([String: [String]].self, forKey: .groupOrders) ?? [:]
     }
 }
 
@@ -65,8 +70,34 @@ struct LessonDTO: Codable {
     var name: String
     var subject: String
     var group: String
+    var orderInGroup: Int
     var subheading: String
     var writeUp: String
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, subject, group, orderInGroup, subheading, writeUp
+    }
+
+    init(id: UUID, name: String, subject: String, group: String, orderInGroup: Int, subheading: String, writeUp: String) {
+        self.id = id
+        self.name = name
+        self.subject = subject
+        self.group = group
+        self.orderInGroup = orderInGroup
+        self.subheading = subheading
+        self.writeUp = writeUp
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.subject = try container.decode(String.self, forKey: .subject)
+        self.group = try container.decode(String.self, forKey: .group)
+        self.orderInGroup = try container.decodeIfPresent(Int.self, forKey: .orderInGroup) ?? 0
+        self.subheading = try container.decode(String.self, forKey: .subheading)
+        self.writeUp = try container.decode(String.self, forKey: .writeUp)
+    }
 }
 
 struct StudentLessonDTO: Codable {
@@ -86,7 +117,7 @@ struct StudentLessonDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 3
+    static let currentVersion: Int = 4
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -124,6 +155,7 @@ enum BackupManager {
                 name: l.name,
                 subject: l.subject,
                 group: l.group,
+                orderInGroup: l.orderInGroup,
                 subheading: l.subheading,
                 writeUp: l.writeUp
             )
@@ -147,13 +179,34 @@ enum BackupManager {
             )
         }
 
+        // Compute subjects and per-subject group orders from current data and saved preferences
+        let existingSubjects: [String] = Array(Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
+        let subjectOrder: [String] = FilterOrderStore.loadSubjectOrder(existing: existingSubjects)
+
+        func groups(for subject: String) -> [String] {
+            let gs = lessons
+                .filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
+                .map { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            return Array(Set(gs)).sorted()
+        }
+
+        var groupOrders: [String: [String]] = [:]
+        for subject in subjectOrder {
+            let existingGroups = groups(for: subject)
+            let order = FilterOrderStore.loadGroupOrder(for: subject, existing: existingGroups)
+            if !order.isEmpty { groupOrders[subject] = order }
+        }
+
         let payload = BackupPayload(
             version: currentVersion,
             createdAt: Date(),
             items: itemsDTO,
             students: studentsDTO,
             lessons: lessonsDTO,
-            studentLessons: studentLessonsDTO
+            studentLessons: studentLessonsDTO,
+            subjectOrder: subjectOrder,
+            groupOrders: groupOrders
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -192,6 +245,7 @@ enum BackupManager {
                 subheading: dto.subheading,
                 writeUp: dto.writeUp
             )
+            lesson.orderInGroup = dto.orderInGroup
             context.insert(lesson)
         }
 
@@ -247,6 +301,16 @@ enum BackupManager {
                     )
                     context.insert(sl)
                 }
+            }
+        }
+
+        // Restore subject and group ordering preferences if present
+        if !payload.subjectOrder.isEmpty {
+            FilterOrderStore.saveSubjectOrder(payload.subjectOrder)
+        }
+        if !payload.groupOrders.isEmpty {
+            for (subject, order) in payload.groupOrders {
+                FilterOrderStore.saveGroupOrder(order, for: subject)
             }
         }
 
