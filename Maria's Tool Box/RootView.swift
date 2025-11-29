@@ -103,6 +103,8 @@ struct LessonsRootView: View {
     @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
     @State private var searchText: String = ""
 
+    @State private var givingLessonFromDetail: Lesson? = nil
+
     private struct ImportAlert: Identifiable {
         let id = UUID()
         let title: String
@@ -268,6 +270,9 @@ struct LessonsRootView: View {
                                     l.orderInGroup = idx
                                 }
                                 try? modelContext.save()
+                            },
+                            onGiveLesson: { lesson in
+                                selectedLesson = lesson
                             }
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -323,7 +328,8 @@ struct LessonsRootView: View {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                                 selectedLesson = nil
                             }
-                        }
+                        },
+                        onGiveLesson: { _ in givingLessonFromDetail = selected }
                     )
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.98).combined(with: .opacity),
@@ -335,6 +341,11 @@ struct LessonsRootView: View {
         }
         .sheet(isPresented: $showingAddLesson) {
             AddLessonView()
+        }
+        .sheet(item: $givingLessonFromDetail) { lesson in
+            GiveLessonSheet(lesson: lesson) {
+                givingLessonFromDetail = nil
+            }
         }
         .fileImporter(
             isPresented: $showingLessonCSVImporter,

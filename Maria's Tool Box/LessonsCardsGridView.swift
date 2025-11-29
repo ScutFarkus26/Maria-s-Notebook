@@ -19,6 +19,21 @@ struct LessonsCardsGridView: View {
     let onTapLesson: (Lesson) -> Void
     // Optional reorder callback; if provided and manual mode is enabled, supports drag reordering
     let onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)?
+    let onGiveLesson: ((Lesson) -> Void)?
+
+    init(
+        lessons: [Lesson],
+        isManualMode: Bool,
+        onTapLesson: @escaping (Lesson) -> Void,
+        onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)? = nil,
+        onGiveLesson: ((Lesson) -> Void)? = nil
+    ) {
+        self.lessons = lessons
+        self.isManualMode = isManualMode
+        self.onTapLesson = onTapLesson
+        self.onReorder = onReorder
+        self.onGiveLesson = onGiveLesson
+    }
 
     @State private var draggingLessonID: UUID?
     @State private var hoverTargetID: UUID?
@@ -68,6 +83,13 @@ struct LessonsCardsGridView: View {
                         .onTapGesture { onTapLesson(lesson) }
                         .when(isManualMode && onReorder != nil) { view in
                             view.simultaneousGesture(longPressThenDrag(for: lesson))
+                        }
+                        .contextMenu {
+                            Button {
+                                onGiveLesson?(lesson)
+                            } label: {
+                                Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+                            }
                         }
                 }
             }
@@ -232,6 +254,7 @@ private struct LessonCard: View {
         ],
         isManualMode: true,
         onTapLesson: { _ in },
-        onReorder: { _,_,_,_ in }
+        onReorder: { _,_,_,_ in },
+        onGiveLesson: nil
     )
 }

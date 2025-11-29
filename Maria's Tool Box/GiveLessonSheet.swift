@@ -39,29 +39,9 @@ struct GiveLessonSheet: View {
                 }
                 
                 Section {
-                    Toggle("Schedule for a date", isOn: Binding(
-                        get: { scheduledFor != nil },
-                        set: { v in scheduledFor = v ? Date() : nil }
-                    ))
-                    if let _ = scheduledFor {
-                        DatePicker("Date", selection: Binding(
-                            get: { scheduledFor ?? Date() },
-                            set: { scheduledFor = $0 }
-                        ), displayedComponents: .date)
-                    }
-                }
-                
-                Section {
-                    Toggle("Mark as given", isOn: Binding(
-                        get: { givenAt != nil },
-                        set: { v in givenAt = v ? Date() : nil }
-                    ))
-                    if let _ = givenAt {
-                        DatePicker("Date", selection: Binding(
-                            get: { givenAt ?? Date() },
-                            set: { givenAt = $0 }
-                        ), displayedComponents: .date)
-                    }
+                    Text("This student lesson will be created as unscheduled and appear in Ready to Schedule.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Section("Notes") {
@@ -98,12 +78,12 @@ struct GiveLessonSheet: View {
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
             studentIDs: Array(selectedStudentIDs),
-            scheduledFor: scheduledFor,
-            givenAt: givenAt,
-            notes: notes.isEmpty ? nil : notes,
+            scheduledFor: nil,
+            givenAt: nil,
+            notes: notes,
             needsPractice: needsPractice,
             needsAnotherPresentation: needsAnotherPresentation,
-            followUpWork: followUpWork.isEmpty ? nil : followUpWork
+            followUpWork: followUpWork
         )
         
         modelContext.insert(studentLesson)

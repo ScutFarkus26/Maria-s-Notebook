@@ -22,10 +22,10 @@ struct StudentLessonDetailView: View {
         self.onDone = onDone
         _scheduledFor = State(initialValue: studentLesson.scheduledFor)
         _givenAt = State(initialValue: studentLesson.givenAt)
-        _notes = State(initialValue: studentLesson.notes ?? "")
+        _notes = State(initialValue: studentLesson.notes)
         _needsPractice = State(initialValue: studentLesson.needsPractice)
         _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
-        _followUpWork = State(initialValue: studentLesson.followUpWork ?? "")
+        _followUpWork = State(initialValue: studentLesson.followUpWork)
     }
 
     var body: some View {
@@ -41,7 +41,7 @@ struct StudentLessonDetailView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {
                             ForEach(associatedStudents, id: \.id) { student in
-                                Text(student.name)
+                                Text(student.fullName)
                                     .padding(.vertical, 4)
                                     .padding(.horizontal, 8)
                                     .background(Color.accentColor.opacity(0.2))
@@ -104,24 +104,32 @@ struct StudentLessonDetailView: View {
                 }
             }
             .navigationTitle("Lesson Details")
-            .toolbar {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button(role: .destructive) {
-                        delete()
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 0) {
+                    Divider()
+                    HStack {
+                        Button(role: .destructive) {
+                            delete()
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
 
-                    Spacer()
+                        Spacer()
 
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                        Button("Cancel") {
+                            dismiss()
+                        }
 
-                    Button("Save") {
-                        save()
+                        Button("Save") {
+                            save()
+                        }
+                        .bold()
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
                     }
-                    .bold()
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(.bar)
                 }
             }
         }
@@ -130,10 +138,10 @@ struct StudentLessonDetailView: View {
     private func save() {
         studentLesson.scheduledFor = scheduledFor
         studentLesson.givenAt = givenAt
-        studentLesson.notes = notes.isEmpty ? nil : notes
+        studentLesson.notes = notes
         studentLesson.needsPractice = needsPractice
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.followUpWork = followUpWork.isEmpty ? nil : followUpWork
+        studentLesson.followUpWork = followUpWork
 
         do {
             try modelContext.save()

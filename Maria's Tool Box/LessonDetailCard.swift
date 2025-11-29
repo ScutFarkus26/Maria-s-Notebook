@@ -5,6 +5,7 @@ struct LessonDetailCard: View {
     var lesson: Lesson
     var onSave: (Lesson) -> Void
     var onClose: () -> Void
+    var onGiveLesson: ((Lesson) -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
 
@@ -96,6 +97,9 @@ struct LessonDetailCard: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 } else {
+                    Button("Give Lesson") {
+                        onGiveLesson?(lesson)
+                    }
                     Button("Edit") {
                         seedDrafts()
                         isEditing = true
@@ -224,7 +228,7 @@ struct LessonDetailCard: View {
     LessonDetailCard(
         lesson: Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "A foundational presentation of the decimal system."),
         onSave: { _ in },
-        onClose: {}
+        onClose: {}, onGiveLesson: nil
     )
     .padding()
     .frame(maxWidth: .infinity, maxHeight: .infinity)
