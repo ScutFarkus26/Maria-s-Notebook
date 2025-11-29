@@ -99,6 +99,9 @@ struct LessonsRootView: View {
     @State private var pendingParsedImport: LessonCSVImporter.Parsed? = nil
     @State private var showingImportPreview: Bool = false
 
+    @State private var subjectDragState: (from: Int?, to: Int?) = (nil, nil)
+    @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
+
     private struct ImportAlert: Identifiable {
         let id = UUID()
         let title: String
@@ -107,7 +110,8 @@ struct LessonsRootView: View {
 
     private var subjects: [String] {
         let unique = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })
-        return unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        return FilterOrderStore.loadSubjectOrder(existing: existing)
     }
 
     private var filteredLessons: [Lesson] {
@@ -297,9 +301,9 @@ struct LessonsRootView: View {
                 }
             }
 
-            // Individual subject filters based on data
-            ForEach(subjects, id: \.self) { subject in
-                // Subject row with inline disclosure chevron
+            ForEach(Array(subjects.enumerated()), id: \.element) { pair in
+                let index = pair.offset
+                let subject = pair.element
                 SidebarFilterButton(
                     icon: "folder.fill",
                     title: subject,
@@ -318,10 +322,27 @@ struct LessonsRootView: View {
                         selectedGroup = nil
                     }
                 }
+                .onDrag {
+                    self.subjectDragState.from = index
+                    return NSItemProvider(object: NSString(string: subject))
+                }
+                .onDrop(of: [UTType.text], delegate: SubjectDropDelegate(
+                    index: index,
+                    currentItems: subjects,
+                    dragState: $subjectDragState,
+                    onReorder: { from, to in
+                        var new = subjects
+                        let item = new.remove(at: from)
+                        new.insert(item, at: to)
+                        FilterOrderStore.saveSubjectOrder(new)
+                    }
+                ))
 
-                // Group rows under this subject (indented, only when expanded)
                 if isExpanded(subject) {
-                    ForEach(groups(for: subject), id: \.self) { group in
+                    let groupsForSubject = groups(for: subject)
+                    ForEach(Array(groupsForSubject.enumerated()), id: \.element) { gpair in
+                        let gindex = gpair.offset
+                        let group = gpair.element
                         SidebarFilterButton(
                             icon: "tag.fill",
                             title: group,
@@ -335,6 +356,26 @@ struct LessonsRootView: View {
                             }
                         }
                         .padding(.leading, 16)
+                        .onDrag {
+                            self.groupDragState[subject, default: (nil,nil)].from = gindex
+                            return NSItemProvider(object: NSString(string: group))
+                        }
+                        .onDrop(of: [UTType.text], delegate: GroupDropDelegate(
+                            subject: subject,
+                            index: gindex,
+                            currentItems: groupsForSubject,
+                            dragState: Binding(get: {
+                                groupDragState[subject, default: (nil,nil)]
+                            }, set: { newValue in
+                                groupDragState[subject] = newValue
+                            }),
+                            onReorder: { from, to in
+                                var new = groupsForSubject
+                                let item = new.remove(at: from)
+                                new.insert(item, at: to)
+                                FilterOrderStore.saveGroupOrder(new, for: subject)
+                            }
+                        ))
                     }
                 }
             }
@@ -355,7 +396,8 @@ struct LessonsRootView: View {
                 .map { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
         )
-        return unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        return FilterOrderStore.loadGroupOrder(for: trimmedSubject, existing: existing)
     }
 
     private func isExpanded(_ subject: String) -> Bool {
@@ -383,6 +425,45 @@ struct LessonsRootView: View {
         ]
         for l in samples { modelContext.insert(l) }
         try? modelContext.save()
+    }
+
+    struct SubjectDropDelegate: DropDelegate {
+        let index: Int
+        let currentItems: [String]
+        @Binding var dragState: (from: Int?, to: Int?)
+        let onReorder: (Int, Int) -> Void
+
+        func validateDrop(info: DropInfo) -> Bool { true }
+        func dropEntered(info: DropInfo) {
+            guard let from = dragState.from, from != index else { return }
+            dragState.to = index
+        }
+        func performDrop(info: DropInfo) -> Bool {
+            guard let from = dragState.from, let to = dragState.to else { dragState = (nil,nil); return false }
+            dragState = (nil,nil)
+            if from != to { onReorder(from, to) }
+            return true
+        }
+    }
+
+    struct GroupDropDelegate: DropDelegate {
+        let subject: String
+        let index: Int
+        let currentItems: [String]
+        @Binding var dragState: (from: Int?, to: Int?)
+        let onReorder: (Int, Int) -> Void
+
+        func validateDrop(info: DropInfo) -> Bool { true }
+        func dropEntered(info: DropInfo) {
+            guard let from = dragState.from, from != index else { return }
+            dragState.to = index
+        }
+        func performDrop(info: DropInfo) -> Bool {
+            guard let from = dragState.from, let to = dragState.to else { dragState = (nil,nil); return false }
+            dragState = (nil,nil)
+            if from != to { onReorder(from, to) }
+            return true
+        }
     }
 }
 
