@@ -31,7 +31,7 @@ struct PlanningWeekView: View {
                 Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        WeekGrid(days: days)
+                        WeekGrid(days: days, onSelectLesson: { sl in selectedLessonForDetail = sl })
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 20)
@@ -182,6 +182,7 @@ struct PlanningWeekView: View {
 private struct WeekGrid: View {
     @Environment(\.calendar) private var calendar
     let days: [Date]
+    let onSelectLesson: (StudentLesson) -> Void
 
     private var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(minimum: 160), spacing: 24), count: 5)
@@ -190,7 +191,7 @@ private struct WeekGrid: View {
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
             ForEach(days, id: \.self) { day in
-                DayColumn(day: day)
+                DayColumn(day: day, onSelectLesson: onSelectLesson)
             }
         }
     }
@@ -200,6 +201,7 @@ private struct WeekGrid: View {
 private struct DayColumn: View {
     @Environment(\.calendar) private var calendar
     let day: Date
+    let onSelectLesson: (StudentLesson) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -216,14 +218,14 @@ private struct DayColumn: View {
             Text("Morning")
                 .font(.system(size: 12, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
-            DropZone(day: day, period: .morning)
+            DropZone(day: day, period: .morning, onSelectLesson: onSelectLesson)
                 .frame(minHeight: 220)
 
             // Afternoon
             Text("Afternoon")
                 .font(.system(size: 12, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
-            DropZone(day: day, period: .afternoon)
+            DropZone(day: day, period: .afternoon, onSelectLesson: onSelectLesson)
                 .frame(minHeight: 220)
         }
     }
@@ -250,6 +252,7 @@ private struct DropZone: View {
 
     let day: Date
     let period: DayPeriod
+    let onSelectLesson: (StudentLesson) -> Void
 
     private var scheduledLessonsForSlot: [StudentLesson] {
         studentLessons.filter { sl in
@@ -286,6 +289,14 @@ private struct DropZone: View {
                 } else {
                     ForEach(scheduledLessonsForSlot, id: \.id) { sl in
                         StudentLessonPill(lesson: sl)
+                            .contextMenu {
+                                Button {
+                                    onSelectLesson(sl)
+                                } label: {
+                                    Label("Open Details", systemImage: "info.circle")
+                                }
+                            }
+                            .onTapGesture { onSelectLesson(sl) }
                     }
                 }
             }
@@ -422,4 +433,3 @@ struct StudentLessonPill: View {
     PlanningWeekView()
         .frame(minWidth: 1000, minHeight: 600)
 }
-

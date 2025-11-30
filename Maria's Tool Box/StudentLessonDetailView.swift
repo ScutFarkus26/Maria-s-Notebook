@@ -17,6 +17,9 @@ struct StudentLessonDetailView: View {
     @State private var needsAnotherPresentation: Bool
     @State private var followUpWork: String
 
+    @State private var selectedStudentIDs: Set<UUID> = []
+    @State private var showingAddStudentSheet = false
+
     @State private var showDeleteAlert = false
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
@@ -28,6 +31,7 @@ struct StudentLessonDetailView: View {
         _needsPractice = State(initialValue: studentLesson.needsPractice)
         _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
         _followUpWork = State(initialValue: studentLesson.followUpWork)
+        _selectedStudentIDs = State(initialValue: Set(studentLesson.studentIDs))
     }
 
     private var lessonObject: Lesson? {
@@ -46,8 +50,10 @@ struct StudentLessonDetailView: View {
         AppColors.color(forSubject: subject)
     }
 
-    private var associatedStudents: [Student] {
-        studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
+    private var selectedStudentsList: [Student] {
+        studentsAll
+            .filter { selectedStudentIDs.contains($0.id) }
+            .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
     }
 
     private func displayName(for student: Student) -> String {
@@ -139,6 +145,9 @@ struct StudentLessonDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .sheet(isPresented: $showingAddStudentSheet) {
+            AddStudentView()
+        }
     }
 
     private var summarySection: some View {
@@ -147,7 +156,7 @@ struct StudentLessonDetailView: View {
                 .font(.system(size: AppTheme.FontSize.titleLarge, weight: .heavy, design: .rounded))
                 .multilineTextAlignment(.center)
 
-            HStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 if !subject.isEmpty {
                     Text(subject)
                         .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
@@ -162,21 +171,58 @@ struct StudentLessonDetailView: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(associatedStudents, id: \.id) { student in
-                            Text(displayName(for: student))
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .foregroundColor(subjectColor)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(subjectColor.opacity(0.15))
-                                )
+                        ForEach(selectedStudentsList, id: \.id) { student in
+                            HStack(spacing: 6) {
+                                Text(displayName(for: student))
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                Button {
+                                    selectedStudentIDs.remove(student.id)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 12, weight: .semibold))
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(subjectColor)
+                                .accessibilityLabel("Remove \(displayName(for: student))")
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .foregroundColor(subjectColor)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(subjectColor.opacity(0.15))
+                            )
                         }
                     }
                 }
+
+                Spacer(minLength: 0)
+
+                Menu {
+                    ForEach(studentsAll) { student in
+                        let isSelected = selectedStudentIDs.contains(student.id)
+                        Button {
+                            if isSelected {
+                                selectedStudentIDs.remove(student.id)
+                            } else {
+                                selectedStudentIDs.insert(student.id)
+                            }
+                        } label: {
+                            Label(displayName(for: student), systemImage: isSelected ? "checkmark" : "person")
+                        }
+                    }
+                    Divider()
+                    Button {
+                        showingAddStudentSheet = true
+                    } label: {
+                        Label("New Student…", systemImage: "plus")
+                    }
+                } label: {
+                    Label("Add/Remove Students", systemImage: "person.2.badge.plus")
+                        .labelStyle(.titleAndIcon)
+                }
+                .menuStyle(.borderlessButton)
             }
-            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity)
     }
@@ -309,6 +355,7 @@ struct StudentLessonDetailView: View {
         studentLesson.needsPractice = needsPractice
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
         studentLesson.followUpWork = followUpWork
+        studentLesson.studentIDs = Array(selectedStudentIDs)
 
         do {
             try modelContext.save()

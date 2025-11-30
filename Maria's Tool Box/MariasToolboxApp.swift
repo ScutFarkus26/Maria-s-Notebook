@@ -7,9 +7,20 @@
 
 import SwiftUI
 import SwiftData
+#if os(macOS)
+import AppKit
+#endif
 
 @main
 struct MariasToolboxApp: App {
+    init() {
+        #if os(macOS)
+        if let icon = NSImage(named: NSImage.applicationIconName) {
+            NSApplication.shared.applicationIconImage = icon
+        }
+        #endif
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
