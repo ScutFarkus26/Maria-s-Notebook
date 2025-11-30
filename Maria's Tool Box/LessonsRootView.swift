@@ -6,6 +6,10 @@ struct LessonsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
     @State private var selectedLesson: Lesson? = nil
+
+    @State private var isShowingLessonDetail = false
+    @State private var lessonDetailMode: LessonDetailInitialMode = .normal
+
     @State private var showingAddLesson: Bool = false
 
     @State private var showingLessonCSVImporter = false
@@ -102,7 +106,13 @@ struct LessonsRootView: View {
                             selectedLesson = nil
                         }
                     },
-                    onGiveLesson: { _ in givingLessonFromDetailID = selected.id }
+                    onGiveLesson: { _ in
+                        givingLessonFromDetailID = selected.id
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            selectedLesson = nil
+                        }
+                    },
+                    initialMode: lessonDetailMode
                 )
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.98).combined(with: .opacity),
@@ -208,12 +218,14 @@ struct LessonsRootView: View {
                             isManualMode: isManualMode,
                             onTapLesson: { (lesson: Lesson) in
                                 selectedLesson = lesson
+                                lessonDetailMode = .normal
                             },
                             onReorder: { (movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson]) in
                                 reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
                             },
                             onGiveLesson: { (lesson: Lesson) in
                                 selectedLesson = lesson
+                                lessonDetailMode = .giveLesson
                             }
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)

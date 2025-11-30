@@ -253,6 +253,8 @@ private struct DropZone: View {
     @Environment(\.calendar) private var calendar
     @Query private var studentLessons: [StudentLesson]
     @State private var isTargeted: Bool = false
+    @State private var itemFrames: [UUID: CGRect] = [:]
+    @State private var zoneSpaceID = UUID()
 
     let day: Date
     let period: DayPeriod
@@ -301,24 +303,73 @@ private struct DropZone: View {
                                 }
                             }
                             .onTapGesture { onSelectLesson(sl) }
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear.preference(
+                                        key: PillFramePreference.self,
+                                        value: [sl.id: proxy.frame(in: .named(zoneSpaceID))]
+                                    )
+                                }
+                            )
                     }
                 }
             }
             .padding(12)
         }
+        .coordinateSpace(name: zoneSpaceID)
+        .onPreferenceChange(PillFramePreference.self) { frames in
+            itemFrames = frames
+        }
         .contentShape(Rectangle())
-        .dropDestination(for: String.self, action: { items, _ in
+        .dropDestination(for: String.self, action: { items, location in
             guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
-            if let sl = studentLessons.first(where: { $0.id == id }) {
-                sl.scheduledFor = dateForSlot(day: day, period: period)
-                do {
-                    try modelContext.save()
-                } catch {
-                    return false
+            guard let sl = studentLessons.first(where: { $0.id == id }) else { return false }
+            let current = scheduledLessonsForSlot
+            var ids = current.map { $0.id }
+
+            // determine insertion index based on drop location y and frames
+            let sortedFrames: [(UUID, CGRect)] = current.compactMap { item in
+                if let rect = itemFrames[item.id] {
+                    return (item.id, rect)
                 }
-                return true
+                return nil
             }
-            return false
+
+            let insertionIndex: Int = {
+                let ordered = sortedFrames.sorted { $0.1.minY < $1.1.minY }
+                for (idx, pair) in ordered.enumerated() {
+                    let rect = pair.1
+                    let midY = rect.midY
+                    if location.y < midY {
+                        return idx
+                    }
+                }
+                return ordered.count
+            }()
+
+            // Remove the moved id if exists
+            if let existingIndex = ids.firstIndex(of: sl.id) {
+                ids.remove(at: existingIndex)
+            }
+            // Insert at insertionIndex bounded
+            let boundedIndex = max(0, min(insertionIndex, ids.count))
+            ids.insert(sl.id, at: boundedIndex)
+
+            // Compute base date for slot
+            let base = dateForSlot(day: day, period: period)
+
+            for (idx, id) in ids.enumerated() {
+                if let item = studentLessons.first(where: { $0.id == id }) {
+                    item.scheduledFor = calendar.date(byAdding: .second, value: idx, to: base)
+                }
+            }
+
+            do {
+                try modelContext.save()
+            } catch {
+                return false
+            }
+            return true
         }, isTargeted: { hovering in
             isTargeted = hovering
         })
@@ -344,6 +395,13 @@ private struct DropZone: View {
             hour = 14 // 2 PM for afternoon
         }
         return calendar.date(byAdding: .hour, value: hour, to: startOfDay) ?? startOfDay
+    }
+
+    private struct PillFramePreference: PreferenceKey {
+        static var defaultValue: [UUID: CGRect] = [:]
+        static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+            value.merge(nextValue(), uniquingKeysWith: { $1 })
+        }
     }
 }
 
@@ -403,17 +461,21 @@ struct StudentLessonPill: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(lessonName)
                     .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
 
                 if !studentLine.isEmpty {
                     Text(studentLine)
                         .font(.system(size: AppTheme.FontSize.captionSmall, weight: .regular, design: .rounded))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                        .lineLimit(nil)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .lineSpacing(2)
 
             Spacer(minLength: 0)
         }

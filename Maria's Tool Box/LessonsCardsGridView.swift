@@ -62,42 +62,34 @@ struct LessonsCardsGridView: View {
                     let isDragging = isManualMode && draggingLessonID == lesson.id
                     let isHover = hoverTargetID == lesson.id
 
-                    LessonCard(lesson: lesson)
-                        .matchedGeometryEffect(id: lesson.id, in: gridNamespace)
-                        .when(hasAppeared) { view in
-                            view.transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    LessonCardContainer(
+                        lesson: lesson,
+                        isDragging: isDragging,
+                        isHover: isHover,
+                        hasAppeared: hasAppeared,
+                        gridNamespace: gridNamespace,
+                        disableAnimations: draggingLessonID != nil
+                    )
+#if os(macOS)
+                    .highPriorityGesture(TapGesture(count: 1).onEnded { onTapLesson(lesson) })
+#else
+                    .onTapGesture { onTapLesson(lesson) }
+#endif
+                    .when(isManualMode && onReorder != nil) { view in
+                        view.simultaneousGesture(longPressThenDrag(for: lesson))
+                    }
+#if os(macOS)
+                    .overlay(RightClickCatcher(onRightClick: { onGiveLesson?(lesson) }))
+#endif
+#if !os(macOS)
+                    .contextMenu {
+                        Button {
+                            onGiveLesson?(lesson)
+                        } label: {
+                            Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
                         }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(isDragging ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 2)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(isHover ? Color.accentColor.opacity(0.35) : Color.clear, style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
-                        )
-                        .transaction { tx in
-                            if draggingLessonID != nil { tx.animation = nil }
-                        }
-                        .contentShape(Rectangle())
-                        .background(
-                            GeometryReader { proxy in
-                                Color.clear.preference(
-                                    key: ItemFramePreference.self,
-                                    value: [lesson.id: proxy.frame(in: .named("lessonsGridScroll"))]
-                                )
-                            }
-                        )
-                        .onTapGesture { onTapLesson(lesson) }
-                        .when(isManualMode && onReorder != nil) { view in
-                            view.simultaneousGesture(longPressThenDrag(for: lesson))
-                        }
-                        .contextMenu {
-                            Button {
-                                onGiveLesson?(lesson)
-                            } label: {
-                                Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
-                            }
-                        }
+                    }
+#endif
                 }
             }
             .transaction { tx in
@@ -190,6 +182,43 @@ private struct ItemFramePreference: PreferenceKey {
     }
 }
 
+private struct LessonCardContainer: View {
+    let lesson: Lesson
+    let isDragging: Bool
+    let isHover: Bool
+    let hasAppeared: Bool
+    let gridNamespace: Namespace.ID
+    let disableAnimations: Bool
+
+    var body: some View {
+        LessonCard(lesson: lesson)
+            .matchedGeometryEffect(id: lesson.id, in: gridNamespace)
+            .when(hasAppeared) { view in
+                view.transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isDragging ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isHover ? Color.accentColor.opacity(0.35) : Color.clear, style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+            )
+            .transaction { tx in
+                if disableAnimations { tx.animation = nil }
+            }
+            .contentShape(Rectangle())
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: ItemFramePreference.self,
+                        value: [lesson.id: proxy.frame(in: .named("lessonsGridScroll"))]
+                    )
+                }
+            )
+    }
+}
+
 // MARK: - Lesson Card
 private struct LessonCard: View {
     let lesson: Lesson
@@ -213,9 +242,13 @@ private struct LessonCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .top) {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                 Spacer(minLength: 0)
                 subjectBadge
             }
@@ -224,16 +257,23 @@ private struct LessonCard: View {
                 Text(groupSubjectLine)
                     .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
                     .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if !lesson.subheading.isEmpty {
                 Text(lesson.subheading)
                     .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 0)
         }
+        .lineSpacing(2)
         .padding(14)
         .frame(minHeight: 100)
         .background(
@@ -261,6 +301,55 @@ private struct LessonCard: View {
         #endif
     }
 }
+
+#if os(macOS)
+import AppKit
+
+private struct RightClickCatcher: NSViewRepresentable {
+    let onRightClick: () -> Void
+
+    func makeNSView(context: Context) -> RightClickView {
+        let view = RightClickView()
+        view.onRightClick = onRightClick
+        return view
+    }
+
+    func updateNSView(_ nsView: RightClickView, context: Context) {
+        nsView.onRightClick = onRightClick
+    }
+}
+
+private class RightClickView: NSView {
+    var onRightClick: (() -> Void)?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Only capture right mouse (or control-click) so left clicks pass through
+        if let e = NSApp.currentEvent {
+            if e.type == .rightMouseDown { return self }
+            if e.type == .otherMouseDown && e.buttonNumber == 2 { return self }
+            if e.type == .leftMouseDown && e.modifierFlags.contains(.control) { return self }
+        }
+        return nil
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        onRightClick?()
+    }
+
+    override func otherMouseDown(with event: NSEvent) {
+        if event.buttonNumber == 2 { onRightClick?() }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        // Treat control-click as right-click
+        if event.modifierFlags.contains(.control) {
+            onRightClick?()
+        } else {
+            super.mouseDown(with: event)
+        }
+    }
+}
+#endif
 
 #Preview {
     LessonsCardsGridView(

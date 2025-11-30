@@ -1,11 +1,17 @@
 import SwiftUI
 import SwiftData
 
+public enum LessonDetailInitialMode {
+    case normal
+    case giveLesson
+}
+
 struct LessonDetailCard: View {
     var lesson: Lesson
     var onSave: (Lesson) -> Void
     var onClose: () -> Void
     var onGiveLesson: ((Lesson) -> Void)? = nil
+    var initialMode: LessonDetailInitialMode = .normal
 
     @Environment(\.modelContext) private var modelContext
 
@@ -147,7 +153,13 @@ struct LessonDetailCard: View {
                 )
                 .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 10)
         )
-        .onAppear(perform: seedDrafts)
+        .onAppear {
+            seedDrafts()
+            if initialMode == .giveLesson {
+                // Trigger the Give Lesson flow immediately and then close the detail card if needed
+                onGiveLesson?(lesson)
+            }
+        }
         .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 modelContext.delete(lesson)
@@ -247,7 +259,9 @@ struct LessonDetailCard: View {
     LessonDetailCard(
         lesson: Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "A foundational presentation of the decimal system."),
         onSave: { _ in },
-        onClose: {}, onGiveLesson: nil
+        onClose: {},
+        onGiveLesson: nil,
+        initialMode: .normal
     )
     .padding()
     .frame(maxWidth: .infinity, maxHeight: .infinity)
