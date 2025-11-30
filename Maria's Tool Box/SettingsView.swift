@@ -78,6 +78,7 @@ struct SettingsView: View {
                                         Label("Create Backup", systemImage: "externaldrive.badge.plus")
                                     }
                                     .buttonStyle(.borderedProminent)
+                                    .controlSize(.large)
 
                                     Button(role: .destructive) {
                                         showRestoreConfirm = true
@@ -85,6 +86,7 @@ struct SettingsView: View {
                                         Label("Restore from Backup", systemImage: "arrow.down.doc")
                                     }
                                     .buttonStyle(.bordered)
+                                    .controlSize(.large)
                                     .tint(.red)
                                     .confirmationDialog(
                                         "Restore from Backup?",
@@ -108,10 +110,12 @@ struct SettingsView: View {
                                     }
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
+                                    .padding(.top, 4)
                                 } else {
                                     Label("Last backup: Never", systemImage: "clock")
                                         .font(.footnote)
                                         .foregroundStyle(.secondary)
+                                        .padding(.top, 4)
                                 }
 
                                 if let importError {
@@ -125,29 +129,34 @@ struct SettingsView: View {
                         // Maintenance
                         SettingsGroup(title: "Maintenance", systemImage: "wrench.and.screwdriver") {
                             VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 12) {
+                                    Button {
+                                        do {
+                                            let summary = try StudentDuplicatesCleaner.mergeDuplicates(using: modelContext)
+                                            let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
+                                            maintenanceAlert = (title: "Merge Duplicate Students", message: message)
+                                        } catch {
+                                            maintenanceAlert = (title: "Merge Failed", message: error.localizedDescription)
+                                        }
+                                    } label: {
+                                        Label("Merge Duplicate Students", systemImage: "person.2.crop.square.stack")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.large)
+
+                                    Button {
+                                        showingDuplicatesPreview = true
+                                    } label: {
+                                        Label("Preview Duplicates…", systemImage: "list.bullet.rectangle.portrait")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.large)
+                                }
+
                                 Text("Housekeeping tools to keep your data tidy.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
-
-                                Button {
-                                    do {
-                                        let summary = try StudentDuplicatesCleaner.mergeDuplicates(using: modelContext)
-                                        let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
-                                        maintenanceAlert = (title: "Merge Duplicate Students", message: message)
-                                    } catch {
-                                        maintenanceAlert = (title: "Merge Failed", message: error.localizedDescription)
-                                    }
-                                } label: {
-                                    Label("Merge Duplicate Students", systemImage: "person.2.crop.square.stack")
-                                }
-                                .buttonStyle(.bordered)
-
-                                Button {
-                                    showingDuplicatesPreview = true
-                                } label: {
-                                    Label("Preview Duplicates…", systemImage: "list.bullet.rectangle.portrait")
-                                }
-                                .buttonStyle(.bordered)
+                                    .padding(.top, 4)
                             }
                         }
                         .frame(maxWidth: .infinity)
