@@ -138,7 +138,7 @@ struct PlanningWeekView: View {
                         Spacer()
                     } else {
                         ForEach(unscheduledLessons, id: \.id) { sl in
-                            StudentLessonPill(lesson: sl)
+                            StudentLessonPill(snapshot: sl.snapshot())
                                 .contextMenu {
                                     Button {
                                         quickActionsLessonID = sl.id
@@ -362,7 +362,7 @@ private struct DropZone: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(scheduledLessonsForSlot, id: \.id) { sl in
-                        StudentLessonPill(lesson: sl)
+                        StudentLessonPill(snapshot: sl.snapshot())
                             .contextMenu {
                                 Button {
                                     onQuickActions(sl)
@@ -487,10 +487,10 @@ struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
-    let lesson: StudentLesson
+    let snapshot: StudentLessonSnapshot
 
     private var lessonObject: Lesson? {
-        lessons.first(where: { $0.id == lesson.lessonID })
+        lessons.first(where: { $0.id == snapshot.lessonID })
     }
 
     private var lessonName: String {
@@ -511,7 +511,7 @@ struct StudentLessonPill: View {
     }
 
     private var studentLine: String {
-        let names: [String] = lesson.studentIDs.map { id in
+        let names: [String] = snapshot.studentIDs.map { id in
             if let s = students.first(where: { $0.id == id }) {
                 return displayName(for: s)
             } else {
@@ -521,14 +521,14 @@ struct StudentLessonPill: View {
         if !names.isEmpty {
             return names.joined(separator: ", ")
         }
-        let count = lesson.studentIDs.count
+        let count = snapshot.studentIDs.count
         return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
     }
     
     private struct StudentChip { let id: UUID; let label: String; let isMissing: Bool }
     private var studentChips: [StudentChip] {
         var chips: [StudentChip] = []
-        for id in lesson.studentIDs {
+        for id in snapshot.studentIDs {
             if let s = students.first(where: { $0.id == id }) {
                 chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false))
             } else {
@@ -592,7 +592,7 @@ struct StudentLessonPill: View {
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
         .contentShape(Capsule())
-        .draggable(lesson.id.uuidString)
+        .draggable(snapshot.id.uuidString)
         .accessibilityLabel(accessibilityLabel)
     }
 }

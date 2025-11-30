@@ -51,6 +51,10 @@ private struct WorkCard: View {
     let lessonsByID: [UUID: Lesson]
     let studentLessonsByID: [UUID: StudentLesson]
 
+    private var studentLessonSnapshotsByID: [UUID: StudentLessonSnapshot] {
+        Dictionary(uniqueKeysWithValues: studentLessonsByID.map { ($0.key, $0.value.snapshot()) })
+    }
+
     private var cardBackgroundColor: Color {
         #if os(macOS)
         return Color(NSColor.windowBackgroundColor)
@@ -81,9 +85,9 @@ private struct WorkCard: View {
     }
 
     private var linkedLessonLine: String {
-        guard let slID = work.studentLessonID, let sl = studentLessonsByID[slID] else { return "" }
-        let lessonName = lessonsByID[sl.lessonID]?.name ?? "Lesson"
-        let date = sl.scheduledFor ?? sl.givenAt ?? sl.createdAt
+        guard let slID = work.studentLessonID, let snap = studentLessonSnapshotsByID[slID] else { return "" }
+        let lessonName = lessonsByID[snap.lessonID]?.name ?? "Lesson"
+        let date = snap.scheduledFor ?? snap.givenAt ?? snap.createdAt
         let dateString = date.formatted(date: .numeric, time: .omitted)
         return "\(lessonName) • \(dateString)"
     }

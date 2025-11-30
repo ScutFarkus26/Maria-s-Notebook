@@ -19,6 +19,10 @@ struct AddWorkView: View {
     @State private var studentSearchText: String = ""
     @State private var studentLevelFilter: LevelFilter = .all
     
+    private var studentLessonSnapshots: [StudentLessonSnapshot] {
+        studentLessons.map { $0.snapshot() }
+    }
+    
     var onDone: (() -> Void)?
     
     enum LevelFilter: String, CaseIterable {
@@ -233,11 +237,11 @@ struct AddWorkView: View {
                             .font(.headline)
                         Picker("Linked Lesson", selection: $selectedStudentLessonID) {
                             Text("None").tag(UUID?.none)
-                            ForEach(studentLessons) { sl in
-                                if let lesson = lessons.first(where: { $0.id == sl.lessonID }) {
-                                    let date = sl.scheduledFor ?? sl.givenAt ?? sl.createdAt
+                            ForEach(studentLessonSnapshots, id: \.id) { snap in
+                                if let lesson = lessons.first(where: { $0.id == snap.lessonID }) {
+                                    let date = snap.scheduledFor ?? snap.givenAt ?? snap.createdAt
                                     Text("\(lesson.name) • \(formattedDateOnly(date))")
-                                        .tag(Optional(sl.id))
+                                        .tag(Optional(snap.id))
                                 }
                             }
                         }

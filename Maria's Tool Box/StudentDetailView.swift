@@ -19,7 +19,7 @@ struct StudentDetailView: View {
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
 
-    @State private var nextLessonsForStudent: [StudentLesson] = []
+    @State private var nextLessonsForStudent: [StudentLessonSnapshot] = []
     @State private var lessonsByID: [UUID: Lesson] = [:]
     @State private var isLoadingLessons = true
 
@@ -198,11 +198,11 @@ struct StudentDetailView: View {
         }
     }
 
-    private func lessonName(for sl: StudentLesson) -> String {
+    private func lessonName(for sl: StudentLessonSnapshot) -> String {
         return lessonsByID[sl.lessonID]?.name ?? "Lesson"
     }
 
-    private func lessonSubject(for sl: StudentLesson) -> String? {
+    private func lessonSubject(for sl: StudentLessonSnapshot) -> String? {
         return lessonsByID[sl.lessonID]?.subject
     }
 
@@ -413,7 +413,7 @@ struct StudentDetailView: View {
                     return true
                 }
             }
-            nextLessonsForStudent = sortedSL
+            nextLessonsForStudent = sortedSL.map { $0.snapshot() }
 
             // Fetch all works and filter for this student
             let allWorks = try modelContext.fetch(FetchDescriptor<WorkModel>())

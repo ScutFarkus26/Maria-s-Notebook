@@ -59,6 +59,9 @@ struct WorkDetailView: View {
     private var studentLessonsByID: [UUID: StudentLesson] {
         Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
     }
+    private var studentLessonSnapshotsByID: [UUID: StudentLessonSnapshot] {
+        Dictionary(uniqueKeysWithValues: studentLessonsByID.map { ($0.key, $0.value.snapshot()) })
+    }
     
     private var chipBackgroundColor: Color {
         #if os(macOS)
@@ -100,7 +103,7 @@ struct WorkDetailView: View {
     }
 
     private var subject: String {
-        if let slID = selectedStudentLessonID, let sl = studentLessonsByID[slID], let lesson = lessonsByID[sl.lessonID] {
+        if let slID = selectedStudentLessonID, let snap = studentLessonSnapshotsByID[slID], let lesson = lessonsByID[snap.lessonID] {
             return lesson.subject
         }
         return ""
@@ -305,9 +308,9 @@ struct WorkDetailView: View {
                 .font(.system(size: AppTheme.FontSize.caption))
                 .foregroundColor(.secondary)
 
-            if let slID = selectedStudentLessonID, let sl = studentLessonsByID[slID] {
-                let lessonName = lessonsByID[sl.lessonID]?.name ?? "Lesson"
-                let date = sl.scheduledFor ?? sl.givenAt ?? sl.createdAt
+            if let slID = selectedStudentLessonID, let snap = studentLessonSnapshotsByID[slID] {
+                let lessonName = lessonsByID[snap.lessonID]?.name ?? "Lesson"
+                let date = snap.scheduledFor ?? snap.givenAt ?? snap.createdAt
                 let label = "\(lessonName) • \(createdDateOnlyFormatter.string(from: date))"
                 Button {
                     showingLinkedLessonDetails = true
