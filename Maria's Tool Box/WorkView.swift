@@ -22,9 +22,12 @@ struct WorkView: View {
     @State private var isPresentingAddWork = false
     @State private var selectedWorkID: UUID? = nil
 
+    @State private var isShowingStudentFilterPopover = false
+    @State private var studentFilterSearchText: String = ""
+
     @AppStorage("WorkView.selectedWorkType") private var workSelectedTypeRaw: String = ""
     @AppStorage("WorkView.selectedSubject") private var workSelectedSubjectRaw: String = ""
-    @AppStorage("WorkView.selectedStudentID") private var workSelectedStudentIDRaw: String = ""
+    @AppStorage("WorkView.selectedStudentIDs") private var workSelectedStudentIDsRaw: String = ""
     @AppStorage("WorkView.dateFilter") private var workDateFilterRaw: String = "thisWeek"
     @AppStorage("WorkView.searchText") private var workSearchTextRaw: String = ""
 
@@ -45,8 +48,6 @@ struct WorkView: View {
             }
         }
     }
-
-    private var selectedStudentID: UUID? { UUID(uuidString: workSelectedStudentIDRaw) }
 
     private var dateFilter: DateFilter {
         get {
@@ -108,9 +109,10 @@ struct WorkView: View {
             }
         }
 
-        // Student filter (works that include the selected student)
-        if let sid = selectedStudentID {
-            base = base.filter { $0.studentIDs.contains(sid) }
+        // Student filter (works that include ANY of the selected students)
+        let selectedIDs = selectedStudentIDsSet
+        if !selectedIDs.isEmpty {
+            base = base.filter { !Set($0.studentIDs).isDisjoint(with: selectedIDs) }
         }
 
         // Date filter using linked lesson date when available (givenAt > scheduledFor), otherwise fall back to work.createdAt
@@ -169,8 +171,163 @@ struct WorkView: View {
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
     private var studentLessonsByID: [UUID: StudentLesson] { Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) }) }
 
+    // Multi-select student filter storage and helpers
+    private var selectedStudentIDsSet: Set<UUID> {
+        get {
+            let parts = workSelectedStudentIDsRaw.split(separator: ",").map { String($0) }
+            let uuids = parts.compactMap { UUID(uuidString: $0) }
+            return Set(uuids)
+        }
+        set {
+            workSelectedStudentIDsRaw = newValue.map { $0.uuidString }.joined(separator: ",")
+        }
+    }
+
+    private var filteredStudentsForFilter: [Student] {
+        let q = studentFilterSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let base: [Student]
+        if q.isEmpty {
+            base = students
+        } else {
+            base = students.filter { s in
+                let f = s.firstName.lowercased()
+                let l = s.lastName.lowercased()
+                let full = s.fullName.lowercased()
+                return f.contains(q) || l.contains(q) || full.contains(q)
+            }
+        }
+        return base.sorted { lhs, rhs in
+            let lf = lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName)
+            if lf == .orderedSame {
+                return lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName) == .orderedAscending
+            }
+            return lf == .orderedAscending
+        }
+    }
+
+    private var studentFilterPopover: some View {
+        VStack(spacing: 10) {
+            // Search field
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search students", text: $studentFilterSearchText)
+                    .textFieldStyle(.plain)
+                if !studentFilterSearchText.isEmpty {
+                    Button {
+                        studentFilterSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+
+            Divider().padding(.top, 2)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(filteredStudentsForFilter, id: \.id) { s in
+                        Button {
+                            var set = selectedStudentIDsSet
+                            if set.contains(s.id) {
+                                set.remove(s.id)
+                            } else {
+                                set.insert(s.id)
+                            }
+                            workSelectedStudentIDsRaw = set.map { $0.uuidString }.joined(separator: ",")
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: selectedStudentIDsSet.contains(s.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedStudentIDsSet.contains(s.id) ? Color.accentColor : Color.secondary)
+                                Text(displayName(for: s))
+                                    .foregroundStyle(.primary)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 4)
+            }
+            .frame(maxHeight: 280)
+
+            Divider()
+
+            HStack {
+                Button {
+                    workSelectedStudentIDsRaw = ""
+                } label: {
+                    Text("Clear")
+                }
+                .buttonStyle(.borderless)
+
+                Spacer()
+
+                Button("Done") {
+                    isShowingStudentFilterPopover = false
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(12)
+        .frame(minWidth: 320)
+    }
+
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Text("Students")
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+
+            Button {
+                isShowingStudentFilterPopover = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.2")
+                    Text(selectedStudentIDsSet.isEmpty ? "All Students" : "\(selectedStudentIDsSet.count) selected")
+                }
+                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.primary.opacity(0.08), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $isShowingStudentFilterPopover, arrowEdge: .top) {
+                studentFilterPopover
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search notes or lesson names", text: $workSearchTextRaw)
+                if !workSearchTextRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button {
+                        workSearchTextRaw = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+            .padding(.trailing, 16)
+
             Text("Work Type")
                 .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
@@ -319,68 +476,6 @@ struct WorkView: View {
         .background(Color.gray.opacity(0.08))
     }
 
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            // Student filter menu
-            Menu {
-                Button {
-                    workSelectedStudentIDRaw = ""
-                } label: {
-                    Label("All Students", systemImage: "person.3")
-                }
-                Divider()
-                ForEach(students.sorted(by: { lhs, rhs in
-                    let lf = lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName)
-                    if lf == .orderedSame {
-                        return lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName) == .orderedAscending
-                    }
-                    return lf == .orderedAscending
-                }), id: \.id) { s in
-                    Button {
-                        workSelectedStudentIDRaw = s.id.uuidString
-                    } label: {
-                        Label(displayName(for: s), systemImage: "person.crop.circle")
-                    }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle")
-                    Text(selectedStudentID.flatMap { id in studentsByID[id].map(displayName) } ?? "All Students")
-                }
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.primary.opacity(0.08), in: Capsule())
-            }
-            .menuStyle(.borderlessButton)
-
-            // Search field
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search notes or lesson names", text: $workSearchTextRaw)
-                if !workSearchTextRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button {
-                        workSearchTextRaw = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-            )
-
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-    }
-
     var body: some View {
         NavigationStack {
             HStack(spacing: 0) {
@@ -389,9 +484,6 @@ struct WorkView: View {
                 Divider()
 
                 VStack(spacing: 0) {
-                    topBar
-                    Divider()
-
                     Group {
                         if workItems.isEmpty {
                             VStack(spacing: 8) {
@@ -406,7 +498,7 @@ struct WorkView: View {
                             VStack(spacing: 8) {
                                 Text("No work matches your filters")
                                     .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
-                                Text("Try adjusting the filters on the left or top.")
+                                Text("Try adjusting the filters on the left.")
                                     .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
                                     .foregroundStyle(.secondary)
                             }
@@ -493,3 +585,4 @@ fileprivate struct MultipleSelectionRow: View {
         .contentShape(Rectangle())
     }
 }
+

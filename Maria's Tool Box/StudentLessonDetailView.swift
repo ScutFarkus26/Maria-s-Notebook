@@ -578,6 +578,24 @@ struct StudentLessonDetailView: View {
         studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
         studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
         studentLesson.syncSnapshotsFromRelationships()
+        
+        // Auto-create a WorkModel for Needs Practice when flagged
+        if needsPractice {
+            let hasPracticeWork = workModels.contains { work in
+                work.studentLessonID == studentLesson.id && work.workType == .practice
+            }
+            if !hasPracticeWork {
+                let practiceWork = WorkModel(
+                    id: UUID(),
+                    studentIDs: Array(selectedStudentIDs),
+                    workType: .practice,
+                    studentLessonID: studentLesson.id,
+                    notes: "",
+                    createdAt: Date()
+                )
+                modelContext.insert(practiceWork)
+            }
+        }
 
         // Auto-create a WorkModel for Follow Up Work when provided
         let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -291,6 +291,27 @@ struct GiveLessonSheet: View {
         )
         
         modelContext.insert(studentLesson)
+        
+        // Auto-create a WorkModel for Needs Practice when flagged
+        if needsPractice {
+            // Avoid duplicates: ensure no existing practice work for this StudentLesson
+            let existingWorks = try? modelContext.fetch(FetchDescriptor<WorkModel>())
+            let hasPractice = (existingWorks ?? []).contains { w in
+                w.studentLessonID == studentLesson.id && w.workType == .practice
+            }
+            if !hasPractice {
+                let practiceWork = WorkModel(
+                    id: UUID(),
+                    studentIDs: Array(selectedStudentIDs),
+                    workType: .practice,
+                    studentLessonID: studentLesson.id,
+                    notes: "",
+                    createdAt: Date()
+                )
+                modelContext.insert(practiceWork)
+            }
+        }
+        
         do {
             try modelContext.save()
             onDone?()
