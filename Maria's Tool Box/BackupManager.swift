@@ -130,7 +130,7 @@ struct WorkDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 6
+    static let currentVersion: Int = 7
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -361,6 +361,21 @@ enum BackupManager {
             for (subject, order) in payload.groupOrders {
                 FilterOrderStore.saveGroupOrder(order, for: subject)
             }
+        }
+
+        // After inserting all entities, wire up relationships for StudentLesson using snapshot IDs
+        do {
+            let allLessons = try context.fetch(FetchDescriptor<Lesson>())
+            let lessonsByID = Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) })
+            let allStudents = try context.fetch(FetchDescriptor<Student>())
+            let studentsByID = Dictionary(uniqueKeysWithValues: allStudents.map { ($0.id, $0) })
+            let allSLs = try context.fetch(FetchDescriptor<StudentLesson>())
+            for sl in allSLs {
+                sl.lesson = lessonsByID[sl.lessonID]
+                sl.students = sl.studentIDs.compactMap { studentsByID[$0] }
+            }
+        } catch {
+            // If wiring relationships fails, we still keep IDs; UI will fall back to snapshots
         }
 
         try context.save()

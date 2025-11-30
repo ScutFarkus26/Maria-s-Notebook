@@ -24,6 +24,8 @@ final class Student: Identifiable {
     var manualOrder: Int = 0
     var dateStarted: Date? = nil
 
+    var studentLessons: [StudentLesson] = []
+
     var fullName: String {
         "\(firstName) \(lastName)"
     }

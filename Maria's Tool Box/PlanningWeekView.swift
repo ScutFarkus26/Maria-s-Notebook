@@ -11,6 +11,7 @@ struct PlanningWeekView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var studentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
+    @Query private var students: [Student]
     @State private var weekStart: Date = Self.monday(for: Date())
     @State private var selectedLessonForDetailID: UUID? = nil
     @State private var quickActionsLessonID: UUID? = nil
@@ -57,6 +58,9 @@ struct PlanningWeekView: View {
             needsAnotherPresentation: false,
             followUpWork: ""
         )
+        newStudentLesson.students = students.filter { sameStudents.contains($0.id) }
+        newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+        newStudentLesson.syncSnapshotsFromRelationships()
         modelContext.insert(newStudentLesson)
         try? modelContext.save()
     }
@@ -507,15 +511,31 @@ struct StudentLessonPill: View {
     }
 
     private var studentLine: String {
-        let names: [String] = lesson.studentIDs.compactMap { id -> String? in
-            guard let s = students.first(where: { $0.id == id }) else { return nil }
-            return displayName(for: s)
+        let names: [String] = lesson.studentIDs.map { id in
+            if let s = students.first(where: { $0.id == id }) {
+                return displayName(for: s)
+            } else {
+                return "(Removed)"
+            }
         }
         if !names.isEmpty {
             return names.joined(separator: ", ")
         }
         let count = lesson.studentIDs.count
         return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
+    }
+    
+    private struct StudentChip { let id: UUID; let label: String; let isMissing: Bool }
+    private var studentChips: [StudentChip] {
+        var chips: [StudentChip] = []
+        for id in lesson.studentIDs {
+            if let s = students.first(where: { $0.id == id }) {
+                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false))
+            } else {
+                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true))
+            }
+        }
+        return chips
     }
 
     private func displayName(for student: Student) -> String {
@@ -540,13 +560,21 @@ struct StudentLessonPill: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
 
-                if !studentLine.isEmpty {
-                    Text(studentLine)
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(nil)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
+                if !studentChips.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(studentChips, id: \.id) { chip in
+                                Text(chip.label)
+                                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(chip.isMissing ? .secondary : .primary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        Capsule().fill(chip.isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(0.15))
+                                    )
+                            }
+                        }
+                    }
                 }
             }
             .lineSpacing(2)

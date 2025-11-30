@@ -96,6 +96,9 @@ struct StudentLessonDetailView: View {
                 needsAnotherPresentation: false,
                 followUpWork: ""
             )
+            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+            newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+            newStudentLesson.syncSnapshotsFromRelationships()
             modelContext.insert(newStudentLesson)
             try? modelContext.save()
         }
@@ -572,6 +575,10 @@ struct StudentLessonDetailView: View {
         studentLesson.followUpWork = followUpWork
         studentLesson.studentIDs = Array(selectedStudentIDs)
 
+        studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
+        studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
+        studentLesson.syncSnapshotsFromRelationships()
+
         // Auto-create a WorkModel for Follow Up Work when provided
         let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedFollowUp.isEmpty {
@@ -606,12 +613,19 @@ struct StudentLessonDetailView: View {
     }
 
     private func delete() {
+        // Delete synchronously first to avoid views reading a detached object
         modelContext.delete(studentLesson)
         do {
             try modelContext.save()
-            dismiss()
         } catch {
             // Handle delete error if needed
+        }
+
+        // Now dismiss after the @Query has updated
+        if let onDone {
+            onDone()
+        } else {
+            dismiss()
         }
     }
 }

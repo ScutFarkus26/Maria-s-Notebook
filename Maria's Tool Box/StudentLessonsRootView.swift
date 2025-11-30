@@ -300,7 +300,7 @@ struct StudentLessonsRootView: View {
                                     }
                                     LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                         ForEach(up, id: \.id) { sl in
-                                            StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
+                                            StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
                                                 .onTapGesture { selectedLessonID = sl.id }
                                                 .contextMenu {
                                                     Button {
@@ -324,7 +324,7 @@ struct StudentLessonsRootView: View {
                                     }
                                     LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                         ForEach(gv, id: \.id) { sl in
-                                            StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
+                                            StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
                                                 .onTapGesture { selectedLessonID = sl.id }
                                                 .contextMenu {
                                                     Button {
@@ -356,7 +356,7 @@ struct StudentLessonsRootView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                             ForEach(filteredAndSorted, id: \.id) { sl in
-                                StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
+                                StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
                                     .onTapGesture { selectedLessonID = sl.id }
                                     .contextMenu {
                                         Button {
@@ -378,7 +378,7 @@ struct StudentLessonsRootView: View {
 
 // MARK: - Card View (matches Albums/Students style)
 private struct StudentLessonCard: View {
-    let studentLesson: StudentLesson
+    let snapshot: StudentLessonSnapshot
     let lesson: Lesson?
     let students: [Student]
 
@@ -407,16 +407,17 @@ private struct StudentLessonCard: View {
         .accessibilityLabel("Subject: \(subject.isEmpty ? "Unknown" : subject)")
     }
 
-    private var studentLine: String {
-        let names: [String] = studentLesson.studentIDs.compactMap { id -> String? in
-            guard let s = students.first(where: { $0.id == id }) else { return nil }
-            return displayName(for: s)
+    private struct StudentChip: Identifiable { let id: UUID; let label: String; let isMissing: Bool }
+    private var studentChips: [StudentChip] {
+        var chips: [StudentChip] = []
+        for id in snapshot.studentIDs {
+            if let s = students.first(where: { $0.id == id }) {
+                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false))
+            } else {
+                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true))
+            }
         }
-        if !names.isEmpty {
-            return names.joined(separator: ", ")
-        }
-        let count = studentLesson.studentIDs.count
-        return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
+        return chips
     }
 
     private func displayName(for student: Student) -> String {
@@ -427,11 +428,11 @@ private struct StudentLessonCard: View {
     }
 
     private var statusText: String {
-        if let given = studentLesson.givenAt {
+        if let given = snapshot.givenAt {
             let fmt = DateFormatter()
             fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
             return "Presented on " + fmt.string(from: given)
-        } else if let scheduled = studentLesson.scheduledFor {
+        } else if let scheduled = snapshot.scheduledFor {
             let fmt = DateFormatter()
             fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
             return "Scheduled for " + fmt.string(from: scheduled)
@@ -449,10 +450,24 @@ private struct StudentLessonCard: View {
                 subjectBadge
             }
 
-            if !studentLine.isEmpty {
-                Text(studentLine)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary)
+            if !studentChips.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(studentChips, id: \.id) { chip in
+                            HStack(spacing: 6) {
+                                Text(chip.label)
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(chip.isMissing ? .secondary : .primary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(chip.isMissing ? Color.primary.opacity(0.08) : subjectColor.opacity(0.15))
+                            )
+                        }
+                    }
+                }
             }
 
             Text(statusText)

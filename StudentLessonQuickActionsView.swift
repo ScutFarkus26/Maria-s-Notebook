@@ -10,6 +10,9 @@ struct StudentLessonQuickActionsView: View {
 
     @Query(sort: \WorkModel.createdAt, animation: .default)
     private var workModels: [WorkModel]
+    
+    @Query(sort: \Student.firstName, animation: .default)
+    private var studentsAll: [Student]
 
     @Query(sort: \StudentLesson.createdAt, animation: .default)
     private var studentLessonsAll: [StudentLesson]
@@ -109,6 +112,9 @@ struct StudentLessonQuickActionsView: View {
                                 needsAnotherPresentation: false,
                                 followUpWork: ""
                             )
+                            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+                            newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+                            newStudentLesson.syncSnapshotsFromRelationships()
                             modelContext.insert(newStudentLesson)
                             try? modelContext.save()
                         }
@@ -154,6 +160,11 @@ struct StudentLessonQuickActionsView: View {
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
         studentLesson.followUpWork = followUpWork
 
+        // Ensure relationships mirror snapshots
+        studentLesson.students = studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
+        studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
+        studentLesson.syncSnapshotsFromRelationships()
+
         if needsPractice {
             let hasPracticeWork = workModels.contains { work in
                 work.studentLessonID == studentLesson.id && work.workType == .practice
@@ -189,6 +200,9 @@ struct StudentLessonQuickActionsView: View {
                     needsAnotherPresentation: false,
                     followUpWork: ""
                 )
+                newPresentation.students = studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
+                newPresentation.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
+                newPresentation.syncSnapshotsFromRelationships()
                 modelContext.insert(newPresentation)
             }
         }

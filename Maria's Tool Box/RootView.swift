@@ -15,6 +15,8 @@ struct RootView: View {
     }
 
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.albumlessons.rawValue
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
 
     private var selectedTab: Tab {
         Tab(rawValue: selectedTabRaw) ?? .albumlessons
@@ -77,6 +79,9 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .onAppear {
+            backfillRelationshipsIfNeeded()
+        }
     }
 
     // MARK: - Styling
@@ -96,6 +101,39 @@ struct RootView: View {
             return AnyShapeStyle(Color.primary)
         }
     }
+
+    private func backfillRelationshipsIfNeeded() {
+        guard !didBackfillRelationships else { return }
+        do {
+            let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+            let students = try modelContext.fetch(FetchDescriptor<Student>())
+            let lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+            let studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+            let lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+
+            var changed = false
+            for sl in sls {
+                let targetLesson = lessonsByID[sl.lessonID]
+                let targetStudents = sl.studentIDs.compactMap { studentsByID[$0] }
+                if sl.lesson?.id != targetLesson?.id { sl.lesson = targetLesson; changed = true }
+                let currentIDs = Set(sl.students.map { $0.id })
+                let targetIDs = Set(targetStudents.map { $0.id })
+                if currentIDs != targetIDs {
+                    sl.students = targetStudents
+                    changed = true
+                }
+                if changed {
+                    sl.syncSnapshotsFromRelationships()
+                }
+            }
+            if changed {
+                try modelContext.save()
+            }
+            didBackfillRelationships = true
+        } catch {
+            // If backfill fails, skip and try again next launch
+        }
+    }
 }
 
 struct PlanningRootView: View {
@@ -104,4 +142,3 @@ struct PlanningRootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
