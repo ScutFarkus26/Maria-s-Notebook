@@ -11,7 +11,7 @@ struct PlanningWeekView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var studentLessons: [StudentLesson]
     @State private var weekStart: Date = Self.monday(for: Date())
-    @State private var selectedLessonForDetail: StudentLesson? = nil
+    @State private var selectedLessonForDetailID: UUID? = nil
     @State private var isSidebarTargeted: Bool = false
 
     private var days: [Date] {
@@ -31,7 +31,7 @@ struct PlanningWeekView: View {
                 Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        WeekGrid(days: days, onSelectLesson: { sl in selectedLessonForDetail = sl })
+                        WeekGrid(days: days, onSelectLesson: { sl in selectedLessonForDetailID = sl.id })
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 20)
@@ -39,9 +39,13 @@ struct PlanningWeekView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(item: $selectedLessonForDetail) { sl in
-            StudentLessonDetailView(studentLesson: sl) {
-                selectedLessonForDetail = nil
+        .sheet(isPresented: Binding(get: { selectedLessonForDetailID != nil }, set: { if !$0 { selectedLessonForDetailID = nil } })) {
+            if let id = selectedLessonForDetailID, let sl = studentLessons.first(where: { $0.id == id }) {
+                StudentLessonDetailView(studentLesson: sl) {
+                    selectedLessonForDetailID = nil
+                }
+            } else {
+                EmptyView()
             }
         }
     }
@@ -85,12 +89,12 @@ struct PlanningWeekView: View {
                             StudentLessonPill(lesson: sl)
                                 .contextMenu {
                                     Button {
-                                        selectedLessonForDetail = sl
+                                        selectedLessonForDetailID = sl.id
                                     } label: {
                                         Label("Open Details", systemImage: "info.circle")
                                     }
                                 }
-                                .onTapGesture { selectedLessonForDetail = sl }
+                                .onTapGesture { selectedLessonForDetailID = sl.id }
                         }
                     }
                 }

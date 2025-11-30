@@ -43,13 +43,16 @@ struct MariasToolboxApp: App {
     }()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("") {
             RootView()
         }
+        #if os(macOS)
+        .windowStyle(.hiddenTitleBar)
+        #endif
         .modelContainer(sharedModelContainer)
 
         #if os(macOS)
-        WindowGroup("Work Detail", id: "WorkDetailWindow", for: UUID.self) { $workID in
+        WindowGroup("", id: "WorkDetailWindow", for: UUID.self) { $workID in
             if let id = workID {
                 WorkDetailWindowContainer(workID: id)
             } else {
@@ -57,6 +60,7 @@ struct MariasToolboxApp: App {
                     .frame(minWidth: 400, minHeight: 300)
             }
         }
+        .windowStyle(.hiddenTitleBar)
         .modelContainer(sharedModelContainer)
         #endif
     }

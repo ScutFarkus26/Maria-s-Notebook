@@ -30,7 +30,7 @@ struct StudentsView: View {
     }
 
     @State private var showingAddStudent = false
-    @State private var selectedStudent: Student?
+    @State private var selectedStudentID: UUID? = nil
 
     /// Returns students ordered by the persisted manual order, with any missing/extra appended.
     private func applyManualOrder(to students: [Student]) -> [Student] {
@@ -120,9 +120,13 @@ struct StudentsView: View {
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
         }
-        .sheet(item: $selectedStudent) { student in
-            StudentDetailView(student: student) {
-                selectedStudent = nil
+        .sheet(isPresented: Binding(get: { selectedStudentID != nil }, set: { if !$0 { selectedStudentID = nil } })) {
+            if let id = selectedStudentID, let student = students.first(where: { $0.id == id }) {
+                StudentDetailView(student: student) {
+                    selectedStudentID = nil
+                }
+            } else {
+                EmptyView()
             }
         }
         .onAppear {
@@ -251,7 +255,7 @@ struct StudentsView: View {
                     isBirthdayMode: sortOrder == .birthday,
                     isAgeMode: sortOrder == .age,
                     isManualMode: sortOrder == .manual,
-                    onTapStudent: { selectedStudent = $0 },
+                    onTapStudent: { selectedStudentID = $0.id },
                     onReorder: { movingStudent, fromIndex, toIndex, subset in
                         // Reuse existing merge logic from StudentsViewModel
                         let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(

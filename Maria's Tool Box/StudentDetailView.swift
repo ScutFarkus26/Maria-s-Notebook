@@ -10,8 +10,6 @@ struct StudentDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var lessons: [Lesson]
-    @Query private var studentLessons: [StudentLesson]
 
     @State private var isEditing = false
     @State private var draftFirstName = ""
@@ -20,6 +18,10 @@ struct StudentDetailView: View {
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
+
+    @State private var nextLessonsForStudent: [StudentLesson] = []
+    @State private var lessonsByID: [UUID: Lesson] = [:]
+    @State private var isLoadingLessons = true
 
     // MARK: - Derived
     private var levelColor: Color {
@@ -52,23 +54,6 @@ struct StudentDetailView: View {
         } else {
             return "?"
         }
-    }
-    
-    private var nextLessonsForStudent: [StudentLesson] {
-        studentLessons
-            .filter { $0.givenAt == nil && $0.studentIDs.contains(student.id) }
-            .sorted { (lhs, rhs) in
-                switch (lhs.scheduledFor, rhs.scheduledFor) {
-                case let (l?, r?):
-                    return l < r
-                case (nil, nil):
-                    return lhs.createdAt < rhs.createdAt
-                case (nil, _?):
-                    return false
-                case (_?, nil):
-                    return true
-                }
-            }
     }
 
     // MARK: - Body
@@ -109,6 +94,9 @@ struct StudentDetailView: View {
         .frame(minWidth: 520, minHeight: 560)
         .safeAreaInset(edge: .bottom) {
             bottomBar
+        }
+        .task(id: student.id) {
+            await loadStudentData()
         }
         .alert("Delete Student?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
@@ -202,11 +190,11 @@ struct StudentDetailView: View {
     }
 
     private func lessonName(for sl: StudentLesson) -> String {
-        lessons.first(where: { $0.id == sl.lessonID })?.name ?? "Lesson"
+        return lessonsByID[sl.lessonID]?.name ?? "Lesson"
     }
 
     private func lessonSubject(for sl: StudentLesson) -> String? {
-        lessons.first(where: { $0.id == sl.lessonID })?.subject
+        return lessonsByID[sl.lessonID]?.subject
     }
 
     private var nextLessonsSection: some View {
@@ -221,7 +209,11 @@ struct StudentDetailView: View {
             }
             .padding(.top, 4)
 
-            if nextLessonsForStudent.isEmpty {
+            if isLoadingLessons {
+                Text("Loading…")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
+            } else if nextLessonsForStudent.isEmpty {
                 Text("No lessons scheduled yet.")
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
@@ -298,6 +290,60 @@ struct StudentDetailView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
             .background(.bar)
+        }
+    }
+
+    @MainActor
+    private func loadStudentData() async {
+        isLoadingLessons = true
+        defer { isLoadingLessons = false }
+
+        let sid = student.id
+
+        do {
+            // Fetch upcoming StudentLesson broadly, then filter in-memory for this student to avoid predicate limitations
+            let upcomingDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.givenAt == nil })
+            let allUpcoming = try modelContext.fetch(upcomingDescriptor)
+            let fetchedSL = allUpcoming.filter { $0.studentIDs.contains(sid) }
+
+            // Sort to match previous logic
+            let sortedSL = fetchedSL.sorted { lhs, rhs in
+                switch (lhs.scheduledFor, rhs.scheduledFor) {
+                case let (l?, r?):
+                    return l < r
+                case (nil, nil):
+                    return lhs.createdAt < rhs.createdAt
+                case (nil, _?):
+                    return false
+                case (_?, nil):
+                    return true
+                }
+            }
+            nextLessonsForStudent = sortedSL
+
+            // Prefetch only referenced lessons in a single batched fetch and cache them
+            let ids = Set(sortedSL.map { $0.lessonID })
+            if ids.isEmpty {
+                lessonsByID = [:]
+            } else {
+                do {
+                    let lPredicate = #Predicate<Lesson> { lesson in
+                        ids.contains(lesson.id)
+                    }
+                    let lDescriptor = FetchDescriptor<Lesson>(predicate: lPredicate)
+                    let lessons = try modelContext.fetch(lDescriptor)
+                    lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+                } catch {
+                    // Fallback: fetch all lessons and filter in-memory
+                    let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+                    let filtered = allLessons.filter { ids.contains($0.id) }
+                    lessonsByID = Dictionary(uniqueKeysWithValues: filtered.map { ($0.id, $0) })
+                }
+            }
+        } catch {
+            // If fetch fails, leave arrays empty; UI will show empty state
+            nextLessonsForStudent = []
+            lessonsByID = [:]
         }
     }
 

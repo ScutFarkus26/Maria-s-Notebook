@@ -21,7 +21,6 @@ struct WorkView: View {
     // Add Work sheet state
     @State private var isPresentingAddWork = false
     @State private var selectedWorkID: UUID? = nil
-    @State private var selectedWork: WorkModel? = nil
 
     // Helper maps for quick lookup
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
@@ -51,7 +50,7 @@ struct WorkView: View {
 #if os(macOS)
                             openWindow(id: "WorkDetailWindow", value: work.id)
 #else
-                            selectedWork = work
+                            selectedWorkID = work.id
 #endif
                         }
                     )
@@ -63,11 +62,7 @@ struct WorkView: View {
                         lessonsByID: lessonsByID,
                         studentLessonsByID: studentLessonsByID,
                         onTapWork: { work in
-#if os(macOS)
-                            openWindow(id: "WorkDetailWindow", value: work.id)
-#else
-                            selectedWork = work
-#endif
+                            selectedWorkID = work.id
                         }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -94,9 +89,13 @@ struct WorkView: View {
             }
         }
 #if !os(macOS)
-        .sheet(item: $selectedWork) { work in
-            WorkDetailView(work: work) {
-                selectedWork = nil
+        .sheet(isPresented: Binding(get: { selectedWorkID != nil }, set: { if !$0 { selectedWorkID = nil } })) {
+            if let id = selectedWorkID, let work = workItems.first(where: { $0.id == id }) {
+                WorkDetailView(work: work) {
+                    selectedWorkID = nil
+                }
+            } else {
+                EmptyView()
             }
         }
 #endif

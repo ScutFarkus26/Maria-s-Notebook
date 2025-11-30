@@ -21,7 +21,7 @@ struct LessonsRootView: View {
     @State private var subjectDragState: (from: Int?, to: Int?) = (nil, nil)
     @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
     @State private var searchText: String = ""
-    @State private var givingLessonFromDetail: Lesson? = nil
+    @State private var givingLessonFromDetailID: UUID? = nil
 
     @AppStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
     @AppStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
@@ -150,7 +150,7 @@ struct LessonsRootView: View {
                                 selectedLesson = nil
                             }
                         },
-                        onGiveLesson: { _ in givingLessonFromDetail = selected }
+                        onGiveLesson: { _ in givingLessonFromDetailID = selected.id }
                     )
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.98).combined(with: .opacity),
@@ -163,9 +163,13 @@ struct LessonsRootView: View {
         .sheet(isPresented: $showingAddLesson) {
             AddLessonView()
         }
-        .sheet(item: $givingLessonFromDetail) { lesson in
-            GiveLessonSheet(lesson: lesson) {
-                givingLessonFromDetail = nil
+        .sheet(isPresented: Binding(get: { givingLessonFromDetailID != nil }, set: { if !$0 { givingLessonFromDetailID = nil } })) {
+            if let id = givingLessonFromDetailID, let lesson = lessons.first(where: { $0.id == id }) {
+                GiveLessonSheet(lesson: lesson) {
+                    givingLessonFromDetailID = nil
+                }
+            } else {
+                EmptyView()
             }
         }
         .fileImporter(
