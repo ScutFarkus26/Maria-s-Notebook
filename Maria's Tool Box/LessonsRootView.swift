@@ -53,6 +53,121 @@ struct LessonsRootView: View {
         viewModel.filteredLessons(lessons: lessons, searchText: searchText, selectedSubject: selectedSubject, selectedGroup: selectedGroup)
     }
 
+    private var isManualMode: Bool {
+        (selectedGroup != nil) && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var lessonIDs: [UUID] {
+        lessons.map { $0.id }
+    }
+
+    @ViewBuilder
+    private var selectedLessonOverlay: some View {
+        if let selected = selectedLesson {
+            ZStack {
+                Color.black.opacity(0.2)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            selectedLesson = nil
+                        }
+                    }
+
+                LessonDetailCard(
+                    lesson: selected,
+                    onSave: { updated in
+                        if let existing = lessons.first(where: { $0.id == updated.id }) {
+                            existing.name = updated.name
+                            existing.subject = updated.subject
+                            existing.group = updated.group
+                            existing.subheading = updated.subheading
+                            existing.writeUp = updated.writeUp
+                            try? modelContext.save()
+                        }
+                    },
+                    onClose: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            selectedLesson = nil
+                        }
+                    },
+                    onGiveLesson: { _ in givingLessonFromDetailID = selected.id }
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.98).combined(with: .opacity),
+                    removal: .scale(scale: 0.98).combined(with: .opacity)
+                ))
+            }
+            .animation(.spring(response: 0.35, dampingFraction: 0.9), value: selectedLesson?.id)
+        }
+    }
+
+    private var isGivingLessonPresented: Binding<Bool> {
+        Binding(get: { givingLessonFromDetailID != nil }, set: { if !$0 { givingLessonFromDetailID = nil } })
+    }
+
+    @ViewBuilder
+    private var givingLessonSheet: some View {
+        if let id = givingLessonFromDetailID, let lesson = lessons.first(where: { $0.id == id }) {
+            GiveLessonSheet(lesson: lesson) {
+                givingLessonFromDetailID = nil
+            }
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var importPreviewSheet: some View {
+        if let parsed = pendingParsedImport {
+            LessonImportPreviewView(parsed: parsed, onCancel: {
+                showingImportPreview = false
+            }, onConfirm: { filtered in
+                do {
+                    let inserted = try LessonCSVImporter.commit(parsed: filtered, into: modelContext, existingLessons: lessons)
+                    var message = "Imported \(inserted) row(s)."
+                    if filtered.potentialDuplicates.count > 0 {
+                        let firstFew = filtered.potentialDuplicates.prefix(5).joined(separator: "\n• ")
+                        message += "\n\nPotential duplicates detected: \(filtered.potentialDuplicates.count)."
+                        if !firstFew.isEmpty {
+                            message += "\n\nExamples:\n• \(firstFew)"
+                        }
+                    }
+                    if !filtered.warnings.isEmpty {
+                        message += "\n\nWarnings:\n" + filtered.warnings.joined(separator: "\n")
+                    }
+                    importAlert = ImportAlert(title: "CSV Import Complete", message: message)
+                } catch {
+                    importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                }
+                showingImportPreview = false
+            })
+            .frame(minWidth: 620, minHeight: 520)
+        } else {
+            EmptyView()
+        }
+    }
+
+    private func handleFileImportResult(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+
+            let needsAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if needsAccess {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            let data = try Data(contentsOf: url)
+            let parsed = try LessonCSVImporter.parse(data: data, existingLessons: lessons)
+            self.pendingParsedImport = parsed
+            self.showingImportPreview = true
+        } catch {
+            importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
@@ -74,25 +189,14 @@ struct LessonsRootView: View {
                     } else {
                         LessonsCardsGridView(
                             lessons: filteredLessons,
-                            isManualMode: (selectedGroup != nil) && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                            onTapLesson: { lesson in
+                            isManualMode: isManualMode,
+                            onTapLesson: { (lesson: Lesson) in
                                 selectedLesson = lesson
                             },
-                            onReorder: { movingLesson, fromIndex, toIndex, subset in
-                                // Only allow reordering when a group is selected (subset corresponds to the full group for the selected subject)
-                                guard selectedGroup != nil else { return }
-                                var ordered = subset
-                                let boundedFrom = max(0, min(ordered.count - 1, fromIndex))
-                                let item = ordered.remove(at: boundedFrom)
-                                let boundedTo = max(0, min(ordered.count, toIndex))
-                                ordered.insert(item, at: boundedTo)
-                                // Assign sequential orderInGroup values based on new order
-                                for (idx, l) in ordered.enumerated() {
-                                    l.orderInGroup = idx
-                                }
-                                try? modelContext.save()
+                            onReorder: { (movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson]) in
+                                reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
                             },
-                            onGiveLesson: { lesson in
+                            onGiveLesson: { (lesson: Lesson) in
                                 selectedLesson = lesson
                             }
                         )
@@ -122,113 +226,27 @@ struct LessonsRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay {
-            if let selected = selectedLesson {
-                ZStack {
-                    Color.black.opacity(0.2)
-                        .ignoresSafeArea()
-                        .transition(.opacity)
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                                selectedLesson = nil
-                            }
-                        }
-
-                    LessonDetailCard(
-                        lesson: selected,
-                        onSave: { updated in
-                            if let existing = lessons.first(where: { $0.id == updated.id }) {
-                                existing.name = updated.name
-                                existing.subject = updated.subject
-                                existing.group = updated.group
-                                existing.subheading = updated.subheading
-                                existing.writeUp = updated.writeUp
-                                try? modelContext.save()
-                            }
-                        },
-                        onClose: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                                selectedLesson = nil
-                            }
-                        },
-                        onGiveLesson: { _ in givingLessonFromDetailID = selected.id }
-                    )
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.98).combined(with: .opacity),
-                        removal: .scale(scale: 0.98).combined(with: .opacity)
-                    ))
-                }
-                .animation(.spring(response: 0.35, dampingFraction: 0.9), value: selectedLesson?.id)
-            }
+            selectedLessonOverlay
         }
         .sheet(isPresented: $showingAddLesson) {
             AddLessonView()
         }
-        .sheet(isPresented: Binding(get: { givingLessonFromDetailID != nil }, set: { if !$0 { givingLessonFromDetailID = nil } })) {
-            if let id = givingLessonFromDetailID, let lesson = lessons.first(where: { $0.id == id }) {
-                GiveLessonSheet(lesson: lesson) {
-                    givingLessonFromDetailID = nil
-                }
-            } else {
-                EmptyView()
-            }
+        .sheet(isPresented: isGivingLessonPresented) {
+            givingLessonSheet
         }
         .fileImporter(
             isPresented: $showingLessonCSVImporter,
             allowedContentTypes: [.commaSeparatedText, .plainText]
         ) { result in
-            do {
-                let url = try result.get()
-
-                // Begin security-scoped access if needed (macOS sandbox / file providers)
-                let needsAccess = url.startAccessingSecurityScopedResource()
-                defer {
-                    if needsAccess {
-                        url.stopAccessingSecurityScopedResource()
-                    }
-                }
-
-                let data = try Data(contentsOf: url)
-                let parsed = try LessonCSVImporter.parse(data: data, existingLessons: lessons)
-                self.pendingParsedImport = parsed
-                self.showingImportPreview = true
-            } catch {
-                importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-            }
+            handleFileImportResult(result)
         }
         .alert(item: $importAlert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
         }
         .sheet(isPresented: $showingImportPreview, onDismiss: {
-            // Clear parsed data on dismiss
             pendingParsedImport = nil
         }) {
-            if let parsed = pendingParsedImport {
-                LessonImportPreviewView(parsed: parsed, onCancel: {
-                    showingImportPreview = false
-                }, onConfirm: { filtered in
-                    do {
-                        let inserted = try LessonCSVImporter.commit(parsed: filtered, into: modelContext)
-                        var message = "Imported \(inserted) row(s)."
-                        if filtered.potentialDuplicates.count > 0 {
-                            let firstFew = filtered.potentialDuplicates.prefix(5).joined(separator: "\n• ")
-                            message += "\n\nPotential duplicates detected: \(filtered.potentialDuplicates.count)."
-                            if !firstFew.isEmpty {
-                                message += "\n\nExamples:\n• \(firstFew)"
-                            }
-                        }
-                        if !filtered.warnings.isEmpty {
-                            message += "\n\nWarnings:\n" + filtered.warnings.joined(separator: "\n")
-                        }
-                        importAlert = ImportAlert(title: "CSV Import Complete", message: message)
-                    } catch {
-                        importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-                    }
-                    showingImportPreview = false
-                })
-                .frame(minWidth: 620, minHeight: 520)
-            } else {
-                EmptyView()
-            }
+            importPreviewSheet
         }
         .onAppear {
             ensureInitialOrderInGroupIfNeeded()
@@ -239,7 +257,7 @@ struct LessonsRootView: View {
             self.selectedGroup = selectedGroupPersisted
             self.searchText = lessonsSearchTextRaw
         }
-        .onChange(of: lessons.map { $0.id }) {
+        .onChange(of: lessonIDs) {
             ensureInitialOrderInGroupIfNeeded()
         }
         .onChange(of: selectedSubject) { oldValue, newValue in
@@ -386,6 +404,21 @@ struct LessonsRootView: View {
         }
     }
 
+    private func reorderLessons(movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson]) {
+        // Only allow reordering when a group is selected (subset corresponds to the full group for the selected subject)
+        guard selectedGroup != nil else { return }
+        var ordered = subset
+        let boundedFrom = max(0, min(ordered.count - 1, fromIndex))
+        let item = ordered.remove(at: boundedFrom)
+        let boundedTo = max(0, min(ordered.count, toIndex))
+        ordered.insert(item, at: boundedTo)
+        // Assign sequential orderInGroup values based on new order
+        for (idx, l) in ordered.enumerated() {
+            l.orderInGroup = idx
+        }
+        try? modelContext.save()
+    }
+
     private func isExpanded(_ subject: String) -> Bool {
         expandedSubjects.contains(subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
     }
@@ -452,3 +485,4 @@ struct LessonsRootView: View {
         }
     }
 }
+

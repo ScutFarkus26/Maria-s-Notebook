@@ -199,6 +199,17 @@ private struct LessonRowView: View {
                 Spacer()
                 HStack(spacing: 8) {
                     subjectBadge
+                    if let order = row.orderInGroup {
+                        Text("#\(order)")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.primary.opacity(0.12))
+                            )
+                    }
                     if let onRemove {
                         Button(action: onRemove) {
                             Image(systemName: "minus.circle.fill")
@@ -252,9 +263,9 @@ private struct LessonRowView: View {
 
 #Preview {
     let rows = [
-        LessonCSVImporter.Row(name: "The Story of Numerals", subject: "Math", group: "Introduction", subheading: "", writeUp: "A foundational story."),
-        LessonCSVImporter.Row(name: "Introduce the Materials", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: ""),
-        LessonCSVImporter.Row(name: "Three Period Lesson and Layered Layout", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: ""),
+        LessonCSVImporter.Row(name: "The Story of Numerals", subject: "Math", group: "Introduction", subheading: "", writeUp: "A foundational story.", orderInGroup: nil),
+        LessonCSVImporter.Row(name: "Introduce the Materials", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: "", orderInGroup: nil),
+        LessonCSVImporter.Row(name: "Three Period Lesson and Layered Layout", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: "", orderInGroup: nil),
     ]
     let parsed = LessonCSVImporter.Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: ["The Story of Numerals — Math"], warnings: ["Row 4: Missing required Name or Subject; row skipped."])
     return LessonImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })

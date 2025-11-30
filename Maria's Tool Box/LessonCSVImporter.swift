@@ -10,6 +10,7 @@ enum LessonCSVImporter {
         var group: String
         var subheading: String
         var writeUp: String
+        var orderInGroup: Int?
     }
 
     // MARK: - Parsed (dry run)
@@ -53,7 +54,7 @@ enum LessonCSVImporter {
     /// Convenience one-shot import: parse then commit.
     static func importLessons(from data: Data, existingLessons: [Lesson], into context: ModelContext) throws -> Summary {
         let parsed = try parse(data: data, existingLessons: existingLessons)
-        let inserted = try commit(parsed: parsed, into: context)
+        let inserted = try commit(parsed: parsed, into: context, existingLessons: existingLessons)
         return Summary(totalRows: parsed.totalRows, insertedCount: inserted, potentialDuplicates: parsed.potentialDuplicates, warnings: parsed.warnings)
     }
 
@@ -75,16 +76,14 @@ enum LessonCSVImporter {
             "subject": ["subject"],
             "group": ["group", "category"],
             "subheading": ["subheading", "subtitle"],
-            "writeup": ["writeup", "write up", "notes", "description"]
+            "writeup": ["writeup", "write up", "notes", "description"],
+            "grouporder": ["grouporder", "group order", "order", "group position", "groupindex", "group index"]
         ]
 
         let headerMap = try mapHeaders(header, synonyms: synonyms)
 
         // Build existing keys for duplicate detection
-        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-        let existingKeys: Set<String> = Set(existingLessons.map { l in
-            [norm(l.name), norm(l.subject), norm(l.group)].joined(separator: "|")
-        })
+        let existingKeys: Set<String> = Set(existingLessons.map { duplicateKey(for: $0) })
 
         var rows: [Row] = []
         var potentialDupTitles: [String] = []
@@ -104,32 +103,87 @@ enum LessonCSVImporter {
             let subheading = value("subheading").trimmingCharacters(in: .whitespacesAndNewlines)
             let writeUp = value("writeup").trimmingCharacters(in: .whitespacesAndNewlines)
 
+            let groupOrderStr = value("grouporder").trimmingCharacters(in: .whitespacesAndNewlines)
+            var orderInGroup: Int? = nil
+            if !groupOrderStr.isEmpty {
+                if let parsedInt = Int(groupOrderStr), parsedInt >= 0 {
+                    orderInGroup = parsedInt
+                } else {
+                    warnings.append("Row \(i + 2): Invalid Group Order '\(groupOrderStr)'; ignored.")
+                }
+            }
+
             if name.isEmpty || subject.isEmpty {
                 warnings.append("Row \(i + 2): Missing required Name or Subject; row skipped.")
                 continue
             }
 
-            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp)
+            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp, orderInGroup: orderInGroup)
             rows.append(row)
 
-            let key = [norm(name), norm(subject), norm(group)].joined(separator: "|")
+            let key = duplicateKey(name: name, subject: subject, group: group)
             if existingKeys.contains(key) {
                 let title = group.isEmpty ? "\(name) — \(subject)" : "\(name) — \(subject) • \(group)"
                 potentialDupTitles.append(title)
             }
         }
 
-        return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: potentialDupTitles, warnings: warnings)
+        // Deduplicate potentialDupTitles preserving order
+        var seenTitles = Set<String>()
+        let uniquePotentialDupTitles = potentialDupTitles.filter {
+            if seenTitles.contains($0) { return false }
+            seenTitles.insert($0)
+            return true
+        }
+
+        return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: uniquePotentialDupTitles, warnings: warnings)
     }
 
-    /// Commit parsed rows by inserting new Lesson objects; always inserts (does not skip duplicates).
-    static func commit(parsed: Parsed, into context: ModelContext) throws -> Int {
+    /// Commit parsed rows by inserting new Lesson objects; updates existing lessons if duplicates found.
+    static func commit(parsed: Parsed, into context: ModelContext, existingLessons: [Lesson]) throws -> Int {
+        // Build a dictionary of existing lessons by duplicate key
+        var byKey: [String: Lesson] = [:]
+        for lesson in existingLessons {
+            byKey[duplicateKey(for: lesson)] = lesson
+        }
+
+        var inserted = 0
+        var updated = 0
+
         for r in parsed.rows {
-            let lesson = Lesson(name: r.name, subject: r.subject, group: r.group, subheading: r.subheading, writeUp: r.writeUp)
-            context.insert(lesson)
+            let key = duplicateKey(name: r.name, subject: r.subject, group: r.group)
+            if let existingLesson = byKey[key] {
+                var changed = false
+                if !r.subheading.isEmpty && r.subheading != existingLesson.subheading {
+                    existingLesson.subheading = r.subheading
+                    changed = true
+                }
+                if !r.writeUp.isEmpty && r.writeUp != existingLesson.writeUp {
+                    existingLesson.writeUp = r.writeUp
+                    changed = true
+                }
+                if let newOrder = r.orderInGroup {
+                    // Compare optional Ints safely
+                    if existingLesson.orderInGroup != newOrder {
+                        existingLesson.orderInGroup = newOrder
+                        changed = true
+                    }
+                }
+                if changed {
+                    updated += 1
+                }
+            } else {
+                let lesson = Lesson(name: r.name, subject: r.subject, group: r.group, subheading: r.subheading, writeUp: r.writeUp)
+                if let order = r.orderInGroup {
+                    lesson.orderInGroup = order
+                }
+                context.insert(lesson)
+                byKey[key] = lesson
+                inserted += 1
+            }
         }
         try context.save()
-        return parsed.rows.count
+        return inserted
     }
 
     // MARK: - Helpers
@@ -214,7 +268,34 @@ enum LessonCSVImporter {
         if let idx = findIndex(for: synonyms["group"] ?? []) { result["group"] = idx }
         if let idx = findIndex(for: synonyms["subheading"] ?? []) { result["subheading"] = idx }
         if let idx = findIndex(for: synonyms["writeup"] ?? []) { result["writeup"] = idx }
+        if let idx = findIndex(for: synonyms["grouporder"] ?? []) { result["grouporder"] = idx }
         return result
+    }
+
+    /// Normalize and combine name, subject, group to form a duplicate detection key.
+    private static func duplicateKey(name: String, subject: String, group: String) -> String {
+        let n = normalizeComponent(name)
+        let s = normalizeComponent(subject)
+        let g = normalizeComponent(group)
+        return [n, s, g].joined(separator: "|")
+    }
+    /// Normalize a component string by trimming, lowercasing, removing diacritics and collapsing whitespace.
+    private static func normalizeComponent(_ s: String) -> String {
+        // Trim whitespace
+        var result = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Lowercase
+        result = result.lowercased()
+        // Remove diacritics
+        result = result.folding(options: .diacriticInsensitive, locale: .current)
+        // Collapse whitespace sequences to single space
+        let components = result.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        result = components.joined(separator: " ")
+        return result
+    }
+
+    /// Compute duplicate key for a lesson.
+    static func duplicateKey(for lesson: Lesson) -> String {
+        duplicateKey(name: lesson.name, subject: lesson.subject, group: lesson.group)
     }
 }
 
