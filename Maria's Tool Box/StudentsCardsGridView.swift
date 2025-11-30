@@ -1,6 +1,12 @@
 import SwiftUI
 import Foundation
 
+private enum SymbolSupportCache {
+    static let hasStarFill = (NSImage(systemSymbolName: "star.fill", accessibilityDescription: nil) != nil)
+    static let hasSparkles = (NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil) != nil)
+    static let hasBalloonFill = (NSImage(systemSymbolName: "balloon.fill", accessibilityDescription: nil) != nil)
+}
+
 extension View {
     @ViewBuilder
     func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
@@ -297,7 +303,7 @@ private struct AgeStudentCard: View {
         ZStack {
             ForEach(0..<14, id: \.self) { _ in
                 Group {
-                    if NSImage(systemSymbolName: "star.fill", accessibilityDescription: nil) != nil {
+                    if SymbolSupportCache.hasStarFill {
                         Image(systemName: "star.fill")
                             .foregroundStyle(.white.opacity(0.35))
                     } else {
@@ -370,7 +376,7 @@ private struct AgeStudentCard: View {
 
     private var headerIcon: some View {
         Group {
-            if NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil) != nil {
+            if SymbolSupportCache.hasSparkles {
                 Image(systemName: "sparkles")
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, .yellow)
@@ -518,7 +524,7 @@ private struct BirthdayStudentCard: View {
 
     private var balloon: some View {
         Group {
-            if NSImage(systemSymbolName: "balloon.fill", accessibilityDescription: nil) != nil {
+            if SymbolSupportCache.hasBalloonFill {
                 Image(systemName: "balloon.fill")
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, .red)

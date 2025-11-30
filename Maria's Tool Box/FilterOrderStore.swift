@@ -55,11 +55,44 @@ struct FilterOrderStore {
         UserDefaults.standard.set(order, forKey: key)
     }
     
-    /// Merges saved order with existing items keeping saved order first and appending missing existing items at the end.
+    /// Clears in-memory caches for subject and group orders.
+    static func resetCache() {
+        cachedSubjectOrder = nil
+        cachedGroupOrders.removeAll()
+    }
+
+    /// Removes the persisted subject order from UserDefaults and clears the cache.
+    static func clearSubjectOrder() {
+        cachedSubjectOrder = nil
+        UserDefaults.standard.removeObject(forKey: subjectOrderKey)
+    }
+
+    /// Removes the persisted group order for a specific subject from UserDefaults and clears the cached entry.
+    static func clearGroupOrder(for subject: String) {
+        let key = groupOrderPrefix + normalizedSubject(subject)
+        cachedGroupOrders.removeValue(forKey: key)
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+    
+    /// Merges saved order with existing items keeping saved order first, de-duplicating saved entries,
+    /// and appending any missing existing items at the end. Uses Sets for efficient lookups.
     private static func mergeOrder(saved: [String], existing: [String]) -> [String] {
         let existingSet = Set(existing)
-        let filteredSaved = saved.filter { existingSet.contains($0) }
-        let missing = existing.filter { !filteredSaved.contains($0) }
+
+        // Deduplicate saved while preserving order and filter to items that still exist
+        var seen = Set<String>()
+        var filteredSaved: [String] = []
+        filteredSaved.reserveCapacity(saved.count)
+        for item in saved {
+            if existingSet.contains(item), seen.insert(item).inserted {
+                filteredSaved.append(item)
+            }
+        }
+
+        // Append missing existing items efficiently
+        let savedSet = Set(filteredSaved)
+        let missing = existing.filter { !savedSet.contains($0) }
+
         return filteredSaved + missing
     }
 }

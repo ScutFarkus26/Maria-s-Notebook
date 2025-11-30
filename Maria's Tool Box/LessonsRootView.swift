@@ -26,6 +26,7 @@ struct LessonsRootView: View {
     @AppStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
     @AppStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
     @AppStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
+    @AppStorage("Lessons.expandedSubjects") private var lessonsExpandedSubjectsRaw: String = ""
 
     private var selectedSubjectPersisted: String? {
         lessonsSelectedSubjectRaw.isEmpty ? nil : lessonsSelectedSubjectRaw
@@ -36,6 +37,16 @@ struct LessonsRootView: View {
     }
 
     private var searchTextPersisted: String { lessonsSearchTextRaw }
+
+    private func serializeExpandedSubjects(_ set: Set<String>) -> String {
+        // Store normalized subject keys in a stable order
+        return set.sorted().joined(separator: "|")
+    }
+
+    private func deserializeExpandedSubjects(_ raw: String) -> Set<String> {
+        if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
+        return Set(raw.split(separator: "|").map { String($0) })
+    }
 
     private let viewModel = LessonsViewModel()
 
@@ -255,12 +266,21 @@ struct LessonsRootView: View {
         }
         .onAppear {
             ensureInitialOrderInGroupIfNeeded()
-        }
-        .onAppear {
             // Restore persisted filters
             self.selectedSubject = selectedSubjectPersisted
             self.selectedGroup = selectedGroupPersisted
             self.searchText = lessonsSearchTextRaw
+
+            // Restore expanded subjects from persistence
+            self.expandedSubjects = deserializeExpandedSubjects(lessonsExpandedSubjectsRaw)
+
+            // If a child group is selected, ensure its parent subject is expanded so the selection is visible
+            if let subject = self.selectedSubject, self.selectedGroup != nil {
+                self.expandedSubjects.insert(normalizeSubjectKey(subject))
+            }
+
+            // Persist any adjustments to the expanded set
+            self.lessonsExpandedSubjectsRaw = serializeExpandedSubjects(self.expandedSubjects)
         }
         .onChange(of: lessonIDs) {
             ensureInitialOrderInGroupIfNeeded()
@@ -273,6 +293,9 @@ struct LessonsRootView: View {
         }
         .onChange(of: searchText) { oldValue, newValue in
             lessonsSearchTextRaw = newValue
+        }
+        .onChange(of: expandedSubjects) { oldValue, newValue in
+            lessonsExpandedSubjectsRaw = serializeExpandedSubjects(newValue)
         }
     }
 
@@ -424,12 +447,16 @@ struct LessonsRootView: View {
         try? modelContext.save()
     }
 
+    private func normalizeSubjectKey(_ subject: String) -> String {
+        subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
     private func isExpanded(_ subject: String) -> Bool {
-        expandedSubjects.contains(subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+        expandedSubjects.contains(normalizeSubjectKey(subject))
     }
 
     private func toggleExpanded(_ subject: String) {
-        let key = subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let key = normalizeSubjectKey(subject)
         if expandedSubjects.contains(key) {
             expandedSubjects.remove(key)
         } else {

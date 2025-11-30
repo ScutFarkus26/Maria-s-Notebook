@@ -74,16 +74,25 @@ struct LessonDetailCard: View {
                 .padding(.top, 4)
 
             // Bottom bar (inline for card)
-            HStack {
+            HStack(spacing: 12) {
                 Spacer()
                 if isEditing {
-                    Button("Cancel") {
+                    Button {
                         isEditing = false
+                    } label: {
+                        Label("Cancel", systemImage: "xmark.circle")
                     }
-                    Button("Delete", role: .destructive) {
+                    .buttonStyle(.bordered)
+
+                    Button(role: .destructive) {
                         showDeleteAlert = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
                     }
-                    Button("Save") {
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+
+                    Button {
                         let updated = lesson
                         updated.name = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
                         updated.subject = draftSubject.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -92,25 +101,40 @@ struct LessonDetailCard: View {
                         updated.writeUp = draftWriteUp
                         onSave(updated)
                         isEditing = false
+                    } label: {
+                        Label("Save", systemImage: "checkmark.circle.fill")
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 } else {
-                    Button("Give Lesson") {
+                    Button {
                         onGiveLesson?(lesson)
+                    } label: {
+                        Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
                     }
-                    Button("Edit") {
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+
+                    Button {
                         seedDrafts()
                         isEditing = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
                     }
-                    Button("Done") {
+                    .buttonStyle(.bordered)
+
+                    Button {
                         onClose()
+                    } label: {
+                        Label("Done", systemImage: "checkmark.circle.fill")
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                 }
             }
+            .controlSize(.large)
+            .labelStyle(.titleAndIcon)
         }
         .padding(16)
         .frame(maxWidth: 560)
@@ -138,11 +162,6 @@ struct LessonDetailCard: View {
 
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            row(title: "Name", value: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name, icon: "text.book.closed")
-            row(title: "Subject", value: lesson.subject.isEmpty ? "—" : lesson.subject, icon: "graduationcap")
-            row(title: "Group", value: lesson.group.isEmpty ? "—" : lesson.group, icon: "square.grid.2x2")
-            row(title: "Subheading", value: lesson.subheading.isEmpty ? "—" : lesson.subheading, icon: "text.bubble")
-
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
                     Image(systemName: "doc.plaintext")
@@ -161,7 +180,7 @@ struct LessonDetailCard: View {
                             .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxHeight: 180)
+                    .frame(minHeight: 180, maxHeight: 360)
                 }
             }
             .padding(.top, 6)
