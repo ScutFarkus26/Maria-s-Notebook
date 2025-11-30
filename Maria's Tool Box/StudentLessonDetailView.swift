@@ -17,6 +17,8 @@ struct StudentLessonDetailView: View {
     @State private var needsAnotherPresentation: Bool
     @State private var followUpWork: String
 
+    @State private var showDeleteAlert = false
+
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
         self.studentLesson = studentLesson
         self.onDone = onDone
@@ -28,111 +30,276 @@ struct StudentLessonDetailView: View {
         _followUpWork = State(initialValue: studentLesson.followUpWork)
     }
 
+    private var lessonObject: Lesson? {
+        lessons.first(where: { $0.id == studentLesson.lessonID })
+    }
+
+    private var lessonName: String {
+        lessonObject?.name ?? "Lesson"
+    }
+
+    private var subject: String {
+        lessonObject?.subject ?? ""
+    }
+
+    private var subjectColor: Color {
+        AppColors.color(forSubject: subject)
+    }
+
+    private var associatedStudents: [Student] {
+        studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
+    }
+
+    private func displayName(for student: Student) -> String {
+        let parts = student.fullName.split(separator: " ")
+        guard let first = parts.first else { return student.fullName }
+        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
+        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+    }
+
+    private func dateChip(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.12))
+            )
+    }
+
+    private var dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("EEE, MMM d, h:mm a")
+        return formatter
+    }()
+
     var body: some View {
-        NavigationStack {
-            Form {
-                Section(header: Text("Lesson")) {
-                    Text(lessons.first(where: { $0.id == studentLesson.lessonID })?.name ?? "Lesson")
-                        .font(.headline)
-                }
-
-                Section(header: Text("Students")) {
-                    let associatedStudents = studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack {
-                            ForEach(associatedStudents, id: \.id) { student in
-                                Text(student.fullName)
-                                    .padding(.vertical, 4)
-                                    .padding(.horizontal, 8)
-                                    .background(Color.accentColor.opacity(0.2))
-                                    .foregroundColor(.accentColor)
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-
-                Section("Scheduled For") {
-                    Toggle("Scheduled", isOn: Binding(
-                        get: { scheduledFor != nil },
-                        set: { newValue in
-                            if newValue {
-                                scheduledFor = scheduledFor ?? Date()
-                            } else {
-                                scheduledFor = nil
-                            }
-                        }))
-                    if let date = scheduledFor {
-                        DatePicker("Date", selection: Binding(
-                            get: { date },
-                            set: { scheduledFor = $0 }
-                        ), displayedComponents: [.date, .hourAndMinute])
-                    }
-                }
-
-                Section("Given At") {
-                    Toggle("Given", isOn: Binding(
-                        get: { givenAt != nil },
-                        set: { newValue in
-                            if newValue {
-                                givenAt = givenAt ?? Date()
-                            } else {
-                                givenAt = nil
-                            }
-                        }))
-                    if let date = givenAt {
-                        DatePicker("Date", selection: Binding(
-                            get: { date },
-                            set: { givenAt = $0 }
-                        ), displayedComponents: [.date, .hourAndMinute])
-                    }
-                }
-
-                Section("Notes") {
-                    TextEditor(text: $notes)
-                        .frame(minHeight: 100)
-                }
-
-                Section("Follow Up Work") {
-                    TextField("Follow Up Work", text: $followUpWork)
-                }
-
-                Section {
-                    Toggle("Needs Practice", isOn: $needsPractice)
-                    Toggle("Needs Another Presentation", isOn: $needsAnotherPresentation)
-                }
+        VStack(spacing: 0) {
+            HStack {
+                Text("Student Lesson")
+                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .navigationTitle("Lesson Details")
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 0) {
-                    Divider()
-                    HStack {
-                        Button(role: .destructive) {
-                            delete()
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+            .padding(.horizontal, 24)
+            .padding(.top, 18)
 
-                        Spacer()
+            Divider()
 
-                        Button("Cancel") {
-                            dismiss()
-                        }
-
-                        Button("Save") {
-                            save()
-                        }
-                        .bold()
-                        .buttonStyle(.borderedProminent)
-                        .keyboardShortcut(.defaultAction)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(.bar)
+            ScrollView {
+                VStack(spacing: 28) {
+                    summarySection
+                    scheduleSection
+                    givenSection
+                    flagsSection
+                    followUpSection
+                    notesSection
                 }
+                .padding(.horizontal, 32)
+                .padding(.top, 28)
+                .padding(.bottom, 24)
             }
         }
+        .frame(minWidth: 520, minHeight: 560)
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 0) {
+                Divider()
+                HStack {
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+
+                    Spacer()
+
+                    Button("Cancel") {
+                        if let onDone {
+                            onDone()
+                        } else {
+                            dismiss()
+                        }
+                    }
+
+                    Button("Save") {
+                        save()
+                    }
+                    .bold()
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.bar)
+            }
+        }
+        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                delete()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private var summarySection: some View {
+        VStack(spacing: 16) {
+            Text(lessonName)
+                .font(.system(size: AppTheme.FontSize.titleLarge, weight: .heavy, design: .rounded))
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 8) {
+                if !subject.isEmpty {
+                    Text(subject)
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .foregroundColor(subjectColor)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(subjectColor.opacity(0.15))
+                        )
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(associatedStudents, id: \.id) { student in
+                            Text(displayName(for: student))
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .foregroundColor(subjectColor)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(subjectColor.opacity(0.15))
+                                )
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var scheduleSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "calendar")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text("Scheduled For")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Toggle("Scheduled", isOn: Binding(
+                get: { scheduledFor != nil },
+                set: { newValue in
+                    if newValue {
+                        scheduledFor = scheduledFor ?? Date()
+                    } else {
+                        scheduledFor = nil
+                    }
+                }
+            ))
+
+            if scheduledFor != nil {
+                DatePicker("Date", selection: Binding(
+                    get: { scheduledFor ?? Date() },
+                    set: { scheduledFor = $0 }
+                ), displayedComponents: [.date, .hourAndMinute])
+                    .datePickerStyle(.compact)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var givenSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.clock")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text("Presented")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Toggle("Presented", isOn: Binding(
+                get: { givenAt != nil },
+                set: { newValue in
+                    if newValue {
+                        givenAt = givenAt ?? Date()
+                    } else {
+                        givenAt = nil
+                    }
+                }
+            ))
+
+            if givenAt != nil {
+                DatePicker("Date", selection: Binding(
+                    get: { givenAt ?? Date() },
+                    set: { givenAt = $0 }
+                ), displayedComponents: [.date, .hourAndMinute])
+                    .datePickerStyle(.compact)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var flagsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "flag")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text("Flags")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Toggle("Needs Practice", isOn: $needsPractice)
+            Toggle("Needs Another Presentation", isOn: $needsAnotherPresentation)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var followUpSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "bolt.fill")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text("Follow Up Work")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            TextField("Follow Up Work", text: $followUpWork)
+                .textFieldStyle(.roundedBorder)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var notesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "doc.plaintext")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text("Notes")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            TextEditor(text: $notes)
+                .frame(minHeight: 140)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func save() {

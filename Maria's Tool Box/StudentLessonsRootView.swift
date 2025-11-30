@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 private enum StudentLessonsSort: String {
+    case presentThenGiven = "Default"
     case dateCreated = "Date Created"
     case dateGiven = "Date Given"
 }
@@ -18,7 +19,7 @@ struct StudentLessonsRootView: View {
     @Query private var students: [Student]
 
     @State private var selectedLesson: StudentLesson? = nil
-    @State private var sort: StudentLessonsSort = .dateCreated
+    @State private var sort: StudentLessonsSort = .presentThenGiven
     @State private var filter: CompletionFilter = .all
     @State private var selectedSubject: String? = nil
 
@@ -30,6 +31,45 @@ struct StudentLessonsRootView: View {
 
     private var lessonMap: [UUID: Lesson] {
         Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+    }
+
+    private func applySubjectFilter(_ base: [StudentLesson]) -> [StudentLesson] {
+        if let subject = selectedSubject {
+            return base.filter { sl in
+                if let l = lessonMap[sl.lessonID] {
+                    return l.subject.caseInsensitiveCompare(subject) == .orderedSame
+                }
+                return false
+            }
+        }
+        return base
+    }
+
+    private var defaultUpcoming: [StudentLesson] {
+        var base = studentLessons.filter { $0.givenAt == nil }
+        base = applySubjectFilter(base)
+        return base.sorted { lhs, rhs in
+            switch (lhs.scheduledFor, rhs.scheduledFor) {
+            case let (l?, r?):
+                return l < r
+            case (nil, nil):
+                return lhs.createdAt < rhs.createdAt
+            case (nil, _?):
+                return false
+            case (_?, nil):
+                return true
+            }
+        }
+    }
+
+    private var defaultGiven: [StudentLesson] {
+        var base = studentLessons.filter { $0.givenAt != nil }
+        base = applySubjectFilter(base)
+        return base.sorted { lhs, rhs in
+            let l = lhs.givenAt ?? .distantPast
+            let r = rhs.givenAt ?? .distantPast
+            return l > r
+        }
     }
 
     private var filteredAndSorted: [StudentLesson] {
@@ -56,6 +96,25 @@ struct StudentLessonsRootView: View {
 
         // Sorting
         switch sort {
+        case .presentThenGiven:
+            let upcoming: [StudentLesson] = base.filter { $0.givenAt == nil }.sorted { lhs, rhs in
+                switch (lhs.scheduledFor, rhs.scheduledFor) {
+                case let (l?, r?):
+                    return l < r
+                case (nil, nil):
+                    return lhs.createdAt < rhs.createdAt
+                case (nil, _?):
+                    return false
+                case (_?, nil):
+                    return true
+                }
+            }
+            let given: [StudentLesson] = base.filter { $0.givenAt != nil }.sorted { lhs, rhs in
+                let l = lhs.givenAt ?? .distantPast
+                let r = rhs.givenAt ?? .distantPast
+                return l > r
+            }
+            return upcoming + given
         case .dateCreated:
             return base.sorted { lhs, rhs in lhs.createdAt > rhs.createdAt }
         case .dateGiven:
@@ -96,33 +155,6 @@ struct StudentLessonsRootView: View {
     // MARK: - Sidebar
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Sort")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-
-            SidebarFilterButton(
-                icon: "clock.badge.plus",
-                title: StudentLessonsSort.dateCreated.rawValue,
-                color: .accentColor,
-                isSelected: sort == .dateCreated
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    sort = .dateCreated
-                }
-            }
-
-            SidebarFilterButton(
-                icon: "calendar.badge.checkmark",
-                title: StudentLessonsSort.dateGiven.rawValue,
-                color: .accentColor,
-                isSelected: sort == .dateGiven
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    sort = .dateGiven
-                }
-            }
-
             Text("Filters")
                 .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
@@ -204,26 +236,85 @@ struct StudentLessonsRootView: View {
     // MARK: - Content
     private var content: some View {
         Group {
-            if filteredAndSorted.isEmpty {
-                VStack(spacing: 8) {
-                    Text("No student lessons")
-                        .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
-                    Text("Try adjusting your filters or add lessons from the Lessons library.")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                        ForEach(filteredAndSorted, id: \.id) { sl in
-                            StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
-                                .onTapGesture { selectedLesson = sl }
-                        }
+            if sort == .presentThenGiven {
+                let showUpcoming = filter != .completed
+                let showGiven = filter != .notCompleted
+                let up = defaultUpcoming
+                let gv = defaultGiven
+
+                if (!showUpcoming || up.isEmpty) && (!showGiven || gv.isEmpty) {
+                    VStack(spacing: 8) {
+                        Text("No student lessons")
+                            .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                        Text("Try adjusting your filters or add lessons from the Lessons library.")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 24) {
+                            if showUpcoming && !up.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "clock")
+                                            .foregroundStyle(.secondary)
+                                        Text("To Present")
+                                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                                        ForEach(up, id: \.id) { sl in
+                                            StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
+                                                .onTapGesture { selectedLesson = sl }
+                                        }
+                                    }
+                                }
+                            }
+                            if showGiven && !gv.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "checkmark.circle")
+                                            .foregroundStyle(.secondary)
+                                        Text("Given")
+                                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                                        ForEach(gv, id: \.id) { sl in
+                                            StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
+                                                .onTapGesture { selectedLesson = sl }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding(24)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                if filteredAndSorted.isEmpty {
+                    VStack(spacing: 8) {
+                        Text("No student lessons")
+                            .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                        Text("Try adjusting your filters or add lessons from the Lessons library.")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                            ForEach(filteredAndSorted, id: \.id) { sl in
+                                StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
+                                    .onTapGesture { selectedLesson = sl }
+                            }
+                        }
+                        .padding(24)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
     }
