@@ -20,6 +20,7 @@ struct WorkView: View {
     @State private var selectedWorkType: WorkModel.WorkType = .research
     @State private var selectedLessonID: UUID? = nil
     @State private var notesText: String = ""
+    @State private var selectedWork: WorkModel? = nil
 
     // Helper maps for quick lookup
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
@@ -44,7 +45,7 @@ struct WorkView: View {
                         studentsByID: studentsByID,
                         lessonsByID: lessonsByID,
                         studentLessonsByID: studentLessonsByID,
-                        onTapWork: { _ in }
+                        onTapWork: { selectedWork = $0 }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -125,6 +126,11 @@ struct WorkView: View {
                 }
             }
         }
+        .sheet(item: $selectedWork) { work in
+            WorkDetailView(work: work) {
+                selectedWork = nil
+            }
+        }
     }
 
     private func resetForm() {
@@ -144,6 +150,11 @@ struct WorkView: View {
             createdAt: Date()
         )
         modelContext.insert(newWork)
+        do {
+            try modelContext.save()
+        } catch {
+            // Handle save error if needed
+        }
         isPresentingAddWork = false
     }
 }
