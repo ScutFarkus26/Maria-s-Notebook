@@ -40,6 +40,7 @@ struct LessonsCardsGridView: View {
     @State private var itemFrames: [UUID: CGRect] = [:]
     @Namespace private var gridNamespace
     @State private var hasAppeared: Bool = false
+    @State private var showDeleteAlert: Bool = false
 
     private let columns: [GridItem] = [
         GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)

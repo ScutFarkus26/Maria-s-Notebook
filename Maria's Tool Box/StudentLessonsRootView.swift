@@ -19,6 +19,7 @@ struct StudentLessonsRootView: View {
     @Query private var students: [Student]
 
     @State private var selectedLessonID: UUID? = nil
+    @State private var quickActionsLessonID: UUID? = nil
 
     @AppStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
     @AppStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
@@ -175,6 +176,15 @@ struct StudentLessonsRootView: View {
                 EmptyView()
             }
         }
+        .sheet(isPresented: Binding(get: { quickActionsLessonID != nil }, set: { if !$0 { quickActionsLessonID = nil } })) {
+            if let id = quickActionsLessonID, let sl = studentLessons.first(where: { $0.id == id }) {
+                StudentLessonQuickActionsView(studentLesson: sl) {
+                    quickActionsLessonID = nil
+                }
+            } else {
+                EmptyView()
+            }
+        }
     }
 
     // MARK: - Sidebar
@@ -292,6 +302,13 @@ struct StudentLessonsRootView: View {
                                         ForEach(up, id: \.id) { sl in
                                             StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
                                                 .onTapGesture { selectedLessonID = sl.id }
+                                                .contextMenu {
+                                                    Button {
+                                                        quickActionsLessonID = sl.id
+                                                    } label: {
+                                                        Label("Quick Actions…", systemImage: "bolt")
+                                                    }
+                                                }
                                         }
                                     }
                                 }
@@ -309,6 +326,13 @@ struct StudentLessonsRootView: View {
                                         ForEach(gv, id: \.id) { sl in
                                             StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
                                                 .onTapGesture { selectedLessonID = sl.id }
+                                                .contextMenu {
+                                                    Button {
+                                                        quickActionsLessonID = sl.id
+                                                    } label: {
+                                                        Label("Quick Actions…", systemImage: "bolt")
+                                                    }
+                                                }
                                         }
                                     }
                                 }
@@ -334,6 +358,13 @@ struct StudentLessonsRootView: View {
                             ForEach(filteredAndSorted, id: \.id) { sl in
                                 StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
                                     .onTapGesture { selectedLessonID = sl.id }
+                                    .contextMenu {
+                                        Button {
+                                            quickActionsLessonID = sl.id
+                                        } label: {
+                                            Label("Quick Actions…", systemImage: "bolt")
+                                        }
+                                    }
                             }
                         }
                         .padding(24)
@@ -453,4 +484,3 @@ private struct StudentLessonCard: View {
 #Preview {
     StudentLessonsRootView()
 }
-

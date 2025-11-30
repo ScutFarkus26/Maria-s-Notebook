@@ -10,8 +10,10 @@ struct PlanningWeekView: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
     @Query private var studentLessons: [StudentLesson]
+    @Query private var lessons: [Lesson]
     @State private var weekStart: Date = Self.monday(for: Date())
     @State private var selectedLessonForDetailID: UUID? = nil
+    @State private var quickActionsLessonID: UUID? = nil
     @State private var isSidebarTargeted: Bool = false
 
     private var days: [Date] {
@@ -20,6 +22,43 @@ struct PlanningWeekView: View {
     
     private var unscheduledLessons: [StudentLesson] {
         studentLessons.filter { $0.scheduledFor == nil && $0.givenAt == nil }
+    }
+    
+    private func planNextLesson(for sl: StudentLesson) {
+        guard let currentLesson = lessons.first(where: { $0.id == sl.lessonID }) else { return }
+        let currentSubject = currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentGroup = currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return }
+
+        let candidates = lessons.filter { l in
+            l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
+            l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
+        }
+        .sorted { $0.orderInGroup < $1.orderInGroup }
+
+        guard let idx = candidates.firstIndex(where: { $0.id == currentLesson.id }), idx + 1 < candidates.count else { return }
+        let next = candidates[idx + 1]
+
+        let sameStudents = Set(sl.studentIDs)
+        let exists = studentLessons.contains { existing in
+            existing.lessonID == next.id && Set(existing.studentIDs) == sameStudents && existing.givenAt == nil
+        }
+        guard !exists else { return }
+
+        let newStudentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: next.id,
+            studentIDs: sl.studentIDs,
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: nil,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        modelContext.insert(newStudentLesson)
+        try? modelContext.save()
     }
 
     var body: some View {
@@ -31,7 +70,7 @@ struct PlanningWeekView: View {
                 Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        WeekGrid(days: days, onSelectLesson: { sl in selectedLessonForDetailID = sl.id })
+                        WeekGrid(days: days, onSelectLesson: { sl in selectedLessonForDetailID = sl.id }, onQuickActions: { sl in quickActionsLessonID = sl.id }, onPlanNext: { sl in planNextLesson(for: sl) })
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 20)
@@ -43,6 +82,15 @@ struct PlanningWeekView: View {
             if let id = selectedLessonForDetailID, let sl = studentLessons.first(where: { $0.id == id }) {
                 StudentLessonDetailView(studentLesson: sl) {
                     selectedLessonForDetailID = nil
+                }
+            } else {
+                EmptyView()
+            }
+        }
+        .sheet(isPresented: Binding(get: { quickActionsLessonID != nil }, set: { if !$0 { quickActionsLessonID = nil } })) {
+            if let id = quickActionsLessonID, let sl = studentLessons.first(where: { $0.id == id }) {
+                StudentLessonQuickActionsView(studentLesson: sl) {
+                    quickActionsLessonID = nil
                 }
             } else {
                 EmptyView()
@@ -88,6 +136,16 @@ struct PlanningWeekView: View {
                         ForEach(unscheduledLessons, id: \.id) { sl in
                             StudentLessonPill(lesson: sl)
                                 .contextMenu {
+                                    Button {
+                                        quickActionsLessonID = sl.id
+                                    } label: {
+                                        Label("Quick Actions…", systemImage: "bolt")
+                                    }
+                                    Button {
+                                        planNextLesson(for: sl)
+                                    } label: {
+                                        Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
+                                    }
                                     Button {
                                         selectedLessonForDetailID = sl.id
                                     } label: {
@@ -187,6 +245,8 @@ private struct WeekGrid: View {
     @Environment(\.calendar) private var calendar
     let days: [Date]
     let onSelectLesson: (StudentLesson) -> Void
+    let onQuickActions: (StudentLesson) -> Void
+    let onPlanNext: (StudentLesson) -> Void
 
     private var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(minimum: 160), spacing: 24), count: 5)
@@ -195,7 +255,7 @@ private struct WeekGrid: View {
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
             ForEach(days, id: \.self) { day in
-                DayColumn(day: day, onSelectLesson: onSelectLesson)
+                DayColumn(day: day, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
             }
         }
     }
@@ -206,6 +266,8 @@ private struct DayColumn: View {
     @Environment(\.calendar) private var calendar
     let day: Date
     let onSelectLesson: (StudentLesson) -> Void
+    let onQuickActions: (StudentLesson) -> Void
+    let onPlanNext: (StudentLesson) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -222,14 +284,14 @@ private struct DayColumn: View {
             Text("Morning")
                 .font(.system(size: 12, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
-            DropZone(day: day, period: .morning, onSelectLesson: onSelectLesson)
+            DropZone(day: day, period: .morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
                 .frame(minHeight: 220)
 
             // Afternoon
             Text("Afternoon")
                 .font(.system(size: 12, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
-            DropZone(day: day, period: .afternoon, onSelectLesson: onSelectLesson)
+            DropZone(day: day, period: .afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
                 .frame(minHeight: 220)
         }
     }
@@ -259,10 +321,12 @@ private struct DropZone: View {
     let day: Date
     let period: DayPeriod
     let onSelectLesson: (StudentLesson) -> Void
+    let onQuickActions: (StudentLesson) -> Void
+    let onPlanNext: (StudentLesson) -> Void
 
     private var scheduledLessonsForSlot: [StudentLesson] {
         studentLessons.filter { sl in
-            guard let scheduled = sl.scheduledFor else { return false }
+            guard let scheduled = sl.scheduledFor, sl.givenAt == nil else { return false }
             return calendar.isDate(scheduled, inSameDayAs: day) && isInSlot(scheduled, period: period)
         }
         .sorted { lhs, rhs in
@@ -296,6 +360,16 @@ private struct DropZone: View {
                     ForEach(scheduledLessonsForSlot, id: \.id) { sl in
                         StudentLessonPill(lesson: sl)
                             .contextMenu {
+                                Button {
+                                    onQuickActions(sl)
+                                } label: {
+                                    Label("Quick Actions…", systemImage: "bolt")
+                                }
+                                Button {
+                                    onPlanNext(sl)
+                                } label: {
+                                    Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
+                                }
                                 Button {
                                     onSelectLesson(sl)
                                 } label: {

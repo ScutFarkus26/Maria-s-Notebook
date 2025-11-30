@@ -6,6 +6,7 @@ struct StudentLessonDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
     @Query private var studentsAll: [Student]
+    @Query private var studentLessonsAll: [StudentLesson]
 
     let studentLesson: StudentLesson
     var onDone: (() -> Void)? = nil
@@ -21,6 +22,7 @@ struct StudentLessonDetailView: View {
     @State private var showingAddStudentSheet = false
     @State private var showingStudentPickerPopover = false
     @State private var studentSearchText: String = ""
+    @State private var showDeleteAlert: Bool = false
 
     private enum LevelFilter: String, CaseIterable {
         case all = "All"
@@ -29,8 +31,8 @@ struct StudentLessonDetailView: View {
     }
 
     @State private var studentLevelFilter: LevelFilter = .all
-
-    @State private var showDeleteAlert = false
+    @State private var didPlanNext: Bool = false
+    @State private var showPlannedBanner: Bool = false
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
         self.studentLesson = studentLesson
@@ -58,6 +60,50 @@ struct StudentLessonDetailView: View {
 
     private var subjectColor: Color {
         AppColors.color(forSubject: subject)
+    }
+
+    private var nextLessonInGroup: Lesson? {
+        guard let current = lessonObject else { return nil }
+        let currentSubject = current.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentGroup = current.group.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return nil }
+        let candidates = lessons.filter { l in
+            l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
+            l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
+        }
+        .sorted { $0.orderInGroup < $1.orderInGroup }
+        guard let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count else { return nil }
+        return candidates[idx + 1]
+    }
+
+    private func planNextLessonInGroup() {
+        guard let next = nextLessonInGroup else { return }
+        let sameStudents = Set(selectedStudentIDs)
+        let exists = studentLessonsAll.contains { sl in
+            sl.lessonID == next.id && Set(sl.studentIDs) == sameStudents && sl.givenAt == nil
+        }
+        if !exists {
+            let newStudentLesson = StudentLesson(
+                id: UUID(),
+                lessonID: next.id,
+                studentIDs: Array(selectedStudentIDs),
+                createdAt: Date(),
+                scheduledFor: nil,
+                givenAt: nil,
+                notes: "",
+                needsPractice: false,
+                needsAnotherPresentation: false,
+                followUpWork: ""
+            )
+            modelContext.insert(newStudentLesson)
+            try? modelContext.save()
+        }
+        didPlanNext = true
+
+        showPlannedBanner = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            showPlannedBanner = false
+        }
     }
 
     private var selectedStudentsList: [Student] {
@@ -149,6 +195,7 @@ struct StudentLessonDetailView: View {
                     summarySection
                     scheduleSection
                     givenSection
+                    nextLessonSection
                     flagsSection
                     followUpSection
                     notesSection
@@ -199,6 +246,11 @@ struct StudentLessonDetailView: View {
         }
         .sheet(isPresented: $showingAddStudentSheet) {
             AddStudentView()
+        }
+        .overlay(alignment: .top) {
+            if showPlannedBanner {
+                plannedBanner
+            }
         }
     }
 
@@ -406,6 +458,41 @@ struct StudentLessonDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var nextLessonSection: some View {
+        Group {
+            if givenAt != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar.badge.plus")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                        Text("Next Lesson in Group")
+                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    if let next = nextLessonInGroup {
+                        Text(next.name)
+                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        Button {
+                            planNextLessonInGroup()
+                        } label: {
+                            Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(didPlanNext || studentLessonsAll.contains { sl in
+                            sl.lessonID == next.id && Set(sl.studentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
+                        })
+                    } else {
+                        Text("No next lesson available")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
     private var flagsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -461,6 +548,20 @@ struct StudentLessonDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var plannedBanner: some View {
+        Text("Next lesson added to Ready to Schedule")
+            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.green.opacity(0.95))
+            )
+            .foregroundColor(.white)
+            .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+            .padding(.top, 8)
+    }
+
     private func save() {
         studentLesson.scheduledFor = scheduledFor
         studentLesson.givenAt = givenAt
@@ -472,7 +573,11 @@ struct StudentLessonDetailView: View {
 
         do {
             try modelContext.save()
-            onDone?() ?? dismiss()
+            if let onDone {
+                onDone()
+            } else {
+                dismiss()
+            }
         } catch {
             // Handle save error if needed
         }
