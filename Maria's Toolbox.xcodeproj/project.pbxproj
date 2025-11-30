@@ -8,10 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		511D1ED72EDA7650005658D3 /* PlanningWeekView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 511D1ED62EDA7650005658D3 /* PlanningWeekView.swift */; };
-		51341B952EDA6C1B00088D80 /* SidebarFilterButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51341B942EDA6C1B00088D80 /* SidebarFilterButton.swift */; };
-		51341B972EDA6CC200088D80 /* AgeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51341B962EDA6CC200088D80 /* AgeUtils.swift */; };
-		51341B992EDA6D9400088D80 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51341B982EDA6D9400088D80 /* AppColors.swift */; };
-		5166D2BC2ED9F6A8005980B7 /* AddLessonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166D2BB2ED9F6A8005980B7 /* AddLessonView.swift */; };
 		51C6CD5A2EDAB1BC00DCA067 /* FilterOrderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD592EDAB1BC00DCA067 /* FilterOrderStore.swift */; };
 		51C6CD992EDB3C4900DCA067 /* StudentsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD982EDB3C4900DCA067 /* StudentsRootView.swift */; };
 		51C6CD9B2EDB3C4A00DCA067 /* LessonsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CD9A2EDB3C4A00DCA067 /* LessonsRootView.swift */; };
@@ -20,15 +16,12 @@
 		51C6CDA12EDB454400DCA067 /* StudentsTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */; };
 		51C6CDA32EDB622C00DCA067 /* StudentLessonsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */; };
 		51C6CE972EDBAC9400DCA067 /* WorkModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6CE962EDBAC9400DCA067 /* WorkModel.swift */; };
+		51D771D92EDBC7B40041C945 /* WorkCardsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D771D82EDBC7B40041C945 /* WorkCardsGridView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		511D1ED62EDA7650005658D3 /* PlanningWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningWeekView.swift; sourceTree = "<group>"; };
-		51341B942EDA6C1B00088D80 /* SidebarFilterButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarFilterButton.swift; sourceTree = "<group>"; };
-		51341B962EDA6CC200088D80 /* AgeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeUtils.swift; sourceTree = "<group>"; };
-		51341B982EDA6D9400088D80 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		5166D2BB2ED9F6A8005980B7 /* AddLessonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddLessonView.swift; sourceTree = "<group>"; };
 		51C6CD592EDAB1BC00DCA067 /* FilterOrderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterOrderStore.swift; sourceTree = "<group>"; };
 		51C6CD982EDB3C4900DCA067 /* StudentsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsRootView.swift; sourceTree = "<group>"; };
 		51C6CD9A2EDB3C4A00DCA067 /* LessonsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsRootView.swift; sourceTree = "<group>"; };
@@ -37,6 +30,7 @@
 		51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsTypes.swift; sourceTree = "<group>"; };
 		51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonsRootView.swift; sourceTree = "<group>"; };
 		51C6CE962EDBAC9400DCA067 /* WorkModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkModel.swift; sourceTree = "<group>"; };
+		51D771D82EDBC7B40041C945 /* WorkCardsGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCardsGridView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -76,10 +70,6 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
-				5166D2BB2ED9F6A8005980B7 /* AddLessonView.swift */,
-				51341B942EDA6C1B00088D80 /* SidebarFilterButton.swift */,
-				51341B962EDA6CC200088D80 /* AgeUtils.swift */,
-				51341B982EDA6D9400088D80 /* AppColors.swift */,
 				511D1ED62EDA7650005658D3 /* PlanningWeekView.swift */,
 				51C6CD592EDAB1BC00DCA067 /* FilterOrderStore.swift */,
 				51C6CD982EDB3C4900DCA067 /* StudentsRootView.swift */,
@@ -89,6 +79,7 @@
 				51C6CDA02EDB454400DCA067 /* StudentsTypes.swift */,
 				51C6CDA22EDB622C00DCA067 /* StudentLessonsRootView.swift */,
 				51C6CE962EDBAC9400DCA067 /* WorkModel.swift */,
+				51D771D82EDBC7B40041C945 /* WorkCardsGridView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -174,7 +165,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				51341B952EDA6C1B00088D80 /* SidebarFilterButton.swift in Sources */,
 				511D1ED72EDA7650005658D3 /* PlanningWeekView.swift in Sources */,
 				51C6CD992EDB3C4900DCA067 /* StudentsRootView.swift in Sources */,
 				51C6CDA32EDB622C00DCA067 /* StudentLessonsRootView.swift in Sources */,
@@ -182,9 +172,7 @@
 				51C6CD9B2EDB3C4A00DCA067 /* LessonsRootView.swift in Sources */,
 				51C6CD9D2EDB3D4E00DCA067 /* LessonsViewModel.swift in Sources */,
 				51C6CDA12EDB454400DCA067 /* StudentsTypes.swift in Sources */,
-				5166D2BC2ED9F6A8005980B7 /* AddLessonView.swift in Sources */,
-				51341B992EDA6D9400088D80 /* AppColors.swift in Sources */,
-				51341B972EDA6CC200088D80 /* AgeUtils.swift in Sources */,
+				51D771D92EDBC7B40041C945 /* WorkCardsGridView.swift in Sources */,
 				51C6CE972EDBAC9400DCA067 /* WorkModel.swift in Sources */,
 				51C6CD5A2EDAB1BC00DCA067 /* FilterOrderStore.swift in Sources */,
 			);

@@ -28,60 +28,39 @@ struct WorkView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .topTrailing) {
-                Group {
-                    if workItems.isEmpty {
-                        VStack(spacing: 8) {
-                            Text("No work yet")
-                                .font(.headline)
-                            Text("Click the plus button to add work.")
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        List {
-                            ForEach(workItems) { work in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text(work.workType.rawValue)
-                                            .font(.headline)
-                                        Spacer()
-                                        Text("\(work.studentIDs.count) student\(work.studentIDs.count == 1 ? "" : "s")")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if let slID = work.studentLessonID, let sl = studentLessonsByID[slID] {
-                                        let lessonName = lessonsByID[sl.lessonID]?.name ?? "Lesson"
-                                        let date = sl.scheduledFor ?? sl.givenAt ?? sl.createdAt
-                                        Text("\(lessonName) • \(date.formatted(date: .numeric, time: .omitted))")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if !work.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                        Text(work.notes)
-                                            .font(.body)
-                                            .lineLimit(2)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                        .listStyle(.plain)
+            Group {
+                if workItems.isEmpty {
+                    VStack(spacing: 8) {
+                        Text("No work yet")
+                            .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                        Text("Click the plus button to add work.")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    WorkCardsGridView(
+                        works: workItems,
+                        studentsByID: studentsByID,
+                        lessonsByID: lessonsByID,
+                        studentLessonsByID: studentLessonsByID,
+                        onTapWork: { _ in }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .background(Color.platformBackground)
-
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
                 Button {
                     resetForm()
                     isPresentingAddWork = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 30))
+                        .font(.system(size: AppTheme.FontSize.titleXLarge))
                         .foregroundStyle(.green)
-                        .padding()
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Add Work")
+                .padding()
             }
             .navigationTitle("Work")
         }
