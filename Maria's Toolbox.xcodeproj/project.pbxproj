@@ -8,11 +8,23 @@
 
 /* Begin PBXBuildFile section */
 		51D772342EDBF71E0041C945 /* WorkDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D772332EDBF71E0041C945 /* WorkDetailView.swift */; };
+		51D772362EDBFE510041C945 /* CSVUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D772352EDBFE510041C945 /* CSVUtils.swift */; };
+		51D772382EDBFEF90041C945 /* StudentCSVMappingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D772372EDBFEF90041C945 /* StudentCSVMappingView.swift */; };
+		51D7723A2EDBFEFD0041C945 /* StudentCSVImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D772392EDBFEFD0041C945 /* StudentCSVImporter.swift */; };
+		51D7723C2EDBFF010041C945 /* StudentImportPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D7723B2EDBFF010041C945 /* StudentImportPreviewView.swift */; };
+		51D7723E2EDC03730041C945 /* StudentDuplicatesCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D7723D2EDC03730041C945 /* StudentDuplicatesCleaner.swift */; };
+		51D772402EDC03F40041C945 /* DuplicateStudentsPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D7723F2EDC03F40041C945 /* DuplicateStudentsPreviewView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		51D772332EDBF71E0041C945 /* WorkDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkDetailView.swift; sourceTree = "<group>"; };
+		51D772352EDBFE510041C945 /* CSVUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVUtils.swift; sourceTree = "<group>"; };
+		51D772372EDBFEF90041C945 /* StudentCSVMappingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentCSVMappingView.swift; sourceTree = "<group>"; };
+		51D772392EDBFEFD0041C945 /* StudentCSVImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentCSVImporter.swift; sourceTree = "<group>"; };
+		51D7723B2EDBFF010041C945 /* StudentImportPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentImportPreviewView.swift; sourceTree = "<group>"; };
+		51D7723D2EDC03730041C945 /* StudentDuplicatesCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentDuplicatesCleaner.swift; sourceTree = "<group>"; };
+		51D7723F2EDC03F40041C945 /* DuplicateStudentsPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateStudentsPreviewView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -53,6 +65,12 @@
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
 				51D772332EDBF71E0041C945 /* WorkDetailView.swift */,
+				51D772352EDBFE510041C945 /* CSVUtils.swift */,
+				51D772372EDBFEF90041C945 /* StudentCSVMappingView.swift */,
+				51D772392EDBFEFD0041C945 /* StudentCSVImporter.swift */,
+				51D7723B2EDBFF010041C945 /* StudentImportPreviewView.swift */,
+				51D7723D2EDC03730041C945 /* StudentDuplicatesCleaner.swift */,
+				51D7723F2EDC03F40041C945 /* DuplicateStudentsPreviewView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -139,6 +157,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				51D772342EDBF71E0041C945 /* WorkDetailView.swift in Sources */,
+				51D772382EDBFEF90041C945 /* StudentCSVMappingView.swift in Sources */,
+				51D7723A2EDBFEFD0041C945 /* StudentCSVImporter.swift in Sources */,
+				51D772402EDC03F40041C945 /* DuplicateStudentsPreviewView.swift in Sources */,
+				51D7723E2EDC03730041C945 /* StudentDuplicatesCleaner.swift in Sources */,
+				51D7723C2EDBFF010041C945 /* StudentImportPreviewView.swift in Sources */,
+				51D772362EDBFE510041C945 /* CSVUtils.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

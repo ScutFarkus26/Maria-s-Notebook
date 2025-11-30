@@ -22,6 +22,8 @@ struct SettingsView: View {
     @State private var showingImporter = false
     @State private var importError: String? = nil
     @State private var showRestoreConfirm = false
+    @State private var showingDuplicatesPreview = false
+    @State private var maintenanceAlert: (title: String, message: String)? = nil
 
     // Persist last backup time
     @AppStorage("lastBackupTimeInterval") private var lastBackupTimeInterval: Double?
@@ -117,6 +119,34 @@ struct SettingsView: View {
                             }
                         }
                     }
+
+                    SettingsGroup(title: "Maintenance", systemImage: "wrench.and.screwdriver") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Housekeeping tools to keep your data tidy.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+
+                            Button {
+                                do {
+                                    let summary = try StudentDuplicatesCleaner.mergeDuplicates(using: modelContext)
+                                    let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
+                                    maintenanceAlert = (title: "Merge Duplicate Students", message: message)
+                                } catch {
+                                    maintenanceAlert = (title: "Merge Failed", message: error.localizedDescription)
+                                }
+                            } label: {
+                                Label("Merge Duplicate Students", systemImage: "person.2.crop.square.stack")
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button {
+                                showingDuplicatesPreview = true
+                            } label: {
+                                Label("Preview Duplicates…", systemImage: "list.bullet.rectangle.portrait")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
                 }
                 .frame(maxWidth: 900)
                 .padding(.horizontal, 24)
@@ -163,6 +193,22 @@ struct SettingsView: View {
                 lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
             } catch {
                 importError = "Failed to restore: \(error.localizedDescription)"
+            }
+        }
+        .alert(isPresented: Binding<Bool>(
+            get: { maintenanceAlert != nil },
+            set: { if !$0 { maintenanceAlert = nil } }
+        )) {
+            Alert(
+                title: Text(maintenanceAlert?.title ?? "Maintenance"),
+                message: Text(maintenanceAlert?.message ?? ""),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+        .sheet(isPresented: $showingDuplicatesPreview) {
+            DuplicateStudentsPreviewView { summary in
+                let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
+                maintenanceAlert = (title: "Merge Complete", message: message)
             }
         }
     }
@@ -309,3 +355,4 @@ struct SettingsGroup<Content: View>: View {
 #Preview {
     SettingsView()
 }
+
