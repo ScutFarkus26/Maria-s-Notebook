@@ -99,7 +99,7 @@ enum StudentCSVImporter {
             throw ImportError.encoding("Unsupported text encoding; please use UTF-8.")
         }
         let headers = csv.headers
-        var useMap = mapping ?? detectMapping(headers: headers)
+        let useMap = mapping ?? detectMapping(headers: headers)
         // Require either First+Last or Full Name
         let hasFirstLast = (useMap.firstName != nil) && (useMap.lastName != nil)
         let hasFull = (useMap.fullName != nil)
@@ -192,7 +192,7 @@ enum StudentCSVImporter {
                 let key = duplicateKey(first: r.firstName, last: r.lastName, birthday: r.birthday)
                 if let existing = byFullKey[key] {
                     var didChange = false
-                    if existing.birthday == nil, let b = r.birthday { existing.birthday = b; didChange = true }
+                    if let b = r.birthday, existing.birthday != b { existing.birthday = b; didChange = true }
                     if existing.dateStarted == nil, let ds = r.dateStarted { existing.dateStarted = ds; didChange = true }
                     if let lvl = r.level, existing.level != lvl { existing.level = lvl; didChange = true }
                     if didChange { updated += 1 }
@@ -202,6 +202,7 @@ enum StudentCSVImporter {
                 let nameKey = "\(r.firstName) \(r.lastName)".normalizedNameKey()
                 if let existing = byNameKey[nameKey] {
                     var didChange = false
+                    if let b = r.birthday, existing.birthday != b { existing.birthday = b; didChange = true }
                     if existing.dateStarted == nil, let ds = r.dateStarted { existing.dateStarted = ds; didChange = true }
                     if let lvl = r.level, existing.level != lvl { existing.level = lvl; didChange = true }
                     if didChange { updated += 1 }

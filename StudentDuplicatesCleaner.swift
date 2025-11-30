@@ -48,17 +48,17 @@ struct StudentDuplicatesCleaner {
         if plans.isEmpty { return Summary(groupsConsidered: 0, groupsMerged: 0, studentsDeleted: 0, referencesUpdated: 0) }
 
         // Pre-fetch related models for reference updates
-        var studentLessons = try context.fetch(FetchDescriptor<StudentLesson>())
-        var works = try context.fetch(FetchDescriptor<WorkModel>())
+        let studentLessons = try context.fetch(FetchDescriptor<StudentLesson>())
+        let works = try context.fetch(FetchDescriptor<WorkModel>())
 
-        var groupsConsidered = plans.count
+        let groupsConsidered = plans.count
         var groupsMerged = 0
         var studentsDeleted = 0
         var referencesUpdated = 0
 
         // Build lookup for Students by ID
         let allStudents = try context.fetch(FetchDescriptor<Student>())
-        var byID: [UUID: Student] = Dictionary(uniqueKeysWithValues: allStudents.map { ($0.id, $0) })
+        let byID: [UUID: Student] = Dictionary(uniqueKeysWithValues: allStudents.map { ($0.id, $0) })
 
         for plan in plans {
             guard let primary = byID[plan.primaryID] else { continue }
@@ -76,7 +76,7 @@ struct StudentDuplicatesCleaner {
 
             // Update references in StudentLesson
             for i in 0..<studentLessons.count {
-                var sl = studentLessons[i]
+                let sl = studentLessons[i]
                 if sl.studentIDs.contains(where: { plan.duplicateIDs.contains($0) }) {
                     var set = Set(sl.studentIDs)
                     for d in plan.duplicateIDs { set.remove(d) }
@@ -91,7 +91,7 @@ struct StudentDuplicatesCleaner {
 
             // Update references in WorkModel
             for i in 0..<works.count {
-                var w = works[i]
+                let w = works[i]
                 if w.studentIDs.contains(where: { plan.duplicateIDs.contains($0) }) {
                     var set = Set(w.studentIDs)
                     for d in plan.duplicateIDs { set.remove(d) }

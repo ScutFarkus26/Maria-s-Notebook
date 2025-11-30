@@ -23,7 +23,7 @@ public enum CSVParser {
         var currentRow: [String] = []
         var currentField = ""
         var insideQuotes = false
-        var chars = Array(content)
+        let chars = Array(content)
         var i = 0
         
         func appendField() {
