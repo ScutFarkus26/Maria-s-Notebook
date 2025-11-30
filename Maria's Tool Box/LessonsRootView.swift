@@ -238,13 +238,13 @@ struct LessonsRootView: View {
         .onChange(of: lessons.map { $0.id }) {
             ensureInitialOrderInGroupIfNeeded()
         }
-        .onChange(of: selectedSubject) { newValue in
+        .onChange(of: selectedSubject) { oldValue, newValue in
             lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
-        .onChange(of: selectedGroup) { newValue in
+        .onChange(of: selectedGroup) { oldValue, newValue in
             lessonsSelectedGroupRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
-        .onChange(of: searchText) { newValue in
+        .onChange(of: searchText) { oldValue, newValue in
             lessonsSearchTextRaw = newValue
         }
     }
