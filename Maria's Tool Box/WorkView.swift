@@ -20,10 +20,6 @@ struct WorkView: View {
 
     // Add Work sheet state
     @State private var isPresentingAddWork = false
-    @State private var selectedStudents = Set<UUID>()
-    @State private var selectedWorkType: WorkModel.WorkType = .research
-    @State private var selectedLessonID: UUID? = nil
-    @State private var notesText: String = ""
     @State private var selectedWorkID: UUID? = nil
     @State private var selectedWork: WorkModel? = nil
 
@@ -81,7 +77,6 @@ struct WorkView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {
                 Button {
-                    resetForm()
                     isPresentingAddWork = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
@@ -94,64 +89,8 @@ struct WorkView: View {
             .navigationTitle("Work")
         }
         .sheet(isPresented: $isPresentingAddWork) {
-            NavigationStack {
-                Form {
-                    Section("Select Students") {
-                        if students.isEmpty {
-                            Text("No students available")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(students) { student in
-                                MultipleSelectionRow(
-                                    title: student.fullName,
-                                    isSelected: selectedStudents.contains(student.id)
-                                ) {
-                                    if selectedStudents.contains(student.id) {
-                                        selectedStudents.remove(student.id)
-                                    } else {
-                                        selectedStudents.insert(student.id)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Section("Work Type") {
-                        Picker("Work Type", selection: $selectedWorkType) {
-                            ForEach(WorkModel.WorkType.allCases, id: \.self) { type in
-                                Text(type.rawValue).tag(type)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Section("Linked Lesson (optional)") {
-                        Picker("Lesson", selection: $selectedLessonID) {
-                            Text("None").tag(UUID?.none)
-                            ForEach(studentLessons) { sl in
-                                let lessonName = lessonsByID[sl.lessonID]?.name ?? "Lesson"
-                                let date = sl.scheduledFor ?? sl.givenAt ?? sl.createdAt
-                                Text("\(lessonName) • \(date.formatted(date: .numeric, time: .omitted))")
-                                    .tag(Optional(sl.id))
-                            }
-                        }
-                    }
-
-                    Section("Notes") {
-                        TextEditor(text: $notesText)
-                            .frame(minHeight: 100)
-                    }
-                }
-                .navigationTitle("Add Work")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { isPresentingAddWork = false }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") { saveWork() }
-                            .disabled(selectedStudents.isEmpty)
-                    }
-                }
+            AddWorkView {
+                isPresentingAddWork = false
             }
         }
 #if !os(macOS)
@@ -161,31 +100,6 @@ struct WorkView: View {
             }
         }
 #endif
-    }
-
-    private func resetForm() {
-        selectedStudents = []
-        selectedWorkType = .research
-        selectedLessonID = nil
-        notesText = ""
-    }
-
-    private func saveWork() {
-        guard !selectedStudents.isEmpty else { return }
-        let newWork = WorkModel(
-            studentIDs: Array(selectedStudents),
-            workType: selectedWorkType,
-            studentLessonID: selectedLessonID,
-            notes: notesText.trimmingCharacters(in: .whitespacesAndNewlines),
-            createdAt: Date()
-        )
-        modelContext.insert(newWork)
-        do {
-            try modelContext.save()
-        } catch {
-            // Handle save error if needed
-        }
-        isPresentingAddWork = false
     }
 }
 
