@@ -279,6 +279,20 @@ private struct StudentLessonCard: View {
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
+    private var statusText: String {
+        if let given = studentLesson.givenAt {
+            let fmt = DateFormatter()
+            fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
+            return "Presented on " + fmt.string(from: given)
+        } else if let scheduled = studentLesson.scheduledFor {
+            let fmt = DateFormatter()
+            fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
+            return "Scheduled for " + fmt.string(from: scheduled)
+        } else {
+            return "Not Scheduled"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
@@ -290,9 +304,13 @@ private struct StudentLessonCard: View {
 
             if !studentLine.isEmpty {
                 Text(studentLine)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
             }
+
+            Text(statusText)
+                .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                .foregroundStyle(.secondary)
 
             Spacer(minLength: 0)
         }

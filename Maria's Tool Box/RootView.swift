@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
         case students = "Students"
-        case lessons = "Albums"         // Lessons library (albums view)
+        case albumlessons = "Albums"         // Lessons library (albums view)
         case planning = "Planning"
         case studentLessons = "Lessons" // Student lessons (pills)
         case work = "Work"
@@ -14,7 +14,7 @@ struct RootView: View {
         var id: String { rawValue }
     }
 
-    @State private var selectedTab: Tab = .lessons
+    @State private var selectedTab: Tab = .albumlessons
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,7 +52,7 @@ struct RootView: View {
                 switch selectedTab {
                 case .studentLessons:
                     StudentLessonsRootView()
-                case .lessons:
+                case .albumlessons:
                     LessonsRootView()
                 case .students:
                     StudentsRootView()
