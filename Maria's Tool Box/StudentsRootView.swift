@@ -58,7 +58,8 @@ struct StudentsRootView: View {
                         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
                         do {
                             let data = try Data(contentsOf: url)
-                            guard let csv = CSVParser.parse(data: data) else {
+                            let csvOpt = await MainActor.run { CSVParser.parse(data: data) }
+                            guard let csv = csvOpt else {
                                 await MainActor.run {
                                     importAlert = ImportAlert(title: "Import Failed", message: "Unsupported text encoding; please use UTF-8.")
                                 }
@@ -85,27 +86,26 @@ struct StudentsRootView: View {
                     showingMappingSheet = false
                     pendingFileURL = nil
                 }, onConfirm: { mapping in
-                    do {
-                        guard let fileURL = pendingFileURL else { return }
-                        Task.detached(priority: .userInitiated) {
-                            let needsAccess = fileURL.startAccessingSecurityScopedResource()
-                            defer { if needsAccess { fileURL.stopAccessingSecurityScopedResource() } }
-                            do {
-                                let data = try Data(contentsOf: fileURL)
-                                let parsed = try StudentCSVImporter.parse(data: data, mapping: mapping, existingStudents: students)
-                                await MainActor.run {
-                                    pendingParsedImport = parsed
-                                    showingMappingSheet = false
-                                }
-                            } catch {
-                                await MainActor.run {
-                                    importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-                                    showingMappingSheet = false
-                                }
+                    // Ensure we have a file URL before starting the background work
+                    guard let fileURL = pendingFileURL else { return }
+                    Task.detached(priority: .userInitiated) {
+                        let needsAccess = fileURL.startAccessingSecurityScopedResource()
+                        defer { if needsAccess { fileURL.stopAccessingSecurityScopedResource() } }
+                        do {
+                            let data = try Data(contentsOf: fileURL)
+                            let parsed: StudentCSVImporter.Parsed = try await MainActor.run {
+                                try StudentCSVImporter.parse(data: data, mapping: mapping, existingStudents: self.students)
+                            }
+                            await MainActor.run {
+                                pendingParsedImport = parsed
+                                showingMappingSheet = false
+                            }
+                        } catch {
+                            await MainActor.run {
+                                importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                                showingMappingSheet = false
                             }
                         }
-                    } catch {
-                        importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
                     }
                 })
             }

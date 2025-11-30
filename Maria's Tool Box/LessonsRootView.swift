@@ -178,7 +178,9 @@ struct LessonsRootView: View {
                 defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
                 do {
                     let data = try Data(contentsOf: url)
-                    let parsed = try LessonCSVImporter.parse(data: data, existingLessons: lessons)
+                    let parsed: LessonCSVImporter.Parsed = try await MainActor.run {
+                        try LessonCSVImporter.parse(data: data, existingLessons: self.lessons)
+                    }
                     await MainActor.run {
                         self.pendingParsedImport = parsed
                         self.showingImportPreview = true
