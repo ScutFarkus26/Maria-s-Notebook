@@ -66,7 +66,7 @@ struct WorkDetailView: View {
     private func displayName(for student: Student) -> String {
         let f = student.firstName
         let l = student.lastName
-        if let first = f.first, !l.isEmpty {
+        if !f.isEmpty && !l.isEmpty {
             return "\(f) \(l.prefix(1))."
         }
         return f + (l.isEmpty ? "" : " \(l)")
