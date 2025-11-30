@@ -7,6 +7,7 @@ struct StudentLessonDetailView: View {
     @Query private var lessons: [Lesson]
     @Query private var studentsAll: [Student]
     @Query private var studentLessonsAll: [StudentLesson]
+    @Query private var workModels: [WorkModel]
 
     let studentLesson: StudentLesson
     var onDone: (() -> Void)? = nil
@@ -570,6 +571,27 @@ struct StudentLessonDetailView: View {
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
         studentLesson.followUpWork = followUpWork
         studentLesson.studentIDs = Array(selectedStudentIDs)
+
+        // Auto-create a WorkModel for Follow Up Work when provided
+        let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedFollowUp.isEmpty {
+            let hasDuplicateFollowUp = workModels.contains { work in
+                work.studentLessonID == studentLesson.id &&
+                work.workType == .followUp &&
+                work.notes.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(trimmedFollowUp) == .orderedSame
+            }
+            if !hasDuplicateFollowUp {
+                let followUp = WorkModel(
+                    id: UUID(),
+                    studentIDs: Array(selectedStudentIDs),
+                    workType: .followUp,
+                    studentLessonID: studentLesson.id,
+                    notes: trimmedFollowUp,
+                    createdAt: Date()
+                )
+                modelContext.insert(followUp)
+            }
+        }
 
         do {
             try modelContext.save()

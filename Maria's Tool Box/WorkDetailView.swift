@@ -31,6 +31,7 @@ struct WorkDetailView: View {
     @State private var showingAddStudentSheet = false
     @State private var showingStudentPickerPopover = false
     @State private var studentSearchText: String = ""
+    @State private var showingLinkedLessonDetails = false
 
     private enum LevelFilter: String, CaseIterable {
         case all = "All"
@@ -183,10 +184,33 @@ struct WorkDetailView: View {
         .sheet(isPresented: $showingAddStudentSheet) {
             AddStudentView()
         }
+        .sheet(isPresented: $showingLinkedLessonDetails) {
+            if let slID = selectedStudentLessonID, let sl = studentLessonsByID[slID] {
+                StudentLessonDetailView(studentLesson: sl) {
+                    showingLinkedLessonDetails = false
+                }
+                #if os(macOS)
+                // Ensure the macOS sheet sizes to its content and provides enough space
+                .frame(minWidth: 520, minHeight: 560)
+                .presentationSizing(.fitted)
+                #else
+                // On iOS/iPadOS, present at full height to avoid rounded-corner clipping
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .padding(.bottom, 16)
+                #endif
+            } else {
+                EmptyView()
+            }
+        }
     }
     
     private var summarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if !work.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(work.notes.trimmingCharacters(in: .whitespacesAndNewlines))
+                    .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+            }
             HStack(spacing: 8) {
                 Text("Created:")
                     .font(.system(size: AppTheme.FontSize.caption))
@@ -280,17 +304,25 @@ struct WorkDetailView: View {
             Text("Linked Lesson")
                 .font(.system(size: AppTheme.FontSize.caption))
                 .foregroundColor(.secondary)
-            
-            Picker("Linked Lesson", selection: $selectedStudentLessonID) {
-                Text("None").tag(nil as UUID?)
-                ForEach(studentLessons) { sl in
-                    let lessonName = lessonsByID[sl.lessonID]?.name ?? ""
-                    let date = sl.scheduledFor ?? sl.givenAt ?? sl.createdAt
-                    Text("\(lessonName) • \(createdDateOnlyFormatter.string(from: date))")
-                        .tag(Optional(sl.id))
+
+            if let slID = selectedStudentLessonID, let sl = studentLessonsByID[slID] {
+                let lessonName = lessonsByID[sl.lessonID]?.name ?? "Lesson"
+                let date = sl.scheduledFor ?? sl.givenAt ?? sl.createdAt
+                let label = "\(lessonName) • \(createdDateOnlyFormatter.string(from: date))"
+                Button {
+                    showingLinkedLessonDetails = true
+                } label: {
+                    Text(label)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.accentColor)
+                        .underline()
                 }
+                .buttonStyle(.plain)
+            } else {
+                Text("None")
+                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
             }
-            .pickerStyle(.menu)
         }
     }
 
