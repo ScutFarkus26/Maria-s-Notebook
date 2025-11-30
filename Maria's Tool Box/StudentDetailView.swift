@@ -18,6 +18,7 @@ struct StudentDetailView: View {
     @State private var draftLastName = ""
     @State private var draftBirthday = Date()
     @State private var draftLevel: Student.Level = .lower
+    @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
 
     // MARK: - Derived
@@ -156,6 +157,9 @@ struct StudentDetailView: View {
     private var infoRows: some View {
         VStack(spacing: 14) {
             infoRow(icon: "calendar", title: "Birthday", value: formattedBirthday)
+            if let ds = student.dateStarted {
+                infoRow(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))
+            }
             infoRow(icon: "gift", title: "Age", value: ageDescription)
             infoRow(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
         }
@@ -171,6 +175,7 @@ struct StudentDetailView: View {
                     .textFieldStyle(.roundedBorder)
             }
             DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
+            DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
             Picker("Level", selection: $draftLevel) {
                 Text(Student.Level.lower.rawValue).tag(Student.Level.lower)
                 Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
@@ -264,6 +269,7 @@ struct StudentDetailView: View {
                         student.lastName = ln
                         student.birthday = draftBirthday
                         student.level = draftLevel
+                        student.dateStarted = draftStartDate
                         try? modelContext.save()
                         isEditing = false
                     }
@@ -276,6 +282,7 @@ struct StudentDetailView: View {
                         draftLastName = student.lastName
                         draftBirthday = student.birthday
                         draftLevel = student.level
+                        draftStartDate = student.dateStarted ?? Date()
                         isEditing = true
                     }
                     Button("Delete", role: .destructive) {

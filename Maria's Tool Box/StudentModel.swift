@@ -22,6 +22,7 @@ final class Student: Identifiable {
     var level: Level
     var nextLessons: [UUID]    // Store lesson UUIDs
     var manualOrder: Int = 0
+    var dateStarted: Date? = nil
 
     var fullName: String {
         "\(firstName) \(lastName)"
@@ -33,6 +34,7 @@ final class Student: Identifiable {
         lastName: String,
         birthday: Date,
         level: Level,
+        dateStarted: Date? = nil,
         nextLessons: [UUID] = [],
         manualOrder: Int = 0
     ) {
@@ -41,6 +43,7 @@ final class Student: Identifiable {
         self.lastName = lastName
         self.birthday = birthday
         self.level = level
+        self.dateStarted = dateStarted
         self.nextLessons = nextLessons
         self.manualOrder = manualOrder
     }

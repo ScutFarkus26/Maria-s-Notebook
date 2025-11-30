@@ -63,6 +63,7 @@ struct StudentDTO: Codable {
     var firstName: String
     var lastName: String
     var birthday: Date
+    var dateStarted: Date?
     var level: Level
     var nextLessons: [UUID]
     var manualOrder: Int
@@ -129,7 +130,7 @@ struct WorkDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 5
+    static let currentVersion: Int = 6
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -152,6 +153,7 @@ enum BackupManager {
                 firstName: s.firstName,
                 lastName: s.lastName,
                 birthday: s.birthday,
+                dateStarted: s.dateStarted,
                 level: StudentDTO.Level(rawValue: s.level.rawValue) ?? .lower,
                 nextLessons: s.nextLessons,
                 manualOrder: s.manualOrder
@@ -285,6 +287,7 @@ enum BackupManager {
                 lastName: dto.lastName,
                 birthday: dto.birthday,
                 level: level,
+                dateStarted: dto.dateStarted,
                 nextLessons: dto.nextLessons,
                 manualOrder: dto.manualOrder
             )

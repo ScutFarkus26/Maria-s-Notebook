@@ -8,6 +8,7 @@ struct AddStudentView: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var birthday = Date()
+    @State private var startDate = Date()
     @State private var level: Student.Level = .lower
 
     var body: some View {
@@ -24,6 +25,10 @@ struct AddStudentView: View {
 
                 Section {
                     DatePicker("Birthday", selection: $birthday, displayedComponents: .date)
+                }
+
+                Section {
+                    DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                 }
 
                 Section {
@@ -47,7 +52,8 @@ struct AddStudentView: View {
                         firstName: firstName,
                         lastName: lastName,
                         birthday: birthday,
-                        level: level
+                        level: level,
+                        dateStarted: startDate
                     )
                     modelContext.insert(newStudent)
                     dismiss()
