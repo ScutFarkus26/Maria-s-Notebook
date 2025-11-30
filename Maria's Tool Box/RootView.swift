@@ -14,10 +14,10 @@ struct RootView: View {
         var id: String { rawValue }
     }
 
-    @AppStorage("lastSelectedTab") private var lastSelectedTabRaw: String = Tab.albumlessons.rawValue
+    @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.albumlessons.rawValue
 
     private var selectedTab: Tab {
-        Tab(rawValue: lastSelectedTabRaw) ?? .albumlessons
+        Tab(rawValue: selectedTabRaw) ?? .albumlessons
     }
 
     var body: some View {
@@ -29,7 +29,7 @@ struct RootView: View {
                 HStack(spacing: 12) {
                     ForEach(Tab.allCases) { tab in
                         Button {
-                            lastSelectedTabRaw = tab.rawValue
+                            selectedTabRaw = tab.rawValue
                         } label: {
                             Text(tab.rawValue)
                                 .font(.system(size: AppTheme.FontSize.body, weight: .semibold))

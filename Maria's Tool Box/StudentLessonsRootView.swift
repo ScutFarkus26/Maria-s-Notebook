@@ -18,7 +18,7 @@ struct StudentLessonsRootView: View {
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
 
-    @State private var selectedLesson: StudentLesson? = nil
+    @State private var selectedLessonID: UUID? = nil
 
     @AppStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
     @AppStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
@@ -166,9 +166,13 @@ struct StudentLessonsRootView: View {
             Divider()
             content
         }
-        .sheet(item: $selectedLesson) { sl in
-            StudentLessonDetailView(studentLesson: sl) {
-                selectedLesson = nil
+        .sheet(isPresented: Binding(get: { selectedLessonID != nil }, set: { if !$0 { selectedLessonID = nil } })) {
+            if let id = selectedLessonID, let sl = studentLessons.first(where: { $0.id == id }) {
+                StudentLessonDetailView(studentLesson: sl) {
+                    selectedLessonID = nil
+                }
+            } else {
+                EmptyView()
             }
         }
     }
@@ -287,7 +291,7 @@ struct StudentLessonsRootView: View {
                                     LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                         ForEach(up, id: \.id) { sl in
                                             StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
-                                                .onTapGesture { selectedLesson = sl }
+                                                .onTapGesture { selectedLessonID = sl.id }
                                         }
                                     }
                                 }
@@ -304,7 +308,7 @@ struct StudentLessonsRootView: View {
                                     LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                         ForEach(gv, id: \.id) { sl in
                                             StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
-                                                .onTapGesture { selectedLesson = sl }
+                                                .onTapGesture { selectedLessonID = sl.id }
                                         }
                                     }
                                 }
@@ -329,7 +333,7 @@ struct StudentLessonsRootView: View {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                             ForEach(filteredAndSorted, id: \.id) { sl in
                                 StudentLessonCard(studentLesson: sl, lesson: lessonMap[sl.lessonID], students: students)
-                                    .onTapGesture { selectedLesson = sl }
+                                    .onTapGesture { selectedLessonID = sl.id }
                             }
                         }
                         .padding(24)

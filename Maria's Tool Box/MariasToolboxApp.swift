@@ -47,6 +47,18 @@ struct MariasToolboxApp: App {
             RootView()
         }
         .modelContainer(sharedModelContainer)
+
+        #if os(macOS)
+        WindowGroup("Work Detail", id: "WorkDetailWindow", for: UUID.self) { $workID in
+            if let id = workID {
+                WorkDetailWindowContainer(workID: id)
+            } else {
+                Text("No work selected")
+                    .frame(minWidth: 400, minHeight: 300)
+            }
+        }
+        .modelContainer(sharedModelContainer)
+        #endif
     }
 }
 

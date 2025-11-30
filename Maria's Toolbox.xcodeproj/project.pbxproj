@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5105DD572EDC7E6400648374 /* WorkDetailWindowContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5105DD562EDC7E6400648374 /* WorkDetailWindowContainer.swift */; };
 		51D772342EDBF71E0041C945 /* WorkDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D772332EDBF71E0041C945 /* WorkDetailView.swift */; };
 		51D772362EDBFE510041C945 /* CSVUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D772352EDBFE510041C945 /* CSVUtils.swift */; };
 		51D772382EDBFEF90041C945 /* StudentCSVMappingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D772372EDBFEF90041C945 /* StudentCSVMappingView.swift */; };
@@ -17,6 +18,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		5105DD562EDC7E6400648374 /* WorkDetailWindowContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkDetailWindowContainer.swift; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		51D772332EDBF71E0041C945 /* WorkDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkDetailView.swift; sourceTree = "<group>"; };
 		51D772352EDBFE510041C945 /* CSVUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVUtils.swift; sourceTree = "<group>"; };
@@ -71,6 +73,7 @@
 				51D7723B2EDBFF010041C945 /* StudentImportPreviewView.swift */,
 				51D7723D2EDC03730041C945 /* StudentDuplicatesCleaner.swift */,
 				51D7723F2EDC03F40041C945 /* DuplicateStudentsPreviewView.swift */,
+				5105DD562EDC7E6400648374 /* WorkDetailWindowContainer.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -157,6 +160,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				51D772342EDBF71E0041C945 /* WorkDetailView.swift in Sources */,
+				5105DD572EDC7E6400648374 /* WorkDetailWindowContainer.swift in Sources */,
 				51D772382EDBFEF90041C945 /* StudentCSVMappingView.swift in Sources */,
 				51D7723A2EDBFEFD0041C945 /* StudentCSVImporter.swift in Sources */,
 				51D772402EDC03F40041C945 /* DuplicateStudentsPreviewView.swift in Sources */,

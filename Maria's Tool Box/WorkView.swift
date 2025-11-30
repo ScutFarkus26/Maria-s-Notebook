@@ -4,6 +4,10 @@ import SwiftData
 struct WorkView: View {
     @Environment(\.modelContext) private var modelContext
 
+#if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+#endif
+
     // Data sources
     @Query(sort: [
         SortDescriptor(\Student.lastName),
@@ -20,6 +24,7 @@ struct WorkView: View {
     @State private var selectedWorkType: WorkModel.WorkType = .research
     @State private var selectedLessonID: UUID? = nil
     @State private var notesText: String = ""
+    @State private var selectedWorkID: UUID? = nil
     @State private var selectedWork: WorkModel? = nil
 
     // Helper maps for quick lookup
@@ -40,14 +45,37 @@ struct WorkView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
+#if os(macOS)
                     WorkCardsGridView(
                         works: workItems,
                         studentsByID: studentsByID,
                         lessonsByID: lessonsByID,
                         studentLessonsByID: studentLessonsByID,
-                        onTapWork: { selectedWork = $0 }
+                        onTapWork: { work in
+#if os(macOS)
+                            openWindow(id: "WorkDetailWindow", value: work.id)
+#else
+                            selectedWork = work
+#endif
+                        }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+#else
+                    WorkCardsGridView(
+                        works: workItems,
+                        studentsByID: studentsByID,
+                        lessonsByID: lessonsByID,
+                        studentLessonsByID: studentLessonsByID,
+                        onTapWork: { work in
+#if os(macOS)
+                            openWindow(id: "WorkDetailWindow", value: work.id)
+#else
+                            selectedWork = work
+#endif
+                        }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+#endif
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -126,11 +154,13 @@ struct WorkView: View {
                 }
             }
         }
+#if !os(macOS)
         .sheet(item: $selectedWork) { work in
             WorkDetailView(work: work) {
                 selectedWork = nil
             }
         }
+#endif
     }
 
     private func resetForm() {

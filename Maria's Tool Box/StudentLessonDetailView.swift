@@ -19,6 +19,16 @@ struct StudentLessonDetailView: View {
 
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var showingAddStudentSheet = false
+    @State private var showingStudentPickerPopover = false
+    @State private var studentSearchText: String = ""
+
+    private enum LevelFilter: String, CaseIterable {
+        case all = "All"
+        case lower = "Lower"
+        case upper = "Upper"
+    }
+
+    @State private var studentLevelFilter: LevelFilter = .all
 
     @State private var showDeleteAlert = false
 
@@ -55,6 +65,36 @@ struct StudentLessonDetailView: View {
             .filter { selectedStudentIDs.contains($0.id) }
             .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
     }
+    
+    private var filteredStudentsForPicker: [Student] {
+        let query = studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let searched: [Student]
+        if query.isEmpty {
+            searched = studentsAll
+        } else {
+            searched = studentsAll.filter { s in
+                let f = s.firstName.lowercased()
+                let l = s.lastName.lowercased()
+                let full = s.fullName.lowercased()
+                return f.contains(query) || l.contains(query) || full.contains(query)
+            }
+        }
+        let leveled: [Student] = searched.filter { s in
+            switch studentLevelFilter {
+            case .all: return true
+            case .lower: return s.level == .lower
+            case .upper: return s.level == .upper
+            }
+        }
+        return leveled.sorted {
+            let lhs = ($0.firstName, $0.lastName)
+            let rhs = ($1.firstName, $1.lastName)
+            if lhs.0.caseInsensitiveCompare(rhs.0) == .orderedSame {
+                return lhs.1.caseInsensitiveCompare(rhs.1) == .orderedAscending
+            }
+            return lhs.0.caseInsensitiveCompare(rhs.0) == .orderedAscending
+        }
+    }
 
     private func displayName(for student: Student) -> String {
         let parts = student.fullName.split(separator: " ")
@@ -79,6 +119,18 @@ struct StudentLessonDetailView: View {
         formatter.setLocalizedDateFormatFromTemplate("EEE, MMM d, h:mm a")
         return formatter
     }()
+    
+    private var scheduleStatusText: String {
+        guard let date = scheduledFor else {
+            return "Not Scheduled Yet"
+        }
+        let fmt = DateFormatter()
+        fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
+        let datePart = fmt.string(from: date)
+        let hour = Calendar.current.component(.hour, from: date)
+        let period = hour < 12 ? "Morning" : "Afternoon"
+        return "\(datePart) in the \(period)"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -152,11 +204,10 @@ struct StudentLessonDetailView: View {
 
     private var summarySection: some View {
         VStack(spacing: 16) {
-            Text(lessonName)
-                .font(.system(size: AppTheme.FontSize.titleLarge, weight: .heavy, design: .rounded))
-                .multilineTextAlignment(.center)
-
-            HStack(alignment: .center, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(lessonName)
+                    .font(.system(size: AppTheme.FontSize.titleLarge, weight: .heavy, design: .rounded))
+                    .multilineTextAlignment(.center)
                 if !subject.isEmpty {
                     Text(subject)
                         .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
@@ -168,6 +219,10 @@ struct StudentLessonDetailView: View {
                                 .fill(subjectColor.opacity(0.15))
                         )
                 }
+            }
+            .frame(maxWidth: .infinity)
+
+            HStack(alignment: .center, spacing: 8) {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -198,33 +253,104 @@ struct StudentLessonDetailView: View {
 
                 Spacer(minLength: 0)
 
-                Menu {
-                    ForEach(studentsAll) { student in
-                        let isSelected = selectedStudentIDs.contains(student.id)
+                Button {
+                    showingStudentPickerPopover = true
+                } label: {
+                    Label("Add/Remove Students", systemImage: "person.2.badge.plus")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.borderless)
+                .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
+                    studentPickerPopover
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
+    private var studentPickerPopover: some View {
+        VStack(spacing: 10) {
+            // Search field
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search students", text: $studentSearchText)
+                    .textFieldStyle(.plain)
+                if !studentSearchText.isEmpty {
+                    Button {
+                        studentSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+
+            Picker("Level", selection: $studentLevelFilter) {
+                Text("All").tag(LevelFilter.all)
+                Text("Lower").tag(LevelFilter.lower)
+                Text("Upper").tag(LevelFilter.upper)
+            }
+            .pickerStyle(.segmented)
+
+            // Spacer between filters and list
+            Divider().padding(.top, 2)
+
+            // List of students with checkmarks
+            ScrollView {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(filteredStudentsForPicker, id: \.id) { student in
                         Button {
-                            if isSelected {
+                            if selectedStudentIDs.contains(student.id) {
                                 selectedStudentIDs.remove(student.id)
                             } else {
                                 selectedStudentIDs.insert(student.id)
                             }
                         } label: {
-                            Label(displayName(for: student), systemImage: isSelected ? "checkmark" : "person")
+                            HStack(spacing: 8) {
+                                Image(systemName: selectedStudentIDs.contains(student.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedStudentIDs.contains(student.id) ? Color.accentColor : Color.secondary)
+                                Text(displayName(for: student))
+                                    .foregroundStyle(.primary)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 6)
                         }
+                        .buttonStyle(.plain)
                     }
-                    Divider()
-                    Button {
-                        showingAddStudentSheet = true
-                    } label: {
-                        Label("New Student…", systemImage: "plus")
-                    }
-                } label: {
-                    Label("Add/Remove Students", systemImage: "person.2.badge.plus")
-                        .labelStyle(.titleAndIcon)
                 }
-                .menuStyle(.borderlessButton)
+                .padding(.top, 4)
+            }
+            .frame(maxHeight: 280)
+
+            Divider()
+
+            HStack {
+                Button {
+                    showingAddStudentSheet = true
+                } label: {
+                    Label("New Student…", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+
+                Spacer()
+
+                Button("Done") {
+                    showingStudentPickerPopover = false
+                }
+                .keyboardShortcut(.defaultAction)
             }
         }
-        .frame(maxWidth: .infinity)
+        .padding(12)
+        .frame(minWidth: 320)
     }
 
     private var scheduleSection: some View {
@@ -236,25 +362,12 @@ struct StudentLessonDetailView: View {
                 Text("Scheduled For")
                     .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
-            }
-
-            Toggle("Scheduled", isOn: Binding(
-                get: { scheduledFor != nil },
-                set: { newValue in
-                    if newValue {
-                        scheduledFor = scheduledFor ?? Date()
-                    } else {
-                        scheduledFor = nil
-                    }
-                }
-            ))
-
-            if scheduledFor != nil {
-                DatePicker("Date", selection: Binding(
-                    get: { scheduledFor ?? Date() },
-                    set: { scheduledFor = $0 }
-                ), displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(.compact)
+                Spacer(minLength: 0)
+                Text(scheduleStatusText)
+                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .foregroundStyle(scheduledFor == nil ? .secondary : .primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
