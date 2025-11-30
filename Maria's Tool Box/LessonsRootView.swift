@@ -152,17 +152,22 @@ struct LessonsRootView: View {
         do {
             let url = try result.get()
 
-            let needsAccess = url.startAccessingSecurityScopedResource()
-            defer {
-                if needsAccess {
-                    url.stopAccessingSecurityScopedResource()
+            Task.detached(priority: .userInitiated) {
+                let needsAccess = url.startAccessingSecurityScopedResource()
+                defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+                do {
+                    let data = try Data(contentsOf: url)
+                    let parsed = try LessonCSVImporter.parse(data: data, existingLessons: lessons)
+                    await MainActor.run {
+                        self.pendingParsedImport = parsed
+                        self.showingImportPreview = true
+                    }
+                } catch {
+                    await MainActor.run {
+                        importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                    }
                 }
             }
-
-            let data = try Data(contentsOf: url)
-            let parsed = try LessonCSVImporter.parse(data: data, existingLessons: lessons)
-            self.pendingParsedImport = parsed
-            self.showingImportPreview = true
         } catch {
             importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
         }

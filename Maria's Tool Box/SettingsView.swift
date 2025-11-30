@@ -16,6 +16,12 @@ struct SettingsView: View {
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
 
+    @Query(filter: #Predicate<StudentLesson> { $0.givenAt == nil })
+    private var plannedLessons: [StudentLesson]
+
+    @Query(filter: #Predicate<StudentLesson> { $0.givenAt != nil })
+    private var givenLessons: [StudentLesson]
+
     // Export / Import state
     @State private var showingExporter = false
     @State private var exportData: Data? = nil
@@ -50,12 +56,12 @@ struct SettingsView: View {
                                      systemImage: "text.book.closed.fill")
 
                             StatCard(title: "Lessons Planned",
-                                     value: "\(studentLessons.filter { $0.givenAt == nil }.count)",
+                                     value: "\(plannedLessons.count)",
                                      subtitle: nil,
                                      systemImage: "books.vertical.fill")
 
                             StatCard(title: "Lessons Given",
-                                     value: "\(studentLessons.filter { $0.givenAt != nil }.count)",
+                                     value: "\(givenLessons.count)",
                                      subtitle: nil,
                                      systemImage: "checkmark.circle.fill")
                         }
@@ -193,18 +199,22 @@ struct SettingsView: View {
             do {
                 let url = try result.get()
 
-                // Begin security-scoped access if needed (macOS sandbox / file providers)
-                let needsAccess = url.startAccessingSecurityScopedResource()
-                defer {
-                    if needsAccess {
-                        url.stopAccessingSecurityScopedResource()
+                Task.detached(priority: .userInitiated) {
+                    let needsAccess = url.startAccessingSecurityScopedResource()
+                    defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+                    do {
+                        let data = try Data(contentsOf: url)
+                        try await MainActor.run {
+                            try BackupManager.restore(from: data, using: modelContext)
+                            importError = nil
+                            lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
+                        }
+                    } catch {
+                        await MainActor.run {
+                            importError = "Failed to restore: \(error.localizedDescription)"
+                        }
                     }
                 }
-
-                let data = try Data(contentsOf: url)
-                try BackupManager.restore(from: data, using: modelContext)
-                importError = nil
-                lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
             } catch {
                 importError = "Failed to restore: \(error.localizedDescription)"
             }
@@ -229,9 +239,14 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
-    private func defaultBackupFilename() -> String {
+    private static let backupFilenameFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        return formatter
+    }()
+
+    private func defaultBackupFilename() -> String {
+        let formatter = SettingsView.backupFilenameFormatter
         return "MariasToolbox_Backup_\(formatter.string(from: Date())).json"
     }
 

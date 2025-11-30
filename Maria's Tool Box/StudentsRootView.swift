@@ -12,7 +12,7 @@ struct StudentsRootView: View {
 
     @State private var mappingHeaders: [String] = []
     @State private var pendingMapping: StudentCSVImporter.Mapping? = nil
-    @State private var pendingData: Data? = nil
+    @State private var pendingFileURL: URL? = nil
     @State private var pendingParsedImport: StudentCSVImporter.Parsed? = nil
     @State private var showingMappingSheet: Bool = false
 
@@ -53,18 +53,29 @@ struct StudentsRootView: View {
                 do {
                     let url = try result.get()
 
-                    let needsAccess = url.startAccessingSecurityScopedResource()
-                    defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-
-                    let data = try Data(contentsOf: url)
-                    guard let csv = CSVParser.parse(data: data) else {
-                        importAlert = ImportAlert(title: "Import Failed", message: "Unsupported text encoding; please use UTF-8.")
-                        return
+                    Task.detached(priority: .userInitiated) {
+                        let needsAccess = url.startAccessingSecurityScopedResource()
+                        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+                        do {
+                            let data = try Data(contentsOf: url)
+                            guard let csv = CSVParser.parse(data: data) else {
+                                await MainActor.run {
+                                    importAlert = ImportAlert(title: "Import Failed", message: "Unsupported text encoding; please use UTF-8.")
+                                }
+                                return
+                            }
+                            await MainActor.run {
+                                self.pendingFileURL = url
+                                self.mappingHeaders = csv.headers
+                                self.pendingMapping = StudentCSVImporter.detectMapping(headers: csv.headers)
+                                self.showingMappingSheet = true
+                            }
+                        } catch {
+                            await MainActor.run {
+                                importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                            }
+                        }
                     }
-                    self.pendingData = data
-                    self.mappingHeaders = csv.headers
-                    self.pendingMapping = StudentCSVImporter.detectMapping(headers: csv.headers)
-                    self.showingMappingSheet = true
                 } catch {
                     importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
                 }
@@ -72,21 +83,34 @@ struct StudentsRootView: View {
             .sheet(isPresented: $showingMappingSheet) {
                 StudentCSVMappingView(headers: mappingHeaders, onCancel: {
                     showingMappingSheet = false
-                    pendingData = nil
+                    pendingFileURL = nil
                 }, onConfirm: { mapping in
                     do {
-                        guard let data = pendingData else { return }
-                        let parsed = try StudentCSVImporter.parse(data: data, mapping: mapping, existingStudents: students)
-                        pendingParsedImport = parsed
-                        showingMappingSheet = false
+                        guard let fileURL = pendingFileURL else { return }
+                        Task.detached(priority: .userInitiated) {
+                            let needsAccess = fileURL.startAccessingSecurityScopedResource()
+                            defer { if needsAccess { fileURL.stopAccessingSecurityScopedResource() } }
+                            do {
+                                let data = try Data(contentsOf: fileURL)
+                                let parsed = try StudentCSVImporter.parse(data: data, mapping: mapping, existingStudents: students)
+                                await MainActor.run {
+                                    pendingParsedImport = parsed
+                                    showingMappingSheet = false
+                                }
+                            } catch {
+                                await MainActor.run {
+                                    importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                                    showingMappingSheet = false
+                                }
+                            }
+                        }
                     } catch {
                         importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-                        showingMappingSheet = false
                     }
                 })
             }
             .sheet(item: $pendingParsedImport, onDismiss: {
-                pendingData = nil
+                pendingFileURL = nil
             }) { parsed in
                 StudentImportPreviewView(parsed: parsed, onCancel: {
                     pendingParsedImport = nil

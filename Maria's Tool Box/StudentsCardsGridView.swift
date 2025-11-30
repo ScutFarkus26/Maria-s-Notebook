@@ -10,6 +10,12 @@ extension View {
             self
         }
     }
+
+    func disableAnimation(when condition: Bool) -> some View {
+        self.transaction { tx in
+            if condition { tx.animation = nil }
+        }
+    }
 }
 
 struct StudentsCardsGridView: View {
@@ -33,7 +39,63 @@ struct StudentsCardsGridView: View {
     private var idList: [UUID] { students.map { $0.id } }
 
     private var gridAnimation: Animation? {
-        draggingStudentID != nil ? nil : .spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
+        if draggingStudentID != nil {
+            return nil
+        } else {
+            return Animation.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
+        }
+    }
+
+    @ViewBuilder
+    private func cardContent(for student: Student) -> some View {
+        if isBirthdayMode {
+            BirthdayStudentCard(student: student)
+        } else if isAgeMode {
+            AgeStudentCard(student: student)
+        } else {
+            DefaultStudentCard(student: student, showAge: false)
+        }
+    }
+
+    private func combinedOverlay(isDragging: Bool, isHover: Bool) -> some View {
+        ZStack {
+            if isDragging {
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.accentColor.opacity(0.6), lineWidth: 2)
+            }
+            if isHover {
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.accentColor.opacity(0.35), style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+            }
+        }
+    }
+
+    private func itemFrameBackground(for id: UUID) -> some View {
+        GeometryReader { proxy in
+            Color.clear.preference(
+                key: ItemFramePreference.self,
+                value: [id: proxy.frame(in: .named("gridScroll"))]
+            )
+        }
+    }
+    
+    // Inserted helper types/functions
+    private struct CardMotion: ViewModifier {
+        let id: UUID
+        let ns: Namespace.ID
+        func body(content: Content) -> some View {
+            content
+                .matchedGeometryEffect(id: id, in: ns)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+        }
+    }
+
+    private func addCardGestures<Content: View>(_ view: Content, for student: Student) -> some View {
+        view
+            .onTapGesture { onTapStudent(student) }
+            .if(isManualMode) { v in
+                v.simultaneousGesture(longPressThenDrag(for: student))
+            }
     }
 
     var body: some View {
@@ -43,41 +105,17 @@ struct StudentsCardsGridView: View {
                     let isDragging = isManualMode && draggingStudentID == student.id
                     let isHover = hoverTargetID == student.id
 
-                    Group {
-                        if isBirthdayMode {
-                            BirthdayStudentCard(student: student)
-                        } else if isAgeMode {
-                            AgeStudentCard(student: student)
-                        } else {
-                            DefaultStudentCard(student: student, showAge: false)
-                        }
-                    }
-                    .matchedGeometryEffect(id: student.id, in: gridNamespace)
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isDragging ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 2)
+                    addCardGestures(
+                        cardContent(for: student)
+                            .modifier(CardMotion(id: student.id, ns: gridNamespace))
+                            .overlay(combinedOverlay(isDragging: isDragging, isHover: isHover))
+                            .disableAnimation(when: draggingStudentID != nil)
+                            .contentShape(Rectangle())
+                            .if(isManualMode) { view in
+                                view.background(itemFrameBackground(for: student.id))
+                            }
+                        , for: student
                     )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isHover ? Color.accentColor.opacity(0.35) : Color.clear, style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
-                    )
-                    .transaction { tx in
-                        if draggingStudentID != nil { tx.animation = nil }
-                    }
-                    .contentShape(Rectangle())
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear.preference(
-                                key: ItemFramePreference.self,
-                                value: [student.id: proxy.frame(in: .named("gridScroll"))]
-                            )
-                        }
-                    )
-                    .onTapGesture { onTapStudent(student) }
-                    .if(isManualMode) { view in
-                        view.simultaneousGesture(longPressThenDrag(for: student))
-                    }
                 }
             }
             .animation(gridAnimation, value: idList)
@@ -383,6 +421,12 @@ private struct BirthdayStudentCard: View {
     @Environment(\.calendar) private var calendar
     @State private var bob = false
 
+    private static let dateFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.setLocalizedDateFormatFromTemplate("MMM d")
+        return fmt
+    }()
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Keep celebratory background
@@ -488,9 +532,7 @@ private struct BirthdayStudentCard: View {
     }
 
     private var dateLabel: String {
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("MMM d")
-        return fmt.string(from: nextBirthdayDate)
+        BirthdayStudentCard.dateFormatter.string(from: nextBirthdayDate)
     }
 
     private var daysUntil: Int {
