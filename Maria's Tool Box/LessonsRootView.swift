@@ -21,8 +21,21 @@ struct LessonsRootView: View {
     @State private var subjectDragState: (from: Int?, to: Int?) = (nil, nil)
     @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
     @State private var searchText: String = ""
-
     @State private var givingLessonFromDetail: Lesson? = nil
+
+    @AppStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
+    @AppStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
+    @AppStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
+
+    private var selectedSubjectPersisted: String? {
+        lessonsSelectedSubjectRaw.isEmpty ? nil : lessonsSelectedSubjectRaw
+    }
+
+    private var selectedGroupPersisted: String? {
+        lessonsSelectedGroupRaw.isEmpty ? nil : lessonsSelectedGroupRaw
+    }
+
+    private var searchTextPersisted: String { lessonsSearchTextRaw }
 
     private let viewModel = LessonsViewModel()
 
@@ -216,8 +229,23 @@ struct LessonsRootView: View {
         .onAppear {
             ensureInitialOrderInGroupIfNeeded()
         }
+        .onAppear {
+            // Restore persisted filters
+            self.selectedSubject = selectedSubjectPersisted
+            self.selectedGroup = selectedGroupPersisted
+            self.searchText = lessonsSearchTextRaw
+        }
         .onChange(of: lessons.map { $0.id }) {
             ensureInitialOrderInGroupIfNeeded()
+        }
+        .onChange(of: selectedSubject) { newValue in
+            lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+        .onChange(of: selectedGroup) { newValue in
+            lessonsSelectedGroupRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+        .onChange(of: searchText) { newValue in
+            lessonsSearchTextRaw = newValue
         }
     }
 

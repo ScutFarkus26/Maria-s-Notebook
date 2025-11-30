@@ -9,11 +9,28 @@ struct StudentsView: View {
     
     private let viewModel = StudentsViewModel()
 
-    @State private var sortOrder: SortOrder = .alphabetical
+    @AppStorage("StudentsView.sortOrder") private var studentsSortOrderRaw: String = "alphabetical"
+    @AppStorage("StudentsView.selectedFilter") private var studentsFilterRaw: String = "all"
+
+    private var sortOrder: SortOrder {
+        switch studentsSortOrderRaw {
+        case "manual": return .manual
+        case "age": return .age
+        case "birthday": return .birthday
+        default: return .alphabetical
+        }
+    }
+
+    private var selectedFilter: StudentsFilter {
+        switch studentsFilterRaw {
+        case "upper": return .upper
+        case "lower": return .lower
+        default: return .all
+        }
+    }
 
     @State private var showingAddStudent = false
     @State private var selectedStudent: Student?
-    @State private var selectedFilter: StudentsFilter = .all
 
     /// Returns students ordered by the persisted manual order, with any missing/extra appended.
     private func applyManualOrder(to students: [Student]) -> [Student] {
@@ -79,6 +96,17 @@ struct StudentsView: View {
         [.upper, .lower]
     }
 
+    private func selectedFilterRawAssignment(for filter: StudentsFilter) {
+        switch filter {
+        case .upper:
+            studentsFilterRaw = "upper"
+        case .lower:
+            studentsFilterRaw = "lower"
+        case .all:
+            studentsFilterRaw = "all"
+        }
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -128,7 +156,7 @@ struct StudentsView: View {
                 isSelected: sortOrder == .alphabetical
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    sortOrder = .alphabetical
+                    studentsSortOrderRaw = "alphabetical"
                 }
             }
 
@@ -139,7 +167,7 @@ struct StudentsView: View {
                 isSelected: sortOrder == .age
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    sortOrder = .age
+                    studentsSortOrderRaw = "age"
                 }
             }
 
@@ -150,7 +178,7 @@ struct StudentsView: View {
                 isSelected: sortOrder == .birthday
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    sortOrder = .birthday
+                    studentsSortOrderRaw = "birthday"
                 }
             }
 
@@ -161,7 +189,7 @@ struct StudentsView: View {
                 isSelected: sortOrder == .manual
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    sortOrder = .manual
+                    studentsSortOrderRaw = "manual"
                 }
             }
             .padding(.bottom, 8)
@@ -179,7 +207,7 @@ struct StudentsView: View {
                 isSelected: selectedFilter == .all
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    selectedFilter = .all
+                    studentsFilterRaw = "all"
                 }
             }
 
@@ -192,7 +220,7 @@ struct StudentsView: View {
                     isSelected: selectedFilter == filter
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        selectedFilter = filter
+                        selectedFilterRawAssignment(for: filter)
                     }
                 }
             }

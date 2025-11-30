@@ -19,9 +19,30 @@ struct StudentLessonsRootView: View {
     @Query private var students: [Student]
 
     @State private var selectedLesson: StudentLesson? = nil
-    @State private var sort: StudentLessonsSort = .presentThenGiven
-    @State private var filter: CompletionFilter = .all
-    @State private var selectedSubject: String? = nil
+
+    @AppStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
+    @AppStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
+    @AppStorage("StudentLessons.subject") private var studentLessonsSubjectRaw: String = ""
+
+    private var filter: CompletionFilter {
+        switch studentLessonsFilterRaw {
+        case "completed": return .completed
+        case "notCompleted": return .notCompleted
+        default: return .all
+        }
+    }
+
+    private var sort: StudentLessonsSort {
+        switch studentLessonsSortRaw {
+        case "dateCreated": return .dateCreated
+        case "dateGiven": return .dateGiven
+        default: return .presentThenGiven
+        }
+    }
+
+    private var selectedSubject: String? {
+        studentLessonsSubjectRaw.isEmpty ? nil : studentLessonsSubjectRaw
+    }
 
     private let lessonsVM = LessonsViewModel()
 
@@ -168,7 +189,7 @@ struct StudentLessonsRootView: View {
                 isSelected: filter == .all
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    filter = .all
+                    studentLessonsFilterRaw = "all"
                 }
             }
 
@@ -179,7 +200,7 @@ struct StudentLessonsRootView: View {
                 isSelected: filter == .completed
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    filter = .completed
+                    studentLessonsFilterRaw = "completed"
                 }
             }
 
@@ -190,7 +211,7 @@ struct StudentLessonsRootView: View {
                 isSelected: filter == .notCompleted
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    filter = .notCompleted
+                    studentLessonsFilterRaw = "notCompleted"
                 }
             }
 
@@ -208,7 +229,7 @@ struct StudentLessonsRootView: View {
                 isSelected: selectedSubject == nil
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    selectedSubject = nil
+                    studentLessonsSubjectRaw = ""
                 }
             }
 
@@ -220,7 +241,7 @@ struct StudentLessonsRootView: View {
                     isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        selectedSubject = subject
+                        studentLessonsSubjectRaw = subject
                     }
                 }
             }
