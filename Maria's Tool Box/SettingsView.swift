@@ -41,111 +41,116 @@ struct SettingsView: View {
                         ], spacing: 16) {
                             StatCard(title: "Students",
                                      value: "\(students.count)",
-                                     subtitle: "total",
+                                     subtitle: nil,
                                      systemImage: "person.3.fill")
 
                             StatCard(title: "Lessons",
                                      value: "\(lessons.count)",
-                                     subtitle: "records",
+                                     subtitle: nil,
                                      systemImage: "text.book.closed.fill")
 
                             StatCard(title: "Lessons Planned",
                                      value: "\(studentLessons.filter { $0.givenAt == nil }.count)",
-                                     subtitle: "scheduled",
+                                     subtitle: nil,
                                      systemImage: "books.vertical.fill")
 
                             StatCard(title: "Lessons Given",
                                      value: "\(studentLessons.filter { $0.givenAt != nil }.count)",
-                                     subtitle: "given",
+                                     subtitle: nil,
                                      systemImage: "checkmark.circle.fill")
                         }
                     }
 
-                    // Backup & Restore
-                    SettingsGroup(title: "Backup & Restore", systemImage: "arrow.triangle.2.circlepath") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 12) {
-                                Button {
-                                    do {
-                                        let data = try BackupManager.makeBackupData(using: modelContext)
-                                        exportData = data
-                                        showingExporter = true
-                                    } catch {
-                                        importError = "Failed to create backup: \(error.localizedDescription)"
+                    HStack(alignment: .top, spacing: 24) {
+                        // Backup & Restore
+                        SettingsGroup(title: "Backup & Restore", systemImage: "arrow.triangle.2.circlepath") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 12) {
+                                    Button {
+                                        do {
+                                            let data = try BackupManager.makeBackupData(using: modelContext)
+                                            exportData = data
+                                            showingExporter = true
+                                        } catch {
+                                            importError = "Failed to create backup: \(error.localizedDescription)"
+                                        }
+                                    } label: {
+                                        Label("Create Backup", systemImage: "externaldrive.badge.plus")
                                     }
-                                } label: {
-                                    Label("Create Backup", systemImage: "externaldrive.badge.plus")
-                                }
-                                .buttonStyle(.borderedProminent)
+                                    .buttonStyle(.borderedProminent)
 
-                                Button(role: .destructive) {
-                                    showRestoreConfirm = true
-                                } label: {
-                                    Label("Restore from Backup", systemImage: "arrow.down.doc")
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(.red)
-                                .confirmationDialog(
-                                    "Restore from Backup?",
-                                    isPresented: $showRestoreConfirm,
-                                    titleVisibility: .visible
-                                ) {
-                                    Button("Choose Backup File…", role: .destructive) {
-                                        showingImporter = true
+                                    Button(role: .destructive) {
+                                        showRestoreConfirm = true
+                                    } label: {
+                                        Label("Restore from Backup", systemImage: "arrow.down.doc")
                                     }
-                                    Button("Cancel", role: .cancel) {}
-                                } message: {
-                                    Text("This will replace your current data with the backup file.")
+                                    .buttonStyle(.bordered)
+                                    .tint(.red)
+                                    .confirmationDialog(
+                                        "Restore from Backup?",
+                                        isPresented: $showRestoreConfirm,
+                                        titleVisibility: .visible
+                                    ) {
+                                        Button("Choose Backup File…", role: .destructive) {
+                                            showingImporter = true
+                                        }
+                                        Button("Cancel", role: .cancel) {}
+                                    } message: {
+                                        Text("This will replace your current data with the backup file.")
+                                    }
                                 }
-                            }
 
-                            if let lastBackupDate = lastBackupDate {
-                                Label {
-                                    Text("Last backup: \(lastBackupDate, style: .relative)")
-                                } icon: {
-                                    Image(systemName: "clock")
-                                }
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                            } else {
-                                Label("Last backup: Never", systemImage: "clock")
+                                if let lastBackupDate = lastBackupDate {
+                                    Label {
+                                        Text("Last backup: \(lastBackupDate, style: .relative)")
+                                    } icon: {
+                                        Image(systemName: "clock")
+                                    }
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
-                            }
-
-                            if let importError {
-                                Text(importError)
-                                    .foregroundStyle(.red)
-                            }
-                        }
-                    }
-
-                    SettingsGroup(title: "Maintenance", systemImage: "wrench.and.screwdriver") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Housekeeping tools to keep your data tidy.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-
-                            Button {
-                                do {
-                                    let summary = try StudentDuplicatesCleaner.mergeDuplicates(using: modelContext)
-                                    let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
-                                    maintenanceAlert = (title: "Merge Duplicate Students", message: message)
-                                } catch {
-                                    maintenanceAlert = (title: "Merge Failed", message: error.localizedDescription)
+                                } else {
+                                    Label("Last backup: Never", systemImage: "clock")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
                                 }
-                            } label: {
-                                Label("Merge Duplicate Students", systemImage: "person.2.crop.square.stack")
-                            }
-                            .buttonStyle(.bordered)
 
-                            Button {
-                                showingDuplicatesPreview = true
-                            } label: {
-                                Label("Preview Duplicates…", systemImage: "list.bullet.rectangle.portrait")
+                                if let importError {
+                                    Text(importError)
+                                        .foregroundStyle(.red)
+                                }
                             }
-                            .buttonStyle(.bordered)
                         }
+                        .frame(maxWidth: .infinity)
+
+                        // Maintenance
+                        SettingsGroup(title: "Maintenance", systemImage: "wrench.and.screwdriver") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Housekeeping tools to keep your data tidy.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+
+                                Button {
+                                    do {
+                                        let summary = try StudentDuplicatesCleaner.mergeDuplicates(using: modelContext)
+                                        let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
+                                        maintenanceAlert = (title: "Merge Duplicate Students", message: message)
+                                    } catch {
+                                        maintenanceAlert = (title: "Merge Failed", message: error.localizedDescription)
+                                    }
+                                } label: {
+                                    Label("Merge Duplicate Students", systemImage: "person.2.crop.square.stack")
+                                }
+                                .buttonStyle(.bordered)
+
+                                Button {
+                                    showingDuplicatesPreview = true
+                                } label: {
+                                    Label("Preview Duplicates…", systemImage: "list.bullet.rectangle.portrait")
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 .frame(maxWidth: 900)
@@ -267,23 +272,29 @@ struct BackupDocument: FileDocument {
 struct StatCard: View {
     let title: String
     let value: String
-    let subtitle: String
+    let subtitle: String?
     let systemImage: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .center, spacing: 6) {
             Image(systemName: systemImage)
                 .font(.title2)
                 .foregroundColor(.accentColor)
             Text(title)
                 .font(.headline)
+                .multilineTextAlignment(.center)
             Text(value)
                 .font(.title)
                 .fontWeight(.bold)
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 120)
         .background(

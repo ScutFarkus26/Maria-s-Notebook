@@ -23,6 +23,10 @@ struct StudentDetailView: View {
     @State private var lessonsByID: [UUID: Lesson] = [:]
     @State private var isLoadingLessons = true
 
+    @State private var worksForStudent: [WorkModel] = []
+    @State private var studentLessonsByID: [UUID: StudentLesson] = [:]
+    @State private var isLoadingWorks = true
+
     // MARK: - Derived
     private var levelColor: Color {
         switch student.level {
@@ -80,6 +84,11 @@ struct StudentDetailView: View {
                         editForm
                     } else {
                         infoRows
+
+                        Divider()
+                            .padding(.top, 8)
+
+                        workingOnSection
 
                         Divider()
                             .padding(.top, 8)
@@ -197,6 +206,39 @@ struct StudentDetailView: View {
         return lessonsByID[sl.lessonID]?.subject
     }
 
+    private func workLinkedStudentLesson(for work: WorkModel) -> StudentLesson? {
+        guard let slID = work.studentLessonID else { return nil }
+        return studentLessonsByID[slID]
+    }
+
+    private func workLesson(for work: WorkModel) -> Lesson? {
+        guard let sl = workLinkedStudentLesson(for: work) else { return nil }
+        return lessonsByID[sl.lessonID]
+    }
+
+    private func workTitle(for work: WorkModel) -> String {
+        if let lesson = workLesson(for: work) { return lesson.name }
+        return work.workType.rawValue
+    }
+
+    private func workSubtitle(for work: WorkModel) -> String? {
+        if let lesson = workLesson(for: work) {
+            let subject = lesson.subject
+            let type = work.workType.rawValue
+            if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return type }
+            return "\(type) • \(subject)"
+        }
+        return nil
+    }
+
+    private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
+        switch type {
+        case .research: return ("magnifyingglass", .teal)
+        case .followUp: return ("bolt.fill", .orange)
+        case .practice: return ("arrow.triangle.2.circlepath", .purple)
+        }
+    }
+
     private var nextLessonsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -231,6 +273,54 @@ struct StudentDetailView: View {
                                     .font(.system(size: 17, weight: .semibold, design: .rounded))
                                 if let subject = lessonSubject(for: sl), !subject.isEmpty {
                                     Text(subject)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+            }
+        }
+    }
+
+    private var workingOnSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Working on")
+                    .font(.system(size: AppTheme.FontSize.header, weight: .heavy, design: .rounded))
+                Spacer()
+                Text("\(worksForStudent.count)")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+
+            if isLoadingWorks {
+                Text("Loading…")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
+            } else if worksForStudent.isEmpty {
+                Text("No work recorded yet.")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(worksForStudent, id: \.id) { work in
+                        HStack(spacing: 12) {
+                            let pair = iconAndColor(for: work.workType)
+                            Image(systemName: pair.0)
+                                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                .foregroundStyle(pair.1)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(workTitle(for: work))
+                                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                if let subtitle = workSubtitle(for: work), !subtitle.isEmpty {
+                                    Text(subtitle)
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -296,12 +386,16 @@ struct StudentDetailView: View {
     @MainActor
     private func loadStudentData() async {
         isLoadingLessons = true
-        defer { isLoadingLessons = false }
+        isLoadingWorks = true
+        defer {
+            isLoadingLessons = false
+            isLoadingWorks = false
+        }
 
         let sid = student.id
 
         do {
-            // Fetch upcoming StudentLesson broadly, then filter in-memory for this student to avoid predicate limitations
+            // Fetch upcoming StudentLesson broadly, then filter in-memory for this student
             let upcomingDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.givenAt == nil })
             let allUpcoming = try modelContext.fetch(upcomingDescriptor)
             let fetchedSL = allUpcoming.filter { $0.studentIDs.contains(sid) }
@@ -321,14 +415,39 @@ struct StudentDetailView: View {
             }
             nextLessonsForStudent = sortedSL
 
-            // Prefetch only referenced lessons in a single batched fetch and cache them
-            let ids = Set(sortedSL.map { $0.lessonID })
-            if ids.isEmpty {
+            // Fetch all works and filter for this student
+            let allWorks = try modelContext.fetch(FetchDescriptor<WorkModel>())
+            let filteredWorks = allWorks.filter { $0.studentIDs.contains(sid) }
+            worksForStudent = filteredWorks.sorted { $0.createdAt > $1.createdAt }
+
+            // Prefetch student lessons referenced by works
+            let workSLIDs = Set(worksForStudent.compactMap { $0.studentLessonID })
+            if workSLIDs.isEmpty {
+                studentLessonsByID = [:]
+            } else {
+                do {
+                    let slPredicate = #Predicate<StudentLesson> { workSLIDs.contains($0.id) }
+                    let slDescriptor = FetchDescriptor<StudentLesson>(predicate: slPredicate)
+                    let sls = try modelContext.fetch(slDescriptor)
+                    studentLessonsByID = Dictionary(uniqueKeysWithValues: sls.map { ($0.id, $0) })
+                } catch {
+                    // Fallback: fetch all and filter in-memory
+                    let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+                    let filtered = sls.filter { workSLIDs.contains($0.id) }
+                    studentLessonsByID = Dictionary(uniqueKeysWithValues: filtered.map { ($0.id, $0) })
+                }
+            }
+
+            // Prefetch referenced lessons (from upcoming nextLessons and from work-linked student lessons)
+            let lessonIDsFromNext = Set(sortedSL.map { $0.lessonID })
+            let lessonIDsFromWorks = Set(studentLessonsByID.values.map { $0.lessonID })
+            let allLessonIDs = lessonIDsFromNext.union(lessonIDsFromWorks)
+            if allLessonIDs.isEmpty {
                 lessonsByID = [:]
             } else {
                 do {
                     let lPredicate = #Predicate<Lesson> { lesson in
-                        ids.contains(lesson.id)
+                        allLessonIDs.contains(lesson.id)
                     }
                     let lDescriptor = FetchDescriptor<Lesson>(predicate: lPredicate)
                     let lessons = try modelContext.fetch(lDescriptor)
@@ -336,14 +455,16 @@ struct StudentDetailView: View {
                 } catch {
                     // Fallback: fetch all lessons and filter in-memory
                     let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
-                    let filtered = allLessons.filter { ids.contains($0.id) }
+                    let filtered = allLessons.filter { allLessonIDs.contains($0.id) }
                     lessonsByID = Dictionary(uniqueKeysWithValues: filtered.map { ($0.id, $0) })
                 }
             }
         } catch {
             // If fetch fails, leave arrays empty; UI will show empty state
             nextLessonsForStudent = []
+            worksForStudent = []
             lessonsByID = [:]
+            studentLessonsByID = [:]
         }
     }
 
