@@ -39,6 +39,7 @@ struct LessonsCardsGridView: View {
     @State private var hoverTargetID: UUID?
     @State private var itemFrames: [UUID: CGRect] = [:]
     @Namespace private var gridNamespace
+    @State private var hasAppeared: Bool = false
 
     private let columns: [GridItem] = [
         GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)
@@ -47,7 +48,11 @@ struct LessonsCardsGridView: View {
     private var idList: [UUID] { lessons.map { $0.id } }
 
     private var gridAnimation: Animation? {
-        draggingLessonID != nil ? nil : .spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
+        if draggingLessonID != nil || !hasAppeared {
+            return nil
+        } else {
+            return .spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
+        }
     }
 
     var body: some View {
@@ -59,7 +64,9 @@ struct LessonsCardsGridView: View {
 
                     LessonCard(lesson: lesson)
                         .matchedGeometryEffect(id: lesson.id, in: gridNamespace)
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                        .when(hasAppeared) { view in
+                            view.transition(.opacity.combined(with: .scale(scale: 0.98)))
+                        }
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
                                 .stroke(isDragging ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 2)
@@ -93,12 +100,21 @@ struct LessonsCardsGridView: View {
                         }
                 }
             }
+            .transaction { tx in
+                if !hasAppeared { tx.animation = nil }
+            }
             .animation(gridAnimation, value: idList)
             .padding(24)
         }
         .coordinateSpace(name: "lessonsGridScroll")
         .onPreferenceChange(ItemFramePreference.self) { frames in
             itemFrames = frames
+        }
+        .onAppear {
+            // Defer enabling animations until after the first layout to avoid initial appear animations
+            DispatchQueue.main.async {
+                hasAppeared = true
+            }
         }
     }
 

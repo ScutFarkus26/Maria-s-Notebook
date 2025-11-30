@@ -29,7 +29,14 @@ struct RootView: View {
                 HStack(spacing: 12) {
                     ForEach(Tab.allCases) { tab in
                         Button {
-                            selectedTabRaw = tab.rawValue
+                            if tab == .albumlessons {
+                                // Disable animation when switching to the Albums view
+                                withAnimation(nil) {
+                                    selectedTabRaw = tab.rawValue
+                                }
+                            } else {
+                                selectedTabRaw = tab.rawValue
+                            }
                         } label: {
                             Text(tab.rawValue)
                                 .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
