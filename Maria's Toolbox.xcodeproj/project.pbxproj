@@ -8,11 +8,31 @@
 
 /* Begin PBXBuildFile section */
 		51A935162EDCDC2900F28923 /* StudentLessonQuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */; };
+		51DC1DAF2EDD063700F54E19 /* WorkParticipant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DAE2EDD063700F54E19 /* WorkParticipant.swift */; };
+		51DC1DB12EDD0EB500F54E19 /* WorkCompletionRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB02EDD0EB500F54E19 /* WorkCompletionRecord.swift */; };
+		51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */; };
+		51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB42EDD3E8700F54E19 /* WorkModel+Completion.swift */; };
+		51DC1DB72EDD3FCF00F54E19 /* WorkCompletionRecord 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB62EDD3FCF00F54E19 /* WorkCompletionRecord 2.swift */; };
+		51DC1DB92EDD3FD300F54E19 /* WorkCompletionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB82EDD3FD300F54E19 /* WorkCompletionHistoryView.swift */; };
+		51DC1DBB2EDD400400F54E19 /* WorkCompletionBackfill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DBA2EDD400400F54E19 /* WorkCompletionBackfill.swift */; };
+		51DC1DBD2EDD40D400F54E19 /* MarkCompletionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DBC2EDD40D400F54E19 /* MarkCompletionButton.swift */; };
+		51DC1DBF2EDD40DC00F54E19 /* PerStudentCompletionList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DBE2EDD40DC00F54E19 /* PerStudentCompletionList.swift */; };
+		51DC1DC12EDD40E000F54E19 /* WorkModel+BulkCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DC02EDD40E000F54E19 /* WorkModel+BulkCompletion.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonQuickActionsView.swift; sourceTree = "<group>"; };
+		51DC1DAE2EDD063700F54E19 /* WorkParticipant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkParticipant.swift; sourceTree = "<group>"; };
+		51DC1DB02EDD0EB500F54E19 /* WorkCompletionRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCompletionRecord.swift; sourceTree = "<group>"; };
+		51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCompletionService.swift; sourceTree = "<group>"; };
+		51DC1DB42EDD3E8700F54E19 /* WorkModel+Completion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkModel+Completion.swift"; sourceTree = "<group>"; };
+		51DC1DB62EDD3FCF00F54E19 /* WorkCompletionRecord 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkCompletionRecord 2.swift"; sourceTree = "<group>"; };
+		51DC1DB82EDD3FD300F54E19 /* WorkCompletionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCompletionHistoryView.swift; sourceTree = "<group>"; };
+		51DC1DBA2EDD400400F54E19 /* WorkCompletionBackfill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCompletionBackfill.swift; sourceTree = "<group>"; };
+		51DC1DBC2EDD40D400F54E19 /* MarkCompletionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkCompletionButton.swift; sourceTree = "<group>"; };
+		51DC1DBE2EDD40DC00F54E19 /* PerStudentCompletionList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerStudentCompletionList.swift; sourceTree = "<group>"; };
+		51DC1DC02EDD40E000F54E19 /* WorkModel+BulkCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkModel+BulkCompletion.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -53,6 +73,16 @@
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
 				51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */,
+				51DC1DAE2EDD063700F54E19 /* WorkParticipant.swift */,
+				51DC1DB02EDD0EB500F54E19 /* WorkCompletionRecord.swift */,
+				51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */,
+				51DC1DB42EDD3E8700F54E19 /* WorkModel+Completion.swift */,
+				51DC1DB62EDD3FCF00F54E19 /* WorkCompletionRecord 2.swift */,
+				51DC1DB82EDD3FD300F54E19 /* WorkCompletionHistoryView.swift */,
+				51DC1DBA2EDD400400F54E19 /* WorkCompletionBackfill.swift */,
+				51DC1DBC2EDD40D400F54E19 /* MarkCompletionButton.swift */,
+				51DC1DBE2EDD40DC00F54E19 /* PerStudentCompletionList.swift */,
+				51DC1DC02EDD40E000F54E19 /* WorkModel+BulkCompletion.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -138,6 +168,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				51DC1DAF2EDD063700F54E19 /* WorkParticipant.swift in Sources */,
+				51DC1DBB2EDD400400F54E19 /* WorkCompletionBackfill.swift in Sources */,
+				51DC1DBD2EDD40D400F54E19 /* MarkCompletionButton.swift in Sources */,
+				51DC1DB12EDD0EB500F54E19 /* WorkCompletionRecord.swift in Sources */,
+				51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */,
+				51DC1DC12EDD40E000F54E19 /* WorkModel+BulkCompletion.swift in Sources */,
+				51DC1DB72EDD3FCF00F54E19 /* WorkCompletionRecord 2.swift in Sources */,
+				51DC1DB92EDD3FD300F54E19 /* WorkCompletionHistoryView.swift in Sources */,
+				51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */,
+				51DC1DBF2EDD40DC00F54E19 /* PerStudentCompletionList.swift in Sources */,
 				51A935162EDCDC2900F28923 /* StudentLessonQuickActionsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

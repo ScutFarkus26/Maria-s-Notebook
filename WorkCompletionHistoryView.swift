@@ -1,0 +1,179 @@
+import SwiftUI
+import SwiftData
+
+/// A reusable list view that displays completion history for a given work.
+/// Optionally filter by a specific student.
+struct WorkCompletionHistoryView: View {
+    let workID: UUID
+    var studentID: UUID? = nil
+
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var records: [WorkCompletionRecord] = []
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String? = nil
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView("Loading history…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else if let errorMessage {
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundStyle(.orange)
+                    Text(errorMessage)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if records.isEmpty {
+                ContentUnavailableView(
+                    "No Completions Yet",
+                    systemImage: "clock.arrow.circlepath",
+                    description: Text("When students complete this work, entries will appear here.")
+                )
+            } else {
+                List {
+                    ForEach(records) { record in
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(record.completedAt, style: .date)
+                                    + Text(" • ")
+                                    + Text(record.completedAt, style: .time)
+                                if !record.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Text(record.note)
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Completed on \(record.completedAt.formatted(date: .numeric, time: .shortened))")
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                delete(record: record)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                    .onDelete(perform: delete)
+                }
+                .listStyle(.inset)
+            }
+        }
+        .task(id: workID.uuidString + (studentID?.uuidString ?? "all")) {
+            await reload()
+        }
+        .navigationTitle("Completion History")
+        .toolbar {
+            #if os(iOS)
+            EditButton()
+            #endif
+        }
+    }
+
+    private func reload() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            // Prefer using the service if available.
+            if let serviceRecords = try? WorkCompletionService.records(for: workID, studentID: studentID, in: modelContext) {
+                self.records = serviceRecords
+                return
+            }
+            // Fallback direct fetch.
+            let predicate: Predicate<WorkCompletionRecord>
+            if let studentID {
+                predicate = #Predicate { $0.workID == workID && $0.studentID == studentID }
+            } else {
+                predicate = #Predicate { $0.workID == workID }
+            }
+            let descriptor = FetchDescriptor<WorkCompletionRecord>(
+                predicate: predicate,
+                sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
+            )
+            self.records = try modelContext.fetch(descriptor)
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func delete(at offsets: IndexSet) {
+        for index in offsets {
+            let record = records[index]
+            modelContext.delete(record)
+        }
+        do {
+            try modelContext.save()
+            records.remove(atOffsets: offsets)
+        } catch {
+            // In case of failure, reload to reflect actual state.
+            Task { await reload() }
+        }
+    }
+    
+    private func delete(record: WorkCompletionRecord) {
+        modelContext.delete(record)
+        do {
+            try modelContext.save()
+            if let idx = records.firstIndex(where: { $0.id == record.id }) {
+                records.remove(at: idx)
+            }
+        } catch {
+            // In case of failure, reload to reflect actual state.
+            Task { await reload() }
+        }
+    }
+}
+
+#Preview("Empty") {
+    NavigationStack {
+        WorkCompletionHistoryView(workID: UUID())
+    }
+}
+
+#Preview("With Sample Data") {
+    struct PreviewHost: View {
+        @Environment(\.modelContext) private var modelContext
+        @State private var workID = UUID()
+        @State private var studentA = UUID()
+        @State private var studentB = UUID()
+
+        var body: some View {
+            NavigationStack {
+                WorkCompletionHistoryView(workID: workID)
+                    .task {
+                        // Seed some sample records in memory
+                        let now = Date()
+                        let items: [WorkCompletionRecord] = [
+                            WorkCompletionRecord(workID: workID, studentID: studentA, completedAt: now.addingTimeInterval(-3600), note: "First try"),
+                            WorkCompletionRecord(workID: workID, studentID: studentB, completedAt: now.addingTimeInterval(-1800), note: "Assisted"),
+                            WorkCompletionRecord(workID: workID, studentID: studentA, completedAt: now.addingTimeInterval(-600), note: "Independent")
+                        ]
+                        items.forEach { modelContext.insert($0) }
+                        try? modelContext.save()
+                    }
+            }
+        }
+    }
+
+    return PreviewContainer(PreviewHost())
+}
+
+/// A lightweight in-memory container for previews.
+private struct PreviewContainer<Content: View>: View {
+    private let content: Content
+    init(_ content: Content) { self.content = content }
+
+    var body: some View {
+        content
+            .modelContainer(try! ModelContainer(for: Schema([WorkCompletionRecord.self]), configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+    }
+}

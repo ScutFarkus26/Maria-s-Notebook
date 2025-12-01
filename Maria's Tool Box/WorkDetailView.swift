@@ -33,6 +33,8 @@ struct WorkDetailView: View {
     @State private var studentSearchText: String = ""
     @State private var showingLinkedLessonDetails = false
 
+    @State private var completedAt: Date?
+
     private enum LevelFilter: String, CaseIterable {
         case all = "All"
         case lower = "Lower"
@@ -48,6 +50,7 @@ struct WorkDetailView: View {
         _workType = State(initialValue: work.workType)
         _selectedStudentLessonID = State(initialValue: work.studentLessonID)
         _notes = State(initialValue: work.notes)
+        _completedAt = State(initialValue: work.completedAt)
     }
     
     private var lessonsByID: [UUID: Lesson] {
@@ -61,6 +64,12 @@ struct WorkDetailView: View {
     }
     private var studentLessonSnapshotsByID: [UUID: StudentLessonSnapshot] {
         Dictionary(uniqueKeysWithValues: studentLessonsByID.map { ($0.key, $0.value.snapshot()) })
+    }
+
+    private var participantStates: [(student: Student, isDone: Bool)] {
+        selectedStudentsList.map { s in
+            (student: s, isDone: work.isStudentCompleted(s.id))
+        }
     }
     
     private var chipBackgroundColor: Color {
@@ -164,6 +173,7 @@ struct WorkDetailView: View {
                     workTypeSection
                     linkedLessonSection
                     notesSection
+                    completionSection
                 }
                 .padding(.vertical)
                 .padding(.horizontal)
@@ -223,6 +233,14 @@ struct WorkDetailView: View {
                     .foregroundColor(.primary)
                 workTypeBadge
                 Spacer()
+            }
+            if let completedAt {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text("Completed: \(createdAtDateFormatter.string(from: completedAt))")
+                        .font(.system(size: AppTheme.FontSize.caption))
+                        .foregroundColor(.primary)
+                }
             }
 
             HStack(alignment: .center, spacing: 8) {
@@ -428,6 +446,50 @@ struct WorkDetailView: View {
         }
     }
     
+    private var completionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Completion")
+                .font(.system(size: AppTheme.FontSize.caption))
+                .foregroundColor(.secondary)
+
+            // Per-student toggles
+            if selectedStudentsList.isEmpty {
+                Text("No students selected for this work.")
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(selectedStudentsList, id: \.id) { student in
+                        Toggle(isOn: Binding(
+                            get: { work.isStudentCompleted(student.id) },
+                            set: { newValue in
+                                if newValue {
+                                    work.markStudent(student.id, completedAt: Date())
+                                } else {
+                                    work.markStudent(student.id, completedAt: nil)
+                                }
+                            }
+                        )) {
+                            Text(displayName(for: student))
+                        }
+                    }
+                }
+            }
+
+            HStack {
+                Button(completedAt == nil ? "Mark Work Done" : "Clear Work Done") {
+                    if completedAt == nil {
+                        completedAt = Date()
+                    } else {
+                        completedAt = nil
+                    }
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+            }
+        }
+    }
+    
     private var bottomBar: some View {
         HStack {
             Button(role: .destructive) {
@@ -462,6 +524,9 @@ struct WorkDetailView: View {
         work.workType = workType
         work.studentLessonID = selectedStudentLessonID
         work.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Keep participants in sync with selected students
+        work.ensureParticipantsFromStudentIDs()
+        work.completedAt = completedAt
         do {
             try modelContext.save()
             if let onDone = onDone {

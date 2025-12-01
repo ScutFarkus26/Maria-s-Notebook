@@ -117,6 +117,11 @@ struct StudentLessonDTO: Codable {
     var followUpWork: String
 }
 
+struct WorkParticipantDTO: Codable {
+    var studentID: UUID
+    var completedAt: Date?
+}
+
 struct WorkDTO: Codable {
     var id: UUID
     var studentIDs: [UUID]
@@ -124,13 +129,15 @@ struct WorkDTO: Codable {
     var studentLessonID: UUID?
     var notes: String
     var createdAt: Date
+    var completedAt: Date?
+    var participants: [WorkParticipantDTO]
 }
 
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 7
+    static let currentVersion: Int = 8
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -203,7 +210,11 @@ enum BackupManager {
                 workType: w.workType.rawValue,
                 studentLessonID: w.studentLessonID,
                 notes: w.notes,
-                createdAt: w.createdAt
+                createdAt: w.createdAt,
+                completedAt: w.completedAt,
+                participants: w.participants.map { p in
+                    WorkParticipantDTO(studentID: p.studentID, completedAt: p.completedAt)
+                }
             )
         }
 
@@ -318,13 +329,18 @@ enum BackupManager {
                     // skip unknown workTypes
                     continue
                 }
+                let participants: [WorkParticipant] = dto.participants.map { part in
+                    WorkParticipant(studentID: part.studentID, completedAt: part.completedAt)
+                }
                 let work = WorkModel(
                     id: dto.id,
                     studentIDs: dto.studentIDs,
                     workType: workTypeEnum,
                     studentLessonID: dto.studentLessonID,
                     notes: dto.notes,
-                    createdAt: dto.createdAt
+                    createdAt: dto.createdAt,
+                    completedAt: dto.completedAt,
+                    participants: participants
                 )
                 context.insert(work)
             }

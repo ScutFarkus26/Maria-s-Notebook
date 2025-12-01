@@ -92,25 +92,35 @@ private struct WorkCard: View {
         return "\(lessonName) • \(dateString)"
     }
 
-    private var studentsLine: String {
-        // Display either a count or a short list of first names + last initials
-        let names: [String] = work.studentIDs.compactMap { id -> String? in
+    private var activeStudentNames: [String] {
+        work.studentIDs.compactMap { id -> String? in
             guard let s = studentsByID[id] else { return nil }
+            guard !work.isStudentCompleted(id) else { return nil }
             let parts = s.fullName.split(separator: " ")
             guard let first = parts.first else { return s.fullName }
             let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
             return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
         }
-        if names.isEmpty {
-            let count = work.studentIDs.count
-            return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
+    }
+
+    private var completedCount: Int {
+        work.studentIDs.filter { work.isStudentCompleted($0) }.count
+    }
+
+    private var studentsLineView: some View {
+        HStack(spacing: 4) {
+            if !activeStudentNames.isEmpty {
+                Text(activeStudentNames.count <= 3 ? activeStudentNames.joined(separator: ", ") : activeStudentNames.prefix(3).joined(separator: ", ") + ", +\(activeStudentNames.count - 3)")
+            }
+            if completedCount > 0 {
+                Text("• \(completedCount) done")
+                    .foregroundStyle(.secondary)
+            }
         }
-        if names.count <= 3 {
-            return names.joined(separator: ", ")
-        } else {
-            let firstThree = names.prefix(3).joined(separator: ", ")
-            return "\(firstThree), +\(names.count - 3)"
-        }
+        .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .truncationMode(.tail)
     }
 
     private var notesText: String {
@@ -122,17 +132,20 @@ private struct WorkCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(work.createdAt, style: .date)
                     .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                if work.isCompleted {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Completed")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.green)
+                    }
+                }
                 Spacer(minLength: 0)
                 workTypeBadge
             }
 
-            if !studentsLine.isEmpty {
-                Text(studentsLine)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
+            studentsLineView
 
             if !linkedLessonLine.isEmpty {
                 Text(linkedLessonLine)

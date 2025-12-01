@@ -28,6 +28,7 @@ struct MariasToolboxApp: App {
             Lesson.self,
             StudentLesson.self,
             WorkModel.self,
+            WorkCompletionRecord.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
