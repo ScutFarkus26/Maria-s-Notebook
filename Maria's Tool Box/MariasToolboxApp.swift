@@ -70,6 +70,10 @@ struct MariasToolboxApp: App {
                 Button("Restore…") { NotificationCenter.default.post(name: Notification.Name("RestoreBackupRequested"), object: nil) }
                     .keyboardShortcut("b", modifiers: [.command, .shift])
             }
+            CommandMenu("Work") {
+                Button("New Work…") { NotificationCenter.default.post(name: Notification.Name("NewWorkRequested"), object: nil) }
+                    .keyboardShortcut("n", modifiers: [.command, .option])
+            }
         }
 
         #if os(macOS)

@@ -139,6 +139,85 @@ enum LessonCSVImporter {
         return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: uniquePotentialDupTitles, warnings: warnings)
     }
 
+    /// Parse CSV into rows and detect potential duplicates against an existing set of duplicate keys.
+    /// This overload avoids referencing main-actor isolated SwiftData model types so it can be used off the main actor.
+    static func parse(data: Data, existingLessonKeys: Set<String>) throws -> Parsed {
+        // Decode text as UTF-8, fallback UTF-16
+        guard var text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .utf16) else {
+            throw ImportError.encoding("Unsupported text encoding; please use UTF-8.")
+        }
+        // Strip BOM if present
+        if text.first == "\u{feff}" { text.removeFirst() }
+
+        let records = try splitCSVIntoRecords(text)
+        guard let header = records.first else { throw ImportError.empty }
+
+        // Synonyms for flexible headers
+        let synonyms: [String: [String]] = [
+            "name": ["name", "lesson", "title"],
+            "subject": ["subject"],
+            "group": ["group", "category"],
+            "subheading": ["subheading", "subtitle"],
+            "writeup": ["writeup", "write up", "notes", "description"],
+            "grouporder": ["grouporder", "group order", "order", "group position", "groupindex", "group index"]
+        ]
+
+        let headerMap = try mapHeaders(header, synonyms: synonyms)
+
+        var rows: [Row] = []
+        var potentialDupTitles: [String] = []
+        var warnings: [String] = []
+
+        for (i, record) in records.dropFirst().enumerated() {
+            // Tolerate blank lines
+            if record.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { continue }
+
+            func value(_ key: String) -> String {
+                if let idx = headerMap[key], idx < record.count { return record[idx] } else { return "" }
+            }
+
+            let name = value("name").trimmingCharacters(in: .whitespacesAndNewlines)
+            let subject = value("subject").trimmingCharacters(in: .whitespacesAndNewlines)
+            let group = value("group").trimmingCharacters(in: .whitespacesAndNewlines)
+            let subheading = value("subheading").trimmingCharacters(in: .whitespacesAndNewlines)
+            let writeUp = value("writeup").trimmingCharacters(in: .whitespacesAndNewlines)
+
+            let groupOrderStr = value("grouporder").trimmingCharacters(in: .whitespacesAndNewlines)
+            var orderInGroup: Int? = nil
+            if !groupOrderStr.isEmpty {
+                if let parsedInt = Int(groupOrderStr), parsedInt >= 0 {
+                    orderInGroup = parsedInt
+                } else {
+                    warnings.append("Row \(i + 2): Invalid Group Order '\(groupOrderStr)'; ignored.")
+                }
+            }
+
+            if name.isEmpty || subject.isEmpty {
+                warnings.append("Row \(i + 2): Missing required Name or Subject; row skipped.")
+                continue
+            }
+
+            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp, orderInGroup: orderInGroup)
+            rows.append(row)
+
+            let key = duplicateKey(name: name, subject: subject, group: group)
+            if existingLessonKeys.contains(key) {
+                let title = group.isEmpty ? "\(name) — \(subject)" : "\(name) — \(subject) • \(group)"
+                potentialDupTitles.append(title)
+            }
+        }
+
+        // Deduplicate potentialDupTitles preserving order
+        var seenTitles = Set<String>()
+        let uniquePotentialDupTitles = potentialDupTitles.filter {
+            if seenTitles.contains($0) { return false }
+            seenTitles.insert($0)
+            return true
+        }
+
+        return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: uniquePotentialDupTitles, warnings: warnings)
+    }
+
     /// Commit parsed rows by inserting new Lesson objects; updates existing lessons if duplicates found.
     static func commit(parsed: Parsed, into context: ModelContext, existingLessons: [Lesson]) throws -> Int {
         // Build a dictionary of existing lessons by duplicate key
@@ -298,4 +377,3 @@ enum LessonCSVImporter {
         duplicateKey(name: lesson.name, subject: lesson.subject, group: lesson.group)
     }
 }
-

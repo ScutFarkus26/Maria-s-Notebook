@@ -41,9 +41,7 @@ struct WorkCompletionHistoryView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(record.completedAt, style: .date)
-                                    + Text(" • ")
-                                    + Text(record.completedAt, style: .time)
+                                Text("\(record.completedAt.formatted(date: .abbreviated, time: .omitted)) • \(record.completedAt.formatted(date: .omitted, time: .shortened))")
                                 if !record.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                     Text(record.note)
                                         .font(.callout)

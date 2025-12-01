@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Combine
 import UniformTypeIdentifiers
 
 struct LessonsRootView: View {
@@ -189,8 +190,14 @@ struct LessonsRootView: View {
                 defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
                 do {
                     let data = try Data(contentsOf: url)
-                    // Parse off-main
-                    let parsed = try LessonCSVImporter.parse(data: data, existingLessons: self.lessons)
+                    // Snapshot duplicate keys on the main actor to avoid sending non-Sendable model objects across actors
+                    let existingKeys: Set<String> = await MainActor.run {
+                        Set(self.lessons.map { LessonCSVImporter.duplicateKey(for: $0) })
+                    }
+                    // Parse off-main using precomputed keys
+                    let parsed = try await MainActor.run {
+                        try LessonCSVImporter.parse(data: data, existingLessonKeys: existingKeys)
+                    }
                     try Task.checkCancellation()
                     await MainActor.run {
                         self.pendingParsedImport = parsed
@@ -316,6 +323,12 @@ struct LessonsRootView: View {
             pendingParsedImport = nil
         }) {
             importPreviewSheet
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewLessonRequested"))) { _ in
+            showingAddLesson = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ImportLessonsRequested"))) { _ in
+            showingLessonCSVImporter = true
         }
         .onAppear {
             if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {

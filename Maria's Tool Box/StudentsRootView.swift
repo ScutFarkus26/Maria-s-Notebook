@@ -83,7 +83,7 @@ struct StudentsRootView: View {
                         do {
                             let data = try Data(contentsOf: url)
                             // Parse headers off-main
-                            let csvOpt = CSVParser.parse(data: data)
+                            let csvOpt = await MainActor.run { CSVParser.parse(data: data) }
                             try Task.checkCancellation()
                             guard let csv = csvOpt else {
                                 await MainActor.run {
@@ -132,7 +132,15 @@ struct StudentsRootView: View {
                         defer { if needsAccess { fileURL.stopAccessingSecurityScopedResource() } }
                         do {
                             let data = try Data(contentsOf: fileURL)
-                            let parsed: StudentCSVImporter.Parsed = try StudentCSVImporter.parse(data: data, mapping: mapping, existingStudents: self.students)
+                            // Snapshot Sendable keys on the main actor to avoid sending non-Sendable model objects across actors
+                            let keys: (full: Set<String>, name: Set<String>) = await MainActor.run {
+                                let full = Set(self.students.map { StudentCSVImporter.duplicateKey(for: $0) })
+                                let name = Set(self.students.map { ("\($0.firstName) \($0.lastName)").normalizedNameKey() })
+                                return (full, name)
+                            }
+                            let parsed: StudentCSVImporter.Parsed = try await MainActor.run {
+                                try StudentCSVImporter.parse(data: data, mapping: mapping, existingFullKeys: keys.full, existingNameKeys: keys.name)
+                            }
                             try Task.checkCancellation()
                             await MainActor.run {
                                 pendingParsedImport = parsed
