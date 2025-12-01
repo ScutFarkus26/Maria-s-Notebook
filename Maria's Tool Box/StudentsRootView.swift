@@ -16,6 +16,9 @@ struct StudentsRootView: View {
     @State private var pendingParsedImport: StudentCSVImporter.Parsed? = nil
     @State private var showingMappingSheet: Bool = false
 
+    @State private var isParsing: Bool = false
+    @State private var parsingTask: Task<Void, Never>? = nil
+
     private struct ImportAlert: Identifiable {
         let id = UUID()
         let title: String
@@ -43,6 +46,23 @@ struct StudentsRootView: View {
                 }
                 .padding()
             }
+            .overlay(alignment: .center) {
+                if isParsing {
+                    ZStack {
+                        Color.black.opacity(0.2).ignoresSafeArea()
+                        VStack(spacing: 12) {
+                            ProgressView("Parsing…")
+                            Button("Cancel") {
+                                parsingTask?.cancel()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .padding(16)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
             .sheet(isPresented: $showingAddStudent) {
                 AddStudentView()
             }
@@ -53,15 +73,23 @@ struct StudentsRootView: View {
                 do {
                     let url = try result.get()
 
-                    Task.detached(priority: .userInitiated) {
+                    // Cancel any in-flight parsing task
+                    parsingTask?.cancel()
+                    isParsing = true
+
+                    parsingTask = Task.detached(priority: .userInitiated) {
                         let needsAccess = url.startAccessingSecurityScopedResource()
                         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
                         do {
                             let data = try Data(contentsOf: url)
-                            let csvOpt = await MainActor.run { CSVParser.parse(data: data) }
+                            // Parse headers off-main
+                            let csvOpt = CSVParser.parse(data: data)
+                            try Task.checkCancellation()
                             guard let csv = csvOpt else {
                                 await MainActor.run {
                                     importAlert = ImportAlert(title: "Import Failed", message: "Unsupported text encoding; please use UTF-8.")
+                                    isParsing = false
+                                    parsingTask = nil
                                 }
                                 return
                             }
@@ -70,15 +98,23 @@ struct StudentsRootView: View {
                                 self.mappingHeaders = csv.headers
                                 self.pendingMapping = StudentCSVImporter.detectMapping(headers: csv.headers)
                                 self.showingMappingSheet = true
+                                self.isParsing = false
+                                self.parsingTask = nil
                             }
+                        } catch is CancellationError {
+                            await MainActor.run { self.isParsing = false; self.parsingTask = nil }
                         } catch {
                             await MainActor.run {
                                 importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                                isParsing = false
+                                parsingTask = nil
                             }
                         }
                     }
                 } catch {
                     importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                    isParsing = false
+                    parsingTask = nil
                 }
             }
             .sheet(isPresented: $showingMappingSheet) {
@@ -88,22 +124,33 @@ struct StudentsRootView: View {
                 }, onConfirm: { mapping in
                     // Ensure we have a file URL before starting the background work
                     guard let fileURL = pendingFileURL else { return }
-                    Task.detached(priority: .userInitiated) {
+                    // Cancel any in-flight parsing task
+                    parsingTask?.cancel()
+                    isParsing = true
+                    parsingTask = Task.detached(priority: .userInitiated) {
                         let needsAccess = fileURL.startAccessingSecurityScopedResource()
                         defer { if needsAccess { fileURL.stopAccessingSecurityScopedResource() } }
                         do {
                             let data = try Data(contentsOf: fileURL)
-                            let parsed: StudentCSVImporter.Parsed = try await MainActor.run {
-                                try StudentCSVImporter.parse(data: data, mapping: mapping, existingStudents: self.students)
-                            }
+                            let parsed: StudentCSVImporter.Parsed = try StudentCSVImporter.parse(data: data, mapping: mapping, existingStudents: self.students)
+                            try Task.checkCancellation()
                             await MainActor.run {
                                 pendingParsedImport = parsed
                                 showingMappingSheet = false
+                                isParsing = false
+                                parsingTask = nil
+                            }
+                        } catch is CancellationError {
+                            await MainActor.run {
+                                isParsing = false
+                                parsingTask = nil
                             }
                         } catch {
                             await MainActor.run {
                                 importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
                                 showingMappingSheet = false
+                                isParsing = false
+                                parsingTask = nil
                             }
                         }
                     }
@@ -136,6 +183,12 @@ struct StudentsRootView: View {
             }
             .alert(item: $importAlert) { alert in
                 Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewStudentRequested"))) { _ in
+                showingAddStudent = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ImportStudentsRequested"))) { _ in
+                showingStudentCSVImporter = true
             }
     }
 }

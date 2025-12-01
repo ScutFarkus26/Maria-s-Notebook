@@ -17,9 +17,14 @@ struct GiveLessonSheet: View {
     @State private var needsAnotherPresentation: Bool = false
     @State private var followUpWork: String = ""
     
+    private enum Mode { case plan, given }
+    @State private var mode: Mode = .plan
+    
     @State private var showingAddStudentSheet: Bool = false
     @State private var showingStudentPickerPopover: Bool = false
     @State private var studentSearchText: String = ""
+    
+    @State private var saveAlert: (title: String, message: String)? = nil
 
     private enum LevelFilter: String, CaseIterable {
         case all = "All"
@@ -225,6 +230,24 @@ struct GiveLessonSheet: View {
                             .padding(.top, 2)
                     }
 
+                    // Status
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Status").font(.headline)
+                        Picker("Status", selection: $mode) {
+                            Text("Plan").tag(Mode.plan)
+                            Text("Given").tag(Mode.given)
+                        }
+                        .pickerStyle(.segmented)
+
+                        if mode == .plan {
+                            DatePicker("Scheduled For", selection: Binding(get: { scheduledFor ?? Date() }, set: { scheduledFor = $0 }), displayedComponents: [.date, .hourAndMinute])
+                                .datePickerStyle(.compact)
+                        } else {
+                            DatePicker("Given At", selection: Binding(get: { givenAt ?? Date() }, set: { givenAt = $0 }), displayedComponents: [.date, .hourAndMinute])
+                                .datePickerStyle(.compact)
+                        }
+                    }
+
                     // Notes
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Notes")
@@ -276,14 +299,17 @@ struct GiveLessonSheet: View {
             AddStudentView()
         }
         .frame(minWidth: 520, minHeight: 560)
+        .alert(isPresented: Binding(get: { saveAlert != nil }, set: { if !$0 { saveAlert = nil } })) {
+            Alert(title: Text(saveAlert?.title ?? "Error"), message: Text(saveAlert?.message ?? ""), dismissButton: .default(Text("OK")))
+        }
     }
     
     private func saveStudentLesson() {
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
             studentIDs: Array(selectedStudentIDs),
-            scheduledFor: nil,
-            givenAt: nil,
+            scheduledFor: mode == .plan ? (scheduledFor ?? nil) : nil,
+            givenAt: mode == .given ? (givenAt ?? Date()) : nil,
             notes: notes,
             needsPractice: needsPractice,
             needsAnotherPresentation: needsAnotherPresentation,
@@ -317,7 +343,7 @@ struct GiveLessonSheet: View {
             onDone?()
             dismiss()
         } catch {
-            // could add error handling here
+            saveAlert = (title: "Save Failed", message: error.localizedDescription)
         }
     }
 }

@@ -235,6 +235,18 @@ struct SettingsView: View {
                 maintenanceAlert = (title: "Merge Complete", message: message)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("CreateBackupRequested"))) { _ in
+            do {
+                let data = try BackupManager.makeBackupData(using: modelContext)
+                exportData = data
+                showingExporter = true
+            } catch {
+                importError = "Failed to create backup: \(error.localizedDescription)"
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RestoreBackupRequested"))) { _ in
+            showRestoreConfirm = true
+        }
     }
 
     // MARK: - Helpers
@@ -390,4 +402,3 @@ struct SettingsGroup<Content: View>: View {
 #Preview {
     SettingsView()
 }
-

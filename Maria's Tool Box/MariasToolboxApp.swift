@@ -51,6 +51,26 @@ struct MariasToolboxApp: App {
         .windowStyle(.hiddenTitleBar)
         #endif
         .modelContainer(sharedModelContainer)
+        .commands {
+            CommandMenu("Lessons") {
+                Button("New Lesson") { NotificationCenter.default.post(name: Notification.Name("NewLessonRequested"), object: nil) }
+                    .keyboardShortcut("n", modifiers: [.command])
+                Button("Import Lessons…") { NotificationCenter.default.post(name: Notification.Name("ImportLessonsRequested"), object: nil) }
+                    .keyboardShortcut("i", modifiers: [.command])
+            }
+            CommandMenu("Students") {
+                Button("New Student") { NotificationCenter.default.post(name: Notification.Name("NewStudentRequested"), object: nil) }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("Import Students…") { NotificationCenter.default.post(name: Notification.Name("ImportStudentsRequested"), object: nil) }
+                    .keyboardShortcut("i", modifiers: [.command, .shift])
+            }
+            CommandMenu("Backup") {
+                Button("Create Backup") { NotificationCenter.default.post(name: Notification.Name("CreateBackupRequested"), object: nil) }
+                    .keyboardShortcut("b", modifiers: [.command])
+                Button("Restore…") { NotificationCenter.default.post(name: Notification.Name("RestoreBackupRequested"), object: nil) }
+                    .keyboardShortcut("b", modifiers: [.command, .shift])
+            }
+        }
 
         #if os(macOS)
         WindowGroup("", id: "WorkDetailWindow", for: UUID.self) { $workID in

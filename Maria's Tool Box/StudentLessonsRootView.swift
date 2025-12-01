@@ -21,9 +21,9 @@ struct StudentLessonsRootView: View {
     @State private var selectedLessonID: UUID? = nil
     @State private var quickActionsLessonID: UUID? = nil
 
-    @AppStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
-    @AppStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
-    @AppStorage("StudentLessons.subject") private var studentLessonsSubjectRaw: String = ""
+    @SceneStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
+    @SceneStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
+    @SceneStorage("StudentLessons.subject") private var studentLessonsSubjectRaw: String = ""
 
     private var filter: CompletionFilter {
         switch studentLessonsFilterRaw {
@@ -184,6 +184,10 @@ struct StudentLessonsRootView: View {
             } else {
                 EmptyView()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("QuickActionsRequested"))) { _ in
+            // If there is at least one student lesson, open quick actions for the first upcoming
+            if let first = studentLessons.first { quickActionsLessonID = first.id }
         }
     }
 

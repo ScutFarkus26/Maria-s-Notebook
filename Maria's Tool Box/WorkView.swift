@@ -25,11 +25,11 @@ struct WorkView: View {
     @State private var isShowingStudentFilterPopover = false
     @State private var studentFilterSearchText: String = ""
 
-    @AppStorage("WorkView.selectedWorkType") private var workSelectedTypeRaw: String = ""
-    @AppStorage("WorkView.selectedSubject") private var workSelectedSubjectRaw: String = ""
-    @AppStorage("WorkView.selectedStudentIDs") private var workSelectedStudentIDsRaw: String = ""
-    @AppStorage("WorkView.dateFilter") private var workDateFilterRaw: String = "thisWeek"
-    @AppStorage("WorkView.searchText") private var workSearchTextRaw: String = ""
+    @SceneStorage("WorkView.selectedWorkType") private var workSelectedTypeRaw: String = ""
+    @SceneStorage("WorkView.selectedSubject") private var workSelectedSubjectRaw: String = ""
+    @SceneStorage("WorkView.selectedStudentIDs") private var workSelectedStudentIDsRaw: String = ""
+    @SceneStorage("WorkView.dateFilter") private var workDateFilterRaw: String = "thisWeek"
+    @SceneStorage("WorkView.searchText") private var workSearchTextRaw: String = ""
 
     private enum DateFilter: String, CaseIterable {
         case all = "All Dates"
@@ -561,6 +561,9 @@ struct WorkView: View {
             }
         }
 #endif
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewWorkRequested"))) { _ in
+            isPresentingAddWork = true
+        }
     }
 }
 

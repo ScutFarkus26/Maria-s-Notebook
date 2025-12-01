@@ -31,6 +31,9 @@ struct StudentsView: View {
 
     @State private var showingAddStudent = false
     @State private var selectedStudentID: UUID? = nil
+    
+    @State private var isShowingSaveError: Bool = false
+    @State private var saveErrorMessage: String = ""
 
     /// Returns students ordered by the persisted manual order, with any missing/extra appended.
     private func applyManualOrder(to students: [Student]) -> [Student] {
@@ -51,7 +54,12 @@ struct StudentsView: View {
     /// If no manual order has been assigned yet, seed it alphabetically.
     private func ensureInitialManualOrderIfNeeded() {
         if viewModel.ensureInitialManualOrderIfNeeded(students) {
-            try? modelContext.save()
+            do {
+                try modelContext.save()
+            } catch {
+                saveErrorMessage = error.localizedDescription
+                isShowingSaveError = true
+            }
         }
     }
 
@@ -138,8 +146,18 @@ struct StudentsView: View {
 
             // Ensure manualOrder values remain unique; assign new students to the end
             if viewModel.repairManualOrderUniquenessIfNeeded(students) {
-                try? modelContext.save()
+                do {
+                    try modelContext.save()
+                } catch {
+                    saveErrorMessage = error.localizedDescription
+                    isShowingSaveError = true
+                }
             }
+        }
+        .alert("Save Failed", isPresented: $isShowingSaveError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveErrorMessage)
         }
     }
 
@@ -266,7 +284,12 @@ struct StudentsView: View {
                             allStudents: students
                         )
                         assignManualOrder(from: newAllIDs)
-                        try? modelContext.save()
+                        do {
+                            try modelContext.save()
+                        } catch {
+                            saveErrorMessage = error.localizedDescription
+                            isShowingSaveError = true
+                        }
                     }
                 )
             }

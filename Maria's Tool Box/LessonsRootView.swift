@@ -26,11 +26,14 @@ struct LessonsRootView: View {
     @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
     @State private var searchText: String = ""
     @State private var givingLessonFromDetailID: UUID? = nil
+    
+    @State private var isParsing: Bool = false
+    @State private var parsingTask: Task<Void, Never>? = nil
 
-    @AppStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
-    @AppStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
-    @AppStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
-    @AppStorage("Lessons.expandedSubjects") private var lessonsExpandedSubjectsRaw: String = ""
+    @SceneStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
+    @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
+    @SceneStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
+    @SceneStorage("Lessons.expandedSubjects") private var lessonsExpandedSubjectsRaw: String = ""
 
     private var selectedSubjectPersisted: String? {
         lessonsSelectedSubjectRaw.isEmpty ? nil : lessonsSelectedSubjectRaw
@@ -98,7 +101,11 @@ struct LessonsRootView: View {
                             existing.group = updated.group
                             existing.subheading = updated.subheading
                             existing.writeUp = updated.writeUp
-                            try? modelContext.save()
+                            do {
+                                try modelContext.save()
+                            } catch {
+                                importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
+                            }
                         }
                     },
                     onClose: {
@@ -173,26 +180,41 @@ struct LessonsRootView: View {
         do {
             let url = try result.get()
 
-            Task.detached(priority: .userInitiated) {
+            // Cancel any in-flight parsing task
+            parsingTask?.cancel()
+            isParsing = true
+
+            parsingTask = Task.detached(priority: .userInitiated) {
                 let needsAccess = url.startAccessingSecurityScopedResource()
                 defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
                 do {
                     let data = try Data(contentsOf: url)
-                    let parsed: LessonCSVImporter.Parsed = try await MainActor.run {
-                        try LessonCSVImporter.parse(data: data, existingLessons: self.lessons)
-                    }
+                    // Parse off-main
+                    let parsed = try LessonCSVImporter.parse(data: data, existingLessons: self.lessons)
+                    try Task.checkCancellation()
                     await MainActor.run {
                         self.pendingParsedImport = parsed
                         self.showingImportPreview = true
+                        self.isParsing = false
+                        self.parsingTask = nil
+                    }
+                } catch is CancellationError {
+                    await MainActor.run {
+                        self.isParsing = false
+                        self.parsingTask = nil
                     }
                 } catch {
                     await MainActor.run {
-                        importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                        self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                        self.isParsing = false
+                        self.parsingTask = nil
                     }
                 }
             }
         } catch {
             importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+            isParsing = false
+            parsingTask = nil
         }
     }
 
@@ -258,6 +280,23 @@ struct LessonsRootView: View {
         .overlay {
             selectedLessonOverlay
         }
+        .overlay(alignment: .center) {
+            if isParsing {
+                ZStack {
+                    Color.black.opacity(0.2).ignoresSafeArea()
+                    VStack(spacing: 12) {
+                        ProgressView("Parsing…")
+                        Button("Cancel") {
+                            parsingTask?.cancel()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .padding(16)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
         .sheet(isPresented: $showingAddLesson) {
             AddLessonView()
         }
@@ -279,7 +318,13 @@ struct LessonsRootView: View {
             importPreviewSheet
         }
         .onAppear {
-            ensureInitialOrderInGroupIfNeeded()
+            if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
+                do {
+                    try modelContext.save()
+                } catch {
+                    importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
+                }
+            }
             // Restore persisted filters
             self.selectedSubject = selectedSubjectPersisted
             self.selectedGroup = selectedGroupPersisted
@@ -297,7 +342,13 @@ struct LessonsRootView: View {
             self.lessonsExpandedSubjectsRaw = serializeExpandedSubjects(self.expandedSubjects)
         }
         .onChange(of: lessonIDs) {
-            ensureInitialOrderInGroupIfNeeded()
+            if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
+                do {
+                    try modelContext.save()
+                } catch {
+                    importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
+                }
+            }
         }
         .onChange(of: selectedSubject) { oldValue, newValue in
             lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -442,7 +493,11 @@ struct LessonsRootView: View {
 
     private func ensureInitialOrderInGroupIfNeeded() {
         if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
-            try? modelContext.save()
+            do {
+                try modelContext.save()
+            } catch {
+                importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
+            }
         }
     }
 
@@ -458,7 +513,11 @@ struct LessonsRootView: View {
         for (idx, l) in ordered.enumerated() {
             l.orderInGroup = idx
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
+        }
     }
 
     private func normalizeSubjectKey(_ subject: String) -> String {
