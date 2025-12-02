@@ -110,6 +110,31 @@ struct SettingsView: View {
                                     }
                                 }
 
+                                if UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
+                                    let reason = UserDefaults.standard.string(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey) ?? "The persistent store could not be opened. Data will not persist this session."
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Label {
+                                            Text("Warning: Data won't persist this session")
+                                                .font(.headline)
+                                        } icon: {
+                                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                                        }
+                                        Text(reason)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                        Button {
+                                            NotificationCenter.default.post(name: Notification.Name("CreateBackupRequested"), object: nil)
+                                        } label: {
+                                            Label("Create Backup Now", systemImage: "externaldrive.badge.plus")
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                    }
+                                    .padding(8)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+
                                 if let lastBackupDate = lastBackupDate {
                                     Label {
                                         Text("Last backup: \(lastBackupDate, style: .relative)")
@@ -208,27 +233,10 @@ struct SettingsView: View {
                         let data = try Data(contentsOf: url)
                         try await MainActor.run {
                             try BackupManager.restore(from: data, using: modelContext)
-                            // Backfill isPresented for any restored lessons that have givenAt set
-                            do {
-                                let lessons = try modelContext.fetch(FetchDescriptor<StudentLesson>())
-                                var changed = false
-                                for sl in lessons {
-                                    if sl.givenAt != nil && sl.isPresented == false {
-                                        sl.isPresented = true
-                                        changed = true
-                                    }
-                                }
-                                if changed {
-                                    try modelContext.save()
-                                }
-                            } catch {
-                                // Ignore backfill errors here; user can retry from RootView
-                            }
                             importError = nil
                             lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
+                            NotificationCenter.default.post(name: Notification.Name("BackfillIsPresentedRequested"), object: nil)
                         }
-                        // Notify RootView to re-run backfills if needed
-                        NotificationCenter.default.post(name: Notification.Name("BackfillIsPresentedRequested"), object: nil)
                     } catch {
                         await MainActor.run {
                             importError = "Failed to restore: \(error.localizedDescription)"
@@ -271,6 +279,13 @@ struct SettingsView: View {
             if oldValue == true && newValue == false && pendingImporterPresentation {
                 showingImporter = true
                 pendingImporterPresentation = false
+            }
+        }
+        .onAppear {
+            // If we are no longer in an ephemeral session (i.e., persistent container opened), clear any stale message.
+            // We infer this by the absence of the in-memory flag being set by App startup code.
+            if !UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
+                UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
             }
         }
     }

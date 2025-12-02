@@ -25,6 +25,29 @@ struct RootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
+                let reason = UserDefaults.standard.string(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey) ?? "The persistent store could not be opened. Data will not persist this session."
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Warning: Data won't persist this session").font(.callout).fontWeight(.semibold)
+                        Text(reason).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button {
+                        NotificationCenter.default.post(name: Notification.Name("CreateBackupRequested"), object: nil)
+                    } label: {
+                        Label("Backup Now", systemImage: "externaldrive.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial)
+                .overlay(Rectangle().frame(height: 1).foregroundStyle(Color.primary.opacity(0.1)), alignment: .bottom)
+            }
+
             // Top pill navigation
             HStack {
                 Spacer()

@@ -33,6 +33,7 @@ struct WorkDetailView: View {
     @State private var showingStudentPickerPopover = false
     @State private var studentSearchText: String = ""
     @State private var showingLinkedLessonDetails = false
+    @State private var showingBaseLessonDetails = false
 
     @State private var completedAt: Date?
 
@@ -219,6 +220,25 @@ struct WorkDetailView: View {
                 EmptyView()
             }
         }
+        .sheet(isPresented: $showingBaseLessonDetails) {
+            if let slID = selectedStudentLessonID, let sl = studentLessonsByID[slID], let lesson = lessonsByID[sl.lessonID] {
+                LessonDetailView(lesson: lesson, onSave: { _ in
+                    do { try modelContext.save() } catch { }
+                }, onDone: {
+                    showingBaseLessonDetails = false
+                })
+                #if os(macOS)
+                .frame(minWidth: 520, minHeight: 560)
+                .presentationSizing(.fitted)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .padding(.bottom, 16)
+                #endif
+            } else {
+                EmptyView()
+            }
+        }
     }
     
     private var titleSection: some View {
@@ -347,15 +367,27 @@ struct WorkDetailView: View {
                 let lessonName = lessonsByID[snap.lessonID]?.name ?? "Lesson"
                 let date = snap.scheduledFor ?? snap.givenAt ?? snap.createdAt
                 let label = "\(lessonName) • \(createdDateOnlyFormatter.string(from: date))"
-                Button {
-                    showingLinkedLessonDetails = true
-                } label: {
-                    Text(label)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.accentColor)
-                        .underline()
+                VStack(alignment: .leading, spacing: 6) {
+                    Button {
+                        showingLinkedLessonDetails = true
+                    } label: {
+                        Text(label)
+                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.accentColor)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+
+                    if lessonsByID[snap.lessonID] != nil {
+                        Button {
+                            showingBaseLessonDetails = true
+                        } label: {
+                            Label("Edit Lesson…", systemImage: "pencil")
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.system(size: AppTheme.FontSize.caption))
+                    }
                 }
-                .buttonStyle(.plain)
             } else {
                 Text("None")
                     .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
