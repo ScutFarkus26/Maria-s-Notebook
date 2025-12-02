@@ -683,28 +683,37 @@ struct StudentDetailView: View {
 
                                             HStack(spacing: 10) {
                                                 Button { openMastered(for: lesson) } label: {
-                                                    Image(systemName: "checkmark.seal.fill")
-                                                        .foregroundStyle(masteredLessonIDs.contains(lesson.id) ? Color.green : Color.secondary)
-                                                        .accessibilityLabel("Mastered")
+                                                    let isMastered = masteredLessonIDs.contains(lesson.id)
+                                                    let isPlanned = plannedLessonIDs.contains(lesson.id)
+                                                    ZStack {
+                                                        if isPlanned {
+                                                            Circle()
+                                                                .stroke(Color.green.opacity(0.35), lineWidth: 1)
+                                                                .frame(width: 22, height: 22)
+                                                        }
+                                                        Image(systemName: "checkmark.seal.fill")
+                                                            .foregroundStyle(isMastered ? Color.green : Color.secondary)
+                                                            .accessibilityLabel("Mastered")
+                                                    }
+                                                    .frame(width: 22, height: 22)
                                                 }
                                                 .buttonStyle(.plain)
-                                                .help(masteredLessonIDs.contains(lesson.id) ? "View presentation details" : "Mark as given")
+                                                .help(masteredLessonIDs.contains(lesson.id) ? "View presentation details" : (plannedLessonIDs.contains(lesson.id) ? "Planned — open presentation" : "Mark as given"))
 
                                                 Button { openWork(for: lesson, type: .practice) } label: {
                                                     let hasPractice = practiceLessonIDs.contains(lesson.id)
                                                     let isPendingPractice = pendingPracticeLessonIDs.contains(lesson.id)
-                                                    ZStack(alignment: .bottomTrailing) {
-                                                        Image(systemName: "arrow.triangle.2.circlepath")
-                                                            .foregroundStyle(hasPractice ? (isPendingPractice ? Color.purple : Color.secondary) : Color.secondary)
-                                                        if hasPractice {
-                                                            Image(systemName: isPendingPractice ? "clock.fill" : "checkmark.circle.fill")
-                                                                .font(.system(size: 9, weight: .bold))
-                                                                .foregroundStyle(isPendingPractice ? .orange : .green)
-                                                                .offset(x: 4, y: 4)
+                                                    ZStack {
+                                                        if hasPractice && isPendingPractice {
+                                                            Circle()
+                                                                .stroke(Color.purple.opacity(0.35), lineWidth: 1)
+                                                                .frame(width: 22, height: 22)
                                                         }
+                                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                                            .foregroundStyle(hasPractice ? Color.purple : Color.secondary)
                                                     }
                                                     .frame(width: 22, height: 22)
-                                                    .accessibilityLabel(isPendingPractice ? "Practice pending" : (hasPractice ? "Practice completed" : "Practice"))
+                                                    .accessibilityLabel(!hasPractice ? "Practice" : (isPendingPractice ? "Practice pending" : "Practice completed"))
                                                 }
                                                 .buttonStyle(.plain)
                                                 .help(!practiceLessonIDs.contains(lesson.id) ? "Add practice work" : (pendingPracticeLessonIDs.contains(lesson.id) ? "Practice pending — view work" : "Practice completed — view work"))
@@ -712,18 +721,17 @@ struct StudentDetailView: View {
                                                 Button { openWork(for: lesson, type: .followUp) } label: {
                                                     let hasFollowUp = followUpLessonIDs.contains(lesson.id)
                                                     let isPendingFollowUp = pendingFollowUpLessonIDs.contains(lesson.id)
-                                                    ZStack(alignment: .bottomTrailing) {
-                                                        Image(systemName: "bolt.fill")
-                                                            .foregroundStyle(hasFollowUp ? (isPendingFollowUp ? Color.orange : Color.secondary) : Color.secondary)
-                                                        if hasFollowUp {
-                                                            Image(systemName: isPendingFollowUp ? "clock.fill" : "checkmark.circle.fill")
-                                                                .font(.system(size: 9, weight: .bold))
-                                                                .foregroundStyle(isPendingFollowUp ? .orange : .green)
-                                                                .offset(x: 4, y: 4)
+                                                    ZStack {
+                                                        if hasFollowUp && isPendingFollowUp {
+                                                            Circle()
+                                                                .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                                                                .frame(width: 22, height: 22)
                                                         }
+                                                        Image(systemName: "bolt.fill")
+                                                            .foregroundStyle(hasFollowUp ? Color.orange : Color.secondary)
                                                     }
                                                     .frame(width: 22, height: 22)
-                                                    .accessibilityLabel(isPendingFollowUp ? "Follow-up pending" : (hasFollowUp ? "Follow-up completed" : "Follow-up"))
+                                                    .accessibilityLabel(!hasFollowUp ? "Follow-up" : (isPendingFollowUp ? "Follow-up pending" : "Follow-up completed"))
                                                 }
                                                 .buttonStyle(.plain)
                                                 .help(!followUpLessonIDs.contains(lesson.id) ? "Add follow-up work" : (pendingFollowUpLessonIDs.contains(lesson.id) ? "Follow-up pending — view work" : "Follow-up completed — view work"))
