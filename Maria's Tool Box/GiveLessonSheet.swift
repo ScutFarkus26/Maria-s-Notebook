@@ -1,20 +1,23 @@
 import SwiftUI
 import SwiftData
+import Foundation
 
 struct GiveLessonSheet: View {
-    let lesson: Lesson
+    let initialLesson: Lesson?
     var onDone: (() -> Void)? = nil
     
-    init(lesson: Lesson, preselectedStudentIDs: [UUID] = [], startGiven: Bool = false, onDone: (() -> Void)? = nil) {
-        self.lesson = lesson
+    init(lesson: Lesson? = nil, preselectedStudentIDs: [UUID] = [], startGiven: Bool = false, onDone: (() -> Void)? = nil) {
+        self.initialLesson = lesson
         self.onDone = onDone
         _selectedStudentIDs = State(initialValue: Set(preselectedStudentIDs))
         _mode = State(initialValue: startGiven ? .given : .plan)
+        _selectedLessonID = State(initialValue: lesson?.id)
     }
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var students: [Student]
+    @Query private var lessons: [Lesson]
     
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var scheduledFor: Date? = nil
@@ -24,8 +27,17 @@ struct GiveLessonSheet: View {
     @State private var needsAnotherPresentation: Bool = false
     @State private var followUpWork: String = ""
     @State private var isPresentedFlag: Bool = false
+    @State private var selectedLessonID: UUID? = nil
     
-    private enum Mode { case plan, given }
+    private var resolvedLesson: Lesson? {
+        if let id = selectedLessonID {
+            return lessons.first(where: { $0.id == id })
+        } else {
+            return initialLesson
+        }
+    }
+    
+    private enum Mode: Hashable { case plan, given }
     @State private var mode: Mode = .plan
     
     @State private var showingAddStudentSheet: Bool = false
@@ -43,7 +55,22 @@ struct GiveLessonSheet: View {
     @State private var studentLevelFilter: LevelFilter = .all
 
     private var subjectColor: Color {
-        AppColors.color(forSubject: lesson.subject)
+        if let s = resolvedLesson?.subject, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return AppColors.color(forSubject: s)
+        }
+        return .accentColor
+    }
+    
+    private var sortedLessonsForPicker: [Lesson] {
+        lessons.sorted { lhs, rhs in
+            if lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedSame {
+                if lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedSame {
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+                return lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedAscending
+            }
+            return lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedAscending
+        }
     }
 
     private var selectedStudentsList: [Student] {
@@ -52,10 +79,8 @@ struct GiveLessonSheet: View {
     }
 
     private var filteredStudentsForPicker: [Student] {
-        // Start with all students
         var filtered = students
 
-        // Level filter
         switch studentLevelFilter {
         case .lower:
             filtered = filtered.filter { $0.level == .lower }
@@ -65,7 +90,6 @@ struct GiveLessonSheet: View {
             break
         }
 
-        // Search filter
         let query = studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if !query.isEmpty {
             filtered = filtered.filter { s in
@@ -76,7 +100,6 @@ struct GiveLessonSheet: View {
             }
         }
 
-        // Sort by first then last name for stable ordering
         return filtered.sorted {
             let lhs = ($0.firstName, $0.lastName)
             let rhs = ($1.firstName, $1.lastName)
@@ -94,6 +117,22 @@ struct GiveLessonSheet: View {
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
     
+    private func lessonDisplayTitle(for lesson: Lesson) -> String {
+        let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var suffix = ""
+        if !subject.isEmpty && !group.isEmpty {
+            suffix = " • \(subject) • \(group)"
+        } else if !subject.isEmpty {
+            suffix = " • \(subject)"
+        } else if !group.isEmpty {
+            suffix = " • \(group)"
+        }
+
+        return lesson.name + suffix
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Give Lesson")
@@ -103,25 +142,31 @@ struct GiveLessonSheet: View {
                 .padding(.top, 16)
                 .padding(.horizontal)
 
-            // Lesson name subtitle for context
-            if !lesson.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(lesson.name)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
-            }
-
             Divider()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    // Lesson selection
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Lesson")
+                            .font(.headline)
+                        
+                        Picker("Lesson", selection: $selectedLessonID) {
+                            Text("Choose a Lesson").tag(nil as UUID?)
+                            ForEach(sortedLessonsForPicker, id: \.id) { (l: Lesson) in
+                                Text(lessonDisplayTitle(for: l)).tag(l.id as UUID?)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+
                     // Students chips row + picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Students")
                             .font(.headline)
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
-                                ForEach(selectedStudentsList, id: \.id) { student in
+                                ForEach(selectedStudentsList, id: \.id) { (student: Student) in
                                     HStack(spacing: 4) {
                                         Text(displayName(for: student))
                                             .padding(.horizontal, 12)
@@ -183,7 +228,7 @@ struct GiveLessonSheet: View {
                                 // List of students with checkmarks
                                 ScrollView {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        ForEach(filteredStudentsForPicker, id: \.id) { student in
+                                        ForEach(filteredStudentsForPicker, id: \.id) { (student: Student) in
                                             Button {
                                                 if selectedStudentIDs.contains(student.id) {
                                                     selectedStudentIDs.remove(student.id)
@@ -231,11 +276,13 @@ struct GiveLessonSheet: View {
                             .frame(minWidth: 320)
                         }
 
-                        // Helper note matching previous behavior
-                        Text("This student lesson will be created as unscheduled and appear in Ready to Schedule.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 2)
+                        // Helper note matching previous behavior, now conditional
+                        if mode == .plan && scheduledFor == nil {
+                            Text("This student lesson will be created as unscheduled and appear in Ready to Schedule.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 2)
+                        }
                     }
 
                     // Status
@@ -248,12 +295,22 @@ struct GiveLessonSheet: View {
                         .pickerStyle(.segmented)
 
                         if mode == .plan {
-                            DatePicker("Scheduled For", selection: Binding(get: { scheduledFor ?? Date() }, set: { scheduledFor = $0 }), displayedComponents: [.date, .hourAndMinute])
-                            #if os(macOS)
-                            .datePickerStyle(.field)
-                            #else
-                            .datePickerStyle(.compact)
-                            #endif
+                            VStack(alignment: .leading, spacing: 6) {
+                                Toggle("Schedule date/time", isOn: Binding(
+                                    get: { scheduledFor != nil },
+                                    set: { newValue in
+                                        scheduledFor = newValue ? (scheduledFor ?? Date()) : nil
+                                    }
+                                ))
+                                if scheduledFor != nil {
+                                    DatePicker("Scheduled For", selection: Binding(get: { scheduledFor ?? Date() }, set: { scheduledFor = $0 }), displayedComponents: [.date, .hourAndMinute])
+                                    #if os(macOS)
+                                    .datePickerStyle(.field)
+                                    #else
+                                    .datePickerStyle(.compact)
+                                    #endif
+                                }
+                            }
                         } else {
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Include date/time", isOn: Binding(
@@ -331,8 +388,13 @@ struct GiveLessonSheet: View {
     }
     
     private func saveStudentLesson() {
+        guard let finalLesson = resolvedLesson else {
+            saveAlert = (title: "Choose a Lesson", message: "Please select a lesson before saving.")
+            return
+        }
+
         let studentLesson = StudentLesson(
-            lessonID: lesson.id,
+            lessonID: finalLesson.id,
             studentIDs: Array(selectedStudentIDs),
             scheduledFor: mode == .plan ? scheduledFor : nil,
             givenAt: mode == .given ? givenAt : nil,
@@ -345,9 +407,7 @@ struct GiveLessonSheet: View {
         
         modelContext.insert(studentLesson)
         
-        // Auto-create a WorkModel for Needs Practice when flagged
         if needsPractice {
-            // Avoid duplicates: ensure no existing practice work for this StudentLesson
             let existingWorks = try? modelContext.fetch(FetchDescriptor<WorkModel>())
             let hasPractice = (existingWorks ?? []).contains { w in
                 w.studentLessonID == studentLesson.id && w.workType == .practice
@@ -364,6 +424,20 @@ struct GiveLessonSheet: View {
                 modelContext.insert(practiceWork)
             }
         }
+
+        let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedFollowUp.isEmpty {
+            let followUp = WorkModel(
+                id: UUID(),
+                title: "Follow Up: \(finalLesson.name)",
+                studentIDs: Array(selectedStudentIDs),
+                workType: .followUp,
+                studentLessonID: studentLesson.id,
+                notes: trimmedFollowUp,
+                createdAt: Date()
+            )
+            modelContext.insert(followUp)
+        }
         
         do {
             try modelContext.save()
@@ -376,5 +450,5 @@ struct GiveLessonSheet: View {
 }
 
 #Preview {
-    Text("GiveLessonSheet preview requires app data and context to display properly.")
+    GiveLessonSheet()
 }

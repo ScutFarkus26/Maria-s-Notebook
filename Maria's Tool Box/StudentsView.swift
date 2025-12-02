@@ -140,7 +140,7 @@ struct StudentsView: View {
         .onAppear {
             ensureInitialManualOrderIfNeeded()
         }
-        .onChange(of: students.map { $0.id }) {
+        .onChange(of: students.map { $0.id }) { _ in
             // Seed initial order alphabetically if everything is zero
             ensureInitialManualOrderIfNeeded()
 

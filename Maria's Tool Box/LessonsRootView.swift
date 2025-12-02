@@ -31,6 +31,8 @@ struct LessonsRootView: View {
     @State private var isParsing: Bool = false
     @State private var parsingTask: Task<Void, Never>? = nil
 
+    @State private var isPresentingGiveLesson: Bool = false
+
     @SceneStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
     @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
     @SceneStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
@@ -261,21 +263,28 @@ struct LessonsRootView: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .overlay(alignment: .topTrailing) {
-                            Button {
-                                showingAddLesson = true
+                            Menu {
+                                Button {
+                                    showingAddLesson = true
+                                } label: {
+                                    Label("Add Lesson", systemImage: "text.book.closed")
+                                }
+                                Button {
+                                    isPresentingGiveLesson = true
+                                } label: {
+                                    Label("Add Student Lesson", systemImage: "person.crop.circle.badge.plus")
+                                }
+                                Button {
+                                    showingLessonCSVImporter = true
+                                } label: {
+                                    Label("Import Lessons from CSV…", systemImage: "arrow.down.doc")
+                                }
                             } label: {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.system(size: AppTheme.FontSize.titleXLarge))
                                     .foregroundStyle(.green)
                             }
                             .buttonStyle(.plain)
-                            .contextMenu {
-                                Button {
-                                    showingLessonCSVImporter = true
-                                } label: {
-                                    Label("Import Lessons from CSV…", systemImage: "arrow.down.doc")
-                                }
-                            }
                             .padding()
                         }
                     }
@@ -307,6 +316,11 @@ struct LessonsRootView: View {
         .sheet(isPresented: $showingAddLesson) {
             AddLessonView(defaultSubject: selectedSubject, defaultGroup: selectedGroup)
         }
+        .sheet(isPresented: $isPresentingGiveLesson, content: {
+            GiveLessonSheet(lesson: nil) {
+                isPresentingGiveLesson = false
+            }
+        })
         .sheet(isPresented: isGivingLessonPresented) {
             givingLessonSheet
         }
@@ -354,7 +368,7 @@ struct LessonsRootView: View {
             // Persist any adjustments to the expanded set
             self.lessonsExpandedSubjectsRaw = serializeExpandedSubjects(self.expandedSubjects)
         }
-        .onChange(of: lessonIDs) {
+        .onChange(of: lessonIDs) { _ in
             if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
                 do {
                     try modelContext.save()
@@ -363,16 +377,16 @@ struct LessonsRootView: View {
                 }
             }
         }
-        .onChange(of: selectedSubject) { oldValue, newValue in
+        .onChange(of: selectedSubject) { newValue in
             lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
-        .onChange(of: selectedGroup) { oldValue, newValue in
+        .onChange(of: selectedGroup) { newValue in
             lessonsSelectedGroupRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
-        .onChange(of: searchText) { oldValue, newValue in
+        .onChange(of: searchText) { newValue in
             lessonsSearchTextRaw = newValue
         }
-        .onChange(of: expandedSubjects) { oldValue, newValue in
+        .onChange(of: expandedSubjects) { newValue in
             lessonsExpandedSubjectsRaw = serializeExpandedSubjects(newValue)
         }
     }
@@ -603,4 +617,3 @@ struct LessonsRootView: View {
         }
     }
 }
-

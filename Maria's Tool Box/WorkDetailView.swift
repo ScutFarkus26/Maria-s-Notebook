@@ -29,22 +29,12 @@ struct WorkDetailView: View {
     @State private var notes: String
     @State private var showDeleteAlert = false
 
-    @State private var showingAddStudentSheet = false
     @State private var showingStudentPickerPopover = false
-    @State private var studentSearchText: String = ""
     @State private var showingLinkedLessonDetails = false
     @State private var showingBaseLessonDetails = false
 
     @State private var completedAt: Date?
 
-    private enum LevelFilter: String, CaseIterable {
-        case all = "All"
-        case lower = "Lower"
-        case upper = "Upper"
-    }
-
-    @State private var studentLevelFilter: LevelFilter = .all
-    
     init(work: WorkModel, onDone: (() -> Void)? = nil) {
         self.work = work
         self.onDone = onDone
@@ -130,36 +120,6 @@ struct WorkDetailView: View {
             .filter { selectedStudents.contains($0.id) }
             .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
     }
-
-    private var filteredStudentsForPicker: [Student] {
-        let query = studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let searched: [Student]
-        if query.isEmpty {
-            searched = studentsAll
-        } else {
-            searched = studentsAll.filter { s in
-                let f = s.firstName.lowercased()
-                let l = s.lastName.lowercased()
-                let full = s.fullName.lowercased()
-                return f.contains(query) || l.contains(query) || full.contains(query)
-            }
-        }
-        let leveled: [Student] = searched.filter { s in
-            switch studentLevelFilter {
-            case .all: return true
-            case .lower: return s.level == .lower
-            case .upper: return s.level == .upper
-            }
-        }
-        return leveled.sorted {
-            let lhs = ($0.firstName, $0.lastName)
-            let rhs = ($1.firstName, $1.lastName)
-            if lhs.0.caseInsensitiveCompare(rhs.0) == .orderedSame {
-                return lhs.1.caseInsensitiveCompare(rhs.1) == .orderedAscending
-            }
-            return lhs.0.caseInsensitiveCompare(rhs.0) == .orderedAscending
-        }
-    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -197,9 +157,6 @@ struct WorkDetailView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This action cannot be undone.")
-        }
-        .sheet(isPresented: $showingAddStudentSheet) {
-            AddStudentView()
         }
         .sheet(isPresented: $showingLinkedLessonDetails) {
             if let slID = selectedStudentLessonID, let sl = studentLessonsByID[slID] {
@@ -239,6 +196,11 @@ struct WorkDetailView: View {
                 EmptyView()
             }
         }
+        .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
+            StudentPickerPopover(students: studentsAll, selectedIDs: $selectedStudents) {
+                showingStudentPickerPopover = false
+            }
+        }
     }
     
     private var titleSection: some View {
@@ -257,8 +219,8 @@ struct WorkDetailView: View {
                 Text(title.trimmingCharacters(in: .whitespacesAndNewlines))
                     .font(.system(size: AppTheme.FontSize.titleMedium, weight: .heavy, design: .rounded))
             }
-            if !work.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(work.notes.trimmingCharacters(in: .whitespacesAndNewlines))
+            if !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(notes.trimmingCharacters(in: .whitespacesAndNewlines))
                     .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
             }
             HStack(spacing: 8) {
@@ -318,9 +280,6 @@ struct WorkDetailView: View {
                         .labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(.borderless)
-                .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
-                    studentPickerPopover
-                }
             }
         }
     }
@@ -396,89 +355,6 @@ struct WorkDetailView: View {
         }
     }
 
-    private var studentPickerPopover: some View {
-        VStack(spacing: 10) {
-            // Search field
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search students", text: $studentSearchText)
-                    .textFieldStyle(.plain)
-                if !studentSearchText.isEmpty {
-                    Button {
-                        studentSearchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-            )
-
-            Picker("Level", selection: $studentLevelFilter) {
-                Text("All").tag(LevelFilter.all)
-                Text("Lower").tag(LevelFilter.lower)
-                Text("Upper").tag(LevelFilter.upper)
-            }
-            .pickerStyle(.segmented)
-
-            Divider().padding(.top, 2)
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(filteredStudentsForPicker, id: \.id) { student in
-                        Button {
-                            if selectedStudents.contains(student.id) {
-                                selectedStudents.remove(student.id)
-                            } else {
-                                selectedStudents.insert(student.id)
-                            }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: selectedStudents.contains(student.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedStudents.contains(student.id) ? Color.accentColor : Color.secondary)
-                                Text(displayName(for: student))
-                                    .foregroundStyle(.primary)
-                                Spacer(minLength: 0)
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 6)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.top, 4)
-            }
-            .frame(maxHeight: 280)
-
-            Divider()
-
-            HStack {
-                Button {
-                    showingAddStudentSheet = true
-                } label: {
-                    Label("New Student…", systemImage: "plus")
-                }
-                .buttonStyle(.borderless)
-
-                Spacer()
-
-                Button("Done") {
-                    showingStudentPickerPopover = false
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(12)
-        .frame(minWidth: 320)
-    }
-    
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Notes")

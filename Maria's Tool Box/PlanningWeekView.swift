@@ -16,6 +16,7 @@ struct PlanningWeekView: View {
     @State private var selectedLessonForDetailID: UUID? = nil
     @State private var quickActionsLessonID: UUID? = nil
     @State private var isSidebarTargeted: Bool = false
+    @State private var showingGiveLessonSheet: Bool = false
 
     private var days: [Date] {
         (0..<5).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
@@ -99,6 +100,18 @@ struct PlanningWeekView: View {
             } else {
                 EmptyView()
             }
+        }
+        .sheet(isPresented: $showingGiveLessonSheet) {
+            GiveLessonSheet(lesson: nil) {
+                showingGiveLessonSheet = false
+            }
+            #if os(macOS)
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
         }
     }
 
@@ -222,6 +235,14 @@ struct PlanningWeekView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(Color.primary.opacity(0.08), in: Capsule())
+            
+            Spacer(minLength: 0)
+            Button {
+                showingGiveLessonSheet = true
+            } label: {
+                Label("Add New", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

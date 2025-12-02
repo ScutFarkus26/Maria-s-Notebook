@@ -414,14 +414,14 @@ struct StudentDetailView: View {
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             ensureChecklistSubjectSelection()
         }
-        .onChange(of: lessons.map { $0.id }) {
+        .onChange(of: lessons.map { $0.id }) { _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             ensureChecklistSubjectSelection()
         }
-        .onChange(of: studentLessonsAll.map { $0.id }) {
+        .onChange(of: studentLessonsAll.map { $0.id }) { _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
         }
-        .onChange(of: workModelsAll.map { $0.id }) {
+        .onChange(of: workModelsAll.map { $0.id }) { _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
         }
     }
@@ -533,3 +533,4 @@ struct StudentDetailView: View {
     // The preview below is a visual placeholder and not compiled with the app target.
     return Text("StudentDetailView Preview requires app data model.")
 }
+
