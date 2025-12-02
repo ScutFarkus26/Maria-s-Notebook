@@ -290,6 +290,265 @@ struct StudentDetailView: View {
         }
     }
 
+    private var nextLessonsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Next Lessons")
+                    .font(.system(size: AppTheme.FontSize.header, weight: .heavy, design: .rounded))
+                Spacer()
+                Text("\(nextLessonsForStudent.count)")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+
+            if isLoadingLessons {
+                Text("Loading…")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
+            } else if nextLessonsForStudent.isEmpty {
+                Text("No lessons scheduled yet.")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(nextLessonsForStudent, id: \.id) { sl in
+                        HStack(spacing: 12) {
+                            Image(systemName: "book")
+                                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.blue)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(lessonName(for: sl))
+                                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                if let subject = lessonSubject(for: sl), !subject.isEmpty {
+                                    Text(subject)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+            }
+        }
+    }
+
+    private var workingOnSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Working on")
+                    .font(.system(size: AppTheme.FontSize.header, weight: .heavy, design: .rounded))
+                Spacer()
+                Text("\(worksForStudent.count)")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+
+            if isLoadingWorks {
+                Text("Loading…")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
+            } else if worksForStudent.isEmpty {
+                Text("No work recorded yet.")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(worksForStudent, id: \.id) { work in
+                        HStack(spacing: 12) {
+                            let pair = iconAndColor(for: work.workType)
+                            Image(systemName: pair.0)
+                                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                .foregroundStyle(pair.1)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(workTitle(for: work))
+                                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                if let subtitle = workSubtitle(for: work), !subtitle.isEmpty {
+                                    Text(subtitle)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+            }
+        }
+    }
+
+    private var bottomBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack {
+                Spacer()
+                if isEditing {
+                    Button("Cancel") {
+                        isEditing = false
+                    }
+                    Button("Save") {
+                        let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !fn.isEmpty, !ln.isEmpty else { return }
+                        student.firstName = fn
+                        student.lastName = ln
+                        student.birthday = draftBirthday
+                        student.level = draftLevel
+                        student.dateStarted = draftStartDate
+                        try? modelContext.save()
+                        isEditing = false
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } else {
+                    Button("Edit") {
+                        draftFirstName = student.firstName
+                        draftLastName = student.lastName
+                        draftBirthday = student.birthday
+                        draftLevel = student.level
+                        draftStartDate = student.dateStarted ?? Date()
+                        isEditing = true
+                    }
+                    Button("Delete", role: .destructive) {
+                        showDeleteAlert = true
+                    }
+                    Button("Done") {
+                        if let onDone { onDone() } else { dismiss() }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
+        }
+    }
+
+    // MARK: - Top pills styling and helpers
+    @ViewBuilder
+    private func pillButton(_ title: String, _ tab: Tab) -> some View {
+        Button {
+            selectedTab = tab
+        } label: {
+            Text(title)
+                .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .frame(minHeight: 30)
+                .background(pillBackground(for: tab))
+                .foregroundStyle(pillForeground(for: tab))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func pillBackground(for tab: Tab) -> some ShapeStyle {
+        if tab == selectedTab {
+            return AnyShapeStyle(Color.accentColor)
+        } else {
+            return AnyShapeStyle(Color.platformBackground)
+        }
+    }
+
+    private func pillForeground(for tab: Tab) -> some ShapeStyle {
+        if tab == selectedTab {
+            return AnyShapeStyle(Color.white)
+        } else {
+            return AnyShapeStyle(Color.primary)
+        }
+    }
+
+    // MARK: - Overview helpers and placeholders
+    private var headerContent: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [Color.purple, Color.pink]),
+                            center: .center,
+                            startRadius: 8,
+                            endRadius: 72
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                    .shadow(color: Color.pink.opacity(0.25), radius: 24, x: 0, y: 10)
+
+                Text(initials)
+                    .font(.system(size: 44, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+
+            Text(student.fullName)
+                .font(.system(size: AppTheme.FontSize.titleXLarge, weight: .black, design: .rounded))
+
+            Text(student.level.rawValue)
+                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(levelColor.opacity(0.12)))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var infoRows: some View {
+        VStack(spacing: 14) {
+            infoRow(icon: "calendar", title: "Birthday", value: formattedBirthday)
+            if let ds = student.dateStarted {
+                infoRow(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))
+            }
+            infoRow(icon: "gift", title: "Age", value: ageDescription)
+            infoRow(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private var editForm: some View {
+        VStack(spacing: 14) {
+            HStack {
+                TextField("First Name", text: $draftFirstName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Last Name", text: $draftLastName)
+                    .textFieldStyle(.roundedBorder)
+            }
+            DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
+            DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
+            Picker("Level", selection: $draftLevel) {
+                Text(Student.Level.lower.rawValue).tag(Student.Level.lower)
+                Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private func infoRow(icon: String, title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text(title)
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Text(value)
+                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+        }
+    }
+
+
     private func lessonName(for sl: StudentLessonSnapshot) -> String {
         return lessonsByID[sl.lessonID]?.name ?? "Lesson"
     }
@@ -374,10 +633,6 @@ struct StudentDetailView: View {
                 Text("\(subject) Checklist")
                     .font(.system(size: AppTheme.FontSize.header, weight: .heavy, design: .rounded))
                 Spacer()
-                let total = lessons.filter { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(subject) == .orderedSame }.count
-                Text("\(total)")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
             }
             .padding(.top, 4)
 
@@ -425,7 +680,6 @@ struct StudentDetailView: View {
 
                                             HStack(spacing: 10) {
                                                 Button { openMastered(for: lesson) } label: {
-                                                    let isMastered = masteredLessonIDs.contains(lesson.id)
                                                     let isPlanned = plannedLessonIDs.contains(lesson.id)
                                                     ZStack {
                                                         if isPlanned {
@@ -433,14 +687,14 @@ struct StudentDetailView: View {
                                                                 .stroke(Color.green.opacity(0.35), lineWidth: 1)
                                                                 .frame(width: 22, height: 22)
                                                         }
-                                                        Image(systemName: "checkmark.seal.fill")
-                                                            .foregroundStyle(isMastered ? Color.green : Color.secondary)
-                                                            .accessibilityLabel("Mastered")
+                                                        Image(systemName: "checkmark")
+                                                            .foregroundStyle(wasPresented ? Color.green : Color.secondary)
                                                     }
                                                     .frame(width: 22, height: 22)
+                                                    .accessibilityLabel(isPlanned ? "Planned presentation" : "Presentation")
+                                                    .help(isPlanned ? "Planned — open presentation" : "Mark as given")
                                                 }
                                                 .buttonStyle(.plain)
-                                                .help(masteredLessonIDs.contains(lesson.id) ? "View presentation details" : (plannedLessonIDs.contains(lesson.id) ? "Planned — open presentation" : "Mark as given"))
 
                                                 Button { openWork(for: lesson, type: .practice) } label: {
                                                     let hasPractice = practiceLessonIDs.contains(lesson.id)
@@ -448,14 +702,13 @@ struct StudentDetailView: View {
                                                     ZStack {
                                                         if hasPractice && isPendingPractice {
                                                             Circle()
-                                                                .stroke(Color.purple.opacity(0.35), lineWidth: 1)
-                                                                .frame(width: 22, height: 22)
+                                                                .stroke(Color.purple, lineWidth: 2)
+                                                                .frame(width: 18, height: 18)
                                                         }
                                                         Image(systemName: "arrow.triangle.2.circlepath")
-                                                            .foregroundStyle(hasPractice ? Color.purple : Color.secondary)
+                                                            .foregroundStyle(hasPractice && !isPendingPractice ? Color.purple : Color.secondary)
                                                     }
                                                     .frame(width: 22, height: 22)
-                                                    .accessibilityLabel(!hasPractice ? "Practice" : (isPendingPractice ? "Practice pending" : "Practice completed"))
                                                 }
                                                 .buttonStyle(.plain)
                                                 .help(!practiceLessonIDs.contains(lesson.id) ? "Add practice work" : (pendingPracticeLessonIDs.contains(lesson.id) ? "Practice pending — view work" : "Practice completed — view work"))
@@ -466,14 +719,13 @@ struct StudentDetailView: View {
                                                     ZStack {
                                                         if hasFollowUp && isPendingFollowUp {
                                                             Circle()
-                                                                .stroke(Color.orange.opacity(0.35), lineWidth: 1)
-                                                                .frame(width: 22, height: 22)
+                                                                .stroke(Color.orange, lineWidth: 2)
+                                                                .frame(width: 18, height: 18)
                                                         }
                                                         Image(systemName: "bolt.fill")
-                                                            .foregroundStyle(hasFollowUp ? Color.orange : Color.secondary)
+                                                            .foregroundStyle(hasFollowUp && !isPendingFollowUp ? Color.orange : Color.secondary)
                                                     }
                                                     .frame(width: 22, height: 22)
-                                                    .accessibilityLabel(!hasFollowUp ? "Follow-up" : (isPendingFollowUp ? "Follow-up pending" : "Follow-up completed"))
                                                 }
                                                 .buttonStyle(.plain)
                                                 .help(!followUpLessonIDs.contains(lesson.id) ? "Add follow-up work" : (pendingFollowUpLessonIDs.contains(lesson.id) ? "Follow-up pending — view work" : "Follow-up completed — view work"))
@@ -492,25 +744,6 @@ struct StudentDetailView: View {
         }
     }
 
-    private var editForm: some View {
-        VStack(spacing: 14) {
-            HStack {
-                TextField("First Name", text: $draftFirstName)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Last Name", text: $draftLastName)
-                    .textFieldStyle(.roundedBorder)
-            }
-            DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
-            DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
-            Picker("Level", selection: $draftLevel) {
-                Text(Student.Level.lower.rawValue).tag(Student.Level.lower)
-                Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
-            }
-            .pickerStyle(.segmented)
-        }
-        .padding(.horizontal, 8)
-    }
-
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
@@ -527,11 +760,11 @@ struct StudentDetailView: View {
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
-                    PillButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
-                    PillButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
-                    PillButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
-                    PillButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
-                    PillButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                    pillButton("Overview", .overview)
+                    pillButton("Checklist", .checklist)
+                    pillButton("History", .history)
+                    pillButton("Meetings", .meetings)
+                    pillButton("Notes", .notes)
                 }
                 Spacer()
             }
@@ -544,46 +777,23 @@ struct StudentDetailView: View {
             ScrollView {
                 VStack(spacing: 28) {
                     if selectedTab == .overview {
-                        StudentHeaderView(
-                            fullName: student.fullName,
-                            levelDisplay: student.level.rawValue,
-                            levelColor: levelColor,
-                            initials: initials
-                        )
-                        .padding(.top, 36)
+                        headerContent
+                            .padding(.top, 36)
 
                         if isEditing {
                             editForm
                         } else {
-                            StudentInfoRowsView(
-                                birthdayText: formattedBirthday,
-                                startDateText: student.dateStarted.map { Self.birthdayFormatter.string(from: $0) },
-                                ageText: ageDescription,
-                                gradeText: FloridaGradeCalculator.grade(for: student.birthday).displayString
-                            )
+                            infoRows
 
                             Divider()
                                 .padding(.top, 8)
 
-                            WorkingOnListView(
-                                isLoading: isLoadingWorks,
-                                works: worksForStudent,
-                                countText: "\(worksForStudent.count)",
-                                titleForWork: { work in workTitle(for: work) },
-                                subtitleForWork: { work in workSubtitle(for: work) },
-                                iconAndColorForType: { type in iconAndColor(for: type) }
-                            )
+                            workingOnSection
 
                             Divider()
                                 .padding(.top, 8)
 
-                            NextLessonsListView(
-                                isLoading: isLoadingLessons,
-                                lessons: nextLessonsForStudent,
-                                countText: "\(nextLessonsForStudent.count)",
-                                lessonName: { sl in lessonName(for: sl) },
-                                lessonSubject: { sl in lessonSubject(for: sl) }
-                            )
+                            nextLessonsSection
                         }
                     } else if selectedTab == .checklist {
                         checklistPlaceholder
@@ -777,56 +987,8 @@ struct StudentDetailView: View {
         df.timeStyle = .none
         return df
     }()
-
-    private var bottomBar: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack {
-                Spacer()
-                if isEditing {
-                    Button("Cancel") {
-                        isEditing = false
-                    }
-                    Button("Save") {
-                        let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !fn.isEmpty, !ln.isEmpty else { return }
-                        student.firstName = fn
-                        student.lastName = ln
-                        student.birthday = draftBirthday
-                        student.level = draftLevel
-                        student.dateStarted = draftStartDate
-                        try? modelContext.save()
-                        isEditing = false
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                } else {
-                    Button("Edit") {
-                        draftFirstName = student.firstName
-                        draftLastName = student.lastName
-                        draftBirthday = student.birthday
-                        draftLevel = student.level
-                        draftStartDate = student.dateStarted ?? Date()
-                        isEditing = true
-                    }
-                    Button("Delete", role: .destructive) {
-                        showDeleteAlert = true
-                    }
-                    Button("Done") {
-                        if let onDone { onDone() } else { dismiss() }
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
-        }
-    }
 }
+
 #Preview {
     // NOTE: This preview uses placeholders and will need a real Student from your model to render accurately.
     // Creating a lightweight mock to preview layout only.
