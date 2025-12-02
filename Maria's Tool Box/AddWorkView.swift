@@ -14,6 +14,7 @@ struct AddWorkView: View {
     @State private var workType: WorkModel.WorkType = .research
     @State private var selectedStudentLessonID: UUID? = nil
     @State private var notes: String = ""
+    @State private var title: String = ""
     @State private var showingAddStudentSheet: Bool = false
     @State private var showingStudentPickerPopover: Bool = false
     @State private var studentSearchText: String = ""
@@ -105,6 +106,14 @@ struct AddWorkView: View {
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    // Title field
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Title")
+                            .font(.headline)
+                        TextField("e.g. Bead Frame Practice", text: $title)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    
                     // Students chips row
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Students")
@@ -272,6 +281,7 @@ struct AddWorkView: View {
                 Spacer()
                 Button("Save") {
                     let work = WorkModel(
+                        title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                         studentIDs: Array(selectedStudents),
                         workType: workType,
                         studentLessonID: selectedStudentLessonID,
@@ -287,7 +297,7 @@ struct AddWorkView: View {
                         // Handle error appropriately in real app
                     }
                 }
-                .disabled(selectedStudents.isEmpty)
+                .disabled(selectedStudents.isEmpty || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .keyboardShortcut(.defaultAction)
             }
             .padding()

@@ -124,6 +124,7 @@ struct WorkParticipantDTO: Codable {
 
 struct WorkDTO: Codable {
     var id: UUID
+    var title: String
     var studentIDs: [UUID]
     var workType: String
     var studentLessonID: UUID?
@@ -131,13 +132,40 @@ struct WorkDTO: Codable {
     var createdAt: Date
     var completedAt: Date?
     var participants: [WorkParticipantDTO]
+
+    private enum CodingKeys: String, CodingKey { case id, title, studentIDs, workType, studentLessonID, notes, createdAt, completedAt, participants }
+
+    init(id: UUID, title: String, studentIDs: [UUID], workType: String, studentLessonID: UUID?, notes: String, createdAt: Date, completedAt: Date?, participants: [WorkParticipantDTO]) {
+        self.id = id
+        self.title = title
+        self.studentIDs = studentIDs
+        self.workType = workType
+        self.studentLessonID = studentLessonID
+        self.notes = notes
+        self.createdAt = createdAt
+        self.completedAt = completedAt
+        self.participants = participants
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+        self.studentIDs = try container.decode([UUID].self, forKey: .studentIDs)
+        self.workType = try container.decode(String.self, forKey: .workType)
+        self.studentLessonID = try container.decodeIfPresent(UUID.self, forKey: .studentLessonID)
+        self.notes = try container.decode(String.self, forKey: .notes)
+        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+        self.completedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
+        self.participants = try container.decodeIfPresent([WorkParticipantDTO].self, forKey: .participants) ?? []
+    }
 }
 
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 8
+    static let currentVersion: Int = 9
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -206,6 +234,7 @@ enum BackupManager {
         let worksDTO: [WorkDTO] = works.map { w in
             WorkDTO(
                 id: w.id,
+                title: w.title,
                 studentIDs: w.studentIDs,
                 workType: w.workType.rawValue,
                 studentLessonID: w.studentLessonID,
@@ -329,11 +358,12 @@ enum BackupManager {
                     // skip unknown workTypes
                     continue
                 }
-                let participants: [WorkParticipant] = dto.participants.map { part in
-                    WorkParticipant(studentID: part.studentID, completedAt: part.completedAt)
+                let participants: [WorkParticipantEntity] = dto.participants.map { part in
+                    WorkParticipantEntity(studentID: part.studentID, completedAt: part.completedAt)
                 }
                 let work = WorkModel(
                     id: dto.id,
+                    title: dto.title,
                     studentIDs: dto.studentIDs,
                     workType: workTypeEnum,
                     studentLessonID: dto.studentLessonID,
@@ -342,6 +372,7 @@ enum BackupManager {
                     completedAt: dto.completedAt,
                     participants: participants
                 )
+                for p in work.participants { p.work = work }
                 context.insert(work)
             }
         }

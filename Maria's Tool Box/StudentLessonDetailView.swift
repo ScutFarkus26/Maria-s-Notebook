@@ -592,6 +592,7 @@ struct StudentLessonDetailView: View {
             if !hasPracticeWork {
                 let practiceWork = WorkModel(
                     id: UUID(),
+                    title: "Practice: \(lessonObject?.name ?? "Lesson")",
                     studentIDs: Array(selectedStudentIDs),
                     workType: .practice,
                     studentLessonID: studentLesson.id,
@@ -613,6 +614,7 @@ struct StudentLessonDetailView: View {
             if !hasDuplicateFollowUp {
                 let followUp = WorkModel(
                     id: UUID(),
+                    title: "Follow Up: \(lessonObject?.name ?? "Lesson")",
                     studentIDs: Array(selectedStudentIDs),
                     workType: .followUp,
                     studentLessonID: studentLesson.id,

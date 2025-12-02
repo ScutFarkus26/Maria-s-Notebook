@@ -126,12 +126,21 @@ private struct WorkCard: View {
     private var notesText: String {
         work.notes.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    
+    private var titleText: String {
+        work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text(work.createdAt, style: .date)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                if !titleText.isEmpty {
+                    Text(titleText)
+                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                } else {
+                    Text(work.createdAt, style: .date)
+                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                }
                 if work.isCompleted {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
@@ -143,6 +152,11 @@ private struct WorkCard: View {
                 }
                 Spacer(minLength: 0)
                 workTypeBadge
+            }
+            if !titleText.isEmpty {
+                Text(work.createdAt, style: .date)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                    .foregroundStyle(.secondary)
             }
 
             studentsLineView

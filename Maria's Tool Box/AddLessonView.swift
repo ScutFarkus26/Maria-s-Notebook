@@ -2,6 +2,10 @@ import SwiftUI
 import SwiftData
 
 struct AddLessonView: View {
+    // Optional defaults to prefill when adding from a filtered Albums view
+    let defaultSubject: String?
+    let defaultGroup: String?
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
@@ -10,6 +14,11 @@ struct AddLessonView: View {
     @State private var group: String = ""
     @State private var subheading: String = ""
     @State private var writeUp: String = ""
+
+    init(defaultSubject: String? = nil, defaultGroup: String? = nil) {
+        self.defaultSubject = defaultSubject?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.defaultGroup = defaultGroup?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -55,6 +64,10 @@ struct AddLessonView: View {
         }
         .padding(24)
         .frame(width: 520, height: 520)
+        .onAppear {
+            if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let d = defaultSubject, !d.isEmpty { subject = d }
+            if group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let g = defaultGroup, !g.isEmpty { group = g }
+        }
     }
 }
 

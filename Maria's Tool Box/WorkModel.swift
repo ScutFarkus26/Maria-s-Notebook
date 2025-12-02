@@ -9,6 +9,7 @@ import SwiftData
     }
 
     var id: UUID
+    var title: String
     var studentIDs: [UUID]
     // Persisted raw value for the enum to keep storage simple and stable
     private var workTypeRaw: String
@@ -16,19 +17,21 @@ import SwiftData
     var notes: String
     var createdAt: Date
     var completedAt: Date?
-    var participants: [WorkParticipant]
+    @Relationship(inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity] = []
 
     init(
         id: UUID = UUID(),
+        title: String = "",
         studentIDs: [UUID] = [],
         workType: WorkType = .research,
         studentLessonID: UUID? = nil,
         notes: String = "",
         createdAt: Date = Date(),
         completedAt: Date? = nil,
-        participants: [WorkParticipant] = []
+        participants: [WorkParticipantEntity] = []
     ) {
         self.id = id
+        self.title = title
         self.studentIDs = studentIDs
         self.workTypeRaw = workType.rawValue
         self.studentLessonID = studentLessonID
@@ -36,6 +39,7 @@ import SwiftData
         self.createdAt = createdAt
         self.completedAt = completedAt
         self.participants = participants
+        for p in self.participants { p.work = self }
     }
 
     var workType: WorkType {
@@ -46,7 +50,7 @@ import SwiftData
     // MARK: - Completion helpers
     var isCompleted: Bool { completedAt != nil }
 
-    func participant(for studentID: UUID) -> WorkParticipant? {
+    func participant(for studentID: UUID) -> WorkParticipantEntity? {
         return participants.first { $0.studentID == studentID }
     }
 
@@ -58,7 +62,7 @@ import SwiftData
         if let idx = participants.firstIndex(where: { $0.studentID == studentID }) {
             participants[idx].completedAt = date
         } else {
-            participants.append(WorkParticipant(studentID: studentID, completedAt: date))
+            participants.append(WorkParticipantEntity(studentID: studentID, completedAt: date, work: self))
         }
     }
 
@@ -68,9 +72,10 @@ import SwiftData
         let targetIDs = Set(studentIDs)
         // Add missing
         for id in targetIDs.subtracting(currentIDs) {
-            participants.append(WorkParticipant(studentID: id))
+            participants.append(WorkParticipantEntity(studentID: id, work: self))
         }
         // Remove extras (students removed from work)
         participants.removeAll { !targetIDs.contains($0.studentID) }
     }
 }
+

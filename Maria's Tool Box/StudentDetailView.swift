@@ -145,18 +145,27 @@ struct StudentDetailView: View {
     }
 
     private func workTitle(for work: WorkModel) -> String {
+        let t = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !t.isEmpty { return t }
         if let lesson = workLesson(for: work) { return lesson.name }
         return work.workType.rawValue
     }
 
     private func workSubtitle(for work: WorkModel) -> String? {
+        let date: Date = {
+            if let sl = workLinkedStudentLesson(for: work) {
+                return sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+            }
+            return work.createdAt
+        }()
+        let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
         if let lesson = workLesson(for: work) {
             let subject = lesson.subject
             let type = work.workType.rawValue
-            if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return type }
-            return "\(type) • \(subject)"
+            let base = subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? type : "\(type) • \(subject)"
+            return "\(base) • \(dateString)"
         }
-        return nil
+        return dateString
     }
 
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {

@@ -7,7 +7,7 @@ enum WorkCompletionBackfill {
     /// Iterate through participants and ensure a corresponding
     /// `WorkCompletionRecord` exists for each participant that has `completedAt`.
     /// The operation is idempotent and safe to call multiple times.
-    static func backfill(for workID: UUID, participants: [WorkParticipant], in context: ModelContext) throws {
+    static func backfill(for workID: UUID, participants: [WorkParticipantEntity], in context: ModelContext) throws {
         for p in participants {
             guard let completed = p.completedAt else { continue }
             try ensureLatestRecord(for: workID, studentID: p.studentID, completedAt: completed, note: "(backfilled)", in: context)

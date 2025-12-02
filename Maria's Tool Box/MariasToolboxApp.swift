@@ -13,6 +13,48 @@ import AppKit
 
 @main
 struct MariasToolboxApp: App {
+    static let useInMemoryFlagKey = "UseInMemoryStoreOnce"
+
+    var sharedModelContainer: ModelContainer = {
+        let schemaTypes: [any PersistentModel.Type] = [
+            Item.self,
+            Student.self,
+            Lesson.self,
+            StudentLesson.self,
+            WorkModel.self,
+            WorkParticipantEntity.self,
+            WorkCompletionRecord.self
+        ]
+        let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
+        do {
+            if useInMemory {
+                let config = ModelConfiguration(isStoredInMemoryOnly: true)
+                let container = try ModelContainer(for: Schema(schemaTypes), configurations: config)
+                UserDefaults.standard.set(false, forKey: MariasToolboxApp.useInMemoryFlagKey)
+                print("SwiftData: Using in-memory store for this launch (toggle enabled).")
+                return container
+            } else {
+                return try ModelContainer(for: Schema(schemaTypes))
+            }
+        } catch {
+            let ns = error as NSError
+            print("SwiftData container error:", error)
+            print("userInfo:", ns.userInfo)
+            // Fallback to in-memory so the app can launch and user can repair/migrate
+            do {
+                let config = ModelConfiguration(isStoredInMemoryOnly: true)
+                let fallback = try ModelContainer(for: Schema(schemaTypes), configurations: config)
+                print("SwiftData: Falling back to in-memory store due to error. Data won't persist this session.")
+                return fallback
+            } catch {
+                let ns2 = error as NSError
+                print("SwiftData in-memory fallback error:", error)
+                print("userInfo:", ns2.userInfo)
+                fatalError("Failed to create persistent ModelContainer (including in-memory fallback): \(error)")
+            }
+        }
+    }()
+
     init() {
         #if os(macOS)
         if let icon = NSImage(named: NSImage.applicationIconName) {
@@ -20,21 +62,6 @@ struct MariasToolboxApp: App {
         }
         #endif
     }
-
-    var sharedModelContainer: ModelContainer = {
-        do {
-            return try ModelContainer(
-                for: Item.self,
-                     Student.self,
-                     Lesson.self,
-                     StudentLesson.self,
-                     WorkModel.self,
-                     WorkCompletionRecord.self
-            )
-        } catch {
-            fatalError("Failed to create persistent ModelContainer: \(error)")
-        }
-    }()
 
     var body: some Scene {
         WindowGroup("") {
@@ -66,6 +93,15 @@ struct MariasToolboxApp: App {
             CommandMenu("Work") {
                 Button("New Work…") { NotificationCenter.default.post(name: Notification.Name("NewWorkRequested"), object: nil) }
                     .keyboardShortcut("n", modifiers: [.command, .option])
+            }
+            CommandMenu("Troubleshooting") {
+                Button("Use In-Memory Store On Next Launch") {
+                    UserDefaults.standard.set(true, forKey: MariasToolboxApp.useInMemoryFlagKey)
+                    #if os(macOS)
+                    NSApp.requestUserAttention(.criticalRequest)
+                    #endif
+                    print("Set toggle: App will use in-memory SwiftData store on next launch.")
+                }
             }
         }
 

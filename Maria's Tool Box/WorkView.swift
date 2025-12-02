@@ -150,16 +150,17 @@ struct WorkView: View {
             }
         }
 
-        // Text search on notes and linked lesson name
+        // Text search on notes, title and linked lesson name
         let query = workSearchTextRaw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if !query.isEmpty {
             base = base.filter { work in
                 let notesMatch = work.notes.lowercased().contains(query)
+                let titleMatch = work.title.lowercased().contains(query)
                 var lessonMatch = false
                 if let slID = work.studentLessonID, let sl = studentLessonsByID[slID], let lesson = lessonsByID[sl.lessonID] {
                     lessonMatch = lesson.name.lowercased().contains(query)
                 }
-                return notesMatch || lessonMatch
+                return titleMatch || notesMatch || lessonMatch
             }
         }
 

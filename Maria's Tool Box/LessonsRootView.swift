@@ -305,7 +305,7 @@ struct LessonsRootView: View {
             }
         }
         .sheet(isPresented: $showingAddLesson) {
-            AddLessonView()
+            AddLessonView(defaultSubject: selectedSubject, defaultGroup: selectedGroup)
         }
         .sheet(isPresented: isGivingLessonPresented) {
             givingLessonSheet

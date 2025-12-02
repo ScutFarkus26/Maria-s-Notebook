@@ -200,6 +200,7 @@ final class StudentDetailViewModel: ObservableObject {
         let sl = latestStudentLesson(for: lesson.id, studentID: student.id) ?? ensureStudentLesson(for: lesson, modelContext: modelContext)
         let work = WorkModel(
             id: UUID(),
+            title: "\(type.rawValue): \(lesson.name)",
             studentIDs: [student.id],
             workType: type,
             studentLessonID: sl.id,
@@ -256,6 +257,7 @@ final class StudentDetailViewModel: ObservableObject {
             let sl = ensureStudentLesson(for: lesson, modelContext: modelContext)
             let work = WorkModel(
                 id: UUID(),
+                title: "\(type.rawValue): \(lesson.name)",
                 studentIDs: [sid],
                 workType: type,
                 studentLessonID: sl.id,

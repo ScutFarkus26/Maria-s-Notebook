@@ -25,6 +25,7 @@ struct WorkDetailView: View {
     @State private var selectedStudents: Set<UUID>
     @State private var workType: WorkModel.WorkType
     @State private var selectedStudentLessonID: UUID?
+    @State private var title: String
     @State private var notes: String
     @State private var showDeleteAlert = false
 
@@ -49,6 +50,7 @@ struct WorkDetailView: View {
         _selectedStudents = State(initialValue: Set(work.studentIDs))
         _workType = State(initialValue: work.workType)
         _selectedStudentLessonID = State(initialValue: work.studentLessonID)
+        _title = State(initialValue: work.title)
         _notes = State(initialValue: work.notes)
         _completedAt = State(initialValue: work.completedAt)
     }
@@ -169,6 +171,7 @@ struct WorkDetailView: View {
             
             ScrollView {
                 VStack(spacing: 28) {
+                    titleSection
                     summarySection
                     workTypeSection
                     linkedLessonSection
@@ -218,8 +221,22 @@ struct WorkDetailView: View {
         }
     }
     
+    private var titleSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Title")
+                .font(.system(size: AppTheme.FontSize.caption))
+                .foregroundColor(.secondary)
+            TextField("Enter a title", text: $title)
+                .textFieldStyle(.roundedBorder)
+        }
+    }
+    
     private var summarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(title.trimmingCharacters(in: .whitespacesAndNewlines))
+                    .font(.system(size: AppTheme.FontSize.titleMedium, weight: .heavy, design: .rounded))
+            }
             if !work.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(work.notes.trimmingCharacters(in: .whitespacesAndNewlines))
                     .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
@@ -520,6 +537,7 @@ struct WorkDetailView: View {
     }
     
     private func saveWork() {
+        work.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         work.studentIDs = Array(selectedStudents)
         work.workType = workType
         work.studentLessonID = selectedStudentLessonID
