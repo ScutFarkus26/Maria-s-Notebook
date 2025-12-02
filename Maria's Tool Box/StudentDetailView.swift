@@ -565,7 +565,38 @@ struct StudentDetailView: View {
         }
     }
 
+    // MARK: - Lifecycle Indicator Helper
+    @ViewBuilder
+    private func lifecycleIndicator(wasPresented: Bool, hasPending: Bool, isPlanned: Bool) -> some View {
+        let tokenBackground = Color.platformBackground
+        if wasPresented && !hasPending {
+            // Presented and no pending work: filled accent with a subtle highlight
+            Circle()
+                .fill(Color.accentColor)
+                .overlay(
+                    Circle().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                )
+        } else if isPlanned || (wasPresented && hasPending) {
+            // Planned, or presented but with pending practice/follow-up: accent ring
+            Circle()
+                .fill(tokenBackground)
+                .overlay(
+                    Circle().stroke(Color.accentColor, lineWidth: 2)
+                )
+                .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        } else {
+            // Default: neutral token with thin separator stroke
+            Circle()
+                .fill(tokenBackground)
+                .overlay(
+                    Circle().stroke(Color.primary.opacity(0.15), lineWidth: 1.5)
+                )
+                .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        }
+    }
+
     // MARK: - Overview helpers and placeholders
+
     private var headerContent: some View {
         VStack(spacing: 16) {
             ZStack {
@@ -645,7 +676,6 @@ struct StudentDetailView: View {
         }
     }
 
-
     private func lessonName(for sl: StudentLessonSnapshot) -> String {
         return lessonsByID[sl.lessonID]?.name ?? "Lesson"
     }
@@ -681,7 +711,6 @@ struct StudentDetailView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    // MARK: - Toast
     private var toastOverlay: some View {
         Group {
             if let message = toastMessage {
@@ -789,24 +818,10 @@ struct StudentDetailView: View {
                                         let isPlanned = plannedLessonIDs.contains(lesson.id)
 
                                         HStack(spacing: 12) {
-                                            // Lifecycle indicator view instead of previous leading presentation button
-                                            ZStack {
-                                                if wasPresented && !hasPending {
-                                                    // Presented and no pending practice/follow-up: filled blue
-                                                    Circle()
-                                                        .fill(Color.accentColor)
-                                                } else if isPlanned || (wasPresented && hasPending) {
-                                                    // Planned, or presented but with pending practice/follow-up: thin blue outline
-                                                    Circle()
-                                                        .stroke(Color.accentColor, lineWidth: 1)
-                                                } else {
-                                                    // Nothing happened yet: gray filled
-                                                    Circle()
-                                                        .fill(Color.secondary.opacity(0.35))
-                                                }
-                                            }
-                                            .frame(width: 22, height: 22)
-                                            .accessibilityHidden(true)
+                                            // Lifecycle indicator token
+                                            lifecycleIndicator(wasPresented: wasPresented, hasPending: hasPending, isPlanned: isPlanned)
+                                                .frame(width: 22, height: 22)
+                                                .accessibilityHidden(true)
 
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(lesson.name)
@@ -821,7 +836,7 @@ struct StudentDetailView: View {
                                             Spacer(minLength: 0)
 
                                             HStack(spacing: 10) {
-                                                // Presentation toggle button moved here as first trailing control
+                                                // Presented toggle
                                                 Button { togglePresented(for: lesson) } label: {
                                                     ZStack {
                                                         if !wasPresented && isPlanned {
@@ -840,6 +855,7 @@ struct StudentDetailView: View {
                                                 }
                                                 .help(isPlanned ? "Planned — tap to mark presented or open details" : (wasPresented ? "Presented — tap to review or unmark" : "Mark as presented"))
 
+                                                // Practice work toggle
                                                 Button { toggleWork(for: lesson, type: .practice) } label: {
                                                     let hasPractice = practiceLessonIDs.contains(lesson.id)
                                                     let isPendingPractice = pendingPracticeLessonIDs.contains(lesson.id)
@@ -860,6 +876,7 @@ struct StudentDetailView: View {
                                                 }
                                                 .help(!practiceLessonIDs.contains(lesson.id) ? "Add practice work" : (pendingPracticeLessonIDs.contains(lesson.id) ? "Practice pending — tap to mark complete or open work" : "Practice completed — tap to toggle or open work"))
 
+                                                // Follow-up work toggle
                                                 Button { toggleWork(for: lesson, type: .followUp) } label: {
                                                     let hasFollowUp = followUpLessonIDs.contains(lesson.id)
                                                     let isPendingFollowUp = pendingFollowUpLessonIDs.contains(lesson.id)
