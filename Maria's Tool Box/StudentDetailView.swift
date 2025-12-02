@@ -755,6 +755,21 @@ struct StudentDetailView: View {
         self.student = student
         self.onDone = onDone
         _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
+
+        let sid = student.id
+        _studentLessonsAll = Query(
+            filter: #Predicate<StudentLesson> { $0.studentIDs.contains(sid) },
+            sort: [
+                SortDescriptor(\.scheduledFor, order: .forward),
+                SortDescriptor(\.createdAt, order: .forward)
+            ]
+        )
+        _workModelsAll = Query(
+            filter: #Predicate<WorkModel> { $0.studentIDs.contains(sid) },
+            sort: [
+                SortDescriptor(\.createdAt, order: .reverse)
+            ]
+        )
     }
 
     private static let birthdayFormatter: DateFormatter = {
@@ -777,4 +792,3 @@ struct StudentDetailView: View {
     // The preview below is a visual placeholder and not compiled with the app target.
     return Text("StudentDetailView Preview requires app data model.")
 }
-
