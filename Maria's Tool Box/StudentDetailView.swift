@@ -220,6 +220,36 @@ struct StudentDetailView: View {
         return Set(ids)
     }
 
+    private var pendingPracticeLessonIDs: Set<UUID> {
+        let sid = student.id
+        let ids: [UUID] = worksForStudent.filter { work in
+            work.workType == .practice && !work.isStudentCompleted(sid)
+        }.compactMap { work in
+            return workLesson(for: work)?.id
+        }
+        return Set(ids)
+    }
+
+    private var pendingFollowUpLessonIDs: Set<UUID> {
+        let sid = student.id
+        let ids: [UUID] = worksForStudent.filter { work in
+            work.workType == .followUp && !work.isStudentCompleted(sid)
+        }.compactMap { work in
+            return workLesson(for: work)?.id
+        }
+        return Set(ids)
+    }
+
+    private var pendingWorkLessonIDs: Set<UUID> {
+        let sid = student.id
+        let ids: [UUID] = worksForStudent.filter { work in
+            (work.workType == .practice || work.workType == .followUp) && !work.isStudentCompleted(sid)
+        }.compactMap { work in
+            return workLesson(for: work)?.id
+        }
+        return Set(ids)
+    }
+
     private var masteredLessonIDs: Set<UUID> {
         let ids: [UUID] = studentLessonsAll.filter { sl in
             sl.givenAt != nil && sl.studentIDs.contains(student.id)
@@ -632,14 +662,12 @@ struct StudentDetailView: View {
                                 VStack(spacing: 8) {
                                     ForEach(items, id: \.id) { lesson in
                                         HStack(spacing: 12) {
-                                            let isPlanned = plannedLessonIDs.contains(lesson.id)
-                                            Button { openPlan(for: lesson) } label: {
-                                                Image(systemName: isPlanned ? "checkmark.circle.fill" : "circle")
-                                                    .foregroundStyle(isPlanned ? Color.accentColor : Color.secondary)
-                                                    .frame(width: 22)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .help(isPlanned ? "Open plan" : "Plan this lesson")
+                                            let wasPresented = masteredLessonIDs.contains(lesson.id)
+                                            let hasPending = pendingWorkLessonIDs.contains(lesson.id)
+                                            Image(systemName: wasPresented ? (hasPending ? "circle" : "circle.fill") : "circle")
+                                                .foregroundStyle(wasPresented ? Color.accentColor : Color.secondary)
+                                                .frame(width: 22)
+                                                .help(wasPresented ? (hasPending ? "Presented • pending practice/follow-up" : "Presented • no pending work") : "Not presented yet")
 
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(lesson.name)
@@ -663,20 +691,42 @@ struct StudentDetailView: View {
                                                 .help(masteredLessonIDs.contains(lesson.id) ? "View presentation details" : "Mark as given")
 
                                                 Button { openWork(for: lesson, type: .practice) } label: {
-                                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                                        .foregroundStyle(practiceLessonIDs.contains(lesson.id) ? Color.purple : Color.secondary)
-                                                        .accessibilityLabel("Practicing")
+                                                    let hasPractice = practiceLessonIDs.contains(lesson.id)
+                                                    let isPendingPractice = pendingPracticeLessonIDs.contains(lesson.id)
+                                                    ZStack(alignment: .bottomTrailing) {
+                                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                                            .foregroundStyle(hasPractice ? (isPendingPractice ? Color.purple : Color.secondary) : Color.secondary)
+                                                        if hasPractice {
+                                                            Image(systemName: isPendingPractice ? "clock.fill" : "checkmark.circle.fill")
+                                                                .font(.system(size: 9, weight: .bold))
+                                                                .foregroundStyle(isPendingPractice ? .orange : .green)
+                                                                .offset(x: 4, y: 4)
+                                                        }
+                                                    }
+                                                    .frame(width: 22, height: 22)
+                                                    .accessibilityLabel(isPendingPractice ? "Practice pending" : (hasPractice ? "Practice completed" : "Practice"))
                                                 }
                                                 .buttonStyle(.plain)
-                                                .help(practiceLessonIDs.contains(lesson.id) ? "View practice work" : "Add practice work")
+                                                .help(!practiceLessonIDs.contains(lesson.id) ? "Add practice work" : (pendingPracticeLessonIDs.contains(lesson.id) ? "Practice pending — view work" : "Practice completed — view work"))
 
                                                 Button { openWork(for: lesson, type: .followUp) } label: {
-                                                    Image(systemName: "bolt.fill")
-                                                        .foregroundStyle(followUpLessonIDs.contains(lesson.id) ? Color.orange : Color.secondary)
-                                                        .accessibilityLabel("Follow Up Work")
+                                                    let hasFollowUp = followUpLessonIDs.contains(lesson.id)
+                                                    let isPendingFollowUp = pendingFollowUpLessonIDs.contains(lesson.id)
+                                                    ZStack(alignment: .bottomTrailing) {
+                                                        Image(systemName: "bolt.fill")
+                                                            .foregroundStyle(hasFollowUp ? (isPendingFollowUp ? Color.orange : Color.secondary) : Color.secondary)
+                                                        if hasFollowUp {
+                                                            Image(systemName: isPendingFollowUp ? "clock.fill" : "checkmark.circle.fill")
+                                                                .font(.system(size: 9, weight: .bold))
+                                                                .foregroundStyle(isPendingFollowUp ? .orange : .green)
+                                                                .offset(x: 4, y: 4)
+                                                        }
+                                                    }
+                                                    .frame(width: 22, height: 22)
+                                                    .accessibilityLabel(isPendingFollowUp ? "Follow-up pending" : (hasFollowUp ? "Follow-up completed" : "Follow-up"))
                                                 }
                                                 .buttonStyle(.plain)
-                                                .help(followUpLessonIDs.contains(lesson.id) ? "View follow-up work" : "Add follow-up work")
+                                                .help(!followUpLessonIDs.contains(lesson.id) ? "Add follow-up work" : (pendingFollowUpLessonIDs.contains(lesson.id) ? "Follow-up pending — view work" : "Follow-up completed — view work"))
                                             }
                                             .frame(minWidth: 0)
                                         }
