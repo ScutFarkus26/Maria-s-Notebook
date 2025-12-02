@@ -5,6 +5,13 @@ struct GiveLessonSheet: View {
     let lesson: Lesson
     var onDone: (() -> Void)? = nil
     
+    init(lesson: Lesson, preselectedStudentIDs: [UUID] = [], startGiven: Bool = false, onDone: (() -> Void)? = nil) {
+        self.lesson = lesson
+        self.onDone = onDone
+        _selectedStudentIDs = State(initialValue: Set(preselectedStudentIDs))
+        _mode = State(initialValue: startGiven ? .given : .plan)
+    }
+    
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var students: [Student]
@@ -241,10 +248,18 @@ struct GiveLessonSheet: View {
 
                         if mode == .plan {
                             DatePicker("Scheduled For", selection: Binding(get: { scheduledFor ?? Date() }, set: { scheduledFor = $0 }), displayedComponents: [.date, .hourAndMinute])
-                                .datePickerStyle(.compact)
+                            #if os(macOS)
+                            .datePickerStyle(.field)
+                            #else
+                            .datePickerStyle(.compact)
+                            #endif
                         } else {
                             DatePicker("Given At", selection: Binding(get: { givenAt ?? Date() }, set: { givenAt = $0 }), displayedComponents: [.date, .hourAndMinute])
-                                .datePickerStyle(.compact)
+                            #if os(macOS)
+                            .datePickerStyle(.field)
+                            #else
+                            .datePickerStyle(.compact)
+                            #endif
                         }
                     }
 
@@ -298,7 +313,7 @@ struct GiveLessonSheet: View {
         .sheet(isPresented: $showingAddStudentSheet) {
             AddStudentView()
         }
-        .frame(minWidth: 520, minHeight: 560)
+        .frame(minWidth: 720, minHeight: 640)
         .alert(isPresented: Binding(get: { saveAlert != nil }, set: { if !$0 { saveAlert = nil } })) {
             Alert(title: Text(saveAlert?.title ?? "Error"), message: Text(saveAlert?.message ?? ""), dismissButton: .default(Text("OK")))
         }

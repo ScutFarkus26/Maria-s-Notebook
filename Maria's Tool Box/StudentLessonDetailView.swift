@@ -209,7 +209,7 @@ struct StudentLessonDetailView: View {
                 .padding(.bottom, 24)
             }
         }
-        .frame(minWidth: 520, minHeight: 560)
+        .frame(minWidth: 680, minHeight: 600)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 0) {
                 Divider()
@@ -456,7 +456,11 @@ struct StudentLessonDetailView: View {
                     get: { givenAt ?? Date() },
                     set: { givenAt = $0 }
                 ), displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(.compact)
+                #if os(macOS)
+                .datePickerStyle(.field)
+                #else
+                .datePickerStyle(.compact)
+                #endif
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
