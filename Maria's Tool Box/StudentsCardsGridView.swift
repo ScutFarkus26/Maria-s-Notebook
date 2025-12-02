@@ -437,22 +437,23 @@ private struct BirthdayStudentCard: View {
                         .opacity(0.95)
                 }
 
-                // Centered stacked age + countdown + date
-                VStack(spacing: 8) {
-                    turningNumberBadge
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 2)
-
+                VStack(spacing: 10) {
                     if daysUntil == 0 {
-                        Text("Today!")
-                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .heavy, design: .rounded))
+                        bigTodayBadge
+                            .frame(maxWidth: .infinity)
+
+                        Text("\(firstNameOnly) turns \(turningAge) today")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                             .padding(.vertical, 6)
                             .padding(.horizontal, 12)
                             .background(.ultraThinMaterial, in: Capsule())
                             .accessibilityHidden(true)
                     } else {
-                        Text("in \(daysUntil) \(daysUntil == 1 ? "Day" : "Days")")
+                        bigDaysEmphasis
+                            .frame(maxWidth: .infinity)
+
+                        Text("until \(firstNameOnly) turns \(turningAge) on \(dateLabel)")
                             .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                             .padding(.vertical, 6)
@@ -460,44 +461,54 @@ private struct BirthdayStudentCard: View {
                             .background(.ultraThinMaterial, in: Capsule())
                             .accessibilityHidden(true)
                     }
-
-                    Text(dateLabel)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 10)
-                        .background(Color.white.opacity(0.18), in: Capsule())
-                        .accessibilityHidden(true)
                 }
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .accessibilityLabel(daysUntil == 0 ?
-                    "\(student.fullName) is \(turningAge) today." :
-                    "\(student.fullName) is turning \(turningAge) in \(daysUntil) \(daysUntil == 1 ? "day" : "days") on \(dateLabel)."
+                    "\(student.fullName) turns \(turningAge) today." :
+                    "\(daysUntil) \(daysUntil == 1 ? "day" : "days") until \(student.fullName) turns \(turningAge) on \(dateLabel)."
                 )
 
                 Spacer(minLength: 0)
             }
             .padding(14)
         }
+        .onAppear { bob = true }
     }
 
-    // MARK: - New computed property for turning number badge
-    private var turningNumberBadge: some View {
-        ZStack {
-            Circle()
-                .fill(LinearGradient(colors: [.pink, .orange, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
-                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
-            Text(String(turningAge))
-                .font(.system(size: 38, weight: .black, design: .rounded))
+    // MARK: - Prominent headline badges
+    private var bigDaysEmphasis: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("\(daysUntil)")
+                .font(.system(size: 44, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
                 .offset(y: bob ? -2 : 2)
                 .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+            Text(daysUntil == 1 ? "day" : "days")
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.95))
         }
-        .frame(width: 68, height: 68)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
         .accessibilityHidden(true)
+    }
+
+    private var bigTodayBadge: some View {
+        Text("Today")
+            .font(.system(size: 36, weight: .black, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 18)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+            .offset(y: bob ? -2 : 2)
+            .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+            .accessibilityHidden(true)
     }
 
     // MARK: - Derived
@@ -506,6 +517,11 @@ private struct BirthdayStudentCard: View {
         guard let first = parts.first else { return student.fullName }
         let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+    }
+    
+    private var firstNameOnly: String {
+        let parts = student.fullName.split(separator: " ")
+        return parts.first.map(String.init) ?? student.fullName
     }
 
     private var balloon: some View {
@@ -520,6 +536,7 @@ private struct BirthdayStudentCard: View {
         }
         .font(.title3)
         .offset(y: bob ? -6 : 6)
+        .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
         .accessibilityHidden(true)
     }
 
@@ -572,3 +589,4 @@ private struct BirthdayStudentCard: View {
         .allowsHitTesting(false)
     }
 }
+
