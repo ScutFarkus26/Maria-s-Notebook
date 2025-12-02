@@ -11,6 +11,7 @@ private enum CompletionFilter: String {
     case all = "All"
     case completed = "Completed"
     case notCompleted = "Not Completed"
+    case hiddenUndated = "Hidden"
 }
 
 struct StudentLessonsRootView: View {
@@ -24,11 +25,13 @@ struct StudentLessonsRootView: View {
     @SceneStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
     @SceneStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
     @SceneStorage("StudentLessons.subject") private var studentLessonsSubjectRaw: String = ""
+    @State private var previousStudentLessonsFilterRaw: String? = nil
 
     private var filter: CompletionFilter {
         switch studentLessonsFilterRaw {
         case "completed": return .completed
         case "notCompleted": return .notCompleted
+        case "hidden": return .hiddenUndated
         default: return .all
         }
     }
@@ -67,6 +70,13 @@ struct StudentLessonsRootView: View {
         return base
     }
 
+    private var hiddenUndated: [StudentLesson] {
+        var base = studentLessons.filter { $0.isGiven && $0.givenAt == nil }
+        base = applySubjectFilter(base)
+        // Most recent created first for visibility
+        return base.sorted { $0.createdAt > $1.createdAt }
+    }
+
     private var defaultUpcoming: [StudentLesson] {
         var base = studentLessons.filter { !$0.isGiven }
         base = applySubjectFilter(base)
@@ -85,7 +95,7 @@ struct StudentLessonsRootView: View {
     }
 
     private var defaultGiven: [StudentLesson] {
-        var base = studentLessons.filter { $0.isGiven }
+        var base = studentLessons.filter { $0.isGiven && $0.givenAt != nil }
         base = applySubjectFilter(base)
         return base.sorted { lhs, rhs in
             let l = lhs.givenAt ?? .distantPast
@@ -101,9 +111,15 @@ struct StudentLessonsRootView: View {
         case .all:
             base = studentLessons
         case .completed:
-            base = studentLessons.filter { $0.isGiven }
+            base = studentLessons.filter { $0.isGiven && $0.givenAt != nil }
         case .notCompleted:
             base = studentLessons.filter { !$0.isGiven }
+        case .hiddenUndated:
+            base = studentLessons.filter { $0.isGiven && $0.givenAt == nil }
+        }
+
+        if filter != .hiddenUndated {
+            base = base.filter { !($0.isGiven && $0.givenAt == nil) }
         }
 
         // Subject filter (using referenced Lesson)
@@ -264,6 +280,26 @@ struct StudentLessonsRootView: View {
                 }
             }
 
+            Divider()
+
+            SidebarFilterButton(
+                icon: "eye.slash.fill",
+                title: CompletionFilter.hiddenUndated.rawValue,
+                color: .gray,
+                isSelected: filter == .hiddenUndated
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    if filter == .hiddenUndated {
+                        // Tapping Hidden again: restore the previous filter (default to All)
+                        studentLessonsFilterRaw = previousStudentLessonsFilterRaw ?? "all"
+                    } else {
+                        // Entering Hidden: remember the current filter to allow toggling back
+                        previousStudentLessonsFilterRaw = studentLessonsFilterRaw
+                        studentLessonsFilterRaw = "hidden"
+                    }
+                }
+            }
+
             Spacer(minLength: 0)
         }
         .padding(.vertical, 16)
@@ -276,75 +312,115 @@ struct StudentLessonsRootView: View {
     private var content: some View {
         Group {
             if sort == .presentThenGiven {
-                let showUpcoming = filter != .completed
-                let showGiven = filter != .notCompleted
-                let up = defaultUpcoming
-                let gv = defaultGiven
-
-                if (!showUpcoming || up.isEmpty) && (!showGiven || gv.isEmpty) {
-                    VStack(spacing: 8) {
-                        Text("No student lessons")
-                            .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
-                        Text("Try adjusting your filters or add lessons from the Lessons library.")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 24) {
-                            if showUpcoming && !up.isEmpty {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "clock")
-                                            .foregroundStyle(.secondary)
-                                        Text("To Present")
-                                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                                        ForEach(up, id: \.id) { sl in
-                                            StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
-                                                .onTapGesture { selectedLessonID = sl.id }
-                                                .contextMenu {
-                                                    Button {
-                                                        quickActionsLessonID = sl.id
-                                                    } label: {
-                                                        Label("Quick Actions…", systemImage: "bolt")
-                                                    }
-                                                }
-                                        }
-                                    }
-                                }
-                            }
-                            if showGiven && !gv.isEmpty {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "checkmark.circle")
-                                            .foregroundStyle(.secondary)
-                                        Text("Given")
-                                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                                        ForEach(gv, id: \.id) { sl in
-                                            StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
-                                                .onTapGesture { selectedLessonID = sl.id }
-                                                .contextMenu {
-                                                    Button {
-                                                        quickActionsLessonID = sl.id
-                                                    } label: {
-                                                        Label("Quick Actions…", systemImage: "bolt")
-                                                    }
-                                                }
-                                        }
-                                    }
-                                }
-                            }
+                if filter == .hiddenUndated {
+                    if hiddenUndated.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No hidden lessons")
+                                .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                            Text("Lessons marked presented without a date will appear here.")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(24)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "eye.slash.fill")
+                                        .foregroundStyle(.secondary)
+                                    Text("Hidden")
+                                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                                LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                                    ForEach(hiddenUndated, id: \.id) { sl in
+                                        StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
+                                            .onTapGesture { selectedLessonID = sl.id }
+                                            .contextMenu {
+                                                Button {
+                                                    quickActionsLessonID = sl.id
+                                                } label: {
+                                                    Label("Quick Actions…", systemImage: "bolt")
+                                                }
+                                            }
+                                    }
+                                }
+                            }
+                            .padding(24)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    let showUpcoming = filter != .completed
+                    let showGiven = filter != .notCompleted
+                    let up = defaultUpcoming
+                    let gv = defaultGiven
+
+                    if (!showUpcoming || up.isEmpty) && (!showGiven || gv.isEmpty) {
+                        VStack(spacing: 8) {
+                            Text("No student lessons")
+                                .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                            Text("Try adjusting your filters or add lessons from the Lessons library.")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 24) {
+                                if showUpcoming && !up.isEmpty {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack(spacing: 10) {
+                                            Image(systemName: "clock")
+                                                .foregroundStyle(.secondary)
+                                            Text("To Present")
+                                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                                            ForEach(up, id: \.id) { sl in
+                                                StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
+                                                    .onTapGesture { selectedLessonID = sl.id }
+                                                    .contextMenu {
+                                                        Button {
+                                                            quickActionsLessonID = sl.id
+                                                        } label: {
+                                                            Label("Quick Actions…", systemImage: "bolt")
+                                                        }
+                                                    }
+                                            }
+                                        }
+                                    }
+                                }
+                                if showGiven && !gv.isEmpty {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack(spacing: 10) {
+                                            Image(systemName: "checkmark.circle")
+                                                .foregroundStyle(.secondary)
+                                            Text("Given")
+                                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                                            ForEach(gv, id: \.id) { sl in
+                                                StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
+                                                    .onTapGesture { selectedLessonID = sl.id }
+                                                    .contextMenu {
+                                                        Button {
+                                                            quickActionsLessonID = sl.id
+                                                        } label: {
+                                                            Label("Quick Actions…", systemImage: "bolt")
+                                                        }
+                                                    }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(24)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
             } else {
                 if filteredAndSorted.isEmpty {
