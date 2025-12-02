@@ -11,6 +11,8 @@ struct StudentDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    @StateObject private var vm: StudentDetailViewModel
+
     @State private var isEditing = false
     @State private var draftFirstName = ""
     @State private var draftLastName = ""
@@ -18,8 +20,8 @@ struct StudentDetailView: View {
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
-    private enum Tab { case overview, checklist, history, meetings, notes }
-    @State private var selectedTab: Tab = .overview
+    private enum StudentDetailTab { case overview, checklist, history, meetings, notes }
+    @State private var selectedTab: StudentDetailTab = .overview
 
     @State private var showingGiveLessonSheet: Bool = false
     @State private var selectedLessonForGive: Lesson? = nil
@@ -54,36 +56,13 @@ struct StudentDetailView: View {
     }
 
     // MARK: - Live computed caches from @Query
-    private var lessonsByID: [UUID: Lesson] {
-        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-    }
+    private var lessonsByID: [UUID: Lesson] { vm.lessonsByID }
 
-    private var studentLessonsByID: [UUID: StudentLesson] {
-        Dictionary(uniqueKeysWithValues: studentLessonsAll.map { ($0.id, $0) })
-    }
+    private var studentLessonsByID: [UUID: StudentLesson] { vm.studentLessonsByID }
 
-    private var worksForStudent: [WorkModel] {
-        let sid = student.id
-        return workModelsAll.filter { $0.studentIDs.contains(sid) }.sorted { $0.createdAt > $1.createdAt }
-    }
+    private var worksForStudent: [WorkModel] { vm.worksForStudent }
 
-    private var nextLessonsForStudent: [StudentLessonSnapshot] {
-        let sid = student.id
-        let fetchedSL = studentLessonsAll.filter { $0.studentIDs.contains(sid) && !$0.isPresented }
-        let sortedSL = fetchedSL.sorted { lhs, rhs in
-            switch (lhs.scheduledFor, rhs.scheduledFor) {
-            case let (l?, r?):
-                return l < r
-            case (nil, nil):
-                return lhs.createdAt < rhs.createdAt
-            case (nil, _?):
-                return false
-            case (_?, nil):
-                return true
-            }
-        }
-        return sortedSL.map { $0.snapshot() }
-    }
+    private var nextLessonsForStudent: [StudentLessonSnapshot] { vm.nextLessonsForStudent }
 
     // MARK: - Derived
     private var levelColor: Color {
@@ -118,9 +97,7 @@ struct StudentDetailView: View {
         }
     }
 
-    private var plannedLessonIDs: Set<UUID> {
-        Set(nextLessonsForStudent.map { $0.lessonID })
-    }
+    private var plannedLessonIDs: Set<UUID> { vm.plannedLessonIDs }
 
     private func latestStudentLesson(for lessonID: UUID, studentID: UUID) -> StudentLesson? {
         let matches = studentLessonsAll.filter { $0.lessonID == lessonID && $0.studentIDs.contains(studentID) }
@@ -310,56 +287,17 @@ struct StudentDetailView: View {
         }
     }
 
-    private var practiceLessonIDs: Set<UUID> {
-        let ids: [UUID] = worksForStudent.filter { $0.workType == .practice }.compactMap { work in
-            return workLesson(for: work)?.id
-        }
-        return Set(ids)
-    }
+    private var practiceLessonIDs: Set<UUID> { vm.workSummary.practiceLessonIDs }
 
-    private var followUpLessonIDs: Set<UUID> {
-        let ids: [UUID] = worksForStudent.filter { $0.workType == .followUp }.compactMap { work in
-            return workLesson(for: work)?.id
-        }
-        return Set(ids)
-    }
+    private var followUpLessonIDs: Set<UUID> { vm.workSummary.followUpLessonIDs }
 
-    private var pendingPracticeLessonIDs: Set<UUID> {
-        let sid = student.id
-        let ids: [UUID] = worksForStudent.filter { work in
-            work.workType == .practice && !work.isStudentCompleted(sid)
-        }.compactMap { work in
-            return workLesson(for: work)?.id
-        }
-        return Set(ids)
-    }
+    private var pendingPracticeLessonIDs: Set<UUID> { vm.workSummary.pendingPracticeLessonIDs }
 
-    private var pendingFollowUpLessonIDs: Set<UUID> {
-        let sid = student.id
-        let ids: [UUID] = worksForStudent.filter { work in
-            work.workType == .followUp && !work.isStudentCompleted(sid)
-        }.compactMap { work in
-            return workLesson(for: work)?.id
-        }
-        return Set(ids)
-    }
+    private var pendingFollowUpLessonIDs: Set<UUID> { vm.workSummary.pendingFollowUpLessonIDs }
 
-    private var pendingWorkLessonIDs: Set<UUID> {
-        let sid = student.id
-        let ids: [UUID] = worksForStudent.filter { work in
-            (work.workType == .practice || work.workType == .followUp) && !work.isStudentCompleted(sid)
-        }.compactMap { work in
-            return workLesson(for: work)?.id
-        }
-        return Set(ids)
-    }
+    private var pendingWorkLessonIDs: Set<UUID> { vm.workSummary.pendingWorkLessonIDs }
 
-    private var masteredLessonIDs: Set<UUID> {
-        let ids: [UUID] = studentLessonsAll.filter { sl in
-            sl.isPresented && sl.studentIDs.contains(student.id)
-        }.map { $0.lessonID }
-        return Set(ids)
-    }
+    private var masteredLessonIDs: Set<UUID> { vm.masteredLessonIDs }
 
     private func workLinkedStudentLesson(for work: WorkModel) -> StudentLesson? {
         guard let slID = work.studentLessonID else { return nil }
@@ -954,8 +892,20 @@ struct StudentDetailView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
-        .onAppear { ensureChecklistSubjectSelection() }
-        .onChange(of: lessons.map { $0.id }) { _ in ensureChecklistSubjectSelection() }
+        .onAppear {
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            ensureChecklistSubjectSelection()
+        }
+        .onChange(of: lessons.map { $0.id }) { _ in
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            ensureChecklistSubjectSelection()
+        }
+        .onChange(of: studentLessonsAll.map { $0.id }) { _ in
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+        }
+        .onChange(of: workModelsAll.map { $0.id }) { _ in
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+        }
     }
 
     private func ensureChecklistSubjectSelection() {
@@ -979,6 +929,12 @@ struct StudentDetailView: View {
         }
     }
 
+    init(student: Student, onDone: (() -> Void)? = nil) {
+        self.student = student
+        self.onDone = onDone
+        _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
+    }
+
     private static let birthdayFormatter: DateFormatter = {
         let df = DateFormatter()
         df.dateStyle = .long
@@ -999,4 +955,3 @@ struct StudentDetailView: View {
     // The preview below is a visual placeholder and not compiled with the app target.
     return Text("StudentDetailView Preview requires app data model.")
 }
-
