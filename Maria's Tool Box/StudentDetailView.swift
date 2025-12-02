@@ -22,14 +22,6 @@ struct StudentDetailView: View {
     private enum Tab { case overview, checklist, history, meetings, notes }
     @State private var selectedTab: Tab = .overview
 
-    @State private var nextLessonsForStudent: [StudentLessonSnapshot] = []
-    @State private var lessonsByID: [UUID: Lesson] = [:]
-    @State private var isLoadingLessons = true
-
-    @State private var worksForStudent: [WorkModel] = []
-    @State private var studentLessonsByID: [UUID: StudentLesson] = [:]
-    @State private var isLoadingWorks = true
-
     @State private var showingGiveLessonSheet: Bool = false
     @State private var selectedLessonForGive: Lesson? = nil
     @State private var giveStartGiven: Bool = false
@@ -39,11 +31,13 @@ struct StudentDetailView: View {
 
     @State private var showingStudentLessonDetailSheet: Bool = false
     @State private var selectedStudentLessonForDetail: StudentLesson? = nil
+    @State private var toastMessage: String? = nil
 
     @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
 
     @Query private var lessons: [Lesson]
     @Query private var studentLessonsAll: [StudentLesson]
+    @Query private var workModelsAll: [WorkModel]
 
     private var selectedChecklistSubject: String? {
         let s = selectedChecklistSubjectRaw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -58,6 +52,38 @@ struct StudentDetailView: View {
     private let lessonsVM = LessonsViewModel()
     private var subjectsForChecklist: [String] {
         lessonsVM.subjects(from: lessons)
+    }
+
+    // MARK: - Live computed caches from @Query
+    private var lessonsByID: [UUID: Lesson] {
+        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+    }
+
+    private var studentLessonsByID: [UUID: StudentLesson] {
+        Dictionary(uniqueKeysWithValues: studentLessonsAll.map { ($0.id, $0) })
+    }
+
+    private var worksForStudent: [WorkModel] {
+        let sid = student.id
+        return workModelsAll.filter { $0.studentIDs.contains(sid) }.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private var nextLessonsForStudent: [StudentLessonSnapshot] {
+        let sid = student.id
+        let fetchedSL = studentLessonsAll.filter { $0.studentIDs.contains(sid) && $0.givenAt == nil }
+        let sortedSL = fetchedSL.sorted { lhs, rhs in
+            switch (lhs.scheduledFor, rhs.scheduledFor) {
+            case let (l?, r?):
+                return l < r
+            case (nil, nil):
+                return lhs.createdAt < rhs.createdAt
+            case (nil, _?):
+                return false
+            case (_?, nil):
+                return true
+            }
+        }
+        return sortedSL.map { $0.snapshot() }
     }
 
     // MARK: - Derived
@@ -185,6 +211,81 @@ struct StudentDetailView: View {
         showingWorkDetailSheet = true
     }
 
+    private func ensureStudentLesson(for lesson: Lesson) -> StudentLesson {
+        if let existing = latestStudentLesson(for: lesson.id, studentID: student.id) {
+            return existing
+        }
+        let created = StudentLesson(
+            lessonID: lesson.id,
+            studentIDs: [student.id],
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: nil,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        modelContext.insert(created)
+        try? modelContext.save()
+        return created
+    }
+
+    private func togglePresented(for lesson: Lesson) {
+        // If already presented, open details for review/edit
+        if masteredLessonIDs.contains(lesson.id) {
+            openMastered(for: lesson)
+            return
+        }
+        if let upcoming = upcomingStudentLesson(for: lesson.id, studentID: student.id) {
+            upcoming.givenAt = Date()
+            try? modelContext.save()
+        } else {
+            let sl = StudentLesson(
+                lessonID: lesson.id,
+                studentIDs: [student.id],
+                createdAt: Date(),
+                scheduledFor: nil,
+                givenAt: Date(),
+                notes: "",
+                needsPractice: false,
+                needsAnotherPresentation: false,
+                followUpWork: ""
+            )
+            modelContext.insert(sl)
+            try? modelContext.save()
+            showToast("Presentation recorded")
+        }
+    }
+
+    private func toggleWork(for lesson: Lesson, type: WorkModel.WorkType) {
+        let sid = student.id
+        if let existing = worksForStudent.first(where: { work in
+            work.workType == type && (workLesson(for: work)?.id == lesson.id)
+        }) {
+            if existing.isStudentCompleted(sid) {
+                existing.markStudent(sid, completedAt: nil)
+            } else {
+                existing.markStudent(sid, completedAt: Date())
+            }
+            try? modelContext.save()
+        } else {
+            let sl = ensureStudentLesson(for: lesson)
+            let work = WorkModel(
+                id: UUID(),
+                studentIDs: [sid],
+                workType: type,
+                studentLessonID: sl.id,
+                notes: "",
+                createdAt: Date()
+            )
+            work.ensureParticipantsFromStudentIDs()
+            modelContext.insert(work)
+            try? modelContext.save()
+            showToast("\(type.rawValue) work created")
+        }
+    }
+
     private func groupsOrdered(for subject: String) -> [String] {
         lessonsVM.groups(for: subject, lessons: lessons)
     }
@@ -302,11 +403,7 @@ struct StudentDetailView: View {
             }
             .padding(.top, 4)
 
-            if isLoadingLessons {
-                Text("Loading…")
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 6)
-            } else if nextLessonsForStudent.isEmpty {
+            if nextLessonsForStudent.isEmpty {
                 Text("No lessons scheduled yet.")
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
@@ -349,11 +446,7 @@ struct StudentDetailView: View {
             }
             .padding(.top, 4)
 
-            if isLoadingWorks {
-                Text("Loading…")
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 6)
-            } else if worksForStudent.isEmpty {
+            if worksForStudent.isEmpty {
                 Text("No work recorded yet.")
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
@@ -584,6 +677,35 @@ struct StudentDetailView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
+    // MARK: - Toast
+    private var toastOverlay: some View {
+        Group {
+            if let message = toastMessage {
+                Text(message)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.black.opacity(0.85))
+                    )
+                    .foregroundColor(.white)
+                    .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+            }
+        }
+    }
+
+    private func showToast(_ message: String) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(.easeInOut) { toastMessage = nil }
+        }
+    }
+
     private var checklistPlaceholder: some View {
         VStack(alignment: .leading, spacing: 16) {
             subjectPills
@@ -658,13 +780,29 @@ struct StudentDetailView: View {
                                 }
                                 VStack(spacing: 8) {
                                     ForEach(items, id: \.id) { lesson in
+                                        let wasPresented = masteredLessonIDs.contains(lesson.id)
+                                        let hasPending = pendingWorkLessonIDs.contains(lesson.id)
+                                        let isPlanned = plannedLessonIDs.contains(lesson.id)
+
                                         HStack(spacing: 12) {
-                                            let wasPresented = masteredLessonIDs.contains(lesson.id)
-                                            let hasPending = pendingWorkLessonIDs.contains(lesson.id)
-                                            Image(systemName: wasPresented ? (hasPending ? "circle" : "circle.fill") : "circle")
-                                                .foregroundStyle(wasPresented ? Color.accentColor : Color.secondary)
-                                                .frame(width: 22)
-                                                .help(wasPresented ? (hasPending ? "Presented • pending practice/follow-up" : "Presented • no pending work") : "Not presented yet")
+                                            // Lifecycle indicator view instead of previous leading presentation button
+                                            ZStack {
+                                                if wasPresented && !hasPending {
+                                                    // Presented and no pending practice/follow-up: filled blue
+                                                    Circle()
+                                                        .fill(Color.accentColor)
+                                                } else if isPlanned || (wasPresented && hasPending) {
+                                                    // Planned, or presented but with pending practice/follow-up: thin blue outline
+                                                    Circle()
+                                                        .stroke(Color.accentColor, lineWidth: 1)
+                                                } else {
+                                                    // Nothing happened yet: gray filled
+                                                    Circle()
+                                                        .fill(Color.secondary.opacity(0.35))
+                                                }
+                                            }
+                                            .frame(width: 22, height: 22)
+                                            .accessibilityHidden(true)
 
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(lesson.name)
@@ -679,24 +817,26 @@ struct StudentDetailView: View {
                                             Spacer(minLength: 0)
 
                                             HStack(spacing: 10) {
-                                                Button { openMastered(for: lesson) } label: {
-                                                    let isPlanned = plannedLessonIDs.contains(lesson.id)
+                                                // Presentation toggle button moved here as first trailing control
+                                                Button { togglePresented(for: lesson) } label: {
                                                     ZStack {
-                                                        if isPlanned {
+                                                        if !wasPresented && isPlanned {
                                                             Circle()
-                                                                .stroke(Color.green.opacity(0.35), lineWidth: 1)
-                                                                .frame(width: 22, height: 22)
+                                                                .stroke(Color.green, lineWidth: 1)
                                                         }
                                                         Image(systemName: "checkmark")
                                                             .foregroundStyle(wasPresented ? Color.green : Color.secondary)
                                                     }
                                                     .frame(width: 22, height: 22)
-                                                    .accessibilityLabel(isPlanned ? "Planned presentation" : "Presentation")
-                                                    .help(isPlanned ? "Planned — open presentation" : "Mark as given")
                                                 }
                                                 .buttonStyle(.plain)
+                                                .contextMenu {
+                                                    Button("Open Presentation Details…") { openMastered(for: lesson) }
+                                                    Button("Plan Presentation…") { openPlan(for: lesson) }
+                                                }
+                                                .help(isPlanned ? "Planned — tap to mark presented or open details" : (wasPresented ? "Presented — tap to review or unmark" : "Mark as presented"))
 
-                                                Button { openWork(for: lesson, type: .practice) } label: {
+                                                Button { toggleWork(for: lesson, type: .practice) } label: {
                                                     let hasPractice = practiceLessonIDs.contains(lesson.id)
                                                     let isPendingPractice = pendingPracticeLessonIDs.contains(lesson.id)
                                                     ZStack {
@@ -711,9 +851,12 @@ struct StudentDetailView: View {
                                                     .frame(width: 22, height: 22)
                                                 }
                                                 .buttonStyle(.plain)
-                                                .help(!practiceLessonIDs.contains(lesson.id) ? "Add practice work" : (pendingPracticeLessonIDs.contains(lesson.id) ? "Practice pending — view work" : "Practice completed — view work"))
+                                                .contextMenu {
+                                                    Button("Open Practice Work…") { openWork(for: lesson, type: .practice) }
+                                                }
+                                                .help(!practiceLessonIDs.contains(lesson.id) ? "Add practice work" : (pendingPracticeLessonIDs.contains(lesson.id) ? "Practice pending — tap to mark complete or open work" : "Practice completed — tap to toggle or open work"))
 
-                                                Button { openWork(for: lesson, type: .followUp) } label: {
+                                                Button { toggleWork(for: lesson, type: .followUp) } label: {
                                                     let hasFollowUp = followUpLessonIDs.contains(lesson.id)
                                                     let isPendingFollowUp = pendingFollowUpLessonIDs.contains(lesson.id)
                                                     ZStack {
@@ -728,7 +871,10 @@ struct StudentDetailView: View {
                                                     .frame(width: 22, height: 22)
                                                 }
                                                 .buttonStyle(.plain)
-                                                .help(!followUpLessonIDs.contains(lesson.id) ? "Add follow-up work" : (pendingFollowUpLessonIDs.contains(lesson.id) ? "Follow-up pending — view work" : "Follow-up completed — view work"))
+                                                .contextMenu {
+                                                    Button("Open Follow Up Work…") { openWork(for: lesson, type: .followUp) }
+                                                }
+                                                .help(!followUpLessonIDs.contains(lesson.id) ? "Add follow-up work" : (pendingFollowUpLessonIDs.contains(lesson.id) ? "Follow-up pending — tap to mark complete or open work" : "Follow-up completed — tap to toggle or open work"))
                                             }
                                             .frame(minWidth: 0)
                                         }
@@ -823,9 +969,7 @@ struct StudentDetailView: View {
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .task(id: student.id) {
-            await loadStudentData()
-        }
+        .overlay(alignment: .top) { toastOverlay }
         .alert("Delete Student?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 modelContext.delete(student)
@@ -835,7 +979,7 @@ struct StudentDetailView: View {
         } message: {
             Text("This action cannot be undone.")
         }
-        .sheet(item: $selectedLessonForGive, onDismiss: { Task { await loadStudentData() } }) { l in
+        .sheet(item: $selectedLessonForGive) { l in
             GiveLessonSheet(lesson: l, preselectedStudentIDs: [student.id], startGiven: giveStartGiven) {
                 selectedLessonForGive = nil
             }
@@ -847,7 +991,7 @@ struct StudentDetailView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
-        .sheet(item: $selectedWorkForDetail, onDismiss: { Task { await loadStudentData() } }) { w in
+        .sheet(item: $selectedWorkForDetail) { w in
             WorkDetailView(work: w) {
                 selectedWorkForDetail = nil
             }
@@ -859,7 +1003,7 @@ struct StudentDetailView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
-        .sheet(item: $selectedStudentLessonForDetail, onDismiss: { Task { await loadStudentData() } }) { sl in
+        .sheet(item: $selectedStudentLessonForDetail) { sl in
             StudentLessonDetailView(studentLesson: sl) {
                 selectedStudentLessonForDetail = nil
             }
@@ -893,91 +1037,6 @@ struct StudentDetailView: View {
             } else {
                 setSelectedChecklistSubject(subjects.first)
             }
-        }
-    }
-
-    @MainActor
-    private func loadStudentData() async {
-        isLoadingLessons = true
-        isLoadingWorks = true
-        defer {
-            isLoadingLessons = false
-            isLoadingWorks = false
-        }
-
-        let sid = student.id
-
-        do {
-            // Fetch upcoming StudentLesson broadly, then filter in-memory for this student
-            let upcomingDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.givenAt == nil })
-            let allUpcoming = try modelContext.fetch(upcomingDescriptor)
-            let fetchedSL = allUpcoming.filter { $0.studentIDs.contains(sid) }
-
-            // Sort to match previous logic
-            let sortedSL = fetchedSL.sorted { lhs, rhs in
-                switch (lhs.scheduledFor, rhs.scheduledFor) {
-                case let (l?, r?):
-                    return l < r
-                case (nil, nil):
-                    return lhs.createdAt < rhs.createdAt
-                case (nil, _?):
-                    return false
-                case (_?, nil):
-                    return true
-                }
-            }
-            nextLessonsForStudent = sortedSL.map { $0.snapshot() }
-
-            // Fetch all works and filter for this student
-            let allWorks = try modelContext.fetch(FetchDescriptor<WorkModel>())
-            let filteredWorks = allWorks.filter { $0.studentIDs.contains(sid) }
-            worksForStudent = filteredWorks.sorted { $0.createdAt > $1.createdAt }
-
-            // Prefetch student lessons referenced by works
-            let workSLIDs = Set(worksForStudent.compactMap { $0.studentLessonID })
-            if workSLIDs.isEmpty {
-                studentLessonsByID = [:]
-            } else {
-                do {
-                    let slPredicate = #Predicate<StudentLesson> { workSLIDs.contains($0.id) }
-                    let slDescriptor = FetchDescriptor<StudentLesson>(predicate: slPredicate)
-                    let sls = try modelContext.fetch(slDescriptor)
-                    studentLessonsByID = Dictionary(uniqueKeysWithValues: sls.map { ($0.id, $0) })
-                } catch {
-                    // Fallback: fetch all and filter in-memory
-                    let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
-                    let filtered = sls.filter { workSLIDs.contains($0.id) }
-                    studentLessonsByID = Dictionary(uniqueKeysWithValues: filtered.map { ($0.id, $0) })
-                }
-            }
-
-            // Prefetch referenced lessons (from upcoming nextLessons and from work-linked student lessons)
-            let lessonIDsFromNext = Set(sortedSL.map { $0.lessonID })
-            let lessonIDsFromWorks = Set(studentLessonsByID.values.map { $0.lessonID })
-            let allLessonIDs = lessonIDsFromNext.union(lessonIDsFromWorks)
-            if allLessonIDs.isEmpty {
-                lessonsByID = [:]
-            } else {
-                do {
-                    let lPredicate = #Predicate<Lesson> { lesson in
-                        allLessonIDs.contains(lesson.id)
-                    }
-                    let lDescriptor = FetchDescriptor<Lesson>(predicate: lPredicate)
-                    let lessons = try modelContext.fetch(lDescriptor)
-                    lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-                } catch {
-                    // Fallback: fetch all lessons and filter in-memory
-                    let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
-                    let filtered = allLessons.filter { allLessonIDs.contains($0.id) }
-                    lessonsByID = Dictionary(uniqueKeysWithValues: filtered.map { ($0.id, $0) })
-                }
-            }
-        } catch {
-            // If fetch fails, leave arrays empty; UI will show empty state
-            nextLessonsForStudent = []
-            worksForStudent = []
-            lessonsByID = [:]
-            studentLessonsByID = [:]
         }
     }
 
