@@ -7,19 +7,28 @@ struct WorkCardsGridView: View {
     let lessonsByID: [UUID: Lesson]
     let studentLessonsByID: [UUID: StudentLesson]
     let onTapWork: ((WorkModel) -> Void)?
+    let onToggleComplete: ((WorkModel) -> Void)?
+    let hideTypeBadge: Bool
+    let embedInScrollView: Bool
 
     init(
         works: [WorkModel],
         studentsByID: [UUID: Student],
         lessonsByID: [UUID: Lesson],
         studentLessonsByID: [UUID: StudentLesson],
-        onTapWork: ((WorkModel) -> Void)? = nil
+        onTapWork: ((WorkModel) -> Void)? = nil,
+        onToggleComplete: ((WorkModel) -> Void)? = nil,
+        embedInScrollView: Bool = true,
+        hideTypeBadge: Bool = false
     ) {
         self.works = works
         self.studentsByID = studentsByID
         self.lessonsByID = lessonsByID
         self.studentLessonsByID = studentLessonsByID
         self.onTapWork = onTapWork
+        self.onToggleComplete = onToggleComplete
+        self.embedInScrollView = embedInScrollView
+        self.hideTypeBadge = hideTypeBadge
     }
 
     private let columns: [GridItem] = [
@@ -27,21 +36,31 @@ struct WorkCardsGridView: View {
     ]
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                ForEach(works, id: \.id) { work in
-                    WorkCard(
-                        work: work,
-                        studentsByID: studentsByID,
-                        lessonsByID: lessonsByID,
-                        studentLessonsByID: studentLessonsByID
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture { onTapWork?(work) }
-                }
+        Group {
+            if embedInScrollView {
+                ScrollView { gridContent }
+            } else {
+                gridContent
             }
-            .padding(24)
         }
+    }
+
+    private var gridContent: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+            ForEach(works, id: \.id) { work in
+                WorkCard(
+                    work: work,
+                    studentsByID: studentsByID,
+                    lessonsByID: lessonsByID,
+                    studentLessonsByID: studentLessonsByID,
+                    onToggleComplete: onToggleComplete,
+                    hideTypeBadge: hideTypeBadge
+                )
+                .contentShape(Rectangle())
+                .onTapGesture { onTapWork?(work) }
+            }
+        }
+        .padding(24)
     }
 }
 
@@ -50,6 +69,8 @@ private struct WorkCard: View {
     let studentsByID: [UUID: Student]
     let lessonsByID: [UUID: Lesson]
     let studentLessonsByID: [UUID: StudentLesson]
+    let onToggleComplete: ((WorkModel) -> Void)?
+    let hideTypeBadge: Bool
 
     private var studentLessonSnapshotsByID: [UUID: StudentLessonSnapshot] {
         Dictionary(uniqueKeysWithValues: studentLessonsByID.map { ($0.key, $0.value.snapshot()) })
@@ -106,6 +127,43 @@ private struct WorkCard: View {
     private var completedCount: Int {
         work.studentIDs.filter { work.isStudentCompleted($0) }.count
     }
+    
+    private var isFullyComplete: Bool {
+        let total = work.studentIDs.count
+        return total > 0 && completedCount == total
+    }
+    
+    private var progress: Double {
+        let total = max(work.studentIDs.count, 1)
+        return Double(completedCount) / Double(total)
+    }
+    
+    private var progressRing: some View {
+        ZStack {
+            if isFullyComplete {
+                ZStack {
+                    Circle().fill(Color.green)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                .accessibilityLabel("All students complete")
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            } else {
+                ZStack {
+                    Circle().stroke(Color.primary.opacity(0.15), lineWidth: 6)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(Color.green, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+                .accessibilityLabel("\(completedCount) of \(work.studentIDs.count) students complete")
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            }
+        }
+        .frame(width: 20, height: 20)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1), value: isFullyComplete)
+    }
 
     private var studentsLineView: some View {
         HStack(spacing: 4) {
@@ -141,17 +199,9 @@ private struct WorkCard: View {
                     Text(work.createdAt, style: .date)
                         .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                 }
-                if work.isCompleted {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("Completed")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.green)
-                    }
-                }
+                progressRing
                 Spacer(minLength: 0)
-                workTypeBadge
+                if !hideTypeBadge { workTypeBadge }
             }
             if !titleText.isEmpty {
                 Text(work.createdAt, style: .date)

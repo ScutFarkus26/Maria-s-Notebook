@@ -20,6 +20,7 @@
 		510819A22EDEAD370000BE47 /* WorkListSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819A12EDEAD370000BE47 /* WorkListSection.swift */; };
 		510819A42EDEAD3B0000BE47 /* SubjectPillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819A32EDEAD3B0000BE47 /* SubjectPillsView.swift */; };
 		510819A62EDEAE830000BE47 /* SubjectChecklistSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819A52EDEAE830000BE47 /* SubjectChecklistSection.swift */; };
+		51081A1B2EDF95E50000BE47 /* WorkView+MacCompactStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51081A1A2EDF95E50000BE47 /* WorkView+MacCompactStub.swift */; };
 		51A935162EDCDC2900F28923 /* StudentLessonQuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */; };
 		51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */; };
 		51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB42EDD3E8700F54E19 /* WorkModel+Completion.swift */; };
@@ -44,6 +45,7 @@
 		510819A12EDEAD370000BE47 /* WorkListSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkListSection.swift; sourceTree = "<group>"; };
 		510819A32EDEAD3B0000BE47 /* SubjectPillsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectPillsView.swift; sourceTree = "<group>"; };
 		510819A52EDEAE830000BE47 /* SubjectChecklistSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectChecklistSection.swift; sourceTree = "<group>"; };
+		51081A1A2EDF95E50000BE47 /* WorkView+MacCompactStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkView+MacCompactStub.swift"; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonQuickActionsView.swift; sourceTree = "<group>"; };
 		51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCompletionService.swift; sourceTree = "<group>"; };
@@ -113,6 +115,7 @@
 				510819A12EDEAD370000BE47 /* WorkListSection.swift */,
 				510819A32EDEAD3B0000BE47 /* SubjectPillsView.swift */,
 				510819A52EDEAE830000BE47 /* SubjectChecklistSection.swift */,
+				51081A1A2EDF95E50000BE47 /* WorkView+MacCompactStub.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -208,6 +211,7 @@
 				51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */,
 				51DC1DBF2EDD40DC00F54E19 /* PerStudentCompletionList.swift in Sources */,
 				510819A62EDEAE830000BE47 /* SubjectChecklistSection.swift in Sources */,
+				51081A1B2EDF95E50000BE47 /* WorkView+MacCompactStub.swift in Sources */,
 				510819902EDE930B0000BE47 /* StudentInfoRowsView.swift in Sources */,
 				510819922EDE930F0000BE47 /* WorkingOnListView.swift in Sources */,
 				510819A42EDEAD3B0000BE47 /* SubjectPillsView.swift in Sources */,
