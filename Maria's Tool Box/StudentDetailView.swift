@@ -414,14 +414,14 @@ struct StudentDetailView: View {
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             ensureChecklistSubjectSelection()
         }
-        .onChange(of: lessons.map { $0.id }) { _ in
+        .onChange(of: lessons.map { $0.id }) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             ensureChecklistSubjectSelection()
         }
-        .onChange(of: studentLessonsAll.map { $0.id }) { _ in
+        .onChange(of: studentLessonsAll.map { $0.id }) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
         }
-        .onChange(of: workModelsAll.map { $0.id }) { _ in
+        .onChange(of: workModelsAll.map { $0.id }) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
         }
     }

@@ -368,7 +368,7 @@ struct LessonsRootView: View {
             // Persist any adjustments to the expanded set
             self.lessonsExpandedSubjectsRaw = serializeExpandedSubjects(self.expandedSubjects)
         }
-        .onChange(of: lessonIDs) { _ in
+        .onChange(of: lessonIDs) { _, _ in
             if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
                 do {
                     try modelContext.save()
@@ -377,16 +377,16 @@ struct LessonsRootView: View {
                 }
             }
         }
-        .onChange(of: selectedSubject) { newValue in
+        .onChange(of: selectedSubject) { _, newValue in
             lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
-        .onChange(of: selectedGroup) { newValue in
+        .onChange(of: selectedGroup) { _, newValue in
             lessonsSelectedGroupRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
-        .onChange(of: searchText) { newValue in
+        .onChange(of: searchText) { _, newValue in
             lessonsSearchTextRaw = newValue
         }
-        .onChange(of: expandedSubjects) { newValue in
+        .onChange(of: expandedSubjects) { _, newValue in
             lessonsExpandedSubjectsRaw = serializeExpandedSubjects(newValue)
         }
     }

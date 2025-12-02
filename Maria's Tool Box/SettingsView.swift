@@ -275,7 +275,7 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RestoreBackupRequested"))) { _ in
             showRestoreConfirm = true
         }
-        .onChange(of: showRestoreConfirm) { newValue in
+        .onChange(of: showRestoreConfirm) { _, newValue in
             if newValue == false && pendingImporterPresentation {
                 showingImporter = true
                 pendingImporterPresentation = false
