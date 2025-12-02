@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5108198C2EDE93050000BE47 /* PillButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108198B2EDE93050000BE47 /* PillButton.swift */; };
+		5108198E2EDE93080000BE47 /* StudentHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108198D2EDE93080000BE47 /* StudentHeaderView.swift */; };
+		510819902EDE930B0000BE47 /* StudentInfoRowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108198F2EDE930B0000BE47 /* StudentInfoRowsView.swift */; };
+		510819922EDE930F0000BE47 /* WorkingOnListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819912EDE930F0000BE47 /* WorkingOnListView.swift */; };
+		510819942EDE93120000BE47 /* NextLessonsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819932EDE93120000BE47 /* NextLessonsListView.swift */; };
 		51A935162EDCDC2900F28923 /* StudentLessonQuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */; };
 		51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */; };
 		51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB42EDD3E8700F54E19 /* WorkModel+Completion.swift */; };
@@ -18,6 +23,11 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		5108198B2EDE93050000BE47 /* PillButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillButton.swift; sourceTree = "<group>"; };
+		5108198D2EDE93080000BE47 /* StudentHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentHeaderView.swift; sourceTree = "<group>"; };
+		5108198F2EDE930B0000BE47 /* StudentInfoRowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentInfoRowsView.swift; sourceTree = "<group>"; };
+		510819912EDE930F0000BE47 /* WorkingOnListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingOnListView.swift; sourceTree = "<group>"; };
+		510819932EDE93120000BE47 /* NextLessonsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextLessonsListView.swift; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonQuickActionsView.swift; sourceTree = "<group>"; };
 		51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCompletionService.swift; sourceTree = "<group>"; };
@@ -74,6 +84,11 @@
 				51DC1DBC2EDD40D400F54E19 /* MarkCompletionButton.swift */,
 				51DC1DBE2EDD40DC00F54E19 /* PerStudentCompletionList.swift */,
 				51DC1DC02EDD40E000F54E19 /* WorkModel+BulkCompletion.swift */,
+				5108198B2EDE93050000BE47 /* PillButton.swift */,
+				5108198D2EDE93080000BE47 /* StudentHeaderView.swift */,
+				5108198F2EDE930B0000BE47 /* StudentInfoRowsView.swift */,
+				510819912EDE930F0000BE47 /* WorkingOnListView.swift */,
+				510819932EDE93120000BE47 /* NextLessonsListView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -159,6 +174,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5108198C2EDE93050000BE47 /* PillButton.swift in Sources */,
 				51DC1DBB2EDD400400F54E19 /* WorkCompletionBackfill.swift in Sources */,
 				51DC1DBD2EDD40D400F54E19 /* MarkCompletionButton.swift in Sources */,
 				51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */,
@@ -166,6 +182,10 @@
 				51DC1DB92EDD3FD300F54E19 /* WorkCompletionHistoryView.swift in Sources */,
 				51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */,
 				51DC1DBF2EDD40DC00F54E19 /* PerStudentCompletionList.swift in Sources */,
+				510819902EDE930B0000BE47 /* StudentInfoRowsView.swift in Sources */,
+				510819922EDE930F0000BE47 /* WorkingOnListView.swift in Sources */,
+				5108198E2EDE93080000BE47 /* StudentHeaderView.swift in Sources */,
+				510819942EDE93120000BE47 /* NextLessonsListView.swift in Sources */,
 				51A935162EDCDC2900F28923 /* StudentLessonQuickActionsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
