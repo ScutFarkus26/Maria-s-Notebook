@@ -12,6 +12,9 @@
 		510819902EDE930B0000BE47 /* StudentInfoRowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108198F2EDE930B0000BE47 /* StudentInfoRowsView.swift */; };
 		510819922EDE930F0000BE47 /* WorkingOnListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819912EDE930F0000BE47 /* WorkingOnListView.swift */; };
 		510819942EDE93120000BE47 /* NextLessonsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819932EDE93120000BE47 /* NextLessonsListView.swift */; };
+		510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819952EDEA8020000BE47 /* PillButton 2.swift */; };
+		510819982EDEA8050000BE47 /* LifecycleIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819972EDEA8050000BE47 /* LifecycleIndicatorView.swift */; };
+		5108199A2EDEA8090000BE47 /* InfoRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819992EDEA8090000BE47 /* InfoRowView.swift */; };
 		51A935162EDCDC2900F28923 /* StudentLessonQuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */; };
 		51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */; };
 		51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB42EDD3E8700F54E19 /* WorkModel+Completion.swift */; };
@@ -28,6 +31,9 @@
 		5108198F2EDE930B0000BE47 /* StudentInfoRowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentInfoRowsView.swift; sourceTree = "<group>"; };
 		510819912EDE930F0000BE47 /* WorkingOnListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingOnListView.swift; sourceTree = "<group>"; };
 		510819932EDE93120000BE47 /* NextLessonsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextLessonsListView.swift; sourceTree = "<group>"; };
+		510819952EDEA8020000BE47 /* PillButton 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PillButton 2.swift"; sourceTree = "<group>"; };
+		510819972EDEA8050000BE47 /* LifecycleIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleIndicatorView.swift; sourceTree = "<group>"; };
+		510819992EDEA8090000BE47 /* InfoRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoRowView.swift; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonQuickActionsView.swift; sourceTree = "<group>"; };
 		51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCompletionService.swift; sourceTree = "<group>"; };
@@ -89,6 +95,9 @@
 				5108198F2EDE930B0000BE47 /* StudentInfoRowsView.swift */,
 				510819912EDE930F0000BE47 /* WorkingOnListView.swift */,
 				510819932EDE93120000BE47 /* NextLessonsListView.swift */,
+				510819952EDEA8020000BE47 /* PillButton 2.swift */,
+				510819972EDEA8050000BE47 /* LifecycleIndicatorView.swift */,
+				510819992EDEA8090000BE47 /* InfoRowView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -185,7 +194,10 @@
 				510819902EDE930B0000BE47 /* StudentInfoRowsView.swift in Sources */,
 				510819922EDE930F0000BE47 /* WorkingOnListView.swift in Sources */,
 				5108198E2EDE93080000BE47 /* StudentHeaderView.swift in Sources */,
+				510819982EDEA8050000BE47 /* LifecycleIndicatorView.swift in Sources */,
+				510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */,
 				510819942EDE93120000BE47 /* NextLessonsListView.swift in Sources */,
+				5108199A2EDEA8090000BE47 /* InfoRowView.swift in Sources */,
 				51A935162EDCDC2900F28923 /* StudentLessonQuickActionsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

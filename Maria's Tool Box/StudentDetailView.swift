@@ -18,7 +18,6 @@ struct StudentDetailView: View {
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
-    @State private var showPlannedBanner: Bool = false
     private enum Tab { case overview, checklist, history, meetings, notes }
     @State private var selectedTab: Tab = .overview
 
@@ -531,70 +530,6 @@ struct StudentDetailView: View {
         }
     }
 
-    // MARK: - Top pills styling and helpers
-    @ViewBuilder
-    private func pillButton(_ title: String, _ tab: Tab) -> some View {
-        Button {
-            selectedTab = tab
-        } label: {
-            Text(title)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .frame(minHeight: 30)
-                .background(pillBackground(for: tab))
-                .foregroundStyle(pillForeground(for: tab))
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func pillBackground(for tab: Tab) -> some ShapeStyle {
-        if tab == selectedTab {
-            return AnyShapeStyle(Color.accentColor)
-        } else {
-            return AnyShapeStyle(Color.platformBackground)
-        }
-    }
-
-    private func pillForeground(for tab: Tab) -> some ShapeStyle {
-        if tab == selectedTab {
-            return AnyShapeStyle(Color.white)
-        } else {
-            return AnyShapeStyle(Color.primary)
-        }
-    }
-
-    // MARK: - Lifecycle Indicator Helper
-    @ViewBuilder
-    private func lifecycleIndicator(wasPresented: Bool, hasPending: Bool, isPlanned: Bool) -> some View {
-        let tokenBackground = Color.platformBackground
-        if wasPresented && !hasPending {
-            // Presented and no pending work: filled accent with a subtle highlight
-            Circle()
-                .fill(Color.accentColor)
-                .overlay(
-                    Circle().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                )
-        } else if isPlanned || (wasPresented && hasPending) {
-            // Planned, or presented but with pending practice/follow-up: accent ring
-            Circle()
-                .fill(tokenBackground)
-                .overlay(
-                    Circle().stroke(Color.accentColor, lineWidth: 2)
-                )
-                .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
-        } else {
-            // Default: neutral token with thin separator stroke
-            Circle()
-                .fill(tokenBackground)
-                .overlay(
-                    Circle().stroke(Color.primary.opacity(0.15), lineWidth: 1.5)
-                )
-                .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
-        }
-    }
-
     // MARK: - Overview helpers and placeholders
 
     private var headerContent: some View {
@@ -631,12 +566,12 @@ struct StudentDetailView: View {
 
     private var infoRows: some View {
         VStack(spacing: 14) {
-            infoRow(icon: "calendar", title: "Birthday", value: formattedBirthday)
+            InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
             if let ds = student.dateStarted {
-                infoRow(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))
+                InfoRowView(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))
             }
-            infoRow(icon: "gift", title: "Age", value: ageDescription)
-            infoRow(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
+            InfoRowView(icon: "gift", title: "Age", value: ageDescription)
+            InfoRowView(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
         }
         .padding(.horizontal, 8)
     }
@@ -658,22 +593,6 @@ struct StudentDetailView: View {
             .pickerStyle(.segmented)
         }
         .padding(.horizontal, 8)
-    }
-
-    private func infoRow(icon: String, title: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text(title)
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Text(value)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-        }
     }
 
     private func lessonName(for sl: StudentLessonSnapshot) -> String {
@@ -819,9 +738,8 @@ struct StudentDetailView: View {
 
                                         HStack(spacing: 12) {
                                             // Lifecycle indicator token
-                                            lifecycleIndicator(wasPresented: wasPresented, hasPending: hasPending, isPlanned: isPlanned)
+                                            LifecycleIndicatorView(wasPresented: wasPresented, hasPending: hasPending, isPlanned: isPlanned)
                                                 .frame(width: 22, height: 22)
-                                                .accessibilityHidden(true)
 
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(lesson.name)
@@ -927,11 +845,11 @@ struct StudentDetailView: View {
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
-                    pillButton("Overview", .overview)
-                    pillButton("Checklist", .checklist)
-                    pillButton("History", .history)
-                    pillButton("Meetings", .meetings)
-                    pillButton("Notes", .notes)
+                    PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                    PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                    PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                    PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                    PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
                 }
                 Spacer()
             }
@@ -1068,7 +986,6 @@ struct StudentDetailView: View {
         return df
     }()
 }
-
 #Preview {
     // NOTE: This preview uses placeholders and will need a real Student from your model to render accurately.
     // Creating a lightweight mock to preview layout only.
