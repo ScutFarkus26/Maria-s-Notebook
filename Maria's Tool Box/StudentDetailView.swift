@@ -26,8 +26,13 @@ struct StudentDetailView: View {
     @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
 
     @Query private var lessons: [Lesson]
-    @Query private var studentLessonsAll: [StudentLesson]
-    @Query private var workModelsAll: [WorkModel]
+    @Query(sort: [
+        SortDescriptor(\StudentLesson.scheduledFor, order: .forward),
+        SortDescriptor(\StudentLesson.createdAt, order: .forward)
+    ]) private var studentLessonsRaw: [StudentLesson]
+    @Query(sort: [
+        SortDescriptor(\WorkModel.createdAt, order: .reverse)
+    ]) private var workModelsRaw: [WorkModel]
 
     private var selectedChecklistSubject: String? {
         let s = selectedChecklistSubjectRaw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -52,6 +57,10 @@ struct StudentDetailView: View {
     private var worksForStudent: [WorkModel] { vm.worksForStudent }
 
     private var nextLessonsForStudent: [StudentLessonSnapshot] { vm.nextLessonsForStudent }
+
+    // Added filtered computed properties for student-specific data
+    private var studentLessonsAll: [StudentLesson] { studentLessonsRaw.filter { $0.studentIDs.contains(student.id) } }
+    private var workModelsAll: [WorkModel] { workModelsRaw.filter { $0.studentIDs.contains(student.id) } }
 
     // MARK: - Derived
     private var levelColor: Color {
@@ -433,21 +442,6 @@ struct StudentDetailView: View {
         self.student = student
         self.onDone = onDone
         _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
-
-        let sid = student.id
-        _studentLessonsAll = Query(
-            filter: #Predicate<StudentLesson> { $0.studentIDs.contains(sid) },
-            sort: [
-                SortDescriptor(\.scheduledFor, order: .forward),
-                SortDescriptor(\.createdAt, order: .forward)
-            ]
-        )
-        _workModelsAll = Query(
-            filter: #Predicate<WorkModel> { $0.studentIDs.contains(sid) },
-            sort: [
-                SortDescriptor(\.createdAt, order: .reverse)
-            ]
-        )
     }
 
     // MARK: - Reintroduced helpers (Phase 5 safety)
@@ -530,4 +524,3 @@ struct StudentDetailView: View {
     // The preview below is a visual placeholder and not compiled with the app target.
     return Text("StudentDetailView Preview requires app data model.")
 }
-

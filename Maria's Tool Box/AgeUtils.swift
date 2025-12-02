@@ -21,9 +21,36 @@ struct AgeUtils {
         return (max(0, years), max(0, months))
     }
 
+    /// Returns (years, months) rounded to the nearest quarter year (months in {0,3,6,9}).
+    static func quarterRoundedAgeComponents(birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> (years: Int, months: Int) {
+        // Start from month-rounded components (push days >= half a month up)
+        let base = roundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
+        var years = base.years
+        let months = base.months
+
+        // Round months to nearest quarter (3-month increments)
+        let roundedQuarterMonths = Int((Double(months) / 3.0).rounded()) * 3
+
+        if roundedQuarterMonths >= 12 {
+            years += 1
+            return (max(0, years), 0)
+        } else {
+            return (max(0, years), roundedQuarterMonths)
+        }
+    }
+
     /// Verbose age string like "2 years, 3 months", handling singulars and zero-parts.
     static func verboseAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {
         let age = roundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
+        let y = age.years, m = age.months
+        if y == 0 { return m == 1 ? "1 month" : "\(m) months" }
+        if m == 0 { return y == 1 ? "1 year" : "\(y) years" }
+        return "\(y) years, \(m) months"
+    }
+
+    /// Verbose quarter-rounded age string like "2 years, 3 months" where months ∈ {0,3,6,9}.
+    static func verboseQuarterAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {
+        let age = quarterRoundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
         let y = age.years, m = age.months
         if y == 0 { return m == 1 ? "1 month" : "\(m) months" }
         if m == 0 { return y == 1 ? "1 year" : "\(y) years" }
@@ -38,4 +65,70 @@ struct AgeUtils {
         if m == 0 { return y == 1 ? "1 yr" : "\(y) yr" }
         return "\(y)y \(m)m"
     }
+
+    /// Concise quarter-rounded age string like "2y 3m" where months ∈ {0,3,6,9}.
+    static func conciseQuarterAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {
+        let age = quarterRoundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
+        let y = age.years, m = age.months
+        if y == 0 { return m == 1 ? "1 mo" : "\(m) mo" }
+        if m == 0 { return y == 1 ? "1 yr" : "\(y) yr" }
+        return "\(y)y \(m)m"
+    }
+
+    /// Quarter-fraction age string like "8 1/4", "8 1/2", "8 3/4"; under 1 year shows "1/4", "1/2", or "3/4" (or "0").
+    static func quarterFractionAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {
+        let age = quarterRoundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
+        let y = age.years
+        let m = age.months
+        let fraction: String
+        switch m {
+        case 0:
+            fraction = ""
+        case 3:
+            fraction = " 1/4"
+        case 6:
+            fraction = " 1/2"
+        case 9:
+            fraction = " 3/4"
+        default:
+            // Fallback: should not happen because quarterRoundedAgeComponents yields 0,3,6,9
+            fraction = ""
+        }
+        if y == 0 {
+            return fraction.isEmpty ? "0" : fraction.trimmingCharacters(in: .whitespaces)
+        }
+        return "\(y)\(fraction)"
+    }
+
+    /// Returns (years, hasHalf) where hasHalf indicates rounding to the nearest half-year.
+    /// Months are rounded to the nearest 0, 6, or 12; 12 months carries to the next year.
+    static func halfYearRoundedAgeComponents(birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> (years: Int, hasHalf: Bool) {
+        // Start from month-rounded components (push days >= half a month up)
+        let base = roundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
+        var years = max(0, base.years)
+        let months = max(0, base.months)
+
+        // Round months to nearest half-year (0, 6, 12)
+        let bucket = Int((Double(months) / 6.0).rounded()) // 0, 1, or 2
+        switch bucket {
+        case 0:
+            return (years, false)
+        case 1:
+            return (years, true)
+        default:
+            years += 1
+            return (years, false)
+        }
+    }
+
+    /// Returns a half-year age string like "7" or "8 1/2".
+    /// If under 1 year, returns "1/2" when appropriate, otherwise "0".
+    static func halfYearAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {
+        let age = halfYearRoundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
+        if age.years == 0 {
+            return age.hasHalf ? "1/2" : "0"
+        }
+        return age.hasHalf ? "\(age.years) 1/2" : "\(age.years)"
+    }
 }
+

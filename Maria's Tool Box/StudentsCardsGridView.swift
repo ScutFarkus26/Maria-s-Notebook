@@ -254,8 +254,8 @@ private struct DefaultStudentCard: View {
                 HStack(spacing: 6) {
                     if showAge {
                         ViewThatFits(in: .horizontal) {
-                            ageBadge(text: AgeUtils.verboseAgeString(for: student.birthday))
-                            ageBadge(text: AgeUtils.conciseAgeString(for: student.birthday))
+                            ageBadge(text: AgeUtils.verboseQuarterAgeString(for: student.birthday))
+                            ageBadge(text: AgeUtils.conciseQuarterAgeString(for: student.birthday))
                         }
                         .transition(.opacity)
                     }
@@ -291,12 +291,12 @@ private struct AgeStudentCard: View {
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
-    private var age: (years: Int, months: Int) {
-        AgeUtils.roundedAgeComponents(birthday: student.birthday)
+    private var ageQuarter: (years: Int, months: Int) {
+        AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday)
     }
 
     private var ageVerboseLabel: String {
-        AgeUtils.verboseAgeString(for: student.birthday)
+        AgeUtils.quarterFractionAgeString(for: student.birthday)
     }
 
     private var sparklesOverlay: some View {
@@ -319,45 +319,30 @@ private struct AgeStudentCard: View {
     }
 
     private var ageBadge: some View {
-        let y = age.years
-        let m = age.months
-        return HStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(colors: [.mint, .cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
-                    .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
-                Text(String(y == 0 ? m : y))
-                    .font(.system(size: 34, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .offset(y: bob ? -2 : 2)
-                    .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
-            }
-            .frame(width: 56, height: 56)
-            .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                if y > 0 {
-                    HStack(spacing: 6) {
-                        Text(y == 1 ? "year" : "years")
-                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                        if m > 0 {
-                            Text("+ \(m) \(m == 1 ? "month" : "months")")
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.9))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.18), in: Capsule())
-                        }
-                    }
-                } else {
-                    Text(m == 1 ? "1 month old" : "\(m) months old")
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                }
-            }
+        let y = ageQuarter.years
+        let m = ageQuarter.months
+        let text: String
+        switch m {
+        case 0: text = "\(y)"
+        case 3: text = "\(y) 1/4"
+        case 6: text = "\(y) 1/2"
+        case 9: text = "\(y) 3/4"
+        default: text = "\(y)" // should not happen
         }
+        return ZStack {
+            Circle()
+                .fill(LinearGradient(colors: [.mint, .cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
+                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+            Text(text)
+                .font(.system(size: 40, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+                .offset(y: bob ? -2 : 2)
+                .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+        }
+        .frame(width: 112, height: 112)
         .accessibilityLabel("Age: \(ageVerboseLabel)")
     }
 
@@ -404,6 +389,7 @@ private struct AgeStudentCard: View {
                 }
 
                 ageBadge
+                    .frame(maxWidth: .infinity)
 
                 Spacer(minLength: 0)
 
@@ -586,4 +572,3 @@ private struct BirthdayStudentCard: View {
         .allowsHitTesting(false)
     }
 }
-
