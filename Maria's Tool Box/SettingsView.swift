@@ -30,6 +30,7 @@ struct SettingsView: View {
     @State private var showRestoreConfirm = false
     @State private var showingDuplicatesPreview = false
     @State private var maintenanceAlert: (title: String, message: String)? = nil
+    @State private var pendingImporterPresentation = false
 
     // Persist last backup time
     @AppStorage("lastBackupTimeInterval") private var lastBackupTimeInterval: Double?
@@ -100,7 +101,8 @@ struct SettingsView: View {
                                         titleVisibility: .visible
                                     ) {
                                         Button("Choose Backup File…", role: .destructive) {
-                                            showingImporter = true
+                                            pendingImporterPresentation = true
+                                            showRestoreConfirm = false
                                         }
                                         Button("Cancel", role: .cancel) {}
                                     } message: {
@@ -246,6 +248,12 @@ struct SettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RestoreBackupRequested"))) { _ in
             showRestoreConfirm = true
+        }
+        .onChange(of: showRestoreConfirm) { oldValue, newValue in
+            if oldValue == true && newValue == false && pendingImporterPresentation {
+                showingImporter = true
+                pendingImporterPresentation = false
+            }
         }
     }
 
