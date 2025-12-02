@@ -22,24 +22,17 @@ struct MariasToolboxApp: App {
     }
 
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkCompletionRecord.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(
+                for: Item.self,
+                     Student.self,
+                     Lesson.self,
+                     StudentLesson.self,
+                     WorkModel.self,
+                     WorkCompletionRecord.self
+            )
         } catch {
-#if DEBUG
-            print("Warning: Could not create persistent ModelContainer: \(error). Falling back to in-memory store.")
-#endif
-            let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            return try! ModelContainer(for: schema, configurations: [memoryConfig])
+            fatalError("Failed to create persistent ModelContainer: \(error)")
         }
     }()
 

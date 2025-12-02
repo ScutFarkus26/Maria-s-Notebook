@@ -208,9 +208,27 @@ struct SettingsView: View {
                         let data = try Data(contentsOf: url)
                         try await MainActor.run {
                             try BackupManager.restore(from: data, using: modelContext)
+                            // Backfill isPresented for any restored lessons that have givenAt set
+                            do {
+                                let lessons = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+                                var changed = false
+                                for sl in lessons {
+                                    if sl.givenAt != nil && sl.isPresented == false {
+                                        sl.isPresented = true
+                                        changed = true
+                                    }
+                                }
+                                if changed {
+                                    try modelContext.save()
+                                }
+                            } catch {
+                                // Ignore backfill errors here; user can retry from RootView
+                            }
                             importError = nil
                             lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
                         }
+                        // Notify RootView to re-run backfills if needed
+                        NotificationCenter.default.post(name: Notification.Name("BackfillIsPresentedRequested"), object: nil)
                     } catch {
                         await MainActor.run {
                             importError = "Failed to restore: \(error.localizedDescription)"

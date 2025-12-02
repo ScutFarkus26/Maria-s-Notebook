@@ -14,6 +14,7 @@ import SwiftData
     var createdAt: Date
     var scheduledFor: Date?
     var givenAt: Date?
+    var isPresented: Bool = false
     var notes: String
     var needsPractice: Bool
     var needsAnotherPresentation: Bool
@@ -29,6 +30,7 @@ import SwiftData
         createdAt: Date = Date(),
         scheduledFor: Date? = nil,
         givenAt: Date? = nil,
+        isPresented: Bool = false,
         notes: String = "",
         needsPractice: Bool = false,
         needsAnotherPresentation: Bool = false,
@@ -40,6 +42,7 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
+        self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
@@ -53,6 +56,7 @@ import SwiftData
         createdAt: Date = Date(),
         scheduledFor: Date? = nil,
         givenAt: Date? = nil,
+        isPresented: Bool = false,
         notes: String = "",
         needsPractice: Bool = false,
         needsAnotherPresentation: Bool = false,
@@ -66,6 +70,7 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
+        self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
@@ -78,7 +83,7 @@ import SwiftData
     }
 
     var isScheduled: Bool { scheduledFor != nil }
-    var isGiven: Bool { givenAt != nil }
+    var isGiven: Bool { isPresented || givenAt != nil }
     
     func snapshot() -> StudentLessonSnapshot {
         StudentLessonSnapshot(
@@ -88,6 +93,7 @@ import SwiftData
             createdAt: createdAt,
             scheduledFor: scheduledFor,
             givenAt: givenAt,
+            isPresented: isPresented,
             notes: notes,
             needsPractice: needsPractice,
             needsAnotherPresentation: needsAnotherPresentation,
@@ -103,11 +109,12 @@ struct StudentLessonSnapshot: Identifiable {
     let createdAt: Date
     let scheduledFor: Date?
     let givenAt: Date?
+    let isPresented: Bool
     let notes: String
     let needsPractice: Bool
     let needsAnotherPresentation: Bool
     let followUpWork: String
 
     var isScheduled: Bool { scheduledFor != nil }
-    var isGiven: Bool { givenAt != nil }
+    var isGiven: Bool { isPresented || givenAt != nil }
 }

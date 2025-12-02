@@ -70,7 +70,7 @@ struct StudentDetailView: View {
 
     private var nextLessonsForStudent: [StudentLessonSnapshot] {
         let sid = student.id
-        let fetchedSL = studentLessonsAll.filter { $0.studentIDs.contains(sid) && $0.givenAt == nil }
+        let fetchedSL = studentLessonsAll.filter { $0.studentIDs.contains(sid) && !$0.isPresented }
         let sortedSL = fetchedSL.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?):
@@ -133,7 +133,7 @@ struct StudentDetailView: View {
     }
 
     private func upcomingStudentLesson(for lessonID: UUID, studentID: UUID) -> StudentLesson? {
-        let matches = studentLessonsAll.filter { $0.lessonID == lessonID && $0.studentIDs.contains(studentID) && $0.givenAt == nil }
+        let matches = studentLessonsAll.filter { $0.lessonID == lessonID && $0.studentIDs.contains(studentID) && !$0.isGiven }
         return matches.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?):
@@ -161,7 +161,7 @@ struct StudentDetailView: View {
 
     private func openMastered(for lesson: Lesson) {
         // If there is a given student lesson, open it; otherwise start the Give flow in Given mode
-        if let sl = studentLessonsAll.filter({ $0.lessonID == lesson.id && $0.studentIDs.contains(student.id) && $0.givenAt != nil }).sorted(by: { ($0.givenAt ?? $0.createdAt) > ($1.givenAt ?? $1.createdAt) }).first {
+        if let sl = studentLessonsAll.filter({ $0.lessonID == lesson.id && $0.studentIDs.contains(student.id) && $0.isPresented }).sorted(by: { ($0.givenAt ?? $0.createdAt) > ($1.givenAt ?? $1.createdAt) }).first {
             selectedStudentLessonForDetail = sl
             showingStudentLessonDetailSheet = true
         } else {
@@ -187,6 +187,7 @@ struct StudentDetailView: View {
                 createdAt: Date(),
                 scheduledFor: nil,
                 givenAt: nil,
+                isPresented: false,
                 notes: "",
                 needsPractice: false,
                 needsAnotherPresentation: false,
@@ -221,6 +222,7 @@ struct StudentDetailView: View {
             createdAt: Date(),
             scheduledFor: nil,
             givenAt: nil,
+            isPresented: false,
             notes: "",
             needsPractice: false,
             needsAnotherPresentation: false,
@@ -238,7 +240,8 @@ struct StudentDetailView: View {
             return
         }
         if let upcoming = upcomingStudentLesson(for: lesson.id, studentID: student.id) {
-            upcoming.givenAt = Date()
+            upcoming.isPresented = true
+            // Do not set givenAt here
             try? modelContext.save()
         } else {
             let sl = StudentLesson(
@@ -246,7 +249,8 @@ struct StudentDetailView: View {
                 studentIDs: [student.id],
                 createdAt: Date(),
                 scheduledFor: nil,
-                givenAt: Date(),
+                givenAt: nil,
+                isPresented: true,
                 notes: "",
                 needsPractice: false,
                 needsAnotherPresentation: false,
@@ -353,7 +357,7 @@ struct StudentDetailView: View {
 
     private var masteredLessonIDs: Set<UUID> {
         let ids: [UUID] = studentLessonsAll.filter { sl in
-            sl.givenAt != nil && sl.studentIDs.contains(student.id)
+            sl.isPresented && sl.studentIDs.contains(student.id)
         }.map { $0.lessonID }
         return Set(ids)
     }

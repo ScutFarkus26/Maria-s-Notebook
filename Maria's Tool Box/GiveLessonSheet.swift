@@ -23,6 +23,7 @@ struct GiveLessonSheet: View {
     @State private var needsPractice: Bool = false
     @State private var needsAnotherPresentation: Bool = false
     @State private var followUpWork: String = ""
+    @State private var isPresentedFlag: Bool = false
     
     private enum Mode { case plan, given }
     @State private var mode: Mode = .plan
@@ -254,12 +255,22 @@ struct GiveLessonSheet: View {
                             .datePickerStyle(.compact)
                             #endif
                         } else {
-                            DatePicker("Given At", selection: Binding(get: { givenAt ?? Date() }, set: { givenAt = $0 }), displayedComponents: [.date, .hourAndMinute])
-                            #if os(macOS)
-                            .datePickerStyle(.field)
-                            #else
-                            .datePickerStyle(.compact)
-                            #endif
+                            VStack(alignment: .leading, spacing: 6) {
+                                Toggle("Include date/time", isOn: Binding(
+                                    get: { givenAt != nil },
+                                    set: { newValue in
+                                        givenAt = newValue ? (givenAt ?? Date()) : nil
+                                    }
+                                ))
+                                if givenAt != nil {
+                                    DatePicker("Given At", selection: Binding(get: { givenAt ?? Date() }, set: { givenAt = $0 }), displayedComponents: [.date, .hourAndMinute])
+                                    #if os(macOS)
+                                    .datePickerStyle(.field)
+                                    #else
+                                    .datePickerStyle(.compact)
+                                    #endif
+                                }
+                            }
                         }
                     }
 
@@ -323,8 +334,9 @@ struct GiveLessonSheet: View {
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
             studentIDs: Array(selectedStudentIDs),
-            scheduledFor: mode == .plan ? (scheduledFor ?? nil) : nil,
-            givenAt: mode == .given ? (givenAt ?? Date()) : nil,
+            scheduledFor: mode == .plan ? scheduledFor : nil,
+            givenAt: mode == .given ? givenAt : nil,
+            isPresented: (mode == .given),
             notes: notes,
             needsPractice: needsPractice,
             needsAnotherPresentation: needsAnotherPresentation,

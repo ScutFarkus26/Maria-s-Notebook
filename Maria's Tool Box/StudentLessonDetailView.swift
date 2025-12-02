@@ -14,6 +14,7 @@ struct StudentLessonDetailView: View {
 
     @State private var scheduledFor: Date?
     @State private var givenAt: Date?
+    @State private var isPresented: Bool
     @State private var notes: String
     @State private var needsPractice: Bool
     @State private var needsAnotherPresentation: Bool
@@ -40,6 +41,7 @@ struct StudentLessonDetailView: View {
         self.onDone = onDone
         _scheduledFor = State(initialValue: studentLesson.scheduledFor)
         _givenAt = State(initialValue: studentLesson.givenAt)
+        _isPresented = State(initialValue: studentLesson.isPresented)
         _notes = State(initialValue: studentLesson.notes)
         _needsPractice = State(initialValue: studentLesson.needsPractice)
         _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
@@ -440,14 +442,12 @@ struct StudentLessonDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Toggle("Presented", isOn: Binding(
+            Toggle("Presented", isOn: $isPresented)
+
+            Toggle("Add date/time", isOn: Binding(
                 get: { givenAt != nil },
                 set: { newValue in
-                    if newValue {
-                        givenAt = givenAt ?? Date()
-                    } else {
-                        givenAt = nil
-                    }
+                    givenAt = newValue ? (givenAt ?? Date()) : nil
                 }
             ))
 
@@ -468,7 +468,7 @@ struct StudentLessonDetailView: View {
 
     private var nextLessonSection: some View {
         Group {
-            if givenAt != nil {
+            if isPresented {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         Image(systemName: "calendar.badge.plus")
@@ -573,6 +573,7 @@ struct StudentLessonDetailView: View {
     private func save() {
         studentLesson.scheduledFor = scheduledFor
         studentLesson.givenAt = givenAt
+        studentLesson.isPresented = isPresented
         studentLesson.notes = notes
         studentLesson.needsPractice = needsPractice
         studentLesson.needsAnotherPresentation = needsAnotherPresentation

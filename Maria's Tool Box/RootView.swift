@@ -17,6 +17,7 @@ struct RootView: View {
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.albumlessons.rawValue
     @Environment(\.modelContext) private var modelContext
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
+    @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
 
     private var selectedTab: Tab {
         Tab(rawValue: selectedTabRaw) ?? .albumlessons
@@ -81,6 +82,10 @@ struct RootView: View {
         }
         .onAppear {
             backfillRelationshipsIfNeeded()
+            backfillIsPresentedIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackfillIsPresentedRequested"))) { _ in
+            backfillIsPresentedIfNeeded()
         }
     }
 
@@ -130,6 +135,24 @@ struct RootView: View {
                 try modelContext.save()
             }
             didBackfillRelationships = true
+        } catch {
+            // If backfill fails, skip and try again next launch
+        }
+    }
+
+    private func backfillIsPresentedIfNeeded() {
+        do {
+            let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+            var changed = false
+            for sl in sls {
+                if sl.givenAt != nil && sl.isPresented == false {
+                    sl.isPresented = true
+                    changed = true
+                }
+            }
+            if changed {
+                try modelContext.save()
+            }
         } catch {
             // If backfill fails, skip and try again next launch
         }

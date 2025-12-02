@@ -22,7 +22,7 @@ struct PlanningWeekView: View {
     }
     
     private var unscheduledLessons: [StudentLesson] {
-        studentLessons.filter { $0.scheduledFor == nil && $0.givenAt == nil }
+        studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
     }
     
     private func planNextLesson(for sl: StudentLesson) {
@@ -330,7 +330,7 @@ private struct DropZone: View {
 
     private var scheduledLessonsForSlot: [StudentLesson] {
         studentLessons.filter { sl in
-            guard let scheduled = sl.scheduledFor, sl.givenAt == nil else { return false }
+            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return false }
             return calendar.isDate(scheduled, inSameDayAs: day) && isInSlot(scheduled, period: period)
         }
         .sorted { lhs, rhs in

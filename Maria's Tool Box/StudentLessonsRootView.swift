@@ -68,7 +68,7 @@ struct StudentLessonsRootView: View {
     }
 
     private var defaultUpcoming: [StudentLesson] {
-        var base = studentLessons.filter { $0.givenAt == nil }
+        var base = studentLessons.filter { !$0.isGiven }
         base = applySubjectFilter(base)
         return base.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
@@ -85,7 +85,7 @@ struct StudentLessonsRootView: View {
     }
 
     private var defaultGiven: [StudentLesson] {
-        var base = studentLessons.filter { $0.givenAt != nil }
+        var base = studentLessons.filter { $0.isGiven }
         base = applySubjectFilter(base)
         return base.sorted { lhs, rhs in
             let l = lhs.givenAt ?? .distantPast
@@ -101,9 +101,9 @@ struct StudentLessonsRootView: View {
         case .all:
             base = studentLessons
         case .completed:
-            base = studentLessons.filter { $0.givenAt != nil }
+            base = studentLessons.filter { $0.isGiven }
         case .notCompleted:
-            base = studentLessons.filter { $0.givenAt == nil }
+            base = studentLessons.filter { !$0.isGiven }
         }
 
         // Subject filter (using referenced Lesson)
@@ -119,7 +119,7 @@ struct StudentLessonsRootView: View {
         // Sorting
         switch sort {
         case .presentThenGiven:
-            let upcoming: [StudentLesson] = base.filter { $0.givenAt == nil }.sorted { lhs, rhs in
+            let upcoming: [StudentLesson] = base.filter { !$0.isGiven }.sorted { lhs, rhs in
                 switch (lhs.scheduledFor, rhs.scheduledFor) {
                 case let (l?, r?):
                     return l < r
@@ -131,7 +131,7 @@ struct StudentLessonsRootView: View {
                     return true
                 }
             }
-            let given: [StudentLesson] = base.filter { $0.givenAt != nil }.sorted { lhs, rhs in
+            let given: [StudentLesson] = base.filter { $0.isGiven }.sorted { lhs, rhs in
                 let l = lhs.givenAt ?? .distantPast
                 let r = rhs.givenAt ?? .distantPast
                 return l > r
@@ -432,10 +432,14 @@ private struct StudentLessonCard: View {
     }
 
     private var statusText: String {
-        if let given = snapshot.givenAt {
-            let fmt = DateFormatter()
-            fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
-            return "Presented on " + fmt.string(from: given)
+        if snapshot.isGiven {
+            if let given = snapshot.givenAt {
+                let fmt = DateFormatter()
+                fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
+                return "Presented on " + fmt.string(from: given)
+            } else {
+                return "Presented"
+            }
         } else if let scheduled = snapshot.scheduledFor {
             let fmt = DateFormatter()
             fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")

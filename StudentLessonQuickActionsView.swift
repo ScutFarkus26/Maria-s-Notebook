@@ -97,7 +97,7 @@ struct StudentLessonQuickActionsView: View {
                         guard let next = nextLessonInGroup else { return }
                         let sameStudents = Set(studentLesson.studentIDs)
                         let exists = studentLessonsAll.contains { sl in
-                            sl.lessonID == next.id && Set(sl.studentIDs) == sameStudents && sl.givenAt == nil
+                            sl.lessonID == next.id && Set(sl.studentIDs) == sameStudents && !sl.isGiven
                         }
                         if !exists {
                             let newStudentLesson = StudentLesson(
@@ -107,6 +107,7 @@ struct StudentLessonQuickActionsView: View {
                                 createdAt: Date(),
                                 scheduledFor: nil,
                                 givenAt: nil,
+                                isPresented: false,
                                 notes: "",
                                 needsPractice: false,
                                 needsAnotherPresentation: false,
@@ -154,7 +155,7 @@ struct StudentLessonQuickActionsView: View {
 
     private func saveChanges() {
         if presentedNow {
-            studentLesson.givenAt = Date()
+            studentLesson.isPresented = true
         }
         studentLesson.needsPractice = needsPractice
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
@@ -185,7 +186,7 @@ struct StudentLessonQuickActionsView: View {
         if needsAnotherPresentation {
             let sameStudents = Set(studentLesson.studentIDs)
             let exists = studentLessonsAll.contains { sl in
-                sl.lessonID == studentLesson.lessonID && Set(sl.studentIDs) == sameStudents && sl.givenAt == nil
+                sl.lessonID == studentLesson.lessonID && Set(sl.studentIDs) == sameStudents && !sl.isGiven
             }
             if !exists {
                 let newPresentation = StudentLesson(
@@ -195,6 +196,7 @@ struct StudentLessonQuickActionsView: View {
                     createdAt: Date(),
                     scheduledFor: nil,
                     givenAt: nil,
+                    isPresented: false,
                     notes: "",
                     needsPractice: false,
                     needsAnotherPresentation: false,
