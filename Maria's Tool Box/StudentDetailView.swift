@@ -23,17 +23,6 @@ struct StudentDetailView: View {
     private enum StudentDetailTab { case overview, checklist, history, meetings, notes }
     @State private var selectedTab: StudentDetailTab = .overview
 
-    @State private var showingGiveLessonSheet: Bool = false
-    @State private var selectedLessonForGive: Lesson? = nil
-    @State private var giveStartGiven: Bool = false
-
-    @State private var showingWorkDetailSheet: Bool = false
-    @State private var selectedWorkForDetail: WorkModel? = nil
-
-    @State private var showingStudentLessonDetailSheet: Bool = false
-    @State private var selectedStudentLessonForDetail: StudentLesson? = nil
-    @State private var toastMessage: String? = nil
-
     @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
 
     @Query private var lessons: [Lesson]
@@ -122,169 +111,6 @@ struct StudentDetailView: View {
                 return true
             }
         }.first
-    }
-
-    private func openPlan(for lesson: Lesson) {
-        if let sl = upcomingStudentLesson(for: lesson.id, studentID: student.id) {
-            selectedStudentLessonForDetail = sl
-            showingStudentLessonDetailSheet = true
-        } else {
-            selectedLessonForGive = lesson
-            giveStartGiven = false
-            showingGiveLessonSheet = true
-        }
-    }
-
-    private func openMastered(for lesson: Lesson) {
-        // If there is a given student lesson, open it; otherwise start the Give flow in Given mode
-        if let sl = studentLessonsAll.filter({ $0.lessonID == lesson.id && $0.studentIDs.contains(student.id) && $0.isPresented }).sorted(by: { ($0.givenAt ?? $0.createdAt) > ($1.givenAt ?? $1.createdAt) }).first {
-            selectedStudentLessonForDetail = sl
-            showingStudentLessonDetailSheet = true
-        } else {
-            selectedLessonForGive = lesson
-            giveStartGiven = true
-            showingGiveLessonSheet = true
-        }
-    }
-
-    private func openWork(for lesson: Lesson, type: WorkModel.WorkType) {
-        if let existing = worksForStudent.first(where: { work in
-            work.workType == type && (workLesson(for: work)?.id == lesson.id)
-        }) {
-            selectedWorkForDetail = existing
-            showingWorkDetailSheet = true
-            return
-        }
-        // Create a new WorkModel linked to the most relevant StudentLesson if possible
-        let sl = latestStudentLesson(for: lesson.id, studentID: student.id) ?? {
-            let created = StudentLesson(
-                lessonID: lesson.id,
-                studentIDs: [student.id],
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                isPresented: false,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
-            )
-            modelContext.insert(created)
-            try? modelContext.save()
-            return created
-        }()
-        let work = WorkModel(
-            id: UUID(),
-            studentIDs: [student.id],
-            workType: type,
-            studentLessonID: sl.id,
-            notes: "",
-            createdAt: Date()
-        )
-        work.ensureParticipantsFromStudentIDs()
-        modelContext.insert(work)
-        try? modelContext.save()
-        selectedWorkForDetail = work
-        showingWorkDetailSheet = true
-    }
-
-    private func ensureStudentLesson(for lesson: Lesson) -> StudentLesson {
-        if let existing = latestStudentLesson(for: lesson.id, studentID: student.id) {
-            return existing
-        }
-        let created = StudentLesson(
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            isPresented: false,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
-        modelContext.insert(created)
-        try? modelContext.save()
-        return created
-    }
-
-    private func togglePresented(for lesson: Lesson) {
-        // If already presented, open details for review/edit
-        if masteredLessonIDs.contains(lesson.id) {
-            openMastered(for: lesson)
-            return
-        }
-        if let upcoming = upcomingStudentLesson(for: lesson.id, studentID: student.id) {
-            upcoming.isPresented = true
-            // Do not set givenAt here
-            try? modelContext.save()
-        } else {
-            let sl = StudentLesson(
-                lessonID: lesson.id,
-                studentIDs: [student.id],
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                isPresented: true,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
-            )
-            modelContext.insert(sl)
-            try? modelContext.save()
-            showToast("Presentation recorded")
-        }
-    }
-
-    private func toggleWork(for lesson: Lesson, type: WorkModel.WorkType) {
-        let sid = student.id
-        if let existing = worksForStudent.first(where: { work in
-            work.workType == type && (workLesson(for: work)?.id == lesson.id)
-        }) {
-            if existing.isStudentCompleted(sid) {
-                existing.markStudent(sid, completedAt: nil)
-            } else {
-                existing.markStudent(sid, completedAt: Date())
-            }
-            try? modelContext.save()
-        } else {
-            let sl = ensureStudentLesson(for: lesson)
-            let work = WorkModel(
-                id: UUID(),
-                studentIDs: [sid],
-                workType: type,
-                studentLessonID: sl.id,
-                notes: "",
-                createdAt: Date()
-            )
-            work.ensureParticipantsFromStudentIDs()
-            modelContext.insert(work)
-            try? modelContext.save()
-            showToast("\(type.rawValue) work created")
-        }
-    }
-
-    private func groupsOrdered(for subject: String) -> [String] {
-        lessonsVM.groups(for: subject, lessons: lessons)
-    }
-
-    private func lessons(in group: String, subject: String) -> [Lesson] {
-        let sub = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let groupTrimmed = group.trimmingCharacters(in: .whitespacesAndNewlines)
-        let filtered = lessons.filter { l in
-            l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(sub) == .orderedSame &&
-            l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(groupTrimmed) == .orderedSame
-        }
-        return filtered.sorted { lhs, rhs in
-            if lhs.orderInGroup == rhs.orderInGroup {
-                let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-                if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
-                return nameOrder == .orderedAscending
-            }
-            return lhs.orderInGroup < rhs.orderInGroup
-        }
     }
 
     private var practiceLessonIDs: Set<UUID> { vm.workSummary.practiceLessonIDs }
@@ -568,34 +394,6 @@ struct StudentDetailView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private var toastOverlay: some View {
-        Group {
-            if let message = toastMessage {
-                Text(message)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.black.opacity(0.85))
-                    )
-                    .foregroundColor(.white)
-                    .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .padding(.top, 8)
-            }
-        }
-    }
-
-    private func showToast(_ message: String) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-            toastMessage = message
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation(.easeInOut) { toastMessage = nil }
-        }
-    }
-
     private var checklistPlaceholder: some View {
         VStack(alignment: .leading, spacing: 16) {
             subjectPills
@@ -648,7 +446,7 @@ struct StudentDetailView: View {
             }
             .padding(.top, 4)
 
-            let orderedGroups = groupsOrdered(for: subject)
+            let orderedGroups = lessonsVM.groups(for: subject, lessons: lessons)
             if orderedGroups.isEmpty {
                 ContentUnavailableView(
                     "No \(subject) Lessons",
@@ -659,7 +457,7 @@ struct StudentDetailView: View {
             } else {
                 VStack(alignment: .leading, spacing: 18) {
                     ForEach(orderedGroups, id: \.self) { group in
-                        let items = lessons(in: group, subject: subject)
+                        let items = lessonsIn(group: group, subject: subject)
                         if !items.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack(spacing: 8) {
@@ -693,7 +491,7 @@ struct StudentDetailView: View {
 
                                             HStack(spacing: 10) {
                                                 // Presented toggle
-                                                Button { togglePresented(for: lesson) } label: {
+                                                Button { vm.togglePresented(for: lesson, modelContext: modelContext) } label: {
                                                     ZStack {
                                                         if !wasPresented && isPlanned {
                                                             Circle()
@@ -706,13 +504,13 @@ struct StudentDetailView: View {
                                                 }
                                                 .buttonStyle(.plain)
                                                 .contextMenu {
-                                                    Button("Open Presentation Details…") { openMastered(for: lesson) }
-                                                    Button("Plan Presentation…") { openPlan(for: lesson) }
+                                                    Button("Open Presentation Details…") { vm.openMastered(for: lesson, modelContext: modelContext) }
+                                                    Button("Plan Presentation…") { vm.openPlan(for: lesson, modelContext: modelContext) }
                                                 }
                                                 .help(isPlanned ? "Planned — tap to mark presented or open details" : (wasPresented ? "Presented — tap to review or unmark" : "Mark as presented"))
 
                                                 // Practice work toggle
-                                                Button { toggleWork(for: lesson, type: .practice) } label: {
+                                                Button { vm.toggleWork(for: lesson, type: .practice, modelContext: modelContext) } label: {
                                                     let hasPractice = practiceLessonIDs.contains(lesson.id)
                                                     let isPendingPractice = pendingPracticeLessonIDs.contains(lesson.id)
                                                     ZStack {
@@ -728,12 +526,12 @@ struct StudentDetailView: View {
                                                 }
                                                 .buttonStyle(.plain)
                                                 .contextMenu {
-                                                    Button("Open Practice Work…") { openWork(for: lesson, type: .practice) }
+                                                    Button("Open Practice Work…") { vm.openWork(for: lesson, type: .practice, modelContext: modelContext) }
                                                 }
                                                 .help(!practiceLessonIDs.contains(lesson.id) ? "Add practice work" : (pendingPracticeLessonIDs.contains(lesson.id) ? "Practice pending — tap to mark complete or open work" : "Practice completed — tap to toggle or open work"))
 
                                                 // Follow-up work toggle
-                                                Button { toggleWork(for: lesson, type: .followUp) } label: {
+                                                Button { vm.toggleWork(for: lesson, type: .followUp, modelContext: modelContext) } label: {
                                                     let hasFollowUp = followUpLessonIDs.contains(lesson.id)
                                                     let isPendingFollowUp = pendingFollowUpLessonIDs.contains(lesson.id)
                                                     ZStack {
@@ -749,7 +547,7 @@ struct StudentDetailView: View {
                                                 }
                                                 .buttonStyle(.plain)
                                                 .contextMenu {
-                                                    Button("Open Follow Up Work…") { openWork(for: lesson, type: .followUp) }
+                                                    Button("Open Follow Up Work…") { vm.openWork(for: lesson, type: .followUp, modelContext: modelContext) }
                                                 }
                                                 .help(!followUpLessonIDs.contains(lesson.id) ? "Add follow-up work" : (pendingFollowUpLessonIDs.contains(lesson.id) ? "Follow-up pending — tap to mark complete or open work" : "Follow-up completed — tap to toggle or open work"))
                                             }
@@ -764,6 +562,13 @@ struct StudentDetailView: View {
                     }
                 }
             }
+        }
+    }
+
+    // Helper function renamed to avoid conflict with @Query var lessons
+    private func lessonsIn(group: String, subject: String) -> [Lesson] {
+        return lessons.filter { lesson in
+            lesson.subject.caseInsensitiveCompare(subject) == .orderedSame && lesson.group.caseInsensitiveCompare(group) == .orderedSame
         }
     }
 
@@ -846,7 +651,24 @@ struct StudentDetailView: View {
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .overlay(alignment: .top) { toastOverlay }
+        .overlay(alignment: .top) {
+            Group {
+                if let message = vm.toastMessage {
+                    Text(message)
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.black.opacity(0.85))
+                        )
+                        .foregroundColor(.white)
+                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 8)
+                }
+            }
+        }
         .alert("Delete Student?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 modelContext.delete(student)
@@ -856,9 +678,9 @@ struct StudentDetailView: View {
         } message: {
             Text("This action cannot be undone.")
         }
-        .sheet(item: $selectedLessonForGive) { l in
-            GiveLessonSheet(lesson: l, preselectedStudentIDs: [student.id], startGiven: giveStartGiven) {
-                selectedLessonForGive = nil
+        .sheet(item: $vm.selectedLessonForGive) { l in
+            GiveLessonSheet(lesson: l, preselectedStudentIDs: [student.id], startGiven: vm.giveStartGiven) {
+                vm.selectedLessonForGive = nil
             }
             #if os(macOS)
             .frame(minWidth: 720, minHeight: 640)
@@ -868,9 +690,9 @@ struct StudentDetailView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
-        .sheet(item: $selectedWorkForDetail) { w in
+        .sheet(item: $vm.selectedWorkForDetail) { w in
             WorkDetailView(work: w) {
-                selectedWorkForDetail = nil
+                vm.selectedWorkForDetail = nil
             }
             #if os(macOS)
             .frame(minWidth: 720, minHeight: 640)
@@ -880,9 +702,9 @@ struct StudentDetailView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
-        .sheet(item: $selectedStudentLessonForDetail) { sl in
+        .sheet(item: $vm.selectedStudentLessonForDetail) { sl in
             StudentLessonDetailView(studentLesson: sl) {
-                selectedStudentLessonForDetail = nil
+                vm.selectedStudentLessonForDetail = nil
             }
             #if os(macOS)
             .frame(minWidth: 720, minHeight: 640)
@@ -955,3 +777,4 @@ struct StudentDetailView: View {
     // The preview below is a visual placeholder and not compiled with the app target.
     return Text("StudentDetailView Preview requires app data model.")
 }
+
