@@ -52,7 +52,7 @@ struct WorkView: View {
     }
 
     private enum Grouping: String {
-        case none, type, date
+        case none, type, date, checkIns
     }
     private var grouping: Grouping { Grouping(rawValue: workGroupingRaw) ?? .none }
 
@@ -164,11 +164,43 @@ struct WorkView: View {
             return "Earlier"
         })
     }
+    
+    private func nextIncompleteCheckIn(for work: WorkModel) -> WorkCheckIn? {
+        let incomplete = work.checkIns.filter { $0.status != .completed && $0.status != .skipped }
+        return incomplete.min(by: { $0.date < $1.date })
+    }
+    
+    private var sectionsByCheckIns: [String: [WorkModel]] {
+        let cal = Calendar.current
+        let today = Date()
+        return Dictionary(grouping: filteredWorks, by: { work in
+            guard let checkIn = nextIncompleteCheckIn(for: work) else {
+                return "No Check-Ins"
+            }
+            let d = checkIn.date
+            if cal.isDateInToday(d) { return "Today" }
+            if cal.isDateInTomorrow(d) { return "Tomorrow" }
+            if cal.isDate(d, equalTo: today, toGranularity: .weekOfYear) { return "This Week" }
+            if d < today { return "Overdue" }
+            return "Future"
+        })
+    }
+    
     private var sectionOrder: [String] {
         switch grouping {
         case .none: return []
         case .type: return [WorkModel.WorkType.research.rawValue, WorkModel.WorkType.followUp.rawValue, WorkModel.WorkType.practice.rawValue]
         case .date: return ["Today", "This Week", "Earlier"]
+        case .checkIns: return ["Overdue", "Today", "Tomorrow", "This Week", "Future", "No Check-Ins"]
+        }
+    }
+    
+    private func itemsForSection(_ key: String) -> [WorkModel] {
+        switch grouping {
+        case .none: return []
+        case .type: return sectionsByType[key] ?? []
+        case .date: return sectionsByDate[key] ?? []
+        case .checkIns: return sectionsByCheckIns[key] ?? []
         }
     }
     private func sectionIcon(for key: String) -> String {
@@ -178,6 +210,10 @@ struct WorkView: View {
         case WorkModel.WorkType.practice.rawValue: return "arrow.triangle.2.circlepath.circle.fill"
         case "Today": return "sun.max.fill"
         case "This Week": return "calendar"
+        case "Tomorrow": return "sunrise.fill"
+        case "Overdue": return "exclamationmark.triangle.fill"
+        case "Future": return "calendar.badge.clock"
+        case "No Check-Ins": return "calendar.badge.exclamationmark"
         default: return "clock"
         }
     }
@@ -379,6 +415,17 @@ struct WorkView: View {
                 }
             }
 
+            SidebarFilterButton(
+                icon: "checklist",
+                title: "Check Ins",
+                color: .accentColor,
+                isSelected: grouping == .checkIns
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    workGroupingRaw = "checkIns"
+                }
+            }
+
             Text("Subject")
                 .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
@@ -483,7 +530,7 @@ struct WorkView: View {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 24) {
                                 ForEach(sectionOrder, id: \.self) { key in
-                                    let items = (grouping == .type ? sectionsByType[key] : sectionsByDate[key]) ?? []
+                                    let items = itemsForSection(key)
                                     if !items.isEmpty {
                                         HStack(spacing: 10) {
                                             Image(systemName: sectionIcon(for: key))
@@ -537,6 +584,7 @@ struct WorkView: View {
                 Button("None") { workGroupingRaw = "none" }
                 Button("Type") { workGroupingRaw = "type" }
                 Button("Date") { workGroupingRaw = "date" }
+                Button("Check Ins") { workGroupingRaw = "checkIns" }
             }
         } label: {
             Image(systemName: "line.3.horizontal.decrease.circle")
@@ -598,7 +646,7 @@ struct WorkView: View {
                                         ScrollView {
                                             VStack(alignment: .leading, spacing: 24) {
                                                 ForEach(sectionOrder, id: \.self) { key in
-                                                    let items = (grouping == .type ? sectionsByType[key] : sectionsByDate[key]) ?? []
+                                                    let items = itemsForSection(key)
                                                     if !items.isEmpty {
                                                         HStack(spacing: 10) {
                                                             Image(systemName: sectionIcon(for: key))
@@ -647,7 +695,7 @@ struct WorkView: View {
                                         ScrollView {
                                             VStack(alignment: .leading, spacing: 24) {
                                                 ForEach(sectionOrder, id: \.self) { key in
-                                                    let items = (grouping == .type ? sectionsByType[key] : sectionsByDate[key]) ?? []
+                                                    let items = itemsForSection(key)
                                                     if !items.isEmpty {
                                                         HStack(spacing: 10) {
                                                             Image(systemName: sectionIcon(for: key))
