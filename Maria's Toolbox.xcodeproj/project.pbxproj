@@ -22,6 +22,12 @@
 		510819A62EDEAE830000BE47 /* SubjectChecklistSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819A52EDEAE830000BE47 /* SubjectChecklistSection.swift */; };
 		51081A1B2EDF95E50000BE47 /* WorkView+MacCompactStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51081A1A2EDF95E50000BE47 /* WorkView+MacCompactStub.swift */; };
 		51081A1F2EDFAAC50000BE47 /* WorkCheckInBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51081A1E2EDFAAC50000BE47 /* WorkCheckInBadge.swift */; };
+		516526732EDFEC2800BB0C76 /* WorkCheckInRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526722EDFEC2800BB0C76 /* WorkCheckInRow.swift */; };
+		516526752EDFEC3400BB0C76 /* WorkCheckInNoteEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526742EDFEC3400BB0C76 /* WorkCheckInNoteEditor.swift */; };
+		516526772EDFEC3A00BB0C76 /* ScheduleCheckInSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526762EDFEC3A00BB0C76 /* ScheduleCheckInSection.swift */; };
+		516526792EDFEC4300BB0C76 /* ScheduledCheckInsListSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526782EDFEC4300BB0C76 /* ScheduledCheckInsListSection.swift */; };
+		5165267D2EDFEC5200BB0C76 /* WorkDetailBottomBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5165267C2EDFEC5200BB0C76 /* WorkDetailBottomBar.swift */; };
+		5165267F2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md in Resources */ = {isa = PBXBuildFile; fileRef = 5165267E2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md */; };
 		51A935162EDCDC2900F28923 /* StudentLessonQuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */; };
 		51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */; };
 		51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DB42EDD3E8700F54E19 /* WorkModel+Completion.swift */; };
@@ -54,6 +60,12 @@
 		51081A1A2EDF95E50000BE47 /* WorkView+MacCompactStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkView+MacCompactStub.swift"; sourceTree = "<group>"; };
 		51081A1E2EDFAAC50000BE47 /* WorkCheckInBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCheckInBadge.swift; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		516526722EDFEC2800BB0C76 /* WorkCheckInRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCheckInRow.swift; sourceTree = "<group>"; };
+		516526742EDFEC3400BB0C76 /* WorkCheckInNoteEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCheckInNoteEditor.swift; sourceTree = "<group>"; };
+		516526762EDFEC3A00BB0C76 /* ScheduleCheckInSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleCheckInSection.swift; sourceTree = "<group>"; };
+		516526782EDFEC4300BB0C76 /* ScheduledCheckInsListSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledCheckInsListSection.swift; sourceTree = "<group>"; };
+		5165267C2EDFEC5200BB0C76 /* WorkDetailBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkDetailBottomBar.swift; sourceTree = "<group>"; };
+		5165267E2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = REFACTORING_SUMMARY.md; sourceTree = "<group>"; };
 		51A935152EDCDC2900F28923 /* StudentLessonQuickActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonQuickActionsView.swift; sourceTree = "<group>"; };
 		51DC1DB22EDD3E8500F54E19 /* WorkCompletionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCompletionService.swift; sourceTree = "<group>"; };
 		51DC1DB42EDD3E8700F54E19 /* WorkModel+Completion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkModel+Completion.swift"; sourceTree = "<group>"; };
@@ -134,6 +146,12 @@
 				51EE93252EDFC18D003AB672 /* LinkedLessonSection.swift */,
 				51EE93272EDFC18F003AB672 /* NotesSection.swift */,
 				51EE93292EDFC234003AB672 /* WorkSectionHeader.swift */,
+				516526722EDFEC2800BB0C76 /* WorkCheckInRow.swift */,
+				516526742EDFEC3400BB0C76 /* WorkCheckInNoteEditor.swift */,
+				516526762EDFEC3A00BB0C76 /* ScheduleCheckInSection.swift */,
+				516526782EDFEC4300BB0C76 /* ScheduledCheckInsListSection.swift */,
+				5165267C2EDFEC5200BB0C76 /* WorkDetailBottomBar.swift */,
+				5165267E2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -209,6 +227,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5165267F2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -223,13 +242,18 @@
 				51EE93222EDFC188003AB672 /* StudentsChipsRow.swift in Sources */,
 				51EE93262EDFC18D003AB672 /* LinkedLessonSection.swift in Sources */,
 				51EE93242EDFC18A003AB672 /* WorkTypePickerSection.swift in Sources */,
+				5165267D2EDFEC5200BB0C76 /* WorkDetailBottomBar.swift in Sources */,
 				51EE93282EDFC18F003AB672 /* NotesSection.swift in Sources */,
 				51DC1DBB2EDD400400F54E19 /* WorkCompletionBackfill.swift in Sources */,
 				510819A02EDEAD320000BE47 /* NextLessonsSection.swift in Sources */,
+				516526752EDFEC3400BB0C76 /* WorkCheckInNoteEditor.swift in Sources */,
+				516526792EDFEC4300BB0C76 /* ScheduledCheckInsListSection.swift in Sources */,
 				51DC1DBD2EDD40D400F54E19 /* MarkCompletionButton.swift in Sources */,
 				51EE932A2EDFC234003AB672 /* WorkSectionHeader.swift in Sources */,
+				516526732EDFEC2800BB0C76 /* WorkCheckInRow.swift in Sources */,
 				51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */,
 				51DC1DC12EDD40E000F54E19 /* WorkModel+BulkCompletion.swift in Sources */,
+				516526772EDFEC3A00BB0C76 /* ScheduleCheckInSection.swift in Sources */,
 				51DC1DB92EDD3FD300F54E19 /* WorkCompletionHistoryView.swift in Sources */,
 				51DC1DB32EDD3E8500F54E19 /* WorkCompletionService.swift in Sources */,
 				51DC1DBF2EDD40DC00F54E19 /* PerStudentCompletionList.swift in Sources */,
