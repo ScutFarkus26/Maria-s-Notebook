@@ -15,7 +15,7 @@ public struct PillButton: View {
         if isSelected {
             return AnyShapeStyle(Color.accentColor)
         } else {
-            return AnyShapeStyle(Color.platformBackground)
+            return AnyShapeStyle(Color.primary.opacity(0.08))
         }
     }
 

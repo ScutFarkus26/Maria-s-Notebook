@@ -18,7 +18,7 @@ struct SubjectPillsView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(
-                                Capsule().fill(isSelected ? AppColors.color(forSubject: subject) : Color.platformBackground)
+                                Capsule().fill(isSelected ? AppColors.color(forSubject: subject) : Color(nsColor: .windowBackgroundColor))
                             )
                             .foregroundStyle(isSelected ? Color.white : Color.primary)
                     }

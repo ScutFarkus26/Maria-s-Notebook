@@ -118,7 +118,7 @@ struct RootView: View {
         if tab == selectedTab {
             return AnyShapeStyle(Color.accentColor)
         } else {
-            return AnyShapeStyle(Color.platformBackground)
+            return AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
         }
     }
 

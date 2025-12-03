@@ -6,7 +6,7 @@ struct LifecycleIndicatorView: View {
     let isPlanned: Bool
 
     var body: some View {
-        let tokenBackground = Color.platformBackground
+        let tokenBackground = Color(nsColor: .windowBackgroundColor)
         Group {
             if wasPresented && !hasPending {
                 Circle()

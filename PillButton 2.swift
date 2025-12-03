@@ -12,7 +12,7 @@ struct PillNavButton: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
                 .frame(minHeight: 30)
-                .background(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color.platformBackground))
+                .background(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor)))
                 .foregroundStyle(isSelected ? Color.white : Color.primary)
                 .clipShape(Capsule())
         }

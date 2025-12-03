@@ -73,12 +73,12 @@ struct PlanningWeekView: View {
             VStack(spacing: 0) {
                 header
                 Divider()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        WeekGrid(days: days, onSelectLesson: { sl in selectedLessonForDetailID = sl.id }, onQuickActions: { sl in quickActionsLessonID = sl.id }, onPlanNext: { sl in planNextLesson(for: sl) })
+                GeometryReader { geometry in
+                    ScrollView([.horizontal, .vertical]) {
+                        WeekGrid(days: days, availableHeight: geometry.size.height, onSelectLesson: { sl in selectedLessonForDetailID = sl.id }, onQuickActions: { sl in quickActionsLessonID = sl.id }, onPlanNext: { sl in planNextLesson(for: sl) })
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 20)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 20)
                 }
             }
         }
@@ -269,18 +269,19 @@ struct PlanningWeekView: View {
 private struct WeekGrid: View {
     @Environment(\.calendar) private var calendar
     let days: [Date]
+    let availableHeight: CGFloat
     let onSelectLesson: (StudentLesson) -> Void
     let onQuickActions: (StudentLesson) -> Void
     let onPlanNext: (StudentLesson) -> Void
 
     private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 160), spacing: 24), count: 5)
+        Array(repeating: GridItem(.fixed(200), spacing: 24), count: 5)
     }
 
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
             ForEach(days, id: \.self) { day in
-                DayColumn(day: day, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                DayColumn(day: day, availableHeight: availableHeight, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
             }
         }
     }
@@ -290,9 +291,18 @@ private struct WeekGrid: View {
 private struct DayColumn: View {
     @Environment(\.calendar) private var calendar
     let day: Date
+    let availableHeight: CGFloat
     let onSelectLesson: (StudentLesson) -> Void
     let onQuickActions: (StudentLesson) -> Void
     let onPlanNext: (StudentLesson) -> Void
+
+    private var dropZoneHeight: CGFloat {
+        // Calculate available height after subtracting header and labels
+        // Header ~40, Morning label ~18, Afternoon label ~18, spacing ~14*3 = ~42
+        let overhead: CGFloat = 40 + 18 + 18 + 42
+        let remaining = max(220, availableHeight - overhead)
+        return remaining / 2  // Split between morning and afternoon
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -310,14 +320,14 @@ private struct DayColumn: View {
                 .font(.system(size: 12, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
             DropZone(day: day, period: .morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
-                .frame(minHeight: 220)
+                .frame(height: dropZoneHeight)
 
             // Afternoon
             Text("Afternoon")
                 .font(.system(size: 12, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
             DropZone(day: day, period: .afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
-                .frame(minHeight: 220)
+                .frame(height: dropZoneHeight)
         }
     }
 

@@ -97,31 +97,6 @@ struct StudentDetailView: View {
 
     private var plannedLessonIDs: Set<UUID> { vm.plannedLessonIDs }
 
-    private func latestStudentLesson(for lessonID: UUID, studentID: UUID) -> StudentLesson? {
-        let matches = studentLessonsAll.filter { $0.lessonID == lessonID && $0.studentIDs.contains(studentID) }
-        return matches.sorted { lhs, rhs in
-            let lDate = lhs.givenAt ?? lhs.scheduledFor ?? lhs.createdAt
-            let rDate = rhs.givenAt ?? rhs.scheduledFor ?? rhs.createdAt
-            return lDate > rDate
-        }.first
-    }
-
-    private func upcomingStudentLesson(for lessonID: UUID, studentID: UUID) -> StudentLesson? {
-        let matches = studentLessonsAll.filter { $0.lessonID == lessonID && $0.studentIDs.contains(studentID) && !$0.isGiven }
-        return matches.sorted { lhs, rhs in
-            switch (lhs.scheduledFor, rhs.scheduledFor) {
-            case let (l?, r?):
-                return l < r
-            case (nil, nil):
-                return lhs.createdAt < rhs.createdAt
-            case (nil, _?):
-                return false
-            case (_?, nil):
-                return true
-            }
-        }.first
-    }
-
     private var practiceLessonIDs: Set<UUID> { vm.workSummary.practiceLessonIDs }
 
     private var followUpLessonIDs: Set<UUID> { vm.workSummary.followUpLessonIDs }
@@ -173,19 +148,6 @@ struct StudentDetailView: View {
         case .research: return ("magnifyingglass", .teal)
         case .followUp: return ("bolt.fill", .orange)
         case .practice: return ("arrow.triangle.2.circlepath", .purple)
-        }
-    }
-
-    /*
-    private var headerContent: some View {
-        // Replaced by StudentHeaderView
-    }
-    */
-
-    // Helper function renamed to avoid conflict with @Query var lessons
-    private func lessonsIn(group: String, subject: String) -> [Lesson] {
-        return lessons.filter { lesson in
-            lesson.subject.caseInsensitiveCompare(subject) == .orderedSame && lesson.group.caseInsensitiveCompare(group) == .orderedSame
         }
     }
 
