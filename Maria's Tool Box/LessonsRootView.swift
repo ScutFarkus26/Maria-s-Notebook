@@ -13,50 +13,26 @@ struct LessonsRootView: View {
 
     @State private var showingAddLesson: Bool = false
 
-    @State private var showingLessonCSVImporter = false
-    @State private var importAlert: ImportAlert? = nil
-
-    @State private var selectedSubject: String? = nil
-    @State private var selectedGroup: String? = nil
-    @State private var expandedSubjects: Set<String> = []
+    @State private var filterState = LessonsFilterState()
 
     @State private var pendingParsedImport: LessonCSVImporter.Parsed? = nil
     @State private var showingImportPreview: Bool = false
 
     @State private var subjectDragState: (from: Int?, to: Int?) = (nil, nil)
     @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
-    @State private var searchText: String = ""
     @State private var givingLessonFromDetailID: UUID? = nil
     
     @State private var isParsing: Bool = false
     @State private var parsingTask: Task<Void, Never>? = nil
 
     @State private var isPresentingGiveLesson: Bool = false
+    @State private var importAlert: ImportAlert? = nil
+    @State private var showingLessonCSVImporter: Bool = false
 
     @SceneStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
     @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
     @SceneStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
     @SceneStorage("Lessons.expandedSubjects") private var lessonsExpandedSubjectsRaw: String = ""
-
-    private var selectedSubjectPersisted: String? {
-        lessonsSelectedSubjectRaw.isEmpty ? nil : lessonsSelectedSubjectRaw
-    }
-
-    private var selectedGroupPersisted: String? {
-        lessonsSelectedGroupRaw.isEmpty ? nil : lessonsSelectedGroupRaw
-    }
-
-    private var searchTextPersisted: String { lessonsSearchTextRaw }
-
-    private func serializeExpandedSubjects(_ set: Set<String>) -> String {
-        // Store normalized subject keys in a stable order
-        return set.sorted().joined(separator: "|")
-    }
-
-    private func deserializeExpandedSubjects(_ raw: String) -> Set<String> {
-        if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
-        return Set(raw.split(separator: "|").map { String($0) })
-    }
 
     private let viewModel = LessonsViewModel()
 
@@ -71,11 +47,11 @@ struct LessonsRootView: View {
     }
 
     private var filteredLessons: [Lesson] {
-        viewModel.filteredLessons(lessons: lessons, searchText: searchText, selectedSubject: selectedSubject, selectedGroup: selectedGroup)
+        viewModel.filteredLessons(lessons: lessons, searchText: filterState.searchText, selectedSubject: filterState.selectedSubject, selectedGroup: filterState.selectedGroup)
     }
 
     private var isManualMode: Bool {
-        (selectedGroup != nil) && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        (filterState.selectedGroup != nil) && filterState.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var lessonIDs: [UUID] {
@@ -155,19 +131,8 @@ struct LessonsRootView: View {
                 showingImportPreview = false
             }, onConfirm: { filtered in
                 do {
-                    let inserted = try LessonCSVImporter.commit(parsed: filtered, into: modelContext, existingLessons: lessons)
-                    var message = "Imported \(inserted) row(s)."
-                    if filtered.potentialDuplicates.count > 0 {
-                        let firstFew = filtered.potentialDuplicates.prefix(5).joined(separator: "\n• ")
-                        message += "\n\nPotential duplicates detected: \(filtered.potentialDuplicates.count)."
-                        if !firstFew.isEmpty {
-                            message += "\n\nExamples:\n• \(firstFew)"
-                        }
-                    }
-                    if !filtered.warnings.isEmpty {
-                        message += "\n\nWarnings:\n" + filtered.warnings.joined(separator: "\n")
-                    }
-                    importAlert = ImportAlert(title: "CSV Import Complete", message: message)
+                    let result = try ImportCommitService.commitLessons(parsed: filtered, into: modelContext, existingLessons: lessons)
+                    importAlert = ImportAlert(title: result.title, message: result.message)
                 } catch {
                     importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
                 }
@@ -182,44 +147,18 @@ struct LessonsRootView: View {
     private func handleFileImportResult(_ result: Result<URL, Error>) {
         do {
             let url = try result.get()
-
             // Cancel any in-flight parsing task
             parsingTask?.cancel()
             isParsing = true
-
-            parsingTask = Task.detached(priority: .userInitiated) {
-                let needsAccess = url.startAccessingSecurityScopedResource()
-                defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-                do {
-                    let data = try Data(contentsOf: url)
-                    // Snapshot duplicate keys on the main actor to avoid sending non-Sendable model objects across actors
-                    let existingKeys: Set<String> = await MainActor.run {
-                        Set(self.lessons.map { LessonCSVImporter.duplicateKey(for: $0) })
-                    }
-                    // Parse off-main using precomputed keys
-                    let parsed = try await MainActor.run {
-                        try LessonCSVImporter.parse(data: data, existingLessonKeys: existingKeys)
-                    }
-                    try Task.checkCancellation()
-                    await MainActor.run {
-                        self.pendingParsedImport = parsed
-                        self.showingImportPreview = true
-                        self.isParsing = false
-                        self.parsingTask = nil
-                    }
-                } catch is CancellationError {
-                    await MainActor.run {
-                        self.isParsing = false
-                        self.parsingTask = nil
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-                        self.isParsing = false
-                        self.parsingTask = nil
-                    }
-                }
-            }
+            parsingTask = LessonsImportCoordinator.startImport(from: url, lessons: self.lessons, onParsed: { parsed in
+                self.pendingParsedImport = parsed
+                self.showingImportPreview = true
+            }, onError: { error in
+                self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+            }, onFinally: {
+                self.isParsing = false
+                self.parsingTask = nil
+            })
         } catch {
             importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
             isParsing = false
@@ -296,25 +235,13 @@ struct LessonsRootView: View {
         .overlay {
             selectedLessonOverlay
         }
-        .overlay(alignment: .center) {
-            if isParsing {
-                ZStack {
-                    Color.black.opacity(0.2).ignoresSafeArea()
-                    VStack(spacing: 12) {
-                        ProgressView("Parsing…")
-                        Button("Cancel") {
-                            parsingTask?.cancel()
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                    .padding(16)
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
+        .overlay {
+            ParsingOverlay(isParsing: $isParsing) {
+                parsingTask?.cancel()
             }
         }
         .sheet(isPresented: $showingAddLesson) {
-            AddLessonView(defaultSubject: selectedSubject, defaultGroup: selectedGroup)
+            AddLessonView(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
         }
         .sheet(isPresented: $isPresentingGiveLesson, content: {
             GiveLessonSheet(lesson: nil) {
@@ -352,21 +279,18 @@ struct LessonsRootView: View {
                     importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
                 }
             }
-            // Restore persisted filters
-            self.selectedSubject = selectedSubjectPersisted
-            self.selectedGroup = selectedGroupPersisted
-            self.searchText = lessonsSearchTextRaw
-
-            // Restore expanded subjects from persistence
-            self.expandedSubjects = deserializeExpandedSubjects(lessonsExpandedSubjectsRaw)
-
+            // Restore persisted filters into the observable state
+            filterState.loadFromPersisted(subjectRaw: lessonsSelectedSubjectRaw, groupRaw: lessonsSelectedGroupRaw, searchRaw: lessonsSearchTextRaw, expandedRaw: lessonsExpandedSubjectsRaw)
             // If a child group is selected, ensure its parent subject is expanded so the selection is visible
-            if let subject = self.selectedSubject, self.selectedGroup != nil {
-                self.expandedSubjects.insert(normalizeSubjectKey(subject))
+            if let subject = filterState.selectedSubject, filterState.selectedGroup != nil {
+                filterState.expandedSubjects.insert(LessonsFilterPersistence.normalizeSubjectKey(subject))
             }
-
-            // Persist any adjustments to the expanded set
-            self.lessonsExpandedSubjectsRaw = serializeExpandedSubjects(self.expandedSubjects)
+            // Persist any adjustments back to SceneStorage
+            let persisted = filterState.makePersisted()
+            lessonsSelectedSubjectRaw = persisted.subjectRaw
+            lessonsSelectedGroupRaw = persisted.groupRaw
+            lessonsSearchTextRaw = persisted.searchRaw
+            lessonsExpandedSubjectsRaw = persisted.expandedRaw
         }
         .onChange(of: lessonIDs) { _, _ in
             if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
@@ -377,17 +301,17 @@ struct LessonsRootView: View {
                 }
             }
         }
-        .onChange(of: selectedSubject) { _, newValue in
+        .onChange(of: filterState.selectedSubject) { _, newValue in
             lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
-        .onChange(of: selectedGroup) { _, newValue in
+        .onChange(of: filterState.selectedGroup) { _, newValue in
             lessonsSelectedGroupRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
-        .onChange(of: searchText) { _, newValue in
+        .onChange(of: filterState.searchText) { _, newValue in
             lessonsSearchTextRaw = newValue
         }
-        .onChange(of: expandedSubjects) { _, newValue in
-            lessonsExpandedSubjectsRaw = serializeExpandedSubjects(newValue)
+        .onChange(of: filterState.expandedSubjects) { _, newValue in
+            lessonsExpandedSubjectsRaw = LessonsFilterPersistence.serializeExpandedSubjects(newValue)
         }
     }
 
@@ -403,11 +327,11 @@ struct LessonsRootView: View {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("Search all lessons", text: $searchText)
+                TextField("Search all lessons", text: $filterState.searchText)
                     .textFieldStyle(.plain)
-                if !searchText.isEmpty {
+                if !filterState.searchText.isEmpty {
                     Button {
-                        searchText = ""
+                        filterState.searchText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
@@ -429,8 +353,8 @@ struct LessonsRootView: View {
                 SidebarFilterButton(
                     icon: "folder.fill",
                     title: subject,
-                    color: subjectColor(for: subject),
-                    isSelected: (selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (selectedGroup == nil),
+                    color: AppColors.color(forSubject: subject),
+                    isSelected: (filterState.selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (filterState.selectedGroup == nil),
                     trailingIcon: "chevron.right",
                     trailingIconRotationDegrees: isExpanded(subject) ? 90 : 0,
                     trailingIconAction: {
@@ -441,9 +365,9 @@ struct LessonsRootView: View {
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         // Clear any active search so the subject filter takes effect immediately
-                        searchText = ""
-                        selectedSubject = subject
-                        selectedGroup = nil
+                        filterState.searchText = ""
+                        filterState.selectedSubject = subject
+                        filterState.selectedGroup = nil
                     }
                 }
                 .onDrag {
@@ -470,14 +394,14 @@ struct LessonsRootView: View {
                         SidebarFilterButton(
                             icon: "tag.fill",
                             title: group,
-                            color: subjectColor(for: subject),
-                            isSelected: (selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (selectedGroup?.caseInsensitiveCompare(group) == .orderedSame)
+                            color: AppColors.color(forSubject: subject),
+                            isSelected: (filterState.selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (filterState.selectedGroup?.caseInsensitiveCompare(group) == .orderedSame)
                         ) {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                                 // Clear any active search so the group filter takes effect immediately
-                                searchText = ""
-                                selectedSubject = subject
-                                selectedGroup = group
+                                filterState.searchText = ""
+                                filterState.selectedSubject = subject
+                                filterState.selectedGroup = group
                                 if !isExpanded(subject) { toggleExpanded(subject) }
                             }
                         }
@@ -530,42 +454,25 @@ struct LessonsRootView: View {
 
     private func reorderLessons(movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson]) {
         // Only allow reordering when a group is selected (subset corresponds to the full group for the selected subject)
-        guard selectedGroup != nil else { return }
-        var ordered = subset
-        let boundedFrom = max(0, min(ordered.count - 1, fromIndex))
-        let item = ordered.remove(at: boundedFrom)
-        let boundedTo = max(0, min(ordered.count, toIndex))
-        ordered.insert(item, at: boundedTo)
-        // Assign sequential orderInGroup values based on new order
-        for (idx, l) in ordered.enumerated() {
-            l.orderInGroup = idx
-        }
+        guard filterState.selectedGroup != nil else { return }
         do {
-            try modelContext.save()
+            try LessonsReorderService.reorder(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset, context: modelContext)
         } catch {
             importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
         }
     }
 
-    private func normalizeSubjectKey(_ subject: String) -> String {
-        subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    }
-
     private func isExpanded(_ subject: String) -> Bool {
-        expandedSubjects.contains(normalizeSubjectKey(subject))
+        filterState.expandedSubjects.contains(LessonsFilterPersistence.normalizeSubjectKey(subject))
     }
 
     private func toggleExpanded(_ subject: String) {
-        let key = normalizeSubjectKey(subject)
-        if expandedSubjects.contains(key) {
-            expandedSubjects.remove(key)
+        let key = LessonsFilterPersistence.normalizeSubjectKey(subject)
+        if filterState.expandedSubjects.contains(key) {
+            filterState.expandedSubjects.remove(key)
         } else {
-            expandedSubjects.insert(key)
+            filterState.expandedSubjects.insert(key)
         }
-    }
-
-    private func subjectColor(for subject: String) -> Color {
-        AppColors.color(forSubject: subject)
     }
 
     private func seedSamplesOnce() {
@@ -576,44 +483,5 @@ struct LessonsRootView: View {
         ]
         for l in samples { modelContext.insert(l) }
         try? modelContext.save()
-    }
-
-    struct SubjectDropDelegate: DropDelegate {
-        let index: Int
-        let currentItems: [String]
-        @Binding var dragState: (from: Int?, to: Int?)
-        let onReorder: (Int, Int) -> Void
-
-        func validateDrop(info: DropInfo) -> Bool { true }
-        func dropEntered(info: DropInfo) {
-            guard let from = dragState.from, from != index else { return }
-            dragState.to = index
-        }
-        func performDrop(info: DropInfo) -> Bool {
-            guard let from = dragState.from, let to = dragState.to else { dragState = (nil,nil); return false }
-            dragState = (nil,nil)
-            if from != to { onReorder(from, to) }
-            return true
-        }
-    }
-
-    struct GroupDropDelegate: DropDelegate {
-        let subject: String
-        let index: Int
-        let currentItems: [String]
-        @Binding var dragState: (from: Int?, to: Int?)
-        let onReorder: (Int, Int) -> Void
-
-        func validateDrop(info: DropInfo) -> Bool { true }
-        func dropEntered(info: DropInfo) {
-            guard let from = dragState.from, from != index else { return }
-            dragState.to = index
-        }
-        func performDrop(info: DropInfo) -> Bool {
-            guard let from = dragState.from, let to = dragState.to else { dragState = (nil,nil); return false }
-            dragState = (nil,nil)
-            if from != to { onReorder(from, to) }
-            return true
-        }
     }
 }

@@ -46,21 +46,9 @@ struct StudentsRootView: View {
                 }
                 .padding()
             }
-            .overlay(alignment: .center) {
-                if isParsing {
-                    ZStack {
-                        Color.black.opacity(0.2).ignoresSafeArea()
-                        VStack(spacing: 12) {
-                            ProgressView("Parsing…")
-                            Button("Cancel") {
-                                parsingTask?.cancel()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                        .padding(16)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
+            .overlay {
+                ParsingOverlay(isParsing: $isParsing) {
+                    parsingTask?.cancel()
                 }
             }
             .sheet(isPresented: $showingAddStudent) {
@@ -72,45 +60,19 @@ struct StudentsRootView: View {
             ) { result in
                 do {
                     let url = try result.get()
-
-                    // Cancel any in-flight parsing task
                     parsingTask?.cancel()
                     isParsing = true
-
-                    parsingTask = Task.detached(priority: .userInitiated) {
-                        let needsAccess = url.startAccessingSecurityScopedResource()
-                        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-                        do {
-                            let data = try Data(contentsOf: url)
-                            // Parse headers off-main
-                            let csvOpt = await MainActor.run { CSVParser.parse(data: data) }
-                            try Task.checkCancellation()
-                            guard let csv = csvOpt else {
-                                await MainActor.run {
-                                    importAlert = ImportAlert(title: "Import Failed", message: "Unsupported text encoding; please use UTF-8.")
-                                    isParsing = false
-                                    parsingTask = nil
-                                }
-                                return
-                            }
-                            await MainActor.run {
-                                self.pendingFileURL = url
-                                self.mappingHeaders = csv.headers
-                                self.pendingMapping = StudentCSVImporter.detectMapping(headers: csv.headers)
-                                self.showingMappingSheet = true
-                                self.isParsing = false
-                                self.parsingTask = nil
-                            }
-                        } catch is CancellationError {
-                            await MainActor.run { self.isParsing = false; self.parsingTask = nil }
-                        } catch {
-                            await MainActor.run {
-                                importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-                                isParsing = false
-                                parsingTask = nil
-                            }
-                        }
-                    }
+                    parsingTask = StudentsImportCoordinator.startHeaderScan(from: url, onParsed: { headers, mapping in
+                        self.pendingFileURL = url
+                        self.mappingHeaders = headers
+                        self.pendingMapping = mapping
+                        self.showingMappingSheet = true
+                    }, onError: { error in
+                        self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                    }, onFinally: {
+                        self.isParsing = false
+                        self.parsingTask = nil
+                    })
                 } catch {
                     importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
                     isParsing = false
@@ -124,44 +86,18 @@ struct StudentsRootView: View {
                 }, onConfirm: { mapping in
                     // Ensure we have a file URL before starting the background work
                     guard let fileURL = pendingFileURL else { return }
-                    // Cancel any in-flight parsing task
                     parsingTask?.cancel()
                     isParsing = true
-                    parsingTask = Task.detached(priority: .userInitiated) {
-                        let needsAccess = fileURL.startAccessingSecurityScopedResource()
-                        defer { if needsAccess { fileURL.stopAccessingSecurityScopedResource() } }
-                        do {
-                            let data = try Data(contentsOf: fileURL)
-                            // Snapshot Sendable keys on the main actor to avoid sending non-Sendable model objects across actors
-                            let keys: (full: Set<String>, name: Set<String>) = await MainActor.run {
-                                let full = Set(self.students.map { StudentCSVImporter.duplicateKey(for: $0) })
-                                let name = Set(self.students.map { ("\($0.firstName) \($0.lastName)").normalizedNameKey() })
-                                return (full, name)
-                            }
-                            let parsed: StudentCSVImporter.Parsed = try await MainActor.run {
-                                try StudentCSVImporter.parse(data: data, mapping: mapping, existingFullKeys: keys.full, existingNameKeys: keys.name)
-                            }
-                            try Task.checkCancellation()
-                            await MainActor.run {
-                                pendingParsedImport = parsed
-                                showingMappingSheet = false
-                                isParsing = false
-                                parsingTask = nil
-                            }
-                        } catch is CancellationError {
-                            await MainActor.run {
-                                isParsing = false
-                                parsingTask = nil
-                            }
-                        } catch {
-                            await MainActor.run {
-                                importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-                                showingMappingSheet = false
-                                isParsing = false
-                                parsingTask = nil
-                            }
-                        }
-                    }
+                    parsingTask = StudentsImportCoordinator.startMappedParse(from: fileURL, mapping: mapping, students: self.students, onParsed: { parsed in
+                        self.pendingParsedImport = parsed
+                        self.showingMappingSheet = false
+                    }, onError: { error in
+                        self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                        self.showingMappingSheet = false
+                    }, onFinally: {
+                        self.isParsing = false
+                        self.parsingTask = nil
+                    })
                 })
             }
             .sheet(item: $pendingParsedImport, onDismiss: {
@@ -171,17 +107,8 @@ struct StudentsRootView: View {
                     pendingParsedImport = nil
                 }, onConfirm: { filtered in
                     do {
-                        let summary = try StudentCSVImporter.commit(parsed: filtered, into: modelContext, existingStudents: students)
-                        var message = "Imported \(summary.insertedCount) new and updated \(summary.updatedCount) existing student(s)."
-                        if summary.potentialDuplicates.count > 0 {
-                            let firstFew = summary.potentialDuplicates.prefix(5).joined(separator: "\n• ")
-                            message += "\n\nPotential duplicates detected: \(summary.potentialDuplicates.count)."
-                            if !firstFew.isEmpty { message += "\n\nExamples:\n• \(firstFew)" }
-                        }
-                        if !summary.warnings.isEmpty {
-                            message += "\n\nWarnings:\n" + summary.warnings.joined(separator: "\n")
-                        }
-                        importAlert = ImportAlert(title: "CSV Import Complete", message: message)
+                        let result = try ImportCommitService.commitStudents(parsed: filtered, into: modelContext, existingStudents: students)
+                        importAlert = ImportAlert(title: result.title, message: result.message)
                     } catch {
                         importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
                     }
