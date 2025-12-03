@@ -35,6 +35,10 @@ struct StudentLessonDetailView: View {
     @State private var studentLevelFilter: LevelFilter = .all
     @State private var didPlanNext: Bool = false
     @State private var showPlannedBanner: Bool = false
+    @State private var showingMoveStudentsSheet = false
+    @State private var studentsToMove: Set<UUID> = []
+    @State private var showMovedBanner: Bool = false
+    @State private var movedStudentNames: [String] = []
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
         self.studentLesson = studentLesson
@@ -109,6 +113,48 @@ struct StudentLessonDetailView: View {
         showPlannedBanner = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             showPlannedBanner = false
+        }
+    }
+    
+    private func moveStudentsToNewLesson() {
+        guard !studentsToMove.isEmpty, let currentLesson = lessonObject else { return }
+        
+        // Get names for the banner
+        movedStudentNames = studentsAll
+            .filter { studentsToMove.contains($0.id) }
+            .map { displayName(for: $0) }
+        
+        // Create new lesson with the students being moved
+        let newStudentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: currentLesson.id,
+            studentIDs: Array(studentsToMove),
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: nil,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newStudentLesson.students = studentsAll.filter { studentsToMove.contains($0.id) }
+        newStudentLesson.lesson = currentLesson
+        newStudentLesson.syncSnapshotsFromRelationships()
+        modelContext.insert(newStudentLesson)
+        
+        // Remove the students from the current lesson
+        selectedStudentIDs.subtract(studentsToMove)
+        
+        // Clear selection
+        studentsToMove.removeAll()
+        
+        // Save changes
+        try? modelContext.save()
+        
+        // Show confirmation banner
+        showMovedBanner = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            showMovedBanner = false
         }
     }
 
@@ -256,7 +302,12 @@ struct StudentLessonDetailView: View {
         .overlay(alignment: .top) {
             if showPlannedBanner {
                 plannedBanner
+            } else if showMovedBanner {
+                movedBanner
             }
+        }
+        .sheet(isPresented: $showingMoveStudentsSheet) {
+            moveStudentsSheet
         }
     }
 
@@ -280,50 +331,207 @@ struct StudentLessonDetailView: View {
             }
             .frame(maxWidth: .infinity)
 
-            HStack(alignment: .center, spacing: 8) {
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(selectedStudentsList, id: \.id) { student in
-                            HStack(spacing: 6) {
-                                Text(displayName(for: student))
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                Button {
-                                    selectedStudentIDs.remove(student.id)
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 12, weight: .semibold))
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(subjectColor)
-                                .accessibilityLabel("Remove \(displayName(for: student))")
+            // Use ViewThatFits to intelligently wrap the buttons
+            ViewThatFits(in: .horizontal) {
+                // Try to fit everything on one line
+                HStack(alignment: .center, spacing: 8) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(selectedStudentsList, id: \.id) { student in
+                                studentChip(for: student)
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .foregroundColor(subjectColor)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(subjectColor.opacity(0.15))
-                            )
                         }
                     }
-                }
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                Button {
-                    showingStudentPickerPopover = true
-                } label: {
-                    Label("Add/Remove Students", systemImage: "person.2.badge.plus")
-                        .labelStyle(.titleAndIcon)
+                    if selectedStudentsList.count > 1 && !isPresented {
+                        Button {
+                            studentsToMove = []
+                            showingMoveStudentsSheet = true
+                        } label: {
+                            Label("Move Students", systemImage: "arrow.right.square")
+                                .labelStyle(.titleAndIcon)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+
+                    Button {
+                        showingStudentPickerPopover = true
+                    } label: {
+                        Label("Add/Remove Students", systemImage: "person.2.badge.plus")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.borderless)
+                    .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
+                        studentPickerPopover
+                    }
                 }
-                .buttonStyle(.borderless)
-                .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
-                    studentPickerPopover
+                
+                // If it doesn't fit, wrap buttons to a new line
+                VStack(spacing: 8) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(selectedStudentsList, id: \.id) { student in
+                                studentChip(for: student)
+                            }
+                        }
+                    }
+                    
+                    HStack(spacing: 8) {
+                        Spacer()
+                        
+                        if selectedStudentsList.count > 1 && !isPresented {
+                            Button {
+                                studentsToMove = []
+                                showingMoveStudentsSheet = true
+                            } label: {
+                                Label("Move Students", systemImage: "arrow.right.square")
+                                    .labelStyle(.titleAndIcon)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        
+                        Button {
+                            showingStudentPickerPopover = true
+                        } label: {
+                            Label("Add/Remove Students", systemImage: "person.2.badge.plus")
+                                .labelStyle(.titleAndIcon)
+                        }
+                        .buttonStyle(.borderless)
+                        .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
+                            studentPickerPopover
+                        }
+                    }
                 }
             }
         }
         .frame(maxWidth: .infinity)
+    }
+    
+    private func studentChip(for student: Student) -> some View {
+        HStack(spacing: 6) {
+            Text(displayName(for: student))
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            Button {
+                selectedStudentIDs.remove(student.id)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(subjectColor)
+            .accessibilityLabel("Remove \(displayName(for: student))")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .foregroundColor(subjectColor)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(subjectColor.opacity(0.15))
+        )
+    }
+    
+    private var moveStudentsSheet: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Move Students to New Lesson")
+                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 18)
+            
+            Divider()
+            
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Select students who didn't attend. They'll be moved to a new lesson with \"\(lessonName)\".")
+                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .foregroundStyle(.secondary)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(selectedStudentsList, id: \.id) { student in
+                        Button {
+                            if studentsToMove.contains(student.id) {
+                                studentsToMove.remove(student.id)
+                            } else {
+                                studentsToMove.insert(student.id)
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: studentsToMove.contains(student.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(studentsToMove.contains(student.id) ? Color.orange : Color.secondary)
+                                    .font(.system(size: 20))
+                                
+                                Text(displayName(for: student))
+                                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(studentsToMove.contains(student.id) ? Color.orange.opacity(0.1) : Color.clear)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(24)
+            
+            Spacer()
+            
+            // Footer
+            VStack(spacing: 0) {
+                Divider()
+                HStack {
+                    Button("Cancel") {
+                        studentsToMove = []
+                        showingMoveStudentsSheet = false
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        moveStudentsToNewLesson()
+                        showingMoveStudentsSheet = false
+                    } label: {
+                        Label("Move \(studentsToMove.count) Student\(studentsToMove.count == 1 ? "" : "s")", systemImage: "arrow.right.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(studentsToMove.isEmpty || studentsToMove.count == selectedStudentIDs.count)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.bar)
+            }
+        }
+        .frame(minWidth: 400, minHeight: 450)
+    }
+    
+    private var movedBanner: some View {
+        VStack(spacing: 4) {
+            Text("Students moved to new lesson")
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            if !movedStudentNames.isEmpty {
+                Text(movedStudentNames.joined(separator: ", "))
+                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.orange.opacity(0.95))
+        )
+        .foregroundColor(.white)
+        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+        .padding(.top, 8)
     }
     
     private var studentPickerPopover: some View {
