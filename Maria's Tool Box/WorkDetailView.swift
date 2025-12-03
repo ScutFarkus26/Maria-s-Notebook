@@ -12,13 +12,11 @@ struct WorkDetailView: View {
     @Query private var studentLessons: [StudentLesson]
 
     @StateObject private var vm: WorkDetailViewModel
-
-    @State private var newCheckInDate: Date = Date()
-    @State private var newCheckInPurpose: String = ""
-    @State private var newCheckInNote: String = ""
     
-    // 1) Add new state for editing check-in drafts:
-    @State private var editingCheckInDraft: WorkDetailViewModel.CheckInDraft? = nil
+    @State private var checkInDate: Date = Date()
+    @State private var checkInPurpose: String = ""
+    @State private var editingCheckInNote: WorkCheckIn? = nil
+    @State private var noteText: String = ""
 
     let work: WorkModel
     var onDone: (() -> Void)? = nil
@@ -136,10 +134,13 @@ struct WorkDetailView: View {
                     // 6) Notes
                     NotesSection(notes: $vm.notes, separatorStrokeColor: separatorStrokeColor)
 
-                    // 7) Check-Ins input box
-                    checkInsSection
+                    // 7) Scheduled Check-Ins List
+                    scheduledCheckInsSection
 
-                    // 8) Created / meta row retained for context
+                    // 8) Schedule New Check-In
+                    checkInSection
+
+                    // 9) Created / meta row retained for context
                     metaRow
                 }
                 .padding(.horizontal, 16)
@@ -214,44 +215,61 @@ struct WorkDetailView: View {
                 showingStudentPickerPopover = false
             }
         }
-        // 4) Add sheet to edit a check-in draft:
-        .sheet(item: $editingCheckInDraft) { draft in
+        .sheet(item: $editingCheckInNote) { checkIn in
             VStack(alignment: .leading, spacing: 16) {
-                Text("Edit Check-In")
+                Text("Add Note")
                     .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-
-                HStack(spacing: 12) {
-                    DatePicker("Date", selection: .init(get: { draft.date }, set: { editingCheckInDraft?.date = $0 }), displayedComponents: [.date, .hourAndMinute])
-#if os(macOS)
-                    .datePickerStyle(.field)
-#endif
-                    Picker("Status", selection: .init(get: { draft.status }, set: { editingCheckInDraft?.status = $0 })) {
-                        ForEach(WorkCheckInStatus.allCases, id: \.self) { s in
-                            Text(s.rawValue).tag(s)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text(checkIn.date.formatted(date: .abbreviated, time: .omitted))
+                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        
+                        let purposeText = checkIn.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !purposeText.isEmpty {
+                            Text("|")
+                                .foregroundStyle(.secondary)
+                            Text(purposeText)
+                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
                         }
                     }
-                    .pickerStyle(.menu)
-                    TextField("Purpose", text: .init(get: { draft.purpose }, set: { editingCheckInDraft?.purpose = $0 }))
-                        .textFieldStyle(.roundedBorder)
+                    .foregroundStyle(.secondary)
                 }
-
-                TextField("Notes (optional)", text: .init(get: { draft.note }, set: { editingCheckInDraft?.note = $0 }))
-                    .textFieldStyle(.roundedBorder)
-
+                
+                Divider()
+                
+#if os(macOS)
+                TextEditor(text: $noteText)
+                    .font(.system(size: AppTheme.FontSize.body))
+                    .frame(minHeight: 120)
+                    .border(Color.primary.opacity(0.2), width: 1)
+#else
+                TextEditor(text: $noteText)
+                    .font(.system(size: AppTheme.FontSize.body))
+                    .frame(minHeight: 120)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(uiColor: .secondarySystemBackground))
+                    .cornerRadius(8)
+#endif
+                
                 HStack {
                     Spacer()
-                    Button("Cancel") { editingCheckInDraft = nil }
+                    Button("Cancel") {
+                        editingCheckInNote = nil
+                        noteText = ""
+                    }
                     Button("Save") {
-                        if var updated = editingCheckInDraft { vm.updateCheckInDraft(updated) }
-                        editingCheckInDraft = nil
+                        vm.updateCheckInNote(checkIn.id, note: noteText)
+                        editingCheckInNote = nil
+                        noteText = ""
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                 }
             }
-            .padding(16)
+            .padding(20)
 #if os(macOS)
-            .frame(minWidth: 480, minHeight: 260)
+            .frame(minWidth: 440, minHeight: 320)
             .presentationSizing(.fitted)
 #else
             .presentationDetents([.medium, .large])
@@ -265,7 +283,6 @@ struct WorkDetailView: View {
     @State private var showingLinkedLessonDetails = false
     @State private var showingBaseLessonDetails = false
 
-    // 2) Replace perStudentCompletionSection with staged toggles:
     private var perStudentCompletionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             WorkSectionHeader(icon: "person.2", title: "Per-Student Completion")
@@ -287,95 +304,127 @@ struct WorkDetailView: View {
         }
     }
 
-    // 3) Update checkInsSection with Edit action and use staged API calls:
-    private var checkInsSection: some View {
+    private var checkInSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            WorkSectionHeader(icon: "calendar.badge.clock", title: "Check-Ins")
-
-            // Input controls
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 12) {
-                    DatePicker("Date", selection: $newCheckInDate, displayedComponents: [.date, .hourAndMinute])
-#if os(macOS)
-                        .datePickerStyle(.field)
-#endif
-                    TextField("Purpose", text: $newCheckInPurpose)
-                        .textFieldStyle(.roundedBorder)
-                }
-                TextField("Notes (optional)", text: $newCheckInNote)
+            WorkSectionHeader(icon: "calendar.badge.clock", title: "Schedule Check-In")
+            
+            VStack(alignment: .leading, spacing: 12) {
+                DatePicker("Date", selection: $checkInDate, displayedComponents: [.date])
+                    .datePickerStyle(.graphical)
+                
+                TextField("Purpose (optional)", text: $checkInPurpose)
                     .textFieldStyle(.roundedBorder)
-                HStack {
-                    Button {
-                        vm.addCheckInDraft(date: newCheckInDate, purpose: newCheckInPurpose, note: newCheckInNote, modelContext: modelContext)
-                        newCheckInNote = ""
-                        newCheckInPurpose = ""
-                    } label: {
-                        Label("Add Check-In", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    Spacer()
+                
+                Button {
+                    vm.addCheckInDraft(date: checkInDate, purpose: checkInPurpose, note: "", modelContext: modelContext)
+                    checkInPurpose = ""
+                    checkInDate = Date()
+                } label: {
+                    Label("Schedule Check-In", systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
             }
-
-            // Existing check-ins list
-            let items = vm.checkIns.sorted(by: { $0.date > $1.date })
-            if !items.isEmpty {
+        }
+    }
+    
+    private var scheduledCheckInsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            WorkSectionHeader(icon: "checklist", title: "Scheduled Check-Ins")
+            
+            let scheduledCheckIns = vm.checkIns.sorted(by: { $0.date < $1.date })
+            
+            if scheduledCheckIns.isEmpty {
+                Text("No check-ins scheduled yet.")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: AppTheme.FontSize.body))
+                    .italic()
+            } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(items, id: \.id) { ci in
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Image(systemName: ci.status == .completed ? "checkmark.circle.fill" : (ci.status == .skipped ? "xmark.circle.fill" : "clock"))
-                                .foregroundStyle(ci.status == .completed ? .green : (ci.status == .skipped ? .red : .orange))
+                    ForEach(scheduledCheckIns, id: \.id) { checkIn in
+                        HStack(alignment: .top, spacing: 10) {
+                            // Status icon
+                            Image(systemName: checkIn.status == .completed ? "checkmark.circle.fill" : (checkIn.status == .skipped ? "xmark.circle.fill" : "clock"))
+                                .foregroundStyle(checkIn.status == .completed ? .green : (checkIn.status == .skipped ? .red : .orange))
+                                .font(.system(size: 18))
+                            
                             VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 8) {
-                                    Text(ci.date.formatted(date: .abbreviated, time: .shortened))
+                                HStack(spacing: 6) {
+                                    Text(checkIn.date.formatted(date: .abbreviated, time: .omitted))
                                         .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                                    let purposeText = ci.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    
+                                    let purposeText = checkIn.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
                                     if !purposeText.isEmpty {
-                                        Text("•")
+                                        Text("|")
                                             .foregroundStyle(.secondary)
                                         Text(purposeText)
-                                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
                                     }
                                 }
-                                if !ci.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Text(ci.note)
-                                        .font(.system(size: AppTheme.FontSize.caption))
-                                        .foregroundStyle(.secondary)
+                                
+                                if !checkIn.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                        Text("Notes:")
+                                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                        Text(checkIn.note)
+                                            .font(.system(size: AppTheme.FontSize.caption))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.top, 2)
                                 }
                             }
+                            
                             Spacer()
+                            
                             Menu {
                                 Button {
-                                    editingCheckInDraft = WorkDetailViewModel.CheckInDraft(id: ci.id, date: ci.date, status: ci.status, purpose: ci.purpose, note: ci.note)
-                                } label: { Label("Edit…", systemImage: "pencil") }
+                                    noteText = checkIn.note
+                                    editingCheckInNote = checkIn
+                                } label: {
+                                    Label("Add/Edit Note", systemImage: "note.text")
+                                }
+                                
                                 Divider()
+                                
                                 Button {
-                                    vm.setCheckInDraftStatus(ci.id, to: .completed)
-                                } label: { Label("Mark Completed", systemImage: "checkmark.circle") }
+                                    vm.setCheckInDraftStatus(checkIn.id, to: .completed)
+                                } label: {
+                                    Label("Mark Completed", systemImage: "checkmark.circle")
+                                }
+                                
                                 Button {
-                                    vm.setCheckInDraftStatus(ci.id, to: .scheduled)
-                                } label: { Label("Mark Scheduled", systemImage: "clock") }
+                                    vm.setCheckInDraftStatus(checkIn.id, to: .scheduled)
+                                } label: {
+                                    Label("Mark Scheduled", systemImage: "clock")
+                                }
+                                
                                 Button {
-                                    vm.setCheckInDraftStatus(ci.id, to: .skipped)
-                                } label: { Label("Mark Skipped", systemImage: "xmark.circle") }
+                                    vm.setCheckInDraftStatus(checkIn.id, to: .skipped)
+                                } label: {
+                                    Label("Mark Skipped", systemImage: "xmark.circle")
+                                }
+                                
                                 Divider()
+                                
                                 Button(role: .destructive) {
-                                    vm.deleteCheckInDraft(ci)
-                                } label: { Label("Delete", systemImage: "trash") }
+                                    vm.deleteCheckInDraft(checkIn, modelContext: modelContext)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             } label: {
                                 Image(systemName: "ellipsis.circle")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(8)
+                        .padding(10)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .fill(Color.primary.opacity(0.04))
                         )
                     }
                 }
-            } else {
-                Text("No check-ins yet.")
-                    .foregroundStyle(.secondary)
             }
         }
     }

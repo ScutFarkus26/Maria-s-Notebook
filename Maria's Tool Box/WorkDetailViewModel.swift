@@ -73,35 +73,31 @@ final class WorkDetailViewModel: ObservableObject {
         }
     }
 
-    func addCheckInDraft(date: Date, purpose: String, note: String, modelContext: ModelContext? = nil) {
+    func addCheckInDraft(date: Date, purpose: String, note: String, modelContext: ModelContext) {
         let trimmedPurpose = purpose.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         let ci = WorkCheckIn(workID: work.id, date: date, status: .scheduled, purpose: trimmedPurpose, note: trimmedNote, work: work)
         checkIns.append(ci)
         work.checkIns.append(ci)
-        modelContext?.insert(ci)
-        do {
-            try modelContext?.save()
-        } catch { }
+        modelContext.insert(ci)
     }
 
-    func setCheckInDraftStatus(_ id: UUID, to status: WorkCheckInStatus, modelContext: ModelContext? = nil) {
+    func setCheckInDraftStatus(_ id: UUID, to status: WorkCheckInStatus) {
         guard let index = checkIns.firstIndex(where: { $0.id == id }) else { return }
         checkIns[index].status = status
-        do {
-            try modelContext?.save()
-        } catch { }
+    }
+    
+    func updateCheckInNote(_ id: UUID, note: String) {
+        guard let index = checkIns.firstIndex(where: { $0.id == id }) else { return }
+        checkIns[index].note = note.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    func deleteCheckInDraft(_ ci: WorkCheckIn, modelContext: ModelContext? = nil) {
+    func deleteCheckInDraft(_ ci: WorkCheckIn, modelContext: ModelContext) {
         if let idx = checkIns.firstIndex(where: { $0.id == ci.id }) {
             checkIns.remove(at: idx)
         }
         work.checkIns.removeAll(where: { $0.id == ci.id })
-        modelContext?.delete(ci)
-        do {
-            try modelContext?.save()
-        } catch { }
+        modelContext.delete(ci)
     }
 
     var subject: String {
