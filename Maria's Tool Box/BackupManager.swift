@@ -165,7 +165,7 @@ struct WorkDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 9
+    static let currentVersion: Int = 10
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {

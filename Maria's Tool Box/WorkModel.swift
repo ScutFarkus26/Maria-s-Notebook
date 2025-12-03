@@ -18,6 +18,7 @@ import SwiftData
     var createdAt: Date
     var completedAt: Date?
     @Relationship(inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity] = []
+    @Relationship(inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn] = []
 
     init(
         id: UUID = UUID(),
