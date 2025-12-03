@@ -28,6 +28,7 @@
 		516526AD2EE0981800BB0C76 /* LessonsReorderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526AC2EE0981800BB0C76 /* LessonsReorderService.swift */; };
 		516526AF2EE0987300BB0C76 /* LessonsFilterState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526AE2EE0987300BB0C76 /* LessonsFilterState.swift */; };
 		516526B12EE0A0D900BB0C76 /* LessonsDragDropDelegates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526B02EE0A0D900BB0C76 /* LessonsDragDropDelegates.swift */; };
+		516526B52EE0A8F700BB0C76 /* WorkDetailViewModel 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526B42EE0A8F700BB0C76 /* WorkDetailViewModel 2.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +54,7 @@
 		516526AC2EE0981800BB0C76 /* LessonsReorderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsReorderService.swift; sourceTree = "<group>"; };
 		516526AE2EE0987300BB0C76 /* LessonsFilterState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsFilterState.swift; sourceTree = "<group>"; };
 		516526B02EE0A0D900BB0C76 /* LessonsDragDropDelegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsDragDropDelegates.swift; sourceTree = "<group>"; };
+		516526B42EE0A8F700BB0C76 /* WorkDetailViewModel 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkDetailViewModel 2.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -113,6 +115,7 @@
 				516526AC2EE0981800BB0C76 /* LessonsReorderService.swift */,
 				516526AE2EE0987300BB0C76 /* LessonsFilterState.swift */,
 				516526B02EE0A0D900BB0C76 /* LessonsDragDropDelegates.swift */,
+				516526B42EE0A8F700BB0C76 /* WorkDetailViewModel 2.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -205,6 +208,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				516526B52EE0A8F700BB0C76 /* WorkDetailViewModel 2.swift in Sources */,
 				516526A92EE0976B00BB0C76 /* ImportCommitService.swift in Sources */,
 				516526AB2EE0981400BB0C76 /* LessonsFilterPersistence.swift in Sources */,
 				516526A72EE08E7C00BB0C76 /* StudentsImportCoordinator.swift in Sources */,

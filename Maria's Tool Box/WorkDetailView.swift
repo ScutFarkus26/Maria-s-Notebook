@@ -24,6 +24,7 @@ struct WorkDetailView: View {
     @State private var showingStudentPickerPopover = false
     @State private var showingLinkedLessonDetails = false
     @State private var showingBaseLessonDetails = false
+    @State private var showingCreateStudentLesson = false
 
     // MARK: - Properties
     let work: WorkModel
@@ -113,6 +114,18 @@ struct WorkDetailView: View {
         }
         .sheet(isPresented: $showingLinkedLessonDetails) { linkedLessonSheet }
         .sheet(isPresented: $showingBaseLessonDetails) { baseLessonSheet }
+        .sheet(isPresented: $showingCreateStudentLesson) {
+            GiveLessonSheet(lesson: nil, preselectedStudentIDs: Array(vm.selectedStudentIDs)) {
+                showingCreateStudentLesson = false
+            }
+            #if os(macOS)
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+        }
         .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
             StudentPickerPopover(students: studentsAll, selectedIDs: $vm.selectedStudentIDs) {
                 showingStudentPickerPopover = false
@@ -166,7 +179,9 @@ struct WorkDetailView: View {
             selectedStudentLessonID: $vm.selectedStudentLessonID,
             createdDateOnlyFormatter: Self.createdDateOnlyFormatter,
             onOpenLinkedDetails: { showingLinkedLessonDetails = true },
-            onOpenBaseLesson: { showingBaseLessonDetails = true }
+            onOpenBaseLesson: { showingBaseLessonDetails = true },
+            selectedStudentIDs: vm.selectedStudentIDs,
+            onCreateNewStudentLesson: { showingCreateStudentLesson = true }
         )
     }
     
