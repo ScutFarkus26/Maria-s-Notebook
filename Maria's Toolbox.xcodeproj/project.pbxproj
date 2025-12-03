@@ -31,6 +31,11 @@
 		51DC1DBD2EDD40D400F54E19 /* MarkCompletionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DBC2EDD40D400F54E19 /* MarkCompletionButton.swift */; };
 		51DC1DBF2EDD40DC00F54E19 /* PerStudentCompletionList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DBE2EDD40DC00F54E19 /* PerStudentCompletionList.swift */; };
 		51DC1DC12EDD40E000F54E19 /* WorkModel+BulkCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51DC1DC02EDD40E000F54E19 /* WorkModel+BulkCompletion.swift */; };
+		51EE93222EDFC188003AB672 /* StudentsChipsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EE93212EDFC188003AB672 /* StudentsChipsRow.swift */; };
+		51EE93242EDFC18A003AB672 /* WorkTypePickerSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EE93232EDFC18A003AB672 /* WorkTypePickerSection.swift */; };
+		51EE93262EDFC18D003AB672 /* LinkedLessonSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EE93252EDFC18D003AB672 /* LinkedLessonSection.swift */; };
+		51EE93282EDFC18F003AB672 /* NotesSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EE93272EDFC18F003AB672 /* NotesSection.swift */; };
+		51EE932A2EDFC234003AB672 /* WorkSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EE93292EDFC234003AB672 /* WorkSectionHeader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,6 +64,11 @@
 		51DC1DBC2EDD40D400F54E19 /* MarkCompletionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkCompletionButton.swift; sourceTree = "<group>"; };
 		51DC1DBE2EDD40DC00F54E19 /* PerStudentCompletionList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerStudentCompletionList.swift; sourceTree = "<group>"; };
 		51DC1DC02EDD40E000F54E19 /* WorkModel+BulkCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkModel+BulkCompletion.swift"; sourceTree = "<group>"; };
+		51EE93212EDFC188003AB672 /* StudentsChipsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsChipsRow.swift; sourceTree = "<group>"; };
+		51EE93232EDFC18A003AB672 /* WorkTypePickerSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkTypePickerSection.swift; sourceTree = "<group>"; };
+		51EE93252EDFC18D003AB672 /* LinkedLessonSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkedLessonSection.swift; sourceTree = "<group>"; };
+		51EE93272EDFC18F003AB672 /* NotesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesSection.swift; sourceTree = "<group>"; };
+		51EE93292EDFC234003AB672 /* WorkSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkSectionHeader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -122,6 +132,11 @@
 				51081A1A2EDF95E50000BE47 /* WorkView+MacCompactStub.swift */,
 				51081A1E2EDFAAC50000BE47 /* WorkCheckInBadge.swift */,
 				511208602EDFBD020020738D /* WorkDetailViewModel.swift */,
+				51EE93212EDFC188003AB672 /* StudentsChipsRow.swift */,
+				51EE93232EDFC18A003AB672 /* WorkTypePickerSection.swift */,
+				51EE93252EDFC18D003AB672 /* LinkedLessonSection.swift */,
+				51EE93272EDFC18F003AB672 /* NotesSection.swift */,
+				51EE93292EDFC234003AB672 /* WorkSectionHeader.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -208,9 +223,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				5108198C2EDE93050000BE47 /* PillButton.swift in Sources */,
+				51EE93222EDFC188003AB672 /* StudentsChipsRow.swift in Sources */,
+				51EE93262EDFC18D003AB672 /* LinkedLessonSection.swift in Sources */,
+				51EE93242EDFC18A003AB672 /* WorkTypePickerSection.swift in Sources */,
+				51EE93282EDFC18F003AB672 /* NotesSection.swift in Sources */,
 				51DC1DBB2EDD400400F54E19 /* WorkCompletionBackfill.swift in Sources */,
 				510819A02EDEAD320000BE47 /* NextLessonsSection.swift in Sources */,
 				51DC1DBD2EDD40D400F54E19 /* MarkCompletionButton.swift in Sources */,
+				51EE932A2EDFC234003AB672 /* WorkSectionHeader.swift in Sources */,
 				51DC1DB52EDD3E8700F54E19 /* WorkModel+Completion.swift in Sources */,
 				51DC1DC12EDD40E000F54E19 /* WorkModel+BulkCompletion.swift in Sources */,
 				511208612EDFBD020020738D /* WorkDetailViewModel.swift in Sources */,

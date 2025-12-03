@@ -1,3 +1,10 @@
+#if false
+// Temporarily excluded from build to resolve duplicate stringsdata output for 'WorkDetailViewModel'.
+// This alternate implementation 'WorkDetailVM' is parked to avoid the error:
+// "Multiple commands produce ... WorkDetailViewModel.stringsdata".
+// To re-enable, either rename this file so it does not start with 'WorkDetailViewModel' (e.g., 'WorkDetailVM.swift')
+// or remove/rename the other conflicting file. Then remove this #if false/#endif guard.
+
 import SwiftUI
 import SwiftData
 import Foundation
@@ -175,3 +182,5 @@ final class WorkDetailVM: ObservableObject {
         try? modelContext.save()
     }
 }
+
+#endif

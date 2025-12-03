@@ -2,28 +2,6 @@ import SwiftUI
 import SwiftData
 import Combine
 
-fileprivate struct WorkSectionHeader: View {
-    let icon: String
-    let title: String
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .foregroundStyle(.secondary)
-            Text(title)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 0)
-        }
-        .padding(.top, 4)
-        .padding(.bottom, 6)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.primary.opacity(0.08))
-                .frame(height: 1)
-        }
-    }
-}
-
 private extension WorkModel.WorkType {
     var title: String { self.rawValue }
     var color: Color {
@@ -179,6 +157,29 @@ final class WorkDetailViewModel: ObservableObject {
             // Handle save error if needed
         }
     }
+    
+    // Added for phase 3 editing of check-in drafts:
+    struct CheckInDraft: Identifiable, Equatable {
+        var id: UUID
+        var date: Date
+        var status: WorkCheckInStatus
+        var purpose: String
+        var note: String
+    }
+    
+    func updateCheckInDraft(_ draft: CheckInDraft) {
+        guard let idx = checkIns.firstIndex(where: { $0.id == draft.id }) else { return }
+        checkIns[idx].date = draft.date
+        checkIns[idx].status = draft.status
+        checkIns[idx].purpose = draft.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+        checkIns[idx].note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    var checkInDrafts: [CheckInDraft] {
+        checkIns.map { ci in
+            CheckInDraft(id: ci.id, date: ci.date, status: ci.status, purpose: ci.purpose, note: ci.note)
+        }
+    }
 }
 
 struct WorkDetailView: View {
@@ -193,6 +194,9 @@ struct WorkDetailView: View {
     @State private var newCheckInDate: Date = Date()
     @State private var newCheckInPurpose: String = ""
     @State private var newCheckInNote: String = ""
+    
+    // 1) Add new state for editing check-in drafts:
+    @State private var editingCheckInDraft: WorkDetailViewModel.CheckInDraft? = nil
 
     let work: WorkModel
     var onDone: (() -> Void)? = nil
@@ -274,17 +278,33 @@ struct WorkDetailView: View {
                         .padding(.top, 14)
 
                     // 2) Students directly under title
-                    studentsChipsRow
+                    StudentsChipsRow(students: studentsAll, selectedIDs: $vm.selectedStudentIDs, subjectColor: subjectColor) {
+                        showingStudentPickerPopover = true
+                    }
 
                     // 3) Linked Lesson next, with 4) Work Type beside if space allows
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .top, spacing: 16) {
-                            linkedLessonSection
-                            workTypeSection
+                            LinkedLessonSection(
+                                lessonsByID: vm.lessonsByID,
+                                studentLessonSnapshotsByID: vm.studentLessonSnapshotsByID,
+                                selectedStudentLessonID: $vm.selectedStudentLessonID,
+                                createdDateOnlyFormatter: Self.createdDateOnlyFormatter,
+                                onOpenLinkedDetails: { showingLinkedLessonDetails = true },
+                                onOpenBaseLesson: { showingBaseLessonDetails = true }
+                            )
+                            WorkTypePickerSection(workType: $vm.workType)
                         }
                         VStack(alignment: .leading, spacing: 16) {
-                            linkedLessonSection
-                            workTypeSection
+                            LinkedLessonSection(
+                                lessonsByID: vm.lessonsByID,
+                                studentLessonSnapshotsByID: vm.studentLessonSnapshotsByID,
+                                selectedStudentLessonID: $vm.selectedStudentLessonID,
+                                createdDateOnlyFormatter: Self.createdDateOnlyFormatter,
+                                onOpenLinkedDetails: { showingLinkedLessonDetails = true },
+                                onOpenBaseLesson: { showingBaseLessonDetails = true }
+                            )
+                            WorkTypePickerSection(workType: $vm.workType)
                         }
                     }
 
@@ -292,7 +312,7 @@ struct WorkDetailView: View {
                     perStudentCompletionSection
 
                     // 6) Notes
-                    notesSection
+                    NotesSection(notes: $vm.notes, separatorStrokeColor: separatorStrokeColor)
 
                     // 7) Check-Ins input box
                     checkInsSection
@@ -372,6 +392,50 @@ struct WorkDetailView: View {
                 showingStudentPickerPopover = false
             }
         }
+        // 4) Add sheet to edit a check-in draft:
+        .sheet(item: $editingCheckInDraft) { draft in
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Edit Check-In")
+                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+
+                HStack(spacing: 12) {
+                    DatePicker("Date", selection: .init(get: { draft.date }, set: { editingCheckInDraft?.date = $0 }), displayedComponents: [.date, .hourAndMinute])
+#if os(macOS)
+                    .datePickerStyle(.field)
+#endif
+                    Picker("Status", selection: .init(get: { draft.status }, set: { editingCheckInDraft?.status = $0 })) {
+                        ForEach(WorkCheckInStatus.allCases, id: \.self) { s in
+                            Text(s.rawValue).tag(s)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    TextField("Purpose", text: .init(get: { draft.purpose }, set: { editingCheckInDraft?.purpose = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                TextField("Notes (optional)", text: .init(get: { draft.note }, set: { editingCheckInDraft?.note = $0 }))
+                    .textFieldStyle(.roundedBorder)
+
+                HStack {
+                    Spacer()
+                    Button("Cancel") { editingCheckInDraft = nil }
+                    Button("Save") {
+                        if var updated = editingCheckInDraft { vm.updateCheckInDraft(updated) }
+                        editingCheckInDraft = nil
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(16)
+#if os(macOS)
+            .frame(minWidth: 480, minHeight: 260)
+            .presentationSizing(.fitted)
+#else
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+#endif
+        }
     }
 
     @State private var showDeleteAlert = false
@@ -379,91 +443,7 @@ struct WorkDetailView: View {
     @State private var showingLinkedLessonDetails = false
     @State private var showingBaseLessonDetails = false
 
-    private var studentsChipsRow: some View {
-        HStack(alignment: .center, spacing: 8) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(selectedStudentsList, id: \.id) { student in
-                        HStack(spacing: 6) {
-                            Text(displayName(for: student))
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                            Button {
-                                vm.selectedStudentIDs.remove(student.id)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 12, weight: .semibold))
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(subjectColor)
-                            .accessibilityLabel("Remove \(displayName(for: student))")
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .foregroundColor(subjectColor)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(subjectColor.opacity(0.15))
-                        )
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-
-            Spacer(minLength: 0)
-
-            Button { showingStudentPickerPopover = true } label: {
-                Label("Manage Students", systemImage: "person.2.badge.plus")
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
-    private var linkedLessonSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            WorkSectionHeader(icon: "link", title: "Linked Lesson")
-
-            if let slID = vm.selectedStudentLessonID, let snap = vm.studentLessonSnapshotsByID[slID] {
-                let lessonName = vm.lessonsByID[snap.lessonID]?.name ?? "Lesson"
-                let date = snap.scheduledFor ?? snap.givenAt ?? snap.createdAt
-                let label = "\(lessonName) • \(Self.createdDateOnlyFormatter.string(from: date))"
-                HStack(spacing: 10) {
-                    Button {
-                        showingLinkedLessonDetails = true
-                    } label: {
-                        Label(label, systemImage: "link")
-                    }
-                    .buttonStyle(.bordered)
-
-                    if vm.lessonsByID[snap.lessonID] != nil {
-                        Button {
-                            showingBaseLessonDetails = true
-                        } label: {
-                            Label("Edit Lesson…", systemImage: "pencil")
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                    Spacer(minLength: 0)
-                }
-            } else {
-                Text("None")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var workTypeSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            WorkSectionHeader(icon: "square.grid.2x2", title: "Work Type")
-            Picker("Work Type", selection: $vm.workType) {
-                ForEach(WorkModel.WorkType.allCases, id: \.self) { type in
-                    Text(type.title).tag(type)
-                }
-            }
-            .pickerStyle(.segmented)
-        }
-    }
-
+    // 2) Replace perStudentCompletionSection with staged toggles:
     private var perStudentCompletionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             WorkSectionHeader(icon: "person.2", title: "Per-Student Completion")
@@ -485,67 +465,7 @@ struct WorkDetailView: View {
         }
     }
 
-    private var notesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            WorkSectionHeader(icon: "note.text", title: "Notes")
-            TextEditor(text: $vm.notes)
-                .frame(minHeight: 100)
-                .padding(6)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(separatorStrokeColor, lineWidth: 1)
-                )
-        }
-    }
-
-    private var bottomBar: some View {
-        HStack {
-            Button(role: .destructive) {
-                showDeleteAlert = true
-            } label: {
-                Label("Delete", systemImage: "trash")
-                    .font(.system(size: AppTheme.FontSize.caption))
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                if let onDone = onDone {
-                    onDone()
-                } else {
-                    dismiss()
-                }
-            }
-            .font(.system(size: AppTheme.FontSize.caption))
-
-            Button("Save") {
-                vm.save(modelContext: modelContext) {
-                    if let onDone = onDone {
-                        onDone()
-                    } else {
-                        dismiss()
-                    }
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .font(.system(size: AppTheme.FontSize.caption))
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.vertical, 8)
-    }
-
-    private var metaRow: some View {
-        HStack(spacing: 8) {
-            Text("Created:")
-                .font(.system(size: AppTheme.FontSize.caption))
-                .foregroundColor(.secondary)
-            Text(Self.createdDateTimeFormatter.string(from: work.createdAt))
-                .font(.system(size: AppTheme.FontSize.caption))
-                .foregroundColor(.primary)
-            Spacer()
-        }
-    }
-
+    // 3) Update checkInsSection with Edit action and use staged API calls:
     private var checkInsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             WorkSectionHeader(icon: "calendar.badge.clock", title: "Check-Ins")
@@ -604,17 +524,21 @@ struct WorkDetailView: View {
                             Spacer()
                             Menu {
                                 Button {
-                                    vm.setCheckInDraftStatus(ci.id, to: .completed, modelContext: modelContext)
+                                    editingCheckInDraft = WorkDetailViewModel.CheckInDraft(id: ci.id, date: ci.date, status: ci.status, purpose: ci.purpose, note: ci.note)
+                                } label: { Label("Edit…", systemImage: "pencil") }
+                                Divider()
+                                Button {
+                                    vm.setCheckInDraftStatus(ci.id, to: .completed)
                                 } label: { Label("Mark Completed", systemImage: "checkmark.circle") }
                                 Button {
-                                    vm.setCheckInDraftStatus(ci.id, to: .scheduled, modelContext: modelContext)
+                                    vm.setCheckInDraftStatus(ci.id, to: .scheduled)
                                 } label: { Label("Mark Scheduled", systemImage: "clock") }
                                 Button {
-                                    vm.setCheckInDraftStatus(ci.id, to: .skipped, modelContext: modelContext)
+                                    vm.setCheckInDraftStatus(ci.id, to: .skipped)
                                 } label: { Label("Mark Skipped", systemImage: "xmark.circle") }
                                 Divider()
                                 Button(role: .destructive) {
-                                    vm.deleteCheckInDraft(ci, modelContext: modelContext)
+                                    vm.deleteCheckInDraft(ci)
                                 } label: { Label("Delete", systemImage: "trash") }
                             } label: {
                                 Image(systemName: "ellipsis.circle")
@@ -633,4 +557,53 @@ struct WorkDetailView: View {
             }
         }
     }
+
+    private var bottomBar: some View {
+        HStack {
+            Button(role: .destructive) {
+                showDeleteAlert = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+                    .font(.system(size: AppTheme.FontSize.caption))
+            }
+
+            Spacer()
+
+            Button("Cancel") {
+                if let onDone = onDone {
+                    onDone()
+                } else {
+                    dismiss()
+                }
+            }
+            .font(.system(size: AppTheme.FontSize.caption))
+
+            Button("Save") {
+                vm.save(modelContext: modelContext) {
+                    if let onDone = onDone {
+                        onDone()
+                    } else {
+                        dismiss()
+                    }
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .font(.system(size: AppTheme.FontSize.caption))
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding(.vertical, 8)
+    }
+
+    private var metaRow: some View {
+        HStack(spacing: 8) {
+            Text("Created:")
+                .font(.system(size: AppTheme.FontSize.caption))
+                .foregroundColor(.secondary)
+            Text(Self.createdDateTimeFormatter.string(from: work.createdAt))
+                .font(.system(size: AppTheme.FontSize.caption))
+                .foregroundColor(.primary)
+            Spacer()
+        }
+    }
 }
+
