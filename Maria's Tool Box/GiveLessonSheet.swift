@@ -54,7 +54,7 @@ struct GiveLessonSheet: View {
     
     @State private var saveAlert: (title: String, message: String)? = nil
 
-    private enum LevelFilter: String, CaseIterable {
+    fileprivate enum LevelFilter: String, CaseIterable {
         case all = "All"
         case lower = "Lower"
         case upper = "Upper"
@@ -173,26 +173,12 @@ struct GiveLessonSheet: View {
                         Text("Students")
                             .font(.headline)
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(selectedStudentsList, id: \.id) { (student: Student) in
-                                    HStack(spacing: 4) {
-                                        Text(displayName(for: student))
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(subjectColor.opacity(0.2))
-                                            .foregroundColor(subjectColor)
-                                            .clipShape(Capsule())
-                                        Button {
-                                            selectedStudentIDs.remove(student.id)
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(subjectColor)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .padding(.vertical, 2)
-                                }
-                            }
+                            SelectedStudentsChipsRow(
+                                students: selectedStudentsList,
+                                subjectColor: subjectColor,
+                                displayName: displayName(for:),
+                                onRemove: { id in selectedStudentIDs.remove(id) }
+                            )
                         }
                         Button {
                             showingStudentPickerPopover = true
@@ -200,86 +186,15 @@ struct GiveLessonSheet: View {
                             Text("Add / Remove Students")
                         }
                         .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .bottom) {
-                            VStack(spacing: 12) {
-                                // Search field
-                                HStack(spacing: 6) {
-                                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                                    TextField("Search students", text: $studentSearchText)
-                                        .textFieldStyle(.plain)
-                                    if !studentSearchText.isEmpty {
-                                        Button {
-                                            studentSearchText = ""
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel("Clear search")
-                                    }
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(Color.primary.opacity(0.06))
-                                )
-
-                                // Level filter
-                                Picker("Level", selection: $studentLevelFilter) {
-                                    Text("All").tag(LevelFilter.all)
-                                    Text("Lower").tag(LevelFilter.lower)
-                                    Text("Upper").tag(LevelFilter.upper)
-                                }
-                                .pickerStyle(.segmented)
-
-                                Divider().padding(.top, 2)
-
-                                // List of students with checkmarks
-                                ScrollView {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        ForEach(filteredStudentsForPicker, id: \.id) { (student: Student) in
-                                            Button {
-                                                if selectedStudentIDs.contains(student.id) {
-                                                    selectedStudentIDs.remove(student.id)
-                                                } else {
-                                                    selectedStudentIDs.insert(student.id)
-                                                }
-                                            } label: {
-                                                HStack(spacing: 8) {
-                                                    Image(systemName: selectedStudentIDs.contains(student.id) ? "checkmark.circle.fill" : "circle")
-                                                        .foregroundStyle(selectedStudentIDs.contains(student.id) ? Color.accentColor : Color.secondary)
-                                                    Text(displayName(for: student))
-                                                        .foregroundStyle(.primary)
-                                                    Spacer(minLength: 0)
-                                                }
-                                                .contentShape(Rectangle())
-                                                .padding(.vertical, 6)
-                                                .padding(.horizontal, 6)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(.top, 4)
-                                }
-                                .frame(maxHeight: 280)
-
-                                Divider()
-
-                                HStack {
-                                    Button {
-                                        showingAddStudentSheet = true
-                                    } label: {
-                                        Label("New Student…", systemImage: "plus")
-                                    }
-                                    .buttonStyle(.borderless)
-
-                                    Spacer()
-
-                                    Button("Done") {
-                                        showingStudentPickerPopover = false
-                                    }
-                                    .keyboardShortcut(.defaultAction)
-                                }
-                            }
+                            StudentPickerPopoverContent(
+                                studentSearchText: $studentSearchText,
+                                studentLevelFilter: $studentLevelFilter,
+                                filteredStudents: filteredStudentsForPicker,
+                                selectedStudentIDs: $selectedStudentIDs,
+                                displayName: displayName(for:),
+                                showingAddStudentSheet: $showingAddStudentSheet,
+                                isPresented: $showingStudentPickerPopover
+                            )
                             .padding(12)
                             .frame(minWidth: 320)
                         }
@@ -303,39 +218,17 @@ struct GiveLessonSheet: View {
                         .pickerStyle(.segmented)
 
                         if mode == .plan {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Toggle("Schedule date/time", isOn: Binding(
-                                    get: { scheduledFor != nil },
-                                    set: { newValue in
-                                        scheduledFor = newValue ? (scheduledFor ?? Date()) : nil
-                                    }
-                                ))
-                                if scheduledFor != nil {
-                                    DatePicker("Scheduled For", selection: Binding(get: { scheduledFor ?? Date() }, set: { scheduledFor = $0 }), displayedComponents: [.date, .hourAndMinute])
-                                    #if os(macOS)
-                                    .datePickerStyle(.field)
-                                    #else
-                                    .datePickerStyle(.compact)
-                                    #endif
-                                }
-                            }
+                            OptionalDatePickerRow(
+                                toggleLabel: "Schedule date/time",
+                                dateLabel: "Scheduled For",
+                                date: $scheduledFor
+                            )
                         } else {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Toggle("Include date/time", isOn: Binding(
-                                    get: { givenAt != nil },
-                                    set: { newValue in
-                                        givenAt = newValue ? (givenAt ?? Date()) : nil
-                                    }
-                                ))
-                                if givenAt != nil {
-                                    DatePicker("Given At", selection: Binding(get: { givenAt ?? Date() }, set: { givenAt = $0 }), displayedComponents: [.date, .hourAndMinute])
-                                    #if os(macOS)
-                                    .datePickerStyle(.field)
-                                    #else
-                                    .datePickerStyle(.compact)
-                                    #endif
-                                }
-                            }
+                            OptionalDatePickerRow(
+                                toggleLabel: "Include date/time",
+                                dateLabel: "Given At",
+                                date: $givenAt
+                            )
                         }
                     }
 
@@ -407,82 +300,13 @@ struct GiveLessonSheet: View {
             AddStudentView()
         }
         .sheet(isPresented: $showingLessonSearchSheet) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Search lessons", text: $lessonSearchText)
-                        .textFieldStyle(.plain)
-                    if !lessonSearchText.isEmpty {
-                        Button {
-                            lessonSearchText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Clear search")
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(0.06))
-                )
-                .padding(.horizontal)
-                .padding(.top)
-
-                Divider().padding(.horizontal)
-
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(filteredLessonsForSearch, id: \.id) { (l: Lesson) in
-                            Button {
-                                selectedLessonID = l.id
-                                showingLessonSearchSheet = false
-                            } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(lessonDisplayTitle(for: l))
-                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    if !l.subheading.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                        Text(l.subheading)
-                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal)
-                                .padding(.vertical, 10)
-                            }
-                            .buttonStyle(.plain)
-                            Divider().padding(.leading)
-                        }
-                        if filteredLessonsForSearch.isEmpty {
-                            VStack(spacing: 8) {
-                                Text("No matches")
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                                Text("Try a different search for lesson name, subject, or group.")
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 200)
-                            .padding()
-                        }
-                    }
-                }
-
-                Spacer(minLength: 0)
-
-                HStack {
-                    Spacer()
-                    Button("Done") {
-                        showingLessonSearchSheet = false
-                    }
-                    .keyboardShortcut(.cancelAction)
-                    .padding(.trailing)
-                }
-                .padding(.bottom)
-            }
+            LessonSearchSheetView(
+                lessonSearchText: $lessonSearchText,
+                filteredLessons: filteredLessonsForSearch,
+                lessonDisplayTitle: lessonDisplayTitle(for:),
+                selectedLessonID: $selectedLessonID,
+                isPresented: $showingLessonSearchSheet
+            )
             #if os(macOS)
             .frame(minWidth: 600, minHeight: 520)
             .presentationSizing(.fitted)
@@ -555,6 +379,248 @@ struct GiveLessonSheet: View {
             dismiss()
         } catch {
             saveAlert = (title: "Save Failed", message: error.localizedDescription)
+        }
+    }
+}
+
+private struct OptionalDatePickerRow: View {
+    let toggleLabel: String
+    let dateLabel: String
+    @Binding var date: Date?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(toggleLabel, isOn: Binding(
+                get: { date != nil },
+                set: { newValue in
+                    date = newValue ? (date ?? Date()) : nil
+                }
+            ))
+            if date != nil {
+                DatePicker(
+                    dateLabel,
+                    selection: Binding(
+                        get: { date ?? Date() },
+                        set: { date = $0 }
+                    ),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                #if os(macOS)
+                .datePickerStyle(.field)
+                #else
+                .datePickerStyle(.compact)
+                #endif
+            }
+        }
+    }
+}
+
+private struct SelectedStudentsChipsRow: View {
+    let students: [Student]
+    let subjectColor: Color
+    let displayName: (Student) -> String
+    let onRemove: (UUID) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(students, id: \.id) { student in
+                HStack(spacing: 4) {
+                    Text(displayName(student))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(subjectColor.opacity(0.2))
+                        .foregroundColor(subjectColor)
+                        .clipShape(Capsule())
+                    Button {
+                        onRemove(student.id)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(subjectColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+}
+
+private struct StudentPickerPopoverContent: View {
+    @Binding var studentSearchText: String
+    @Binding var studentLevelFilter: GiveLessonSheet.LevelFilter
+    let filteredStudents: [Student]
+    @Binding var selectedStudentIDs: Set<UUID>
+    let displayName: (Student) -> String
+    @Binding var showingAddStudentSheet: Bool
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // Search field
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search students", text: $studentSearchText)
+                    .textFieldStyle(.plain)
+                if !studentSearchText.isEmpty {
+                    Button {
+                        studentSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+
+            // Level filter
+            Picker("Level", selection: $studentLevelFilter) {
+                Text("All").tag(GiveLessonSheet.LevelFilter.all)
+                Text("Lower").tag(GiveLessonSheet.LevelFilter.lower)
+                Text("Upper").tag(GiveLessonSheet.LevelFilter.upper)
+            }
+            .pickerStyle(.segmented)
+
+            Divider().padding(.top, 2)
+
+            // List of students with checkmarks
+            ScrollView {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(filteredStudents, id: \.id) { student in
+                        Button {
+                            if selectedStudentIDs.contains(student.id) {
+                                selectedStudentIDs.remove(student.id)
+                            } else {
+                                selectedStudentIDs.insert(student.id)
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: selectedStudentIDs.contains(student.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedStudentIDs.contains(student.id) ? Color.accentColor : Color.secondary)
+                                Text(displayName(student))
+                                    .foregroundStyle(.primary)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 4)
+            }
+            .frame(maxHeight: 280)
+
+            Divider()
+
+            HStack {
+                Button {
+                    showingAddStudentSheet = true
+                } label: {
+                    Label("New Student…", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+
+                Spacer()
+
+                Button("Done") {
+                    isPresented = false
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+    }
+}
+
+private struct LessonSearchSheetView: View {
+    @Binding var lessonSearchText: String
+    let filteredLessons: [Lesson]
+    let lessonDisplayTitle: (Lesson) -> String
+    @Binding var selectedLessonID: UUID?
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search lessons", text: $lessonSearchText)
+                    .textFieldStyle(.plain)
+                if !lessonSearchText.isEmpty {
+                    Button {
+                        lessonSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+            .padding(.horizontal)
+            .padding(.top)
+
+            Divider().padding(.horizontal)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(filteredLessons, id: \.id) { l in
+                        Button {
+                            selectedLessonID = l.id
+                            isPresented = false
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(lessonDisplayTitle(l))
+                                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                if !l.subheading.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Text(l.subheading)
+                                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                            .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.plain)
+                        Divider().padding(.leading)
+                    }
+                    if filteredLessons.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No matches")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            Text("Try a different search for lesson name, subject, or group.")
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                        .padding()
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            HStack {
+                Spacer()
+                Button("Done") {
+                    isPresented = false
+                }
+                .keyboardShortcut(.cancelAction)
+                .padding(.trailing)
+            }
+            .padding(.bottom)
         }
     }
 }
