@@ -330,61 +330,12 @@ struct GiveLessonSheet: View {
     }
     
     private func saveStudentLesson() {
-        guard let finalLesson = resolvedLesson else {
-            saveAlert = (title: "Choose a Lesson", message: "Please select a lesson before saving.")
-            return
-        }
-
-        let studentLesson = StudentLesson(
-            lessonID: finalLesson.id,
-            studentIDs: Array(viewModel.selectedStudentIDs),
-            scheduledFor: viewModel.mode == .plan ? viewModel.scheduledFor : nil,
-            givenAt: viewModel.mode == .given ? viewModel.givenAt : nil,
-            isPresented: (viewModel.mode == .given),
-            notes: viewModel.notes,
-            needsPractice: viewModel.needsPractice,
-            needsAnotherPresentation: viewModel.needsAnotherPresentation,
-            followUpWork: viewModel.followUpWork
-        )
-        
-        modelContext.insert(studentLesson)
-        
-        if viewModel.needsPractice {
-            let existingWorks = try? modelContext.fetch(FetchDescriptor<WorkModel>())
-            let hasPractice = (existingWorks ?? []).contains { w in
-                w.studentLessonID == studentLesson.id && w.workType == .practice
-            }
-            if !hasPractice {
-                let practiceWork = WorkModel(
-                    id: UUID(),
-                    studentIDs: Array(viewModel.selectedStudentIDs),
-                    workType: .practice,
-                    studentLessonID: studentLesson.id,
-                    notes: "",
-                    createdAt: Date()
-                )
-                modelContext.insert(practiceWork)
-            }
-        }
-
-        let trimmedFollowUp = viewModel.followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedFollowUp.isEmpty {
-            let followUp = WorkModel(
-                id: UUID(),
-                title: "Follow Up: \(finalLesson.name)",
-                studentIDs: Array(viewModel.selectedStudentIDs),
-                workType: .followUp,
-                studentLessonID: studentLesson.id,
-                notes: trimmedFollowUp,
-                createdAt: Date()
-            )
-            modelContext.insert(followUp)
-        }
-        
         do {
-            try modelContext.save()
+            try viewModel.save(context: modelContext, resolvedLesson: resolvedLesson)
             onDone?()
             dismiss()
+        } catch let error as GiveLessonViewModel.SaveError {
+            saveAlert = (title: error.title, message: error.localizedDescription)
         } catch {
             saveAlert = (title: "Save Failed", message: error.localizedDescription)
         }
@@ -422,6 +373,87 @@ final class GiveLessonViewModel: ObservableObject {
         self.followUpWork = followUpWork
         self.selectedLessonID = selectedLessonID
         self.mode = mode
+    }
+}
+
+extension GiveLessonViewModel {
+    enum SaveError: LocalizedError {
+        case missingLesson
+        case persistFailed(underlying: Error)
+
+        var title: String {
+            switch self {
+            case .missingLesson: return "Choose a Lesson"
+            case .persistFailed: return "Save Failed"
+            }
+        }
+
+        var errorDescription: String? {
+            switch self {
+            case .missingLesson:
+                return "Please select a lesson before saving."
+            case .persistFailed(let underlying):
+                return underlying.localizedDescription
+            }
+        }
+    }
+
+    func save(context: ModelContext, resolvedLesson: Lesson?) throws {
+        guard let finalLesson = resolvedLesson else {
+            throw SaveError.missingLesson
+        }
+
+        let studentLesson = StudentLesson(
+            lessonID: finalLesson.id,
+            studentIDs: Array(selectedStudentIDs),
+            scheduledFor: mode == .plan ? scheduledFor : nil,
+            givenAt: mode == .given ? givenAt : nil,
+            isPresented: (mode == .given),
+            notes: notes,
+            needsPractice: needsPractice,
+            needsAnotherPresentation: needsAnotherPresentation,
+            followUpWork: followUpWork
+        )
+
+        context.insert(studentLesson)
+
+        if needsPractice {
+            let existingWorks = try? context.fetch(FetchDescriptor<WorkModel>())
+            let hasPractice = (existingWorks ?? []).contains { w in
+                w.studentLessonID == studentLesson.id && w.workType == .practice
+            }
+            if !hasPractice {
+                let practiceWork = WorkModel(
+                    id: UUID(),
+                    studentIDs: Array(selectedStudentIDs),
+                    workType: .practice,
+                    studentLessonID: studentLesson.id,
+                    notes: "",
+                    createdAt: Date()
+                )
+                context.insert(practiceWork)
+            }
+        }
+
+        let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedFollowUp.isEmpty {
+            let followUp = WorkModel(
+                id: UUID(),
+                title: "Follow Up: \(finalLesson.name)",
+                studentIDs: Array(selectedStudentIDs),
+                workType: .followUp,
+                studentLessonID: studentLesson.id,
+                notes: trimmedFollowUp,
+                createdAt: Date()
+            )
+            context.insert(followUp)
+        }
+
+        do {
+            try context.save()
+        } catch {
+            throw SaveError.persistFailed(underlying: error)
+        }
     }
 }
 
