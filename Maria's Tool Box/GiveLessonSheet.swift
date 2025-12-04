@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Foundation
+import Combine
 
 struct GiveLessonSheet: View {
     let initialLesson: Lesson?
@@ -10,6 +11,8 @@ struct GiveLessonSheet: View {
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    
+    @StateObject private var viewModel = GiveLessonViewModel()
 
     @Query private var queriedStudents: [Student]
     @Query private var queriedLessons: [Lesson]
@@ -19,20 +22,20 @@ struct GiveLessonSheet: View {
         self.allStudents = allStudents
         self.allLessons = allLessons
         self.onDone = onDone
-        _selectedStudentIDs = State(initialValue: Set(preselectedStudentIDs))
-        _mode = State(initialValue: startGiven ? .given : .plan)
-        _selectedLessonID = State(initialValue: lesson?.id)
+        _viewModel = StateObject(wrappedValue: GiveLessonViewModel(
+            selectedStudentIDs: Set(preselectedStudentIDs),
+            scheduledFor: nil,
+            givenAt: nil,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: "",
+            selectedLessonID: lesson?.id,
+            mode: startGiven ? .given : .plan
+        ))
     }
     
-    @State private var selectedStudentIDs: Set<UUID> = []
-    @State private var scheduledFor: Date? = nil
-    @State private var givenAt: Date? = nil
-    @State private var notes: String = ""
-    @State private var needsPractice: Bool = false
-    @State private var needsAnotherPresentation: Bool = false
-    @State private var followUpWork: String = ""
     @State private var isPresentedFlag: Bool = false
-    @State private var selectedLessonID: UUID? = nil
 
     @State private var sortedLessons: [Lesson] = []
     @State private var sortedStudents: [Student] = []
@@ -44,15 +47,14 @@ struct GiveLessonSheet: View {
     private var studentsSource: [Student] { allStudents.isEmpty ? queriedStudents : allStudents }
     
     private var resolvedLesson: Lesson? {
-        if let id = selectedLessonID {
-            return lessonsSource.first(where: { $0.id == id })
+        if let id = viewModel.selectedLessonID {
+            return allLessons.first(where: { $0.id == id })
         } else {
             return initialLesson
         }
     }
     
-    private enum Mode: Hashable { case plan, given }
-    @State private var mode: Mode = .plan
+    enum Mode: Hashable { case plan, given }
     
     @State private var showingAddStudentSheet: Bool = false
     @State private var showingStudentPickerPopover: Bool = false
@@ -89,7 +91,7 @@ struct GiveLessonSheet: View {
     }
 
     private var selectedStudentsList: [Student] {
-        sortedStudents.filter { selectedStudentIDs.contains($0.id) }
+        sortedStudents.filter { viewModel.selectedStudentIDs.contains($0.id) }
     }
 
     private var filteredStudentsForPicker: [Student] {
@@ -158,7 +160,7 @@ struct GiveLessonSheet: View {
                         Text("Lesson")
                             .font(.headline)
                         
-                        Picker("Lesson", selection: $selectedLessonID) {
+                        Picker("Lesson", selection: Binding(get: { viewModel.selectedLessonID }, set: { viewModel.selectedLessonID = $0 })) {
                             Text("Choose a Lesson").tag(nil as UUID?)
                             ForEach(sortedLessonsForPicker, id: \.id) { (l: Lesson) in
                                 Text(lessonDisplayTitle(for: l)).tag(l.id as UUID?)
@@ -183,7 +185,7 @@ struct GiveLessonSheet: View {
                                 students: selectedStudentsList,
                                 subjectColor: subjectColor,
                                 displayName: displayName(for:),
-                                onRemove: { id in selectedStudentIDs.remove(id) }
+                                onRemove: { id in viewModel.selectedStudentIDs.remove(id) }
                             )
                         }
                         Button {
@@ -196,7 +198,7 @@ struct GiveLessonSheet: View {
                                 studentSearchText: $studentSearchText,
                                 studentLevelFilter: $studentLevelFilter,
                                 filteredStudents: filteredStudentsForPicker,
-                                selectedStudentIDs: $selectedStudentIDs,
+                                selectedStudentIDs: Binding(get: { viewModel.selectedStudentIDs }, set: { viewModel.selectedStudentIDs = $0 }),
                                 displayName: displayName(for:),
                                 showingAddStudentSheet: $showingAddStudentSheet,
                                 isPresented: $showingStudentPickerPopover
@@ -206,7 +208,7 @@ struct GiveLessonSheet: View {
                         }
 
                         // Helper note matching previous behavior, now conditional
-                        if mode == .plan && scheduledFor == nil {
+                        if viewModel.mode == .plan && viewModel.scheduledFor == nil {
                             Text("This student lesson will be created as unscheduled and appear in Ready to Schedule.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
@@ -217,23 +219,23 @@ struct GiveLessonSheet: View {
                     // Status
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Status").font(.headline)
-                        Picker("Status", selection: $mode) {
+                        Picker("Status", selection: Binding(get: { viewModel.mode }, set: { viewModel.mode = $0 })) {
                             Text("Plan").tag(Mode.plan)
                             Text("Given").tag(Mode.given)
                         }
                         .pickerStyle(.segmented)
 
-                        if mode == .plan {
+                        if viewModel.mode == .plan {
                             OptionalDatePickerRow(
                                 toggleLabel: "Schedule date/time",
                                 dateLabel: "Scheduled For",
-                                date: $scheduledFor
+                                date: Binding(get: { viewModel.scheduledFor }, set: { viewModel.scheduledFor = $0 })
                             )
                         } else {
                             OptionalDatePickerRow(
                                 toggleLabel: "Include date/time",
                                 dateLabel: "Given At",
-                                date: $givenAt
+                                date: Binding(get: { viewModel.givenAt }, set: { viewModel.givenAt = $0 })
                             )
                         }
                     }
@@ -242,7 +244,7 @@ struct GiveLessonSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Notes")
                             .font(.headline)
-                        TextEditor(text: $notes)
+                        TextEditor(text: Binding(get: { viewModel.notes }, set: { viewModel.notes = $0 }))
                             .frame(minHeight: 100)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
@@ -254,15 +256,15 @@ struct GiveLessonSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Flags")
                             .font(.headline)
-                        Toggle("Needs Practice", isOn: $needsPractice)
-                        Toggle("Needs Another Presentation", isOn: $needsAnotherPresentation)
+                        Toggle("Needs Practice", isOn: Binding(get: { viewModel.needsPractice }, set: { viewModel.needsPractice = $0 }))
+                        Toggle("Needs Another Presentation", isOn: Binding(get: { viewModel.needsAnotherPresentation }, set: { viewModel.needsAnotherPresentation = $0 }))
                     }
 
                     // Follow-up Work
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Follow-up Work")
                             .font(.headline)
-                        TextField("Follow-up work", text: $followUpWork)
+                        TextField("Follow-up work", text: Binding(get: { viewModel.followUpWork }, set: { viewModel.followUpWork = $0 }))
                             .textFieldStyle(.roundedBorder)
                     }
                 }
@@ -296,7 +298,7 @@ struct GiveLessonSheet: View {
                 Button("Save") {
                     saveStudentLesson()
                 }
-                .disabled(selectedStudentIDs.isEmpty)
+                .disabled(viewModel.selectedStudentIDs.isEmpty)
                 .keyboardShortcut(.defaultAction)
             }
             .padding()
@@ -310,7 +312,7 @@ struct GiveLessonSheet: View {
                 lessonSearchText: $lessonSearchText,
                 filteredLessons: filteredLessonsForSearch,
                 lessonDisplayTitle: lessonDisplayTitle(for:),
-                selectedLessonID: $selectedLessonID,
+                selectedLessonID: Binding(get: { viewModel.selectedLessonID }, set: { viewModel.selectedLessonID = $0 }),
                 isPresented: $showingLessonSearchSheet
             )
             #if os(macOS)
@@ -335,19 +337,19 @@ struct GiveLessonSheet: View {
 
         let studentLesson = StudentLesson(
             lessonID: finalLesson.id,
-            studentIDs: Array(selectedStudentIDs),
-            scheduledFor: mode == .plan ? scheduledFor : nil,
-            givenAt: mode == .given ? givenAt : nil,
-            isPresented: (mode == .given),
-            notes: notes,
-            needsPractice: needsPractice,
-            needsAnotherPresentation: needsAnotherPresentation,
-            followUpWork: followUpWork
+            studentIDs: Array(viewModel.selectedStudentIDs),
+            scheduledFor: viewModel.mode == .plan ? viewModel.scheduledFor : nil,
+            givenAt: viewModel.mode == .given ? viewModel.givenAt : nil,
+            isPresented: (viewModel.mode == .given),
+            notes: viewModel.notes,
+            needsPractice: viewModel.needsPractice,
+            needsAnotherPresentation: viewModel.needsAnotherPresentation,
+            followUpWork: viewModel.followUpWork
         )
         
         modelContext.insert(studentLesson)
         
-        if needsPractice {
+        if viewModel.needsPractice {
             let existingWorks = try? modelContext.fetch(FetchDescriptor<WorkModel>())
             let hasPractice = (existingWorks ?? []).contains { w in
                 w.studentLessonID == studentLesson.id && w.workType == .practice
@@ -355,7 +357,7 @@ struct GiveLessonSheet: View {
             if !hasPractice {
                 let practiceWork = WorkModel(
                     id: UUID(),
-                    studentIDs: Array(selectedStudentIDs),
+                    studentIDs: Array(viewModel.selectedStudentIDs),
                     workType: .practice,
                     studentLessonID: studentLesson.id,
                     notes: "",
@@ -365,12 +367,12 @@ struct GiveLessonSheet: View {
             }
         }
 
-        let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedFollowUp = viewModel.followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedFollowUp.isEmpty {
             let followUp = WorkModel(
                 id: UUID(),
                 title: "Follow Up: \(finalLesson.name)",
-                studentIDs: Array(selectedStudentIDs),
+                studentIDs: Array(viewModel.selectedStudentIDs),
                 workType: .followUp,
                 studentLessonID: studentLesson.id,
                 notes: trimmedFollowUp,
@@ -386,6 +388,40 @@ struct GiveLessonSheet: View {
         } catch {
             saveAlert = (title: "Save Failed", message: error.localizedDescription)
         }
+    }
+}
+
+final class GiveLessonViewModel: ObservableObject {
+    @Published var selectedStudentIDs: Set<UUID>
+    @Published var scheduledFor: Date?
+    @Published var givenAt: Date?
+    @Published var notes: String
+    @Published var needsPractice: Bool
+    @Published var needsAnotherPresentation: Bool
+    @Published var followUpWork: String
+    @Published var selectedLessonID: UUID?
+    @Published var mode: GiveLessonSheet.Mode
+
+    init(
+        selectedStudentIDs: Set<UUID> = [],
+        scheduledFor: Date? = nil,
+        givenAt: Date? = nil,
+        notes: String = "",
+        needsPractice: Bool = false,
+        needsAnotherPresentation: Bool = false,
+        followUpWork: String = "",
+        selectedLessonID: UUID? = nil,
+        mode: GiveLessonSheet.Mode = .plan
+    ) {
+        self.selectedStudentIDs = selectedStudentIDs
+        self.scheduledFor = scheduledFor
+        self.givenAt = givenAt
+        self.notes = notes
+        self.needsPractice = needsPractice
+        self.needsAnotherPresentation = needsAnotherPresentation
+        self.followUpWork = followUpWork
+        self.selectedLessonID = selectedLessonID
+        self.mode = mode
     }
 }
 
