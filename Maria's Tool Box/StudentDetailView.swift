@@ -151,6 +151,77 @@ struct StudentDetailView: View {
         }
     }
 
+    private var attendanceSummaryThisSchoolYear: String {
+        let tardy = daysTardyThisSchoolYear
+        let absent = daysAbsentThisSchoolYear
+        return "Days Tardy: \(tardy) • Days Absent: \(absent)"
+    }
+
+    private var daysTardyThisSchoolYear: Int {
+        let calendar = Calendar.current
+        let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
+        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
+        let studentID = student.id
+        let from = start
+        let to = end
+        let descriptor = FetchDescriptor<AttendanceRecord>(
+            predicate: #Predicate<AttendanceRecord> { rec in
+                rec.studentID == studentID && rec.date >= from && rec.date < to
+            }
+        )
+        let records = (try? modelContext.fetch(descriptor)) ?? []
+        return records.filter { $0.status == .tardy }.count
+    }
+
+    private var daysAbsentThisSchoolYear: Int {
+        let calendar = Calendar.current
+        let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
+        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
+        let studentID = student.id
+        let from = start
+        let to = end
+        let descriptor = FetchDescriptor<AttendanceRecord>(
+            predicate: #Predicate<AttendanceRecord> { rec in
+                rec.studentID == studentID && rec.date >= from && rec.date < to
+            }
+        )
+        let records = (try? modelContext.fetch(descriptor)) ?? []
+        return records.filter { $0.status == .absent }.count
+    }
+
+    private func metricBadge(label: String, count: Int, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            Text("\(count)")
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule().fill(color.opacity(0.15))
+        )
+        .foregroundStyle(color)
+    }
+
+    private var attendanceInfoRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar.badge.checkmark")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text("Attendance (This School Year)")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            HStack(spacing: 8) {
+                metricBadge(label: "Tardy", count: daysTardyThisSchoolYear, color: .blue)
+                metricBadge(label: "Absent", count: daysAbsentThisSchoolYear, color: .red)
+            }
+        }
+    }
+
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
@@ -425,6 +496,7 @@ struct StudentDetailView: View {
             }
             InfoRowView(icon: "gift", title: "Age", value: ageDescription)
             InfoRowView(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
+            attendanceInfoRow
         }
         .padding(.horizontal, 8)
     }
