@@ -81,23 +81,8 @@ struct PlanningWeekView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            Divider()
-            VStack(spacing: 0) {
-                header
-                Divider()
-                GeometryReader { geometry in
-                    ScrollView([.horizontal, .vertical]) {
-                        WeekGrid(days: days, availableWidth: geometry.size.width - 32, availableHeight: geometry.size.height, onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) }, onQuickActions: { sl in activeSheet = .quickActions(sl.id) }, onPlanNext: { sl in planNextLesson(for: sl) })
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 20)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(item: $activeSheet) { sheet in
+        contentView
+            .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .studentLessonDetail(let id):
                 if let sl = studentLessons.first(where: { $0.id == id }) {
@@ -144,6 +129,25 @@ struct PlanningWeekView: View {
             }
         }
     }
+    
+    private var contentView: some View {
+        HStack(spacing: 0) {
+            sidebar
+            Divider()
+            VStack(spacing: 0) {
+                header
+                Divider()
+                GeometryReader { geometry in
+                    ScrollView([.horizontal, .vertical]) {
+                        WeekGrid(days: days, availableWidth: geometry.size.width - 32, availableHeight: geometry.size.height, onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) }, onQuickActions: { sl in activeSheet = .quickActions(sl.id) }, onPlanNext: { sl in planNextLesson(for: sl) })
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 20)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 
     // MARK: - Sidebar
     private var sidebar: some View {
@@ -182,6 +186,9 @@ struct PlanningWeekView: View {
                     } else {
                         ForEach(unscheduledLessons, id: \.id) { sl in
                             StudentLessonPill(snapshot: sl.snapshot(), day: Date())
+                                .onTapGesture { 
+                                    activeSheet = .studentLessonDetail(sl.id) 
+                                }
                                 .contextMenu {
                                     Button {
                                         activeSheet = .quickActions(sl.id)
@@ -199,7 +206,6 @@ struct PlanningWeekView: View {
                                         Label("Open Details", systemImage: "info.circle")
                                     }
                                 }
-                                .onTapGesture { activeSheet = .studentLessonDetail(sl.id) }
                         }
                     }
                 }
@@ -217,10 +223,8 @@ struct PlanningWeekView: View {
             guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
             if let sl = studentLessons.first(where: { $0.id == id }) {
                 sl.scheduledFor = nil
-                do {
-                    try modelContext.save()
-                } catch {
-                    return false
+                Task { @MainActor in
+                    try? modelContext.save()
                 }
                 return true
             }
@@ -268,7 +272,9 @@ struct PlanningWeekView: View {
             
             Spacer(minLength: 0)
             Button {
-                activeSheet = .giveLesson
+                DispatchQueue.main.async {
+                    activeSheet = .giveLesson
+                }
             } label: {
                 Label("Add New", systemImage: "plus.circle.fill")
             }
@@ -329,6 +335,7 @@ private struct WeekGrid: View {
 // MARK: - Day Column
 private struct DayColumn: View {
     @Environment(\.calendar) private var calendar
+    @Query private var studentLessons: [StudentLesson]
     let day: Date
     let availableHeight: CGFloat
     let onSelectLesson: (StudentLesson) -> Void
@@ -358,14 +365,14 @@ private struct DayColumn: View {
             Text("Morning")
                 .font(.system(size: 12, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
-            DropZone(day: day, period: .morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+            DropZone(allStudentLessons: studentLessons, day: day, period: .morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
                 .frame(height: dropZoneHeight)
 
             // Afternoon
             Text("Afternoon")
                 .font(.system(size: 12, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
-            DropZone(day: day, period: .afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+            DropZone(allStudentLessons: studentLessons, day: day, period: .afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
                 .frame(height: dropZoneHeight)
         }
     }
@@ -387,7 +394,7 @@ private struct DayColumn: View {
 private struct DropZone: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
-    @Query private var studentLessons: [StudentLesson]
+    let allStudentLessons: [StudentLesson]
     @State private var isTargeted: Bool = false
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
@@ -399,7 +406,7 @@ private struct DropZone: View {
     let onPlanNext: (StudentLesson) -> Void
 
     private var scheduledLessonsForSlot: [StudentLesson] {
-        studentLessons.filter { sl in
+        allStudentLessons.filter { sl in
             guard let scheduled = sl.scheduledFor, !sl.isGiven else { return false }
             return calendar.isDate(scheduled, inSameDayAs: day) && isInSlot(scheduled, period: period)
         }
@@ -433,6 +440,9 @@ private struct DropZone: View {
                 } else {
                     ForEach(scheduledLessonsForSlot, id: \.id) { sl in
                         StudentLessonPill(snapshot: sl.snapshot(), day: Date())
+                            .onTapGesture { 
+                                onSelectLesson(sl) 
+                            }
                             .contextMenu {
                                 Button {
                                     onQuickActions(sl)
@@ -450,7 +460,6 @@ private struct DropZone: View {
                                     Label("Open Details", systemImage: "info.circle")
                                 }
                             }
-                            .onTapGesture { onSelectLesson(sl) }
                             .background(
                                 GeometryReader { proxy in
                                     Color.clear.preference(
@@ -471,7 +480,7 @@ private struct DropZone: View {
         .contentShape(Rectangle())
         .dropDestination(for: String.self, action: { items, location in
             guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
-            guard let sl = studentLessons.first(where: { $0.id == id }) else { return false }
+            guard let sl = allStudentLessons.first(where: { $0.id == id }) else { return false }
             let current = scheduledLessonsForSlot
             var ids = current.map { $0.id }
 
@@ -507,15 +516,18 @@ private struct DropZone: View {
             let base = dateForSlot(day: day, period: period)
 
             for (idx, id) in ids.enumerated() {
-                if let item = studentLessons.first(where: { $0.id == id }) {
+                if let item = allStudentLessons.first(where: { $0.id == id }) {
                     item.scheduledFor = calendar.date(byAdding: .second, value: idx, to: base)
                 }
             }
 
-            do {
-                try modelContext.save()
-            } catch {
-                return false
+            Task { @MainActor in
+                do {
+                    try modelContext.save()
+                } catch {
+                    print("Save error: \(error)")
+                    return
+                }
             }
             return true
         }, isTargeted: { hovering in
@@ -688,8 +700,10 @@ struct StudentLessonPill: View {
             }
         }
         .contentShape(Capsule())
-        .draggable(snapshot.id.uuidString)
         .accessibilityLabel(accessibilityLabel)
+        .onDrag {
+            NSItemProvider(object: snapshot.id.uuidString as NSString)
+        }
     }
 }
 

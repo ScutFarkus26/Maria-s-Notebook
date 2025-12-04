@@ -10,7 +10,7 @@ struct AttendanceView: View {
     @StateObject private var viewModel = AttendanceViewModel()
 
     // Exclude specific students by full name (case-insensitive)
-    private var excludedStudentNames: Set<String> { ["lil d", "danny de berry"] }
+    private var excludedStudentNames: Set<String> { ["lil d", "danny de berry", "lil dan d"] }
     private func isExcluded(_ student: Student) -> Bool {
         let name = student.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return excludedStudentNames.contains(name)
