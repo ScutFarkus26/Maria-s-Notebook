@@ -709,13 +709,13 @@ private struct LessonField: View {
         TextField("What lesson?", text: $lessonSearchText)
             .textFieldStyle(.roundedBorder)
             .focused($textFocused)
-            .onChange(of: isFocused) { newValue in
+            .onChange(of: isFocused) { oldValue, newValue in
                 textFocused = newValue
                 if newValue {
                     withAnimation(.easeInOut) { isPresented = true }
                 }
             }
-            .onChange(of: textFocused) { newValue in
+            .onChange(of: textFocused) { oldValue, newValue in
                 isFocused = newValue
             }
             .onTapGesture {

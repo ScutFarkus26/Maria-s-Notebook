@@ -109,9 +109,15 @@ struct WorkDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
                 .onAppear { scheduleCacheRebuild() }
-                .onChange(of: lessons.map(\.id)) { _ in scheduleCacheRebuild() }
-                .onChange(of: studentsAll.map(\.id)) { _ in scheduleCacheRebuild() }
-                .onChange(of: studentLessons.map(\.id)) { _ in scheduleCacheRebuild() }
+                .onChange(of: lessons.map(\.id)) { 
+                    scheduleCacheRebuild()
+                }
+                .onChange(of: studentsAll.map(\.id)) { 
+                    scheduleCacheRebuild()
+                }
+                .onChange(of: studentLessons.map(\.id)) { 
+                    scheduleCacheRebuild()
+                }
             }
         }
         .safeAreaInset(edge: .bottom) {
