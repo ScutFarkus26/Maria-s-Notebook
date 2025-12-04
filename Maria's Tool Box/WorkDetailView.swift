@@ -22,6 +22,10 @@ struct WorkDetailView: View {
     @State private var noteText = ""
     @State private var showDeleteAlert = false
     @State private var showingStudentPickerPopover = false
+    @State private var showInlineCheckInComposer = false
+    @State private var notesExpanded = false
+    @State private var showStudentChips = false
+    @State private var rebuildTask: Task<Void, Never>? = nil
 
     private enum PresentedSheet: Identifiable {
         case linkedLessonDetails
@@ -64,13 +68,16 @@ struct WorkDetailView: View {
         df.timeStyle = .none
         return df
     }()
+    
+    private static let timeOnlyFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateStyle = .none
+        df.timeStyle = .short
+        return df
+    }()
 
     // MARK: - Computed Properties
-    private var selectedStudentsList: [Student] {
-        studentsAll
-            .filter { vm.selectedStudentIDs.contains($0.id) }
-            .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
-    }
+    private var selectedStudentsList: [Student] { vm.selectedStudentsList }
 
     private var subjectColor: Color {
         vm.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
@@ -92,20 +99,19 @@ struct WorkDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     titleField
-                    studentsSection
+                    studentsArea
                     lessonAndTypeSection
                     completionSection
-                    notesSection
-                    scheduledCheckInsList
-                    scheduleNewCheckInSection
+                    notesCollapsibleSection
+                    checkInsTimelineSection
                     metadataSection
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
-                .onAppear { updateCaches() }
-                .onChange(of: lessons.map(\.id)) { updateCaches() }
-                .onChange(of: studentsAll.map(\.id)) { updateCaches() }
-                .onChange(of: studentLessons.map(\.id)) { updateCaches() }
+                .onAppear { scheduleCacheRebuild() }
+                .onChange(of: lessons.map(\.id)) { _ in scheduleCacheRebuild() }
+                .onChange(of: studentsAll.map(\.id)) { _ in scheduleCacheRebuild() }
+                .onChange(of: studentLessons.map(\.id)) { _ in scheduleCacheRebuild() }
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -183,6 +189,35 @@ struct WorkDetailView: View {
         }
     }
     
+    private var studentsArea: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "person.2")
+                    .foregroundColor(subjectColor)
+                Text("\(selectedStudentsList.count) student\(selectedStudentsList.count == 1 ? "" : "s")")
+                    .foregroundColor(.primary)
+                Spacer()
+                Button {
+                    showingStudentPickerPopover = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+                Button {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                        showStudentChips.toggle()
+                    }
+                } label: {
+                    Text(showStudentChips ? "Hide" : "Show")
+                }
+                .buttonStyle(.borderless)
+            }
+            if showStudentChips {
+                studentsSection
+            }
+        }
+    }
+    
     private var lessonAndTypeSection: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: 16) {
@@ -221,6 +256,40 @@ struct WorkDetailView: View {
         NotesSection(notes: $vm.notes, separatorStrokeColor: separatorStrokeColor)
     }
     
+    private var notesCollapsibleSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if notesExpanded {
+                notesSection
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "note.text")
+                        .foregroundColor(.secondary)
+                    Text("Notes")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Button("Edit") {
+                        withAnimation(.easeInOut) { notesExpanded = true }
+                    }
+                    .buttonStyle(.borderless)
+                }
+                Group {
+                    if vm.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text("Add notes…")
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text(vm.notes)
+                            .foregroundColor(.primary)
+                            .lineLimit(2)
+                    }
+                }
+                .onTapGesture {
+                    withAnimation(.easeInOut) { notesExpanded = true }
+                }
+            }
+        }
+    }
+    
     private var scheduledCheckInsList: some View {
         ScheduledCheckInsListSection(
             checkIns: vm.checkIns,
@@ -249,18 +318,147 @@ struct WorkDetailView: View {
         }
     }
     
-    private var metadataSection: some View {
-        HStack(spacing: 8) {
-            Text("Created:")
-                .font(.system(size: AppTheme.FontSize.caption))
-                .foregroundColor(.secondary)
-            Text(Self.createdDateTimeFormatter.string(from: work.createdAt))
-                .font(.system(size: AppTheme.FontSize.caption))
+    private var sortedCheckIns: [WorkCheckIn] {
+        vm.checkIns.sorted { $0.date < $1.date }
+    }
+
+    private var morningCheckIns: [WorkCheckIn] {
+        sortedCheckIns.filter { Calendar.current.component(.hour, from: $0.date) < 12 }
+    }
+
+    private var afternoonCheckIns: [WorkCheckIn] {
+        sortedCheckIns.filter { Calendar.current.component(.hour, from: $0.date) >= 12 }
+    }
+
+    private var checkInsTimelineSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Check-ins")
+                .font(.headline)
                 .foregroundColor(.primary)
-            Spacer()
+
+            if sortedCheckIns.isEmpty {
+                inlineCheckInComposer
+            } else {
+                timelineGroup(title: "Morning", items: morningCheckIns)
+                timelineGroup(title: "Afternoon", items: afternoonCheckIns)
+                inlineCheckInComposer
+            }
         }
     }
-    
+
+    private var metadataSection: some View {
+        // Placeholder metadata section. Replace with real details when available.
+        EmptyView()
+    }
+
+    @ViewBuilder
+    private func timelineGroup(title: String, items: [WorkCheckIn]) -> some View {
+        if !items.isEmpty {
+            HStack {
+                Text(title.uppercased())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                timelineRow(item: item, isLast: index == items.count - 1)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func timelineRow(item: WorkCheckIn, isLast: Bool) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 4) {
+                Circle()
+                    .fill(subjectColor)
+                    .frame(width: 8, height: 8)
+                    .overlay(
+                        Circle()
+                            .stroke(separatorStrokeColor.opacity(0.6), lineWidth: 1)
+                    )
+                if !isLast {
+                    Rectangle()
+                        .fill(separatorStrokeColor.opacity(0.4))
+                        .frame(width: 1, height: 36)
+                }
+            }
+            .frame(width: 12)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(Self.timeOnlyFormatter.string(from: item.date))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text(item.purpose)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    if !item.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Image(systemName: "text.bubble")
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Menu {
+                        Button("Edit Note", systemImage: "square.and.pencil") {
+                            noteText = item.note
+                            editingCheckInNote = item
+                        }
+                        Button("Delete", systemImage: "trash", role: .destructive) {
+                            vm.deleteCheckInDraft(item, modelContext: modelContext)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var inlineCheckInComposer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeInOut) { showInlineCheckInComposer.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(subjectColor)
+                    Text("New check-in (time, purpose)")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showInlineCheckInComposer {
+                VStack(alignment: .leading, spacing: 8) {
+                    DatePicker("Date", selection: $checkInDate, displayedComponents: [.date, .hourAndMinute])
+                    TextField("Purpose", text: $checkInPurpose)
+                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 12) {
+                        Button("Add") {
+                            vm.addCheckInDraft(
+                                date: checkInDate,
+                                purpose: checkInPurpose,
+                                note: "",
+                                modelContext: modelContext
+                            )
+                            checkInPurpose = ""
+                            checkInDate = Date()
+                            withAnimation(.easeInOut) { showInlineCheckInComposer = false }
+                        }
+                        Button("Cancel") {
+                            withAnimation(.easeInOut) { showInlineCheckInComposer = false }
+                        }
+                        .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Sheet Views
     @ViewBuilder
     private var linkedLessonSheet: some View {
@@ -286,7 +484,9 @@ struct WorkDetailView: View {
            let sl = vm.studentLessonsByID[slID],
            let lesson = vm.lessonsByID[sl.lessonID] {
             LessonDetailView(lesson: lesson, onSave: { _ in
-                do { try modelContext.save() } catch { }
+                Task { @MainActor in
+                    try? modelContext.save()
+                }
             }, onDone: {
                 presentedSheet = nil
             })
@@ -302,6 +502,20 @@ struct WorkDetailView: View {
     }
     
     // MARK: - Actions
+    private func scheduleCacheRebuild() {
+        // Debounce cache rebuilds to avoid repeated heavy work during rapid updates
+        rebuildTask?.cancel()
+        rebuildTask = Task { @MainActor in
+            // Small delay to coalesce multiple rapid changes
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            vm.rebuildCaches(
+                lessons: lessons,
+                students: studentsAll,
+                studentLessons: studentLessons
+            )
+        }
+    }
+
     private func updateCaches() {
         vm.rebuildCaches(
             lessons: lessons,

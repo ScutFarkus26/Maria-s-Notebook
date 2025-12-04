@@ -28,6 +28,7 @@ struct LessonsRootView: View {
     @State private var isPresentingGiveLesson: Bool = false
     @State private var importAlert: ImportAlert? = nil
     @State private var showingLessonCSVImporter: Bool = false
+    @State private var filteredLessonsCache: [Lesson] = []
 
     @SceneStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
     @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
@@ -46,9 +47,7 @@ struct LessonsRootView: View {
         viewModel.subjects(from: lessons)
     }
 
-    private var filteredLessons: [Lesson] {
-        viewModel.filteredLessons(lessons: lessons, searchText: filterState.searchText, selectedSubject: filterState.selectedSubject, selectedGroup: filterState.selectedGroup)
-    }
+    private var filteredLessons: [Lesson] { filteredLessonsCache }
 
     private var isManualMode: Bool {
         (filterState.selectedGroup != nil) && filterState.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -164,6 +163,15 @@ struct LessonsRootView: View {
             isParsing = false
             parsingTask = nil
         }
+    }
+
+    private func recomputeFilteredLessons() {
+        filteredLessonsCache = viewModel.filteredLessons(
+            lessons: lessons,
+            searchText: filterState.searchText,
+            selectedSubject: filterState.selectedSubject,
+            selectedGroup: filterState.selectedGroup
+        )
     }
 
     var body: some View {
@@ -291,6 +299,7 @@ struct LessonsRootView: View {
             lessonsSelectedGroupRaw = persisted.groupRaw
             lessonsSearchTextRaw = persisted.searchRaw
             lessonsExpandedSubjectsRaw = persisted.expandedRaw
+            recomputeFilteredLessons()
         }
         .onChange(of: lessonIDs) { _, _ in
             if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
@@ -300,15 +309,19 @@ struct LessonsRootView: View {
                     importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
                 }
             }
+            recomputeFilteredLessons()
         }
         .onChange(of: filterState.selectedSubject) { _, newValue in
             lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            recomputeFilteredLessons()
         }
         .onChange(of: filterState.selectedGroup) { _, newValue in
             lessonsSelectedGroupRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            recomputeFilteredLessons()
         }
         .onChange(of: filterState.searchText) { _, newValue in
             lessonsSearchTextRaw = newValue
+            recomputeFilteredLessons()
         }
         .onChange(of: filterState.expandedSubjects) { _, newValue in
             lessonsExpandedSubjectsRaw = LessonsFilterPersistence.serializeExpandedSubjects(newValue)
