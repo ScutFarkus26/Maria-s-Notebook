@@ -300,11 +300,14 @@ struct StudentLessonDetailView: View {
             AddStudentView()
         }
         .overlay(alignment: .top) {
-            if showPlannedBanner {
-                plannedBanner
-            } else if showMovedBanner {
-                movedBanner
+            Group {
+                if showPlannedBanner {
+                    plannedBanner
+                } else if showMovedBanner {
+                    movedBanner
+                }
             }
+            .allowsHitTesting(false)
         }
         .sheet(isPresented: $showingMoveStudentsSheet) {
             moveStudentsSheet

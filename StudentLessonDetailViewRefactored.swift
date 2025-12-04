@@ -104,6 +104,7 @@ struct StudentLessonDetailViewRefactored: View {
         .overlay(alignment: .top) {
             bannerOverlay
         }
+        .allowsHitTesting(false)
         .onAppear {
             // Update view model with the actual modelContext
             viewModel = StudentLessonDetailViewModel(

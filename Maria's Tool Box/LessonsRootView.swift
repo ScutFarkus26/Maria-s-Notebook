@@ -262,13 +262,6 @@ struct LessonsRootView: View {
             showingLessonCSVImporter = true
         }
         .onAppear {
-            if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
-                do {
-                    try modelContext.save()
-                } catch {
-                    importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
-                }
-            }
             // Restore persisted filters into the observable state
             filterState.loadFromPersisted(subjectRaw: lessonsSelectedSubjectRaw, groupRaw: lessonsSelectedGroupRaw, searchRaw: lessonsSearchTextRaw, expandedRaw: lessonsExpandedSubjectsRaw)
             // If a child group is selected, ensure its parent subject is expanded so the selection is visible
@@ -281,7 +274,18 @@ struct LessonsRootView: View {
             lessonsSelectedGroupRaw = persisted.groupRaw
             lessonsSearchTextRaw = persisted.searchRaw
             lessonsExpandedSubjectsRaw = persisted.expandedRaw
-            recomputeFilteredLessons()
+
+            // Defer heavier work until after the first frame to keep the UI responsive
+            DispatchQueue.main.async {
+                if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
+                    }
+                }
+                recomputeFilteredLessons()
+            }
         }
         .onChange(of: lessonIDs) { _, _ in
             groupsCache.removeAll()

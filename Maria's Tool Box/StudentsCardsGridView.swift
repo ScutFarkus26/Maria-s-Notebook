@@ -38,6 +38,8 @@ struct StudentsCardsGridView: View {
     @State private var itemFrames: [UUID: CGRect] = [:]
     @Namespace private var gridNamespace
 
+    @State private var hasAppeared: Bool = false
+
     private let columns: [GridItem] = [
         GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)
     ]
@@ -45,7 +47,7 @@ struct StudentsCardsGridView: View {
     private var idList: [UUID] { students.map { $0.id } }
 
     private var gridAnimation: Animation? {
-        if draggingStudentID != nil {
+        if draggingStudentID != nil || !hasAppeared {
             return nil
         } else {
             return Animation.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
@@ -125,11 +127,19 @@ struct StudentsCardsGridView: View {
                 }
             }
             .animation(gridAnimation, value: idList)
+            .transaction { tx in
+                if !hasAppeared { tx.animation = nil }
+            }
             .padding(24)
         }
         .coordinateSpace(name: "gridScroll")
         .onPreferenceChange(ItemFramePreference.self) { frames in
             itemFrames = frames
+        }
+        .onAppear {
+            DispatchQueue.main.async {
+                hasAppeared = true
+            }
         }
     }
 
