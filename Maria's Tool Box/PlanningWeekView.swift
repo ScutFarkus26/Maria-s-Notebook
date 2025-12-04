@@ -267,19 +267,8 @@ struct PlanningWeekView: View {
             .background(Color.primary.opacity(0.08), in: Capsule())
             
             Spacer(minLength: 0)
-            Menu {
-                Button {
-                    DispatchQueue.main.async {
-                        activeSheet = .giveLesson
-                    }
-                } label: {
-                    Label("Add Student Lesson…", systemImage: "person.crop.circle.badge.plus")
-                }
-                Button {
-                    activeSheet = .addLesson
-                } label: {
-                    Label("Add Lesson…", systemImage: "text.book.closed")
-                }
+            Button {
+                activeSheet = .giveLesson
             } label: {
                 Label("Add New", systemImage: "plus.circle.fill")
             }
