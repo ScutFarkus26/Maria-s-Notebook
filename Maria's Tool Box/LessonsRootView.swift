@@ -13,7 +13,7 @@ struct LessonsRootView: View {
 
     @State private var showingAddLesson: Bool = false
 
-    @State private var filterState = LessonsFilterState()
+    @StateObject private var filterState = LessonsFilterState()
 
     @State private var pendingParsedImport: LessonCSVImporter.Parsed? = nil
     @State private var showingImportPreview: Bool = false
@@ -29,6 +29,7 @@ struct LessonsRootView: View {
     @State private var importAlert: ImportAlert? = nil
     @State private var showingLessonCSVImporter: Bool = false
     @State private var filteredLessonsCache: [Lesson] = []
+    @State private var groupsCache: [String: [String]] = [:]
 
     @SceneStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
     @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
@@ -302,6 +303,7 @@ struct LessonsRootView: View {
             recomputeFilteredLessons()
         }
         .onChange(of: lessonIDs) { _, _ in
+            groupsCache.removeAll()
             if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
                 do {
                     try modelContext.save()
@@ -345,6 +347,7 @@ struct LessonsRootView: View {
                 if !filterState.searchText.isEmpty {
                     Button {
                         filterState.searchText = ""
+                        recomputeFilteredLessons()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
@@ -374,6 +377,13 @@ struct LessonsRootView: View {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                             toggleExpanded(subject)
                         }
+                        let key = LessonsFilterPersistence.normalizeSubjectKey(subject)
+                        if groupsCache[key] == nil {
+                            let computed = viewModel.groups(for: subject, lessons: lessons)
+                            DispatchQueue.main.async {
+                                groupsCache[key] = computed
+                            }
+                        }
                     }
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
@@ -382,6 +392,7 @@ struct LessonsRootView: View {
                         filterState.selectedSubject = subject
                         filterState.selectedGroup = nil
                     }
+                    recomputeFilteredLessons()
                 }
                 .onDrag {
                     self.subjectDragState.from = index
@@ -417,6 +428,7 @@ struct LessonsRootView: View {
                                 filterState.selectedGroup = group
                                 if !isExpanded(subject) { toggleExpanded(subject) }
                             }
+                            recomputeFilteredLessons()
                         }
                         .padding(.leading, 16)
                         .onDrag {
@@ -437,6 +449,8 @@ struct LessonsRootView: View {
                                 let item = new.remove(at: from)
                                 new.insert(item, at: to)
                                 FilterOrderStore.saveGroupOrder(new, for: subject)
+                                let key = LessonsFilterPersistence.normalizeSubjectKey(subject)
+                                groupsCache[key] = new
                             }
                         ))
                     }
@@ -452,7 +466,9 @@ struct LessonsRootView: View {
     }
 
     private func groups(for subject: String) -> [String] {
-        viewModel.groups(for: subject, lessons: lessons)
+        let key = LessonsFilterPersistence.normalizeSubjectKey(subject)
+        if let cached = groupsCache[key] { return cached }
+        return viewModel.groups(for: subject, lessons: lessons)
     }
 
     private func ensureInitialOrderInGroupIfNeeded() {
@@ -498,3 +514,4 @@ struct LessonsRootView: View {
         try? modelContext.save()
     }
 }
+
