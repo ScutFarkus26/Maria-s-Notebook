@@ -8,24 +8,6 @@ struct LessonsRootView: View {
     @Query private var lessons: [Lesson]
     @State private var selectedLesson: Lesson? = nil
 
-    @State private var isShowingLessonDetail = false
-    @State private var lessonDetailMode: LessonDetailInitialMode = .normal
-
-    @State private var showingAddLesson: Bool = false
-
-    @StateObject private var filterState = LessonsFilterState()
-
-    @State private var pendingParsedImport: LessonCSVImporter.Parsed? = nil
-    @State private var showingImportPreview: Bool = false
-
-    @State private var subjectDragState: (from: Int?, to: Int?) = (nil, nil)
-    @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
-    @State private var givingLessonFromDetailID: UUID? = nil
-    
-    @State private var isParsing: Bool = false
-    @State private var parsingTask: Task<Void, Never>? = nil
-
-    @State private var isPresentingGiveLesson: Bool = false
     @State private var importAlert: ImportAlert? = nil
     @State private var showingLessonCSVImporter: Bool = false
     @State private var filteredLessonsCache: [Lesson] = []
@@ -35,6 +17,22 @@ struct LessonsRootView: View {
     @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
     @SceneStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
     @SceneStorage("Lessons.expandedSubjects") private var lessonsExpandedSubjectsRaw: String = ""
+
+    private enum PresentedSheet: Identifiable {
+        case addLesson(defaultSubject: String?, defaultGroup: String?)
+        case giveLesson(lesson: Lesson?)
+        case importPreview(parsed: LessonCSVImporter.Parsed)
+
+        var id: String {
+            switch self {
+            case .addLesson: return "addLesson"
+            case .giveLesson: return "giveLesson"
+            case .importPreview: return "importPreview"
+            }
+        }
+    }
+
+    @State private var presentedSheet: PresentedSheet? = nil
 
     private let viewModel = LessonsViewModel()
 
@@ -57,6 +55,13 @@ struct LessonsRootView: View {
     private var lessonIDs: [UUID] {
         lessons.map { $0.id }
     }
+
+    @StateObject private var filterState = LessonsFilterState()
+
+    @State private var subjectDragState: (from: Int?, to: Int?) = (nil, nil)
+    @State private var groupDragState: [String: (from: Int?, to: Int?)] = [:]
+    @State private var isParsing: Bool = false
+    @State private var parsingTask: Task<Void, Never>? = nil
 
     @ViewBuilder
     private var selectedLessonOverlay: some View {
@@ -93,12 +98,12 @@ struct LessonsRootView: View {
                         }
                     },
                     onGiveLesson: { _ in
-                        givingLessonFromDetailID = selected.id
+                        presentedSheet = .giveLesson(lesson: selected)
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                             selectedLesson = nil
                         }
                     },
-                    initialMode: lessonDetailMode
+                    initialMode: .normal
                 )
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.98).combined(with: .opacity),
@@ -109,41 +114,6 @@ struct LessonsRootView: View {
         }
     }
 
-    private var isGivingLessonPresented: Binding<Bool> {
-        Binding(get: { givingLessonFromDetailID != nil }, set: { if !$0 { givingLessonFromDetailID = nil } })
-    }
-
-    @ViewBuilder
-    private var givingLessonSheet: some View {
-        if let id = givingLessonFromDetailID, let lesson = lessons.first(where: { $0.id == id }) {
-            GiveLessonSheet(lesson: lesson) {
-                givingLessonFromDetailID = nil
-            }
-        } else {
-            EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var importPreviewSheet: some View {
-        if let parsed = pendingParsedImport {
-            LessonImportPreviewView(parsed: parsed, onCancel: {
-                showingImportPreview = false
-            }, onConfirm: { filtered in
-                do {
-                    let result = try ImportCommitService.commitLessons(parsed: filtered, into: modelContext, existingLessons: lessons)
-                    importAlert = ImportAlert(title: result.title, message: result.message)
-                } catch {
-                    importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-                }
-                showingImportPreview = false
-            })
-            .frame(minWidth: 620, minHeight: 520)
-        } else {
-            EmptyView()
-        }
-    }
-
     private func handleFileImportResult(_ result: Result<URL, Error>) {
         do {
             let url = try result.get()
@@ -151,8 +121,7 @@ struct LessonsRootView: View {
             parsingTask?.cancel()
             isParsing = true
             parsingTask = LessonsImportCoordinator.startImport(from: url, lessons: self.lessons, onParsed: { parsed in
-                self.pendingParsedImport = parsed
-                self.showingImportPreview = true
+                self.presentedSheet = .importPreview(parsed: parsed)
             }, onError: { error in
                 self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
             }, onFinally: {
@@ -199,26 +168,24 @@ struct LessonsRootView: View {
                             isManualMode: isManualMode,
                             onTapLesson: { (lesson: Lesson) in
                                 selectedLesson = lesson
-                                lessonDetailMode = .normal
                             },
                             onReorder: { (movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson]) in
                                 reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
                             },
                             onGiveLesson: { (lesson: Lesson) in
-                                selectedLesson = lesson
-                                lessonDetailMode = .giveLesson
+                                presentedSheet = .giveLesson(lesson: lesson)
                             }
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .overlay(alignment: .topTrailing) {
                             Menu {
                                 Button {
-                                    showingAddLesson = true
+                                    presentedSheet = .addLesson(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
                                 } label: {
                                     Label("Add Lesson", systemImage: "text.book.closed")
                                 }
                                 Button {
-                                    isPresentingGiveLesson = true
+                                    presentedSheet = .giveLesson(lesson: nil)
                                 } label: {
                                     Label("Add Student Lesson", systemImage: "person.crop.circle.badge.plus")
                                 }
@@ -249,16 +216,35 @@ struct LessonsRootView: View {
                 parsingTask?.cancel()
             }
         }
-        .sheet(isPresented: $showingAddLesson) {
-            AddLessonView(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
-        }
-        .sheet(isPresented: $isPresentingGiveLesson, content: {
-            GiveLessonSheet(lesson: nil) {
-                isPresentingGiveLesson = false
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .addLesson(let subject, let group):
+                AddLessonView(defaultSubject: subject, defaultGroup: group)
+            case .giveLesson(let lesson):
+                GiveLessonSheet(lesson: lesson) {
+                    presentedSheet = nil
+                }
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizing(.fitted)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
+            case .importPreview(let parsed):
+                LessonImportPreviewView(parsed: parsed, onCancel: {
+                    presentedSheet = nil
+                }, onConfirm: { filtered in
+                    do {
+                        let result = try ImportCommitService.commitLessons(parsed: filtered, into: modelContext, existingLessons: lessons)
+                        importAlert = ImportAlert(title: result.title, message: result.message)
+                    } catch {
+                        importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                    }
+                    presentedSheet = nil
+                })
+                .frame(minWidth: 620, minHeight: 520)
             }
-        })
-        .sheet(isPresented: isGivingLessonPresented) {
-            givingLessonSheet
         }
         .fileImporter(
             isPresented: $showingLessonCSVImporter,
@@ -269,13 +255,8 @@ struct LessonsRootView: View {
         .alert(item: $importAlert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
         }
-        .sheet(isPresented: $showingImportPreview, onDismiss: {
-            pendingParsedImport = nil
-        }) {
-            importPreviewSheet
-        }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewLessonRequested"))) { _ in
-            showingAddLesson = true
+            presentedSheet = .addLesson(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ImportLessonsRequested"))) { _ in
             showingLessonCSVImporter = true

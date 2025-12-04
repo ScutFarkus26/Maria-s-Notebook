@@ -25,7 +25,9 @@ final class AttendanceViewModel: ObservableObject {
         let store = AttendanceStore(context: modelContext)
         do {
             let records = try store.loadOrCreateRecords(for: target, students: students)
-            self.recordsByStudent = Dictionary(uniqueKeysWithValues: records.map { ($0.studentID, $0) })
+            let allowed = Set(students.map { $0.id })
+            let filtered = records.filter { allowed.contains($0.studentID) }
+            self.recordsByStudent = Dictionary(uniqueKeysWithValues: filtered.map { ($0.studentID, $0) })
         } catch {
             // For now, ignore errors; UI will simply show unmarked
         }
@@ -66,7 +68,10 @@ final class AttendanceViewModel: ObservableObject {
         let store = AttendanceStore(context: modelContext)
         do {
             let updated = try store.markAllPresent(for: selectedDate, students: students)
-            for rec in updated { recordsByStudent[rec.studentID] = rec }
+            let allowed = Set(students.map { $0.id })
+            for rec in updated where allowed.contains(rec.studentID) {
+                recordsByStudent[rec.studentID] = rec
+            }
         } catch { }
     }
 
@@ -74,7 +79,10 @@ final class AttendanceViewModel: ObservableObject {
         let store = AttendanceStore(context: modelContext)
         do {
             let updated = try store.resetDay(for: selectedDate, students: students)
-            for rec in updated { recordsByStudent[rec.studentID] = rec }
+            let allowed = Set(students.map { $0.id })
+            for rec in updated where allowed.contains(rec.studentID) {
+                recordsByStudent[rec.studentID] = rec
+            }
         } catch { }
     }
 

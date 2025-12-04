@@ -12,7 +12,7 @@ struct GiveLessonSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
-    @StateObject private var viewModel = GiveLessonViewModel()
+    @StateObject private var viewModel: GiveLessonViewModel
 
     @Query private var queriedStudents: [Student]
     @Query private var queriedLessons: [Lesson]
@@ -39,8 +39,27 @@ struct GiveLessonSheet: View {
     @State private var sortedLessons: [Lesson] = []
     @State private var sortedStudents: [Student] = []
     
-    @State private var showingLessonSearchSheet: Bool = false
     @State private var lessonSearchText: String = ""
+    @State private var showFollowUpField: Bool = false
+    
+    @State private var studentLevelFilter: LevelFilter = .all
+
+    private enum FocusField: Hashable { case lesson, notes, followUp }
+    @FocusState private var focusedField: FocusField?
+
+    private var selectedLessonIDBinding: Binding<UUID?> {
+        Binding(
+            get: { viewModel.selectedLessonID },
+            set: { viewModel.selectedLessonID = $0 }
+        )
+    }
+
+    private var lessonFocusBinding: Binding<Bool> {
+        Binding(
+            get: { focusedField == .lesson },
+            set: { focusedField = $0 ? .lesson : nil }
+        )
+    }
     
     private var lessonsSource: [Lesson] { allLessons.isEmpty ? queriedLessons : allLessons }
     private var studentsSource: [Student] { allStudents.isEmpty ? queriedStudents : allStudents }
@@ -66,8 +85,6 @@ struct GiveLessonSheet: View {
         case lower = "Lower"
         case upper = "Upper"
     }
-
-    @State private var studentLevelFilter: LevelFilter = .all
 
     private var subjectColor: Color {
         if let s = resolvedLesson?.subject, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -143,72 +160,103 @@ struct GiveLessonSheet: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Give Lesson")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(subjectColor)
-                .padding(.top, 16)
-                .padding(.horizontal)
+            HStack(spacing: 10) {
+                if resolvedLesson != nil {
+                    Circle()
+                        .fill(subjectColor)
+                        .frame(width: 10, height: 10)
+                        .transition(.scale.combined(with: .opacity))
+                }
+                Text("Give Lesson")
+                    .font(.title)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .padding(.top, 16)
+            .padding(.horizontal)
+            .animation(.spring(response: 0.25, dampingFraction: 0.9), value: resolvedLesson?.id)
 
             Divider()
+                .opacity(0.7)
 
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 20) {
                     // Lesson selection
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Lesson")
                             .font(.headline)
-                        
-                        Picker("Lesson", selection: Binding(get: { viewModel.selectedLessonID }, set: { viewModel.selectedLessonID = $0 })) {
-                            Text("Choose a Lesson").tag(nil as UUID?)
-                            ForEach(sortedLessonsForPicker, id: \.id) { (l: Lesson) in
-                                Text(lessonDisplayTitle(for: l)).tag(l.id as UUID?)
-                            }
+
+                        LessonField(
+                            lessonSearchText: $lessonSearchText,
+                            filteredLessons: filteredLessonsForSearch,
+                            lessonDisplayTitle: lessonDisplayTitle(for:),
+                            selectedLessonID: selectedLessonIDBinding,
+                            isFocused: lessonFocusBinding
+                        )
+
+                        if let lesson = resolvedLesson {
+                            Text(lessonDisplayTitle(for: lesson))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Choose a lesson to continue.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
-                        .pickerStyle(.menu)
-                        
-                        Button {
-                            showingLessonSearchSheet = true
-                        } label: {
-                            Label("Search lessons…", systemImage: "magnifyingglass")
-                        }
-                        .buttonStyle(.borderless)
                     }
 
                     // Students chips row + picker
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Students")
+                        Text("Who")
                             .font(.headline)
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            SelectedStudentsChipsRow(
-                                students: selectedStudentsList,
-                                subjectColor: subjectColor,
-                                displayName: displayName(for:),
-                                onRemove: { id in viewModel.selectedStudentIDs.remove(id) }
-                            )
+
+                        HStack(alignment: .center, spacing: 8) {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                SelectedStudentsChipsRow(
+                                    students: selectedStudentsList,
+                                    subjectColor: subjectColor,
+                                    displayName: displayName(for:),
+                                    onRemove: { id in
+                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                            _ = viewModel.selectedStudentIDs.remove(id)
+                                        }
+                                    }
+                                )
+                                .padding(.vertical, 2)
+                            }
+                            Button {
+                                showingStudentPickerPopover = true
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(subjectColor)
+                            }
+                            .buttonStyle(.plain)
+                            .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .bottom) {
+                                StudentPickerPopoverContent(
+                                    studentSearchText: $studentSearchText,
+                                    studentLevelFilter: $studentLevelFilter,
+                                    filteredStudents: filteredStudentsForPicker,
+                                    selectedStudentIDs: Binding(get: { viewModel.selectedStudentIDs }, set: { viewModel.selectedStudentIDs = $0 }),
+                                    displayName: displayName(for:),
+                                    showingAddStudentSheet: $showingAddStudentSheet,
+                                    isPresented: $showingStudentPickerPopover
+                                )
+                                .padding(12)
+                                .frame(minWidth: 320)
+                            }
+                            .keyboardShortcut("a", modifiers: [.command, .shift])
                         }
-                        Button {
-                            showingStudentPickerPopover = true
-                        } label: {
-                            Text("Add / Remove Students")
-                        }
-                        .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .bottom) {
-                            StudentPickerPopoverContent(
-                                studentSearchText: $studentSearchText,
-                                studentLevelFilter: $studentLevelFilter,
-                                filteredStudents: filteredStudentsForPicker,
-                                selectedStudentIDs: Binding(get: { viewModel.selectedStudentIDs }, set: { viewModel.selectedStudentIDs = $0 }),
-                                displayName: displayName(for:),
-                                showingAddStudentSheet: $showingAddStudentSheet,
-                                isPresented: $showingStudentPickerPopover
-                            )
-                            .padding(12)
-                            .frame(minWidth: 320)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.85), value: viewModel.selectedStudentIDs)
+
+                        if viewModel.selectedStudentIDs.isEmpty {
+                            Text("Add at least one student.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
 
-                        // Helper note matching previous behavior, now conditional
                         if viewModel.mode == .plan && viewModel.scheduledFor == nil {
-                            Text("This student lesson will be created as unscheduled and appear in Ready to Schedule.")
+                            Text("Without a date, this plan appears in Ready to Schedule.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 2)
@@ -218,24 +266,40 @@ struct GiveLessonSheet: View {
                     // Status
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Status").font(.headline)
-                        Picker("Status", selection: Binding(get: { viewModel.mode }, set: { viewModel.mode = $0 })) {
-                            Text("Plan").tag(Mode.plan)
-                            Text("Given").tag(Mode.given)
+
+                        HStack {
+                            Button(action: {
+                                withAnimation(.easeInOut) {
+                                    viewModel.mode = (viewModel.mode == .plan ? .given : .plan)
+                                }
+                            }) {
+                                Text(viewModel.mode == .plan ? "Plan" : "Given")
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(subjectColor.opacity(0.2))
+                                    .foregroundStyle(subjectColor)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .keyboardShortcut("g", modifiers: [.command, .shift])
+                            Spacer()
                         }
-                        .pickerStyle(.segmented)
 
                         if viewModel.mode == .plan {
                             OptionalDatePickerRow(
-                                toggleLabel: "Schedule date/time",
-                                dateLabel: "Scheduled For",
+                                toggleLabel: "Schedule",
+                                dateLabel: "Schedule For",
                                 date: Binding(get: { viewModel.scheduledFor }, set: { viewModel.scheduledFor = $0 })
                             )
+                            .animation(.easeInOut, value: viewModel.scheduledFor)
                         } else {
                             OptionalDatePickerRow(
                                 toggleLabel: "Include date/time",
                                 dateLabel: "Given At",
                                 date: Binding(get: { viewModel.givenAt }, set: { viewModel.givenAt = $0 })
                             )
+                            .animation(.easeInOut, value: viewModel.givenAt)
                         }
                     }
 
@@ -245,26 +309,24 @@ struct GiveLessonSheet: View {
                             .font(.headline)
                         TextEditor(text: Binding(get: { viewModel.notes }, set: { viewModel.notes = $0 }))
                             .frame(minHeight: 100)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.gray.opacity(0.4), lineWidth: 1)
-                            )
+                            .focused($focusedField, equals: .notes)
                     }
 
-                    // Flags
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Flags")
-                            .font(.headline)
-                        Toggle("Needs Practice", isOn: Binding(get: { viewModel.needsPractice }, set: { viewModel.needsPractice = $0 }))
-                        Toggle("Needs Another Presentation", isOn: Binding(get: { viewModel.needsAnotherPresentation }, set: { viewModel.needsAnotherPresentation = $0 }))
-                    }
+                    DisclosureGroup("More options") {
+                        HStack(spacing: 8) {
+                            TagChip(title: "Practice", isOn: Binding(get: { viewModel.needsPractice }, set: { viewModel.needsPractice = $0 }), color: subjectColor)
+                            TagChip(title: "Re‑present", isOn: Binding(get: { viewModel.needsAnotherPresentation }, set: { viewModel.needsAnotherPresentation = $0 }), color: subjectColor)
+                        }
+                        .padding(.vertical, 4)
 
-                    // Follow-up Work
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Follow-up Work")
-                            .font(.headline)
-                        TextField("Follow-up work", text: Binding(get: { viewModel.followUpWork }, set: { viewModel.followUpWork = $0 }))
-                            .textFieldStyle(.roundedBorder)
+                        if showFollowUpField {
+                            TextField("Add follow‑up…", text: Binding(get: { viewModel.followUpWork }, set: { viewModel.followUpWork = $0 }))
+                                .textFieldStyle(.roundedBorder)
+                                .focused($focusedField, equals: .followUp)
+                        } else {
+                            Button("Add follow‑up…") { showFollowUpField = true }
+                                .buttonStyle(.link)
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -275,16 +337,24 @@ struct GiveLessonSheet: View {
             sortedLessons = viewModel.sortedLessons(from: lessonsSource)
             sortedStudents = viewModel.sortedStudents(from: studentsSource)
         }
+        .onDisappear {
+            // Proactively clear any popovers/focus that might linger across sheet transitions
+            showingStudentPickerPopover = false
+            showingAddStudentSheet = false
+            focusedField = nil
+            lessonSearchText = ""
+            showFollowUpField = false
+        }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
                 Button("Cancel") {
                     dismiss()
                 }
                 Spacer()
-                Button("Save") {
+                Button(viewModel.mode == .plan ? "Save Plan" : "Mark as Given") {
                     saveStudentLesson()
                 }
-                .disabled(viewModel.selectedStudentIDs.isEmpty)
+                .disabled(viewModel.selectedStudentIDs.isEmpty || resolvedLesson == nil)
                 .keyboardShortcut(.defaultAction)
             }
             .padding()
@@ -293,34 +363,43 @@ struct GiveLessonSheet: View {
         .sheet(isPresented: $showingAddStudentSheet) {
             AddStudentView()
         }
-        .sheet(isPresented: $showingLessonSearchSheet) {
-            LessonSearchSheetView(
-                lessonSearchText: $lessonSearchText,
-                filteredLessons: filteredLessonsForSearch,
-                lessonDisplayTitle: lessonDisplayTitle(for:),
-                selectedLessonID: Binding(get: { viewModel.selectedLessonID }, set: { viewModel.selectedLessonID = $0 }),
-                isPresented: $showingLessonSearchSheet
+        .alert(saveAlert?.title ?? "Error", isPresented: Binding(get: { saveAlert != nil }, set: { if !$0 { saveAlert = nil } })) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(saveAlert?.message ?? "")
+        }
+        .overlay(
+            KeyboardShortcutsOverlay(
+                focusLesson: { focusedField = .lesson },
+                openStudents: { showingStudentPickerPopover = true },
+                focusNotes: { focusedField = .notes },
+                toggleStatus: {
+                    withAnimation(.easeInOut) {
+                        viewModel.mode = (viewModel.mode == .plan ? .given : .plan)
+                    }
+                }
             )
-            #if os(macOS)
-            .frame(minWidth: 600, minHeight: 520)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
-        }
+        )
         .frame(minWidth: 720, minHeight: 640)
-        .alert(isPresented: Binding(get: { saveAlert != nil }, set: { if !$0 { saveAlert = nil } })) {
-            Alert(title: Text(saveAlert?.title ?? "Error"), message: Text(saveAlert?.message ?? ""), dismissButton: .default(Text("OK")))
-        }
     }
     
     private func saveStudentLesson() {
+        guard resolvedLesson != nil else {
+            // Inline validation handles missing lesson; no alert.
+            return
+        }
         do {
             try viewModel.save(context: modelContext, resolvedLesson: resolvedLesson)
             onDone?()
             dismiss()
         } catch let error as GiveLessonViewModel.SaveError {
-            saveAlert = (title: error.title, message: error.localizedDescription)
+            switch error {
+            case .persistFailed:
+                saveAlert = (title: error.title, message: error.localizedDescription)
+            case .missingLesson:
+                // Handled inline; do nothing.
+                break
+            }
         } catch {
             saveAlert = (title: "Save Failed", message: error.localizedDescription)
         }
@@ -586,53 +665,124 @@ private struct StudentPickerPopoverContent: View {
     }
 
     private func toggleSelection(for id: UUID) {
-        if selectedStudentIDs.contains(id) {
-            selectedStudentIDs.remove(id)
-        } else {
-            selectedStudentIDs.insert(id)
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+            if selectedStudentIDs.contains(id) {
+                _ = selectedStudentIDs.remove(id)
+            } else {
+                _ = selectedStudentIDs.insert(id)
+            }
         }
     }
 }
 
-private struct LessonSearchSheetView: View {
+private struct TagChip: View {
+    let title: String
+    @Binding var isOn: Bool
+    let color: Color
+
+    var body: some View {
+        Text(title)
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isOn ? color.opacity(0.2) : Color.secondary.opacity(0.12))
+            .foregroundStyle(isOn ? color : .secondary)
+            .overlay(
+                Capsule().stroke(isOn ? color : Color.secondary.opacity(0.3), lineWidth: 1)
+            )
+            .clipShape(Capsule())
+            .onTapGesture { withAnimation(.easeInOut) { isOn.toggle() } }
+    }
+}
+
+private struct LessonField: View {
     @Binding var lessonSearchText: String
     let filteredLessons: [Lesson]
     let lessonDisplayTitle: (Lesson) -> String
     @Binding var selectedLessonID: UUID?
-    @Binding var isPresented: Bool
+    @Binding var isFocused: Bool
+
+    @FocusState private var textFocused: Bool
+    @State private var isPresented: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Search Lessons")
-                    .font(.headline)
-                Spacer()
-                Button("Cancel") { isPresented = false }
-            }
-
-            TextField("Search lessons", text: $lessonSearchText)
-                .textFieldStyle(.roundedBorder)
-
-            List(filteredLessons, id: \.id) { lesson in
-                Button(action: {
-                    selectedLessonID = lesson.id
-                    isPresented = false
-                }) {
-                    HStack {
-                        Text(lessonDisplayTitle(lesson))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if selectedLessonID == lesson.id {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.accentColor)
-                        }
-                    }
+        TextField("What lesson?", text: $lessonSearchText)
+            .textFieldStyle(.roundedBorder)
+            .focused($textFocused)
+            .onChange(of: isFocused) { newValue in
+                textFocused = newValue
+                if newValue {
+                    withAnimation(.easeInOut) { isPresented = true }
                 }
-                .buttonStyle(.plain)
             }
-            .listStyle(.plain)
+            .onChange(of: textFocused) { newValue in
+                isFocused = newValue
+            }
+            .onTapGesture {
+                isFocused = true
+                withAnimation(.easeInOut) { isPresented = true }
+            }
+            .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 8) {
+                    List(filteredLessons, id: \.id) { lesson in
+                        Button(action: {
+                            selectedLessonID = lesson.id
+                            lessonSearchText = ""
+                            withAnimation(.easeInOut) { isPresented = false }
+                            isFocused = false
+                        }) {
+                            HStack {
+                                Text(lessonDisplayTitle(lesson))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if selectedLessonID == lesson.id {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.accentColor)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .listStyle(.plain)
+                }
+                .padding(8)
+                #if os(macOS)
+                .frame(minWidth: 360, minHeight: 240)
+                #endif
+            }
+            .onDisappear {
+                // Ensure popover and focus are cleared when the parent sheet is dismissed
+                isPresented = false
+                textFocused = false
+            }
+    }
+}
+
+private struct KeyboardShortcutsOverlay: View {
+    let focusLesson: () -> Void
+    let openStudents: () -> Void
+    let focusNotes: () -> Void
+    let toggleStatus: () -> Void
+    var body: some View {
+        ZStack {
+            Button(action: focusLesson) { EmptyView() }
+                .keyboardShortcut("f", modifiers: [.command])
+                .opacity(0.001)
+                .accessibilityHidden(true)
+            Button(action: openStudents) { EmptyView() }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .opacity(0.001)
+                .accessibilityHidden(true)
+            Button(action: focusNotes) { EmptyView() }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+                .opacity(0.001)
+                .accessibilityHidden(true)
+            Button(action: toggleStatus) { EmptyView() }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .opacity(0.001)
+                .accessibilityHidden(true)
         }
-        .padding()
+        .allowsHitTesting(false)
     }
 }
 
