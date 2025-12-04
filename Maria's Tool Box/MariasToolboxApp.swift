@@ -47,7 +47,8 @@ struct MariasToolboxApp: App {
             StudentLesson.self,
             WorkModel.self,
             WorkParticipantEntity.self,
-            WorkCompletionRecord.self
+            WorkCompletionRecord.self,
+            AttendanceRecord.self
         ]
         let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
         do {
@@ -145,6 +146,11 @@ struct MariasToolboxApp: App {
             CommandMenu("Work") {
                 Button("New Work…") { NotificationCenter.default.post(name: Notification.Name("NewWorkRequested"), object: nil) }
                     .keyboardShortcut("n", modifiers: [.command, .option])
+            }
+            CommandMenu("Attendance") {
+                Button("Open Attendance") {
+                    NotificationCenter.default.post(name: Notification.Name("OpenAttendanceRequested"), object: nil)
+                }
             }
             CommandMenu("Troubleshooting") {
                 Button("Use In-Memory Store On Next Launch") {

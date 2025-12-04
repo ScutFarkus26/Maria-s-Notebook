@@ -10,6 +10,7 @@ struct RootView: View {
         case studentLessons = "Lessons" // Student lessons (pills)
         case work = "Work"
         case settings = "Settings"
+        case attendance = "Attendance"
 
         var id: String { rawValue }
     }
@@ -97,6 +98,8 @@ struct RootView: View {
                     PlanningRootView()
                 case .work:
                     WorkView()
+                case .attendance:
+                    AttendanceView()
                 case .settings:
                     SettingsView()
                 }
@@ -109,6 +112,9 @@ struct RootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackfillIsPresentedRequested"))) { _ in
             backfillIsPresentedIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenAttendanceRequested"))) { _ in
+            selectedTabRaw = Tab.attendance.rawValue
         }
     }
 
