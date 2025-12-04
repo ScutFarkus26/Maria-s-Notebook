@@ -18,12 +18,28 @@ struct BackupPayload: Codable {
     var works: [WorkDTO]
     var subjectOrder: [String]
     var groupOrders: [String: [String]]
+    var attendance: [AttendanceRecordDTO]
+    var workCompletions: [WorkCompletionRecordDTO]
+    var workCheckIns: [WorkCheckInDTO]
 
     private enum CodingKeys: String, CodingKey {
-        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders
+        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns
     }
 
-    init(version: Int, createdAt: Date, items: [ItemDTO], students: [StudentDTO], lessons: [LessonDTO], studentLessons: [StudentLessonDTO], works: [WorkDTO], subjectOrder: [String], groupOrders: [String: [String]]) {
+    init(
+        version: Int,
+        createdAt: Date,
+        items: [ItemDTO],
+        students: [StudentDTO],
+        lessons: [LessonDTO],
+        studentLessons: [StudentLessonDTO],
+        works: [WorkDTO],
+        subjectOrder: [String],
+        groupOrders: [String: [String]],
+        attendance: [AttendanceRecordDTO],
+        workCompletions: [WorkCompletionRecordDTO],
+        workCheckIns: [WorkCheckInDTO]
+    ) {
         self.version = version
         self.createdAt = createdAt
         self.items = items
@@ -33,6 +49,9 @@ struct BackupPayload: Codable {
         self.works = works
         self.subjectOrder = subjectOrder
         self.groupOrders = groupOrders
+        self.attendance = attendance
+        self.workCompletions = workCompletions
+        self.workCheckIns = workCheckIns
     }
 
     init(from decoder: Decoder) throws {
@@ -46,6 +65,9 @@ struct BackupPayload: Codable {
         self.works = try container.decodeIfPresent([WorkDTO].self, forKey: .works) ?? []
         self.subjectOrder = try container.decodeIfPresent([String].self, forKey: .subjectOrder) ?? []
         self.groupOrders = try container.decodeIfPresent([String: [String]].self, forKey: .groupOrders) ?? [:]
+        self.attendance = try container.decodeIfPresent([AttendanceRecordDTO].self, forKey: .attendance) ?? []
+        self.workCompletions = try container.decodeIfPresent([WorkCompletionRecordDTO].self, forKey: .workCompletions) ?? []
+        self.workCheckIns = try container.decodeIfPresent([WorkCheckInDTO].self, forKey: .workCheckIns) ?? []
     }
 }
 
@@ -161,11 +183,36 @@ struct WorkDTO: Codable {
     }
 }
 
+struct AttendanceRecordDTO: Codable {
+    var id: UUID
+    var studentID: UUID
+    var date: Date
+    var status: String
+    var note: String?
+}
+
+struct WorkCompletionRecordDTO: Codable {
+    var id: UUID
+    var workID: UUID
+    var studentID: UUID
+    var completedAt: Date
+    var note: String
+}
+
+struct WorkCheckInDTO: Codable {
+    var id: UUID
+    var workID: UUID
+    var date: Date
+    var status: String
+    var purpose: String
+    var note: String
+}
+
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 10
+    static let currentVersion: Int = 11
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -247,6 +294,46 @@ enum BackupManager {
             )
         }
 
+        // Fetch all AttendanceRecords
+        let attendanceFetch = FetchDescriptor<AttendanceRecord>()
+        let attendance = try context.fetch(attendanceFetch)
+        let attendanceDTO: [AttendanceRecordDTO] = attendance.map { rec in
+            AttendanceRecordDTO(
+                id: rec.id,
+                studentID: rec.studentID,
+                date: rec.date,
+                status: rec.status.rawValue,
+                note: rec.note
+            )
+        }
+
+        // Fetch all WorkCompletionRecords
+        let completionsFetch = FetchDescriptor<WorkCompletionRecord>()
+        let completions = try context.fetch(completionsFetch)
+        let workCompletionsDTO: [WorkCompletionRecordDTO] = completions.map { rc in
+            WorkCompletionRecordDTO(
+                id: rc.id,
+                workID: rc.workID,
+                studentID: rc.studentID,
+                completedAt: rc.completedAt,
+                note: rc.note
+            )
+        }
+
+        // Fetch all WorkCheckIns
+        let checkInsFetch = FetchDescriptor<WorkCheckIn>()
+        let checkIns = try context.fetch(checkInsFetch)
+        let workCheckInsDTO: [WorkCheckInDTO] = checkIns.map { ci in
+            WorkCheckInDTO(
+                id: ci.id,
+                workID: ci.workID,
+                date: ci.date,
+                status: ci.status.rawValue,
+                purpose: ci.purpose,
+                note: ci.note
+            )
+        }
+
         // Compute subjects and per-subject group orders from current data and saved preferences
         let existingSubjects: [String] = Array(Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
         let subjectOrder: [String] = FilterOrderStore.loadSubjectOrder(existing: existingSubjects)
@@ -275,7 +362,10 @@ enum BackupManager {
             studentLessons: studentLessonsDTO,
             works: worksDTO,
             subjectOrder: subjectOrder,
-            groupOrders: groupOrders
+            groupOrders: groupOrders,
+            attendance: attendanceDTO,
+            workCompletions: workCompletionsDTO,
+            workCheckIns: workCheckInsDTO
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -377,6 +467,53 @@ enum BackupManager {
             }
         }
 
+        // Insert AttendanceRecords (preserving IDs)
+        if !payload.attendance.isEmpty {
+            for dto in payload.attendance {
+                let rec = AttendanceRecord(
+                    id: dto.id,
+                    studentID: dto.studentID,
+                    date: dto.date,
+                    status: AttendanceStatus(rawValue: dto.status) ?? .unmarked,
+                    note: dto.note
+                )
+                context.insert(rec)
+            }
+        }
+
+        // Insert WorkCompletionRecords (preserving IDs)
+        if !payload.workCompletions.isEmpty {
+            for dto in payload.workCompletions {
+                let rec = WorkCompletionRecord(
+                    id: dto.id,
+                    workID: dto.workID,
+                    studentID: dto.studentID,
+                    completedAt: dto.completedAt,
+                    note: dto.note
+                )
+                context.insert(rec)
+            }
+        }
+
+        // Insert WorkCheckIns (preserving IDs)
+        if !payload.workCheckIns.isEmpty {
+            // Build a map of works by ID to wire relationship
+            let allWorks = try context.fetch(FetchDescriptor<WorkModel>())
+            let worksByID = Dictionary(uniqueKeysWithValues: allWorks.map { ($0.id, $0) })
+            for dto in payload.workCheckIns {
+                let checkIn = WorkCheckIn(
+                    id: dto.id,
+                    workID: dto.workID,
+                    date: dto.date,
+                    status: WorkCheckInStatus(rawValue: dto.status) ?? .scheduled,
+                    purpose: dto.purpose,
+                    note: dto.note,
+                    work: worksByID[dto.workID]
+                )
+                context.insert(checkIn)
+            }
+        }
+
         // Backward compatibility: synthesize unscheduled StudentLesson records if missing but nextLessons present
         if payload.studentLessons.isEmpty {
             let existingLessonIDs = Set(try context.fetch(FetchDescriptor<Lesson>()).map { $0.id })
@@ -421,6 +558,13 @@ enum BackupManager {
                 sl.lesson = lessonsByID[sl.lessonID]
                 sl.students = sl.studentIDs.compactMap { studentsByID[$0] }
             }
+            // Wire WorkCheckIn relationships to WorkModel
+            let allWorks2 = try context.fetch(FetchDescriptor<WorkModel>())
+            let worksByID2 = Dictionary(uniqueKeysWithValues: allWorks2.map { ($0.id, $0) })
+            let allCIs = try context.fetch(FetchDescriptor<WorkCheckIn>())
+            for ci in allCIs {
+                ci.work = worksByID2[ci.workID]
+            }
         } catch {
             // If wiring relationships fails, we still keep IDs; UI will fall back to snapshots
         }
@@ -454,6 +598,21 @@ enum BackupManager {
         do {
             let works = try context.fetch(FetchDescriptor<WorkModel>())
             for obj in works { context.delete(obj) }
+        }
+        // Delete WorkCheckIns
+        do {
+            let cis = try context.fetch(FetchDescriptor<WorkCheckIn>())
+            for obj in cis { context.delete(obj) }
+        }
+        // Delete WorkCompletionRecords
+        do {
+            let wcrs = try context.fetch(FetchDescriptor<WorkCompletionRecord>())
+            for obj in wcrs { context.delete(obj) }
+        }
+        // Delete AttendanceRecords
+        do {
+            let atts = try context.fetch(FetchDescriptor<AttendanceRecord>())
+            for obj in atts { context.delete(obj) }
         }
         try context.save()
     }

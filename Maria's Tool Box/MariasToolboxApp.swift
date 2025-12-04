@@ -48,7 +48,8 @@ struct MariasToolboxApp: App {
             WorkModel.self,
             WorkParticipantEntity.self,
             WorkCompletionRecord.self,
-            AttendanceRecord.self
+            AttendanceRecord.self,
+            WorkCheckIn.self
         ]
         let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
         do {
