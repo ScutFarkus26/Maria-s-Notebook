@@ -4,10 +4,14 @@ import Foundation
 
 struct GiveLessonSheet: View {
     let initialLesson: Lesson?
+    let allStudents: [Student]
+    let allLessons: [Lesson]
     var onDone: (() -> Void)? = nil
     
-    init(lesson: Lesson? = nil, preselectedStudentIDs: [UUID] = [], startGiven: Bool = false, onDone: (() -> Void)? = nil) {
+    init(lesson: Lesson? = nil, preselectedStudentIDs: [UUID] = [], startGiven: Bool = false, allStudents: [Student] = [], allLessons: [Lesson] = [], onDone: (() -> Void)? = nil) {
         self.initialLesson = lesson
+        self.allStudents = allStudents
+        self.allLessons = allLessons
         self.onDone = onDone
         _selectedStudentIDs = State(initialValue: Set(preselectedStudentIDs))
         _mode = State(initialValue: startGiven ? .given : .plan)
@@ -16,9 +20,7 @@ struct GiveLessonSheet: View {
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var students: [Student]
-    @Query private var lessons: [Lesson]
-    
+
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var scheduledFor: Date? = nil
     @State private var givenAt: Date? = nil
@@ -28,10 +30,16 @@ struct GiveLessonSheet: View {
     @State private var followUpWork: String = ""
     @State private var isPresentedFlag: Bool = false
     @State private var selectedLessonID: UUID? = nil
+
+    @State private var sortedLessons: [Lesson] = []
+    @State private var sortedStudents: [Student] = []
+    
+    @State private var showingLessonSearchSheet: Bool = false
+    @State private var lessonSearchText: String = ""
     
     private var resolvedLesson: Lesson? {
         if let id = selectedLessonID {
-            return lessons.first(where: { $0.id == id })
+            return allLessons.first(where: { $0.id == id })
         } else {
             return initialLesson
         }
@@ -61,25 +69,25 @@ struct GiveLessonSheet: View {
         return .accentColor
     }
     
-    private var sortedLessonsForPicker: [Lesson] {
-        lessons.sorted { lhs, rhs in
-            if lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedSame {
-                if lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedSame {
-                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-                }
-                return lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedAscending
-            }
-            return lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedAscending
+    private var sortedLessonsForPicker: [Lesson] { sortedLessons }
+    
+    private var filteredLessonsForSearch: [Lesson] {
+        let query = lessonSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if query.isEmpty { return sortedLessonsForPicker }
+        return sortedLessonsForPicker.filter { l in
+            let name = l.name.lowercased()
+            let subject = l.subject.lowercased()
+            let group = l.group.lowercased()
+            return name.contains(query) || subject.contains(query) || group.contains(query)
         }
     }
 
     private var selectedStudentsList: [Student] {
-        students.filter { selectedStudentIDs.contains($0.id) }
-            .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
+        sortedStudents.filter { selectedStudentIDs.contains($0.id) }
     }
 
     private var filteredStudentsForPicker: [Student] {
-        var filtered = students
+        var filtered = sortedStudents
 
         switch studentLevelFilter {
         case .lower:
@@ -100,14 +108,7 @@ struct GiveLessonSheet: View {
             }
         }
 
-        return filtered.sorted {
-            let lhs = ($0.firstName, $0.lastName)
-            let rhs = ($1.firstName, $1.lastName)
-            if lhs.0.caseInsensitiveCompare(rhs.0) == .orderedSame {
-                return lhs.1.caseInsensitiveCompare(rhs.1) == .orderedAscending
-            }
-            return lhs.0.caseInsensitiveCompare(rhs.0) == .orderedAscending
-        }
+        return filtered
     }
 
     private func displayName(for student: Student) -> String {
@@ -158,6 +159,13 @@ struct GiveLessonSheet: View {
                             }
                         }
                         .pickerStyle(.menu)
+                        
+                        Button {
+                            showingLessonSearchSheet = true
+                        } label: {
+                            Label("Search lessons…", systemImage: "magnifyingglass")
+                        }
+                        .buttonStyle(.borderless)
                     }
 
                     // Students chips row + picker
@@ -363,6 +371,23 @@ struct GiveLessonSheet: View {
                 .padding(.bottom, 40)
             }
         }
+        .onAppear {
+            sortedLessons = allLessons.sorted { lhs, rhs in
+                if lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedSame {
+                    if lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedSame {
+                        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                    }
+                    return lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedAscending
+                }
+                return lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedAscending
+            }
+            sortedStudents = allStudents.sorted { lhs, rhs in
+                let l = (lhs.firstName.lowercased(), lhs.lastName.lowercased())
+                let r = (rhs.firstName.lowercased(), rhs.lastName.lowercased())
+                if l.0 == r.0 { return l.1 < r.1 }
+                return l.0 < r.0
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
                 Button("Cancel") {
@@ -380,6 +405,91 @@ struct GiveLessonSheet: View {
         }
         .sheet(isPresented: $showingAddStudentSheet) {
             AddStudentView()
+        }
+        .sheet(isPresented: $showingLessonSearchSheet) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search lessons", text: $lessonSearchText)
+                        .textFieldStyle(.plain)
+                    if !lessonSearchText.isEmpty {
+                        Button {
+                            lessonSearchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear search")
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(0.06))
+                )
+                .padding(.horizontal)
+                .padding(.top)
+
+                Divider().padding(.horizontal)
+
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(filteredLessonsForSearch, id: \.id) { (l: Lesson) in
+                            Button {
+                                selectedLessonID = l.id
+                                showingLessonSearchSheet = false
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(lessonDisplayTitle(for: l))
+                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    if !l.subheading.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        Text(l.subheading)
+                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+                            Divider().padding(.leading)
+                        }
+                        if filteredLessonsForSearch.isEmpty {
+                            VStack(spacing: 8) {
+                                Text("No matches")
+                                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                Text("Try a different search for lesson name, subject, or group.")
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                            .padding()
+                        }
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                HStack {
+                    Spacer()
+                    Button("Done") {
+                        showingLessonSearchSheet = false
+                    }
+                    .keyboardShortcut(.cancelAction)
+                    .padding(.trailing)
+                }
+                .padding(.bottom)
+            }
+            #if os(macOS)
+            .frame(minWidth: 600, minHeight: 520)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
         }
         .frame(minWidth: 720, minHeight: 640)
         .alert(isPresented: Binding(get: { saveAlert != nil }, set: { if !$0 { saveAlert = nil } })) {

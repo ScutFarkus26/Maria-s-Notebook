@@ -22,9 +22,22 @@ struct WorkDetailView: View {
     @State private var noteText = ""
     @State private var showDeleteAlert = false
     @State private var showingStudentPickerPopover = false
-    @State private var showingLinkedLessonDetails = false
-    @State private var showingBaseLessonDetails = false
-    @State private var showingCreateStudentLesson = false
+
+    private enum PresentedSheet: Identifiable {
+        case linkedLessonDetails
+        case baseLessonDetails
+        case createStudentLesson
+
+        var id: String {
+            switch self {
+            case .linkedLessonDetails: return "linkedLessonDetails"
+            case .baseLessonDetails: return "baseLessonDetails"
+            case .createStudentLesson: return "createStudentLesson"
+            }
+        }
+    }
+
+    @State private var presentedSheet: PresentedSheet? = nil
 
     // MARK: - Properties
     let work: WorkModel
@@ -112,19 +125,30 @@ struct WorkDetailView: View {
         } message: {
             Text("This action cannot be undone.")
         }
-        .sheet(isPresented: $showingLinkedLessonDetails) { linkedLessonSheet }
-        .sheet(isPresented: $showingBaseLessonDetails) { baseLessonSheet }
-        .sheet(isPresented: $showingCreateStudentLesson) {
-            GiveLessonSheet(lesson: nil, preselectedStudentIDs: Array(vm.selectedStudentIDs)) {
-                showingCreateStudentLesson = false
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .linkedLessonDetails:
+                linkedLessonSheet
+            case .baseLessonDetails:
+                baseLessonSheet
+            case .createStudentLesson:
+                GiveLessonSheet(
+                    lesson: nil,
+                    preselectedStudentIDs: Array(vm.selectedStudentIDs),
+                    startGiven: false,
+                    allStudents: studentsAll,
+                    allLessons: lessons
+                ) {
+                    presentedSheet = nil
+                }
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizing(.fitted)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
             }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
         }
         .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
             StudentPickerPopover(students: studentsAll, selectedIDs: $vm.selectedStudentIDs) {
@@ -178,10 +202,14 @@ struct WorkDetailView: View {
             studentLessonSnapshotsByID: vm.studentLessonSnapshotsByID,
             selectedStudentLessonID: $vm.selectedStudentLessonID,
             createdDateOnlyFormatter: Self.createdDateOnlyFormatter,
-            onOpenLinkedDetails: { showingLinkedLessonDetails = true },
-            onOpenBaseLesson: { showingBaseLessonDetails = true },
+            onOpenLinkedDetails: { presentedSheet = .linkedLessonDetails },
+            onOpenBaseLesson: { presentedSheet = .baseLessonDetails },
             selectedStudentIDs: vm.selectedStudentIDs,
-            onCreateNewStudentLesson: { showingCreateStudentLesson = true }
+            onCreateNewStudentLesson: {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    presentedSheet = .createStudentLesson
+                }
+            }
         )
     }
     
@@ -239,7 +267,7 @@ struct WorkDetailView: View {
         if let slID = vm.selectedStudentLessonID,
            let sl = vm.studentLessonsByID[slID] {
             StudentLessonDetailView(studentLesson: sl) {
-                showingLinkedLessonDetails = false
+                presentedSheet = nil
             }
             #if os(macOS)
             .frame(minWidth: 520, minHeight: 560)
@@ -260,7 +288,7 @@ struct WorkDetailView: View {
             LessonDetailView(lesson: lesson, onSave: { _ in
                 do { try modelContext.save() } catch { }
             }, onDone: {
-                showingBaseLessonDetails = false
+                presentedSheet = nil
             })
             #if os(macOS)
             .frame(minWidth: 520, minHeight: 560)

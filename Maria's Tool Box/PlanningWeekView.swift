@@ -13,10 +13,24 @@ struct PlanningWeekView: View {
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
     @State private var weekStart: Date = Self.monday(for: Date())
-    @State private var selectedLessonForDetailID: UUID? = nil
-    @State private var quickActionsLessonID: UUID? = nil
     @State private var isSidebarTargeted: Bool = false
-    @State private var showingGiveLessonSheet: Bool = false
+    @State private var activeSheet: ActiveSheet? = nil
+
+    private enum ActiveSheet: Identifiable {
+        case studentLessonDetail(UUID)
+        case quickActions(UUID)
+        case giveLesson
+        case addLesson
+
+        var id: String {
+            switch self {
+            case .studentLessonDetail(let id): return "detail_\(id.uuidString)"
+            case .quickActions(let id): return "quick_\(id.uuidString)"
+            case .giveLesson: return "giveLesson"
+            case .addLesson: return "addLesson"
+            }
+        }
+    }
 
     private var days: [Date] {
         (0..<5).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
@@ -75,7 +89,7 @@ struct PlanningWeekView: View {
                 Divider()
                 GeometryReader { geometry in
                     ScrollView([.horizontal, .vertical]) {
-                        WeekGrid(days: days, availableHeight: geometry.size.height, onSelectLesson: { sl in selectedLessonForDetailID = sl.id }, onQuickActions: { sl in quickActionsLessonID = sl.id }, onPlanNext: { sl in planNextLesson(for: sl) })
+                        WeekGrid(days: days, availableWidth: geometry.size.width - 32, availableHeight: geometry.size.height, onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) }, onQuickActions: { sl in activeSheet = .quickActions(sl.id) }, onPlanNext: { sl in planNextLesson(for: sl) })
                             .padding(.horizontal, 16)
                             .padding(.vertical, 20)
                     }
@@ -83,35 +97,51 @@ struct PlanningWeekView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(isPresented: Binding(get: { selectedLessonForDetailID != nil }, set: { if !$0 { selectedLessonForDetailID = nil } })) {
-            if let id = selectedLessonForDetailID, let sl = studentLessons.first(where: { $0.id == id }) {
-                StudentLessonDetailView(studentLesson: sl) {
-                    selectedLessonForDetailID = nil
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .studentLessonDetail(let id):
+                if let sl = studentLessons.first(where: { $0.id == id }) {
+                    StudentLessonDetailView(studentLesson: sl) {
+                        activeSheet = nil
+                    }
+                } else {
+                    EmptyView()
                 }
-            } else {
-                EmptyView()
-            }
-        }
-        .sheet(isPresented: Binding(get: { quickActionsLessonID != nil }, set: { if !$0 { quickActionsLessonID = nil } })) {
-            if let id = quickActionsLessonID, let sl = studentLessons.first(where: { $0.id == id }) {
-                StudentLessonQuickActionsView(studentLesson: sl) {
-                    quickActionsLessonID = nil
+            case .quickActions(let id):
+                if let sl = studentLessons.first(where: { $0.id == id }) {
+                    StudentLessonQuickActionsView(studentLesson: sl) {
+                        activeSheet = nil
+                    }
+                } else {
+                    EmptyView()
                 }
-            } else {
-                EmptyView()
+            case .giveLesson:
+                GiveLessonSheet(
+                    lesson: nil,
+                    preselectedStudentIDs: [],
+                    startGiven: false,
+                    allStudents: students,
+                    allLessons: lessons
+                ) {
+                    activeSheet = nil
+                }
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizing(.fitted)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
+            case .addLesson:
+                AddLessonView(defaultSubject: nil, defaultGroup: nil)
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizing(.fitted)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
             }
-        }
-        .sheet(isPresented: $showingGiveLessonSheet) {
-            GiveLessonSheet(lesson: nil) {
-                showingGiveLessonSheet = false
-            }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
         }
     }
 
@@ -154,7 +184,7 @@ struct PlanningWeekView: View {
                             StudentLessonPill(snapshot: sl.snapshot(), day: Date())
                                 .contextMenu {
                                     Button {
-                                        quickActionsLessonID = sl.id
+                                        activeSheet = .quickActions(sl.id)
                                     } label: {
                                         Label("Quick Actions…", systemImage: "bolt")
                                     }
@@ -164,12 +194,12 @@ struct PlanningWeekView: View {
                                         Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
                                     }
                                     Button {
-                                        selectedLessonForDetailID = sl.id
+                                        activeSheet = .studentLessonDetail(sl.id)
                                     } label: {
                                         Label("Open Details", systemImage: "info.circle")
                                     }
                                 }
-                                .onTapGesture { selectedLessonForDetailID = sl.id }
+                                .onTapGesture { activeSheet = .studentLessonDetail(sl.id) }
                         }
                     }
                 }
@@ -237,8 +267,19 @@ struct PlanningWeekView: View {
             .background(Color.primary.opacity(0.08), in: Capsule())
             
             Spacer(minLength: 0)
-            Button {
-                showingGiveLessonSheet = true
+            Menu {
+                Button {
+                    DispatchQueue.main.async {
+                        activeSheet = .giveLesson
+                    }
+                } label: {
+                    Label("Add Student Lesson…", systemImage: "person.crop.circle.badge.plus")
+                }
+                Button {
+                    activeSheet = .addLesson
+                } label: {
+                    Label("Add Lesson…", systemImage: "text.book.closed")
+                }
             } label: {
                 Label("Add New", systemImage: "plus.circle.fill")
             }
@@ -269,13 +310,22 @@ struct PlanningWeekView: View {
 private struct WeekGrid: View {
     @Environment(\.calendar) private var calendar
     let days: [Date]
+    let availableWidth: CGFloat
     let availableHeight: CGFloat
     let onSelectLesson: (StudentLesson) -> Void
     let onQuickActions: (StudentLesson) -> Void
     let onPlanNext: (StudentLesson) -> Void
 
     private var columns: [GridItem] {
-        Array(repeating: GridItem(.fixed(200), spacing: 24), count: 5)
+        let minWidth: CGFloat = 240
+        let maxWidth: CGFloat = 300
+        let spacing: CGFloat = 24
+        let columnsCount = 5
+        let totalSpacing = spacing * CGFloat(columnsCount - 1)
+        let contentWidth = max(0, availableWidth - totalSpacing)
+        let computed = contentWidth / CGFloat(columnsCount)
+        let itemWidth = min(max(computed, minWidth), maxWidth)
+        return Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columnsCount)
     }
 
     var body: some View {
@@ -658,3 +708,4 @@ struct StudentLessonPill: View {
     PlanningWeekView()
         .frame(minWidth: 1000, minHeight: 600)
 }
+
