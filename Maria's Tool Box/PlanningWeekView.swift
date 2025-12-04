@@ -151,7 +151,7 @@ struct PlanningWeekView: View {
                         Spacer()
                     } else {
                         ForEach(unscheduledLessons, id: \.id) { sl in
-                            StudentLessonPill(snapshot: sl.snapshot())
+                            StudentLessonPill(snapshot: sl.snapshot(), day: Date())
                                 .contextMenu {
                                     Button {
                                         quickActionsLessonID = sl.id
@@ -393,7 +393,7 @@ private struct DropZone: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(scheduledLessonsForSlot, id: \.id) { sl in
-                        StudentLessonPill(snapshot: sl.snapshot())
+                        StudentLessonPill(snapshot: sl.snapshot(), day: Date())
                             .contextMenu {
                                 Button {
                                     onQuickActions(sl)
@@ -518,7 +518,9 @@ struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
+    @Environment(\.calendar) private var calendar
     let snapshot: StudentLessonSnapshot
+    var day: Date? = nil
 
     private var lessonObject: Lesson? {
         lessons.first(where: { $0.id == snapshot.lessonID })
@@ -533,6 +535,11 @@ struct StudentLessonPill: View {
             return AppColors.color(forSubject: subject)
         }
         return .accentColor
+    }
+
+    private var statusesByStudent: [UUID: AttendanceStatus] {
+        guard let day else { return [:] }
+        return modelContext.attendanceStatuses(for: snapshot.studentIDs, on: day)
     }
 
     private var accessibilityLabel: String {
@@ -556,14 +563,14 @@ struct StudentLessonPill: View {
         return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
     }
     
-    private struct StudentChip { let id: UUID; let label: String; let isMissing: Bool }
+    private struct StudentChip { let id: UUID; let label: String; let isMissing: Bool; let status: AttendanceStatus? }
     private var studentChips: [StudentChip] {
         var chips: [StudentChip] = []
         for id in snapshot.studentIDs {
             if let s = students.first(where: { $0.id == id }) {
-                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false))
+                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false, status: statusesByStudent[id]))
             } else {
-                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true))
+                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil))
             }
         }
         return chips
@@ -595,13 +602,19 @@ struct StudentLessonPill: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach(studentChips, id: \.id) { chip in
+                                let isAbsent = (chip.status == .absent)
                                 Text(chip.label)
                                     .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(chip.isMissing ? .secondary : .primary)
+                                    .foregroundStyle(chip.isMissing ? .secondary : (isAbsent ? .secondary : .primary))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(
-                                        Capsule().fill(chip.isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(0.15))
+                                        Capsule()
+                                            .fill(chip.isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(isAbsent ? 0.06 : 0.15))
+                                    )
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1)
                                     )
                             }
                         }
@@ -622,6 +635,19 @@ struct StudentLessonPill: View {
             Capsule()
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
+        .overlay(alignment: .trailing) {
+            if day != nil {
+                let anyAbsent = snapshot.studentIDs.contains { sid in
+                    statusesByStudent[sid] == .absent
+                }
+                if anyAbsent {
+                    Rectangle()
+                        .fill(Color.red)
+                        .frame(width: 2)
+                        .clipShape(Capsule())
+                }
+            }
+        }
         .contentShape(Capsule())
         .draggable(snapshot.id.uuidString)
         .accessibilityLabel(accessibilityLabel)

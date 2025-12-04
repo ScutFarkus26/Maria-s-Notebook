@@ -32,6 +32,7 @@
 		51B8026E2EE118AB003A2EA3 /* AttendanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B8026D2EE118AB003A2EA3 /* AttendanceModels.swift */; };
 		51B802702EE119DB003A2EA3 /* AttendanceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B8026F2EE119DB003A2EA3 /* AttendanceViewModel.swift */; };
 		51B802722EE119F7003A2EA3 /* AttendanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B802712EE119F7003A2EA3 /* AttendanceView.swift */; };
+		51B802742EE1230F003A2EA3 /* AttendanceLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B802732EE1230F003A2EA3 /* AttendanceLookup.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,6 +62,7 @@
 		51B8026D2EE118AB003A2EA3 /* AttendanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceModels.swift; sourceTree = "<group>"; };
 		51B8026F2EE119DB003A2EA3 /* AttendanceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceViewModel.swift; sourceTree = "<group>"; };
 		51B802712EE119F7003A2EA3 /* AttendanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceView.swift; sourceTree = "<group>"; };
+		51B802732EE1230F003A2EA3 /* AttendanceLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceLookup.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -125,6 +127,7 @@
 				51B8026D2EE118AB003A2EA3 /* AttendanceModels.swift */,
 				51B8026F2EE119DB003A2EA3 /* AttendanceViewModel.swift */,
 				51B802712EE119F7003A2EA3 /* AttendanceView.swift */,
+				51B802732EE1230F003A2EA3 /* AttendanceLookup.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -230,6 +233,7 @@
 				5165269B2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift in Sources */,
 				516526992EDFF62C00BB0C76 /* StudentLessonDetailViewModel.swift in Sources */,
 				516526AD2EE0981800BB0C76 /* LessonsReorderService.swift in Sources */,
+				51B802742EE1230F003A2EA3 /* AttendanceLookup.swift in Sources */,
 				5165269F2EDFF69300BB0C76 /* StudentLessonDetailViewRefactored.swift in Sources */,
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
 				516526A52EE08E7500BB0C76 /* LessonsImportCoordinator.swift in Sources */,
