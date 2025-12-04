@@ -153,7 +153,7 @@ struct AttendanceView: View {
     // MARK: - Content
     private var content: some View {
         ScrollView {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 ForEach(filteredStudents, id: \.id) { student in
                     AttendanceCard(student: student, record: viewModel.recordsByStudent[student.id]) {
                         viewModel.cycleStatus(for: student, modelContext: modelContext)
@@ -162,7 +162,7 @@ struct AttendanceView: View {
                     }
                 }
             }
-            .padding(16)
+            .padding(12)
         }
     }
 }
@@ -191,11 +191,12 @@ private struct AttendanceCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Text(student.fullName)
                     .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 0)
             }
@@ -205,7 +206,7 @@ private struct AttendanceCard: View {
                     Image(systemName: "note.text").foregroundStyle(.secondary)
                     Text(note).font(.system(size: AppTheme.FontSize.caption, design: .rounded)).foregroundStyle(.secondary)
                 }
-                .lineLimit(2)
+                .lineLimit(1)
             }
 
             Spacer(minLength: 0)
@@ -223,8 +224,8 @@ private struct AttendanceCard: View {
                 .accessibilityLabel("Note")
             }
         }
-        .padding(14)
-        .frame(minHeight: 120)
+        .padding(10)
+        .frame(minHeight: 88)
         .background(background)
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 #if os(macOS)
@@ -259,8 +260,8 @@ private struct AttendanceCard: View {
             Text(statusLabel)
                 .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
                 .background(
                     Capsule().fill(status.color.opacity(0.15))
                 )
