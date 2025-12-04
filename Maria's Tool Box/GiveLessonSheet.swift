@@ -35,7 +35,6 @@ struct GiveLessonSheet: View {
         ))
     }
     
-    @State private var isPresentedFlag: Bool = false
 
     @State private var sortedLessons: [Lesson] = []
     @State private var sortedStudents: [Student] = []
@@ -48,7 +47,7 @@ struct GiveLessonSheet: View {
     
     private var resolvedLesson: Lesson? {
         if let id = viewModel.selectedLessonID {
-            return allLessons.first(where: { $0.id == id })
+            return lessonsSource.first(where: { $0.id == id })
         } else {
             return initialLesson
         }
@@ -62,7 +61,7 @@ struct GiveLessonSheet: View {
     
     @State private var saveAlert: (title: String, message: String)? = nil
 
-    fileprivate enum LevelFilter: String, CaseIterable {
+    enum LevelFilter: String, CaseIterable {
         case all = "All"
         case lower = "Lower"
         case upper = "Upper"
@@ -273,21 +272,8 @@ struct GiveLessonSheet: View {
             }
         }
         .onAppear {
-            sortedLessons = lessonsSource.sorted { lhs, rhs in
-                if lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedSame {
-                    if lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedSame {
-                        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-                    }
-                    return lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedAscending
-                }
-                return lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedAscending
-            }
-            sortedStudents = studentsSource.sorted { lhs, rhs in
-                let l = (lhs.firstName.lowercased(), lhs.lastName.lowercased())
-                let r = (rhs.firstName.lowercased(), rhs.lastName.lowercased())
-                if l.0 == r.0 { return l.1 < r.1 }
-                return l.0 < r.0
-            }
+            sortedLessons = viewModel.sortedLessons(from: lessonsSource)
+            sortedStudents = viewModel.sortedStudents(from: studentsSource)
         }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
@@ -317,7 +303,6 @@ struct GiveLessonSheet: View {
             )
             #if os(macOS)
             .frame(minWidth: 600, minHeight: 520)
-            .presentationSizing(.fitted)
             #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -457,6 +442,29 @@ extension GiveLessonViewModel {
     }
 }
 
+extension GiveLessonViewModel {
+    func sortedLessons(from lessons: [Lesson]) -> [Lesson] {
+        lessons.sorted { lhs, rhs in
+            if lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedSame {
+                if lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedSame {
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+                return lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedAscending
+            }
+            return lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedAscending
+        }
+    }
+
+    func sortedStudents(from students: [Student]) -> [Student] {
+        students.sorted { lhs, rhs in
+            let l = (lhs.firstName.lowercased(), lhs.lastName.lowercased())
+            let r = (rhs.firstName.lowercased(), rhs.lastName.lowercased())
+            if l.0 == r.0 { return l.1 < r.1 }
+            return l.0 < r.0
+        }
+    }
+}
+
 private struct OptionalDatePickerRow: View {
     let toggleLabel: String
     let dateLabel: String
@@ -527,79 +535,45 @@ private struct StudentPickerPopoverContent: View {
     let displayName: (Student) -> String
     @Binding var showingAddStudentSheet: Bool
     @Binding var isPresented: Bool
-
     var body: some View {
-        VStack(spacing: 12) {
-            // Search field
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search students", text: $studentSearchText)
-                    .textFieldStyle(.plain)
-                if !studentSearchText.isEmpty {
-                    Button {
-                        studentSearchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-            )
+        VStack(alignment: .leading, spacing: 12) {
+            // Search and level filter
+            TextField("Search students", text: $studentSearchText)
+                .textFieldStyle(.roundedBorder)
 
-            // Level filter
             Picker("Level", selection: $studentLevelFilter) {
-                Text("All").tag(GiveLessonSheet.LevelFilter.all)
-                Text("Lower").tag(GiveLessonSheet.LevelFilter.lower)
-                Text("Upper").tag(GiveLessonSheet.LevelFilter.upper)
+                ForEach(GiveLessonSheet.LevelFilter.allCases, id: \.self) { level in
+                    Text(level.rawValue).tag(level)
+                }
             }
             .pickerStyle(.segmented)
 
-            Divider().padding(.top, 2)
-
-            // List of students with checkmarks
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(filteredStudents, id: \.id) { student in
-                        Button {
-                            if selectedStudentIDs.contains(student.id) {
-                                selectedStudentIDs.remove(student.id)
-                            } else {
-                                selectedStudentIDs.insert(student.id)
-                            }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: selectedStudentIDs.contains(student.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedStudentIDs.contains(student.id) ? Color.accentColor : Color.secondary)
-                                Text(displayName(student))
-                                    .foregroundStyle(.primary)
-                                Spacer(minLength: 0)
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 6)
+            // Students list with selection checkmarks
+            List(filteredStudents, id: \.id) { student in
+                Button(action: { toggleSelection(for: student.id) }) {
+                    HStack {
+                        Text(displayName(student))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if selectedStudentIDs.contains(student.id) {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.accentColor)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
-                .padding(.top, 4)
+                .buttonStyle(.plain)
             }
-            .frame(maxHeight: 280)
-
-            Divider()
+            .listStyle(.plain)
+            .frame(minHeight: 200, maxHeight: 360)
 
             HStack {
                 Button {
                     showingAddStudentSheet = true
+                    // Optionally close the popover when adding a student
+                    isPresented = false
                 } label: {
-                    Label("New Student…", systemImage: "plus")
+                    Label("Add Student", systemImage: "plus")
                 }
-                .buttonStyle(.borderless)
 
                 Spacer()
 
@@ -608,6 +582,14 @@ private struct StudentPickerPopoverContent: View {
                 }
                 .keyboardShortcut(.defaultAction)
             }
+        }
+    }
+
+    private func toggleSelection(for id: UUID) {
+        if selectedStudentIDs.contains(id) {
+            selectedStudentIDs.remove(id)
+        } else {
+            selectedStudentIDs.insert(id)
         }
     }
 }
@@ -621,85 +603,36 @@ private struct LessonSearchSheetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search lessons", text: $lessonSearchText)
-                    .textFieldStyle(.plain)
-                if !lessonSearchText.isEmpty {
-                    Button {
-                        lessonSearchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-            )
-            .padding(.horizontal)
-            .padding(.top)
-
-            Divider().padding(.horizontal)
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(filteredLessons, id: \.id) { l in
-                        Button {
-                            selectedLessonID = l.id
-                            isPresented = false
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(lessonDisplayTitle(l))
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                if !l.subheading.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Text(l.subheading)
-                                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
-                            .padding(.vertical, 10)
-                        }
-                        .buttonStyle(.plain)
-                        Divider().padding(.leading)
-                    }
-                    if filteredLessons.isEmpty {
-                        VStack(spacing: 8) {
-                            Text("No matches")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                            Text("Try a different search for lesson name, subject, or group.")
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                        .padding()
-                    }
-                }
-            }
-
-            Spacer(minLength: 0)
-
             HStack {
+                Text("Search Lessons")
+                    .font(.headline)
                 Spacer()
-                Button("Done") {
-                    isPresented = false
-                }
-                .keyboardShortcut(.cancelAction)
-                .padding(.trailing)
+                Button("Cancel") { isPresented = false }
             }
-            .padding(.bottom)
-        }
-    }
-}
 
-#Preview {
-    GiveLessonSheet()
+            TextField("Search lessons", text: $lessonSearchText)
+                .textFieldStyle(.roundedBorder)
+
+            List(filteredLessons, id: \.id) { lesson in
+                Button(action: {
+                    selectedLessonID = lesson.id
+                    isPresented = false
+                }) {
+                    HStack {
+                        Text(lessonDisplayTitle(lesson))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if selectedLessonID == lesson.id {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .listStyle(.plain)
+        }
+        .padding()
+    }
 }
 
