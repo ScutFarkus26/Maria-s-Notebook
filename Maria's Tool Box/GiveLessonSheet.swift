@@ -8,6 +8,12 @@ struct GiveLessonSheet: View {
     let allLessons: [Lesson]
     var onDone: (() -> Void)? = nil
     
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    @Query private var queriedStudents: [Student]
+    @Query private var queriedLessons: [Lesson]
+    
     init(lesson: Lesson? = nil, preselectedStudentIDs: [UUID] = [], startGiven: Bool = false, allStudents: [Student] = [], allLessons: [Lesson] = [], onDone: (() -> Void)? = nil) {
         self.initialLesson = lesson
         self.allStudents = allStudents
@@ -18,9 +24,6 @@ struct GiveLessonSheet: View {
         _selectedLessonID = State(initialValue: lesson?.id)
     }
     
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var scheduledFor: Date? = nil
     @State private var givenAt: Date? = nil
@@ -37,9 +40,12 @@ struct GiveLessonSheet: View {
     @State private var showingLessonSearchSheet: Bool = false
     @State private var lessonSearchText: String = ""
     
+    private var lessonsSource: [Lesson] { allLessons.isEmpty ? queriedLessons : allLessons }
+    private var studentsSource: [Student] { allStudents.isEmpty ? queriedStudents : allStudents }
+    
     private var resolvedLesson: Lesson? {
         if let id = selectedLessonID {
-            return allLessons.first(where: { $0.id == id })
+            return lessonsSource.first(where: { $0.id == id })
         } else {
             return initialLesson
         }
@@ -265,7 +271,7 @@ struct GiveLessonSheet: View {
             }
         }
         .onAppear {
-            sortedLessons = allLessons.sorted { lhs, rhs in
+            sortedLessons = lessonsSource.sorted { lhs, rhs in
                 if lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedSame {
                     if lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedSame {
                         return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
@@ -274,7 +280,7 @@ struct GiveLessonSheet: View {
                 }
                 return lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedAscending
             }
-            sortedStudents = allStudents.sorted { lhs, rhs in
+            sortedStudents = studentsSource.sorted { lhs, rhs in
                 let l = (lhs.firstName.lowercased(), lhs.lastName.lowercased())
                 let r = (rhs.firstName.lowercased(), rhs.lastName.lowercased())
                 if l.0 == r.0 { return l.1 < r.1 }
@@ -628,3 +634,4 @@ private struct LessonSearchSheetView: View {
 #Preview {
     GiveLessonSheet()
 }
+
