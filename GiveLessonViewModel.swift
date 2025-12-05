@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftUI
 import SwiftData
 import Foundation
 import Combine
@@ -144,13 +143,13 @@ final class GiveLessonViewModel: ObservableObject {
     // MARK: - Actions
     
     func toggleMode() {
-        _ = withAnimation(.easeInOut) {
+        withAnimation(.easeInOut) {
             mode = (mode == .plan ? .given : .plan)
         }
     }
     
     func toggleStudentSelection(_ studentID: UUID) {
-        _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             if selectedStudentIDs.contains(studentID) {
                 selectedStudentIDs.remove(studentID)
             } else {
@@ -160,8 +159,8 @@ final class GiveLessonViewModel: ObservableObject {
     }
     
     func removeStudent(_ studentID: UUID) {
-        _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-            selectedStudentIDs.remove(studentID)
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+            _ = selectedStudentIDs.remove(studentID)
         }
     }
     
