@@ -12,13 +12,10 @@ struct PlanningAgendaView: View {
     @Query private var students: [Student]
 
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
-    @State private var sidebarItemFrames: [UUID: CGRect] = [:]
-    @State private var sidebarSpaceID = UUID()
 
     // MARK: - State
     @State private var weekStart: Date = Self.monday(for: Date())
     @State private var activeSheet: ActiveSheet? = nil
-    @State private var isSidebarTargeted: Bool = false
 
     private enum ActiveSheet: Identifiable {
         case studentLessonDetail(UUID)
@@ -39,9 +36,8 @@ struct PlanningAgendaView: View {
         (0..<5).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
     }
 
-    private var unscheduledLessons: [StudentLesson] {
-        studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
-            .sorted { $0.createdAt < $1.createdAt }
+    private var orderedUnscheduledLessons: [StudentLesson] {
+        InboxOrderStore.orderedUnscheduled(from: studentLessons, orderRaw: inboxOrderRaw)
     }
 
     private func parseOrder(_ raw: String) -> [UUID] {
@@ -50,23 +46,6 @@ struct PlanningAgendaView: View {
 
     private func serializeOrder(_ ids: [UUID]) -> String {
         ids.map { $0.uuidString }.joined(separator: ",")
-    }
-
-    private var orderedUnscheduledLessons: [StudentLesson] {
-        let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
-        let baseIDs = base.map { $0.id }
-        var order = parseOrder(inboxOrderRaw).filter { baseIDs.contains($0) }
-        // Append any missing IDs in createdAt ascending
-        let missing = base
-            .filter { !order.contains($0.id) }
-            .sorted { $0.createdAt < $1.createdAt }
-            .map { $0.id }
-        order.append(contentsOf: missing)
-        // Sort base by order index
-        let indexMap = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
-        return base.sorted { lhs, rhs in
-            (indexMap[lhs.id] ?? Int.max) < (indexMap[rhs.id] ?? Int.max)
-        }
     }
 
     var body: some View {
@@ -82,13 +61,13 @@ struct PlanningAgendaView: View {
         .onChange(of: studentLessons.map { $0.id }) { _, _ in
             let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
             let baseIDs = base.map { $0.id }
-            var order = parseOrder(inboxOrderRaw).filter { baseIDs.contains($0) }
+            var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
             let missing = base
                 .filter { !order.contains($0.id) }
                 .sorted { $0.createdAt < $1.createdAt }
                 .map { $0.id }
             order.append(contentsOf: missing)
-            inboxOrderRaw = serializeOrder(order)
+            inboxOrderRaw = InboxOrderStore.serialize(order)
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -122,124 +101,25 @@ struct PlanningAgendaView: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Title
-            HStack(spacing: 10) {
-                Image(systemName: "books.vertical")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.primary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Ready to Schedule")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    Text("Next lessons that still need a time slot.")
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
+        InboxSheetView(
+            studentLessons: studentLessons,
+            orderedUnscheduledLessons: orderedUnscheduledLessons,
+            inboxOrderRaw: $inboxOrderRaw,
+            onOpenDetails: { id in
+                activeSheet = .studentLessonDetail(id)
+            },
+            onQuickActions: { id in
+                activeSheet = .quickActions(id)
+            },
+            onPlanNext: { sl in
+                planNextLesson(for: sl)
+            },
+            onUpdateOrder: { newOrderRaw in
+                inboxOrderRaw = newOrderRaw
+                try? modelContext.save()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if orderedUnscheduledLessons.isEmpty {
-                        Spacer(minLength: 20)
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 40, weight: .regular))
-                            .foregroundStyle(.secondary)
-                        Text("Nothing left to plan")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        Text("All next lessons are on the calendar.")
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    } else {
-                        ForEach(orderedUnscheduledLessons, id: \.id) { sl in
-                            StudentLessonPill(snapshot: sl.snapshot(), day: Date())
-                                .onTapGesture { activeSheet = .studentLessonDetail(sl.id) }
-                                .onDrag { NSItemProvider(object: sl.id.uuidString as NSString) }
-                                .contextMenu {
-                                    Button {
-                                        activeSheet = .quickActions(sl.id)
-                                    } label: {
-                                        Label("Quick Actions…", systemImage: "bolt")
-                                    }
-                                    Button {
-                                        planNextLesson(for: sl)
-                                    } label: {
-                                        Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
-                                    }
-                                    Button {
-                                        activeSheet = .studentLessonDetail(sl.id)
-                                    } label: {
-                                        Label("Open Details", systemImage: "info.circle")
-                                    }
-                                }
-                                .background(
-                                    GeometryReader { proxy in
-                                        Color.clear.preference(
-                                            key: SidebarPillFramePreference.self,
-                                            value: [sl.id: proxy.frame(in: .named(sidebarSpaceID))]
-                                        )
-                                    }
-                                )
-                        }
-                    }
-                }
-                .padding(12)
-            }
-            .coordinateSpace(name: sidebarSpaceID)
-            .onPreferenceChange(SidebarPillFramePreference.self) { frames in
-                sidebarItemFrames = frames
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .frame(width: 280)
-        .contentShape(Rectangle())
-        .overlay(
-            RoundedRectangle(cornerRadius: 0)
-                .stroke(isSidebarTargeted ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 3)
         )
-        .dropDestination(for: String.self, action: { items, location in
-            {
-                guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
-                guard let sl = studentLessons.first(where: { $0.id == id }) else { return false }
-
-                let current = orderedUnscheduledLessons
-                let sortedFrames: [(UUID, CGRect)] = current.compactMap { item in
-                    if let rect = sidebarItemFrames[item.id] { return (item.id, rect) }
-                    return nil
-                }.sorted { $0.1.minY < $1.1.minY }
-
-                let insertionIndex: Int = {
-                    for (idx, pair) in sortedFrames.enumerated() {
-                        let midY = pair.1.midY
-                        if location.y < midY { return idx }
-                    }
-                    return sortedFrames.count
-                }()
-
-                // Build new order limited to current unscheduled IDs
-                let currentIDs = Set(studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }.map { $0.id })
-                var order = parseOrder(inboxOrderRaw).filter { currentIDs.contains($0) }
-
-                // If the item was scheduled, unschedule it first
-                if sl.scheduledFor != nil { sl.scheduledFor = nil }
-
-                // Remove existing occurrence, then insert at bounded index
-                if let existing = order.firstIndex(of: sl.id) { order.remove(at: existing) }
-                let bounded = max(0, min(insertionIndex, order.count))
-                order.insert(sl.id, at: bounded)
-
-                // Persist order and save model changes
-                inboxOrderRaw = serializeOrder(order)
-                Task { @MainActor in try? modelContext.save() }
-                return true
-            }()
-        }, isTargeted: { hovering in
-            isSidebarTargeted = hovering
-        })
+        .frame(width: 280)
     }
 
     // MARK: - Header
@@ -542,13 +422,6 @@ private struct AgendaSlot: View {
 
 // MARK: - Preference Key
 private struct PillFramePreference: PreferenceKey {
-    static var defaultValue: [UUID: CGRect] = [:]
-    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
-    }
-}
-
-private struct SidebarPillFramePreference: PreferenceKey {
     static var defaultValue: [UUID: CGRect] = [:]
     static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })

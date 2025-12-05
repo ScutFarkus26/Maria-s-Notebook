@@ -14,16 +14,14 @@ struct PlanningWeekView: View {
     @Query private var students: [Student]
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @State private var weekStart: Date = Self.monday(for: Date())
-    @State private var isSidebarTargeted: Bool = false
     @State private var activeSheet: ActiveSheet? = nil
-    @State private var sidebarItemFrames: [UUID: CGRect] = [:]
-    @State private var sidebarSpaceID = UUID()
 
     private enum ActiveSheet: Identifiable {
         case studentLessonDetail(UUID)
         case quickActions(UUID)
         case giveLesson
         case addLesson
+        case inbox
 
         var id: String {
             switch self {
@@ -31,23 +29,13 @@ struct PlanningWeekView: View {
             case .quickActions(let id): return "quick_\(id.uuidString)"
             case .giveLesson: return "giveLesson"
             case .addLesson: return "addLesson"
+            case .inbox: return "inbox"
             }
         }
     }
 
     private var days: [Date] {
         (0..<5).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
-    }
-    
-    private var unscheduledLessons: [StudentLesson] {
-        studentLessons
-            .filter { $0.scheduledFor == nil && !$0.isGiven }
-            .sorted { lhs, rhs in
-                if lhs.createdAt == rhs.createdAt {
-                    return lhs.id.uuidString < rhs.id.uuidString
-                }
-                return lhs.createdAt < rhs.createdAt
-            }
     }
     
     private func planNextLesson(for sl: StudentLesson) {
@@ -90,29 +78,32 @@ struct PlanningWeekView: View {
         try? modelContext.save()
     }
     
-    private func parseOrder(_ raw: String) -> [UUID] {
-        raw.split(separator: ",").compactMap { UUID(uuidString: String($0)) }
-    }
-
-    private func serializeOrder(_ ids: [UUID]) -> String {
-        ids.map { $0.uuidString }.joined(separator: ",")
-    }
-
     private var orderedUnscheduledLessons: [StudentLesson] {
-        let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
-        let baseIDs = base.map { $0.id }
-        var order = parseOrder(inboxOrderRaw).filter { baseIDs.contains($0) }
-        let missing = base
-            .filter { !order.contains($0.id) }
-            .sorted { $0.createdAt < $1.createdAt }
-            .map { $0.id }
-        order.append(contentsOf: missing)
-        let indexMap = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
-        return base.sorted { lhs, rhs in
-            (indexMap[lhs.id] ?? Int.max) < (indexMap[rhs.id] ?? Int.max)
-        }
+        InboxOrderStore.orderedUnscheduled(from: studentLessons, orderRaw: inboxOrderRaw)
     }
-
+    
+    private var sidebar: some View {
+        InboxSheetView(
+            studentLessons: studentLessons,
+            orderedUnscheduledLessons: orderedUnscheduledLessons,
+            inboxOrderRaw: $inboxOrderRaw,
+            onOpenDetails: { id in
+                activeSheet = .studentLessonDetail(id)
+            },
+            onQuickActions: { id in
+                activeSheet = .quickActions(id)
+            },
+            onPlanNext: { sl in
+                planNextLesson(for: sl)
+            },
+            onUpdateOrder: { newOrderRaw in
+                inboxOrderRaw = newOrderRaw
+                try? modelContext.save()
+            }
+        )
+        .frame(width: 280)
+    }
+    
     var body: some View {
         contentView
             .sheet(item: $activeSheet) { sheet in
@@ -159,6 +150,32 @@ struct PlanningWeekView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 #endif
+            case .inbox:
+                InboxSheetView(
+                    studentLessons: studentLessons,
+                    orderedUnscheduledLessons: orderedUnscheduledLessons,
+                    inboxOrderRaw: $inboxOrderRaw,
+                    onOpenDetails: { id in
+                        activeSheet = .studentLessonDetail(id)
+                    },
+                    onQuickActions: { id in
+                        activeSheet = .quickActions(id)
+                    },
+                    onPlanNext: { sl in
+                        planNextLesson(for: sl)
+                    },
+                    onUpdateOrder: { newOrderRaw in
+                        inboxOrderRaw = newOrderRaw
+                        try? modelContext.save()
+                    }
+                )
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizing(.fitted)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
             }
         }
     }
@@ -183,133 +200,14 @@ struct PlanningWeekView: View {
         .onChange(of: studentLessons.map { $0.id }) { _, _ in
             let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
             let baseIDs = base.map { $0.id }
-            var order = parseOrder(inboxOrderRaw).filter { baseIDs.contains($0) }
+            var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
             let missing = base
                 .filter { !order.contains($0.id) }
                 .sorted { $0.createdAt < $1.createdAt }
                 .map { $0.id }
             order.append(contentsOf: missing)
-            inboxOrderRaw = serializeOrder(order)
+            inboxOrderRaw = InboxOrderStore.serialize(order)
         }
-    }
-
-    // MARK: - Sidebar
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Title
-            HStack(spacing: 10) {
-                Image(systemName: "books.vertical")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.primary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Ready to Schedule")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    Text("Next lessons that still need a time slot.")
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if orderedUnscheduledLessons.isEmpty {
-                        Spacer(minLength: 20)
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 40, weight: .regular))
-                            .foregroundStyle(.secondary)
-                        Text("Nothing left to plan")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        Text("All next lessons are on the calendar.")
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    } else {
-                        ForEach(orderedUnscheduledLessons, id: \.id) { sl in
-                            StudentLessonPill(snapshot: sl.snapshot(), day: Date())
-                                .onTapGesture {
-                                    activeSheet = .studentLessonDetail(sl.id)
-                                }
-                                .onDrag { NSItemProvider(object: sl.id.uuidString as NSString) }
-                                .background(
-                                    GeometryReader { proxy in
-                                        Color.clear.preference(
-                                            key: SidebarPillFramePreference.self,
-                                            value: [sl.id: proxy.frame(in: .named(sidebarSpaceID))]
-                                        )
-                                    }
-                                )
-                                .contextMenu {
-                                    Button {
-                                        activeSheet = .quickActions(sl.id)
-                                    } label: {
-                                        Label("Quick Actions…", systemImage: "bolt")
-                                    }
-                                    Button {
-                                        planNextLesson(for: sl)
-                                    } label: {
-                                        Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
-                                    }
-                                    Button {
-                                        activeSheet = .studentLessonDetail(sl.id)
-                                    } label: {
-                                        Label("Open Details", systemImage: "info.circle")
-                                    }
-                                }
-                        }
-                    }
-                }
-                .padding(12)
-            }
-            .coordinateSpace(name: sidebarSpaceID)
-            .onPreferenceChange(SidebarPillFramePreference.self) { frames in
-                sidebarItemFrames = frames
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .frame(width: 280)
-        .contentShape(Rectangle())
-        .overlay(
-            RoundedRectangle(cornerRadius: 0)
-                .stroke(isSidebarTargeted ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 3)
-        )
-        .dropDestination(for: String.self, action: { items, location in
-            guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
-            guard let sl = studentLessons.first(where: { $0.id == id }) else { return false }
-
-            let current = orderedUnscheduledLessons
-            let sortedFrames: [(UUID, CGRect)] = current.compactMap { item in
-                if let rect = sidebarItemFrames[item.id] { return (item.id, rect) }
-                return nil
-            }.sorted { $0.1.minY < $1.1.minY }
-
-            let insertionIndex: Int = {
-                for (idx, pair) in sortedFrames.enumerated() {
-                    if location.y < pair.1.midY { return idx }
-                }
-                return sortedFrames.count
-            }()
-
-            // Start from persisted order limited to current unscheduled IDs
-            let currentIDs = Set(studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }.map { $0.id })
-            var order = parseOrder(inboxOrderRaw).filter { currentIDs.contains($0) }
-
-            // If item was scheduled, unschedule first
-            if sl.scheduledFor != nil { sl.scheduledFor = nil }
-
-            if let existing = order.firstIndex(of: sl.id) { order.remove(at: existing) }
-            let bounded = max(0, min(insertionIndex, order.count))
-            order.insert(sl.id, at: bounded)
-
-            inboxOrderRaw = serializeOrder(order)
-            Task { @MainActor in try? modelContext.save() }
-            return true
-        }, isTargeted: { hovering in
-            isSidebarTargeted = hovering
-        })
     }
 
     // MARK: - Header
@@ -337,7 +235,7 @@ struct PlanningWeekView: View {
             .buttonStyle(.plain)
 
             Spacer()
-
+            
             Button("Today") {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
                     weekStart = Self.monday(for: Date(), calendar: calendar)
@@ -569,18 +467,9 @@ private struct DropZone: View {
                 }
                 return nil
             }
-
-            let insertionIndex: Int = {
-                let ordered = sortedFrames.sorted { $0.1.minY < $1.1.minY }
-                for (idx, pair) in ordered.enumerated() {
-                    let rect = pair.1
-                    let midY = rect.midY
-                    if location.y < midY {
-                        return idx
-                    }
-                }
-                return ordered.count
-            }()
+            
+            let framesDict = Dictionary(uniqueKeysWithValues: sortedFrames.map { ($0.0, $0.1) })
+            let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: framesDict)
 
             // Remove the moved id if exists
             if let existingIndex = ids.firstIndex(of: sl.id) {
@@ -590,12 +479,11 @@ private struct DropZone: View {
             let boundedIndex = max(0, min(insertionIndex, ids.count))
             ids.insert(sl.id, at: boundedIndex)
 
-            // Compute base date for slot
             let base = dateForSlot(day: day, period: period)
-
-            for (idx, id) in ids.enumerated() {
+            let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: base, calendar: calendar, spacingSeconds: 1)
+            for id in ids {
                 if let item = allStudentLessons.first(where: { $0.id == id }) {
-                    item.scheduledFor = calendar.date(byAdding: .second, value: idx, to: base)
+                    item.scheduledFor = timeMap[id]
                 }
             }
 
@@ -782,13 +670,6 @@ struct StudentLessonPill: View {
         .onDrag {
             NSItemProvider(object: snapshot.id.uuidString as NSString)
         }
-    }
-}
-
-private struct SidebarPillFramePreference: PreferenceKey {
-    static var defaultValue: [UUID: CGRect] = [:]
-    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
 }
 

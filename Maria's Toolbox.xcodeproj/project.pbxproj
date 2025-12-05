@@ -33,6 +33,9 @@
 		51A55E8D2EE246E900774D2E /* GiveLessonComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E8C2EE246E900774D2E /* GiveLessonComponents.swift */; };
 		51A55E912EE2473100774D2E /* REFACTORING_SUMMARY 3.md in Resources */ = {isa = PBXBuildFile; fileRef = 51A55E902EE2473100774D2E /* REFACTORING_SUMMARY 3.md */; };
 		51A55E952EE262C400774D2E /* PlanningAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E942EE262C400774D2E /* PlanningAgendaView.swift */; };
+		51A55E972EE26A8600774D2E /* PlanningDropUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E962EE26A8600774D2E /* PlanningDropUtils.swift */; };
+		51A55E992EE26A8900774D2E /* InboxOrderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E982EE26A8900774D2E /* InboxOrderStore.swift */; };
+		51A55E9B2EE26A9A00774D2E /* InboxSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E9A2EE26A9A00774D2E /* InboxSheetView.swift */; };
 		51B8026E2EE118AB003A2EA3 /* AttendanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B8026D2EE118AB003A2EA3 /* AttendanceModels.swift */; };
 		51B802702EE119DB003A2EA3 /* AttendanceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B8026F2EE119DB003A2EA3 /* AttendanceViewModel.swift */; };
 		51B802722EE119F7003A2EA3 /* AttendanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B802712EE119F7003A2EA3 /* AttendanceView.swift */; };
@@ -67,6 +70,9 @@
 		51A55E8C2EE246E900774D2E /* GiveLessonComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiveLessonComponents.swift; sourceTree = "<group>"; };
 		51A55E902EE2473100774D2E /* REFACTORING_SUMMARY 3.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "REFACTORING_SUMMARY 3.md"; sourceTree = "<group>"; };
 		51A55E942EE262C400774D2E /* PlanningAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningAgendaView.swift; sourceTree = "<group>"; };
+		51A55E962EE26A8600774D2E /* PlanningDropUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningDropUtils.swift; sourceTree = "<group>"; };
+		51A55E982EE26A8900774D2E /* InboxOrderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxOrderStore.swift; sourceTree = "<group>"; };
+		51A55E9A2EE26A9A00774D2E /* InboxSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxSheetView.swift; sourceTree = "<group>"; };
 		51B8026D2EE118AB003A2EA3 /* AttendanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceModels.swift; sourceTree = "<group>"; };
 		51B8026F2EE119DB003A2EA3 /* AttendanceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceViewModel.swift; sourceTree = "<group>"; };
 		51B802712EE119F7003A2EA3 /* AttendanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceView.swift; sourceTree = "<group>"; };
@@ -140,6 +146,9 @@
 				51A55E8C2EE246E900774D2E /* GiveLessonComponents.swift */,
 				51A55E902EE2473100774D2E /* REFACTORING_SUMMARY 3.md */,
 				51A55E942EE262C400774D2E /* PlanningAgendaView.swift */,
+				51A55E962EE26A8600774D2E /* PlanningDropUtils.swift */,
+				51A55E982EE26A8900774D2E /* InboxOrderStore.swift */,
+				51A55E9A2EE26A9A00774D2E /* InboxSheetView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -241,8 +250,11 @@
 				516526AB2EE0981400BB0C76 /* LessonsFilterPersistence.swift in Sources */,
 				516526A72EE08E7C00BB0C76 /* StudentsImportCoordinator.swift in Sources */,
 				516526AF2EE0987300BB0C76 /* LessonsFilterState.swift in Sources */,
+				51A55E9B2EE26A9A00774D2E /* InboxSheetView.swift in Sources */,
 				51A55E952EE262C400774D2E /* PlanningAgendaView.swift in Sources */,
+				51A55E972EE26A8600774D2E /* PlanningDropUtils.swift in Sources */,
 				51A55E8D2EE246E900774D2E /* GiveLessonComponents.swift in Sources */,
+				51A55E992EE26A8900774D2E /* InboxOrderStore.swift in Sources */,
 				516526B12EE0A0D900BB0C76 /* LessonsDragDropDelegates.swift in Sources */,
 				5165269D2EDFF67200BB0C76 /* StudentLessonDetailSections.swift in Sources */,
 				5165269B2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift in Sources */,
