@@ -2,6 +2,24 @@ import SwiftUI
 import SwiftData
 import Combine
 
+private enum Formatters {
+    static let dayName: DateFormatter = {
+        let df = DateFormatter()
+        df.setLocalizedDateFormatFromTemplate("EEE")
+        return df
+    }()
+    static let dayNumber: DateFormatter = {
+        let df = DateFormatter()
+        df.setLocalizedDateFormatFromTemplate("d")
+        return df
+    }()
+    static let weekRange: DateFormatter = {
+        let df = DateFormatter()
+        df.setLocalizedDateFormatFromTemplate("MMM d")
+        return df
+    }()
+}
+
 private enum DayPeriod {
     case morning
     case afternoon
@@ -273,9 +291,7 @@ struct PlanningWeekView: View {
     // MARK: - Helpers
     private var weekRangeString: String {
         guard let first = days.first, let last = days.last else { return "" }
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("MMM d")
-        return "\(fmt.string(from: first)) - \(fmt.string(from: last))"
+        return "\(Formatters.weekRange.string(from: first)) - \(Formatters.weekRange.string(from: last))"
     }
 
     private func isNonSchoolDay(_ day: Date) -> Bool {
@@ -403,15 +419,11 @@ private struct DayColumn: View {
     }
 
     private var dayName: String {
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("EEE")
-        return fmt.string(from: day)
+        Formatters.dayName.string(from: day)
     }
 
     private var dayNumber: String {
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("d")
-        return fmt.string(from: day)
+        Formatters.dayNumber.string(from: day)
     }
 }
 

@@ -34,20 +34,21 @@ struct CalendarMonthGridView: View {
     }
 
     private var weekdaySymbols: [String] {
-        let df = DateFormatter()
-        // Unwrap with robust fallbacks to ensure a non-optional array
-        let base: [String] = df.shortStandaloneWeekdaySymbols
-            ?? df.shortWeekdaySymbols
-            ?? df.weekdaySymbols
+        struct Cache {
+            static let df: DateFormatter = {
+                let d = DateFormatter()
+                return d
+            }()
+        }
+        // Prefer standalone symbols; fall back as needed
+        let base = Cache.df.shortStandaloneWeekdaySymbols
+            ?? Cache.df.shortWeekdaySymbols
+            ?? Cache.df.weekdaySymbols
             ?? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-        // Convert calendar.firstWeekday (1...7) to zero-based index
         let start = max(1, min(7, calendar.firstWeekday)) - 1
-
-        // If start is zero or out of bounds, just return base
         guard start > 0, start < base.count else { return base }
 
-        // Rotate symbols so that they start at the calendar's firstWeekday
         let head = Array(base[start...])
         let tail = Array(base[..<start])
         return head + tail

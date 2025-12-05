@@ -418,7 +418,8 @@ enum BackupManager {
             planningInboxOrder: planningInboxOrder
         )
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        // Use compact encoding for smaller backups and faster encode
+        // (Pretty printing and sorted keys can be re-enabled for debugging if needed)
         encoder.dateEncodingStrategy = .iso8601
         return try encoder.encode(payload)
     }

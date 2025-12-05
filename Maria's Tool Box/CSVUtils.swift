@@ -121,25 +121,35 @@ public enum DateParser {
         "yyyy-MM-dd'T'HH:mm:ssZ"
     ]
     
+    private static let iso: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        return f
+    }()
+
+    private static let cachedFormatters: [String: DateFormatter] = {
+        var dict: [String: DateFormatter] = [:]
+        for fmt in formats {
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.timeZone = TimeZone(secondsFromGMT: 0)
+            df.dateFormat = fmt
+            dict[fmt] = df
+        }
+        return dict
+    }()
+
     public static func parse(_ value: String) -> Date? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return nil }
-        
-        let isoFormatter = ISO8601DateFormatter()
-        if let date = isoFormatter.date(from: trimmed) {
+
+        if let date = iso.date(from: trimmed) {
             return date
         }
-        
         for fmt in formats {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            formatter.dateFormat = fmt
-            if let date = formatter.date(from: trimmed) {
+            if let df = cachedFormatters[fmt], let date = df.date(from: trimmed) {
                 return date
             }
         }
-        
         return nil
     }
 }

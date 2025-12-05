@@ -15,7 +15,7 @@ struct StudentsImportCoordinator {
                 }
                 defer { url.stopAccessingSecurityScopedResource() }
                 
-                let data = try Data(contentsOf: url)
+                let data = try Data(contentsOf: url, options: [.mappedIfSafe])
                 guard let csv = CSVParser.parse(data: data) else {
                     throw StudentCSVImporter.ImportError.encoding("Unsupported text encoding; please use UTF-8.")
                 }
@@ -53,7 +53,7 @@ struct StudentsImportCoordinator {
                 }
                 defer { url.stopAccessingSecurityScopedResource() }
                 
-                let data = try Data(contentsOf: url)
+                let data = try Data(contentsOf: url, options: [.mappedIfSafe])
                 
                 let keys = await MainActor.run { () -> (full: Set<String>, name: Set<String>) in
                     let full = Set(students.map { StudentCSVImporter.duplicateKey(for: $0) })

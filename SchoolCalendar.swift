@@ -24,17 +24,38 @@ struct SchoolCalendar {
         }
     }
 
-    static func nonSchoolDays(in range: Range<Date>, using context: ModelContext) -> Set<Date> {
-        var result: Set<Date> = []
-        var d = cal.startOfDay(for: range.lowerBound)
-        while d < range.upperBound {
-            if isNonSchoolDay(d, using: context) {
+    static func precomputedNonSchoolSet(in range: Range<Date>, using context: ModelContext) -> Set<Date> {
+        let start = cal.startOfDay(for: range.lowerBound)
+        let end = cal.startOfDay(for: range.upperBound)
+
+        // Batch fetch NonSchoolDay and SchoolDayOverride once for the range
+        let nsFetch = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date >= start && $0.date < end })
+        let ovFetch = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date >= start && $0.date < end })
+        let nonSchool = (try? context.fetch(nsFetch)) ?? []
+        let overrides = (try? context.fetch(ovFetch)) ?? []
+
+        var result = Set<Date>(nonSchool.map { cal.startOfDay(for: $0.date) })
+
+        // Add weekends in range by default
+        var d = start
+        while d < end {
+            let wd = cal.component(.weekday, from: d)
+            if wd == 1 || wd == 7 { // Sunday or Saturday
                 result.insert(d)
             }
             guard let next = cal.date(byAdding: .day, value: 1, to: d) else { break }
             d = next
         }
+
+        // Remove weekend overrides (weekend becomes a school day)
+        for ov in overrides {
+            result.remove(cal.startOfDay(for: ov.date))
+        }
         return result
+    }
+
+    static func nonSchoolDays(in range: Range<Date>, using context: ModelContext) -> Set<Date> {
+        return precomputedNonSchoolSet(in: range, using: context)
     }
 
     /// Toggle the "non-school" state for a date from the user's perspective.
