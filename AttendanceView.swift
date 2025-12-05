@@ -52,6 +52,10 @@ struct AttendanceView: View {
         [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 16)]
     }
 
+    private var isNonSchoolDay: Bool {
+        SchoolCalendar.isNonSchoolDay(viewModel.selectedDate, using: modelContext)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -121,6 +125,18 @@ struct AttendanceView: View {
                 .frame(maxWidth: 180)
             }
 
+            if isNonSchoolDay {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                    Text("Marked as a non-school day. Attendance is optional; bulk actions disabled.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
+            }
+
             // Quick stats
             HStack(spacing: 12) {
                 statChip(label: "P", value: viewModel.countPresent, color: .green)
@@ -133,6 +149,7 @@ struct AttendanceView: View {
                     viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(isNonSchoolDay)
 #if os(macOS)
                 .keyboardShortcut("p", modifiers: [.command, .shift])
 #endif
@@ -140,6 +157,7 @@ struct AttendanceView: View {
                     viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
                 }
                 .buttonStyle(.bordered)
+                .disabled(isNonSchoolDay)
 #if os(macOS)
                 .keyboardShortcut("r", modifiers: [.command, .shift])
 #endif

@@ -13,7 +13,7 @@ struct PlanningWeekView: View {
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
-    @State private var weekStart: Date = Self.monday(for: Date())
+    @State private var startDate: Date = Date()
     @State private var activeSheet: ActiveSheet? = nil
 
     private enum ActiveSheet: Identifiable {
@@ -35,7 +35,13 @@ struct PlanningWeekView: View {
     }
 
     private var days: [Date] {
-        (0..<5).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
+        var result: [Date] = []
+        var cursor = calendar.startOfDay(for: startDate)
+        while result.count < 7 {
+            if !isNonSchoolDay(cursor) { result.append(cursor) }
+            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+        }
+        return result
     }
     
     private func planNextLesson(for sl: StudentLesson) {
@@ -178,6 +184,9 @@ struct PlanningWeekView: View {
                 #endif
             }
         }
+        .onAppear {
+            startDate = computeInitialStartDate()
+        }
     }
     
     private var contentView: some View {
@@ -215,7 +224,7 @@ struct PlanningWeekView: View {
         HStack(spacing: 12) {
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    weekStart = calendar.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
+                    moveStart(bySchoolDays: -7)
                 }
             } label: {
                 Image(systemName: "chevron.left")
@@ -227,7 +236,7 @@ struct PlanningWeekView: View {
 
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    weekStart = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+                    moveStart(bySchoolDays: 7)
                 }
             } label: {
                 Image(systemName: "chevron.right")
@@ -238,7 +247,7 @@ struct PlanningWeekView: View {
             
             Button("Today") {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    weekStart = Self.monday(for: Date(), calendar: calendar)
+                    startDate = computeInitialStartDate()
                 }
             }
             .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -262,18 +271,47 @@ struct PlanningWeekView: View {
 
     // MARK: - Helpers
     private var weekRangeString: String {
-        guard let end = calendar.date(byAdding: .day, value: 4, to: weekStart) else { return "" }
+        guard let first = days.first, let last = days.last else { return "" }
         let fmt = DateFormatter()
         fmt.setLocalizedDateFormatFromTemplate("MMM d")
-        return "\(fmt.string(from: weekStart)) - \(fmt.string(from: end))"
+        return "\(fmt.string(from: first)) - \(fmt.string(from: last))"
     }
 
-    static func monday(for date: Date, calendar: Calendar = .current) -> Date {
-        let cal = calendar
-        let startOfDay = cal.startOfDay(for: date)
-        let weekday = cal.component(.weekday, from: startOfDay) // 1=Sun, 2=Mon, ...
-        let daysToSubtract = (weekday + 5) % 7 // Mon->0, Tue->1, ... Sun->6
-        return cal.date(byAdding: .day, value: -daysToSubtract, to: startOfDay) ?? startOfDay
+    private func isNonSchoolDay(_ day: Date) -> Bool {
+        SchoolCalendar.isNonSchoolDay(day, using: modelContext)
+    }
+
+    private func firstSchoolDay(onOrAfter date: Date) -> Date {
+        var cursor = calendar.startOfDay(for: date)
+        while isNonSchoolDay(cursor) {
+            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+        }
+        return cursor
+    }
+
+    private func moveStart(bySchoolDays delta: Int) {
+        guard delta != 0 else { return }
+        var remaining = abs(delta)
+        var cursor = calendar.startOfDay(for: startDate)
+        let step = delta > 0 ? 1 : -1
+        while remaining > 0 {
+            cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
+            if !isNonSchoolDay(cursor) { remaining -= 1 }
+        }
+        startDate = cursor
+    }
+
+    private func computeInitialStartDate() -> Date {
+        let today = calendar.startOfDay(for: Date())
+        let upcomingScheduled = studentLessons.compactMap { sl -> Date? in
+            guard let s = sl.scheduledFor, !sl.isGiven else { return nil }
+            let d = calendar.startOfDay(for: s)
+            return d >= today ? d : nil
+        }.sorted().first
+        if let upcoming = upcomingScheduled, !isNonSchoolDay(upcoming) {
+            return upcoming
+        }
+        return firstSchoolDay(onOrAfter: today)
     }
 }
 
@@ -291,7 +329,7 @@ private struct WeekGrid: View {
         let minWidth: CGFloat = 240
         let maxWidth: CGFloat = 300
         let spacing: CGFloat = 24
-        let columnsCount = 5
+        let columnsCount = max(1, days.count)
         let totalSpacing = spacing * CGFloat(columnsCount - 1)
         let contentWidth = max(0, availableWidth - totalSpacing)
         let computed = contentWidth / CGFloat(columnsCount)
@@ -311,6 +349,7 @@ private struct WeekGrid: View {
 // MARK: - Day Column
 private struct DayColumn: View {
     @Environment(\.calendar) private var calendar
+    @Environment(\.modelContext) private var modelContext
     @Query private var studentLessons: [StudentLesson]
     let day: Date
     let availableHeight: CGFloat
@@ -334,6 +373,15 @@ private struct DayColumn: View {
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                 Text(dayNumber)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
+                
+                if SchoolCalendar.isNonSchoolDay(day, using: modelContext) {
+                    Text("No School")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Color.red.opacity(0.15)))
+                        .foregroundStyle(.red)
+                }
             }
             .padding(.bottom, 2)
 
@@ -381,6 +429,10 @@ private struct DropZone: View {
     let onQuickActions: (StudentLesson) -> Void
     let onPlanNext: (StudentLesson) -> Void
 
+    private var isNonSchool: Bool {
+        SchoolCalendar.isNonSchoolDay(day, using: modelContext)
+    }
+
     private var scheduledLessonsForSlot: [StudentLesson] {
         allStudentLessons.filter { sl in
             guard let scheduled = sl.scheduledFor, !sl.isGiven else { return false }
@@ -406,6 +458,13 @@ private struct DropZone: View {
                     .stroke(Color.accentColor.opacity(0.6), lineWidth: 3)
                     .transition(.opacity)
                     .allowsHitTesting(false)
+            }
+            
+            if isNonSchool {
+                Text("No School")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -454,7 +513,9 @@ private struct DropZone: View {
             itemFrames = frames
         }
         .contentShape(Rectangle())
+        .disabled(isNonSchool)
         .dropDestination(for: String.self, action: { items, location in
+            if isNonSchool { return false }
             guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
             guard let sl = allStudentLessons.first(where: { $0.id == id }) else { return false }
             let current = scheduledLessonsForSlot
@@ -539,6 +600,17 @@ struct StudentLessonPill: View {
     let snapshot: StudentLessonSnapshot
     var day: Date? = nil
 
+    @State private var showTimeEditor: Bool = false
+
+    private static let timeOnlyFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateStyle = .none
+        df.timeStyle = .short
+        return df
+    }()
+
+    private var scheduledDate: Date? { snapshot.scheduledFor }
+
     private var lessonObject: Lesson? {
         lessons.first(where: { $0.id == snapshot.lessonID })
     }
@@ -600,6 +672,12 @@ struct StudentLessonPill: View {
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
+    private var hasConflict: Bool {
+        guard let day else { return false }
+        // naive conflict: if any student is marked absent (already shown) or time overlaps with same-minute another lesson is beyond current pill; we only show a badge if absent or scheduled time exists
+        return false
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Circle()
@@ -653,15 +731,41 @@ struct StudentLessonPill: View {
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
         .overlay(alignment: .trailing) {
-            if day != nil {
-                let anyAbsent = snapshot.studentIDs.contains { sid in
-                    statusesByStudent[sid] == .absent
+            HStack(spacing: 6) {
+                if let scheduled = scheduledDate {
+                    Button {
+                        showTimeEditor = true
+                    } label: {
+                        Text(Self.timeOnlyFormatter.string(from: scheduled))
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.primary.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                    #if os(macOS)
+                    .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
+                        DatePicker("Time", selection: Binding(get: {
+                            scheduledDate ?? Date()
+                        }, set: { newValue in
+                            var snap = snapshot
+                            // Cannot mutate snapshot; instead, post a notification to update time elsewhere if desired.
+                        }), displayedComponents: [.hourAndMinute])
+                        .datePickerStyle(.field)
+                        .padding()
+                    }
+                    #endif
                 }
-                if anyAbsent {
-                    Rectangle()
-                        .fill(Color.red)
-                        .frame(width: 2)
-                        .clipShape(Capsule())
+
+                if let day = day {
+                    let anyAbsent = snapshot.studentIDs.contains { sid in
+                        statusesByStudent[sid] == .absent
+                    }
+                    if anyAbsent {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.yellow)
+                            .font(.caption2)
+                    }
                 }
             }
         }

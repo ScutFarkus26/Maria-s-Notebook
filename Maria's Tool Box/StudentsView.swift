@@ -6,11 +6,13 @@ import SwiftData
 struct StudentsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var students: [Student]
+    @Query private var attendanceRecords: [AttendanceRecord]
     
     private let viewModel = StudentsViewModel()
 
     @AppStorage("StudentsView.sortOrder") private var studentsSortOrderRaw: String = "alphabetical"
     @AppStorage("StudentsView.selectedFilter") private var studentsFilterRaw: String = "all"
+    @AppStorage("StudentsView.presentNow.excludedNames") private var presentNowExcludedNamesRaw: String = "danny de berry,lil dan d"
 
     private var sortOrder: SortOrder {
         switch studentsSortOrderRaw {
@@ -25,6 +27,8 @@ struct StudentsView: View {
         switch studentsFilterRaw {
         case "upper": return .upper
         case "lower": return .lower
+        case "presentNow": return .presentNow
+        case "presentToday": return .presentNow
         default: return .all
         }
     }
@@ -34,6 +38,36 @@ struct StudentsView: View {
     
     @State private var isShowingSaveError: Bool = false
     @State private var saveErrorMessage: String = ""
+
+    private var excludedPresentNowNames: Set<String> {
+        let lower = presentNowExcludedNamesRaw.lowercased()
+        let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
+        let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        return Set(tokens)
+    }
+
+    private var excludedPresentNowIDs: Set<UUID> {
+        let names = excludedPresentNowNames
+        let ids = students.compactMap { s -> UUID? in
+            let name = s.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return names.contains(name) ? s.id : nil
+        }
+        return Set(ids)
+    }
+
+    private var presentNowIDs: Set<UUID> {
+        let cal = Calendar.current
+        let now = Date()
+        let today = cal.startOfDay(for: now)
+        let todays = attendanceRecords.filter { rec in
+            cal.isDate(rec.date, inSameDayAs: today) && (rec.status == .present || rec.status == .tardy)
+        }
+        var ids = Set(todays.map { $0.studentID })
+        ids.subtract(excludedPresentNowIDs)
+        return ids
+    }
+    
+    private var presentNowCount: Int { presentNowIDs.count }
 
     /// Returns students ordered by the persisted manual order, with any missing/extra appended.
     private func applyManualOrder(to students: [Student]) -> [Student] {
@@ -96,7 +130,7 @@ struct StudentsView: View {
 
     /// Students after applying the current filter and sort order.
     private var filteredStudents: [Student] {
-        viewModel.filteredStudents(students: students, filter: selectedFilter, sortOrder: sortOrder)
+        viewModel.filteredStudents(students: students, filter: selectedFilter, sortOrder: sortOrder, presentNowIDs: presentNowIDs)
     }
 
     /// Available level filters.
@@ -110,6 +144,8 @@ struct StudentsView: View {
             studentsFilterRaw = "upper"
         case .lower:
             studentsFilterRaw = "lower"
+        case .presentNow:
+            studentsFilterRaw = "presentNow"
         case .all:
             studentsFilterRaw = "all"
         }
@@ -230,6 +266,19 @@ struct StudentsView: View {
             ) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                     studentsFilterRaw = "all"
+                }
+            }
+
+            SidebarFilterButton(
+                icon: "checkmark.circle.fill",
+                title: "Present Now",
+                color: .green,
+                isSelected: selectedFilter == .presentNow,
+                trailingBadgeText: presentNowCount > 0 ? "\(presentNowCount)" : nil,
+                trailingBadgeColor: .green
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    studentsFilterRaw = "presentNow"
                 }
             }
 

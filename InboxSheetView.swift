@@ -19,10 +19,26 @@ public struct InboxSheetView: View {
   let onPlanNext: (StudentLesson) -> Void
   let onUpdateOrder: ((String) -> Void)?
 
+  @Environment(\.calendar) private var calendar
   @Environment(\.modelContext) private var modelContext
+  @State private var selected: Set<UUID> = []
+
   @State private var itemFrames: [UUID: CGRect] = [:]
   @State private var spaceID = UUID()
   @State private var isTargeted = false
+
+  private static let mediumDateFormatter: DateFormatter = {
+    let df = DateFormatter()
+    df.dateStyle = .medium
+    df.timeStyle = .none
+    return df
+  }()
+  
+  private static let weekdayFormatter: DateFormatter = {
+    let df = DateFormatter()
+    df.setLocalizedDateFormatFromTemplate("EEE")
+    return df
+  }()
 
   init(
     studentLessons: [StudentLesson],
@@ -40,6 +56,27 @@ public struct InboxSheetView: View {
     self.onQuickActions = onQuickActions
     self.onPlanNext = onPlanNext
     self.onUpdateOrder = onUpdateOrder
+  }
+
+  private func monday(for date: Date) -> Date {
+    let start = calendar.startOfDay(for: date)
+    let weekday = calendar.component(.weekday, from: start)
+    let daysToSubtract = (weekday + 5) % 7
+    return calendar.date(byAdding: .day, value: -daysToSubtract, to: start) ?? start
+  }
+
+  private func scheduleSelected(to day: Date, hour: Int) {
+    let idsInOrder: [UUID] = orderedUnscheduledLessons.map { $0.id }.filter { selected.contains($0) }
+    guard !idsInOrder.isEmpty else { return }
+    let base = calendar.date(byAdding: .hour, value: hour, to: calendar.startOfDay(for: day)) ?? day
+    let timeMap = PlanningDropUtils.assignSequentialTimes(ids: idsInOrder, base: base, calendar: calendar, spacingSeconds: 60)
+    for id in idsInOrder {
+      if let sl = studentLessons.first(where: { $0.id == id }) {
+        sl.scheduledFor = timeMap[id]
+      }
+    }
+    selected.removeAll()
+    Task { @MainActor in try? modelContext.save() }
   }
 
   public var body: some View {
@@ -72,29 +109,55 @@ public struct InboxSheetView: View {
         }
         .frame(maxWidth: .infinity)
       } else {
+        // Batch actions bar
+        let start = monday(for: Date())
+        let days: [Date] = (0..<5).compactMap { offset in
+          calendar.date(byAdding: .day, value: offset, to: start)
+        }
+        HStack(spacing: 8) {
+          Menu {
+            ForEach(days, id: \.self) { day in
+              let wd = Self.weekdayFormatter.string(from: day)
+              let baseLabel = Self.mediumDateFormatter.string(from: day)
+              let isNS = SchoolCalendar.isNonSchoolDay(day, using: modelContext)
+              Button("\(wd), \(baseLabel) — Morning") {
+                scheduleSelected(to: day, hour: 9)
+              }
+              .disabled(isNS)
+              Button("\(wd), \(baseLabel) — Afternoon") {
+                scheduleSelected(to: day, hour: 14)
+              }
+              .disabled(isNS)
+            }
+          } label: {
+            Label("Schedule Selected", systemImage: "calendar.badge.plus")
+          }
+          .disabled(selected.isEmpty)
+
+          if !selected.isEmpty {
+            Text("\(selected.count) selected")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+
         ScrollView {
           VStack(spacing: 10) {
             ForEach(orderedUnscheduledLessons, id: \.id) { sl in
-              StudentLessonPill(snapshot: sl.snapshot(), day: Date())
-                .contentShape(Rectangle())
-                .onTapGesture { onOpenDetails(sl.id) }
-                .onDrag {
-                  return NSItemProvider(object: sl.id.uuidString as NSString)
-                }
-                .contextMenu {
-                  Button("Open Details") { onOpenDetails(sl.id) }
-                  Button("Quick Actions") { onQuickActions(sl.id) }
-                  Button("Plan Next") { onPlanNext(sl) }
-                }
-                .background(
-                  GeometryReader { proxy in
-                    Color.clear
-                      .preference(
-                        key: InboxPillFramePreference.self,
-                        value: [sl.id: proxy.frame(in: .named(spaceID))]
-                      )
-                  }
-                )
+              InboxRow(
+                sl: sl,
+                isSelected: selected.contains(sl.id),
+                isSelectionMode: !selected.isEmpty,
+                spaceID: spaceID,
+                onToggleSelected: {
+                  if selected.contains(sl.id) { selected.remove(sl.id) } else { selected.insert(sl.id) }
+                },
+                onOpenDetails: onOpenDetails,
+                onQuickActions: onQuickActions,
+                onPlanNext: onPlanNext
+              )
             }
           }
           .padding(.horizontal, 12)
@@ -137,9 +200,12 @@ public struct InboxSheetView: View {
   private func dropReceived(droppedId: UUID, location: CGPoint) {
     guard let sl = studentLessons.first(where: { $0.id == droppedId }) else { return }
     let currentOrder = orderedUnscheduledLessons.map(\.id)
-    let framesByID: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: currentOrder.compactMap { id in
-      itemFrames[id].map { (id, $0) }
-    })
+    var framesByID: [UUID: CGRect] = [:]
+    for id in currentOrder {
+      if let frame = itemFrames[id] {
+        framesByID[id] = frame
+      }
+    }
     let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: framesByID)
     var newOrder = currentOrder
     // Filter to only unscheduled lessons in current order
@@ -163,6 +229,57 @@ public struct InboxSheetView: View {
     inboxOrderRaw = serialized
     onUpdateOrder?(serialized)
     try? modelContext.save()
+  }
+}
+
+fileprivate struct InboxRow: View {
+  let sl: StudentLesson
+  let isSelected: Bool
+  let isSelectionMode: Bool
+  let spaceID: UUID
+  let onToggleSelected: () -> Void
+  let onOpenDetails: (UUID) -> Void
+  let onQuickActions: (UUID) -> Void
+  let onPlanNext: (StudentLesson) -> Void
+  var body: some View {
+    HStack(spacing: 8) {
+      Button(action: onToggleSelected) {
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+          .foregroundColor(isSelected ? Color.accentColor : Color.secondary)
+      }
+      .buttonStyle(.plain)
+
+      StudentLessonPill(snapshot: sl.snapshot(), day: Date())
+        .onTapGesture {
+          if isSelectionMode {
+            onToggleSelected()
+          } else {
+            onOpenDetails(sl.id)
+          }
+        }
+        .onDrag {
+          NSItemProvider(object: NSString(string: sl.id.uuidString))
+        }
+        .contextMenu {
+          Button { onQuickActions(sl.id) } label: { Label("Quick Actions…", systemImage: "bolt") }
+          Button { onPlanNext(sl) } label: { Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus") }
+          Button { onOpenDetails(sl.id) } label: { Label("Open Details", systemImage: "info.circle") }
+        }
+    }
+    .background(
+      RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .fill(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
+    )
+    .contentShape(Rectangle())
+    .background(
+      GeometryReader { proxy in
+        Color.clear
+          .preference(
+            key: InboxPillFramePreference.self,
+            value: [sl.id: proxy.frame(in: .named(spaceID))]
+          )
+      }
+    )
   }
 }
 

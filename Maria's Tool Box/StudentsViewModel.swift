@@ -1,7 +1,7 @@
 import Foundation
 
 struct StudentsViewModel {
-    func filteredStudents(students: [Student], filter: StudentsFilter, sortOrder: SortOrder, today: Date = Date()) -> [Student] {
+    func filteredStudents(students: [Student], filter: StudentsFilter, sortOrder: SortOrder, today: Date = Date(), presentNowIDs: Set<UUID>? = nil) -> [Student] {
         let base: [Student]
         switch filter {
         case .all:
@@ -10,6 +10,9 @@ struct StudentsViewModel {
             base = students.filter { $0.level == .upper }
         case .lower:
             base = students.filter { $0.level == .lower }
+        case .presentNow:
+            let ids = presentNowIDs ?? []
+            base = students.filter { ids.contains($0.id) }
         }
 
         switch sortOrder {

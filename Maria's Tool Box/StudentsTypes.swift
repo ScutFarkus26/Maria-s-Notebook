@@ -13,6 +13,7 @@ enum StudentsFilter: Hashable {
     case all
     case upper
     case lower
+    case presentNow
 
     var title: String {
         switch self {
@@ -22,6 +23,8 @@ enum StudentsFilter: Hashable {
             return "Upper"
         case .lower:
             return "Lower"
+        case .presentNow:
+            return "Present Now"
         }
     }
 
@@ -33,6 +36,9 @@ enum StudentsFilter: Hashable {
             return Color.pink
         case .lower:
             return Color.blue
+        case .presentNow:
+            return .green
         }
     }
 }
+

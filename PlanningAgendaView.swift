@@ -15,7 +15,7 @@ struct PlanningAgendaView: View {
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
 
     // MARK: - State
-    @State private var weekStart: Date = Self.monday(for: Date())
+    @State private var startDate: Date = Date()
     @State private var activeSheet: ActiveSheet? = nil
 
     private enum ActiveSheet: Identifiable {
@@ -34,7 +34,13 @@ struct PlanningAgendaView: View {
 
     // MARK: - Computed
     private var days: [Date] {
-        (0..<5).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
+        var result: [Date] = []
+        var cursor = calendar.startOfDay(for: startDate)
+        while result.count < 7 {
+            if !isNonSchoolDay(cursor) { result.append(cursor) }
+            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+        }
+        return result
     }
 
     private var orderedUnscheduledLessons: [StudentLesson] {
@@ -99,6 +105,7 @@ struct PlanningAgendaView: View {
                 #endif
             }
         }
+        .onAppear { startDate = computeInitialStartDate() }
     }
 
     private var sidebar: some View {
@@ -128,7 +135,7 @@ struct PlanningAgendaView: View {
         HStack(spacing: 12) {
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    weekStart = calendar.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
+                    moveStart(bySchoolDays: -7)
                 }
             } label: { Image(systemName: "chevron.left") }
             .buttonStyle(.plain)
@@ -138,7 +145,7 @@ struct PlanningAgendaView: View {
 
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    weekStart = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+                    moveStart(bySchoolDays: 7)
                 }
             } label: { Image(systemName: "chevron.right") }
             .buttonStyle(.plain)
@@ -147,7 +154,7 @@ struct PlanningAgendaView: View {
 
             Button("Today") {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    weekStart = Self.monday(for: Date(), calendar: calendar)
+                    startDate = computeInitialStartDate()
                 }
             }
             .keyboardShortcut("t", modifiers: [])
@@ -255,10 +262,10 @@ struct PlanningAgendaView: View {
 
     // MARK: - Helpers
     private var weekRangeString: String {
-        guard let end = calendar.date(byAdding: .day, value: 4, to: weekStart) else { return "" }
+        guard let first = days.first, let last = days.last else { return "" }
         let fmt = DateFormatter()
         fmt.setLocalizedDateFormatFromTemplate("MMM d")
-        return "\(fmt.string(from: weekStart)) - \(fmt.string(from: end))"
+        return "\(fmt.string(from: first)) - \(fmt.string(from: last))"
     }
 
     private func dayName(for day: Date) -> String {
@@ -291,6 +298,14 @@ struct PlanningAgendaView: View {
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
             Text(dayNumber(for: day))
                 .font(.system(size: 22, weight: .bold, design: .rounded))
+            if isNonSchoolDay(day) {
+                Text("No School")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.red.opacity(0.15)))
+                    .foregroundStyle(.red)
+            }
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 2)
@@ -312,6 +327,14 @@ struct PlanningAgendaView: View {
                 onPlanNext: { sl in planNextLesson(for: sl) },
                 onMoveToInbox: { sl in moveToInbox(sl) }
             )
+            .disabled(isNonSchoolDay(day))
+            .overlay(alignment: .center) {
+                if isNonSchoolDay(day) {
+                    Text("No School")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             Text("Afternoon")
                 .font(.system(size: 12, weight: .regular, design: .rounded))
@@ -325,15 +348,57 @@ struct PlanningAgendaView: View {
                 onPlanNext: { sl in planNextLesson(for: sl) },
                 onMoveToInbox: { sl in moveToInbox(sl) }
             )
+            .disabled(isNonSchoolDay(day))
+            .overlay(alignment: .center) {
+                if isNonSchoolDay(day) {
+                    Text("No School")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
-    static func monday(for date: Date, calendar: Calendar = .current) -> Date {
-        let cal = calendar
-        let startOfDay = cal.startOfDay(for: date)
-        let weekday = cal.component(.weekday, from: startOfDay) // 1=Sun, 2=Mon, ...
-        let daysToSubtract = (weekday + 5) % 7 // Mon->0, Tue->1, ... Sun->6
-        return cal.date(byAdding: .day, value: -daysToSubtract, to: startOfDay) ?? startOfDay
+    private func isNonSchoolDay(_ day: Date) -> Bool {
+        SchoolCalendar.isNonSchoolDay(day, using: modelContext)
+    }
+
+    private func firstSchoolDay(onOrAfter date: Date) -> Date {
+        var cursor = calendar.startOfDay(for: date)
+        while isNonSchoolDay(cursor) {
+            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+        }
+        return cursor
+    }
+
+    private func moveStart(bySchoolDays delta: Int) {
+        guard delta != 0 else { return }
+        var remaining = abs(delta)
+        var cursor = calendar.startOfDay(for: startDate)
+        let step = delta > 0 ? 1 : -1
+        while remaining > 0 {
+            cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
+            if !isNonSchoolDay(cursor) { remaining -= 1 }
+        }
+        startDate = cursor
+    }
+
+    private func computeInitialStartDate() -> Date {
+        let today = calendar.startOfDay(for: Date())
+        // Earliest upcoming scheduled day (start-of-day) that is a school day
+        let upcomingScheduled = studentLessons.compactMap { sl -> Date? in
+            guard let s = sl.scheduledFor, !sl.isGiven else { return nil }
+            let d = calendar.startOfDay(for: s)
+            return d >= today ? d : nil
+        }.sorted().first
+
+        if let upcoming = upcomingScheduled {
+            // Prefer the earliest upcoming scheduled day; if it is non-school, fall back to next school day from today
+            if !isNonSchoolDay(upcoming) {
+                return upcoming
+            }
+        }
+        return firstSchoolDay(onOrAfter: today)
     }
 }
 
@@ -513,11 +578,11 @@ private struct AgendaSlot: View {
                 let insertionIndex = computeIndex(info)
                 let bounded = max(0, min(insertionIndex, ids.count))
                 ids.insert(sl.id, at: bounded)
-                let base = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
-                let map = PlanningDropUtils.assignSequentialTimes(ids: ids, base: base, calendar: calendar, spacingSeconds: 1)
+                let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
+                let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
                 for id in ids {
                     if let item = allStudentLessons.first(where: { $0.id == id }) {
-                        item.scheduledFor = map[id]
+                        item.scheduledFor = timeMap[id]
                     }
                 }
                 Task { @MainActor in try? modelContext.save() }

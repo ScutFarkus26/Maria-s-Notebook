@@ -11,6 +11,9 @@ struct FilterButton: View {
     let trailingIconRotationDegrees: Double
     let trailingIconColor: AnyShapeStyle
     let trailingIconAction: (() -> Void)?
+    
+    let trailingBadgeText: String?
+    let trailingBadgeColor: Color
 
     init(
         icon: String,
@@ -21,7 +24,9 @@ struct FilterButton: View {
         trailingIcon: String? = nil,
         trailingIconRotationDegrees: Double = 0,
         trailingIconColor: AnyShapeStyle = AnyShapeStyle(.secondary),
-        trailingIconAction: (() -> Void)? = nil
+        trailingIconAction: (() -> Void)? = nil,
+        trailingBadgeText: String? = nil,
+        trailingBadgeColor: Color = .secondary
     ) {
         self.icon = icon
         self.title = title
@@ -32,6 +37,8 @@ struct FilterButton: View {
         self.trailingIconRotationDegrees = trailingIconRotationDegrees
         self.trailingIconColor = trailingIconColor
         self.trailingIconAction = trailingIconAction
+        self.trailingBadgeText = trailingBadgeText
+        self.trailingBadgeColor = trailingBadgeColor
     }
 
     var body: some View {
@@ -45,6 +52,15 @@ struct FilterButton: View {
                 .lineLimit(1)
 
             Spacer(minLength: 0)
+            
+            if let badge = trailingBadgeText {
+                Text(badge)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .foregroundStyle(trailingBadgeColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(trailingBadgeColor.opacity(0.15)))
+            }
 
             if let trailingIcon {
                 if let trailingIconAction {
@@ -85,6 +101,8 @@ struct SidebarFilterButton: View {
     let trailingIconRotationDegrees: Double
     let trailingIconColor: AnyShapeStyle
     let trailingIconAction: (() -> Void)?
+    let trailingBadgeText: String?
+    let trailingBadgeColor: Color
     let action: () -> Void
 
     init(
@@ -96,6 +114,8 @@ struct SidebarFilterButton: View {
         trailingIconRotationDegrees: Double = 0,
         trailingIconColor: AnyShapeStyle = AnyShapeStyle(.secondary),
         trailingIconAction: (() -> Void)? = nil,
+        trailingBadgeText: String? = nil,
+        trailingBadgeColor: Color = .secondary,
         action: @escaping () -> Void
     ) {
         self.icon = icon
@@ -106,6 +126,8 @@ struct SidebarFilterButton: View {
         self.trailingIconRotationDegrees = trailingIconRotationDegrees
         self.trailingIconColor = trailingIconColor
         self.trailingIconAction = trailingIconAction
+        self.trailingBadgeText = trailingBadgeText
+        self.trailingBadgeColor = trailingBadgeColor
         self.action = action
     }
 
@@ -119,7 +141,9 @@ struct SidebarFilterButton: View {
             trailingIcon: trailingIcon,
             trailingIconRotationDegrees: trailingIconRotationDegrees,
             trailingIconColor: trailingIconColor,
-            trailingIconAction: trailingIconAction
+            trailingIconAction: trailingIconAction,
+            trailingBadgeText: trailingBadgeText,
+            trailingBadgeColor: trailingBadgeColor
         )
     }
 }
