@@ -205,6 +205,11 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity)
                     }
                     
+                    SettingsGroup(title: "Attendance Email", systemImage: "envelope") {
+                        AttendanceEmailSettingsView()
+                            .frame(maxWidth: .infinity)
+                    }
+                    
                     SettingsGroup(title: "Planning – Lesson Age Indicator", systemImage: "clock.badge.exclamationmark") {
                         LessonAgeSettingsView()
                             .frame(maxWidth: .infinity)

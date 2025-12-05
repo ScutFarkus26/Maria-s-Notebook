@@ -266,25 +266,13 @@ struct LessonsRootView: View {
 
             // Defer heavier work until after the first frame to keep the UI responsive
             DispatchQueue.main.async {
-                if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
-                    do {
-                        try modelContext.save()
-                    } catch {
-                        importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
-                    }
-                }
+                ensureInitialOrderInGroupIfNeeded()
                 recomputeFilteredLessons()
             }
         }
         .onChange(of: lessonIDs) { _, _ in
             groupsCache.removeAll()
-            if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
-                do {
-                    try modelContext.save()
-                } catch {
-                    importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
-                }
-            }
+            ensureInitialOrderInGroupIfNeeded()
             recomputeFilteredLessons()
         }
         .onChange(of: filterState.selectedSubject) { _, newValue in

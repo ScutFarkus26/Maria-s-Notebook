@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819952EDEA8020000BE47 /* PillButton 2.swift */; };
 		5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */; };
+		514A05C42EE31BC3007A755F /* AttendanceEmail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05C32EE31BC3007A755F /* AttendanceEmail.swift */; };
+		514A05C62EE31BCD007A755F /* SettingsView+AttendanceEmail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05C52EE31BCD007A755F /* SettingsView+AttendanceEmail.swift */; };
 		5165267F2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md in Resources */ = {isa = PBXBuildFile; fileRef = 5165267E2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md */; };
 		5165268F2EDFF0F800BB0C76 /* REFACTORING_SUMMARY 2.md in Resources */ = {isa = PBXBuildFile; fileRef = 5165268E2EDFF0F800BB0C76 /* REFACTORING_SUMMARY 2.md */; };
 		516526912EDFF12900BB0C76 /* ARCHITECTURE_DIAGRAM.md in Resources */ = {isa = PBXBuildFile; fileRef = 516526902EDFF12900BB0C76 /* ARCHITECTURE_DIAGRAM.md */; };
@@ -51,6 +53,8 @@
 		510819952EDEA8020000BE47 /* PillButton 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PillButton 2.swift"; sourceTree = "<group>"; };
 		5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StudentHeaderView 2.swift"; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		514A05C32EE31BC3007A755F /* AttendanceEmail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceEmail.swift; sourceTree = "<group>"; };
+		514A05C52EE31BCD007A755F /* SettingsView+AttendanceEmail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView+AttendanceEmail.swift"; sourceTree = "<group>"; };
 		5165267E2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = REFACTORING_SUMMARY.md; sourceTree = "<group>"; };
 		5165268E2EDFF0F800BB0C76 /* REFACTORING_SUMMARY 2.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "REFACTORING_SUMMARY 2.md"; sourceTree = "<group>"; };
 		516526902EDFF12900BB0C76 /* ARCHITECTURE_DIAGRAM.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE_DIAGRAM.md; sourceTree = "<group>"; };
@@ -164,6 +168,8 @@
 				51A55EA42EE28EB900774D2E /* BulkLessonsEntryView.swift */,
 				519A838F2EE2A00A002F3993 /* WorkCheckInService.swift */,
 				519A84622EE2A43F002F3993 /* LessonAgeIndicator.swift */,
+				514A05C32EE31BC3007A755F /* AttendanceEmail.swift */,
+				514A05C52EE31BCD007A755F /* SettingsView+AttendanceEmail.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -286,6 +292,8 @@
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
 				516526A52EE08E7500BB0C76 /* LessonsImportCoordinator.swift in Sources */,
 				516526A32EE08DF400BB0C76 /* ParsingOverlay.swift in Sources */,
+				514A05C62EE31BCD007A755F /* SettingsView+AttendanceEmail.swift in Sources */,
+				514A05C42EE31BC3007A755F /* AttendanceEmail.swift in Sources */,
 				510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

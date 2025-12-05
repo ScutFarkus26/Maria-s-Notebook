@@ -1,5 +1,9 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
+#if os(iOS)
+import MessageUI
+#endif
 
 struct AttendanceView: View {
     @Environment(\.modelContext) private var modelContext
@@ -8,6 +12,13 @@ struct AttendanceView: View {
     private var allStudents: [Student]
 
     @StateObject private var viewModel = AttendanceViewModel()
+
+    @AppStorage("AttendanceEmail.enabled") private var emailEnabled: Bool = true
+    @AppStorage("AttendanceEmail.to") private var emailTo: String = ""
+    @AppStorage("AttendanceEmail.from") private var emailFrom: String = ""
+
+    @State private var showMailSheet = false
+    @State private var toastMessage: String? = nil
 
     private var filteredStudents: [Student] {
         let visible = viewModel.visibleStudents(from: allStudents)
@@ -37,6 +48,41 @@ struct AttendanceView: View {
         .onChange(of: allStudents.map { $0.id }) { _, _ in
             // If students change (added/removed), ensure records exist
             viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
+        }
+#if os(iOS)
+        .sheet(isPresented: $showMailSheet) {
+            AttendanceEmail.composerForCurrentPrefs(
+                present: names(for: .present),
+                tardy: names(for: .tardy),
+                absent: names(for: .absent),
+                date: viewModel.selectedDate
+            ) { result, error in
+                switch result {
+                case .sent: toast("Email sent")
+                case .saved: toast("Draft saved")
+                case .failed: toast("Failed to send: \(error?.localizedDescription ?? "Unknown error")")
+                case .cancelled: break
+                @unknown default: break
+                }
+            }
+            .ignoresSafeArea()
+        }
+#endif
+        .overlay(alignment: .top) {
+            if let message = toastMessage {
+                Text(message)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.black.opacity(0.85))
+                    )
+                    .foregroundColor(.white)
+                    .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+            }
         }
     }
 
@@ -137,6 +183,21 @@ struct AttendanceView: View {
                     breakdownChip(title: "Unmarked", count: viewModel.countUnmarked, color: .gray)
                 }
 
+                if emailEnabled {
+                    Divider()
+                        .frame(height: 24)
+                        .padding(.horizontal, 4)
+
+                    Button {
+                        prepareAttendanceEmail()
+                    } label: {
+                        Label("Email", systemImage: "envelope")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isNonSchoolDay)
+                    .help("Send attendance report via email")
+                }
+
                 Spacer()
 
                 Button("Mark All Present") {
@@ -200,6 +261,49 @@ struct AttendanceView: View {
                 }
             }
             .padding(12)
+        }
+    }
+
+    private func names(for status: AttendanceStatus) -> [String] {
+        filteredStudents.compactMap { s in
+            if let rec = viewModel.recordsByStudent[s.id], rec.status == status {
+                return s.fullName
+            }
+            return nil
+        }
+        .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func prepareAttendanceEmail() {
+        let present = names(for: .present)
+        let tardy = names(for: .tardy)
+        let absent = names(for: .absent)
+#if os(iOS)
+        if MFMailComposeViewController.canSendMail() {
+            showMailSheet = true
+        } else {
+            toast("Mail is not configured on this device.")
+        }
+#else
+        AttendanceEmail.sendUsingMailAppForCurrentPrefs(
+            present: present,
+            tardy: tardy,
+            absent: absent,
+            date: viewModel.selectedDate
+        ) { success in
+            if success { toast("Email sent") } else { toast("Failed to send email") }
+        }
+#endif
+    }
+
+    private func toast(_ message: String) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                toastMessage = nil
+            }
         }
     }
 }

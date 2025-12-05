@@ -4,6 +4,8 @@ import SwiftData
 // NOTE: Cache is process-global. Consider migrating to an actor-backed SchoolCalendarService for thread safety and testability.
 
 struct SchoolCalendar {
+    private static let cacheQueue = DispatchQueue(label: "SchoolCalendar.CacheQueue", attributes: .concurrent)
+
     fileprivate struct Cache {
         static var monthSets: [Date: Set<Date>] = [:] // key = start-of-month date
     }
@@ -23,17 +25,23 @@ struct SchoolCalendar {
 
     private static func setForMonth(_ date: Date, using context: ModelContext) -> Set<Date> {
         let key = monthKey(for: date)
-        if let cached = Cache.monthSets[key] {
-            return cached
+        var cached: Set<Date>?
+        cacheQueue.sync {
+            cached = Cache.monthSets[key]
         }
+        if let cached { return cached }
         let set = precomputedNonSchoolSet(in: monthRange(containing: date), using: context)
-        Cache.monthSets[key] = set
+        cacheQueue.async(flags: .barrier) {
+            Cache.monthSets[key] = set
+        }
         return set
     }
 
     private static func invalidateMonthCache(for date: Date) {
         let key = monthKey(for: date)
-        Cache.monthSets.removeValue(forKey: key)
+        cacheQueue.async(flags: .barrier) {
+            Cache.monthSets.removeValue(forKey: key)
+        }
     }
 
     private static func isWeekend(_ date: Date) -> Bool {
