@@ -41,25 +41,22 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
     var isUpcoming: Bool { status == .scheduled && date > Date() }
 
     // Mutating helpers
-    func markCompleted(note: String? = nil, at date: Date = Date(), in context: ModelContext) {
+    func markCompleted(note: String? = nil, at date: Date = Date(), in _: ModelContext) {
         self.status = .completed
         self.date = date
         if let note = note { self.note = note }
-        try? context.save()
     }
 
-    func reschedule(to date: Date, note: String? = nil, in context: ModelContext) {
+    func reschedule(to date: Date, note: String? = nil, in _: ModelContext) {
         self.status = .scheduled
         self.date = date
         if let note = note { self.note = note }
-        try? context.save()
     }
 
-    func skip(note: String? = nil, at date: Date = Date(), in context: ModelContext) {
+    func skip(note: String? = nil, at date: Date = Date(), in _: ModelContext) {
         self.status = .skipped
         self.date = date
         if let note = note { self.note = note }
-        try? context.save()
     }
 }
 
@@ -68,7 +65,6 @@ extension WorkModel {
         let ci = WorkCheckIn(workID: self.id, date: date, status: status, purpose: purpose, note: note, work: self)
         context.insert(ci)
         self.checkIns.append(ci)
-        try? context.save()
     }
 
     @discardableResult
@@ -76,7 +72,6 @@ extension WorkModel {
         let ci = WorkCheckIn(workID: self.id, date: date, status: .scheduled, purpose: purpose, note: note, work: self)
         context.insert(ci)
         self.checkIns.append(ci)
-        try? context.save()
         return ci
     }
 
