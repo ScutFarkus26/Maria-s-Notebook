@@ -137,14 +137,42 @@ struct AttendanceView: View {
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
             }
 
-            // Quick stats
-            HStack(spacing: 12) {
-                statChip(label: "P", value: viewModel.countPresent, color: .green)
-                statChip(label: "A", value: viewModel.countAbsent, color: .red)
-                statChip(label: "T", value: viewModel.countTardy, color: .blue)
-                statChip(label: "L", value: viewModel.countLeftEarly, color: .purple)
-                statChip(label: "U", value: viewModel.countUnmarked, color: .gray)
+            // Header stats: "In Class" treats Present + Tardy as in-class attendance.
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                // Primary stat: In Class
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text("In Class")
+                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                        Text("\(viewModel.inClassCount)")
+                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule().fill(Color.accentColor.opacity(0.12))
+                            )
+                    }
+                    Text("Present + Tardy")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+                    .frame(height: 24)
+                    .padding(.horizontal, 4)
+
+                // Breakdown chips (secondary)
+                HStack(spacing: 8) {
+                    breakdownChip(title: "Present", count: viewModel.countPresent, color: .green)
+                    breakdownChip(title: "Tardy", count: viewModel.countTardy, color: .blue)
+                    breakdownChip(title: "Absent", count: viewModel.countAbsent, color: .red)
+                    breakdownChip(title: "Left Early", count: viewModel.countLeftEarly, color: .purple)
+                    breakdownChip(title: "Unmarked", count: viewModel.countUnmarked, color: .gray)
+                }
+
                 Spacer()
+
                 Button("Mark All Present") {
                     viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
                 }
@@ -153,6 +181,7 @@ struct AttendanceView: View {
 #if os(macOS)
                 .keyboardShortcut("p", modifiers: [.command, .shift])
 #endif
+
                 Button("Reset Day") {
                     viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
                 }
@@ -176,6 +205,20 @@ struct AttendanceView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(color.opacity(0.12)))
+    }
+
+    private func breakdownChip(title: String, count: Int, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text("\(title) \(count)")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule().strokeBorder(color.opacity(0.20), lineWidth: 1)
+        )
     }
 
     // MARK: - Content
@@ -209,9 +252,25 @@ private struct AttendanceCard: View {
 
     private var statusLabel: String { status.displayName }
 
+    private var accentColor: Color {
+        switch status {
+        case .present: return .green
+        case .tardy: return .blue
+        case .absent: return .red
+        case .leftEarly: return .purple
+        case .unmarked: return .gray.opacity(0.4)
+        }
+    }
+
+    private var hasNote: Bool {
+        let t = record?.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !t.isEmpty
+    }
+
     private var background: some View {
+        // Neutral card background with subtle elevation
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(status.color)
+            .fill(Color(.windowBackgroundColor))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(Color.primary.opacity(0.06), lineWidth: 1)
@@ -219,42 +278,70 @@ private struct AttendanceCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text(student.fullName)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .multilineTextAlignment(.leading)
-                Spacer(minLength: 0)
-            }
+        HStack(spacing: 0) {
+            // Left accent bar indicating status color
+            Rectangle()
+                .fill(accentColor)
+                .frame(width: 4)
+                .clipShape(RoundedRectangle(cornerRadius: 2))
 
-            if let note = record?.note, !note.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: "note.text").foregroundStyle(.secondary)
-                    Text(note).font(.system(size: AppTheme.FontSize.caption, design: .rounded)).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(student.fullName)
+                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .medium, design: .rounded))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 0)
+                    // Small note icon at far right (only when no note exists)
+                    if !hasNote {
+                        Button {
+                            draftNote = record?.note ?? ""
+                            showingNoteEditor = true
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .imageScale(.medium)
+                                .foregroundStyle(.secondary)
+                                .accessibilityLabel("Add Note")
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .lineLimit(1)
-            }
 
-            Spacer(minLength: 0)
+                // Compact status pill
+                Text(statusLabel)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .foregroundStyle(accentColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule().fill(accentColor.opacity(0.12))
+                    )
 
-            HStack {
-                statusBadge
-                Spacer()
-                Button {
-                    draftNote = record?.note ?? ""
-                    showingNoteEditor = true
-                } label: {
-                    Label("Note", systemImage: "square.and.pencil")
+                // Clicking the note opens the editor
+                if hasNote {
+                    Button {
+                        draftNote = record?.note ?? ""
+                        showingNoteEditor = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "note.text")
+                                .foregroundStyle(.secondary)
+                            Text(record?.note ?? "")
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help("Edit note")
                 }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Note")
             }
+            .padding(10)
         }
-        .padding(10)
         .frame(minHeight: 88)
         .background(background)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 #if os(macOS)
         .highPriorityGesture(TapGesture(count: 1).onEnded { onTap() })
@@ -281,21 +368,6 @@ private struct AttendanceCard: View {
             .presentationSizing(.fitted)
 #endif
         }
-    }
-
-    private var statusBadge: some View {
-        Button(action: onTap) {
-            Text(statusLabel)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    Capsule().fill(status.color.opacity(0.15))
-                )
-        }
-        .buttonStyle(.plain)
-        .help("Advance status")
     }
 }
 

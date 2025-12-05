@@ -92,5 +92,9 @@ final class AttendanceViewModel: ObservableObject {
     var countTardy: Int { recordsByStudent.values.filter { $0.status == .tardy }.count }
     var countLeftEarly: Int { recordsByStudent.values.filter { $0.status == .leftEarly }.count }
     var countUnmarked: Int { recordsByStudent.values.filter { $0.status == .unmarked }.count }
+
+    /// "In Class" counts students who are either Present or Tardy.
+    /// This is a derived metric for the header summary only and does not change stored data.
+    var inClassCount: Int { countPresent + countTardy }
 }
 
