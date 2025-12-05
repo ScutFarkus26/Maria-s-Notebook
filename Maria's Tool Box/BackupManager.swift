@@ -21,9 +21,14 @@ struct BackupPayload: Codable {
     var attendance: [AttendanceRecordDTO]
     var workCompletions: [WorkCompletionRecordDTO]
     var workCheckIns: [WorkCheckInDTO]
+    var nonSchoolDays: [NonSchoolDayDTO]
+    var schoolDayOverrides: [SchoolDayOverrideDTO]
+    var presentNowExcludedNames: String?
+    var planningInboxOrder: String?
 
     private enum CodingKeys: String, CodingKey {
         case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns
+        case nonSchoolDays, schoolDayOverrides, presentNowExcludedNames, planningInboxOrder
     }
 
     init(
@@ -38,7 +43,11 @@ struct BackupPayload: Codable {
         groupOrders: [String: [String]],
         attendance: [AttendanceRecordDTO],
         workCompletions: [WorkCompletionRecordDTO],
-        workCheckIns: [WorkCheckInDTO]
+        workCheckIns: [WorkCheckInDTO],
+        nonSchoolDays: [NonSchoolDayDTO],
+        schoolDayOverrides: [SchoolDayOverrideDTO],
+        presentNowExcludedNames: String?,
+        planningInboxOrder: String?
     ) {
         self.version = version
         self.createdAt = createdAt
@@ -52,6 +61,10 @@ struct BackupPayload: Codable {
         self.attendance = attendance
         self.workCompletions = workCompletions
         self.workCheckIns = workCheckIns
+        self.nonSchoolDays = nonSchoolDays
+        self.schoolDayOverrides = schoolDayOverrides
+        self.presentNowExcludedNames = presentNowExcludedNames
+        self.planningInboxOrder = planningInboxOrder
     }
 
     init(from decoder: Decoder) throws {
@@ -68,6 +81,10 @@ struct BackupPayload: Codable {
         self.attendance = try container.decodeIfPresent([AttendanceRecordDTO].self, forKey: .attendance) ?? []
         self.workCompletions = try container.decodeIfPresent([WorkCompletionRecordDTO].self, forKey: .workCompletions) ?? []
         self.workCheckIns = try container.decodeIfPresent([WorkCheckInDTO].self, forKey: .workCheckIns) ?? []
+        self.nonSchoolDays = try container.decodeIfPresent([NonSchoolDayDTO].self, forKey: .nonSchoolDays) ?? []
+        self.schoolDayOverrides = try container.decodeIfPresent([SchoolDayOverrideDTO].self, forKey: .schoolDayOverrides) ?? []
+        self.presentNowExcludedNames = try container.decodeIfPresent(String.self, forKey: .presentNowExcludedNames)
+        self.planningInboxOrder = try container.decodeIfPresent(String.self, forKey: .planningInboxOrder)
     }
 }
 
@@ -208,11 +225,23 @@ struct WorkCheckInDTO: Codable {
     var note: String
 }
 
+struct NonSchoolDayDTO: Codable {
+    var id: UUID
+    var date: Date
+    var reason: String?
+}
+
+struct SchoolDayOverrideDTO: Codable {
+    var id: UUID
+    var date: Date
+    var note: String?
+}
+
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 11
+    static let currentVersion: Int = 12
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -334,6 +363,23 @@ enum BackupManager {
             )
         }
 
+        // Fetch school calendar entities
+        let nonSchoolDaysFetch = FetchDescriptor<NonSchoolDay>()
+        let nonSchoolDays = try context.fetch(nonSchoolDaysFetch)
+        let nonSchoolDaysDTO: [NonSchoolDayDTO] = nonSchoolDays.map { d in
+            NonSchoolDayDTO(id: d.id, date: d.date, reason: d.reason)
+        }
+
+        let overridesFetch = FetchDescriptor<SchoolDayOverride>()
+        let overrides = try context.fetch(overridesFetch)
+        let schoolDayOverridesDTO: [SchoolDayOverrideDTO] = overrides.map { o in
+            SchoolDayOverrideDTO(id: o.id, date: o.date, note: o.note)
+        }
+
+        // Read small user preferences that affect planning/filters
+        let presentNowExcludedNames = UserDefaults.standard.string(forKey: "StudentsView.presentNow.excludedNames")
+        let planningInboxOrder = UserDefaults.standard.string(forKey: "PlanningInbox.order")
+
         // Compute subjects and per-subject group orders from current data and saved preferences
         let existingSubjects: [String] = Array(Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
         let subjectOrder: [String] = FilterOrderStore.loadSubjectOrder(existing: existingSubjects)
@@ -365,7 +411,11 @@ enum BackupManager {
             groupOrders: groupOrders,
             attendance: attendanceDTO,
             workCompletions: workCompletionsDTO,
-            workCheckIns: workCheckInsDTO
+            workCheckIns: workCheckInsDTO,
+            nonSchoolDays: nonSchoolDaysDTO,
+            schoolDayOverrides: schoolDayOverridesDTO,
+            presentNowExcludedNames: presentNowExcludedNames,
+            planningInboxOrder: planningInboxOrder
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -569,6 +619,28 @@ enum BackupManager {
             // If wiring relationships fails, we still keep IDs; UI will fall back to snapshots
         }
 
+        // Insert NonSchoolDay and SchoolDayOverride entities
+        if !payload.nonSchoolDays.isEmpty {
+            for dto in payload.nonSchoolDays {
+                let day = NonSchoolDay(id: dto.id, date: dto.date, reason: dto.reason)
+                context.insert(day)
+            }
+        }
+        if !payload.schoolDayOverrides.isEmpty {
+            for dto in payload.schoolDayOverrides {
+                let ov = SchoolDayOverride(id: dto.id, date: dto.date, note: dto.note)
+                context.insert(ov)
+            }
+        }
+
+        // Restore small preferences
+        if let s = payload.presentNowExcludedNames {
+            UserDefaults.standard.set(s, forKey: "StudentsView.presentNow.excludedNames")
+        }
+        if let s = payload.planningInboxOrder {
+            UserDefaults.standard.set(s, forKey: "PlanningInbox.order")
+        }
+
         try context.save()
     }
 
@@ -613,6 +685,16 @@ enum BackupManager {
         do {
             let atts = try context.fetch(FetchDescriptor<AttendanceRecord>())
             for obj in atts { context.delete(obj) }
+        }
+        // Delete NonSchoolDay
+        do {
+            let days = try context.fetch(FetchDescriptor<NonSchoolDay>())
+            for obj in days { context.delete(obj) }
+        }
+        // Delete SchoolDayOverride
+        do {
+            let overrides = try context.fetch(FetchDescriptor<SchoolDayOverride>())
+            for obj in overrides { context.delete(obj) }
         }
         try context.save()
     }
