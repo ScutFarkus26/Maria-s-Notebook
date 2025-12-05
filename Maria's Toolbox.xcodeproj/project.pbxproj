@@ -14,6 +14,7 @@
 		514A05E02EE364FB007A755F /* PlanningTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05DF2EE364FB007A755F /* PlanningTypes.swift */; };
 		514A05E22EE3650D007A755F /* PlanningActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05E12EE3650D007A755F /* PlanningActions.swift */; };
 		514A05E42EE36518007A755F /* AgendaSlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05E32EE36518007A755F /* AgendaSlot.swift */; };
+		514A05E62EE36982007A755F /* PlanningAgendaViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05E52EE36982007A755F /* PlanningAgendaViewModel.swift */; };
 		516526992EDFF62C00BB0C76 /* StudentLessonDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526982EDFF62C00BB0C76 /* StudentLessonDetailViewModel.swift */; };
 		5165269B2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5165269A2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift */; };
 		5165269D2EDFF67200BB0C76 /* StudentLessonDetailSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5165269C2EDFF67200BB0C76 /* StudentLessonDetailSections.swift */; };
@@ -53,6 +54,7 @@
 		514A05DF2EE364FB007A755F /* PlanningTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningTypes.swift; sourceTree = "<group>"; };
 		514A05E12EE3650D007A755F /* PlanningActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningActions.swift; sourceTree = "<group>"; };
 		514A05E32EE36518007A755F /* AgendaSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaSlot.swift; sourceTree = "<group>"; };
+		514A05E52EE36982007A755F /* PlanningAgendaViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningAgendaViewModel.swift; sourceTree = "<group>"; };
 		516526982EDFF62C00BB0C76 /* StudentLessonDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailViewModel.swift; sourceTree = "<group>"; };
 		5165269A2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailComponents.swift; sourceTree = "<group>"; };
 		5165269C2EDFF67200BB0C76 /* StudentLessonDetailSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailSections.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 				514A05DF2EE364FB007A755F /* PlanningTypes.swift */,
 				514A05E12EE3650D007A755F /* PlanningActions.swift */,
 				514A05E32EE36518007A755F /* AgendaSlot.swift */,
+				514A05E52EE36982007A755F /* PlanningAgendaViewModel.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -270,6 +273,7 @@
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
 				516526A52EE08E7500BB0C76 /* LessonsImportCoordinator.swift in Sources */,
 				516526A32EE08DF400BB0C76 /* ParsingOverlay.swift in Sources */,
+				514A05E62EE36982007A755F /* PlanningAgendaViewModel.swift in Sources */,
 				514A05C62EE31BCD007A755F /* SettingsView+AttendanceEmail.swift in Sources */,
 				514A05E22EE3650D007A755F /* PlanningActions.swift in Sources */,
 				514A05E02EE364FB007A755F /* PlanningTypes.swift in Sources */,

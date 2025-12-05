@@ -2,6 +2,16 @@ import SwiftUI
 import SwiftData
 
 struct PlanningAgendaView: View {
+    @StateObject private var viewModel = PlanningAgendaViewModel()
+
+    // MARK: - Date Format Styles
+    private static let dayNameStyle = Date.FormatStyle.dateTime.weekday(.abbreviated)
+    private static let dayNumberStyle = Date.FormatStyle.dateTime.day()
+    private static let weekStyle = Date.FormatStyle.dateTime.month(.abbreviated).day()
+
+    // MARK: - Helpers
+    private func startOfDay(_ date: Date) -> Date { calendar.startOfDay(for: date) }
+
     // MARK: - Environment / Queries
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
@@ -12,6 +22,7 @@ struct PlanningAgendaView: View {
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
 
     // MARK: - State
+    @AppStorage("PlanningAgenda.startDate") private var startDateRaw: Double = 0
     @State private var startDate: Date = Date()
     @State private var activeSheet: ActiveSheet? = nil
 
@@ -29,29 +40,14 @@ struct PlanningAgendaView: View {
         }
     }
 
-    // MARK: - Computed
-    private var days: [Date] {
-        var result: [Date] = []
-        var cursor = calendar.startOfDay(for: startDate)
-        while result.count < 7 {
-            if !isNonSchoolDay(cursor) { result.append(cursor) }
-            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
-        }
-        return result
-    }
+    private var days: [Date] { viewModel.visibleDays }
 
     private var orderedUnscheduledLessons: [StudentLesson] {
-        InboxOrderStore.orderedUnscheduled(from: studentLessons, orderRaw: inboxOrderRaw)
+        InboxOrderStore.orderedUnscheduled(from: viewModel.unscheduledLessons, orderRaw: inboxOrderRaw)
     }
     
     private var inboxOrderChangeToken: String {
-        studentLessons
-            .map { sl in
-                let scheduledFlag = (sl.scheduledFor != nil) ? 1 : 0
-                let givenFlag = sl.isGiven ? 1 : 0
-                return "\(sl.id.uuidString)|\(scheduledFlag)|\(givenFlag)"
-            }
-            .joined(separator: ",")
+        viewModel.unscheduledLessons.map { $0.id.uuidString }.sorted().joined(separator: ",")
     }
 
     var body: some View {
@@ -65,7 +61,7 @@ struct PlanningAgendaView: View {
             }
         }
         .onChange(of: inboxOrderChangeToken) { _, _ in
-            let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+            let base = viewModel.unscheduledLessons
             let baseIDs = base.map { $0.id }
             var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
             let missing = base
@@ -104,7 +100,22 @@ struct PlanningAgendaView: View {
                 #endif
             }
         }
-        .onAppear { startDate = computeInitialStartDate() }
+        .task(id: startDate) {
+            await viewModel.refresh(calendar: calendar, context: modelContext, startDate: startDate)
+        }
+        .onChange(of: startDate) { _, new in
+            startDateRaw = new.timeIntervalSinceReferenceDate
+        }
+        .onAppear {
+            if startDateRaw == 0 {
+                let initial = computeInitialStartDate()
+                startDate = initial
+                startDateRaw = initial.timeIntervalSinceReferenceDate
+            } else {
+                startDate = Date(timeIntervalSinceReferenceDate: startDateRaw)
+            }
+            Task { await viewModel.refresh(calendar: calendar, context: modelContext, startDate: startDate) }
+        }
     }
 
     private var sidebar: some View {
@@ -134,9 +145,12 @@ struct PlanningAgendaView: View {
         HStack(spacing: 12) {
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    moveStart(bySchoolDays: -7)
+                    startDate = movedStart(bySchoolDays: -7)
                 }
-            } label: { Image(systemName: "chevron.left") }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .accessibilityLabel("Previous week")
+            }
             .buttonStyle(.plain)
 
             Text(weekRangeString)
@@ -144,9 +158,12 @@ struct PlanningAgendaView: View {
 
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    moveStart(bySchoolDays: 7)
+                    startDate = movedStart(bySchoolDays: 7)
                 }
-            } label: { Image(systemName: "chevron.right") }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .accessibilityLabel("Next week")
+            }
             .buttonStyle(.plain)
 
             Spacer()
@@ -188,6 +205,7 @@ struct PlanningAgendaView: View {
                         }
                         .buttonStyle(.borderless)
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .accessibilityLabel("\(dayName(for: day)) \(dayNumber(for: day))")
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(Capsule().fill(Color.primary.opacity(0.06)))
@@ -200,7 +218,10 @@ struct PlanningAgendaView: View {
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 24, pinnedViews: [.sectionHeaders]) {
                         ForEach(days, id: \.self) { day in
-                            Section(header: dayHeader(day)) {
+                            Section(header:
+                                dayHeader(day)
+                                    .background(.bar)
+                            ) {
                                 dayBody(day)
                             }
                             .id(dayID(day))
@@ -216,21 +237,15 @@ struct PlanningAgendaView: View {
     // MARK: - Helpers
     private var weekRangeString: String {
         guard let first = days.first, let last = days.last else { return "" }
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("MMM d")
-        return "\(fmt.string(from: first)) - \(fmt.string(from: last))"
+        return "\(first.formatted(Self.weekStyle)) - \(last.formatted(Self.weekStyle))"
     }
 
     private func dayName(for day: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("EEE")
-        return fmt.string(from: day)
+        day.formatted(Self.dayNameStyle)
     }
 
     private func dayNumber(for day: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("d")
-        return fmt.string(from: day)
+        day.formatted(Self.dayNumberStyle)
     }
 
     private func dayID(_ day: Date) -> String {
@@ -239,9 +254,7 @@ struct PlanningAgendaView: View {
     }
 
     private func dayShortLabel(for day: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("EEE")
-        return fmt.string(from: day)
+        day.formatted(Self.dayNameStyle)
     }
 
     @ViewBuilder
@@ -251,7 +264,7 @@ struct PlanningAgendaView: View {
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
             Text(dayNumber(for: day))
                 .font(.system(size: 22, weight: .bold, design: .rounded))
-            if isNonSchoolDay(day) {
+            if viewModel.isNonSchoolDayFast(day) {
                 Text("No School")
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .padding(.horizontal, 6)
@@ -262,7 +275,7 @@ struct PlanningAgendaView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 2)
-        .background(Color.clear)
+        .accessibilityAddTraits(.isHeader)
     }
 
     @ViewBuilder
@@ -281,9 +294,9 @@ struct PlanningAgendaView: View {
                     onPlanNext: { sl in PlanningActions.planNextLesson(for: sl, lessons: lessons, students: students, studentLessons: studentLessons, context: modelContext) },
                     onMoveToInbox: { sl in PlanningActions.moveToInbox(sl, context: modelContext) }
                 )
-                .disabled(isNonSchoolDay(day))
+                .disabled(viewModel.isNonSchoolDayFast(day))
                 .overlay(alignment: .center) {
-                    if isNonSchoolDay(day) {
+                    if viewModel.isNonSchoolDayFast(day) {
                         Text("No School")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -299,22 +312,22 @@ struct PlanningAgendaView: View {
 
     private func firstSchoolDay(onOrAfter date: Date) -> Date {
         var cursor = calendar.startOfDay(for: date)
-        while isNonSchoolDay(cursor) {
+        while viewModel.isNonSchoolDayFast(cursor) {
             cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
         }
         return cursor
     }
 
-    private func moveStart(bySchoolDays delta: Int) {
-        guard delta != 0 else { return }
+    private func movedStart(bySchoolDays delta: Int) -> Date {
+        guard delta != 0 else { return startOfDay(startDate) }
         var remaining = abs(delta)
         var cursor = calendar.startOfDay(for: startDate)
         let step = delta > 0 ? 1 : -1
         while remaining > 0 {
             cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
-            if !isNonSchoolDay(cursor) { remaining -= 1 }
+            if !viewModel.isNonSchoolDayFast(cursor) { remaining -= 1 }
         }
-        startDate = cursor
+        return cursor
     }
 
     private func computeInitialStartDate() -> Date {
