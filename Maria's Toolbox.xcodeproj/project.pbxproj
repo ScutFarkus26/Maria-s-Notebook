@@ -11,17 +11,13 @@
 		5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */; };
 		514A05C42EE31BC3007A755F /* AttendanceEmail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05C32EE31BC3007A755F /* AttendanceEmail.swift */; };
 		514A05C62EE31BCD007A755F /* SettingsView+AttendanceEmail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05C52EE31BCD007A755F /* SettingsView+AttendanceEmail.swift */; };
-		5165267F2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md in Resources */ = {isa = PBXBuildFile; fileRef = 5165267E2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md */; };
-		5165268F2EDFF0F800BB0C76 /* REFACTORING_SUMMARY 2.md in Resources */ = {isa = PBXBuildFile; fileRef = 5165268E2EDFF0F800BB0C76 /* REFACTORING_SUMMARY 2.md */; };
-		516526912EDFF12900BB0C76 /* ARCHITECTURE_DIAGRAM.md in Resources */ = {isa = PBXBuildFile; fileRef = 516526902EDFF12900BB0C76 /* ARCHITECTURE_DIAGRAM.md */; };
-		516526932EDFF16C00BB0C76 /* DEVELOPER_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 516526922EDFF16C00BB0C76 /* DEVELOPER_GUIDE.md */; };
-		516526952EDFF19F00BB0C76 /* VERIFICATION_CHECKLIST.md in Resources */ = {isa = PBXBuildFile; fileRef = 516526942EDFF19F00BB0C76 /* VERIFICATION_CHECKLIST.md */; };
-		516526972EDFF1D700BB0C76 /* README_REFACTORING.md in Resources */ = {isa = PBXBuildFile; fileRef = 516526962EDFF1D700BB0C76 /* README_REFACTORING.md */; };
+		514A05E02EE364FB007A755F /* PlanningTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05DF2EE364FB007A755F /* PlanningTypes.swift */; };
+		514A05E22EE3650D007A755F /* PlanningActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05E12EE3650D007A755F /* PlanningActions.swift */; };
+		514A05E42EE36518007A755F /* AgendaSlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514A05E32EE36518007A755F /* AgendaSlot.swift */; };
 		516526992EDFF62C00BB0C76 /* StudentLessonDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526982EDFF62C00BB0C76 /* StudentLessonDetailViewModel.swift */; };
 		5165269B2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5165269A2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift */; };
 		5165269D2EDFF67200BB0C76 /* StudentLessonDetailSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5165269C2EDFF67200BB0C76 /* StudentLessonDetailSections.swift */; };
 		5165269F2EDFF69300BB0C76 /* StudentLessonDetailViewRefactored.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5165269E2EDFF69300BB0C76 /* StudentLessonDetailViewRefactored.swift */; };
-		516526A12EDFF6B500BB0C76 /* REFACTORING_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 516526A02EDFF6B500BB0C76 /* REFACTORING_GUIDE.md */; };
 		516526A32EE08DF400BB0C76 /* ParsingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526A22EE08DF400BB0C76 /* ParsingOverlay.swift */; };
 		516526A52EE08E7500BB0C76 /* LessonsImportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526A42EE08E7500BB0C76 /* LessonsImportCoordinator.swift */; };
 		516526A72EE08E7C00BB0C76 /* StudentsImportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516526A62EE08E7C00BB0C76 /* StudentsImportCoordinator.swift */; };
@@ -35,7 +31,6 @@
 		519A84632EE2A43F002F3993 /* LessonAgeIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519A84622EE2A43F002F3993 /* LessonAgeIndicator.swift */; };
 		51A55E8B2EE246B900774D2E /* GiveLessonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E8A2EE246B900774D2E /* GiveLessonViewModel.swift */; };
 		51A55E8D2EE246E900774D2E /* GiveLessonComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E8C2EE246E900774D2E /* GiveLessonComponents.swift */; };
-		51A55E912EE2473100774D2E /* REFACTORING_SUMMARY 3.md in Resources */ = {isa = PBXBuildFile; fileRef = 51A55E902EE2473100774D2E /* REFACTORING_SUMMARY 3.md */; };
 		51A55E952EE262C400774D2E /* PlanningAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E942EE262C400774D2E /* PlanningAgendaView.swift */; };
 		51A55E972EE26A8600774D2E /* PlanningDropUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E962EE26A8600774D2E /* PlanningDropUtils.swift */; };
 		51A55E992EE26A8900774D2E /* InboxOrderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E982EE26A8900774D2E /* InboxOrderStore.swift */; };
@@ -55,17 +50,13 @@
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		514A05C32EE31BC3007A755F /* AttendanceEmail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceEmail.swift; sourceTree = "<group>"; };
 		514A05C52EE31BCD007A755F /* SettingsView+AttendanceEmail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView+AttendanceEmail.swift"; sourceTree = "<group>"; };
-		5165267E2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = REFACTORING_SUMMARY.md; sourceTree = "<group>"; };
-		5165268E2EDFF0F800BB0C76 /* REFACTORING_SUMMARY 2.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "REFACTORING_SUMMARY 2.md"; sourceTree = "<group>"; };
-		516526902EDFF12900BB0C76 /* ARCHITECTURE_DIAGRAM.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE_DIAGRAM.md; sourceTree = "<group>"; };
-		516526922EDFF16C00BB0C76 /* DEVELOPER_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEVELOPER_GUIDE.md; sourceTree = "<group>"; };
-		516526942EDFF19F00BB0C76 /* VERIFICATION_CHECKLIST.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VERIFICATION_CHECKLIST.md; sourceTree = "<group>"; };
-		516526962EDFF1D700BB0C76 /* README_REFACTORING.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README_REFACTORING.md; sourceTree = "<group>"; };
+		514A05DF2EE364FB007A755F /* PlanningTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningTypes.swift; sourceTree = "<group>"; };
+		514A05E12EE3650D007A755F /* PlanningActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningActions.swift; sourceTree = "<group>"; };
+		514A05E32EE36518007A755F /* AgendaSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaSlot.swift; sourceTree = "<group>"; };
 		516526982EDFF62C00BB0C76 /* StudentLessonDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailViewModel.swift; sourceTree = "<group>"; };
 		5165269A2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailComponents.swift; sourceTree = "<group>"; };
 		5165269C2EDFF67200BB0C76 /* StudentLessonDetailSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailSections.swift; sourceTree = "<group>"; };
 		5165269E2EDFF69300BB0C76 /* StudentLessonDetailViewRefactored.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailViewRefactored.swift; sourceTree = "<group>"; };
-		516526A02EDFF6B500BB0C76 /* REFACTORING_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = REFACTORING_GUIDE.md; sourceTree = "<group>"; };
 		516526A22EE08DF400BB0C76 /* ParsingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsingOverlay.swift; sourceTree = "<group>"; };
 		516526A42EE08E7500BB0C76 /* LessonsImportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsImportCoordinator.swift; sourceTree = "<group>"; };
 		516526A62EE08E7C00BB0C76 /* StudentsImportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentsImportCoordinator.swift; sourceTree = "<group>"; };
@@ -79,7 +70,6 @@
 		519A84622EE2A43F002F3993 /* LessonAgeIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonAgeIndicator.swift; sourceTree = "<group>"; };
 		51A55E8A2EE246B900774D2E /* GiveLessonViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiveLessonViewModel.swift; sourceTree = "<group>"; };
 		51A55E8C2EE246E900774D2E /* GiveLessonComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiveLessonComponents.swift; sourceTree = "<group>"; };
-		51A55E902EE2473100774D2E /* REFACTORING_SUMMARY 3.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "REFACTORING_SUMMARY 3.md"; sourceTree = "<group>"; };
 		51A55E942EE262C400774D2E /* PlanningAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningAgendaView.swift; sourceTree = "<group>"; };
 		51A55E962EE26A8600774D2E /* PlanningDropUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningDropUtils.swift; sourceTree = "<group>"; };
 		51A55E982EE26A8900774D2E /* InboxOrderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxOrderStore.swift; sourceTree = "<group>"; };
@@ -132,17 +122,10 @@
 				5141E7F62ED77B0F004F918F /* Products */,
 				510819952EDEA8020000BE47 /* PillButton 2.swift */,
 				5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */,
-				5165267E2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md */,
-				5165268E2EDFF0F800BB0C76 /* REFACTORING_SUMMARY 2.md */,
-				516526902EDFF12900BB0C76 /* ARCHITECTURE_DIAGRAM.md */,
-				516526922EDFF16C00BB0C76 /* DEVELOPER_GUIDE.md */,
-				516526942EDFF19F00BB0C76 /* VERIFICATION_CHECKLIST.md */,
-				516526962EDFF1D700BB0C76 /* README_REFACTORING.md */,
 				516526982EDFF62C00BB0C76 /* StudentLessonDetailViewModel.swift */,
 				5165269A2EDFF65000BB0C76 /* StudentLessonDetailComponents.swift */,
 				5165269C2EDFF67200BB0C76 /* StudentLessonDetailSections.swift */,
 				5165269E2EDFF69300BB0C76 /* StudentLessonDetailViewRefactored.swift */,
-				516526A02EDFF6B500BB0C76 /* REFACTORING_GUIDE.md */,
 				516526A22EE08DF400BB0C76 /* ParsingOverlay.swift */,
 				516526A42EE08E7500BB0C76 /* LessonsImportCoordinator.swift */,
 				516526A62EE08E7C00BB0C76 /* StudentsImportCoordinator.swift */,
@@ -158,7 +141,6 @@
 				51B802732EE1230F003A2EA3 /* AttendanceLookup.swift */,
 				51A55E8A2EE246B900774D2E /* GiveLessonViewModel.swift */,
 				51A55E8C2EE246E900774D2E /* GiveLessonComponents.swift */,
-				51A55E902EE2473100774D2E /* REFACTORING_SUMMARY 3.md */,
 				51A55E942EE262C400774D2E /* PlanningAgendaView.swift */,
 				51A55E962EE26A8600774D2E /* PlanningDropUtils.swift */,
 				51A55E982EE26A8900774D2E /* InboxOrderStore.swift */,
@@ -170,6 +152,9 @@
 				519A84622EE2A43F002F3993 /* LessonAgeIndicator.swift */,
 				514A05C32EE31BC3007A755F /* AttendanceEmail.swift */,
 				514A05C52EE31BCD007A755F /* SettingsView+AttendanceEmail.swift */,
+				514A05DF2EE364FB007A755F /* PlanningTypes.swift */,
+				514A05E12EE3650D007A755F /* PlanningActions.swift */,
+				514A05E32EE36518007A755F /* AgendaSlot.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -245,14 +230,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				516526972EDFF1D700BB0C76 /* README_REFACTORING.md in Resources */,
-				516526932EDFF16C00BB0C76 /* DEVELOPER_GUIDE.md in Resources */,
-				516526912EDFF12900BB0C76 /* ARCHITECTURE_DIAGRAM.md in Resources */,
-				516526952EDFF19F00BB0C76 /* VERIFICATION_CHECKLIST.md in Resources */,
-				516526A12EDFF6B500BB0C76 /* REFACTORING_GUIDE.md in Resources */,
-				5165268F2EDFF0F800BB0C76 /* REFACTORING_SUMMARY 2.md in Resources */,
-				5165267F2EDFECD600BB0C76 /* REFACTORING_SUMMARY.md in Resources */,
-				51A55E912EE2473100774D2E /* REFACTORING_SUMMARY 3.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -289,10 +266,13 @@
 				51B802742EE1230F003A2EA3 /* AttendanceLookup.swift in Sources */,
 				5165269F2EDFF69300BB0C76 /* StudentLessonDetailViewRefactored.swift in Sources */,
 				51A55E8B2EE246B900774D2E /* GiveLessonViewModel.swift in Sources */,
+				514A05E42EE36518007A755F /* AgendaSlot.swift in Sources */,
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
 				516526A52EE08E7500BB0C76 /* LessonsImportCoordinator.swift in Sources */,
 				516526A32EE08DF400BB0C76 /* ParsingOverlay.swift in Sources */,
 				514A05C62EE31BCD007A755F /* SettingsView+AttendanceEmail.swift in Sources */,
+				514A05E22EE3650D007A755F /* PlanningActions.swift in Sources */,
+				514A05E02EE364FB007A755F /* PlanningTypes.swift in Sources */,
 				514A05C42EE31BC3007A755F /* AttendanceEmail.swift in Sources */,
 				510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */,
 			);

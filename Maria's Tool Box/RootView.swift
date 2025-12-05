@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import UniformTypeIdentifiers
 
 struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
