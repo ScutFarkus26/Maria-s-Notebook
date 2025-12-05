@@ -70,7 +70,7 @@ struct CalendarMonthGridView: View {
             VStack(spacing: 8) {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { _, row in
                     HStack(spacing: 8) {
-                        ForEach(row, id: \.self) { date in
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, date in
                             DayCell(date: date, calendar: calendar, nonSchoolDates: nonSchoolDates) { d in
                                 let newState = (try? SchoolCalendar.toggleNonSchoolDay(d, using: modelContext)) ?? SchoolCalendar.isNonSchoolDay(d, using: modelContext)
                                 onDateToggled?(d, newState)

@@ -91,6 +91,14 @@ struct SubjectChecklistSection: View {
                                             Spacer(minLength: 0)
 
                                             HStack(spacing: 10) {
+                                                Button { onOpenPlan(lesson) } label: {
+                                                    Image(systemName: "calendar.badge.plus")
+                                                        .foregroundStyle(isPlanned ? Color.green : Color.secondary)
+                                                        .frame(width: 22, height: 22)
+                                                }
+                                                .buttonStyle(.plain)
+                                                .help(isPlanned ? "Planned — open Give Lesson to adjust schedule" : "Plan/Schedule this lesson")
+
                                                 Button { onTogglePresented(lesson) } label: {
                                                     ZStack {
                                                         if !wasPresented && isPlanned {
