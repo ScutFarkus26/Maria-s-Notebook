@@ -18,6 +18,45 @@ final class AttendanceViewModel: ObservableObject {
         self.selectedDate = selectedDate.normalizedDay()
     }
 
+    // MARK: - Filtering
+    private var excludedStudentNames: Set<String> { ["lil d", "danny de berry", "lil dan d"] }
+
+    private func isExcluded(_ student: Student) -> Bool {
+        let name = student.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return excludedStudentNames.contains(name)
+    }
+
+    func visibleStudents(from all: [Student]) -> [Student] {
+        all.filter { !isExcluded($0) }
+    }
+
+    func sortedAndFiltered(students: [Student]) -> [Student] {
+        let base: [Student]
+        switch levelFilter {
+        case .all: base = students
+        case .lower: base = students.filter { $0.level == .lower }
+        case .upper: base = students.filter { $0.level == .upper }
+        }
+        switch sortKey {
+        case .firstName:
+            return base.sorted { lhs, rhs in
+                let c = lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName)
+                if c == .orderedSame {
+                    return lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName) == .orderedAscending
+                }
+                return c == .orderedAscending
+            }
+        case .lastName:
+            return base.sorted { lhs, rhs in
+                let c = lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName)
+                if c == .orderedSame {
+                    return lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName) == .orderedAscending
+                }
+                return c == .orderedAscending
+            }
+        }
+    }
+
     // MARK: - Loading
     func load(for date: Date? = nil, students: [Student], modelContext: ModelContext) {
         let target = (date ?? selectedDate).normalizedDay()

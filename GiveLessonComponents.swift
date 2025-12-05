@@ -1,6 +1,7 @@
 import SwiftUI
-import SwiftUI
 import SwiftData
+
+// TODO: Consider moving formatting and selection helpers to GiveLessonViewModel for testability.
 
 // MARK: - Lesson Section
 

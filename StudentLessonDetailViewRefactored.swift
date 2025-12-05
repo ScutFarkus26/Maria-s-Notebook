@@ -30,7 +30,7 @@ struct StudentLessonDetailViewRefactored: View {
     // MARK: - Computed Properties
     
     private var lessonObject: Lesson? {
-        lessons.first(where: { $0.id == viewModel.selectedStudentIDs.first })
+        lessons.first(where: { $0.id == viewModel.studentLesson.lessonID })
     }
     
     private var lessonName: String {
@@ -104,8 +104,8 @@ struct StudentLessonDetailViewRefactored: View {
         .overlay(alignment: .top) {
             bannerOverlay
         }
-        .allowsHitTesting(false)
         .onAppear {
+            // Re-attach with real modelContext (consider migrating to @StateObject + attachContext())
             // Update view model with the actual modelContext
             viewModel = StudentLessonDetailViewModel(
                 studentLesson: viewModel.studentLesson,

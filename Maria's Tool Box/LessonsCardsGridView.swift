@@ -112,6 +112,16 @@ struct LessonsCardsGridView: View {
     }
 
     // MARK: - Gesture
+
+    private func nearestTargetID(from startCenter: CGPoint, translation: CGSize, centers: [UUID: CGPoint]) -> UUID? {
+        let endCenter = CGPoint(x: startCenter.x + translation.width, y: startCenter.y + translation.height)
+        return centers.min(by: { lhs, rhs in
+            let dl = hypot(lhs.value.x - endCenter.x, lhs.value.y - endCenter.y)
+            let dr = hypot(rhs.value.x - endCenter.x, rhs.value.y - endCenter.y)
+            return dl < dr
+        })?.key
+    }
+
     private func longPressThenDrag(for lesson: Lesson) -> some Gesture {
         let press = LongPressGesture(minimumDuration: 0.25)
         let drag = DragGesture(minimumDistance: 1)
@@ -127,14 +137,11 @@ struct LessonsCardsGridView: View {
                     let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                         if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
                     }
-                    guard let startCenter = centers[lesson.id] else { return }
-                    let endCenter = CGPoint(x: startCenter.x + drag.translation.width, y: startCenter.y + drag.translation.height)
-                    if let targetID = centers.min(by: { lhs, rhs in
-                        let dl = hypot(lhs.value.x - endCenter.x, lhs.value.y - endCenter.y)
-                        let dr = hypot(rhs.value.x - endCenter.x, rhs.value.y - endCenter.y)
-                        return dl < dr
-                    })?.key {
-                        hoverTargetID = targetID
+                    if let startCenter = centers[lesson.id] {
+                        let translation = drag.translation
+                        if let targetID = nearestTargetID(from: startCenter, translation: translation, centers: centers) {
+                            hoverTargetID = targetID
+                        }
                     }
                 default:
                     break
@@ -159,14 +166,11 @@ struct LessonsCardsGridView: View {
                 } else {
                     var translation = CGSize.zero
                     if case .second(true, let drag?) = value { translation = drag.translation }
-                    guard let startCenter = centers[lesson.id] else { return }
-                    let endCenter = CGPoint(x: startCenter.x + translation.width, y: startCenter.y + translation.height)
-                    guard let targetID = centers.min(by: { lhs, rhs in
-                        let dl = hypot(lhs.value.x - endCenter.x, lhs.value.y - endCenter.y)
-                        let dr = hypot(rhs.value.x - endCenter.x, rhs.value.y - endCenter.y)
-                        return dl < dr
-                    })?.key, let idx = subsetIDs.firstIndex(of: targetID) else { return }
-                    toIndex = idx
+                    if let startCenter = centers[lesson.id], let targetID = nearestTargetID(from: startCenter, translation: translation, centers: centers), let idx = subsetIDs.firstIndex(of: targetID) {
+                        toIndex = idx
+                    } else {
+                        return
+                    }
                 }
 
                 if toIndex == fromIndex { return }

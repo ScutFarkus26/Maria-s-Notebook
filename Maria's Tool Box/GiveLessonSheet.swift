@@ -152,7 +152,7 @@ struct GiveLessonSheet: View {
         LessonSection(
             viewModel: viewModel,
             resolvedLesson: resolvedLesson,
-            lessonDisplayTitle: lessonDisplayTitle(for:),
+            lessonDisplayTitle: viewModel.lessonDisplayTitle(for:),
             isFocused: lessonFocusBinding
         )
     }
@@ -161,7 +161,7 @@ struct GiveLessonSheet: View {
         StudentsSection(
             viewModel: viewModel,
             subjectColor: subjectColor,
-            displayName: displayName(for:),
+            displayName: viewModel.displayName(for:),
             showingAddStudentSheet: $showingAddStudentSheet,
             showingStudentPickerPopover: $showingStudentPickerPopover
         )
@@ -247,29 +247,5 @@ struct GiveLessonSheet: View {
             saveAlert = (title: "Save Failed", message: error.localizedDescription)
         }
     }
-    
-    private func displayName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
-    }
-    
-    private func lessonDisplayTitle(for lesson: Lesson) -> String {
-        let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        var suffix = ""
-        if !subject.isEmpty && !group.isEmpty {
-            suffix = " • \(subject) • \(group)"
-        } else if !subject.isEmpty {
-            suffix = " • \(subject)"
-        } else if !group.isEmpty {
-            suffix = " • \(group)"
-        }
-        
-        return lesson.name + suffix
-    }
 }
-
 

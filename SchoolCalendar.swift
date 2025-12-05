@@ -1,8 +1,10 @@
 import Foundation
 import SwiftData
 
+// NOTE: Cache is process-global. Consider migrating to an actor-backed SchoolCalendarService for thread safety and testability.
+
 struct SchoolCalendar {
-    private struct Cache {
+    fileprivate struct Cache {
         static var monthSets: [Date: Set<Date>] = [:] // key = start-of-month date
     }
 

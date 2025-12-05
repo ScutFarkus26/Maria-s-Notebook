@@ -284,5 +284,27 @@ final class GiveLessonViewModel: ObservableObject {
             return l.0 < r.0
         }
     }
+    
+    // MARK: - Formatting Helpers
+    func displayName(for student: Student) -> String {
+        let parts = student.fullName.split(separator: " ")
+        guard let first = parts.first else { return student.fullName }
+        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
+        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+    }
+
+    func lessonDisplayTitle(for lesson: Lesson) -> String {
+        let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+        var suffix = ""
+        if !subject.isEmpty && !group.isEmpty {
+            suffix = " • \(subject) • \(group)"
+        } else if !subject.isEmpty {
+            suffix = " • \(subject)"
+        } else if !group.isEmpty {
+            suffix = " • \(group)"
+        }
+        return lesson.name + suffix
+    }
 }
 

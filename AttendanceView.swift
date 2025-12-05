@@ -9,43 +9,9 @@ struct AttendanceView: View {
 
     @StateObject private var viewModel = AttendanceViewModel()
 
-    // Exclude specific students by full name (case-insensitive)
-    private var excludedStudentNames: Set<String> { ["lil d", "danny de berry", "lil dan d"] }
-    private func isExcluded(_ student: Student) -> Bool {
-        let name = student.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return excludedStudentNames.contains(name)
-    }
-
-    // All students excluding hidden ones
-    private var visibleAllStudents: [Student] { allStudents.filter { !isExcluded($0) } }
-
     private var filteredStudents: [Student] {
-        let base: [Student]
-        switch viewModel.levelFilter {
-        case .all: base = visibleAllStudents
-        case .lower: base = visibleAllStudents.filter { $0.level == .lower }
-        case .upper: base = visibleAllStudents.filter { $0.level == .upper }
-        }
-        let sorted: [Student]
-        switch viewModel.sortKey {
-        case .firstName:
-            sorted = base.sorted { lhs, rhs in
-                let c = lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName)
-                if c == .orderedSame {
-                    return lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName) == .orderedAscending
-                }
-                return c == .orderedAscending
-            }
-        case .lastName:
-            sorted = base.sorted { lhs, rhs in
-                let c = lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName)
-                if c == .orderedSame {
-                    return lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName) == .orderedAscending
-                }
-                return c == .orderedAscending
-            }
-        }
-        return sorted
+        let visible = viewModel.visibleStudents(from: allStudents)
+        return viewModel.sortedAndFiltered(students: visible)
     }
 
     private var columns: [GridItem] {
@@ -63,14 +29,14 @@ struct AttendanceView: View {
             content
         }
         .onAppear {
-            viewModel.load(for: viewModel.selectedDate, students: visibleAllStudents, modelContext: modelContext)
+            viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
         }
         .onChange(of: viewModel.selectedDate) { _, newValue in
-            viewModel.load(for: newValue, students: visibleAllStudents, modelContext: modelContext)
+            viewModel.load(for: newValue, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
         }
         .onChange(of: allStudents.map { $0.id }) { _, _ in
             // If students change (added/removed), ensure records exist
-            viewModel.load(for: viewModel.selectedDate, students: visibleAllStudents, modelContext: modelContext)
+            viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
         }
     }
 

@@ -2,6 +2,11 @@ import Foundation
 
 /// Helper responsible for persisting and retrieving the order of subjects and per-subject groups using UserDefaults.
 struct FilterOrderStore {
+    private let defaults: UserDefaults
+    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+    
+    private static var shared = FilterOrderStore()
+    
     private static let subjectOrderKey = "Lessons.SubjectOrder"
     private static let groupOrderPrefix = "Lessons.GroupOrder."
     
@@ -18,7 +23,7 @@ struct FilterOrderStore {
         if let cached = cachedSubjectOrder {
             return mergeOrder(saved: cached, existing: existing)
         }
-        guard let saved = UserDefaults.standard.array(forKey: subjectOrderKey) as? [String] else {
+        guard let saved = shared.defaults.array(forKey: subjectOrderKey) as? [String] else {
             cachedSubjectOrder = existing
             return existing
         }
@@ -30,7 +35,7 @@ struct FilterOrderStore {
     /// Saves the given subject order into UserDefaults and updates cache.
     static func saveSubjectOrder(_ order: [String]) {
         cachedSubjectOrder = order
-        UserDefaults.standard.set(order, forKey: subjectOrderKey)
+        shared.defaults.set(order, forKey: subjectOrderKey)
     }
     
     /// Loads the saved group order for a given subject from UserDefaults, filtering to existing groups and appending any missing at the end preserving original order.
@@ -39,7 +44,7 @@ struct FilterOrderStore {
         if let cached = cachedGroupOrders[key] {
             return mergeOrder(saved: cached, existing: existing)
         }
-        guard let saved = UserDefaults.standard.array(forKey: key) as? [String] else {
+        guard let saved = shared.defaults.array(forKey: key) as? [String] else {
             cachedGroupOrders[key] = existing
             return existing
         }
@@ -52,7 +57,7 @@ struct FilterOrderStore {
     static func saveGroupOrder(_ order: [String], for subject: String) {
         let key = groupOrderPrefix + normalizedSubject(subject)
         cachedGroupOrders[key] = order
-        UserDefaults.standard.set(order, forKey: key)
+        shared.defaults.set(order, forKey: key)
     }
     
     /// Clears in-memory caches for subject and group orders.
@@ -64,14 +69,14 @@ struct FilterOrderStore {
     /// Removes the persisted subject order from UserDefaults and clears the cache.
     static func clearSubjectOrder() {
         cachedSubjectOrder = nil
-        UserDefaults.standard.removeObject(forKey: subjectOrderKey)
+        shared.defaults.removeObject(forKey: subjectOrderKey)
     }
 
     /// Removes the persisted group order for a specific subject from UserDefaults and clears the cached entry.
     static func clearGroupOrder(for subject: String) {
         let key = groupOrderPrefix + normalizedSubject(subject)
         cachedGroupOrders.removeValue(forKey: key)
-        UserDefaults.standard.removeObject(forKey: key)
+        shared.defaults.removeObject(forKey: key)
     }
     
     /// Merges saved order with existing items keeping saved order first, de-duplicating saved entries,
@@ -94,5 +99,12 @@ struct FilterOrderStore {
         let missing = existing.filter { !savedSet.contains($0) }
 
         return filteredSaved + missing
+    }
+
+    /// Allows tests to inject a custom UserDefaults instance.
+    static func useDefaults(_ defaults: UserDefaults) {
+        shared = FilterOrderStore(defaults: defaults)
+        cachedSubjectOrder = nil
+        cachedGroupOrders.removeAll()
     }
 }

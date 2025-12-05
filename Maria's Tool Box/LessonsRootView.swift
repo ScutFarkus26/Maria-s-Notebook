@@ -179,36 +179,7 @@ struct LessonsRootView: View {
                             }
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .overlay(alignment: .topTrailing) {
-                            Menu {
-                                Button {
-                                    presentedSheet = .addLesson(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
-                                } label: {
-                                    Label("Add Lesson", systemImage: "text.book.closed")
-                                }
-                                Button {
-                                    presentedSheet = .bulkEntry(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
-                                } label: {
-                                    Label("Bulk Entry…", systemImage: "square.grid.3x3")
-                                }
-                                Button {
-                                    presentedSheet = .giveLesson(lesson: nil)
-                                } label: {
-                                    Label("Add Student Lesson", systemImage: "person.crop.circle.badge.plus")
-                                }
-                                Button {
-                                    showingLessonCSVImporter = true
-                                } label: {
-                                    Label("Import Lessons from CSV…", systemImage: "arrow.down.doc")
-                                }
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: AppTheme.FontSize.titleXLarge))
-                                    .foregroundStyle(.green)
-                            }
-                            .buttonStyle(.plain)
-                            .padding()
-                        }
+                        .overlay(alignment: .topTrailing) { plusMenuOverlay }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -515,6 +486,37 @@ struct LessonsRootView: View {
         ]
         for l in samples { modelContext.insert(l) }
         try? modelContext.save()
+    }
+
+    private var plusMenuOverlay: some View {
+        Menu {
+            Button {
+                presentedSheet = .addLesson(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
+            } label: {
+                Label("Add Lesson", systemImage: "text.book.closed")
+            }
+            Button {
+                presentedSheet = .bulkEntry(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
+            } label: {
+                Label("Bulk Entry…", systemImage: "square.grid.3x3")
+            }
+            Button {
+                presentedSheet = .giveLesson(lesson: nil)
+            } label: {
+                Label("Add Student Lesson", systemImage: "person.crop.circle.badge.plus")
+            }
+            Button {
+                showingLessonCSVImporter = true
+            } label: {
+                Label("Import Lessons from CSV…", systemImage: "arrow.down.doc")
+            }
+        } label: {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: AppTheme.FontSize.titleXLarge))
+                .foregroundStyle(.green)
+        }
+        .buttonStyle(.plain)
+        .padding()
     }
 }
 
