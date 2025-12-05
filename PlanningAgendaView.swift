@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 private enum DayPeriod { case morning, afternoon }
 
@@ -352,6 +353,7 @@ private struct AgendaSlot: View {
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
     @State private var isTargeted: Bool = false
+    @State private var insertionIndex: Int? = nil
 
     private var scheduledLessonsForSlot: [StudentLesson] {
         allStudentLessons.filter { sl in
@@ -381,8 +383,10 @@ private struct AgendaSlot: View {
                         .padding(.vertical, 8)
                         .padding(.horizontal, 10)
                 } else {
-                    ForEach(scheduledLessonsForSlot, id: \.id) { sl in
+                    ForEach(Array(scheduledLessonsForSlot.enumerated()), id: \.element.id) { index, sl in
                         StudentLessonPill(snapshot: sl.snapshot(), day: day)
+                            .scaleEffect((isTargeted && insertionIndex == index) ? 1.02 : 1.0)
+                            .animation(.spring(response: 0.2, dampingFraction: 0.9), value: insertionIndex)
                             .onTapGesture { onSelectLesson(sl) }
                             .contextMenu {
                                 Button { onQuickActions(sl) } label: { Label("Quick Actions…", systemImage: "bolt") }
@@ -403,54 +407,43 @@ private struct AgendaSlot: View {
             }
             .padding(12)
             .animation(.spring(response: 0.25, dampingFraction: 0.9), value: scheduledLessonsForSlot.map { $0.id })
+
+            // Draw insertion line
+            .overlay(
+                GeometryReader { proxy in
+                    if let idx = insertionIndex {
+                        let frames: [(UUID, CGRect)] = scheduledLessonsForSlot.compactMap { item in
+                            if let rect = itemFrames[item.id] { return (item.id, rect) }
+                            return nil
+                        }.sorted { $0.1.minY < $1.1.minY }
+                        if !frames.isEmpty {
+                            let y: CGFloat = (idx < frames.count) ? frames[idx].1.minY : (frames.last!.1.maxY)
+                            Rectangle()
+                                .fill(Color.accentColor)
+                                .frame(height: 2)
+                                .position(x: proxy.size.width / 2, y: y)
+                                .animation(.easeInOut(duration: 0.12), value: insertionIndex)
+                        }
+                    }
+                }
+            )
         }
         .coordinateSpace(name: zoneSpaceID)
         .onPreferenceChange(PillFramePreference.self) { frames in
             itemFrames = frames
         }
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .dropDestination(for: String.self, action: { items, location in
-            guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
-            guard let sl = allStudentLessons.first(where: { $0.id == id }) else { return false }
-
-            let current = scheduledLessonsForSlot
-            var ids = current.map { $0.id }
-
-            // determine insertion index based on drop location y and frames
-            let sortedFrames: [(UUID, CGRect)] = current.compactMap { item in
-                if let rect = itemFrames[item.id] { return (item.id, rect) }
-                return nil
-            }
-
-            let insertionIndex: Int = {
-                let ordered = sortedFrames.sorted { $0.1.minY < $1.1.minY }
-                for (idx, pair) in ordered.enumerated() {
-                    let rect = pair.1
-                    let midY = rect.midY
-                    if location.y < midY { return idx }
-                }
-                return ordered.count
-            }()
-
-            // Remove if it's already in this slot
-            if let existingIndex = ids.firstIndex(of: sl.id) { ids.remove(at: existingIndex) }
-            // Insert at computed index
-            let boundedIndex = max(0, min(insertionIndex, ids.count))
-            ids.insert(sl.id, at: boundedIndex)
-
-            // Compute base date for slot and assign sequential times
-            let base = dateForSlot(day: day, period: period)
-            for (idx, id) in ids.enumerated() {
-                if let item = allStudentLessons.first(where: { $0.id == id }) {
-                    item.scheduledFor = calendar.date(byAdding: .second, value: idx, to: base)
-                }
-            }
-
-            Task { @MainActor in
-                try? modelContext.save()
-            }
-            return true
-        }, isTargeted: { hovering in isTargeted = hovering })
+        .onDrop(of: [UTType.text], delegate: AgendaSlotDropDelegate(
+            calendar: calendar,
+            modelContext: modelContext,
+            allStudentLessons: allStudentLessons,
+            day: day,
+            period: period,
+            getCurrent: { scheduledLessonsForSlot },
+            itemFramesProvider: { itemFrames },
+            onTargetChange: { hovering in isTargeted = hovering },
+            onInsertionIndexChange: { idx in insertionIndex = idx }
+        ))
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
@@ -467,6 +460,81 @@ private struct AgendaSlot: View {
         let startOfDay = calendar.startOfDay(for: day)
         let hour: Int = (period == .morning) ? 9 : 14
         return calendar.date(byAdding: .hour, value: hour, to: startOfDay) ?? startOfDay
+    }
+
+    private static func baseDateForSlot(day: Date, period: DayPeriod, calendar: Calendar) -> Date {
+        let startOfDay = calendar.startOfDay(for: day)
+        let hour: Int = (period == .morning) ? 9 : 14
+        return calendar.date(byAdding: .hour, value: hour, to: startOfDay) ?? startOfDay
+    }
+
+    private struct AgendaSlotDropDelegate: DropDelegate {
+        let calendar: Calendar
+        let modelContext: ModelContext
+        let allStudentLessons: [StudentLesson]
+        let day: Date
+        let period: DayPeriod
+        let getCurrent: () -> [StudentLesson]
+        let itemFramesProvider: () -> [UUID: CGRect]
+        let onTargetChange: (Bool) -> Void
+        let onInsertionIndexChange: (Int?) -> Void
+
+        func dropEntered(info: DropInfo) {
+            onTargetChange(true)
+            onInsertionIndexChange(computeIndex(info))
+        }
+
+        func dropUpdated(info: DropInfo) -> DropProposal? {
+            onInsertionIndexChange(computeIndex(info))
+            return DropProposal(operation: .move)
+        }
+
+        func dropExited(info: DropInfo) {
+            onTargetChange(false)
+            onInsertionIndexChange(nil)
+        }
+
+        func validateDrop(info: DropInfo) -> Bool {
+            return info.hasItemsConforming(to: [UTType.text])
+        }
+
+        func performDrop(info: DropInfo) -> Bool {
+            onTargetChange(false)
+            let providers = info.itemProviders(for: [UTType.text])
+            guard let provider = providers.first else { return false }
+            provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { item, _ in
+                var idString: String?
+                if let data = item as? Data, let str = String(data: data, encoding: .utf8) { idString = str }
+                else if let ns = item as? NSString { idString = ns as String }
+                guard let idString, let id = UUID(uuidString: idString.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+                guard let sl = allStudentLessons.first(where: { $0.id == id }) else { return }
+                var ids = getCurrent().map { $0.id }
+                if let existing = ids.firstIndex(of: sl.id) { ids.remove(at: existing) }
+                let insertionIndex = computeIndex(info)
+                let bounded = max(0, min(insertionIndex, ids.count))
+                ids.insert(sl.id, at: bounded)
+                let base = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
+                let map = PlanningDropUtils.assignSequentialTimes(ids: ids, base: base, calendar: calendar, spacingSeconds: 1)
+                for id in ids {
+                    if let item = allStudentLessons.first(where: { $0.id == id }) {
+                        item.scheduledFor = map[id]
+                    }
+                }
+                Task { @MainActor in try? modelContext.save() }
+            }
+            onInsertionIndexChange(nil)
+            return true
+        }
+
+        private func computeIndex(_ info: DropInfo) -> Int {
+            let current = getCurrent()
+            let frames = itemFramesProvider()
+            let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+                if let rect = frames[item.id] { return (item.id, rect) }
+                return nil
+            })
+            return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
+        }
     }
 }
 
