@@ -12,9 +12,12 @@ struct PlanningWeekView: View {
     @Query private var studentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
+    @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @State private var weekStart: Date = Self.monday(for: Date())
     @State private var isSidebarTargeted: Bool = false
     @State private var activeSheet: ActiveSheet? = nil
+    @State private var sidebarItemFrames: [UUID: CGRect] = [:]
+    @State private var sidebarSpaceID = UUID()
 
     private enum ActiveSheet: Identifiable {
         case studentLessonDetail(UUID)
@@ -37,7 +40,14 @@ struct PlanningWeekView: View {
     }
     
     private var unscheduledLessons: [StudentLesson] {
-        studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+        studentLessons
+            .filter { $0.scheduledFor == nil && !$0.isGiven }
+            .sorted { lhs, rhs in
+                if lhs.createdAt == rhs.createdAt {
+                    return lhs.id.uuidString < rhs.id.uuidString
+                }
+                return lhs.createdAt < rhs.createdAt
+            }
     }
     
     private func planNextLesson(for sl: StudentLesson) {
@@ -78,6 +88,29 @@ struct PlanningWeekView: View {
         newStudentLesson.syncSnapshotsFromRelationships()
         modelContext.insert(newStudentLesson)
         try? modelContext.save()
+    }
+    
+    private func parseOrder(_ raw: String) -> [UUID] {
+        raw.split(separator: ",").compactMap { UUID(uuidString: String($0)) }
+    }
+
+    private func serializeOrder(_ ids: [UUID]) -> String {
+        ids.map { $0.uuidString }.joined(separator: ",")
+    }
+
+    private var orderedUnscheduledLessons: [StudentLesson] {
+        let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+        let baseIDs = base.map { $0.id }
+        var order = parseOrder(inboxOrderRaw).filter { baseIDs.contains($0) }
+        let missing = base
+            .filter { !order.contains($0.id) }
+            .sorted { $0.createdAt < $1.createdAt }
+            .map { $0.id }
+        order.append(contentsOf: missing)
+        let indexMap = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
+        return base.sorted { lhs, rhs in
+            (indexMap[lhs.id] ?? Int.max) < (indexMap[rhs.id] ?? Int.max)
+        }
     }
 
     var body: some View {
@@ -147,6 +180,17 @@ struct PlanningWeekView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: studentLessons.map { $0.id }) { _, _ in
+            let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+            let baseIDs = base.map { $0.id }
+            var order = parseOrder(inboxOrderRaw).filter { baseIDs.contains($0) }
+            let missing = base
+                .filter { !order.contains($0.id) }
+                .sorted { $0.createdAt < $1.createdAt }
+                .map { $0.id }
+            order.append(contentsOf: missing)
+            inboxOrderRaw = serializeOrder(order)
+        }
     }
 
     // MARK: - Sidebar
@@ -172,7 +216,7 @@ struct PlanningWeekView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    if unscheduledLessons.isEmpty {
+                    if orderedUnscheduledLessons.isEmpty {
                         Spacer(minLength: 20)
                         Image(systemName: "checkmark.circle")
                             .font(.system(size: 40, weight: .regular))
@@ -184,11 +228,20 @@ struct PlanningWeekView: View {
                             .foregroundStyle(.secondary)
                         Spacer()
                     } else {
-                        ForEach(unscheduledLessons, id: \.id) { sl in
+                        ForEach(orderedUnscheduledLessons, id: \.id) { sl in
                             StudentLessonPill(snapshot: sl.snapshot(), day: Date())
-                                .onTapGesture { 
-                                    activeSheet = .studentLessonDetail(sl.id) 
+                                .onTapGesture {
+                                    activeSheet = .studentLessonDetail(sl.id)
                                 }
+                                .onDrag { NSItemProvider(object: sl.id.uuidString as NSString) }
+                                .background(
+                                    GeometryReader { proxy in
+                                        Color.clear.preference(
+                                            key: SidebarPillFramePreference.self,
+                                            value: [sl.id: proxy.frame(in: .named(sidebarSpaceID))]
+                                        )
+                                    }
+                                )
                                 .contextMenu {
                                     Button {
                                         activeSheet = .quickActions(sl.id)
@@ -211,6 +264,10 @@ struct PlanningWeekView: View {
                 }
                 .padding(12)
             }
+            .coordinateSpace(name: sidebarSpaceID)
+            .onPreferenceChange(SidebarPillFramePreference.self) { frames in
+                sidebarItemFrames = frames
+            }
             .frame(maxWidth: .infinity)
         }
         .frame(width: 280)
@@ -219,16 +276,37 @@ struct PlanningWeekView: View {
             RoundedRectangle(cornerRadius: 0)
                 .stroke(isSidebarTargeted ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 3)
         )
-        .dropDestination(for: String.self, action: { items, _ in
+        .dropDestination(for: String.self, action: { items, location in
             guard let idString = items.first, let id = UUID(uuidString: idString) else { return false }
-            if let sl = studentLessons.first(where: { $0.id == id }) {
-                sl.scheduledFor = nil
-                Task { @MainActor in
-                    try? modelContext.save()
+            guard let sl = studentLessons.first(where: { $0.id == id }) else { return false }
+
+            let current = orderedUnscheduledLessons
+            let sortedFrames: [(UUID, CGRect)] = current.compactMap { item in
+                if let rect = sidebarItemFrames[item.id] { return (item.id, rect) }
+                return nil
+            }.sorted { $0.1.minY < $1.1.minY }
+
+            let insertionIndex: Int = {
+                for (idx, pair) in sortedFrames.enumerated() {
+                    if location.y < pair.1.midY { return idx }
                 }
-                return true
-            }
-            return false
+                return sortedFrames.count
+            }()
+
+            // Start from persisted order limited to current unscheduled IDs
+            let currentIDs = Set(studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }.map { $0.id })
+            var order = parseOrder(inboxOrderRaw).filter { currentIDs.contains($0) }
+
+            // If item was scheduled, unschedule first
+            if sl.scheduledFor != nil { sl.scheduledFor = nil }
+
+            if let existing = order.firstIndex(of: sl.id) { order.remove(at: existing) }
+            let bounded = max(0, min(insertionIndex, order.count))
+            order.insert(sl.id, at: bounded)
+
+            inboxOrderRaw = serializeOrder(order)
+            Task { @MainActor in try? modelContext.save() }
+            return true
         }, isTargeted: { hovering in
             isSidebarTargeted = hovering
         })
@@ -440,8 +518,8 @@ private struct DropZone: View {
                 } else {
                     ForEach(scheduledLessonsForSlot, id: \.id) { sl in
                         StudentLessonPill(snapshot: sl.snapshot(), day: Date())
-                            .onTapGesture { 
-                                onSelectLesson(sl) 
+                            .onTapGesture {
+                                onSelectLesson(sl)
                             }
                             .contextMenu {
                                 Button {
@@ -704,6 +782,13 @@ struct StudentLessonPill: View {
         .onDrag {
             NSItemProvider(object: snapshot.id.uuidString as NSString)
         }
+    }
+}
+
+private struct SidebarPillFramePreference: PreferenceKey {
+    static var defaultValue: [UUID: CGRect] = [:]
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
 }
 

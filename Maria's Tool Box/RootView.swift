@@ -189,8 +189,40 @@ struct RootView: View {
 }
 
 struct PlanningRootView: View {
+    enum Mode: String, CaseIterable, Identifiable {
+        case agenda = "Agenda"
+        case board = "Board"
+        var id: String { rawValue }
+    }
+
+    @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
+    private var mode: Mode { Mode(rawValue: modeRaw) ?? .agenda }
+
     var body: some View {
-        PlanningWeekView()
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Picker("View", selection: $modeRaw) {
+                    Text(Mode.agenda.rawValue).tag(Mode.agenda.rawValue)
+                    Text(Mode.board.rawValue).tag(Mode.board.rawValue)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 260)
+                Spacer()
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+
+            Divider()
+
+            Group {
+                if mode == .agenda {
+                    PlanningAgendaView()
+                } else {
+                    PlanningWeekView()
+                }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 }
