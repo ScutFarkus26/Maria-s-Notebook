@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Combine
 
 private enum DayPeriod {
     case morning
@@ -597,6 +598,13 @@ struct StudentLessonPill: View {
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
     @Environment(\.calendar) private var calendar
+    
+    @AppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
+    @AppStorage("LessonAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
+    @AppStorage("LessonAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
+    @AppStorage("LessonAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
+    @AppStorage("LessonAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
+
     let snapshot: StudentLessonSnapshot
     var day: Date? = nil
 
@@ -677,100 +685,124 @@ struct StudentLessonPill: View {
         // naive conflict: if any student is marked absent (already shown) or time overlaps with same-minute another lesson is beyond current pill; we only show a badge if absent or scheduled time exists
         return false
     }
+    
+    private var ageSchoolDays: Int {
+        snapshot.schoolDaysSinceCreation(asOf: Date(), using: modelContext, calendar: calendar)
+    }
+
+    private var ageStatus: LessonAgeStatus {
+        if ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }
+        if ageSchoolDays >= max(0, ageWarningDays) { return .warning }
+        return .fresh
+    }
+
+    private var ageColor: Color {
+        switch ageStatus {
+        case .fresh: return ColorUtils.color(from: ageFreshColorHex)
+        case .warning: return ColorUtils.color(from: ageWarningColorHex)
+        case .overdue: return ColorUtils.color(from: ageOverdueColorHex)
+        }
+    }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Circle()
-                .fill(subjectColor)
-                .frame(width: 6, height: 6)
-                .padding(.top, 3)
+        HStack(spacing: 0) {
+            // Thin age indicator along far left inside the pill card
+            Rectangle()
+                .fill(ageColor)
+                .frame(width: 3)
+                .opacity(snapshot.isGiven ? 0.0 : 1.0)
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(lessonName)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    .lineLimit(nil)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .layoutPriority(1)
+            // Existing content preserved
+            HStack(alignment: .top, spacing: 8) {
+                Circle()
+                    .fill(subjectColor)
+                    .frame(width: 6, height: 6)
+                    .padding(.top, 3)
 
-                if !studentChips.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(studentChips, id: \.id) { chip in
-                                let isAbsent = (chip.status == .absent)
-                                Text(chip.label)
-                                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(chip.isMissing ? .secondary : (isAbsent ? .secondary : .primary))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(chip.isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(isAbsent ? 0.06 : 0.15))
-                                    )
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1)
-                                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(lessonName)
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .lineLimit(nil)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
+
+                    if !studentChips.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(studentChips, id: \.id) { chip in
+                                    let isAbsent = (chip.status == .absent)
+                                    Text(chip.label)
+                                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(chip.isMissing ? .secondary : (isAbsent ? .secondary : .primary))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            Capsule()
+                                                .fill(chip.isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(isAbsent ? 0.06 : 0.15))
+                                        )
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1)
+                                        )
+                                }
                             }
                         }
                     }
                 }
-            }
-            .lineSpacing(2)
+                .lineSpacing(2)
 
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            Capsule()
-                .fill(Color.primary.opacity(0.06))
-        )
-        .overlay(
-            Capsule()
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
-        .overlay(alignment: .trailing) {
-            HStack(spacing: 6) {
-                if let scheduled = scheduledDate {
-                    Button {
-                        showTimeEditor = true
-                    } label: {
-                        Text(Self.timeOnlyFormatter.string(from: scheduled))
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(Color.primary.opacity(0.08)))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(Color.primary.opacity(0.06))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .overlay(alignment: .trailing) {
+                HStack(spacing: 6) {
+                    if let scheduled = scheduledDate {
+                        Button {
+                            showTimeEditor = true
+                        } label: {
+                            Text(Self.timeOnlyFormatter.string(from: scheduled))
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Color.primary.opacity(0.08)))
+                        }
+                        .buttonStyle(.plain)
+                        #if os(macOS)
+                        .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
+                            DatePicker("Time", selection: Binding(get: {
+                                scheduledDate ?? Date()
+                            }, set: { _ in
+                            }), displayedComponents: [.hourAndMinute])
+                            .datePickerStyle(.field)
+                            .padding()
+                        }
+                        #endif
                     }
-                    .buttonStyle(.plain)
-                    #if os(macOS)
-                    .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
-                        DatePicker("Time", selection: Binding(get: {
-                            scheduledDate ?? Date()
-                        }, set: { _ in
-                        }), displayedComponents: [.hourAndMinute])
-                        .datePickerStyle(.field)
-                        .padding()
-                    }
-                    #endif
-                }
 
-                if day != nil {
-                    let anyAbsent = snapshot.studentIDs.contains { sid in
-                        statusesByStudent[sid] == .absent
-                    }
-                    if anyAbsent {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.yellow)
-                            .font(.caption2)
+                    if day != nil {
+                        let anyAbsent = snapshot.studentIDs.contains { sid in
+                            statusesByStudent[sid] == .absent
+                        }
+                        if anyAbsent {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.yellow)
+                                .font(.caption2)
+                        }
                     }
                 }
             }
-        }
-        .contentShape(Capsule())
-        .accessibilityLabel(accessibilityLabel)
-        .onDrag {
-            NSItemProvider(object: snapshot.id.uuidString as NSString)
+            .contentShape(Capsule())
         }
     }
 }
