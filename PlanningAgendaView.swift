@@ -149,6 +149,7 @@ struct PlanningAgendaView: View {
                     weekStart = Self.monday(for: Date(), calendar: calendar)
                 }
             }
+            .keyboardShortcut("t", modifiers: [])
             .font(.system(size: 13, weight: .semibold, design: .rounded))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -159,6 +160,7 @@ struct PlanningAgendaView: View {
             } label: {
                 Label("Add New", systemImage: "plus.circle.fill")
             }
+            .keyboardShortcut("n", modifiers: [])
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
@@ -167,56 +169,40 @@ struct PlanningAgendaView: View {
 
     // MARK: - Agenda
     private var agenda: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 24) {
-                ForEach(days, id: \.self) { day in
-                    daySection(day)
+        ScrollViewReader { proxy in
+            VStack(alignment: .leading, spacing: 8) {
+                // Day strip
+                HStack(spacing: 8) {
+                    ForEach(days, id: \.self) { day in
+                        Button(dayShortLabel(for: day)) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                proxy.scrollTo(dayID(day), anchor: .top)
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color.primary.opacity(0.06)))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                // Scrollable agenda with pinned headers
+                ScrollView(.vertical) {
+                    LazyVStack(alignment: .leading, spacing: 24, pinnedViews: [.sectionHeaders]) {
+                        ForEach(days, id: \.self) { day in
+                            Section(header: dayHeader(day)) {
+                                dayBody(day)
+                            }
+                            .id(dayID(day))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 16)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
-        }
-    }
-
-    @ViewBuilder
-    private func daySection(_ day: Date) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Day header
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(dayName(for: day))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                Text(dayNumber(for: day))
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-            }
-            .padding(.bottom, 2)
-
-            // Morning
-            Text("Morning")
-                .font(.system(size: 12, weight: .regular, design: .rounded))
-                .foregroundStyle(.secondary)
-            AgendaSlot(
-                allStudentLessons: studentLessons,
-                day: day,
-                period: .morning,
-                onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) },
-                onQuickActions: { sl in activeSheet = .quickActions(sl.id) },
-                onPlanNext: { sl in planNextLesson(for: sl) },
-                onMoveToInbox: { sl in moveToInbox(sl) }
-            )
-
-            // Afternoon
-            Text("Afternoon")
-                .font(.system(size: 12, weight: .regular, design: .rounded))
-                .foregroundStyle(.secondary)
-            AgendaSlot(
-                allStudentLessons: studentLessons,
-                day: day,
-                period: .afternoon,
-                onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) },
-                onQuickActions: { sl in activeSheet = .quickActions(sl.id) },
-                onPlanNext: { sl in planNextLesson(for: sl) },
-                onMoveToInbox: { sl in moveToInbox(sl) }
-            )
         }
     }
 
@@ -286,6 +272,61 @@ struct PlanningAgendaView: View {
         return fmt.string(from: day)
     }
 
+    private func dayID(_ day: Date) -> String {
+        let start = calendar.startOfDay(for: day)
+        return "day_\(Int(start.timeIntervalSince1970))"
+    }
+
+    private func dayShortLabel(for day: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.setLocalizedDateFormatFromTemplate("EEE")
+        return fmt.string(from: day)
+    }
+
+    @ViewBuilder
+    private func dayHeader(_ day: Date) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(dayName(for: day))
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+            Text(dayNumber(for: day))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 2)
+        .background(Color.clear)
+    }
+
+    @ViewBuilder
+    private func dayBody(_ day: Date) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Morning")
+                .font(.system(size: 12, weight: .regular, design: .rounded))
+                .foregroundStyle(.secondary)
+            AgendaSlot(
+                allStudentLessons: studentLessons,
+                day: day,
+                period: .morning,
+                onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) },
+                onQuickActions: { sl in activeSheet = .quickActions(sl.id) },
+                onPlanNext: { sl in planNextLesson(for: sl) },
+                onMoveToInbox: { sl in moveToInbox(sl) }
+            )
+
+            Text("Afternoon")
+                .font(.system(size: 12, weight: .regular, design: .rounded))
+                .foregroundStyle(.secondary)
+            AgendaSlot(
+                allStudentLessons: studentLessons,
+                day: day,
+                period: .afternoon,
+                onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) },
+                onQuickActions: { sl in activeSheet = .quickActions(sl.id) },
+                onPlanNext: { sl in planNextLesson(for: sl) },
+                onMoveToInbox: { sl in moveToInbox(sl) }
+            )
+        }
+    }
+
     static func monday(for date: Date, calendar: Calendar = .current) -> Date {
         let cal = calendar
         let startOfDay = cal.startOfDay(for: date)
@@ -310,6 +351,7 @@ private struct AgendaSlot: View {
 
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
+    @State private var isTargeted: Bool = false
 
     private var scheduledLessonsForSlot: [StudentLesson] {
         allStudentLessons.filter { sl in
@@ -323,6 +365,13 @@ private struct AgendaSlot: View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.primary.opacity(0.02))
+
+            if isTargeted {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.accentColor.opacity(0.6), lineWidth: 3)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 if scheduledLessonsForSlot.isEmpty {
@@ -353,6 +402,7 @@ private struct AgendaSlot: View {
                 }
             }
             .padding(12)
+            .animation(.spring(response: 0.25, dampingFraction: 0.9), value: scheduledLessonsForSlot.map { $0.id })
         }
         .coordinateSpace(name: zoneSpaceID)
         .onPreferenceChange(PillFramePreference.self) { frames in
@@ -400,7 +450,7 @@ private struct AgendaSlot: View {
                 try? modelContext.save()
             }
             return true
-        }, isTargeted: { _ in })
+        }, isTargeted: { hovering in isTargeted = hovering })
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
