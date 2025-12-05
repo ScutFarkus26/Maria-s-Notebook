@@ -2,7 +2,37 @@ import Foundation
 import SwiftData
 
 struct SchoolCalendar {
+    private struct Cache {
+        static var monthSets: [Date: Set<Date>] = [:] // key = start-of-month date
+    }
+
     private static var cal: Calendar { Calendar.current }
+
+    private static func monthKey(for date: Date) -> Date {
+        let comps = cal.dateComponents([.year, .month], from: date)
+        return cal.date(from: comps) ?? cal.startOfDay(for: date)
+    }
+
+    private static func monthRange(containing date: Date) -> Range<Date> {
+        let start = monthKey(for: date)
+        let end = cal.date(byAdding: .month, value: 1, to: start) ?? start
+        return start ..< end
+    }
+
+    private static func setForMonth(_ date: Date, using context: ModelContext) -> Set<Date> {
+        let key = monthKey(for: date)
+        if let cached = Cache.monthSets[key] {
+            return cached
+        }
+        let set = precomputedNonSchoolSet(in: monthRange(containing: date), using: context)
+        Cache.monthSets[key] = set
+        return set
+    }
+
+    private static func invalidateMonthCache(for date: Date) {
+        let key = monthKey(for: date)
+        Cache.monthSets.removeValue(forKey: key)
+    }
 
     private static func isWeekend(_ date: Date) -> Bool {
         let wd = cal.component(.weekday, from: date)
@@ -11,17 +41,8 @@ struct SchoolCalendar {
 
     static func isNonSchoolDay(_ date: Date, using context: ModelContext) -> Bool {
         let day = cal.startOfDay(for: date)
-        if isWeekend(day) {
-            // Weekend is non-school by default unless there's an override marking it as a school day
-            let overrideDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
-            let overrides: [SchoolDayOverride] = (try? context.fetch(overrideDescriptor)) ?? []
-            return overrides.isEmpty
-        } else {
-            // Weekday: non-school only if explicitly marked
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
-            let items: [NonSchoolDay] = (try? context.fetch(nsDescriptor)) ?? []
-            return !items.isEmpty
-        }
+        let set = setForMonth(day, using: context)
+        return set.contains(day)
     }
 
     static func precomputedNonSchoolSet(in range: Range<Date>, using context: ModelContext) -> Set<Date> {
@@ -72,11 +93,13 @@ struct SchoolCalendar {
                 // Remove override -> weekend becomes non-school again
                 context.delete(existing)
                 try context.save()
+                invalidateMonthCache(for: day)
                 return true
             } else {
                 // Add override -> weekend becomes a school day (non-school = false)
                 context.insert(SchoolDayOverride(date: day))
                 try context.save()
+                invalidateMonthCache(for: day)
                 return false
             }
         } else {
@@ -86,11 +109,13 @@ struct SchoolCalendar {
                 // Remove explicit non-school -> becomes school day
                 context.delete(existing)
                 try context.save()
+                invalidateMonthCache(for: day)
                 return false
             } else {
                 // Add explicit non-school for weekday
                 context.insert(NonSchoolDay(date: day))
                 try context.save()
+                invalidateMonthCache(for: day)
                 return true
             }
         }
