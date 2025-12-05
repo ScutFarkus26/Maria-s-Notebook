@@ -14,6 +14,7 @@ struct AddLessonView: View {
     @State private var group: String = ""
     @State private var subheading: String = ""
     @State private var writeUp: String = ""
+    @State private var showingBulkEntry: Bool = false
 
     init(defaultSubject: String? = nil, defaultGroup: String? = nil) {
         self.defaultSubject = defaultSubject?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -24,6 +25,16 @@ struct AddLessonView: View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Add Lesson")
                 .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
+
+            HStack {
+                Spacer()
+                Button {
+                    showingBulkEntry = true
+                } label: {
+                    Label("Bulk Entry…", systemImage: "square.grid.3x3")
+                }
+                .buttonStyle(.bordered)
+            }
 
             Form {
                 Section("Basics") {
@@ -64,6 +75,20 @@ struct AddLessonView: View {
         }
         .padding(24)
         .frame(width: 520, height: 520)
+        .sheet(isPresented: $showingBulkEntry) {
+            BulkLessonsEntryView(
+                defaultSubject: subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? defaultSubject : subject,
+                defaultGroup: group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? defaultGroup : group,
+                onDone: { showingBulkEntry = false }
+            )
+#if os(macOS)
+            .frame(minWidth: 720, minHeight: 560)
+            .presentationSizing(.fitted)
+#else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+#endif
+        }
         .onAppear {
             if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let d = defaultSubject, !d.isEmpty { subject = d }
             if group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let g = defaultGroup, !g.isEmpty { group = g }

@@ -34,10 +34,9 @@ struct LessonsImportCoordinator {
                 
                 try Task.checkCancellation()
                 
-                let parsed = try await Task.detached {
-                    try Task.checkCancellation()
-                    return try LessonCSVImporter.parse(data: data, existingLessonKeys: existingKeys)
-                }.value
+                let parsed = try await MainActor.run {
+                    try LessonCSVImporter.parse(data: data, existingLessonKeys: existingKeys)
+                }
                 
                 try Task.checkCancellation()
                 
@@ -54,3 +53,4 @@ struct LessonsImportCoordinator {
         }
     }
 }
+

@@ -52,6 +52,22 @@ struct LessonSearchField: View {
         TextField("What lesson?", text: $searchText)
             .textFieldStyle(.roundedBorder)
             .focused($textFocused)
+            .onChange(of: searchText) { _, newValue in
+                // Keep the popover visible while typing
+                if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if !isPresented { withAnimation(.easeInOut) { isPresented = true } }
+                }
+            }
+            .onSubmit {
+                // If the user typed an exact lesson name, select it
+                let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let match = filteredLessons.first(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+                    selectedLessonID = match.id
+                    searchText = match.name
+                    withAnimation(.easeInOut) { isPresented = false }
+                    isFocused = false
+                }
+            }
             .onChange(of: isFocused) { _, newValue in
                 textFocused = newValue
                 if newValue {
@@ -60,6 +76,11 @@ struct LessonSearchField: View {
             }
             .onChange(of: textFocused) { _, newValue in
                 isFocused = newValue
+            }
+            .onChange(of: isPresented) { _, presented in
+                if presented {
+                    DispatchQueue.main.async { textFocused = true }
+                }
             }
             .onTapGesture {
                 isFocused = true
@@ -93,7 +114,7 @@ struct LessonPickerPopover: View {
             List(filteredLessons, id: \.id) { lesson in
                 Button(action: {
                     selectedLessonID = lesson.id
-                    searchText = ""
+                    searchText = lesson.name
                     withAnimation(.easeInOut) { isPresented = false }
                     isFocused = false
                 }) {
@@ -110,6 +131,9 @@ struct LessonPickerPopover: View {
                 .buttonStyle(.plain)
             }
             .listStyle(.plain)
+            #if os(macOS)
+            .focusable(false)
+            #endif
         }
         .padding(8)
         #if os(macOS)
@@ -455,3 +479,4 @@ struct KeyboardShortcutsOverlay: View {
         .allowsHitTesting(false)
     }
 }
+

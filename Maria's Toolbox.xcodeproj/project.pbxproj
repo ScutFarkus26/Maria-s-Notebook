@@ -38,6 +38,7 @@
 		51A55E9B2EE26A9A00774D2E /* InboxSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E9A2EE26A9A00774D2E /* InboxSheetView.swift */; };
 		51A55E9D2EE277F700774D2E /* NonSchoolDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E9C2EE277F700774D2E /* NonSchoolDay.swift */; };
 		51A55E9F2EE277FB00774D2E /* SchoolCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55E9E2EE277FB00774D2E /* SchoolCalendar.swift */; };
+		51A55EA52EE28EB900774D2E /* BulkLessonsEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A55EA42EE28EB900774D2E /* BulkLessonsEntryView.swift */; };
 		51B8026E2EE118AB003A2EA3 /* AttendanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B8026D2EE118AB003A2EA3 /* AttendanceModels.swift */; };
 		51B802702EE119DB003A2EA3 /* AttendanceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B8026F2EE119DB003A2EA3 /* AttendanceViewModel.swift */; };
 		51B802722EE119F7003A2EA3 /* AttendanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B802712EE119F7003A2EA3 /* AttendanceView.swift */; };
@@ -77,6 +78,7 @@
 		51A55E9A2EE26A9A00774D2E /* InboxSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxSheetView.swift; sourceTree = "<group>"; };
 		51A55E9C2EE277F700774D2E /* NonSchoolDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonSchoolDay.swift; sourceTree = "<group>"; };
 		51A55E9E2EE277FB00774D2E /* SchoolCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchoolCalendar.swift; sourceTree = "<group>"; };
+		51A55EA42EE28EB900774D2E /* BulkLessonsEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkLessonsEntryView.swift; sourceTree = "<group>"; };
 		51B8026D2EE118AB003A2EA3 /* AttendanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceModels.swift; sourceTree = "<group>"; };
 		51B8026F2EE119DB003A2EA3 /* AttendanceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceViewModel.swift; sourceTree = "<group>"; };
 		51B802712EE119F7003A2EA3 /* AttendanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceView.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 				51A55E9A2EE26A9A00774D2E /* InboxSheetView.swift */,
 				51A55E9C2EE277F700774D2E /* NonSchoolDay.swift */,
 				51A55E9E2EE277FB00774D2E /* SchoolCalendar.swift */,
+				51A55EA42EE28EB900774D2E /* BulkLessonsEntryView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -261,6 +264,7 @@
 				51A55E952EE262C400774D2E /* PlanningAgendaView.swift in Sources */,
 				51A55E9F2EE277FB00774D2E /* SchoolCalendar.swift in Sources */,
 				51A55E972EE26A8600774D2E /* PlanningDropUtils.swift in Sources */,
+				51A55EA52EE28EB900774D2E /* BulkLessonsEntryView.swift in Sources */,
 				51A55E8D2EE246E900774D2E /* GiveLessonComponents.swift in Sources */,
 				51A55E992EE26A8900774D2E /* InboxOrderStore.swift in Sources */,
 				516526B12EE0A0D900BB0C76 /* LessonsDragDropDelegates.swift in Sources */,

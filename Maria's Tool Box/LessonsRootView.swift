@@ -20,12 +20,14 @@ struct LessonsRootView: View {
 
     private enum PresentedSheet: Identifiable {
         case addLesson(defaultSubject: String?, defaultGroup: String?)
+        case bulkEntry(defaultSubject: String?, defaultGroup: String?)
         case giveLesson(lesson: Lesson?)
         case importPreview(parsed: LessonCSVImporter.Parsed)
 
         var id: String {
             switch self {
             case .addLesson: return "addLesson"
+            case .bulkEntry: return "bulkEntry"
             case .giveLesson: return "giveLesson"
             case .importPreview: return "importPreview"
             }
@@ -185,6 +187,11 @@ struct LessonsRootView: View {
                                     Label("Add Lesson", systemImage: "text.book.closed")
                                 }
                                 Button {
+                                    presentedSheet = .bulkEntry(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
+                                } label: {
+                                    Label("Bulk Entry…", systemImage: "square.grid.3x3")
+                                }
+                                Button {
                                     presentedSheet = .giveLesson(lesson: nil)
                                 } label: {
                                     Label("Add Student Lesson", systemImage: "person.crop.circle.badge.plus")
@@ -220,6 +227,17 @@ struct LessonsRootView: View {
             switch sheet {
             case .addLesson(let subject, let group):
                 AddLessonView(defaultSubject: subject, defaultGroup: group)
+            case .bulkEntry(let subject, let group):
+                BulkLessonsEntryView(defaultSubject: subject, defaultGroup: group, onDone: {
+                    presentedSheet = nil
+                })
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 560)
+                .presentationSizing(.fitted)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
             case .giveLesson(let lesson):
                 GiveLessonSheet(lesson: lesson) {
                     presentedSheet = nil

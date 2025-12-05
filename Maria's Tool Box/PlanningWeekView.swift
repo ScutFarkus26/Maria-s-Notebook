@@ -673,7 +673,7 @@ struct StudentLessonPill: View {
     }
 
     private var hasConflict: Bool {
-        guard let day else { return false }
+        guard day != nil else { return false }
         // naive conflict: if any student is marked absent (already shown) or time overlaps with same-minute another lesson is beyond current pill; we only show a badge if absent or scheduled time exists
         return false
     }
@@ -747,9 +747,7 @@ struct StudentLessonPill: View {
                     .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
                         DatePicker("Time", selection: Binding(get: {
                             scheduledDate ?? Date()
-                        }, set: { newValue in
-                            var snap = snapshot
-                            // Cannot mutate snapshot; instead, post a notification to update time elsewhere if desired.
+                        }, set: { _ in
                         }), displayedComponents: [.hourAndMinute])
                         .datePickerStyle(.field)
                         .padding()
@@ -757,7 +755,7 @@ struct StudentLessonPill: View {
                     #endif
                 }
 
-                if let day = day {
+                if day != nil {
                     let anyAbsent = snapshot.studentIDs.contains { sid in
                         statusesByStudent[sid] == .absent
                     }

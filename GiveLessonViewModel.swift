@@ -73,6 +73,13 @@ final class GiveLessonViewModel: ObservableObject {
     func configure(lessons: [Lesson], students: [Student]) {
         self.allLessons = Self.sortLessons(lessons)
         self.allStudents = Self.sortStudents(students)
+
+        // If a lesson is already selected and the field is empty, show its name in the search field
+        if lessonSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let id = selectedLessonID,
+           let l = self.allLessons.first(where: { $0.id == id }) {
+            lessonSearchText = l.name
+        }
     }
     
     // MARK: - Computed Properties
@@ -88,7 +95,7 @@ final class GiveLessonViewModel: ObservableObject {
     var filteredLessons: [Lesson] {
         let query = lessonSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return sortedLessons }
-        
+
         return sortedLessons.filter { lesson in
             lesson.name.lowercased().contains(query) ||
             lesson.subject.lowercased().contains(query) ||
@@ -137,13 +144,13 @@ final class GiveLessonViewModel: ObservableObject {
     // MARK: - Actions
     
     func toggleMode() {
-        withAnimation(.easeInOut) {
+        _ = withAnimation(.easeInOut) {
             mode = (mode == .plan ? .given : .plan)
         }
     }
     
     func toggleStudentSelection(_ studentID: UUID) {
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             if selectedStudentIDs.contains(studentID) {
                 selectedStudentIDs.remove(studentID)
             } else {
@@ -153,14 +160,18 @@ final class GiveLessonViewModel: ObservableObject {
     }
     
     func removeStudent(_ studentID: UUID) {
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             selectedStudentIDs.remove(studentID)
         }
     }
     
     func selectLesson(_ lessonID: UUID) {
         selectedLessonID = lessonID
-        lessonSearchText = ""
+        if let l = allLessons.first(where: { $0.id == lessonID }) {
+            lessonSearchText = l.name
+        } else {
+            lessonSearchText = ""
+        }
     }
     
     func reset() {
