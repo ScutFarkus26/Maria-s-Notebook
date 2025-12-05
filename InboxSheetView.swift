@@ -186,15 +186,90 @@ public struct InboxSheetView: View {
     if itemProvider.canLoadObject(ofClass: NSString.self) {
       _ = itemProvider.loadObject(ofClass: NSString.self) { reading, _ in
         guard let ns = reading as? NSString else { return }
-        let uuidString = ns as String
-        guard let droppedId = UUID(uuidString: uuidString) else { return }
-        DispatchQueue.main.async {
-          dropReceived(droppedId: droppedId, location: location)
+        let raw = ns as String
+        if raw.hasPrefix("STUDENT_TO_INBOX:") {
+          DispatchQueue.main.async {
+            handleStudentToInboxDropParsed(payload: raw, location: location)
+          }
+          return
+        }
+        if let droppedId = UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
+          DispatchQueue.main.async {
+            dropReceived(droppedId: droppedId, location: location)
+          }
         }
       }
       return true
     }
     return false
+  }
+
+  private func handleStudentToInboxDropParsed(payload: String, location: CGPoint) {
+    let parts = payload.split(separator: ":")
+    guard parts.count == 4,
+          parts[0] == "STUDENT_TO_INBOX",
+          let sourceID = UUID(uuidString: String(parts[1])),
+          let lessonID = UUID(uuidString: String(parts[2])),
+          let studentID = UUID(uuidString: String(parts[3])) else { return }
+    handleStudentToInboxDrop(sourceStudentLessonID: sourceID, lessonID: lessonID, studentID: studentID, location: location)
+  }
+
+  private func handleStudentToInboxDrop(sourceStudentLessonID: UUID, lessonID: UUID, studentID: UUID, location: CGPoint) {
+    // 1) Find or create an unscheduled single-student StudentLesson for this lesson+student
+    let targetSL: StudentLesson = {
+      if let existing = studentLessons.first(where: { $0.lessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [studentID] }) {
+        return existing
+      }
+      // Fetch Lesson and Student to set relationships first
+      let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+      let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+      let lessonObj = (try? modelContext.fetch(lessonFetch))?.first
+      let studentObj = (try? modelContext.fetch(studentFetch))?.first
+      let new = StudentLesson(
+        id: UUID(),
+        lessonID: lessonID,
+        studentIDs: [studentID],
+        createdAt: Date(),
+        scheduledFor: nil,
+        givenAt: nil,
+        notes: "",
+        needsPractice: false,
+        needsAnotherPresentation: false,
+        followUpWork: ""
+      )
+      new.lesson = lessonObj
+      if let s = studentObj { new.students = [s] }
+      new.syncSnapshotsFromRelationships()
+      modelContext.insert(new)
+      return new
+    }()
+
+    // 2) Remove the student from the source scheduled StudentLesson; delete it if empty
+    if let src = studentLessons.first(where: { $0.id == sourceStudentLessonID }) {
+      src.studentIDs.removeAll { $0 == studentID }
+      src.students.removeAll { $0.id == studentID }
+      if src.studentIDs.isEmpty {
+        modelContext.delete(src)
+      } else {
+        src.syncSnapshotsFromRelationships()
+      }
+    }
+
+    // 3) Insert the target into inbox order at the drop location
+    let currentOrder = orderedUnscheduledLessons.map(\.id)
+    var framesByID: [UUID: CGRect] = [:]
+    for id in currentOrder {
+      if let frame = itemFrames[id] { framesByID[id] = frame }
+    }
+    let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: framesByID)
+    var newOrder = currentOrder
+    newOrder.removeAll(where: { $0 == targetSL.id })
+    let boundedIndex = max(0, min(insertionIndex, newOrder.count))
+    newOrder.insert(targetSL.id, at: boundedIndex)
+    let serialized = InboxOrderStore.serialize(newOrder)
+    inboxOrderRaw = serialized
+    onUpdateOrder?(serialized)
+    try? modelContext.save()
   }
 
   private func dropReceived(droppedId: UUID, location: CGPoint) {

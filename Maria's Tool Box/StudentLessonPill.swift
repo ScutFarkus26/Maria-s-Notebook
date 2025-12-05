@@ -1,0 +1,336 @@
+import SwiftUI
+import SwiftData
+import UniformTypeIdentifiers
+
+struct StudentLessonPill: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var lessons: [Lesson]
+    @Query private var students: [Student]
+    @Environment(\.calendar) private var calendar
+    
+    @AppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
+    @AppStorage("LessonAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
+    @AppStorage("LessonAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
+    @AppStorage("LessonAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
+    @AppStorage("LessonAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
+
+    let snapshot: StudentLessonSnapshot
+    var day: Date? = nil
+    var sourceStudentLessonID: UUID? = nil
+    var targetStudentLessonID: UUID? = nil
+
+    @State private var showTimeEditor: Bool = false
+    @State private var hoveredStudentID: UUID? = nil
+    @State private var isValidDragTarget: Bool = false
+
+    private static let timeOnlyFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateStyle = .none
+        df.timeStyle = .short
+        return df
+    }()
+
+    private var scheduledDate: Date? { snapshot.scheduledFor }
+
+    private var lessonObject: Lesson? { lessons.first(where: { $0.id == snapshot.lessonID }) }
+
+    private var lessonName: String { lessonObject?.name ?? "Lesson" }
+
+    private var subjectColor: Color {
+        if let subject = lessonObject?.subject { return AppColors.color(forSubject: subject) }
+        return .accentColor
+    }
+
+    private var statusesByStudent: [UUID: AttendanceStatus] {
+        guard let day else { return [:] }
+        return modelContext.attendanceStatuses(for: snapshot.studentIDs, on: day)
+    }
+
+    private var accessibilityLabel: String {
+        let studentsText = studentLine
+        if studentsText.isEmpty { return lessonName }
+        return "\(lessonName), \(studentsText)"
+    }
+
+    private var studentLine: String {
+        let names: [String] = snapshot.studentIDs.map { id in
+            if let s = students.first(where: { $0.id == id }) { return displayName(for: s) } else { return "(Removed)" }
+        }
+        if !names.isEmpty { return names.joined(separator: ", ") }
+        let count = snapshot.studentIDs.count
+        return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
+    }
+    
+    private struct StudentChip { let id: UUID; let label: String; let isMissing: Bool; let status: AttendanceStatus? }
+    private var studentChips: [StudentChip] {
+        var chips: [StudentChip] = []
+        for id in snapshot.studentIDs {
+            if let s = students.first(where: { $0.id == id }) {
+                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false, status: statusesByStudent[id]))
+            } else {
+                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil))
+            }
+        }
+        return chips
+    }
+
+    private func displayName(for student: Student) -> String {
+        let parts = student.fullName.split(separator: " ")
+        guard let first = parts.first else { return student.fullName }
+        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
+        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+    }
+
+    private var ageSchoolDays: Int { snapshot.schoolDaysSinceCreation(asOf: Date(), using: modelContext, calendar: calendar) }
+
+    private var ageStatus: LessonAgeStatus {
+        if ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }
+        if ageSchoolDays >= max(0, ageWarningDays) { return .warning }
+        return .fresh
+    }
+
+    private var ageColor: Color {
+        switch ageStatus {
+        case .fresh: return ColorUtils.color(from: ageFreshColorHex)
+        case .warning: return ColorUtils.color(from: ageWarningColorHex)
+        case .overdue: return ColorUtils.color(from: ageOverdueColorHex)
+        }
+    }
+
+    private struct ChipView: View {
+        let label: String
+        let isMissing: Bool
+        let isAbsent: Bool
+        let subjectColor: Color
+        let isHovered: Bool
+        let enableDrag: Bool
+        let payload: String?
+        let onHoverChange: (Bool) -> Void
+
+        var body: some View {
+            let text = Text(label)
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .foregroundStyle(isMissing ? .secondary : (isAbsent ? .secondary : .primary))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(isAbsent ? 0.06 : 0.15))
+                )
+                .overlay(
+                    Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1)
+                )
+                .overlay(
+                    Capsule().stroke(Color.accentColor.opacity(isHovered ? 0.35 : 0.0), lineWidth: 1)
+                )
+                .scaleEffect(isHovered ? 1.03 : 1.0)
+                .onHover { hovering in
+                    if enableDrag {
+                        onHoverChange(hovering)
+                        #if os(macOS)
+                        if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                        #endif
+                    }
+                }
+            if enableDrag, let payload {
+                return AnyView(text.onDrag { NSItemProvider(object: NSString(string: payload)) })
+            } else {
+                return AnyView(text)
+            }
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(ageColor)
+                .frame(width: UIConstants.ageIndicatorWidth)
+                .opacity(snapshot.isGiven ? 0.0 : 1.0)
+                .accessibilityHidden(true)
+
+            HStack(alignment: .top, spacing: 8) {
+                Circle()
+                    .fill(subjectColor)
+                    .frame(width: 6, height: 6)
+                    .padding(.top, 3)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(lessonName)
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .lineLimit(nil)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
+
+                    if !studentChips.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(studentChips, id: \.id) { chip in
+                                    let isAbsent = (chip.status == .absent)
+                                    ChipView(
+                                        label: chip.label,
+                                        isMissing: chip.isMissing,
+                                        isAbsent: isAbsent,
+                                        subjectColor: subjectColor,
+                                        isHovered: hoveredStudentID == chip.id,
+                                        enableDrag: sourceStudentLessonID != nil,
+                                        payload: (sourceStudentLessonID != nil) ? DragPayload.encode(sourceID: sourceStudentLessonID!, lessonID: snapshot.lessonID, studentID: chip.id) : nil,
+                                        onHoverChange: { hovering in
+                                            if sourceStudentLessonID != nil {
+                                                if hovering { hoveredStudentID = chip.id } else if hoveredStudentID == chip.id { hoveredStudentID = nil }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                .lineSpacing(2)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Capsule().fill(Color.primary.opacity(0.06)))
+            .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+            .overlay(Capsule().stroke(Color.accentColor.opacity(isValidDragTarget ? 0.45 : 0.0), lineWidth: 2))
+            .overlay(alignment: .trailing) {
+                HStack(spacing: 6) {
+                    if let scheduled = scheduledDate {
+                        Button { showTimeEditor = true } label: {
+                            Text(Self.timeOnlyFormatter.string(from: scheduled))
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Color.primary.opacity(0.08)))
+                        }
+                        .buttonStyle(.plain)
+                        #if os(macOS)
+                        .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
+                            DatePicker("Time", selection: Binding(get: {
+                                scheduledDate ?? Date()
+                            }, set: { newValue in
+                                setTime(newValue)
+                            }), displayedComponents: [.hourAndMinute])
+                            .datePickerStyle(.field)
+                            .padding()
+                        }
+                        #endif
+                    }
+
+                    if day != nil {
+                        let anyAbsent = snapshot.studentIDs.contains { sid in statusesByStudent[sid] == .absent }
+                        if anyAbsent { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow).font(.caption2) }
+                    }
+                }
+            }
+            .contentShape(Capsule())
+            .accessibilityLabel(accessibilityLabel)
+            .onDrop(of: [UTType.text], delegate: PillDropDelegate(
+                modelContext: modelContext,
+                targetLessonID: snapshot.lessonID,
+                targetStudentLessonID: targetStudentLessonID,
+                setHighlight: { isValid in isValidDragTarget = isValid }
+            ))
+        }
+    }
+
+    private func setTime(_ newTime: Date) {
+        guard let id = targetStudentLessonID else { return }
+        let desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+        guard let sl = (try? modelContext.fetch(desc))?.first else { return }
+        let baseDate = sl.scheduledFor ?? snapshot.scheduledFor ?? Date()
+        let dayComps = calendar.dateComponents([.year, .month, .day], from: baseDate)
+        let timeComps = calendar.dateComponents([.hour, .minute], from: newTime)
+        var merged = DateComponents()
+        merged.year = dayComps.year
+        merged.month = dayComps.month
+        merged.day = dayComps.day
+        merged.hour = timeComps.hour
+        merged.minute = timeComps.minute
+        let combined = calendar.date(from: merged) ?? newTime
+        sl.scheduledFor = combined
+        try? modelContext.save()
+    }
+
+    private struct PillDropDelegate: DropDelegate {
+        let modelContext: ModelContext
+        let targetLessonID: UUID
+        let targetStudentLessonID: UUID?
+        let setHighlight: (Bool) -> Void
+
+        func dropEntered(info: DropInfo) { checkHighlight(info: info) }
+
+        func dropUpdated(info: DropInfo) -> DropProposal? { checkHighlight(info: info); return DropProposal(operation: .copy) }
+
+        func dropExited(info: DropInfo) { setHighlight(false) }
+
+        func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [UTType.text]) }
+
+        func performDrop(info: DropInfo) -> Bool {
+            setHighlight(false)
+            guard let targetID = targetStudentLessonID else { return false }
+            let providers = info.itemProviders(for: [UTType.text])
+            guard let provider = providers.first else { return false }
+            provider.loadObject(ofClass: NSString.self) { reading, _ in
+                guard let ns = reading as? NSString else { return }
+                let str = ns as String
+                guard let decoded = DragPayload.decode(str) else { return }
+                Task { @MainActor in
+                    let sourceID = decoded.sourceID
+                    let lessonID = decoded.lessonID
+                    let studentID = decoded.studentID
+                    let srcDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
+                    let tgtDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetID })
+                    let src = (try? modelContext.fetch(srcDesc))?.first
+                    let tgt = (try? modelContext.fetch(tgtDesc))?.first
+                    guard let source = src, let target = tgt, source.id != target.id, lessonID == targetLessonID else { return }
+                    if !target.studentIDs.contains(studentID) {
+                        target.studentIDs.append(studentID)
+                        if !target.students.contains(where: { $0.id == studentID }) {
+                            let stuDesc = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+                            if let s = (try? modelContext.fetch(stuDesc))?.first {
+                                target.students.append(s)
+                            } else if let s2 = source.students.first(where: { $0.id == studentID }) {
+                                target.students.append(s2)
+                            }
+                        }
+                        target.syncSnapshotsFromRelationships()
+                    }
+                    source.studentIDs.removeAll { $0 == studentID }
+                    if source.studentIDs.isEmpty {
+                        modelContext.delete(source)
+                    } else {
+                        let remainingIDs = source.studentIDs
+                        let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
+                        let fetched = (try? modelContext.fetch(fetch)) ?? []
+                        source.students = fetched
+                        source.syncSnapshotsFromRelationships()
+                    }
+                    try? modelContext.save()
+                }
+            }
+            return true
+        }
+
+        private func checkHighlight(info: DropInfo) {
+            guard let targetID = targetStudentLessonID else { setHighlight(false); return }
+            let providers = info.itemProviders(for: [UTType.text])
+            guard let provider = providers.first else { setHighlight(false); return }
+            provider.loadObject(ofClass: NSString.self) { reading, _ in
+                guard let ns = reading as? NSString else { Task { @MainActor in setHighlight(false) }; return }
+                let str = ns as String
+                if let decoded = DragPayload.decode(str) {
+                    let sourceID = decoded.sourceID
+                    let lessonID = decoded.lessonID
+                    Task { @MainActor in
+                        if lessonID == targetLessonID, sourceID != targetID { setHighlight(true) } else { setHighlight(false) }
+                    }
+                } else {
+                    Task { @MainActor in setHighlight(false) }
+                }
+            }
+        }
+    }
+}
