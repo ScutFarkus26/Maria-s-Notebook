@@ -69,10 +69,10 @@ struct WorkDetailView: View {
         return df
     }()
     
-    private static let timeOnlyFormatter: DateFormatter = {
+    private static let dateOnlyFormatter: DateFormatter = {
         let df = DateFormatter()
-        df.dateStyle = .none
-        df.timeStyle = .short
+        df.dateStyle = .medium
+        df.timeStyle = .none
         return df
     }()
 
@@ -393,7 +393,7 @@ struct WorkDetailView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(Self.timeOnlyFormatter.string(from: item.date))
+                    Text(Self.dateOnlyFormatter.string(from: item.date))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text(item.purpose)
@@ -440,7 +440,7 @@ struct WorkDetailView: View {
 
             if showInlineCheckInComposer {
                 VStack(alignment: .leading, spacing: 8) {
-                    DatePicker("Date", selection: $checkInDate, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("Date", selection: $checkInDate, displayedComponents: [.date])
                     TextField("Purpose", text: $checkInPurpose)
                         .textFieldStyle(.roundedBorder)
                     HStack(spacing: 12) {

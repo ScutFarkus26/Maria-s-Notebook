@@ -28,7 +28,8 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
     init(id: UUID = UUID(), workID: UUID, date: Date = Date(), status: WorkCheckInStatus = .scheduled, purpose: String = "", note: String = "", work: WorkModel? = nil) {
         self.id = id
         self.workID = workID
-        self.date = date
+        let cal = Calendar.current
+        self.date = cal.startOfDay(for: date)
         self.statusRaw = status.rawValue
         self.purpose = purpose
         self.note = note
@@ -43,19 +44,22 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
     // Mutating helpers
     func markCompleted(note: String? = nil, at date: Date = Date(), in _: ModelContext) {
         self.status = .completed
-        self.date = date
+        let cal = Calendar.current
+        self.date = cal.startOfDay(for: date)
         if let note = note { self.note = note }
     }
 
     func reschedule(to date: Date, note: String? = nil, in _: ModelContext) {
         self.status = .scheduled
-        self.date = date
+        let cal = Calendar.current
+        self.date = cal.startOfDay(for: date)
         if let note = note { self.note = note }
     }
 
     func skip(note: String? = nil, at date: Date = Date(), in _: ModelContext) {
         self.status = .skipped
-        self.date = date
+        let cal = Calendar.current
+        self.date = cal.startOfDay(for: date)
         if let note = note { self.note = note }
     }
 }

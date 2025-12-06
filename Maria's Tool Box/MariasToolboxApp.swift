@@ -122,6 +122,10 @@ struct MariasToolboxApp: App {
     var body: some Scene {
         WindowGroup("") {
             RootView()
+                .onAppear {
+                    DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
+                    DataMigrations.normalizeWorkDatesToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
+                }
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)

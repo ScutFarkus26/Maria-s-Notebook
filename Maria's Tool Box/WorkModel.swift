@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 @Model final class WorkModel: Identifiable {
     enum WorkType: String, CaseIterable, Codable {
@@ -37,8 +38,9 @@ import SwiftData
         self.workTypeRaw = workType.rawValue
         self.studentLessonID = studentLessonID
         self.notes = notes
-        self.createdAt = createdAt
-        self.completedAt = completedAt
+        let cal = Calendar.current
+        self.createdAt = cal.startOfDay(for: createdAt)
+        self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.participants = participants
         for p in self.participants { p.work = self }
     }
@@ -60,10 +62,12 @@ import SwiftData
     }
 
     func markStudent(_ studentID: UUID, completedAt date: Date?) {
+        let cal = Calendar.current
+        let normalized = date.map { cal.startOfDay(for: $0) }
         if let idx = participants.firstIndex(where: { $0.studentID == studentID }) {
-            participants[idx].completedAt = date
+            participants[idx].completedAt = normalized
         } else {
-            participants.append(WorkParticipantEntity(studentID: studentID, completedAt: date, work: self))
+            participants.append(WorkParticipantEntity(studentID: studentID, completedAt: normalized, work: self))
         }
     }
 

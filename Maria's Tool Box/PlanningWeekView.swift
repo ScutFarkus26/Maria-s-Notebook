@@ -151,6 +151,7 @@ import SwiftData
                 sheetContent(for: sheet)
             }
             .onAppear {
+                DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
                 startDate = computeInitialStartDate()
                 syncInboxOrderWithCurrentBase()
             }

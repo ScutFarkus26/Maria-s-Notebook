@@ -140,7 +140,7 @@ struct StudentLessonPresentedSection: View {
             
             Toggle("Presented", isOn: $isPresented)
             
-            Toggle("Add date/time", isOn: Binding(
+            Toggle("Add date", isOn: Binding(
                 get: { givenAt != nil },
                 set: { newValue in
                     givenAt = newValue ? (givenAt ?? Date()) : nil
@@ -154,7 +154,7 @@ struct StudentLessonPresentedSection: View {
                         get: { givenAt ?? Date() },
                         set: { givenAt = $0 }
                     ),
-                    displayedComponents: [.date, .hourAndMinute]
+                    displayedComponents: [.date]
                 )
                 #if os(macOS)
                 .datePickerStyle(.field)
@@ -284,3 +284,4 @@ struct StudentLessonNotesSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+

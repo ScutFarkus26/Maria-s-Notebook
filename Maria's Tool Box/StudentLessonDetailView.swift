@@ -8,6 +8,7 @@ import AppKit
 struct StudentLessonDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendar) private var calendar
     @Query private var lessons: [Lesson]
     @Query private var studentsAll: [Student]
     @Query private var studentLessonsAll: [StudentLesson]
@@ -44,6 +45,14 @@ struct StudentLessonDetailView: View {
     @State private var showMovedBanner: Bool = false
     @State private var movedStudentNames: [String] = []
     @State private var isOptionDown: Bool = false
+
+    @State private var showPresentedPopover: Bool = false
+    @State private var presentedDate: Date = Date()
+    @State private var showRePresentPopover: Bool = false
+    @State private var rePresentDate: Date = Date()
+    @State private var showQuickBanner: Bool = false
+    @State private var quickBannerText: String = ""
+    @State private var quickBannerColor: Color = .green
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
         self.studentLesson = studentLesson
@@ -332,12 +341,18 @@ struct StudentLessonDetailView: View {
                     plannedBanner
                 } else if showMovedBanner {
                     movedBanner
+                } else if showQuickBanner {
+                    quickBanner
                 }
             }
             .allowsHitTesting(false)
         }
         .sheet(isPresented: $showingMoveStudentsSheet) {
             moveStudentsSheet
+        }
+        .onAppear {
+            presentedDate = calendar.startOfDay(for: givenAt ?? Date())
+            rePresentDate = defaultRePresentDate()
         }
     }
 
@@ -435,6 +450,90 @@ struct StudentLessonDetailView: View {
                     }
                 }
             }
+
+            // Quick Actions Row
+            HStack(spacing: 8) {
+                // Presented quick action (immediate) + popover to adjust date
+                HStack(spacing: 4) {
+                    Button {
+                        markPresented(on: Date())
+                    } label: {
+                        Label("Presented", systemImage: "checkmark.circle")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        presentedDate = calendar.startOfDay(for: givenAt ?? Date())
+                        showPresentedPopover.toggle()
+                    } label: {
+                        Image(systemName: "chevron.down.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .popover(isPresented: $showPresentedPopover, arrowEdge: .top) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Mark as Presented")
+                                .font(.headline)
+                            DatePicker("Date", selection: $presentedDate, displayedComponents: [.date])
+                            #if os(macOS)
+                            .datePickerStyle(.field)
+                            #else
+                            .datePickerStyle(.compact)
+                            #endif
+                            HStack {
+                                Spacer()
+                                Button("Set") {
+                                    markPresented(on: presentedDate)
+                                    showPresentedPopover = false
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                        }
+                        .padding(12)
+                        .frame(minWidth: 280)
+                    }
+                    .accessibilityLabel("Adjust presented date")
+                }
+
+                // Practice quick action
+                Button {
+                    addPracticeIfNeeded()
+                } label: {
+                    Label("Practice", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(.bordered)
+
+                // Re-present quick action with date popover
+                Button {
+                    rePresentDate = defaultRePresentDate()
+                    showRePresentPopover.toggle()
+                } label: {
+                    Label("Re-present", systemImage: "calendar.badge.clock")
+                }
+                .buttonStyle(.bordered)
+                .popover(isPresented: $showRePresentPopover, arrowEdge: .top) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Schedule Re-present")
+                            .font(.headline)
+                        DatePicker("Date", selection: $rePresentDate, displayedComponents: [.date])
+                        #if os(macOS)
+                        .datePickerStyle(.field)
+                        #else
+                        .datePickerStyle(.compact)
+                        #endif
+                        HStack {
+                            Spacer()
+                            Button("Schedule") {
+                                scheduleRePresent(on: rePresentDate)
+                                showRePresentPopover = false
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                    .padding(12)
+                    .frame(minWidth: 280)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(maxWidth: .infinity)
     }
@@ -594,6 +693,20 @@ struct StudentLessonDetailView: View {
         .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
         .padding(.top, 8)
     }
+
+    private var quickBanner: some View {
+        Text(quickBannerText)
+            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(quickBannerColor.opacity(0.95))
+            )
+            .foregroundColor(.white)
+            .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+            .padding(.top, 8)
+    }
     
     private var studentPickerPopover: some View {
         VStack(spacing: 10) {
@@ -713,7 +826,7 @@ struct StudentLessonDetailView: View {
 
             Toggle("Presented", isOn: $isPresented)
 
-            Toggle("Add date/time", isOn: Binding(
+            Toggle("Add date", isOn: Binding(
                 get: { givenAt != nil },
                 set: { newValue in
                     givenAt = newValue ? (givenAt ?? Date()) : nil
@@ -723,8 +836,8 @@ struct StudentLessonDetailView: View {
             if givenAt != nil {
                 DatePicker("Date", selection: Binding(
                     get: { givenAt ?? Date() },
-                    set: { givenAt = $0 }
-                ), displayedComponents: [.date, .hourAndMinute])
+                    set: { givenAt = calendar.startOfDay(for: $0) }
+                ), displayedComponents: [.date])
                 #if os(macOS)
                 .datePickerStyle(.field)
                 #else
@@ -839,9 +952,106 @@ struct StudentLessonDetailView: View {
             .padding(.top, 8)
     }
 
+    private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
+        quickBannerText = text
+        quickBannerColor = color
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            showQuickBanner = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            withAnimation(.easeInOut(duration: 0.2)) { showQuickBanner = false }
+        }
+    }
+
+    private func markPresented(on date: Date) {
+        let normalized = calendar.startOfDay(for: date)
+        isPresented = true
+        givenAt = normalized
+        saveImmediate()
+        let fmt = DateFormatter()
+        fmt.dateStyle = .medium
+        fmt.timeStyle = .none
+        showBanner(text: "Marked Presented (\(fmt.string(from: normalized)))", color: .green)
+    }
+
+    private func addPracticeIfNeeded() {
+        needsPractice = true
+        // Avoid duplicate Practice work
+        let hasPracticeWork = workModels.contains { work in
+            work.studentLessonID == studentLesson.id && work.workType == .practice
+        }
+        if !hasPracticeWork {
+            let practiceWork = WorkModel(
+                id: UUID(),
+                title: "Practice: \(lessonObject?.name ?? "Lesson")",
+                studentIDs: Array(selectedStudentIDs),
+                workType: .practice,
+                studentLessonID: studentLesson.id,
+                notes: "",
+                createdAt: Date()
+            )
+            modelContext.insert(practiceWork)
+        }
+        saveImmediate()
+        showBanner(text: "Practice added", color: .purple)
+    }
+
+    private func scheduleRePresent(on date: Date) {
+        // Schedule at 9 AM of the chosen date for consistency
+        let startOfDay = calendar.startOfDay(for: date)
+        let scheduled = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+
+        let newStudentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: studentLesson.lessonID,
+            studentIDs: Array(selectedStudentIDs),
+            createdAt: Date(),
+            scheduledFor: scheduled,
+            givenAt: nil,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newStudentLesson.students = selectedStudentsList
+        newStudentLesson.lesson = lessonObject
+        newStudentLesson.syncSnapshotsFromRelationships()
+        modelContext.insert(newStudentLesson)
+
+        do { try modelContext.save() } catch {}
+
+        let fmt = DateFormatter()
+        fmt.dateStyle = .medium
+        showBanner(text: "Re-present scheduled for \(fmt.string(from: scheduled))", color: .blue)
+    }
+
+    private func defaultRePresentDate() -> Date {
+        // Default to tomorrow (or next calendar day) at 9 AM
+        let base = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        return calendar.startOfDay(for: base)
+    }
+
+    private func saveImmediate() {
+        // Persist minimal fields immediately without dismissing the sheet
+        studentLesson.scheduledFor = scheduledFor
+        studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
+        studentLesson.isPresented = isPresented
+        studentLesson.notes = notes
+        studentLesson.needsPractice = needsPractice
+        studentLesson.needsAnotherPresentation = needsAnotherPresentation
+        studentLesson.followUpWork = followUpWork
+        studentLesson.studentIDs = Array(selectedStudentIDs)
+
+        studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
+        studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
+        studentLesson.syncSnapshotsFromRelationships()
+
+        try? modelContext.save()
+    }
+
     private func save() {
         studentLesson.scheduledFor = scheduledFor
-        studentLesson.givenAt = givenAt
+        studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
         studentLesson.isPresented = isPresented
         studentLesson.notes = notes
         studentLesson.needsPractice = needsPractice
