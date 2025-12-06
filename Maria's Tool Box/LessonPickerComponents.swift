@@ -6,7 +6,7 @@ import SwiftData
 // MARK: - Lesson Section
 
 struct LessonSection: View {
-    @ObservedObject var viewModel: GiveLessonViewModel
+    @ObservedObject var viewModel: LessonPickerViewModel
     let resolvedLesson: Lesson?
     let lessonDisplayTitle: (Lesson) -> String
     @Binding var isFocused: Bool
@@ -146,7 +146,7 @@ struct LessonPickerPopover: View {
 // MARK: - Students Section
 
 struct StudentsSection: View {
-    @ObservedObject var viewModel: GiveLessonViewModel
+    @ObservedObject var viewModel: LessonPickerViewModel
     let subjectColor: Color
     let displayName: (Student) -> String
     @Binding var showingAddStudentSheet: Bool
@@ -242,7 +242,7 @@ struct StudentChipsList: View {
 // MARK: - Give Lesson Student Picker Popover
 
 struct GiveLessonStudentPickerPopover: View {
-    @ObservedObject var viewModel: GiveLessonViewModel
+    @ObservedObject var viewModel: LessonPickerViewModel
     let displayName: (Student) -> String
     @Binding var showingAddStudentSheet: Bool
     @Binding var isPresented: Bool
@@ -300,7 +300,7 @@ struct GiveLessonStudentPickerPopover: View {
 // MARK: - Status Section
 
 struct StatusSection: View {
-    @ObservedObject var viewModel: GiveLessonViewModel
+    @ObservedObject var viewModel: LessonPickerViewModel
     let subjectColor: Color
     
     var body: some View {
@@ -339,69 +339,6 @@ struct StatusSection: View {
                     displayedComponents: [.date]
                 )
                 .animation(.easeInOut, value: viewModel.givenAt)
-            }
-        }
-    }
-}
-
-// MARK: - Optional Date Picker
-
-struct OptionalDatePicker: View {
-    let toggleLabel: String
-    let dateLabel: String
-    @Binding var date: Date?
-    let displayedComponents: DatePickerComponents
-    let defaultHour: Int?
-    @Environment(\.calendar) private var calendar
-    
-    init(
-        toggleLabel: String,
-        dateLabel: String,
-        date: Binding<Date?>,
-        displayedComponents: DatePickerComponents = [.date],
-        defaultHour: Int? = nil
-    ) {
-        self.toggleLabel = toggleLabel
-        self.dateLabel = dateLabel
-        self._date = date
-        self.displayedComponents = displayedComponents
-        self.defaultHour = defaultHour
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle(toggleLabel, isOn: Binding(
-                get: { date != nil },
-                set: { newValue in
-                    if newValue {
-                        if date == nil {
-                            if let hour = defaultHour {
-                                let base = calendar.startOfDay(for: Date())
-                                date = calendar.date(byAdding: .hour, value: hour, to: base) ?? base
-                            } else {
-                                // Default to start of day when no default hour is provided
-                                date = calendar.startOfDay(for: Date())
-                            }
-                        }
-                    } else {
-                        date = nil
-                    }
-                }
-            ))
-            if date != nil {
-                DatePicker(
-                    dateLabel,
-                    selection: Binding(
-                        get: { date ?? Date() },
-                        set: { date = $0 }
-                    ),
-                    displayedComponents: displayedComponents
-                )
-                #if os(macOS)
-                .datePickerStyle(.field)
-                #else
-                .datePickerStyle(.compact)
-                #endif
             }
         }
     }

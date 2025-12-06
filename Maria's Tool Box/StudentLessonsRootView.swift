@@ -185,9 +185,9 @@ struct StudentLessonsRootView: View {
         }
         .sheet(isPresented: Binding(get: { selectedLessonID != nil }, set: { if !$0 { selectedLessonID = nil } })) {
             if let id = selectedLessonID, let sl = studentLessons.first(where: { $0.id == id }) {
-                StudentLessonDetailView(studentLesson: sl) {
+                StudentLessonDetailView(studentLesson: sl, onDone: {
                     selectedLessonID = nil
-                }
+                })
             } else {
                 EmptyView()
             }

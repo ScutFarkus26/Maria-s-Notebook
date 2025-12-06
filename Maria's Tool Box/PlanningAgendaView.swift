@@ -86,8 +86,7 @@ struct PlanningAgendaView: View {
                     StudentLessonQuickActionsView(studentLesson: sl) { activeSheet = nil }
                 } else { EmptyView() }
             case .giveLessonDraft(let id):
-                if let sl = studentLessons.first(where: { $0.id == id }) {
-                    StudentLessonDetailView(studentLesson: sl) { activeSheet = nil }
+                StudentLessonDraftSheet(id: id) { activeSheet = nil }
                     #if os(macOS)
                     .frame(minWidth: 720, minHeight: 640)
                     .presentationSizing(.fitted)
@@ -95,7 +94,6 @@ struct PlanningAgendaView: View {
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
                     #endif
-                } else { EmptyView() }
             }
         }
         .task(id: startDate) {
@@ -105,6 +103,7 @@ struct PlanningAgendaView: View {
             startDateRaw = new.timeIntervalSinceReferenceDate
         }
         .onAppear {
+            DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
             if startDateRaw == 0 {
                 let initial = computeInitialStartDate()
                 startDate = initial
@@ -115,6 +114,12 @@ struct PlanningAgendaView: View {
             Task { await viewModel.refresh(calendar: calendar, context: modelContext, startDate: startDate) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .PlanningInboxNeedsRefresh)) { _ in
+            DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
+            viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
+        }
+        .onChange(of: studentLessons.map { $0.id }) { _, _ in
+            // Keep the inbox in sync with underlying data changes (e.g., deletions)
+            DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
             viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
         }
     }

@@ -10,6 +10,8 @@
 		510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819952EDEA8020000BE47 /* PillButton 2.swift */; };
 		5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */; };
 		515EC5BE2EE3BC7A004E918B /* DataMigrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515EC5BD2EE3BC7A004E918B /* DataMigrations.swift */; };
+		515EC5C02EE3C7BC004E918B /* LessonPickerSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515EC5BF2EE3C7BC004E918B /* LessonPickerSection.swift */; };
+		515EC5C22EE3C7C1004E918B /* OptionalDatePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515EC5C12EE3C7C1004E918B /* OptionalDatePicker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +19,8 @@
 		5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StudentHeaderView 2.swift"; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		515EC5BD2EE3BC7A004E918B /* DataMigrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataMigrations.swift; sourceTree = "<group>"; };
+		515EC5BF2EE3C7BC004E918B /* LessonPickerSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonPickerSection.swift; sourceTree = "<group>"; };
+		515EC5C12EE3C7C1004E918B /* OptionalDatePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptionalDatePicker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,6 +63,8 @@
 				510819952EDEA8020000BE47 /* PillButton 2.swift */,
 				5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */,
 				515EC5BD2EE3BC7A004E918B /* DataMigrations.swift */,
+				515EC5BF2EE3C7BC004E918B /* LessonPickerSection.swift */,
+				515EC5C12EE3C7C1004E918B /* OptionalDatePicker.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -144,6 +150,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				515EC5C02EE3C7BC004E918B /* LessonPickerSection.swift in Sources */,
+				515EC5C22EE3C7C1004E918B /* OptionalDatePicker.swift in Sources */,
 				515EC5BE2EE3BC7A004E918B /* DataMigrations.swift in Sources */,
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
 				510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */,

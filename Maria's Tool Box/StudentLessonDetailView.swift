@@ -15,6 +15,7 @@ struct StudentLessonDetailView: View {
     @Query private var workModels: [WorkModel]
 
     let studentLesson: StudentLesson
+    let autoFocusLessonPicker: Bool
     var onDone: (() -> Void)? = nil
 
     @State private var scheduledFor: Date?
@@ -25,7 +26,7 @@ struct StudentLessonDetailView: View {
     @State private var needsAnotherPresentation: Bool
     @State private var followUpWork: String
 
-    @StateObject private var lessonPickerVM: GiveLessonViewModel
+    @StateObject private var lessonPickerVM: LessonPickerViewModel
     @State private var lessonPickerFocused: Bool = false
 
     @State private var selectedStudentIDs: Set<UUID> = []
@@ -57,7 +58,7 @@ struct StudentLessonDetailView: View {
     @State private var quickBannerText: String = ""
     @State private var quickBannerColor: Color = .green
 
-    init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
+    init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
         self.studentLesson = studentLesson
         self.onDone = onDone
         _scheduledFor = State(initialValue: studentLesson.scheduledFor)
@@ -68,7 +69,8 @@ struct StudentLessonDetailView: View {
         _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
         _followUpWork = State(initialValue: studentLesson.followUpWork)
         _selectedStudentIDs = State(initialValue: Set(studentLesson.studentIDs))
-        _lessonPickerVM = StateObject(wrappedValue: GiveLessonViewModel(selectedStudentIDs: [], selectedLessonID: studentLesson.lessonID))
+        self.autoFocusLessonPicker = autoFocusLessonPicker
+        _lessonPickerVM = StateObject(wrappedValue: LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: studentLesson.lessonID))
     }
 
     private var resolvedPickerLesson: Lesson? { lessons.first(where: { $0.id == lessonPickerVM.selectedLessonID }) ?? lessonObject }
@@ -362,6 +364,7 @@ struct StudentLessonDetailView: View {
             rePresentDate = defaultRePresentDate()
             lessonPickerVM.configure(lessons: lessons, students: studentsAll)
             lessonPickerVM.selectLesson(studentLesson.lessonID)
+            if autoFocusLessonPicker { lessonPickerFocused = true }
         }
         .onChange(of: lessons.map { $0.id }) { _, _ in
             lessonPickerVM.configure(lessons: lessons, students: studentsAll)
@@ -378,10 +381,9 @@ struct StudentLessonDetailView: View {
 
     private var lessonPickerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            LessonSection(
+            LessonPickerSection(
                 viewModel: lessonPickerVM,
                 resolvedLesson: resolvedPickerLesson,
-                lessonDisplayTitle: lessonPickerVM.lessonDisplayTitle(for:),
                 isFocused: $lessonPickerFocused
             )
         }
@@ -1138,6 +1140,10 @@ struct StudentLessonDetailView: View {
 
         do {
             try modelContext.save()
+
+            // Notify agenda/inbox to refresh immediately after deletion
+            NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+
             if let onDone {
                 onDone()
             } else {
@@ -1156,6 +1162,9 @@ struct StudentLessonDetailView: View {
         } catch {
             // Handle delete error if needed
         }
+
+        // Notify agenda/inbox to refresh immediately after deletion
+        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
 
         // Now dismiss after the @Query has updated
         if let onDone {

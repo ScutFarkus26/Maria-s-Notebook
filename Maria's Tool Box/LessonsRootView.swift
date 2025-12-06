@@ -243,9 +243,9 @@ struct LessonsRootView: View {
                 #endif
             case .studentLessonDraft(let id):
                 if let sl = studentLessons.first(where: { $0.id == id }) {
-                    StudentLessonDetailView(studentLesson: sl) {
+                    StudentLessonDetailView(studentLesson: sl, onDone: {
                         presentedSheet = nil
-                    }
+                    })
                     #if os(macOS)
                     .frame(minWidth: 720, minHeight: 640)
                     .presentationSizing(.fitted)

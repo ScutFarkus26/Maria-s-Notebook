@@ -562,6 +562,11 @@ struct StudentDetailView: View {
     }
 
     private func createDraftStudentLesson(for lesson: Lesson) -> StudentLesson {
+        // Reuse an existing unscheduled entry for this lesson+student if it exists
+        if let existing = studentLessonsRaw.first(where: { $0.lessonID == lesson.id && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [student.id] }) {
+            return existing
+        }
+
         let newSL = StudentLesson(
             id: UUID(),
             lessonID: lesson.id,

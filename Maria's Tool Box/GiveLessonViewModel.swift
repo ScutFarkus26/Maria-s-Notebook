@@ -3,6 +3,8 @@ import SwiftData
 import Foundation
 import Combine
 
+// NOTE: Renamed type: GiveLessonViewModel -> LessonPickerViewModel
+
 // MARK: - Supporting Types
 
 enum GiveLessonMode: Hashable {
@@ -19,7 +21,7 @@ enum StudentLevelFilter: String, CaseIterable {
 // MARK: - View Model
 
 @MainActor
-final class GiveLessonViewModel: ObservableObject {
+final class LessonPickerViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var selectedStudentIDs: Set<UUID> = []
@@ -207,19 +209,58 @@ final class GiveLessonViewModel: ObservableObject {
             throw SaveError.missingLesson
         }
         
-        let studentLesson = StudentLesson(
-            lessonID: finalLesson.id,
-            studentIDs: Array(selectedStudentIDs),
-            scheduledFor: mode == .plan ? scheduledFor : nil,
-            givenAt: mode == .given ? givenAt : nil,
-            isPresented: (mode == .given),
-            notes: notes,
-            needsPractice: needsPractice,
-            needsAnotherPresentation: needsAnotherPresentation,
-            followUpWork: followUpWork
-        )
-        
-        context.insert(studentLesson)
+        // Build selected IDs and search for an existing unscheduled/unpresented match
+        let selectedIDs = Array(selectedStudentIDs)
+        let selectedSet = Set(selectedIDs)
+        let targetLessonID = finalLesson.id
+        let predicate = #Predicate<StudentLesson> { sl in
+            sl.lessonID == targetLessonID && sl.givenAt == nil
+        }
+        let existingCandidates = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))) ?? []
+        let existingMatch = existingCandidates.first(where: { Set($0.studentIDs) == selectedSet })
+
+        // Either reuse existing or create a new one
+        let studentLesson: StudentLesson
+        let isNew: Bool
+        if let match = existingMatch {
+            studentLesson = match
+            isNew = false
+        } else {
+            studentLesson = StudentLesson(
+                lessonID: finalLesson.id,
+                studentIDs: selectedIDs,
+                scheduledFor: nil,
+                givenAt: nil,
+                isPresented: false,
+                notes: "",
+                needsPractice: false,
+                needsAnotherPresentation: false,
+                followUpWork: ""
+            )
+            isNew = true
+        }
+
+        // Apply current state onto the chosen record
+        studentLesson.lessonID = finalLesson.id
+        studentLesson.studentIDs = selectedIDs
+        studentLesson.scheduledFor = (mode == .plan ? scheduledFor : nil)
+        studentLesson.givenAt = (mode == .given ? givenAt : nil)
+        studentLesson.isPresented = (mode == .given)
+        studentLesson.notes = notes
+        studentLesson.needsPractice = needsPractice
+        studentLesson.needsAnotherPresentation = needsAnotherPresentation
+        studentLesson.followUpWork = followUpWork
+
+        // Update relationships to mirror snapshots
+        let studentsFetch = FetchDescriptor<Student>(predicate: #Predicate { selectedSet.contains($0.id) })
+        let fetchedStudents = (try? context.fetch(studentsFetch)) ?? []
+        studentLesson.students = fetchedStudents
+        studentLesson.lesson = finalLesson
+        studentLesson.syncSnapshotsFromRelationships()
+
+        if isNew {
+            context.insert(studentLesson)
+        }
         
         // Create practice work if needed
         if needsPractice {

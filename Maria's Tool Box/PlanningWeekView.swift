@@ -47,8 +47,16 @@ import SwiftData
             }
         case .giveLessonDraft(let id):
             if let sl = studentLessons.first(where: { $0.id == id }) {
-                StudentLessonDetailView(studentLesson: sl) { activeSheet = nil }
+                StudentLessonDetailView(studentLesson: sl, onDone: { activeSheet = nil }, autoFocusLessonPicker: true)
                     .largeSheetSizing()
+                    .onDisappear {
+                        if let current = studentLessons.first(where: { $0.id == id }) {
+                            if current.lesson == nil && current.studentIDs.isEmpty {
+                                modelContext.delete(current)
+                                try? modelContext.save()
+                            }
+                        }
+                    }
             } else {
                 EmptyView()
             }
@@ -150,7 +158,13 @@ import SwiftData
             }
             .onAppear {
                 DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
+                DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
                 startDate = computeInitialStartDate()
+                syncInboxOrderWithCurrentBase()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("PlanningInboxNeedsRefresh"))) { _ in
+                // Keep inbox and week grid in sync after external changes (e.g., deletions, moves)
+                DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
                 syncInboxOrderWithCurrentBase()
             }
     }

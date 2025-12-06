@@ -145,9 +145,9 @@ struct WorkDetailView: View {
                 baseLessonSheet
             case .studentLessonDraft(let id):
                 if let sl = studentLessons.first(where: { $0.id == id }) {
-                    StudentLessonDetailView(studentLesson: sl) {
+                    StudentLessonDetailView(studentLesson: sl, onDone: {
                         presentedSheet = nil
-                    }
+                    })
                     #if os(macOS)
                     .frame(minWidth: 720, minHeight: 640)
                     .presentationSizing(.fitted)
@@ -483,9 +483,9 @@ struct WorkDetailView: View {
     private var linkedLessonSheet: some View {
         if let slID = vm.selectedStudentLessonID,
            let sl = vm.studentLessonsByID[slID] {
-            StudentLessonDetailView(studentLesson: sl) {
+            StudentLessonDetailView(studentLesson: sl, onDone: {
                 presentedSheet = nil
-            }
+            })
             #if os(macOS)
             .frame(minWidth: 520, minHeight: 560)
             .presentationSizing(.fitted)
