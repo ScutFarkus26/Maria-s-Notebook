@@ -30,13 +30,13 @@ struct WorkDetailView: View {
     private enum PresentedSheet: Identifiable {
         case linkedLessonDetails
         case baseLessonDetails
-        case createStudentLesson
+        case studentLessonDraft(UUID)
 
         var id: String {
             switch self {
             case .linkedLessonDetails: return "linkedLessonDetails"
             case .baseLessonDetails: return "baseLessonDetails"
-            case .createStudentLesson: return "createStudentLesson"
+            case .studentLessonDraft(let id): return "studentLessonDraft_\(id.uuidString)"
             }
         }
     }
@@ -143,23 +143,21 @@ struct WorkDetailView: View {
                 linkedLessonSheet
             case .baseLessonDetails:
                 baseLessonSheet
-            case .createStudentLesson:
-                GiveLessonSheet(
-                    lesson: nil,
-                    preselectedStudentIDs: Array(vm.selectedStudentIDs),
-                    startGiven: false,
-                    allStudents: studentsAll,
-                    allLessons: lessons
-                ) {
-                    presentedSheet = nil
+            case .studentLessonDraft(let id):
+                if let sl = studentLessons.first(where: { $0.id == id }) {
+                    StudentLessonDetailView(studentLesson: sl) {
+                        presentedSheet = nil
+                    }
+                    #if os(macOS)
+                    .frame(minWidth: 720, minHeight: 640)
+                    .presentationSizing(.fitted)
+                    #else
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    #endif
+                } else {
+                    EmptyView()
                 }
-                #if os(macOS)
-                .frame(minWidth: 720, minHeight: 640)
-                .presentationSizing(.fitted)
-                #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                #endif
             }
         }
         .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
@@ -247,8 +245,23 @@ struct WorkDetailView: View {
             onOpenBaseLesson: { presentedSheet = .baseLessonDetails },
             selectedStudentIDs: vm.selectedStudentIDs,
             onCreateNewStudentLesson: {
+                let newSL = StudentLesson(
+                    lesson: nil,
+                    students: studentsAll.filter { vm.selectedStudentIDs.contains($0.id) },
+                    createdAt: Date(),
+                    scheduledFor: nil,
+                    givenAt: nil,
+                    isPresented: false,
+                    notes: "",
+                    needsPractice: false,
+                    needsAnotherPresentation: false,
+                    followUpWork: ""
+                )
+                newSL.syncSnapshotsFromRelationships()
+                modelContext.insert(newSL)
+                try? modelContext.save()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    presentedSheet = .createStudentLesson
+                    presentedSheet = .studentLessonDraft(newSL.id)
                 }
             }
         )

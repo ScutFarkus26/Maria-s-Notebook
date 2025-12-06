@@ -62,6 +62,11 @@ struct StudentDetailView: View {
     private var studentLessonsAll: [StudentLesson] { studentLessonsRaw.filter { $0.studentIDs.contains(student.id) } }
     private var workModelsAll: [WorkModel] { workModelsRaw.filter { $0.studentIDs.contains(student.id) } }
 
+    // Lightweight ID arrays to aid type-checker in onChange
+    private var lessonIDs: [UUID] { lessons.map(\.id) }
+    private var studentLessonIDs: [UUID] { studentLessonsAll.map(\.id) }
+    private var workModelIDs: [UUID] { workModelsAll.map(\.id) }
+
     // MARK: - Derived
     private var levelColor: Color {
         switch student.level {
@@ -280,25 +285,7 @@ struct StudentDetailView: View {
                             }
 
                             if let subject = selectedChecklistSubject ?? subjectsForChecklist.first {
-                                SubjectChecklistSection(
-                                    subject: subject,
-                                    orderedGroups: lessonsVM.groups(for: subject, lessons: lessons),
-                                    lessons: lessons,
-                                    masteredLessonIDs: masteredLessonIDs,
-                                    pendingWorkLessonIDs: pendingWorkLessonIDs,
-                                    plannedLessonIDs: plannedLessonIDs,
-                                    practiceLessonIDs: practiceLessonIDs,
-                                    pendingPracticeLessonIDs: pendingPracticeLessonIDs,
-                                    followUpLessonIDs: followUpLessonIDs,
-                                    pendingFollowUpLessonIDs: pendingFollowUpLessonIDs,
-                                    onTogglePresented: { vm.togglePresented(for: $0, modelContext: modelContext) },
-                                    onOpenMastered: { vm.openMastered(for: $0, modelContext: modelContext) },
-                                    onOpenPlan: { vm.openPlan(for: $0, modelContext: modelContext) },
-                                    onTogglePractice: { vm.toggleWork(for: $0, type: .practice, modelContext: modelContext) },
-                                    onOpenPractice: { vm.openWork(for: $0, type: .practice, modelContext: modelContext) },
-                                    onToggleFollowUp: { vm.toggleWork(for: $0, type: .followUp, modelContext: modelContext) },
-                                    onOpenFollowUp: { vm.openWork(for: $0, type: .followUp, modelContext: modelContext) }
-                                )
+                                makeChecklistSection(for: subject)
                             } else {
                                 ContentUnavailableView(
                                     "No Subjects",
@@ -407,8 +394,11 @@ struct StudentDetailView: View {
         } message: {
             Text("This action cannot be undone.")
         }
-        .sheet(item: $vm.selectedLessonForGive) { l in
-            GiveLessonSheet(lesson: l, preselectedStudentIDs: [student.id], startGiven: vm.giveStartGiven) {
+        .sheet(item: $vm.selectedLessonForGive) { lesson in
+            // Create a draft StudentLesson for this student and selected lesson
+            let newSL = createDraftStudentLesson(for: lesson)
+
+            StudentLessonDetailView(studentLesson: newSL) {
                 vm.selectedLessonForGive = nil
             }
             #if os(macOS)
@@ -447,14 +437,14 @@ struct StudentDetailView: View {
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             ensureChecklistSubjectSelection()
         }
-        .onChange(of: lessons.map { $0.id }) { _, _ in
+        .onChange(of: lessonIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             ensureChecklistSubjectSelection()
         }
-        .onChange(of: studentLessonsAll.map { $0.id }) { _, _ in
+        .onChange(of: studentLessonIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
         }
-        .onChange(of: workModelsAll.map { $0.id }) { _, _ in
+        .onChange(of: workModelIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
         }
     }
@@ -545,6 +535,52 @@ struct StudentDetailView: View {
             description: Text("This will show the student's notes.")
         )
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    // MARK: - Extracted builders to help the type-checker
+    private func makeChecklistSection(for subject: String) -> some View {
+        let groups = lessonsVM.groups(for: subject, lessons: lessons)
+        return SubjectChecklistSection(
+            subject: subject,
+            orderedGroups: groups,
+            lessons: lessons,
+            masteredLessonIDs: masteredLessonIDs,
+            pendingWorkLessonIDs: pendingWorkLessonIDs,
+            plannedLessonIDs: plannedLessonIDs,
+            practiceLessonIDs: practiceLessonIDs,
+            pendingPracticeLessonIDs: pendingPracticeLessonIDs,
+            followUpLessonIDs: followUpLessonIDs,
+            pendingFollowUpLessonIDs: pendingFollowUpLessonIDs,
+            onTogglePresented: { vm.togglePresented(for: $0, modelContext: modelContext) },
+            onOpenMastered: { vm.openMastered(for: $0, modelContext: modelContext) },
+            onOpenPlan: { vm.openPlan(for: $0, modelContext: modelContext) },
+            onTogglePractice: { vm.toggleWork(for: $0, type: .practice, modelContext: modelContext) },
+            onOpenPractice: { vm.openWork(for: $0, type: .practice, modelContext: modelContext) },
+            onToggleFollowUp: { vm.toggleWork(for: $0, type: .followUp, modelContext: modelContext) },
+            onOpenFollowUp: { vm.openWork(for: $0, type: .followUp, modelContext: modelContext) }
+        )
+    }
+
+    private func createDraftStudentLesson(for lesson: Lesson) -> StudentLesson {
+        let newSL = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: [student.id],
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: vm.giveStartGiven ? Date() : nil,
+            isPresented: vm.giveStartGiven,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newSL.students = [student]
+        newSL.lesson = lesson
+        newSL.syncSnapshotsFromRelationships()
+        modelContext.insert(newSL)
+        try? modelContext.save()
+        return newSL
     }
 
     private static let birthdayFormatter: DateFormatter = {

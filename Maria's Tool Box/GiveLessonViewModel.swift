@@ -266,13 +266,13 @@ final class GiveLessonViewModel: ObservableObject {
     
     private static func sortLessons(_ lessons: [Lesson]) -> [Lesson] {
         lessons.sorted { lhs, rhs in
-            if lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedSame {
-                if lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedSame {
-                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-                }
-                return lhs.group.localizedCaseInsensitiveCompare(rhs.group) == .orderedAscending
-            }
-            return lhs.subject.localizedCaseInsensitiveCompare(rhs.subject) == .orderedAscending
+            let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+            if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+            let subjectOrder = lhs.subject.localizedCaseInsensitiveCompare(rhs.subject)
+            if subjectOrder != .orderedSame { return subjectOrder == .orderedAscending }
+            let groupOrder = lhs.group.localizedCaseInsensitiveCompare(rhs.group)
+            if groupOrder != .orderedSame { return groupOrder == .orderedAscending }
+            return lhs.id.uuidString < rhs.id.uuidString
         }
     }
     

@@ -33,13 +33,13 @@ struct PlanningAgendaView: View {
     private enum ActiveSheet: Identifiable {
         case studentLessonDetail(UUID)
         case quickActions(UUID)
-        case giveLesson
+        case giveLessonDraft(UUID)
 
         var id: String {
             switch self {
             case .studentLessonDetail(let id): return "detail_\(id.uuidString)"
             case .quickActions(let id): return "quick_\(id.uuidString)"
-            case .giveLesson: return "giveLesson"
+            case .giveLessonDraft(let id): return "giveLessonDraft_\(id.uuidString)"
             }
         }
     }
@@ -85,23 +85,17 @@ struct PlanningAgendaView: View {
                 if let sl = studentLessons.first(where: { $0.id == id }) {
                     StudentLessonQuickActionsView(studentLesson: sl) { activeSheet = nil }
                 } else { EmptyView() }
-            case .giveLesson:
-                GiveLessonSheet(
-                    lesson: nil,
-                    preselectedStudentIDs: [],
-                    startGiven: false,
-                    allStudents: students,
-                    allLessons: lessons
-                ) {
-                    activeSheet = nil
-                }
-                #if os(macOS)
-                .frame(minWidth: 720, minHeight: 640)
-                .presentationSizing(.fitted)
-                #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                #endif
+            case .giveLessonDraft(let id):
+                if let sl = studentLessons.first(where: { $0.id == id }) {
+                    StudentLessonDetailView(studentLesson: sl) { activeSheet = nil }
+                    #if os(macOS)
+                    .frame(minWidth: 720, minHeight: 640)
+                    .presentationSizing(.fitted)
+                    #else
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    #endif
+                } else { EmptyView() }
             }
         }
         .task(id: startDate) {
@@ -189,7 +183,22 @@ struct PlanningAgendaView: View {
             .background(Color.primary.opacity(0.08), in: Capsule())
 
             Button {
-                DispatchQueue.main.async { activeSheet = .giveLesson }
+                let newSL = StudentLesson(
+                    lesson: nil,
+                    students: [],
+                    createdAt: Date(),
+                    scheduledFor: nil,
+                    givenAt: nil,
+                    isPresented: false,
+                    notes: "",
+                    needsPractice: false,
+                    needsAnotherPresentation: false,
+                    followUpWork: ""
+                )
+                newSL.syncSnapshotsFromRelationships()
+                modelContext.insert(newSL)
+                try? modelContext.save()
+                DispatchQueue.main.async { activeSheet = .giveLessonDraft(newSL.id) }
             } label: {
                 Label("Add New", systemImage: "plus.circle.fill")
             }

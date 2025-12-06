@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct LessonsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
+    @Query private var studentLessons: [StudentLesson]
     @State private var selectedLesson: Lesson? = nil
 
     @State private var importAlert: ImportAlert? = nil
@@ -21,14 +22,14 @@ struct LessonsRootView: View {
     private enum PresentedSheet: Identifiable {
         case addLesson(defaultSubject: String?, defaultGroup: String?)
         case bulkEntry(defaultSubject: String?, defaultGroup: String?)
-        case giveLesson(lesson: Lesson?)
+        case studentLessonDraft(UUID)
         case importPreview(parsed: LessonCSVImporter.Parsed)
 
         var id: String {
             switch self {
             case .addLesson: return "addLesson"
             case .bulkEntry: return "bulkEntry"
-            case .giveLesson: return "giveLesson"
+            case .studentLessonDraft(let id): return "studentLessonDraft_\(id.uuidString)"
             case .importPreview: return "importPreview"
             }
         }
@@ -100,10 +101,24 @@ struct LessonsRootView: View {
                         }
                     },
                     onGiveLesson: { _ in
-                        presentedSheet = .giveLesson(lesson: selected)
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                            selectedLesson = nil
-                        }
+                        presentedSheet = nil
+                        let newSL = StudentLesson(
+                            id: UUID(),
+                            lessonID: selected.id,
+                            studentIDs: [],
+                            createdAt: Date(),
+                            scheduledFor: nil,
+                            givenAt: nil,
+                            notes: "",
+                            needsPractice: false,
+                            needsAnotherPresentation: false,
+                            followUpWork: ""
+                        )
+                        newSL.lesson = selected
+                        newSL.syncSnapshotsFromRelationships()
+                        modelContext.insert(newSL)
+                        try? modelContext.save()
+                        presentedSheet = .studentLessonDraft(newSL.id)
                     },
                     initialMode: .normal
                 )
@@ -175,7 +190,24 @@ struct LessonsRootView: View {
                                 reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
                             },
                             onGiveLesson: { (lesson: Lesson) in
-                                presentedSheet = .giveLesson(lesson: lesson)
+                                presentedSheet = nil
+                                let newSL = StudentLesson(
+                                    id: UUID(),
+                                    lessonID: lesson.id,
+                                    studentIDs: [],
+                                    createdAt: Date(),
+                                    scheduledFor: nil,
+                                    givenAt: nil,
+                                    notes: "",
+                                    needsPractice: false,
+                                    needsAnotherPresentation: false,
+                                    followUpWork: ""
+                                )
+                                newSL.lesson = lesson
+                                newSL.syncSnapshotsFromRelationships()
+                                modelContext.insert(newSL)
+                                try? modelContext.save()
+                                presentedSheet = .studentLessonDraft(newSL.id)
                             }
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -209,17 +241,21 @@ struct LessonsRootView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 #endif
-            case .giveLesson(let lesson):
-                GiveLessonSheet(lesson: lesson) {
-                    presentedSheet = nil
+            case .studentLessonDraft(let id):
+                if let sl = studentLessons.first(where: { $0.id == id }) {
+                    StudentLessonDetailView(studentLesson: sl) {
+                        presentedSheet = nil
+                    }
+                    #if os(macOS)
+                    .frame(minWidth: 720, minHeight: 640)
+                    .presentationSizing(.fitted)
+                    #else
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    #endif
+                } else {
+                    EmptyView()
                 }
-                #if os(macOS)
-                .frame(minWidth: 720, minHeight: 640)
-                .presentationSizing(.fitted)
-                #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                #endif
             case .importPreview(let parsed):
                 LessonImportPreviewView(parsed: parsed, onCancel: {
                     presentedSheet = nil
@@ -489,7 +525,25 @@ struct LessonsRootView: View {
                 Label("Bulk Entry…", systemImage: "square.grid.3x3")
             }
             Button {
-                presentedSheet = .giveLesson(lesson: nil)
+                let baseLesson = (filteredLessons.first ?? lessons.first)
+                let lessonID = baseLesson?.id ?? UUID()
+                let newSL = StudentLesson(
+                    id: UUID(),
+                    lessonID: lessonID,
+                    studentIDs: [],
+                    createdAt: Date(),
+                    scheduledFor: nil,
+                    givenAt: nil,
+                    notes: "",
+                    needsPractice: false,
+                    needsAnotherPresentation: false,
+                    followUpWork: ""
+                )
+                if let base = baseLesson { newSL.lesson = base }
+                newSL.syncSnapshotsFromRelationships()
+                modelContext.insert(newSL)
+                try? modelContext.save()
+                presentedSheet = .studentLessonDraft(newSL.id)
             } label: {
                 Label("Add Student Lesson", systemImage: "person.crop.circle.badge.plus")
             }

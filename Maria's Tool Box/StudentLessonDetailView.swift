@@ -25,6 +25,9 @@ struct StudentLessonDetailView: View {
     @State private var needsAnotherPresentation: Bool
     @State private var followUpWork: String
 
+    @StateObject private var lessonPickerVM: GiveLessonViewModel
+    @State private var lessonPickerFocused: Bool = false
+
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var showingAddStudentSheet = false
     @State private var showingStudentPickerPopover = false
@@ -65,7 +68,10 @@ struct StudentLessonDetailView: View {
         _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
         _followUpWork = State(initialValue: studentLesson.followUpWork)
         _selectedStudentIDs = State(initialValue: Set(studentLesson.studentIDs))
+        _lessonPickerVM = StateObject(wrappedValue: GiveLessonViewModel(selectedStudentIDs: [], selectedLessonID: studentLesson.lessonID))
     }
+
+    private var resolvedPickerLesson: Lesson? { lessons.first(where: { $0.id == lessonPickerVM.selectedLessonID }) ?? lessonObject }
 
     private var lessonObject: Lesson? {
         lessons.first(where: { $0.id == studentLesson.lessonID })
@@ -280,6 +286,7 @@ struct StudentLessonDetailView: View {
 
             ScrollView {
                 VStack(spacing: 28) {
+                    lessonPickerSection
                     summarySection
                     scheduleSection
                     givenSection
@@ -353,6 +360,30 @@ struct StudentLessonDetailView: View {
         .onAppear {
             presentedDate = calendar.startOfDay(for: givenAt ?? Date())
             rePresentDate = defaultRePresentDate()
+            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
+            lessonPickerVM.selectLesson(studentLesson.lessonID)
+        }
+        .onChange(of: lessons.map { $0.id }) { _, _ in
+            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
+        }
+        .onChange(of: lessonPickerVM.selectedLessonID) { _, newValue in
+            if let newID = newValue, newID != studentLesson.lessonID {
+                studentLesson.lessonID = newID
+                studentLesson.lesson = lessons.first(where: { $0.id == newID })
+                studentLesson.syncSnapshotsFromRelationships()
+                try? modelContext.save()
+            }
+        }
+    }
+
+    private var lessonPickerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            LessonSection(
+                viewModel: lessonPickerVM,
+                resolvedLesson: resolvedPickerLesson,
+                lessonDisplayTitle: lessonPickerVM.lessonDisplayTitle(for:),
+                isFocused: $lessonPickerFocused
+            )
         }
     }
 
@@ -802,13 +833,14 @@ struct StudentLessonDetailView: View {
                 Text("Scheduled For")
                     .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                Text(scheduleStatusText)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                    .foregroundStyle(scheduledFor == nil ? .secondary : .primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
             }
+            OptionalDatePicker(
+                toggleLabel: "Schedule",
+                dateLabel: "Schedule For",
+                date: $scheduledFor,
+                displayedComponents: [.date, .hourAndMinute],
+                defaultHour: 9
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

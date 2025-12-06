@@ -15,7 +15,7 @@ import SwiftData
     private enum ActiveSheet: Identifiable {
         case studentLessonDetail(UUID)
         case quickActions(UUID)
-        case giveLesson
+        case giveLessonDraft(UUID)
         case addLesson
         case inbox
 
@@ -23,7 +23,7 @@ import SwiftData
             switch self {
             case .studentLessonDetail(let id): return "detail_\(id.uuidString)"
             case .quickActions(let id): return "quick_\(id.uuidString)"
-            case .giveLesson: return "giveLesson"
+            case .giveLessonDraft(let id): return "giveLessonDraft_\(id.uuidString)"
             case .addLesson: return "addLesson"
             case .inbox: return "inbox"
             }
@@ -45,15 +45,13 @@ import SwiftData
             } else {
                 EmptyView()
             }
-        case .giveLesson:
-            GiveLessonSheet(
-                lesson: nil,
-                preselectedStudentIDs: [],
-                startGiven: false,
-                allStudents: students,
-                allLessons: lessons
-            )
-            .largeSheetSizing()
+        case .giveLessonDraft(let id):
+            if let sl = studentLessons.first(where: { $0.id == id }) {
+                StudentLessonDetailView(studentLesson: sl) { activeSheet = nil }
+                    .largeSheetSizing()
+            } else {
+                EmptyView()
+            }
         case .addLesson:
             AddLessonView(defaultSubject: nil, defaultGroup: nil)
                 .largeSheetSizing()
@@ -167,7 +165,24 @@ import SwiftData
                     onPrevWeek: { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { moveStart(bySchoolDays: -7) } },
                     onNextWeek: { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { moveStart(bySchoolDays: 7) } },
                     onToday: { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { startDate = computeInitialStartDate() } },
-                    onAddNew: { activeSheet = .giveLesson }
+                    onAddNew: {
+                        let newSL = StudentLesson(
+                            lesson: nil,
+                            students: [],
+                            createdAt: Date(),
+                            scheduledFor: nil,
+                            givenAt: nil,
+                            isPresented: false,
+                            notes: "",
+                            needsPractice: false,
+                            needsAnotherPresentation: false,
+                            followUpWork: ""
+                        )
+                        newSL.syncSnapshotsFromRelationships()
+                        modelContext.insert(newSL)
+                        try? modelContext.save()
+                        activeSheet = .giveLessonDraft(newSL.id)
+                    }
                 )
                 Divider()
                 GeometryReader { geometry in
