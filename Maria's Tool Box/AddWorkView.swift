@@ -15,22 +15,13 @@ struct AddWorkView: View {
     @State private var selectedStudentLessonID: UUID? = nil
     @State private var notes: String = ""
     @State private var title: String = ""
-    @State private var showingAddStudentSheet: Bool = false
     @State private var showingStudentPickerPopover: Bool = false
-    @State private var studentSearchText: String = ""
-    @State private var studentLevelFilter: LevelFilter = .all
     
     private var studentLessonSnapshots: [StudentLessonSnapshot] {
         studentLessons.map { $0.snapshot() }
     }
     
     var onDone: (() -> Void)?
-    
-    enum LevelFilter: String, CaseIterable {
-        case all = "All"
-        case lower = "Lower"
-        case upper = "Upper"
-    }
     
     private var subject: String? {
         guard let selectedID = selectedStudentLessonID else { return nil }
@@ -50,40 +41,6 @@ struct AddWorkView: View {
     
     private var selectedStudentsList: [Student] {
         studentsAll.filter { selectedStudents.contains($0.id) }
-    }
-    
-    private var filteredStudentsForPicker: [Student] {
-        var filtered = studentsAll
-        
-        // Level filter
-        switch studentLevelFilter {
-        case .lower:
-            filtered = filtered.filter { $0.level == .lower }
-        case .upper:
-            filtered = filtered.filter { $0.level == .upper }
-        case .all:
-            break
-        }
-        
-        // Search filter
-        if !studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let q = studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            filtered = filtered.filter { s in
-                let f = s.firstName.lowercased()
-                let l = s.lastName.lowercased()
-                let full = s.fullName.lowercased()
-                return f.contains(q) || l.contains(q) || full.contains(q)
-            }
-        }
-        
-        return filtered
-    }
-    
-    private func displayName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
     
     private func formattedDateOnly(_ date: Date) -> String {
@@ -122,7 +79,7 @@ struct AddWorkView: View {
                             HStack(spacing: 8) {
                                 ForEach(selectedStudentsList, id: \.id) { student in
                                     HStack(spacing: 4) {
-                                        Text(displayName(for: student))
+                                        Text(StudentFormatter.displayName(for: student))
                                             .padding(.horizontal, 12)
                                             .padding(.vertical, 6)
                                             .background(subjectColor.opacity(0.2))
@@ -146,83 +103,11 @@ struct AddWorkView: View {
                             Text("Add / Remove Students")
                         }
                         .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .bottom) {
-                            VStack(spacing: 12) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                                    TextField("Search students", text: $studentSearchText)
-                                        .textFieldStyle(.plain)
-                                    if !studentSearchText.isEmpty {
-                                        Button {
-                                            studentSearchText = ""
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel("Clear search")
-                                    }
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(Color.primary.opacity(0.06))
-                                )
-
-                                Picker("Level", selection: $studentLevelFilter) {
-                                    Text("All").tag(LevelFilter.all)
-                                    Text("Lower").tag(LevelFilter.lower)
-                                    Text("Upper").tag(LevelFilter.upper)
-                                }
-                                .pickerStyle(.segmented)
-
-                                Divider().padding(.top, 2)
-
-                                ScrollView {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        ForEach(filteredStudentsForPicker, id: \.id) { student in
-                                            Button {
-                                                if selectedStudents.contains(student.id) {
-                                                    selectedStudents.remove(student.id)
-                                                } else {
-                                                    selectedStudents.insert(student.id)
-                                                }
-                                            } label: {
-                                                HStack(spacing: 8) {
-                                                    Image(systemName: selectedStudents.contains(student.id) ? "checkmark.circle.fill" : "circle")
-                                                        .foregroundStyle(selectedStudents.contains(student.id) ? Color.accentColor : Color.secondary)
-                                                    Text(displayName(for: student))
-                                                        .foregroundStyle(.primary)
-                                                    Spacer(minLength: 0)
-                                                }
-                                                .contentShape(Rectangle())
-                                                .padding(.vertical, 6)
-                                                .padding(.horizontal, 6)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(.top, 4)
-                                }
-                                .frame(maxHeight: 280)
-
-                                Divider()
-
-                                HStack {
-                                    Button {
-                                        showingAddStudentSheet = true
-                                    } label: {
-                                        Label("New Student…", systemImage: "plus")
-                                    }
-                                    .buttonStyle(.borderless)
-
-                                    Spacer()
-
-                                    Button("Done") {
-                                        showingStudentPickerPopover = false
-                                    }
-                                    .keyboardShortcut(.defaultAction)
-                                }
-                            }
+                            StudentPickerPopover(
+                                students: studentsAll,
+                                selectedIDs: $selectedStudents,
+                                onDone: { showingStudentPickerPopover = false }
+                            )
                             .padding(12)
                             .frame(minWidth: 320)
                         }
@@ -302,9 +187,6 @@ struct AddWorkView: View {
             }
             .padding()
             .background(.bar)
-        }
-        .sheet(isPresented: $showingAddStudentSheet) {
-            AddStudentView()
         }
         .frame(minWidth: 520, minHeight: 560)
     }

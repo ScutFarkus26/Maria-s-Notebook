@@ -52,13 +52,7 @@ struct StudentPickerPopover: View {
     }
 
     func displayName(for student: Student) -> String {
-        if let first = student.firstName.nonEmpty,
-           let last = student.lastName.nonEmpty {
-            let initial = last.prefix(1) + "."
-            return "\(first) \(initial)"
-        } else {
-            return student.firstName + student.lastName
-        }
+        return StudentFormatter.displayName(for: student)
     }
 
     var body: some View {

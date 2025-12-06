@@ -4,6 +4,7 @@ import Combine
 import UniformTypeIdentifiers
 
 struct LessonsRootView: View {
+    @StateObject private var vm = LessonsRootViewModel()
     @Environment(\.modelContext) private var modelContext
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
@@ -11,7 +12,6 @@ struct LessonsRootView: View {
 
     @State private var importAlert: ImportAlert? = nil
     @State private var showingLessonCSVImporter: Bool = false
-    @State private var filteredLessonsCache: [Lesson] = []
     @State private var groupsCache: [String: [String]] = [:]
 
     @SceneStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
@@ -36,7 +36,7 @@ struct LessonsRootView: View {
     }
 
     @State private var presentedSheet: PresentedSheet? = nil
-
+    
     private let viewModel = LessonsViewModel()
 
     private struct ImportAlert: Identifiable {
@@ -49,7 +49,7 @@ struct LessonsRootView: View {
         viewModel.subjects(from: lessons)
     }
 
-    private var filteredLessons: [Lesson] { filteredLessonsCache }
+    private var filteredLessons: [Lesson] { vm.filteredLessons }
 
     private var isManualMode: Bool {
         (filterState.selectedGroup != nil) && filterState.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -102,22 +102,7 @@ struct LessonsRootView: View {
                     },
                     onGiveLesson: { _ in
                         presentedSheet = nil
-                        let newSL = StudentLesson(
-                            id: UUID(),
-                            lessonID: selected.id,
-                            studentIDs: [],
-                            createdAt: Date(),
-                            scheduledFor: nil,
-                            givenAt: nil,
-                            notes: "",
-                            needsPractice: false,
-                            needsAnotherPresentation: false,
-                            followUpWork: ""
-                        )
-                        newSL.lesson = selected
-                        newSL.syncSnapshotsFromRelationships()
-                        modelContext.insert(newSL)
-                        try? modelContext.save()
+                        let newSL = vm.createStudentLesson(basedOn: selected, in: modelContext)
                         presentedSheet = .studentLessonDraft(newSL.id)
                     },
                     initialMode: .normal
@@ -153,12 +138,7 @@ struct LessonsRootView: View {
     }
 
     private func recomputeFilteredLessons() {
-        filteredLessonsCache = viewModel.filteredLessons(
-            lessons: lessons,
-            searchText: filterState.searchText,
-            selectedSubject: filterState.selectedSubject,
-            selectedGroup: filterState.selectedGroup
-        )
+        vm.recomputeFilteredLessons(all: lessons, filterState: filterState, using: viewModel)
     }
 
     var body: some View {
@@ -178,7 +158,7 @@ struct LessonsRootView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .onAppear(perform: seedSamplesOnce)
+                        .onAppear { vm.seedSamplesIfNeeded(lessons: lessons, into: modelContext) }
                     } else {
                         LessonsCardsGridView(
                             lessons: filteredLessons,
@@ -191,22 +171,7 @@ struct LessonsRootView: View {
                             },
                             onGiveLesson: { (lesson: Lesson) in
                                 presentedSheet = nil
-                                let newSL = StudentLesson(
-                                    id: UUID(),
-                                    lessonID: lesson.id,
-                                    studentIDs: [],
-                                    createdAt: Date(),
-                                    scheduledFor: nil,
-                                    givenAt: nil,
-                                    notes: "",
-                                    needsPractice: false,
-                                    needsAnotherPresentation: false,
-                                    followUpWork: ""
-                                )
-                                newSL.lesson = lesson
-                                newSL.syncSnapshotsFromRelationships()
-                                modelContext.insert(newSL)
-                                try? modelContext.save()
+                                let newSL = vm.createStudentLesson(basedOn: lesson, in: modelContext)
                                 presentedSheet = .studentLessonDraft(newSL.id)
                             }
                         )
@@ -502,16 +467,6 @@ struct LessonsRootView: View {
         }
     }
 
-    private func seedSamplesOnce() {
-        guard lessons.isEmpty else { return }
-        let samples = [
-            Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "A foundational presentation of the decimal system."),
-            Lesson(name: "Parts of Speech", subject: "Language", group: "Grammar", subheading: "Nouns and Verbs", writeUp: "Identify and classify parts of speech in simple sentences.")
-        ]
-        for l in samples { modelContext.insert(l) }
-        try? modelContext.save()
-    }
-
     private var plusMenuOverlay: some View {
         Menu {
             Button {
@@ -526,23 +481,7 @@ struct LessonsRootView: View {
             }
             Button {
                 let baseLesson = (filteredLessons.first ?? lessons.first)
-                let lessonID = baseLesson?.id ?? UUID()
-                let newSL = StudentLesson(
-                    id: UUID(),
-                    lessonID: lessonID,
-                    studentIDs: [],
-                    createdAt: Date(),
-                    scheduledFor: nil,
-                    givenAt: nil,
-                    notes: "",
-                    needsPractice: false,
-                    needsAnotherPresentation: false,
-                    followUpWork: ""
-                )
-                if let base = baseLesson { newSL.lesson = base }
-                newSL.syncSnapshotsFromRelationships()
-                modelContext.insert(newSL)
-                try? modelContext.save()
+                let newSL = vm.createStudentLesson(basedOn: baseLesson, in: modelContext)
                 presentedSheet = .studentLessonDraft(newSL.id)
             } label: {
                 Label("Add Student Lesson", systemImage: "person.crop.circle.badge.plus")

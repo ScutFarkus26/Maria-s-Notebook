@@ -13,6 +13,7 @@
 		515EC5C02EE3C7BC004E918B /* LessonPickerSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515EC5BF2EE3C7BC004E918B /* LessonPickerSection.swift */; };
 		515EC5C22EE3C7C1004E918B /* OptionalDatePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515EC5C12EE3C7C1004E918B /* OptionalDatePicker.swift */; };
 		515EC5CA2EE3E863004E918B /* REDESIGN_SUMMARY.md in Resources */ = {isa = PBXBuildFile; fileRef = 515EC5C92EE3E863004E918B /* REDESIGN_SUMMARY.md */; };
+		515EC9772EE47484004E918B /* LessonsRootViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515EC9762EE47484004E918B /* LessonsRootViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,7 @@
 		515EC5BF2EE3C7BC004E918B /* LessonPickerSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonPickerSection.swift; sourceTree = "<group>"; };
 		515EC5C12EE3C7C1004E918B /* OptionalDatePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptionalDatePicker.swift; sourceTree = "<group>"; };
 		515EC5C92EE3E863004E918B /* REDESIGN_SUMMARY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = REDESIGN_SUMMARY.md; sourceTree = "<group>"; };
+		515EC9762EE47484004E918B /* LessonsRootViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsRootViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -68,6 +70,7 @@
 				515EC5BF2EE3C7BC004E918B /* LessonPickerSection.swift */,
 				515EC5C12EE3C7C1004E918B /* OptionalDatePicker.swift */,
 				515EC5C92EE3E863004E918B /* REDESIGN_SUMMARY.md */,
+				515EC9762EE47484004E918B /* LessonsRootViewModel.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -155,6 +158,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				515EC5C02EE3C7BC004E918B /* LessonPickerSection.swift in Sources */,
+				515EC9772EE47484004E918B /* LessonsRootViewModel.swift in Sources */,
 				515EC5C22EE3C7C1004E918B /* OptionalDatePicker.swift in Sources */,
 				515EC5BE2EE3BC7A004E918B /* DataMigrations.swift in Sources */,
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,

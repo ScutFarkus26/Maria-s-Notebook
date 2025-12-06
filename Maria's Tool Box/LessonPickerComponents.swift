@@ -176,11 +176,10 @@ struct StudentsSection: View {
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .bottom) {
-                    GiveLessonStudentPickerPopover(
-                        viewModel: viewModel,
-                        displayName: displayName,
-                        showingAddStudentSheet: $showingAddStudentSheet,
-                        isPresented: $showingStudentPickerPopover
+                    StudentPickerPopover(
+                        students: viewModel.sortedStudents,
+                        selectedIDs: $viewModel.selectedStudentIDs,
+                        onDone: { showingStudentPickerPopover = false }
                     )
                     .padding(12)
                     .frame(minWidth: 320)
@@ -238,64 +237,6 @@ struct StudentChipsList: View {
 }
 
 
-
-// MARK: - Give Lesson Student Picker Popover
-
-struct GiveLessonStudentPickerPopover: View {
-    @ObservedObject var viewModel: LessonPickerViewModel
-    let displayName: (Student) -> String
-    @Binding var showingAddStudentSheet: Bool
-    @Binding var isPresented: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            TextField("Search students", text: $viewModel.studentSearchText)
-                .textFieldStyle(.roundedBorder)
-            
-            Picker("Level", selection: $viewModel.studentLevelFilter) {
-                ForEach(StudentLevelFilter.allCases, id: \.self) { level in
-                    Text(level.rawValue).tag(level)
-                }
-            }
-            .pickerStyle(.segmented)
-            
-            List(viewModel.filteredStudentsForPicker, id: \.id) { student in
-                Button(action: {
-                    viewModel.toggleStudentSelection(student.id)
-                }) {
-                    HStack {
-                        Text(displayName(student))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if viewModel.selectedStudentIDs.contains(student.id) {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.accentColor)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-            .listStyle(.plain)
-            .frame(minHeight: 200, maxHeight: 360)
-            
-            HStack {
-                Button {
-                    showingAddStudentSheet = true
-                    isPresented = false
-                } label: {
-                    Label("Add Student", systemImage: "plus")
-                }
-                
-                Spacer()
-                
-                Button("Done") {
-                    isPresented = false
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-    }
-}
 
 // MARK: - Status Section
 

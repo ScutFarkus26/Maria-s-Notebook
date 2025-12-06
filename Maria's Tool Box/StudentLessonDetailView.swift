@@ -248,10 +248,7 @@ struct StudentLessonDetailView: View {
     }
 
     private func displayName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+        return StudentFormatter.displayName(for: student)
     }
 
     private func dateChip(_ text: String) -> some View {
@@ -390,9 +387,9 @@ struct StudentLessonDetailView: View {
         .overlay(alignment: .top) {
             Group {
                 if showPlannedBanner {
-                    plannedBanner
+                    PlannedLessonBanner()
                 } else if showMovedBanner {
-                    movedBanner
+                    MovedStudentsBanner(studentNames: movedStudentNames)
                 } else if showQuickBanner {
                     quickBanner
                 }
@@ -400,7 +397,24 @@ struct StudentLessonDetailView: View {
             .allowsHitTesting(false)
         }
         .sheet(isPresented: $showingMoveStudentsSheet) {
-            moveStudentsSheet
+            MoveStudentsSheet(
+                lessonName: lessonName,
+                students: selectedStudentsList,
+                studentsToMove: $studentsToMove,
+                selectedStudentIDs: selectedStudentIDs,
+                onMove: {
+                    moveStudentsToInbox()
+                    showingMoveStudentsSheet = false
+                },
+                onCancel: {
+                    studentsToMove = []
+                    showingMoveStudentsSheet = false
+                }
+            )
+            #if os(macOS)
+            .frame(minWidth: 420, minHeight: 520)
+            .presentationSizing(.fitted)
+            #endif
         }
         .onAppear {
             presentedDate = calendar.startOfDay(for: givenAt ?? Date())
@@ -498,7 +512,13 @@ struct StudentLessonDetailView: View {
                 }
                 .buttonStyle(.bordered)
                 .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
-                    studentPickerPopover
+                    StudentPickerPopover(
+                        students: studentsAll,
+                        selectedIDs: $selectedStudentIDs,
+                        onDone: { showingStudentPickerPopover = false }
+                    )
+                    .padding(12)
+                    .frame(minWidth: 320)
                 }
                 
                 if selectedStudentsList.count > 1 && !isPresented {
@@ -847,139 +867,6 @@ struct StudentLessonDetailView: View {
         )
     }
     
-    private var moveStudentsSheet: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Move Students to Inbox")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
-            
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Select students who didn't attend. They'll be moved to the Inbox as one group for \"\(lessonName)\".")
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                    .foregroundStyle(.secondary)
-                
-                // Inserted HStack with Select Absent button only (removed Move Absent to Inbox button)
-                HStack(spacing: 8) {
-                    Button {
-                        // Select all absent students from the current selection list
-                        studentsToMove = absentIDsForSelection
-                    } label: {
-                        Label("Select Absent", systemImage: "person.crop.circle.badge.exclamationmark")
-                    }
-                }
-                
-                Divider()
-                
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(selectedStudentsList, id: \.id) { student in
-                            Button {
-                                if studentsToMove.contains(student.id) {
-                                    studentsToMove.remove(student.id)
-                                } else {
-                                    studentsToMove.insert(student.id)
-                                }
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: studentsToMove.contains(student.id) ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(studentsToMove.contains(student.id) ? Color.orange : Color.secondary)
-                                        .font(.system(size: 20))
-                                    
-                                    Text(displayName(for: student))
-                                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    
-                                    Spacer()
-                                }
-                                .contentShape(Rectangle())
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(studentsToMove.contains(student.id) ? Color.orange.opacity(0.1) : Color.clear)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
-                }
-                .frame(maxHeight: 360)
-            }
-            .padding(24)
-            
-            Spacer()
-            
-            // Footer
-            VStack(spacing: 0) {
-                Divider()
-                HStack {
-                    Button("Cancel") {
-                        studentsToMove = []
-                        showingMoveStudentsSheet = false
-                    }
-                    
-                    Spacer()
-                    
-                    Button {
-                        if isOptionDown {
-                            // Move currently absent students directly to inbox as a group
-                            studentsToMove = absentIDsForSelection
-                        }
-                        moveStudentsToInbox()
-                        showingMoveStudentsSheet = false
-                    } label: {
-                        if isOptionDown {
-                            Label("Move Absent to Inbox", systemImage: "tray.and.arrow.down")
-                        } else {
-                            Label("Move to Inbox", systemImage: "tray")
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isOptionDown ? absentIDsForSelection.isEmpty : studentsToMove.isEmpty)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.bar)
-            }
-#if os(macOS)
-            OptionKeyMonitor { down in
-                isOptionDown = down
-            }
-            .frame(width: 0, height: 0)
-#endif
-        }
-        .frame(minWidth: 420, minHeight: 520)
-    }
-    
-    private var movedBanner: some View {
-        VStack(spacing: 4) {
-            Text("Students moved to Inbox")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            if !movedStudentNames.isEmpty {
-                Text(movedStudentNames.joined(separator: ", "))
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.orange.opacity(0.95))
-        )
-        .foregroundColor(.white)
-        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
-        .padding(.top, 8)
-    }
-
     private var quickBanner: some View {
         Text(quickBannerText)
             .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
@@ -992,91 +879,6 @@ struct StudentLessonDetailView: View {
             .foregroundColor(.white)
             .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
             .padding(.top, 8)
-    }
-    
-    private var studentPickerPopover: some View {
-        VStack(spacing: 10) {
-            // Search field
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search students", text: $studentSearchText)
-                    .textFieldStyle(.plain)
-                if !studentSearchText.isEmpty {
-                    Button {
-                        studentSearchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-            )
-
-            Picker("Level", selection: $studentLevelFilter) {
-                Text("All").tag(LevelFilter.all)
-                Text("Lower").tag(LevelFilter.lower)
-                Text("Upper").tag(LevelFilter.upper)
-            }
-            .pickerStyle(.segmented)
-
-            // Spacer between filters and list
-            Divider().padding(.top, 2)
-
-            // List of students with checkmarks
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(filteredStudentsForPicker, id: \.id) { student in
-                        Button {
-                            if selectedStudentIDs.contains(student.id) {
-                                selectedStudentIDs.remove(student.id)
-                            } else {
-                                selectedStudentIDs.insert(student.id)
-                            }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: selectedStudentIDs.contains(student.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedStudentIDs.contains(student.id) ? Color.accentColor : Color.secondary)
-                                Text(displayName(for: student))
-                                    .foregroundStyle(.primary)
-                                Spacer(minLength: 0)
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 6)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.top, 4)
-            }
-            .frame(maxHeight: 280)
-
-            Divider()
-
-            HStack {
-                Button {
-                    showingAddStudentSheet = true
-                } label: {
-                    Label("New Student…", systemImage: "plus")
-                }
-                .buttonStyle(.borderless)
-
-                Spacer()
-
-                Button("Done") {
-                    showingStudentPickerPopover = false
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(12)
-        .frame(minWidth: 320)
     }
 
     private var scheduleSection: some View {
@@ -1207,20 +1009,6 @@ struct StudentLessonDetailView: View {
     
     // MARK: - Banner Views
     
-    private var plannedBanner: some View {
-        Text("Next lesson added to Ready to Schedule")
-            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.green.opacity(0.95))
-            )
-            .foregroundColor(.white)
-            .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
-            .padding(.top, 8)
-    }
-
     private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
         quickBannerText = text
         quickBannerColor = color
@@ -1507,6 +1295,4 @@ struct FlowLayout: Layout {
         }
     }
 }
-
-
 

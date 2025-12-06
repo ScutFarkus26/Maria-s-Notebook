@@ -53,12 +53,7 @@ final class WorkDetailViewModel: ObservableObject {
     }
 
     private func displayName(for student: Student) -> String {
-        let f = student.firstName
-        let l = student.lastName
-        if !f.isEmpty && !l.isEmpty {
-            return "\(f) \(l.prefix(1))."
-        }
-        return f + (l.isEmpty ? "" : " \(l)")
+        return StudentFormatter.displayName(for: student)
     }
 
     func isStudentCompletedDraft(_ studentID: UUID) -> Bool {
@@ -166,3 +161,4 @@ final class WorkDetailViewModel: ObservableObject {
         }
     }
 }
+

@@ -201,12 +201,14 @@ struct PlanningRootView: View {
         VStack(spacing: 0) {
             HStack {
                 Spacer()
-                Picker("View", selection: $modeRaw) {
-                    Text(Mode.agenda.rawValue).tag(Mode.agenda.rawValue)
-                    Text(Mode.board.rawValue).tag(Mode.board.rawValue)
+                HStack(spacing: 12) {
+                    PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) {
+                        modeRaw = Mode.agenda.rawValue
+                    }
+                    PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) {
+                        modeRaw = Mode.board.rawValue
+                    }
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 260)
                 Spacer()
             }
             .padding(.top, 8)

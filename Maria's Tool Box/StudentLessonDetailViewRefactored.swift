@@ -1,3 +1,5 @@
+#if false  // Disabled: consolidated on StudentLessonDetailView as the canonical implementation
+
 import SwiftUI
 import SwiftData
 
@@ -270,3 +272,5 @@ struct StudentLessonDetailViewRefactored: View {
 #Preview {
     Text("StudentLessonDetailView preview requires real model data")
 }
+#endif
+
