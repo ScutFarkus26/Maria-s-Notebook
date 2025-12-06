@@ -11,14 +11,16 @@ struct DayColumn: View {
     let onQuickActions: (StudentLesson) -> Void
     let onPlanNext: (StudentLesson) -> Void
 
-    private var dropZoneHeight: CGFloat {
-        let overhead: CGFloat = UIConstants.dayHeaderApproxHeight + (UIConstants.labelHeight * 2) + (UIConstants.dayColumnSpacing * 3)
-        let remaining = max(UIConstants.minDropZoneTotalHeight, availableHeight - overhead)
-        return remaining / 2
+    init(day: Date, availableHeight: CGFloat, onSelectLesson: @escaping (StudentLesson) -> Void, onQuickActions: @escaping (StudentLesson) -> Void, onPlanNext: @escaping (StudentLesson) -> Void) {
+        self.day = day
+        self.availableHeight = availableHeight
+        self.onSelectLesson = onSelectLesson
+        self.onQuickActions = onQuickActions
+        self.onPlanNext = onPlanNext
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: UIConstants.dayColumnSpacing) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(dayName)
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -36,20 +38,33 @@ struct DayColumn: View {
             }
             .padding(.bottom, 2)
 
-            Text("Morning")
-                .font(.system(size: 12, weight: .regular, design: .rounded))
-                .foregroundStyle(.secondary)
-            DropZone(allStudentLessons: studentLessons, day: day, period: PlanningDayPeriod.morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
-                .frame(height: dropZoneHeight)
+            VStack(alignment: .leading, spacing: 0) {
+                periodChip(title: "Morning", tint: .blue)
+                DropZone(allStudentLessons: studentLessons, day: day, period: PlanningDayPeriod.morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                    .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
-            Text("Afternoon")
-                .font(.system(size: 12, weight: .regular, design: .rounded))
-                .foregroundStyle(.secondary)
+            periodChip(title: "Afternoon", tint: .orange)
+                .padding(.top, UIConstants.dayColumnSpacing)
             DropZone(allStudentLessons: studentLessons, day: day, period: PlanningDayPeriod.afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
-                .frame(height: dropZoneHeight)
+                .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private var dayName: String { Formatters.dayName.string(from: day) }
     private var dayNumber: String { Formatters.dayNumber.string(from: day) }
+    
+    private func periodChip(title: String, tint: Color) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(tint.opacity(0.12))
+            )
+    }
 }
+

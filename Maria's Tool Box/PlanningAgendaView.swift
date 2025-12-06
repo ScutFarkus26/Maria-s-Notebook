@@ -15,6 +15,19 @@ struct PlanningAgendaView: View {
 
     // MARK: - Helpers
     private func startOfDay(_ date: Date) -> Date { calendar.startOfDay(for: date) }
+    
+    private func periodChip(for period: DayPeriod) -> some View {
+        let title = (period == .morning ? "Morning" : "Afternoon")
+        let tint: Color = (period == .morning ? .blue : .orange)
+        return Text(title)
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(tint.opacity(0.12))
+            )
+    }
 
     // MARK: - Environment / Queries
     @Environment(\.calendar) private var calendar
@@ -305,9 +318,8 @@ struct PlanningAgendaView: View {
     private func dayBody(_ day: Date) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach([DayPeriod.morning, .afternoon], id: \.self) { period in
-                Text(period == .morning ? "Morning" : "Afternoon")
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
+                periodChip(for: period)
+                    .padding(.bottom, 4)
                 AgendaSlot(
                     allStudentLessons: studentLessons,
                     day: day,
