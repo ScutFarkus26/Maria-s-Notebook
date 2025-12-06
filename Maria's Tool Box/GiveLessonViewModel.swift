@@ -214,10 +214,10 @@ final class LessonPickerViewModel: ObservableObject {
         let selectedSet = Set(selectedIDs)
         let targetLessonID = finalLesson.id
         let predicate = #Predicate<StudentLesson> { sl in
-            sl.lessonID == targetLessonID && sl.givenAt == nil
+            sl.givenAt == nil && sl.lessonID == targetLessonID
         }
         let existingCandidates = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))) ?? []
-        let existingMatch = existingCandidates.first(where: { Set($0.studentIDs) == selectedSet })
+        let existingMatch = existingCandidates.first(where: { $0.resolvedLessonID == targetLessonID && Set($0.resolvedStudentIDs) == selectedSet })
 
         // Either reuse existing or create a new one
         let studentLesson: StudentLesson
@@ -256,8 +256,8 @@ final class LessonPickerViewModel: ObservableObject {
         let fetchedStudents = (try? context.fetch(studentsFetch)) ?? []
         studentLesson.students = fetchedStudents
         studentLesson.lesson = finalLesson
-        studentLesson.syncSnapshotsFromRelationships()
-
+        // Removed call to syncSnapshotsFromRelationships()
+        
         if isNew {
             context.insert(studentLesson)
         }
@@ -278,6 +278,8 @@ final class LessonPickerViewModel: ObservableObject {
                     createdAt: Date()
                 )
                 context.insert(practiceWork)
+                practiceWork.ensureParticipantsFromStudentIDs()
+                practiceWork.mirrorStudentIDsFromParticipants()
             }
         }
         
@@ -294,6 +296,8 @@ final class LessonPickerViewModel: ObservableObject {
                 createdAt: Date()
             )
             context.insert(followUp)
+            followUp.ensureParticipantsFromStudentIDs()
+            followUp.mirrorStudentIDsFromParticipants()
         }
         
         do {

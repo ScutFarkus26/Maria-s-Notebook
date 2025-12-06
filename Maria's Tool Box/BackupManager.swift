@@ -154,6 +154,52 @@ struct StudentLessonDTO: Codable {
     var needsPractice: Bool
     var needsAnotherPresentation: Bool
     var followUpWork: String
+    var studentGroupKey: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, lessonID, studentIDs, createdAt, scheduledFor, givenAt, notes, needsPractice, needsAnotherPresentation, followUpWork, studentGroupKey
+    }
+
+    init(
+        id: UUID,
+        lessonID: UUID,
+        studentIDs: [UUID],
+        createdAt: Date,
+        scheduledFor: Date?,
+        givenAt: Date?,
+        notes: String,
+        needsPractice: Bool,
+        needsAnotherPresentation: Bool,
+        followUpWork: String,
+        studentGroupKey: String? = nil
+    ) {
+        self.id = id
+        self.lessonID = lessonID
+        self.studentIDs = studentIDs
+        self.createdAt = createdAt
+        self.scheduledFor = scheduledFor
+        self.givenAt = givenAt
+        self.notes = notes
+        self.needsPractice = needsPractice
+        self.needsAnotherPresentation = needsAnotherPresentation
+        self.followUpWork = followUpWork
+        self.studentGroupKey = studentGroupKey
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.lessonID = try container.decode(UUID.self, forKey: .lessonID)
+        self.studentIDs = try container.decode([UUID].self, forKey: .studentIDs)
+        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+        self.scheduledFor = try container.decodeIfPresent(Date.self, forKey: .scheduledFor)
+        self.givenAt = try container.decodeIfPresent(Date.self, forKey: .givenAt)
+        self.notes = try container.decode(String.self, forKey: .notes)
+        self.needsPractice = try container.decode(Bool.self, forKey: .needsPractice)
+        self.needsAnotherPresentation = try container.decode(Bool.self, forKey: .needsAnotherPresentation)
+        self.followUpWork = try container.decode(String.self, forKey: .followUpWork)
+        self.studentGroupKey = try container.decodeIfPresent(String.self, forKey: .studentGroupKey)
+    }
 }
 
 struct WorkParticipantDTO: Codable {
@@ -241,7 +287,7 @@ struct SchoolDayOverrideDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 13
+    static let currentVersion: Int = 14
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -300,7 +346,8 @@ enum BackupManager {
                 notes: sl.notes,
                 needsPractice: sl.needsPractice,
                 needsAnotherPresentation: sl.needsAnotherPresentation,
-                followUpWork: sl.followUpWork
+                followUpWork: sl.followUpWork,
+                studentGroupKey: sl.studentGroupKeyPersisted.isEmpty ? nil : sl.studentGroupKeyPersisted
             )
         }
 
@@ -489,6 +536,9 @@ enum BackupManager {
                 needsAnotherPresentation: dto.needsAnotherPresentation,
                 followUpWork: dto.followUpWork
             )
+            if let groupKey = dto.studentGroupKey {
+                sl.studentGroupKeyPersisted = groupKey
+            }
             context.insert(sl)
         }
         

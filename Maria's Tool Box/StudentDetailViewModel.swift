@@ -208,6 +208,7 @@ final class StudentDetailViewModel: ObservableObject {
             createdAt: Date()
         )
         work.ensureParticipantsFromStudentIDs()
+        work.mirrorStudentIDsFromParticipants()
         modelContext.insert(work)
         try? modelContext.save()
         selectedWorkForDetail = work
@@ -265,6 +266,7 @@ final class StudentDetailViewModel: ObservableObject {
                 createdAt: Date()
             )
             work.ensureParticipantsFromStudentIDs()
+            work.mirrorStudentIDsFromParticipants()
             modelContext.insert(work)
             try? modelContext.save()
             showToast("\(type.rawValue) work created")

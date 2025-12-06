@@ -14,6 +14,8 @@ extension StudentLesson {
 
     /// Order-insensitive key for quick equality/group checks.
     var studentGroupKey: String {
+        let persisted = (self as? StudentLesson)?.studentGroupKeyPersisted ?? ""
+        if !persisted.isEmpty { return persisted }
         let ids = resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
         return ids.map { $0.uuidString }.joined(separator: ",")
     }

@@ -382,7 +382,7 @@ public struct InboxSheetView: View {
       )
       new.lesson = lessonObj
       if let s = studentObj { new.students = [s] }
-      new.syncSnapshotsFromRelationships()
+      // Removed new.syncSnapshotsFromRelationships()
       modelContext.insert(new)
       return new
     }()

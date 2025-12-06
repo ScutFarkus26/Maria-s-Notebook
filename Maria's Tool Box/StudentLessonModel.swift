@@ -29,6 +29,7 @@ import SwiftData
     var needsPractice: Bool
     var needsAnotherPresentation: Bool
     var followUpWork: String
+    var studentGroupKeyPersisted: String = ""
 
     @Transient var students: [Student] = []
     @Transient var lesson: Lesson?
@@ -92,6 +93,7 @@ import SwiftData
     func syncSnapshotsFromRelationships() {
         self.lessonID = self.lesson?.id ?? self.lessonID
         self.studentIDs = self.students.map { $0.id }
+        self.updateDenormalizedKeys()
     }
 
     var isScheduled: Bool { scheduledFor != nil }
@@ -111,6 +113,11 @@ import SwiftData
             needsAnotherPresentation: needsAnotherPresentation,
             followUpWork: followUpWork
         )
+    }
+
+    func updateDenormalizedKeys() {
+        let ids = self.resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
+        self.studentGroupKeyPersisted = ids.map { $0.uuidString }.joined(separator: ",")
     }
 }
 
