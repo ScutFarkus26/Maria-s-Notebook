@@ -22,9 +22,9 @@ enum PlanningActions {
         guard let idx = candidates.firstIndex(where: { $0.id == currentLesson.id }), idx + 1 < candidates.count else { return }
         let next = candidates[idx + 1]
 
-        let sameStudents = Set(sl.studentIDs)
+        let sameStudents = Set(sl.resolvedStudentIDs)
         let exists = studentLessons.contains { existing in
-            existing.lessonID == next.id && Set(existing.studentIDs) == sameStudents && existing.givenAt == nil
+            existing.resolvedLessonID == next.id && Set(existing.resolvedStudentIDs) == sameStudents && existing.givenAt == nil
         }
         guard !exists else { return }
 

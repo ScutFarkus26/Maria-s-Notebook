@@ -24,9 +24,9 @@ struct StudentLessonDetailView: View {
     @State private var givenAt: Date?
     @State private var isPresented: Bool
     @State private var notes: String
-    @State private var needsPractice: Bool
     @State private var needsAnotherPresentation: Bool
-    @State private var followUpWork: String
+    @State private var showFollowUpSheet: Bool = false
+    @State private var followUpDraft: String = ""
 
     @StateObject private var lessonPickerVM: LessonPickerViewModel
     @State private var lessonPickerFocused: Bool = false
@@ -72,9 +72,7 @@ struct StudentLessonDetailView: View {
         _givenAt = State(initialValue: studentLesson.givenAt)
         _isPresented = State(initialValue: studentLesson.isPresented)
         _notes = State(initialValue: studentLesson.notes)
-        _needsPractice = State(initialValue: studentLesson.needsPractice)
         _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
-        _followUpWork = State(initialValue: studentLesson.followUpWork)
         _selectedStudentIDs = State(initialValue: Set(studentLesson.studentIDs))
         
         _lessonPickerVM = StateObject(wrappedValue: LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: studentLesson.lessonID))
@@ -118,7 +116,7 @@ struct StudentLessonDetailView: View {
         guard let next = nextLessonInGroup else { return }
         let sameStudents = Set(selectedStudentIDs)
         let exists = studentLessonsAll.contains { sl in
-            sl.lessonID == next.id && Set(sl.studentIDs) == sameStudents && sl.givenAt == nil
+            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
         }
         if !exists {
             let newStudentLesson = StudentLesson(
@@ -135,7 +133,6 @@ struct StudentLessonDetailView: View {
             )
             newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
             newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
-            newStudentLesson.syncSnapshotsFromRelationships()
             modelContext.insert(newStudentLesson)
             try? modelContext.save()
         }
@@ -158,14 +155,13 @@ struct StudentLessonDetailView: View {
         // Find or create one unscheduled group StudentLesson for these students
         let targetSet = studentsToMove
         let existing = studentLessonsAll.first(where: { sl in
-            sl.lessonID == currentLesson.id && sl.scheduledFor == nil && !sl.isGiven && Set(sl.studentIDs) == targetSet
+            sl.resolvedLessonID == currentLesson.id && sl.scheduledFor == nil && !sl.isGiven && Set(sl.resolvedStudentIDs) == targetSet
         })
 
         if let ex = existing {
             // Ensure relationships are up to date
             ex.students = studentsAll.filter { targetSet.contains($0.id) }
             ex.lesson = currentLesson
-            ex.syncSnapshotsFromRelationships()
         } else {
             let newStudentLesson = StudentLesson(
                 id: UUID(),
@@ -181,7 +177,6 @@ struct StudentLessonDetailView: View {
             )
             newStudentLesson.students = studentsAll.filter { targetSet.contains($0.id) }
             newStudentLesson.lesson = currentLesson
-            newStudentLesson.syncSnapshotsFromRelationships()
             modelContext.insert(newStudentLesson)
         }
 
@@ -280,6 +275,15 @@ struct StudentLessonDetailView: View {
         return "\(datePart) in the \(period)"
     }
 
+    // Added as per instruction 1
+    private var openLinkedWorks: [WorkModel] {
+        workModels.filter { w in
+            w.studentLessonID == studentLesson.id &&
+            (w.workType == .practice || w.workType == .followUp) &&
+            w.isOpen
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -333,8 +337,13 @@ struct StudentLessonDetailView: View {
                     // 5. Lesson Progress Section
                     lessonProgressSection
                         .padding(.horizontal, 32)
-                    
-                    // 6. Notes Section
+
+                    // 6. Linked Work Section
+                    linkedWorkSection
+                        .padding(.horizontal, 32)
+                        .padding(.top, 24)
+
+                    // 7. Notes Section
                     notesSection
                         .padding(.horizontal, 32)
                         .padding(.top, 24)
@@ -416,6 +425,46 @@ struct StudentLessonDetailView: View {
             .presentationSizing(.fitted)
             #endif
         }
+        .sheet(isPresented: $showFollowUpSheet) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("New Follow-Up")
+                    .font(.headline)
+                TextField("Describe follow-up work…", text: $followUpDraft, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...4)
+                HStack {
+                    Spacer()
+                    Button("Cancel") { showFollowUpSheet = false }
+                    Button("Add") {
+                        let trimmed = followUpDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            // Create follow-up work linked to this student lesson
+                            let work = WorkModel(
+                                id: UUID(),
+                                title: "Follow Up: \(lessonObject?.name ?? "Lesson")",
+                                studentIDs: Array(selectedStudentIDs),
+                                workType: .followUp,
+                                studentLessonID: studentLesson.id,
+                                notes: trimmed,
+                                createdAt: Date()
+                            )
+                            work.ensureParticipantsFromStudentIDs()
+                            work.mirrorStudentIDsFromParticipants()
+                            modelContext.insert(work)
+                            try? modelContext.save()
+                        }
+                        showFollowUpSheet = false
+                        showBanner(text: "Follow-up added", color: .yellow)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(16)
+            #if os(macOS)
+            .frame(minWidth: 420)
+            .presentationSizing(.fitted)
+            #endif
+        }
         .onAppear {
             presentedDate = calendar.startOfDay(for: givenAt ?? Date())
             rePresentDate = defaultRePresentDate()
@@ -439,6 +488,34 @@ struct StudentLessonDetailView: View {
             // Don't let student picker affect lesson picker state
             if !isShowing && lessonPickerFocused {
                 lessonPickerFocused = false
+            }
+        }
+        .onChange(of: needsAnotherPresentation) { _, newValue in
+            // If toggled on and user doesn't schedule, create an unscheduled re-present entry if it doesn't exist
+            if newValue {
+                let sameStudents = Set(selectedStudentIDs)
+                let exists = studentLessonsAll.contains { sl in
+                    sl.resolvedLessonID == editingLessonID && sl.scheduledFor == nil && !sl.isGiven && Set(sl.resolvedStudentIDs) == sameStudents
+                }
+                if !exists {
+                    let newStudentLesson = StudentLesson(
+                        id: UUID(),
+                        lessonID: editingLessonID,
+                        studentIDs: Array(sameStudents),
+                        createdAt: Date(),
+                        scheduledFor: nil,
+                        givenAt: nil,
+                        notes: "",
+                        needsPractice: false,
+                        needsAnotherPresentation: false,
+                        followUpWork: ""
+                    )
+                    newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+                    newStudentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
+                    modelContext.insert(newStudentLesson)
+                    try? modelContext.save()
+                    NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+                }
             }
         }
     }
@@ -682,21 +759,15 @@ struct StudentLessonDetailView: View {
                     }
                 }
                 
-                // Needs Practice Flag
+                // Replace Needs Practice Flag with action button
                 HStack {
-                    Toggle(isOn: $needsPractice) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .foregroundStyle(needsPractice ? .purple : .secondary)
-                                .font(.system(size: 18))
-                            Text("Needs Practice")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                        }
+                    Button {
+                        addPracticeIfNeeded()
+                    } label: {
+                        Label("Add Practice", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
                     }
-                    .toggleStyle(.button)
-                    .buttonStyle(.borderless)
-                    .tint(.purple)
-                    
+                    .buttonStyle(.bordered)
                     Spacer()
                 }
                 
@@ -752,7 +823,7 @@ struct StudentLessonDetailView: View {
                     }
                 }
                 
-                // Follow-Up Work
+                // Replace Follow-Up Work with Add button and sheet
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         Image(systemName: "sparkles")
@@ -761,10 +832,15 @@ struct StudentLessonDetailView: View {
                         Text("Follow-Up Work")
                             .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
                     }
-                    
-                    TextField("Describe follow-up work…", text: $followUpWork, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(2...4)
+
+                    Button {
+                        followUpDraft = ""
+                        showFollowUpSheet = true
+                    } label: {
+                        Label("Add Follow-Up…", systemImage: "plus")
+                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                    }
+                    .buttonStyle(.bordered)
                 }
                 
                 // Next lesson section (when presented)
@@ -788,7 +864,7 @@ struct StudentLessonDetailView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(didPlanNext || studentLessonsAll.contains { sl in
-                            sl.lessonID == next.id && Set(sl.studentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
+                            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
                         })
                     }
                 }
@@ -801,6 +877,71 @@ struct StudentLessonDetailView: View {
         }
     }
     
+    // Added as per instruction 3
+    private var linkedWorkSection: some View {
+        Group {
+            if !openLinkedWorks.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "link")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 16))
+                        Text("Linked Work")
+                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack(spacing: 10) {
+                        ForEach(openLinkedWorks, id: \.id) { work in
+                            let (icon, color) = workIconAndColor(work.workType)
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: icon)
+                                        .foregroundStyle(color)
+                                    Text(work.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? (work.workType == .practice ? "Practice" : "Follow Up") : work.title)
+                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                }
+
+                                // Per-student completion toggles for participants
+                                FlowLayout(spacing: 8) {
+                                    ForEach(work.participants, id: \.id) { participant in
+                                        if let student = studentsAll.first(where: { $0.id == participant.studentID }) {
+                                            let done = participant.completedAt != nil
+                                            Button {
+                                                toggleWorkCompletion(work, studentID: student.id)
+                                            } label: {
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                                                    Text(displayName(for: student))
+                                                }
+                                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                                .padding(.horizontal, 10)
+                                                .padding(.vertical, 6)
+                                                .foregroundStyle(color)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                        .fill(color.opacity(0.15))
+                                                )
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.primary.opacity(0.03))
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// 6. Notes Section with subtle ruled-paper aesthetic
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -844,6 +985,24 @@ struct StudentLessonDetailView: View {
     
     // MARK: - Helper Views (kept for compatibility)
     
+    // Added as per instruction 2
+    private func workIconAndColor(_ type: WorkModel.WorkType) -> (String, Color) {
+        switch type {
+        case .research: return ("magnifyingglass", .teal)
+        case .followUp: return ("bolt.fill", .orange)
+        case .practice: return ("arrow.triangle.2.circlepath", .purple)
+        }
+    }
+
+    private func toggleWorkCompletion(_ work: WorkModel, studentID: UUID) {
+        if work.isStudentCompleted(studentID) {
+            work.markStudent(studentID, completedAt: nil)
+        } else {
+            work.markStudent(studentID, completedAt: Date())
+        }
+        try? modelContext.save()
+    }
+
     private func studentChip(for student: Student) -> some View {
         HStack(spacing: 6) {
             Text(displayName(for: student))
@@ -959,7 +1118,7 @@ struct StudentLessonDetailView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(didPlanNext || studentLessonsAll.contains { sl in
-                            sl.lessonID == next.id && Set(sl.studentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
+                            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
                         })
                     } else {
                         Text("No next lesson available")
@@ -972,39 +1131,6 @@ struct StudentLessonDetailView: View {
         }
     }
 
-    private var flagsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "flag")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text("Flags")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-
-            Toggle("Needs Practice", isOn: $needsPractice)
-            Toggle("Needs Another Presentation", isOn: $needsAnotherPresentation)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var followUpSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "bolt.fill")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text("Follow Up Work")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-
-            TextField("Follow Up Work", text: $followUpWork)
-                .textFieldStyle(.roundedBorder)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
 
     
     // MARK: - Banner Views
@@ -1025,6 +1151,34 @@ struct StudentLessonDetailView: View {
         isPresented = true
         givenAt = normalized
         saveImmediate()
+        // Phase 3: Auto-create next lesson in group when marking presented
+        if let next = nextLessonInGroup {
+            let sameStudents = Set(selectedStudentIDs)
+            let exists = studentLessonsAll.contains { sl in
+                sl.resolvedLessonID == next.id &&
+                Set(sl.resolvedStudentIDs) == sameStudents &&
+                sl.givenAt == nil
+            }
+            if !exists {
+                let newSL = StudentLesson(
+                    id: UUID(),
+                    lessonID: next.id,
+                    studentIDs: Array(sameStudents),
+                    createdAt: Date(),
+                    scheduledFor: nil,
+                    givenAt: nil,
+                    notes: "",
+                    needsPractice: false,
+                    needsAnotherPresentation: false,
+                    followUpWork: ""
+                )
+                newSL.students = studentsAll.filter { sameStudents.contains($0.id) }
+                newSL.lesson = lessons.first(where: { $0.id == next.id })
+                modelContext.insert(newSL)
+                try? modelContext.save()
+                NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+            }
+        }
         let fmt = DateFormatter()
         fmt.dateStyle = .medium
         fmt.timeStyle = .none
@@ -1032,8 +1186,6 @@ struct StudentLessonDetailView: View {
     }
 
     private func addPracticeIfNeeded() {
-        needsPractice = true
-        // Avoid duplicate Practice work
         let hasPracticeWork = workModels.contains { work in
             work.studentLessonID == studentLesson.id && work.workType == .practice
         }
@@ -1047,9 +1199,11 @@ struct StudentLessonDetailView: View {
                 notes: "",
                 createdAt: Date()
             )
+            practiceWork.ensureParticipantsFromStudentIDs()
+            practiceWork.mirrorStudentIDsFromParticipants()
             modelContext.insert(practiceWork)
+            try? modelContext.save()
         }
-        saveImmediate()
         showBanner(text: "Practice added", color: .purple)
     }
 
@@ -1072,7 +1226,6 @@ struct StudentLessonDetailView: View {
         )
         newStudentLesson.students = selectedStudentsList
         newStudentLesson.lesson = lessonObject
-        newStudentLesson.syncSnapshotsFromRelationships()
         modelContext.insert(newStudentLesson)
 
         do { try modelContext.save() } catch {}
@@ -1095,76 +1248,60 @@ struct StudentLessonDetailView: View {
         studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
         studentLesson.isPresented = isPresented
         studentLesson.notes = notes
-        studentLesson.needsPractice = needsPractice
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.followUpWork = followUpWork
         studentLesson.studentIDs = Array(selectedStudentIDs)
 
         studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
         studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
-        studentLesson.syncSnapshotsFromRelationships()
 
         try? modelContext.save()
     }
 
     private func save() {
+        // Phase 1: Capture prior presented state
+        let wasGiven = studentLesson.isPresented || studentLesson.givenAt != nil
+
         // Commit all local editing state to the model
         studentLesson.lessonID = editingLessonID
         studentLesson.scheduledFor = scheduledFor
         studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
         studentLesson.isPresented = isPresented
         studentLesson.notes = notes
-        studentLesson.needsPractice = needsPractice
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.followUpWork = followUpWork
         studentLesson.studentIDs = Array(selectedStudentIDs)
 
         // Update relationships
         studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
         studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
-        studentLesson.syncSnapshotsFromRelationships()
         
-        // Auto-create a WorkModel for Needs Practice when flagged
-        if needsPractice {
-            let hasPracticeWork = workModels.contains { work in
-                work.studentLessonID == studentLesson.id && work.workType == .practice
+        // Phase 3: Auto-create next lesson in group when marking presented
+        let nowGiven = isPresented || (givenAt != nil)
+        if !wasGiven && nowGiven, let next = nextLessonInGroup {
+            let sameStudents = Set(selectedStudentIDs)
+            let exists = studentLessonsAll.contains { sl in
+                sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
             }
-            if !hasPracticeWork {
-                let practiceWork = WorkModel(
+            if !exists {
+                let newStudentLesson = StudentLesson(
                     id: UUID(),
-                    title: "Practice: \(lessonObject?.name ?? "Lesson")",
-                    studentIDs: Array(selectedStudentIDs),
-                    workType: .practice,
-                    studentLessonID: studentLesson.id,
+                    lessonID: next.id,
+                    studentIDs: Array(sameStudents),
+                    createdAt: Date(),
+                    scheduledFor: nil,
+                    givenAt: nil,
                     notes: "",
-                    createdAt: Date()
+                    needsPractice: false,
+                    needsAnotherPresentation: false,
+                    followUpWork: ""
                 )
-                modelContext.insert(practiceWork)
+                newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+                newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+                modelContext.insert(newStudentLesson)
+                // Notify inbox to refresh
+                NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
             }
         }
-
-        // Auto-create a WorkModel for Follow Up Work when provided
-        let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedFollowUp.isEmpty {
-            let hasDuplicateFollowUp = workModels.contains { work in
-                work.studentLessonID == studentLesson.id &&
-                work.workType == .followUp &&
-                work.notes.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(trimmedFollowUp) == .orderedSame
-            }
-            if !hasDuplicateFollowUp {
-                let followUp = WorkModel(
-                    id: UUID(),
-                    title: "Follow Up: \(lessonObject?.name ?? "Lesson")",
-                    studentIDs: Array(selectedStudentIDs),
-                    workType: .followUp,
-                    studentLessonID: studentLesson.id,
-                    notes: trimmedFollowUp,
-                    createdAt: Date()
-                )
-                modelContext.insert(followUp)
-            }
-        }
-
+        
         do {
             try modelContext.save()
 

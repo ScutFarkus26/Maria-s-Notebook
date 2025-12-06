@@ -73,8 +73,8 @@ public struct InboxSheetView: View {
     let selectedSLs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
     guard !selectedSLs.isEmpty else { return }
 
-    // Group by lesson ID
-    let groups = Dictionary(grouping: selectedSLs, by: { $0.lessonID })
+    // Group by resolvedLessonID
+    let groups = Dictionary(grouping: selectedSLs, by: { $0.resolvedLessonID })
     var consolidatedGroups = 0
     var totalMerged = 0
 
@@ -92,9 +92,9 @@ public struct InboxSheetView: View {
       guard let targetID = currentOrder.first(where: { groupIDs.contains($0) }),
             let target = studentLessons.first(where: { $0.id == targetID }) else { continue }
 
-      // Union of student IDs across the group
-      var union = Set<UUID>(target.studentIDs)
-      for sl in group { union.formUnion(sl.studentIDs) }
+      // Union of student IDs across the group using resolvedStudentIDs
+      var union = Set<UUID>(target.resolvedStudentIDs)
+      for sl in group { union.formUnion(sl.resolvedStudentIDs) }
       let remainingIDs = Array(union)
 
       // Update target's students
@@ -102,7 +102,7 @@ public struct InboxSheetView: View {
       let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
       let fetched = (try? modelContext.fetch(fetch)) ?? []
       target.students = fetched
-      target.syncSnapshotsFromRelationships()
+      // Removed target.syncSnapshotsFromRelationships()
 
       // Delete the others in the group
       for sl in group where sl.id != targetID {
@@ -360,7 +360,7 @@ public struct InboxSheetView: View {
   private func handleStudentToInboxDrop(sourceStudentLessonID: UUID, lessonID: UUID, studentID: UUID, location: CGPoint) {
     // 1) Find or create an unscheduled single-student StudentLesson for this lesson+student
     let targetSL: StudentLesson = {
-      if let existing = studentLessons.first(where: { $0.lessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [studentID] }) {
+      if let existing = studentLessons.first(where: { $0.resolvedLessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && Set($0.resolvedStudentIDs) == Set([studentID]) }) {
         return existing
       }
       // Fetch Lesson and Student to set relationships first
@@ -393,9 +393,8 @@ public struct InboxSheetView: View {
       src.students.removeAll { $0.id == studentID }
       if src.studentIDs.isEmpty {
         modelContext.delete(src)
-      } else {
-        src.syncSnapshotsFromRelationships()
       }
+      // Removed src.syncSnapshotsFromRelationships()
     }
 
     // 3) Insert the target into inbox order at the drop location

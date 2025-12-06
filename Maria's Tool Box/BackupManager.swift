@@ -241,7 +241,7 @@ struct SchoolDayOverrideDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 12
+    static let currentVersion: Int = 13
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -292,8 +292,8 @@ enum BackupManager {
         let studentLessonsDTO: [StudentLessonDTO] = sls.map { sl in
             StudentLessonDTO(
                 id: sl.id,
-                lessonID: sl.lessonID,
-                studentIDs: sl.studentIDs,
+                lessonID: sl.resolvedLessonID,
+                studentIDs: sl.resolvedStudentIDs,
                 createdAt: sl.createdAt,
                 scheduledFor: sl.scheduledFor,
                 givenAt: sl.givenAt,
@@ -311,7 +311,7 @@ enum BackupManager {
             WorkDTO(
                 id: w.id,
                 title: w.title,
-                studentIDs: w.studentIDs,
+                studentIDs: w.resolvedStudentIDs,
                 workType: w.workType.rawValue,
                 studentLessonID: w.studentLessonID,
                 notes: w.notes,
@@ -513,6 +513,7 @@ enum BackupManager {
                     completedAt: dto.completedAt,
                     participants: participants
                 )
+                work.mirrorStudentIDsFromParticipants()
                 for p in work.participants { p.work = work }
                 context.insert(work)
             }

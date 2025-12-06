@@ -53,6 +53,15 @@ import SwiftUI
     // MARK: - Completion helpers
     var isCompleted: Bool { completedAt != nil }
 
+    /// A work item is considered open if any participant has not completed their work.
+    /// If there are no participants, treat it as open so it appears in triage lists.
+    var isOpen: Bool {
+        // If no participants have been assigned, consider it open
+        if participants.isEmpty { return true }
+        // Otherwise open if any participant has not completed
+        return participants.contains { $0.completedAt == nil }
+    }
+
     func participant(for studentID: UUID) -> WorkParticipantEntity? {
         return participants.first { $0.studentID == studentID }
     }

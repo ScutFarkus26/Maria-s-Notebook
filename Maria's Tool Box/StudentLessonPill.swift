@@ -267,7 +267,7 @@ struct StudentLessonPill: View {
                                 target.students.append(s2)
                             }
                         }
-                        target.syncSnapshotsFromRelationships()
+                        // Removed: target.syncSnapshotsFromRelationships()
                     }
                     source.studentIDs.removeAll { $0 == studentID }
                     if source.studentIDs.isEmpty {
@@ -277,7 +277,7 @@ struct StudentLessonPill: View {
                         let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
                         let fetched = (try? modelContext.fetch(fetch)) ?? []
                         source.students = fetched
-                        source.syncSnapshotsFromRelationships()
+                        // Removed: source.syncSnapshotsFromRelationships()
                     }
                     try? modelContext.save()
                     NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)

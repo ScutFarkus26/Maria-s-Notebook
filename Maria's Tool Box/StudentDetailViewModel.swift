@@ -34,11 +34,11 @@ final class StudentDetailViewModel: ObservableObject {
 
         // Works for this student
         worksForStudent = workModels
-            .filter { $0.studentIDs.contains(student.id) }
+            .filter { $0.resolvedStudentIDs.contains(student.id) }
             .sorted { $0.createdAt > $1.createdAt }
 
         // Next lessons for this student (not yet presented)
-        let fetchedSL = studentLessons.filter { $0.studentIDs.contains(student.id) && !$0.isPresented }
+        let fetchedSL = studentLessons.filter { $0.resolvedStudentIDs.contains(student.id) && !$0.isPresented }
         let sortedSL = fetchedSL.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?):
@@ -55,7 +55,7 @@ final class StudentDetailViewModel: ObservableObject {
 
         // Summaries
         workSummary = Self.computeWorkSummary(for: student.id, works: worksForStudent, studentLessonsByID: studentLessonsByID)
-        masteredLessonIDs = Set(studentLessons.filter { $0.isPresented && $0.studentIDs.contains(student.id) }.map { $0.lessonID })
+        masteredLessonIDs = Set(studentLessons.filter { $0.isPresented && $0.resolvedStudentIDs.contains(student.id) }.map { $0.resolvedLessonID })
         plannedLessonIDs = Set(nextLessonsForStudent.map { $0.lessonID })
     }
 
@@ -123,7 +123,7 @@ final class StudentDetailViewModel: ObservableObject {
     }
 
     func latestStudentLesson(for lessonID: UUID, studentID: UUID) -> StudentLesson? {
-        let matches = studentLessonsByID.values.filter { $0.lessonID == lessonID && $0.studentIDs.contains(studentID) }
+        let matches = studentLessonsByID.values.filter { $0.resolvedLessonID == lessonID && $0.resolvedStudentIDs.contains(studentID) }
         return matches.sorted { lhs, rhs in
             let lDate = lhs.givenAt ?? lhs.scheduledFor ?? lhs.createdAt
             let rDate = rhs.givenAt ?? rhs.scheduledFor ?? rhs.createdAt
@@ -132,7 +132,7 @@ final class StudentDetailViewModel: ObservableObject {
     }
 
     func upcomingStudentLesson(for lessonID: UUID, studentID: UUID) -> StudentLesson? {
-        let matches = studentLessonsByID.values.filter { $0.lessonID == lessonID && $0.studentIDs.contains(studentID) && !$0.isGiven }
+        let matches = studentLessonsByID.values.filter { $0.resolvedLessonID == lessonID && $0.resolvedStudentIDs.contains(studentID) && !$0.isGiven }
         return matches.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?):
@@ -192,7 +192,7 @@ final class StudentDetailViewModel: ObservableObject {
     func openWork(for lesson: Lesson, type: WorkModel.WorkType, modelContext: ModelContext) {
         if let existing = worksForStudent.first(where: { work in
             guard work.workType == type, let slID = work.studentLessonID, let sl = studentLessonsByID[slID] else { return false }
-            return sl.lessonID == lesson.id
+            return sl.resolvedLessonID == lesson.id
         }) {
             selectedWorkForDetail = existing
             return
@@ -245,7 +245,7 @@ final class StudentDetailViewModel: ObservableObject {
         let sid = student.id
         if let existing = worksForStudent.first(where: { work in
             guard work.workType == type, let slID = work.studentLessonID, let sl = studentLessonsByID[slID] else { return false }
-            return sl.lessonID == lesson.id
+            return sl.resolvedLessonID == lesson.id
         }) {
             if existing.isStudentCompleted(sid) {
                 existing.markStudent(sid, completedAt: nil)

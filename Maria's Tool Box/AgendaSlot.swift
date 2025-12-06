@@ -318,7 +318,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         })
                         let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
 
-                        let existing = allStudentLessons.first(where: { $0.lessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [studentID] })
+                        let existing = allStudentLessons.first(where: { $0.resolvedLessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && Set($0.resolvedStudentIDs) == Set([studentID]) })
                         let targetSL: StudentLesson
                         if let ex = existing {
                             targetSL = ex
@@ -328,7 +328,6 @@ struct AgendaSlotDropDelegate: DropDelegate {
                             let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
                             new.lesson = (try? modelContext.fetch(lessonFetch))?.first
                             if let s = (try? modelContext.fetch(studentFetch))?.first { new.students = [s] }
-                            new.syncSnapshotsFromRelationships()
                             modelContext.insert(new)
                             targetSL = new
                         }
@@ -347,7 +346,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         if let src = allStudentLessons.first(where: { $0.id == srcID }) {
                             src.studentIDs.removeAll { $0 == studentID }
                             src.students.removeAll { $0.id == studentID }
-                            if src.studentIDs.isEmpty { modelContext.delete(src) } else { src.syncSnapshotsFromRelationships() }
+                            if src.studentIDs.isEmpty { modelContext.delete(src) } else { /* Removed src.syncSnapshotsFromRelationships() */ }
                         }
                         try? modelContext.save()
                         return

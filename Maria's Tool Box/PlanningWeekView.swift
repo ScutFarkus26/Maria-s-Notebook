@@ -105,9 +105,9 @@ import SwiftData
         guard let idx = candidates.firstIndex(where: { $0.id == currentLesson.id }), idx + 1 < candidates.count else { return }
         let next = candidates[idx + 1]
 
-        let sameStudents = Set(sl.studentIDs)
+        let sameStudents = Set(sl.resolvedStudentIDs)
         let exists = studentLessons.contains { existing in
-            existing.lessonID == next.id && Set(existing.studentIDs) == sameStudents && existing.givenAt == nil
+            existing.resolvedLessonID == next.id && Set(existing.resolvedStudentIDs) == sameStudents && existing.givenAt == nil
         }
         guard !exists else { return }
 
@@ -125,7 +125,6 @@ import SwiftData
         )
         newStudentLesson.students = students.filter { sameStudents.contains($0.id) }
         newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
-        newStudentLesson.syncSnapshotsFromRelationships()
         modelContext.insert(newStudentLesson)
         try? modelContext.save()
     }

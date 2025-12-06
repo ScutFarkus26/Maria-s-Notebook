@@ -59,8 +59,8 @@ struct StudentDetailView: View {
     private var nextLessonsForStudent: [StudentLessonSnapshot] { vm.nextLessonsForStudent }
 
     // Added filtered computed properties for student-specific data
-    private var studentLessonsAll: [StudentLesson] { studentLessonsRaw.filter { $0.studentIDs.contains(student.id) } }
-    private var workModelsAll: [WorkModel] { workModelsRaw.filter { $0.studentIDs.contains(student.id) } }
+    private var studentLessonsAll: [StudentLesson] { studentLessonsRaw.filter { $0.resolvedStudentIDs.contains(student.id) } }
+    private var workModelsAll: [WorkModel] { workModelsRaw.filter { $0.resolvedStudentIDs.contains(student.id) } }
 
     // Lightweight ID arrays to aid type-checker in onChange
     private var lessonIDs: [UUID] { lessons.map(\.id) }
@@ -563,7 +563,7 @@ struct StudentDetailView: View {
 
     private func createDraftStudentLesson(for lesson: Lesson) -> StudentLesson {
         // Reuse an existing unscheduled entry for this lesson+student if it exists
-        if let existing = studentLessonsRaw.first(where: { $0.lessonID == lesson.id && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [student.id] }) {
+        if let existing = studentLessonsRaw.first(where: { $0.resolvedLessonID == lesson.id && $0.scheduledFor == nil && !$0.isGiven && Set($0.resolvedStudentIDs) == Set([student.id]) }) {
             return existing
         }
 
@@ -582,7 +582,6 @@ struct StudentDetailView: View {
         )
         newSL.students = [student]
         newSL.lesson = lesson
-        newSL.syncSnapshotsFromRelationships()
         modelContext.insert(newSL)
         try? modelContext.save()
         return newSL

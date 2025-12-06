@@ -102,6 +102,7 @@ struct WorkDetailView: View {
                     studentsArea
                     lessonAndTypeSection
                     completionSection
+                    splitCompletedButton
                     notesCollapsibleSection
                     checkInsTimelineSection
                     metadataSection
@@ -269,6 +270,27 @@ struct WorkDetailView: View {
     
     private var completionSection: some View {
         PerStudentCompletionSection(vm: vm)
+    }
+
+    @ViewBuilder
+    private var splitCompletedButton: some View {
+        // Show only for practice work with mixed completion state
+        if vm.workType == .practice {
+            let completedIDs = Set(work.participants.compactMap { $0.completedAt != nil ? $0.studentID : nil })
+            let remainingIDs = Set(work.participants.compactMap { $0.completedAt == nil ? $0.studentID : nil })
+            if !completedIDs.isEmpty && !remainingIDs.isEmpty {
+                Button {
+                    WorkSplitService.splitPracticeWork(work, completedIDs: completedIDs, context: modelContext)
+                    // Refresh caches to reflect changes
+                    updateCaches()
+                } label: {
+                    Label("Split Completed", systemImage: "arrow.triangle.branch")
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                }
+                .buttonStyle(.bordered)
+                .tint(.purple)
+            }
+        }
     }
     
     private var notesSection: some View {

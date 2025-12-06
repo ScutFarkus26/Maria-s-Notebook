@@ -123,6 +123,7 @@ struct MariasToolboxApp: App {
         WindowGroup("") {
             RootView()
                 .onAppear {
+                    MigrationRunner.runIfNeeded(context: sharedModelContainer.mainContext)
                     DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
                     DataMigrations.normalizeWorkDatesToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
                 }

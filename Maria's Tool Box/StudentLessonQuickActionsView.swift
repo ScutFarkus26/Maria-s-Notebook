@@ -27,6 +27,9 @@ struct StudentLessonQuickActionsView: View {
     @State private var didPlanNext: Bool = false
     @State private var showPlannedBanner: Bool = false
 
+    @State private var showFollowUpSheet: Bool = false
+    @State private var followUpDraft: String = ""
+
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
         self.studentLesson = studentLesson
         self.onDone = onDone
@@ -76,13 +79,16 @@ struct StudentLessonQuickActionsView: View {
                 }
 
                 Section {
-                    Toggle("Needs Practice", isOn: $needsPractice)
+                    Button("Add Practice", systemImage: "arrow.triangle.2.circlepath") {
+                        addPracticeIfNeeded()
+                    }
                     Toggle("Needs Another Presentation", isOn: $needsAnotherPresentation)
                 }
 
-                Section {
-                    TextField("Follow Up Work", text: $followUpWork)
-                        .disableAutocorrection(true)
+                Section(header: Text("Follow Up")) {
+                    Button("Add Follow-Up…", systemImage: "plus") {
+                        showFollowUpSheet = true
+                    }
                 }
 
                 Section(header: Text("Next Lesson in Group")) {
@@ -95,9 +101,9 @@ struct StudentLessonQuickActionsView: View {
                     }
                     Button("Plan Next Lesson in Group") {
                         guard let next = nextLessonInGroup else { return }
-                        let sameStudents = Set(studentLesson.studentIDs)
+                        let sameStudents = Set(studentLesson.resolvedStudentIDs)
                         let exists = studentLessonsAll.contains { sl in
-                            sl.lessonID == next.id && Set(sl.studentIDs) == sameStudents && !sl.isGiven
+                            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && !sl.isGiven
                         }
                         if !exists {
                             let newStudentLesson = StudentLesson(
@@ -115,7 +121,6 @@ struct StudentLessonQuickActionsView: View {
                             )
                             newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
                             newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
-                            newStudentLesson.syncSnapshotsFromRelationships()
                             modelContext.insert(newStudentLesson)
                             try? modelContext.save()
                         }
@@ -151,42 +156,102 @@ struct StudentLessonQuickActionsView: View {
                 plannedBanner
             }
         }
+        .sheet(isPresented: $showFollowUpSheet) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("New Follow-Up")
+                    .font(.headline)
+                TextField("Describe follow-up work…", text: $followUpDraft)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Spacer()
+                    Button("Cancel") { showFollowUpSheet = false }
+                    Button("Add") {
+                        let trimmed = followUpDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            let followUp = WorkModel(
+                                id: UUID(),
+                                title: "Follow Up: \(lesson?.name ?? "Lesson")",
+                                studentIDs: studentLesson.studentIDs,
+                                workType: .followUp,
+                                studentLessonID: studentLesson.id,
+                                notes: trimmed,
+                                createdAt: Date()
+                            )
+                            followUp.ensureParticipantsFromStudentIDs()
+                            followUp.mirrorStudentIDsFromParticipants()
+                            modelContext.insert(followUp)
+                            try? modelContext.save()
+                        }
+                        showFollowUpSheet = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(16)
+            #if os(macOS)
+            .frame(minWidth: 420)
+            .presentationSizing(.fitted)
+            #endif
+        }
     }
 
     private func saveChanges() {
         if presentedNow {
             studentLesson.isPresented = true
         }
-        studentLesson.needsPractice = needsPractice
+
+        // Phase 3: Auto-create next lesson in group when marking presented now
+        if presentedNow, let current = lessons.first(where: { $0.id == studentLesson.lessonID }) {
+            let currentSubject = current.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+            let currentGroup = current.group.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !currentSubject.isEmpty, !currentGroup.isEmpty {
+                let candidates = lessons.filter { l in
+                    l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
+                    l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
+                }
+                .sorted { $0.orderInGroup < $1.orderInGroup }
+                if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
+                    let next = candidates[idx + 1]
+                    let sameStudents = Set(studentLesson.resolvedStudentIDs)
+                    let exists = studentLessonsAll.contains { sl in
+                        sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
+                    }
+                    if !exists {
+                        let newSL = StudentLesson(
+                            id: UUID(),
+                            lessonID: next.id,
+                            studentIDs: Array(sameStudents),
+                            createdAt: Date(),
+                            scheduledFor: nil,
+                            givenAt: nil,
+                            isPresented: false,
+                            notes: "",
+                            needsPractice: false,
+                            needsAnotherPresentation: false,
+                            followUpWork: ""
+                        )
+                        newSL.students = studentsAll.filter { sameStudents.contains($0.id) }
+                        newSL.lesson = lessons.first(where: { $0.id == next.id })
+                        modelContext.insert(newSL)
+                        try? modelContext.save()
+                        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+                    }
+                }
+            }
+        }
+
+        // Remove legacy fields and auto-create blocks for practice and follow-up
+
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.followUpWork = followUpWork
 
         // Ensure relationships mirror snapshots
         studentLesson.students = studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
         studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
-        studentLesson.syncSnapshotsFromRelationships()
-
-        if needsPractice {
-            let hasPracticeWork = workModels.contains { work in
-                work.studentLessonID == studentLesson.id && work.workType == .practice
-            }
-            if !hasPracticeWork {
-                let practiceWork = WorkModel(
-                    id: UUID(),
-                    studentIDs: studentLesson.studentIDs,
-                    workType: .practice,
-                    studentLessonID: studentLesson.id,
-                    notes: "",
-                    createdAt: Date()
-                )
-                modelContext.insert(practiceWork)
-            }
-        }
 
         if needsAnotherPresentation {
-            let sameStudents = Set(studentLesson.studentIDs)
+            let sameStudents = Set(studentLesson.resolvedStudentIDs)
             let exists = studentLessonsAll.contains { sl in
-                sl.lessonID == studentLesson.lessonID && Set(sl.studentIDs) == sameStudents && !sl.isGiven
+                sl.resolvedLessonID == studentLesson.lessonID && Set(sl.resolvedStudentIDs) == sameStudents && !sl.isGiven
             }
             if !exists {
                 let newPresentation = StudentLesson(
@@ -204,28 +269,7 @@ struct StudentLessonQuickActionsView: View {
                 )
                 newPresentation.students = studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
                 newPresentation.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
-                newPresentation.syncSnapshotsFromRelationships()
                 modelContext.insert(newPresentation)
-            }
-        }
-
-        let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedFollowUp.isEmpty {
-            let hasDuplicateFollowUp = workModels.contains { work in
-                work.studentLessonID == studentLesson.id &&
-                work.workType == .followUp &&
-                work.notes.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(trimmedFollowUp) == .orderedSame
-            }
-            if !hasDuplicateFollowUp {
-                let followUp = WorkModel(
-                    id: UUID(),
-                    studentIDs: studentLesson.studentIDs,
-                    workType: .followUp,
-                    studentLessonID: studentLesson.id,
-                    notes: trimmedFollowUp,
-                    createdAt: Date()
-                )
-                modelContext.insert(followUp)
             }
         }
 
@@ -236,6 +280,27 @@ struct StudentLessonQuickActionsView: View {
         }
 
         onDone?() ?? dismiss()
+    }
+
+    private func addPracticeIfNeeded() {
+        let hasPracticeWork = workModels.contains { w in
+            w.studentLessonID == studentLesson.id && w.workType == .practice
+        }
+        if !hasPracticeWork {
+            let practice = WorkModel(
+                id: UUID(),
+                title: "Practice: \(lesson?.name ?? "Lesson")",
+                studentIDs: studentLesson.studentIDs,
+                workType: .practice,
+                studentLessonID: studentLesson.id,
+                notes: "",
+                createdAt: Date()
+            )
+            practice.ensureParticipantsFromStudentIDs()
+            practice.mirrorStudentIDsFromParticipants()
+            modelContext.insert(practice)
+            try? modelContext.save()
+        }
     }
 
     private var plannedBanner: some View {
