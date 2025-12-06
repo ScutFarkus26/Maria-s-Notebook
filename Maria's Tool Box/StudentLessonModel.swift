@@ -12,7 +12,17 @@ import SwiftData
     var lessonID: UUID
     var studentIDs: [UUID]
     var createdAt: Date
-    var scheduledFor: Date?
+    var scheduledFor: Date? {
+        didSet {
+            if let date = scheduledFor {
+                scheduledForDay = Calendar.current.startOfDay(for: date)
+            } else {
+                scheduledForDay = Date.distantPast
+            }
+        }
+    }
+    // Denormalized start-of-day for efficient querying and sorting
+    var scheduledForDay: Date = Date.distantPast
     var givenAt: Date?
     var isPresented: Bool = false
     var notes: String
@@ -42,6 +52,7 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
+        self.scheduledForDay = scheduledFor.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -70,6 +81,7 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
+        self.scheduledForDay = scheduledFor.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -118,3 +130,4 @@ struct StudentLessonSnapshot: Identifiable {
     var isScheduled: Bool { scheduledFor != nil }
     var isGiven: Bool { isPresented || givenAt != nil }
 }
+

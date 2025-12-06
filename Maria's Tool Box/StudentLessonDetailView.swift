@@ -1,6 +1,10 @@
 import SwiftUI
 import SwiftData
 
+#if os(macOS)
+import AppKit
+#endif
+
 struct StudentLessonDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -39,6 +43,7 @@ struct StudentLessonDetailView: View {
     @State private var studentsToMove: Set<UUID> = []
     @State private var showMovedBanner: Bool = false
     @State private var movedStudentNames: [String] = []
+    @State private var isOptionDown: Bool = false
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
         self.studentLesson = studentLesson
@@ -116,41 +121,54 @@ struct StudentLessonDetailView: View {
         }
     }
     
-    private func moveStudentsToNewLesson() {
+    private func moveStudentsToInbox() {
         guard !studentsToMove.isEmpty, let currentLesson = lessonObject else { return }
-        
+
         // Get names for the banner
         movedStudentNames = studentsAll
             .filter { studentsToMove.contains($0.id) }
             .map { displayName(for: $0) }
-        
-        // Create new lesson with the students being moved
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
-            lessonID: currentLesson.id,
-            studentIDs: Array(studentsToMove),
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
-        newStudentLesson.students = studentsAll.filter { studentsToMove.contains($0.id) }
-        newStudentLesson.lesson = currentLesson
-        newStudentLesson.syncSnapshotsFromRelationships()
-        modelContext.insert(newStudentLesson)
-        
-        // Remove the students from the current lesson
+
+        // Find or create one unscheduled group StudentLesson for these students
+        let targetSet = studentsToMove
+        let existing = studentLessonsAll.first(where: { sl in
+            sl.lessonID == currentLesson.id && sl.scheduledFor == nil && !sl.isGiven && Set(sl.studentIDs) == targetSet
+        })
+
+        if let ex = existing {
+            // Ensure relationships are up to date
+            ex.students = studentsAll.filter { targetSet.contains($0.id) }
+            ex.lesson = currentLesson
+            ex.syncSnapshotsFromRelationships()
+        } else {
+            let newStudentLesson = StudentLesson(
+                id: UUID(),
+                lessonID: currentLesson.id,
+                studentIDs: Array(targetSet),
+                createdAt: Date(),
+                scheduledFor: nil,
+                givenAt: nil,
+                notes: "",
+                needsPractice: false,
+                needsAnotherPresentation: false,
+                followUpWork: ""
+            )
+            newStudentLesson.students = studentsAll.filter { targetSet.contains($0.id) }
+            newStudentLesson.lesson = currentLesson
+            newStudentLesson.syncSnapshotsFromRelationships()
+            modelContext.insert(newStudentLesson)
+        }
+
+        // Remove the students from the current lesson selection
         selectedStudentIDs.subtract(studentsToMove)
-        
-        // Clear selection
         studentsToMove.removeAll()
-        
+
         // Save changes
         try? modelContext.save()
-        
+
+        // Notify agenda/inbox to refresh immediately
+        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+
         // Show confirmation banner
         showMovedBanner = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -162,6 +180,15 @@ struct StudentLessonDetailView: View {
         studentsAll
             .filter { selectedStudentIDs.contains($0.id) }
             .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
+    }
+    
+    private var absentIDsForSelection: Set<UUID> {
+        let ids = Set(selectedStudentsList.compactMap { s -> UUID? in
+            let id = s.id
+            let status = modelContext.attendanceStatuses(for: [id], on: scheduledFor ?? Date())[id]
+            return status == .absent ? id : nil
+        })
+        return ids
     }
     
     private var filteredStudentsForPicker: [Student] {
@@ -439,7 +466,7 @@ struct StudentLessonDetailView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Move Students to New Lesson")
+                Text("Move Students to Inbox")
                     .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -449,41 +476,58 @@ struct StudentLessonDetailView: View {
             Divider()
             
             VStack(alignment: .leading, spacing: 16) {
-                Text("Select students who didn't attend. They'll be moved to a new lesson with \"\(lessonName)\".")
+                Text("Select students who didn't attend. They'll be moved to the Inbox as one group for \"\(lessonName)\".")
                     .font(.system(size: AppTheme.FontSize.body, design: .rounded))
                     .foregroundStyle(.secondary)
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(selectedStudentsList, id: \.id) { student in
-                        Button {
-                            if studentsToMove.contains(student.id) {
-                                studentsToMove.remove(student.id)
-                            } else {
-                                studentsToMove.insert(student.id)
-                            }
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: studentsToMove.contains(student.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(studentsToMove.contains(student.id) ? Color.orange : Color.secondary)
-                                    .font(.system(size: 20))
-                                
-                                Text(displayName(for: student))
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(studentsToMove.contains(student.id) ? Color.orange.opacity(0.1) : Color.clear)
-                            )
-                        }
-                        .buttonStyle(.plain)
+                // Inserted HStack with Select Absent button only (removed Move Absent to Inbox button)
+                HStack(spacing: 8) {
+                    Button {
+                        // Select all absent students from the current selection list
+                        studentsToMove = absentIDsForSelection
+                    } label: {
+                        Label("Select Absent", systemImage: "person.crop.circle.badge.exclamationmark")
                     }
                 }
+                
+                Divider()
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(selectedStudentsList, id: \.id) { student in
+                            Button {
+                                if studentsToMove.contains(student.id) {
+                                    studentsToMove.remove(student.id)
+                                } else {
+                                    studentsToMove.insert(student.id)
+                                }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: studentsToMove.contains(student.id) ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(studentsToMove.contains(student.id) ? Color.orange : Color.secondary)
+                                        .font(.system(size: 20))
+                                    
+                                    Text(displayName(for: student))
+                                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(studentsToMove.contains(student.id) ? Color.orange.opacity(0.1) : Color.clear)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                }
+                .frame(maxHeight: 360)
             }
             .padding(24)
             
@@ -501,25 +545,39 @@ struct StudentLessonDetailView: View {
                     Spacer()
                     
                     Button {
-                        moveStudentsToNewLesson()
+                        if isOptionDown {
+                            // Move currently absent students directly to inbox as a group
+                            studentsToMove = absentIDsForSelection
+                        }
+                        moveStudentsToInbox()
                         showingMoveStudentsSheet = false
                     } label: {
-                        Label("Move \(studentsToMove.count) Student\(studentsToMove.count == 1 ? "" : "s")", systemImage: "arrow.right.circle.fill")
+                        if isOptionDown {
+                            Label("Move Absent to Inbox", systemImage: "tray.and.arrow.down")
+                        } else {
+                            Label("Move to Inbox", systemImage: "tray")
+                        }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(studentsToMove.isEmpty || studentsToMove.count == selectedStudentIDs.count)
+                    .disabled(isOptionDown ? absentIDsForSelection.isEmpty : studentsToMove.isEmpty)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .background(.bar)
             }
+#if os(macOS)
+            OptionKeyMonitor { down in
+                isOptionDown = down
+            }
+            .frame(width: 0, height: 0)
+#endif
         }
-        .frame(minWidth: 400, minHeight: 450)
+        .frame(minWidth: 420, minHeight: 520)
     }
     
     private var movedBanner: some View {
         VStack(spacing: 4) {
-            Text("Students moved to new lesson")
+            Text("Students moved to Inbox")
                 .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
             if !movedStudentNames.isEmpty {
                 Text(movedStudentNames.joined(separator: ", "))
@@ -869,3 +927,38 @@ struct StudentLessonDetailView: View {
 #Preview {
     Text("StudentLessonDetailView preview requires real model data")
 }
+
+#if os(macOS)
+struct OptionKeyMonitor: NSViewRepresentable {
+    let onChange: (Bool) -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(onChange: onChange) }
+
+    func makeNSView(context: Context) -> NSView {
+        context.coordinator.start()
+        return NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    final class Coordinator {
+        let onChange: (Bool) -> Void
+        private var monitor: Any?
+
+        init(onChange: @escaping (Bool) -> Void) {
+            self.onChange = onChange
+        }
+
+        func start() {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+                self?.onChange(event.modifierFlags.contains(.option))
+                return event
+            }
+        }
+
+        deinit {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+        }
+    }
+}
+#endif
+

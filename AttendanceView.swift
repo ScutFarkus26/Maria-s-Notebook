@@ -117,6 +117,15 @@ struct AttendanceView: View {
                 .buttonStyle(.plain)
                 .help("Next Day")
 
+                Button("Today") {
+                    viewModel.selectedDate = Date().normalizedDay()
+                }
+                .buttonStyle(.plain)
+                .help("Jump to Today")
+#if os(macOS)
+                .keyboardShortcut("t", modifiers: [.command])
+#endif
+
                 Spacer()
 
                 // Level filter

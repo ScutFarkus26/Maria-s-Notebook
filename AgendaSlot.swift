@@ -13,6 +13,7 @@ struct AgendaSlot: View {
     let onQuickActions: (StudentLesson) -> Void
     let onPlanNext: (StudentLesson) -> Void
     let onMoveToInbox: (StudentLesson) -> Void
+    let onMoveStudents: (StudentLesson) -> Void
 
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
@@ -34,7 +35,8 @@ struct AgendaSlot: View {
         onSelectLesson: @escaping (StudentLesson) -> Void,
         onQuickActions: @escaping (StudentLesson) -> Void,
         onPlanNext: @escaping (StudentLesson) -> Void,
-        onMoveToInbox: @escaping (StudentLesson) -> Void
+        onMoveToInbox: @escaping (StudentLesson) -> Void,
+        onMoveStudents: @escaping (StudentLesson) -> Void
     ) {
         self.allStudentLessons = allStudentLessons
         self.day = day
@@ -43,6 +45,7 @@ struct AgendaSlot: View {
         self.onQuickActions = onQuickActions
         self.onPlanNext = onPlanNext
         self.onMoveToInbox = onMoveToInbox
+        self.onMoveStudents = onMoveStudents
     }
 
     var body: some View {
@@ -67,6 +70,7 @@ struct AgendaSlot: View {
                 } else {
                     ForEach(Array(scheduledLessonsForSlot.enumerated()), id: \.element.id) { index, sl in
                         StudentLessonPill(snapshot: sl.snapshot(), day: day, sourceStudentLessonID: sl.id, targetStudentLessonID: sl.id)
+                            .onDrag { NSItemProvider(object: NSString(string: sl.id.uuidString)) }
                             .scaleEffect((isTargeted && insertionIndex == index) ? 1.02 : 1.0)
                             .animation(.spring(response: 0.2, dampingFraction: 0.9), value: insertionIndex)
                             .onTapGesture { onSelectLesson(sl) }
@@ -74,6 +78,7 @@ struct AgendaSlot: View {
                                 Button { onQuickActions(sl) } label: { Label("Quick Actions…", systemImage: "bolt") }
                                 Button { onPlanNext(sl) } label: { Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus") }
                                 Button { onSelectLesson(sl) } label: { Label("Open Details", systemImage: "info.circle") }
+                                Button { onMoveStudents(sl) } label: { Label("Move Students…", systemImage: "person.2.arrow.right") }
                                 Button { onMoveToInbox(sl) } label: { Label("Move to Inbox", systemImage: "tray") }
                             }
                             .background(
@@ -114,72 +119,81 @@ struct AgendaSlot: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onDrop(of: [UTType.text], isTargeted: $isTargeted) { providers, location in
-            // First, handle student-to-slot payloads
-            guard let provider = providers.first else { return false }
-            var handled = false
-            let semaphore = DispatchSemaphore(value: 0)
-            _ = provider.loadObject(ofClass: NSString.self) { reading, _ in
-                defer { semaphore.signal() }
+            guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
+
+            provider.loadObject(ofClass: NSString.self) { reading, _ in
                 guard let ns = reading as? NSString else { return }
                 let payload = ns as String
-                if payload.hasPrefix("STUDENT_TO_INBOX:") || payload.hasPrefix("STUDENT_TO_SLOT:") {
-                    let parts = payload.split(separator: ":")
-                    if parts.count == 4,
-                       let srcID = UUID(uuidString: String(parts[1])),
-                       let lessonID = UUID(uuidString: String(parts[2])),
-                       let studentID = UUID(uuidString: String(parts[3])) {
-                        let current = scheduledLessonsForSlot
-                        var ids = current.map { $0.id }
-                        let frames = itemFrames
-                        let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-                            if let rect = frames[item.id] { return (item.id, rect) }
-                            return nil
-                        })
-                        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
-                        let existing = allStudentLessons.first(where: { $0.lessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [studentID] })
-                        let targetSL: StudentLesson
-                        if let ex = existing { targetSL = ex } else {
-                            let new = StudentLesson(id: UUID(), lessonID: lessonID, studentIDs: [studentID], createdAt: Date(), scheduledFor: nil, givenAt: nil, notes: "", needsPractice: false, needsAnotherPresentation: false, followUpWork: "")
-                            let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-                            let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-                            new.lesson = (try? modelContext.fetch(lessonFetch))?.first
-                            if let s = (try? modelContext.fetch(studentFetch))?.first { new.students = [s] }
-                            new.syncSnapshotsFromRelationships()
-                            modelContext.insert(new)
-                            targetSL = new
+
+                Task { @MainActor in
+                    // First, handle student-to-slot payloads
+                    if payload.hasPrefix("STUDENT_TO_INBOX:") || payload.hasPrefix("STUDENT_TO_SLOT:") {
+                        let parts = payload.split(separator: ":")
+                        if parts.count == 4,
+                           let srcID = UUID(uuidString: String(parts[1])),
+                           let lessonID = UUID(uuidString: String(parts[2])),
+                           let studentID = UUID(uuidString: String(parts[3])) {
+
+                            let current = scheduledLessonsForSlot
+                            var ids = current.map { $0.id }
+                            let frames = itemFrames
+                            let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+                                if let rect = frames[item.id] { return (item.id, rect) }
+                                return nil
+                            })
+                            let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
+
+                            let existing = allStudentLessons.first(where: { $0.lessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [studentID] })
+                            let targetSL: StudentLesson
+                            if let ex = existing {
+                                targetSL = ex
+                            } else {
+                                let new = StudentLesson(id: UUID(), lessonID: lessonID, studentIDs: [studentID], createdAt: Date(), scheduledFor: nil, givenAt: nil, notes: "", needsPractice: false, needsAnotherPresentation: false, followUpWork: "")
+                                let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+                                let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+                                new.lesson = (try? modelContext.fetch(lessonFetch))?.first
+                                if let s = (try? modelContext.fetch(studentFetch))?.first { new.students = [s] }
+                                new.syncSnapshotsFromRelationships()
+                                modelContext.insert(new)
+                                targetSL = new
+                            }
+
+                            ids.removeAll(where: { $0 == targetSL.id })
+                            let boundedIndex = max(0, min(insertionIndex, ids.count))
+                            ids.insert(targetSL.id, at: boundedIndex)
+                            let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
+                            let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+                            for id in ids {
+                                if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] }
+                                if id == targetSL.id { targetSL.scheduledFor = timeMap[id] }
+                            }
+                            if let src = allStudentLessons.first(where: { $0.id == srcID }) {
+                                src.studentIDs.removeAll { $0 == studentID }
+                                src.students.removeAll { $0.id == studentID }
+                                if src.studentIDs.isEmpty { modelContext.delete(src) } else { src.syncSnapshotsFromRelationships() }
+                            }
+                            try? modelContext.save()
+                            return
                         }
-                        ids.removeAll(where: { $0 == targetSL.id })
-                        let boundedIndex = max(0, min(insertionIndex, ids.count))
-                        ids.insert(targetSL.id, at: boundedIndex)
-                        let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
-                        let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
-                        for id in ids {
-                            if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] }
-                            if id == targetSL.id { targetSL.scheduledFor = timeMap[id] }
-                        }
-                        if let src = allStudentLessons.first(where: { $0.id == srcID }) {
-                            src.studentIDs.removeAll { $0 == studentID }
-                            src.students.removeAll { $0.id == studentID }
-                            if src.studentIDs.isEmpty { modelContext.delete(src) } else { src.syncSnapshotsFromRelationships() }
-                        }
-                        Task { @MainActor in try? modelContext.save() }
-                        handled = true
                     }
+
+                    // Fallback: treat as a plain StudentLesson ID and delegate
+                    _ = AgendaSlotDropDelegate(
+                        calendar: calendar,
+                        modelContext: modelContext,
+                        allStudentLessons: allStudentLessons,
+                        day: day,
+                        period: period,
+                        getCurrent: { scheduledLessonsForSlot },
+                        itemFramesProvider: { itemFrames },
+                        onTargetChange: { _ in },
+                        onInsertionIndexChange: { _ in }
+                    ).performDropFromProvidersAsync(providers: providers, location: location)
                 }
             }
-            semaphore.wait()
-            if handled { return true }
-            return AgendaSlotDropDelegate(
-                calendar: calendar,
-                modelContext: modelContext,
-                allStudentLessons: allStudentLessons,
-                day: day,
-                period: period,
-                getCurrent: { scheduledLessonsForSlot },
-                itemFramesProvider: { itemFrames },
-                onTargetChange: { _ in },
-                onInsertionIndexChange: { _ in }
-            ).performDropFromProviders(providers: providers, location: location)
+
+            // Accept the drop; processing will complete asynchronously
+            return true
         }
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -255,7 +269,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         onTargetChange(false)
         let providers = info.itemProviders(for: [UTType.text])
-        return performDropFromProviders(providers: providers, location: info.location)
+        return performDropFromProvidersAsync(providers: providers, location: info.location)
     }
 
     func performDropFromProviders(providers: [NSItemProvider], location: CGPoint) -> Bool {
@@ -286,6 +300,35 @@ struct AgendaSlotDropDelegate: DropDelegate {
         }
         semaphore.wait()
         return result
+    }
+
+    func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
+        guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
+
+        provider.loadObject(ofClass: NSString.self) { reading, _ in
+            guard let ns = reading as? NSString else { return }
+            let payload = ns as String
+
+            Task { @MainActor in
+                if let id = UUID(uuidString: payload.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                    var ids = getCurrent().map { $0.id }
+                    if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
+                    let frames = itemFramesProvider()
+                    let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: getCurrent().compactMap { item in
+                        if let rect = frames[item.id] { return (item.id, rect) }
+                        return nil
+                    })
+                    let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
+                    let bounded = max(0, min(insertionIndex, ids.count))
+                    ids.insert(id, at: bounded)
+                    let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
+                    let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+                    for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] } }
+                    try? modelContext.save()
+                }
+            }
+        }
+        return true
     }
 
     private func computeIndex(_ info: DropInfo) -> Int {

@@ -20,7 +20,6 @@ struct StudentLessonPill: View {
     var targetStudentLessonID: UUID? = nil
 
     @State private var showTimeEditor: Bool = false
-    @State private var hoveredStudentID: UUID? = nil
     @State private var isValidDragTarget: Bool = false
 
     private static let timeOnlyFormatter: DateFormatter = {
@@ -102,13 +101,9 @@ struct StudentLessonPill: View {
         let isMissing: Bool
         let isAbsent: Bool
         let subjectColor: Color
-        let isHovered: Bool
-        let enableDrag: Bool
-        let payload: String?
-        let onHoverChange: (Bool) -> Void
 
         var body: some View {
-            let text = Text(label)
+            Text(label)
                 .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
                 .foregroundStyle(isMissing ? .secondary : (isAbsent ? .secondary : .primary))
                 .padding(.horizontal, 8)
@@ -120,23 +115,6 @@ struct StudentLessonPill: View {
                 .overlay(
                     Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1)
                 )
-                .overlay(
-                    Capsule().stroke(Color.accentColor.opacity(isHovered ? 0.35 : 0.0), lineWidth: 1)
-                )
-                .scaleEffect(isHovered ? 1.03 : 1.0)
-                .onHover { hovering in
-                    if enableDrag {
-                        onHoverChange(hovering)
-                        #if os(macOS)
-                        if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-                        #endif
-                    }
-                }
-            if enableDrag, let payload {
-                return AnyView(text.onDrag { NSItemProvider(object: NSString(string: payload)) })
-            } else {
-                return AnyView(text)
-            }
         }
     }
 
@@ -171,15 +149,7 @@ struct StudentLessonPill: View {
                                         label: chip.label,
                                         isMissing: chip.isMissing,
                                         isAbsent: isAbsent,
-                                        subjectColor: subjectColor,
-                                        isHovered: hoveredStudentID == chip.id,
-                                        enableDrag: sourceStudentLessonID != nil,
-                                        payload: (sourceStudentLessonID != nil) ? DragPayload.encode(sourceID: sourceStudentLessonID!, lessonID: snapshot.lessonID, studentID: chip.id) : nil,
-                                        onHoverChange: { hovering in
-                                            if sourceStudentLessonID != nil {
-                                                if hovering { hoveredStudentID = chip.id } else if hoveredStudentID == chip.id { hoveredStudentID = nil }
-                                            }
-                                        }
+                                        subjectColor: subjectColor
                                     )
                                 }
                             }
@@ -217,11 +187,6 @@ struct StudentLessonPill: View {
                             .padding()
                         }
                         #endif
-                    }
-
-                    if day != nil {
-                        let anyAbsent = snapshot.studentIDs.contains { sid in statusesByStudent[sid] == .absent }
-                        if anyAbsent { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow).font(.caption2) }
                     }
                 }
             }
@@ -309,6 +274,7 @@ struct StudentLessonPill: View {
                         source.syncSnapshotsFromRelationships()
                     }
                     try? modelContext.save()
+                    NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
                 }
             }
             return true

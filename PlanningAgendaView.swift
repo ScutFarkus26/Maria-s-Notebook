@@ -1,6 +1,10 @@
 import SwiftUI
 import SwiftData
 
+private extension Notification.Name {
+    static let PlanningInboxNeedsRefresh = Notification.Name("PlanningInboxNeedsRefresh")
+}
+
 struct PlanningAgendaView: View {
     @StateObject private var viewModel = PlanningAgendaViewModel()
 
@@ -116,6 +120,9 @@ struct PlanningAgendaView: View {
             }
             Task { await viewModel.refresh(calendar: calendar, context: modelContext, startDate: startDate) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .PlanningInboxNeedsRefresh)) { _ in
+            viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
+        }
     }
 
     private var sidebar: some View {
@@ -135,6 +142,8 @@ struct PlanningAgendaView: View {
             onUpdateOrder: { newOrderRaw in
                 inboxOrderRaw = newOrderRaw
                 try? modelContext.save()
+                // Refresh agenda data so newly created/updated inbox lessons appear immediately
+                viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
             }
         )
         .frame(width: 280)
@@ -292,7 +301,11 @@ struct PlanningAgendaView: View {
                     onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) },
                     onQuickActions: { sl in activeSheet = .quickActions(sl.id) },
                     onPlanNext: { sl in PlanningActions.planNextLesson(for: sl, lessons: lessons, students: students, studentLessons: studentLessons, context: modelContext) },
-                    onMoveToInbox: { sl in PlanningActions.moveToInbox(sl, context: modelContext) }
+                    onMoveToInbox: { sl in PlanningActions.moveToInbox(sl, context: modelContext) },
+                    onMoveStudents: { sl in
+                        // Open details; user can tap Move Students…
+                        activeSheet = .studentLessonDetail(sl.id)
+                    }
                 )
                 .disabled(viewModel.isNonSchoolDayFast(day))
                 .overlay(alignment: .center) {

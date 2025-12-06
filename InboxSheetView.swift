@@ -26,6 +26,7 @@ public struct InboxSheetView: View {
   @State private var itemFrames: [UUID: CGRect] = [:]
   @State private var spaceID = UUID()
   @State private var isTargeted = false
+  @State private var toastMessage: String? = nil
 
   private static let mediumDateFormatter: DateFormatter = {
     let df = DateFormatter()
@@ -65,18 +66,70 @@ public struct InboxSheetView: View {
     return calendar.date(byAdding: .day, value: -daysToSubtract, to: start) ?? start
   }
 
-  private func scheduleSelected(to day: Date, hour: Int) {
-    let idsInOrder: [UUID] = orderedUnscheduledLessons.map { $0.id }.filter { selected.contains($0) }
-    guard !idsInOrder.isEmpty else { return }
-    let base = calendar.date(byAdding: .hour, value: hour, to: calendar.startOfDay(for: day)) ?? day
-    let timeMap = PlanningDropUtils.assignSequentialTimes(ids: idsInOrder, base: base, calendar: calendar, spacingSeconds: 60)
-    for id in idsInOrder {
-      if let sl = studentLessons.first(where: { $0.id == id }) {
-        sl.scheduledFor = timeMap[id]
+  private func consolidateSelected() {
+    // Gather selected unscheduled lessons
+    let selectedSLs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
+    guard !selectedSLs.isEmpty else { return }
+
+    // Group by lesson ID
+    let groups = Dictionary(grouping: selectedSLs, by: { $0.lessonID })
+    var consolidatedGroups = 0
+    var totalMerged = 0
+
+    // Keep track of which IDs will be deleted to update order
+    var deletedIDs: [UUID] = []
+    let currentOrder = orderedUnscheduledLessons.map(\.id)
+
+    for (_, group) in groups {
+      guard group.count >= 2 else { continue }
+      consolidatedGroups += 1
+      totalMerged += (group.count - 1)
+
+      // Choose a target: the first occurrence in current order among this group's items
+      let groupIDs = group.map(\.id)
+      guard let targetID = currentOrder.first(where: { groupIDs.contains($0) }),
+            let target = studentLessons.first(where: { $0.id == targetID }) else { continue }
+
+      // Union of student IDs across the group
+      var union = Set<UUID>(target.studentIDs)
+      for sl in group { union.formUnion(sl.studentIDs) }
+      let remainingIDs = Array(union)
+
+      // Update target's students
+      target.studentIDs = remainingIDs
+      let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
+      let fetched = (try? modelContext.fetch(fetch)) ?? []
+      target.students = fetched
+      target.syncSnapshotsFromRelationships()
+
+      // Delete the others in the group
+      for sl in group where sl.id != targetID {
+        deletedIDs.append(sl.id)
+        modelContext.delete(sl)
       }
     }
+
+    // Persist changes
+    try? modelContext.save()
+
+    // Update inbox order by removing deleted IDs
+    var newOrder = currentOrder
+    for id in deletedIDs { newOrder.removeAll { $0 == id } }
+    let serialized = InboxOrderStore.serialize(newOrder)
+    inboxOrderRaw = serialized
+    onUpdateOrder?(serialized)
+
+    let msg: String = consolidatedGroups == 1 ? "Consolidated 1 lesson" : "Consolidated \(consolidatedGroups) lessons"
+    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+      toastMessage = msg
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+      withAnimation(.easeInOut(duration: 0.25)) { toastMessage = nil }
+    }
+
+    // Clear selection and notify any listeners to refresh
     selected.removeAll()
-    Task { @MainActor in try? modelContext.save() }
+    NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
   }
 
   public var body: some View {
@@ -110,29 +163,18 @@ public struct InboxSheetView: View {
         .frame(maxWidth: .infinity)
       } else {
         // Batch actions bar
-        let start = monday(for: Date())
-        let days: [Date] = (0..<5).compactMap { offset in
-          calendar.date(byAdding: .day, value: offset, to: start)
-        }
+        let canConsolidate: Bool = {
+          let selectedSLs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
+          let groups = Dictionary(grouping: selectedSLs, by: { $0.lessonID })
+          return groups.values.contains { $0.count >= 2 }
+        }()
         HStack(spacing: 8) {
-          Menu {
-            ForEach(days, id: \.self) { day in
-              let wd = Self.weekdayFormatter.string(from: day)
-              let baseLabel = Self.mediumDateFormatter.string(from: day)
-              let isNS = SchoolCalendar.isNonSchoolDay(day, using: modelContext)
-              Button("\(wd), \(baseLabel) — Morning") {
-                scheduleSelected(to: day, hour: 9)
-              }
-              .disabled(isNS)
-              Button("\(wd), \(baseLabel) — Afternoon") {
-                scheduleSelected(to: day, hour: 14)
-              }
-              .disabled(isNS)
-            }
+          Button {
+            consolidateSelected()
           } label: {
-            Label("Schedule Selected", systemImage: "calendar.badge.plus")
+            Label("Consolidate Selected", systemImage: "arrow.triangle.merge")
           }
-          .disabled(selected.isEmpty)
+          .disabled(!canConsolidate)
 
           if !selected.isEmpty {
             Text("\(selected.count) selected")
@@ -177,6 +219,22 @@ public struct InboxSheetView: View {
             .stroke(isTargeted ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 2)
             .animation(.easeInOut(duration: 0.2), value: isTargeted)
         )
+      }
+    }
+    .overlay(alignment: .top) {
+      if let message = toastMessage {
+        Text(message)
+          .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+          .padding(.horizontal, 12)
+          .padding(.vertical, 8)
+          .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+              .fill(Color.black.opacity(0.85))
+          )
+          .foregroundColor(.white)
+          .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+          .transition(.move(edge: .top).combined(with: .opacity))
+          .padding(.top, 8)
       }
     }
   }
@@ -324,7 +382,7 @@ fileprivate struct InboxRow: View {
       }
       .buttonStyle(.plain)
 
-      StudentLessonPill(snapshot: sl.snapshot(), day: Date())
+      StudentLessonPill(snapshot: sl.snapshot(), day: Date(), targetStudentLessonID: sl.id)
         .onTapGesture {
           if isSelectionMode {
             onToggleSelected()
