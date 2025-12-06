@@ -16,7 +16,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "74"
             endingLineNumber = "74"
-            landmarkName = "sh store on next launch. /// This is destructive and should be used only when the store is corrupted/incompatible. static func resetPersistentStore() throws { let url = storeDirectoryURL() let fm = FileManager.default if fm.fileExists(atPath: url.path) { try fm.removeItem(at: url) } } var sharedModelContainer"
+            landmarkName = "sharedModelContainer"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>

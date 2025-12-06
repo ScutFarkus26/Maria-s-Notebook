@@ -6,7 +6,8 @@ import AppKit
 import ObjectiveC
 #endif
 
-// MARK: - Settings Keys
+/// Preference keys for Attendance Email feature.
+/// - Note: Values are stored in UserDefaults via @AppStorage.
 public enum AttendanceEmailPrefs {
     public static let enabledKey = "AttendanceEmail.enabled"
     public static let toKey = "AttendanceEmail.to"
@@ -15,17 +16,28 @@ public enum AttendanceEmailPrefs {
 
 // MARK: - Report Generator
 public struct AttendanceEmailReport {
-    public static func makeSubject(for date: Date, calendar: Calendar = .current) -> String {
+    // Cached date formatters to avoid repeated allocations.
+    private static let subjectDateFormatter: DateFormatter = {
         let df = DateFormatter()
         df.dateStyle = .medium
         df.timeStyle = .none
+        return df
+    }()
+
+    private static let bodyDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateStyle = .full
+        df.timeStyle = .none
+        return df
+    }()
+
+    public static func makeSubject(for date: Date, calendar: Calendar = .current) -> String {
+        let df = subjectDateFormatter
         return "Attendance • \(df.string(from: calendar.startOfDay(for: date)))"
     }
 
     public static func makeBody(present: [String], tardy: [String], absent: [String], date: Date, calendar: Calendar = .current) -> String {
-        let df = DateFormatter()
-        df.dateStyle = .full
-        df.timeStyle = .none
+        let df = bodyDateFormatter
         var lines: [String] = []
         lines.append("Attendance Report")
         lines.append(df.string(from: calendar.startOfDay(for: date)))
@@ -46,9 +58,8 @@ public struct AttendanceEmailReport {
     }
 }
 
-/**
- Convenience helpers to read stored preferences and create prefilled mail senders.
- */
+/// Convenience helpers to read stored preferences and create prefilled mail senders.
+/// Includes platform-aware availability checks.
 public enum AttendanceEmail {
     public static func storedToAddress() -> String? {
         let s = UserDefaults.standard.string(forKey: AttendanceEmailPrefs.toKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -62,6 +73,33 @@ public enum AttendanceEmail {
         return s
     }
 
+    /// Indicates whether the current platform can compose/send email using the built-in mechanisms.
+    /// - iOS: Uses MFMailComposeViewController.canSendMail().
+    /// - macOS: Checks for NSSharingService(named: .composeEmail).
+    public static var isAvailable: Bool {
+    #if os(iOS)
+        // Import is in iOS block below; we avoid a hard dependency here by deferring to MessageUI only at compile time.
+        return MFMailComposeViewController.canSendMail()
+    #elseif os(macOS)
+        return NSSharingService(named: .composeEmail) != nil
+    #else
+        return false
+    #endif
+    }
+
+    /// Parses a user-entered recipients string into an array of email addresses by splitting on commas/semicolons and trimming whitespace.
+    /// - Parameter string: A raw recipients string, e.g., "a@example.com, b@example.com".
+    /// - Returns: An array of non-empty email strings.
+    /// - Note: Currently unused to avoid changing behavior; consider adopting in composer/send flows. TODO: Adopt multi-recipient support.
+    public static func parseRecipients(from string: String?) -> [String] {
+        guard let string = string, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        let separators = CharacterSet(charactersIn: ",;")
+        return string
+            .components(separatedBy: separators)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     public static func makeSubject(for date: Date, calendar: Calendar = .current) -> String {
         AttendanceEmailReport.makeSubject(for: date, calendar: calendar)
     }
@@ -70,11 +108,34 @@ public enum AttendanceEmail {
         AttendanceEmailReport.makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
     }
 
+    /// Builds a mailto: URL with the provided recipients, subject, and body.
+    /// - Note: Useful as a fallback when `isAvailable` is false.
+    public static func makeMailtoURL(to recipients: [String], subject: String, body: String) -> URL? {
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = recipients.joined(separator: ",")
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+        return components.url
+    }
+
+    /// Convenience to build a mailto: URL using current preferences and a generated subject/body.
+    public static func mailtoURLForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current) -> URL? {
+        let to = parseRecipients(from: storedToAddress())
+        let subject = makeSubject(for: date, calendar: calendar)
+        let body = makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
+        return makeMailtoURL(to: to, subject: subject, body: body)
+    }
+
     #if os(iOS)
+    /// Creates a prefilled mail composer using current preferences.
+    /// - Important: Check `AttendanceEmail.isAvailable` before presenting. If unavailable, consider using `mailtoURLForCurrentPrefs(...)` as a fallback.
     public static func composerForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current, onComplete: @escaping (MFMailComposeResult, Error?) -> Void) -> MailComposerView {
         let subject = makeSubject(for: date, calendar: calendar)
         let body = makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
-        let to = storedToAddress().map { [$0] } ?? []
+        let to = parseRecipients(from: storedToAddress())
         let from = storedFromAddress()
         return MailComposerView(toRecipients: to, subject: subject, body: body, preferredSender: from, onComplete: onComplete)
     }
@@ -86,10 +147,35 @@ public enum AttendanceEmail {
         let body = makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
         MacOSMailSender.send(to: storedToAddress(), subject: subject, body: body, completion: completion)
     }
+
+    /// Attempts to open a mailto: URL using current preferences. Returns true if the URL was opened successfully.
+    /// - Note: Use this as a fallback when NSSharingService(.composeEmail) is unavailable.
+    public static func openMailtoFallbackForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let to = parseRecipients(from: storedToAddress())
+        let subject = makeSubject(for: date, calendar: calendar)
+        let body = makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
+        guard let url = makeMailtoURL(to: to, subject: subject, body: body) else { return false }
+        return NSWorkspace.shared.open(url)
+    }
+
+    /// Tries to send via Mail share service; if unavailable, opens a mailto: fallback.
+    /// - Returns: true if either the share service succeeded or the fallback URL was opened; false otherwise.
+    /// - Important: This does not change existing behavior unless you call it from your UI.
+    public static func sendOrFallbackUsingMailAppForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current, completion: @escaping (Bool) -> Void) {
+        if NSSharingService(named: .composeEmail) != nil {
+            sendUsingMailAppForCurrentPrefs(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar, completion: completion)
+        } else {
+            let opened = openMailtoFallbackForCurrentPrefs(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
+            DispatchQueue.main.async { completion(opened) }
+        }
+    }
     #endif
 }
 
 // MARK: - Settings View
+
+/// Settings form for configuring Attendance Email behavior.
+/// - Note: The "Preferred 'From' Address" applies to iOS only; macOS always uses the default Mail account.
 public struct AttendanceEmailSettingsView: View {
     @AppStorage(AttendanceEmailPrefs.enabledKey) private var enabled: Bool = true
     @AppStorage(AttendanceEmailPrefs.toKey) private var toAddress: String = ""
@@ -102,6 +188,9 @@ public struct AttendanceEmailSettingsView: View {
             Section("Attendance Email") {
                 Toggle("Show 'Send Attendance Email' Button", isOn: $enabled)
                 TextField("Send To", text: $toAddress)
+                #if os(macOS)
+                .help("You can enter multiple addresses separated by commas or semicolons.")
+                #endif
                 #if os(iOS)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
@@ -118,6 +207,7 @@ public struct AttendanceEmailSettingsView: View {
                 TextField("Preferred 'From' Address (iOS only)", text: $fromAddress)
                     .disabled(true)
                     .foregroundStyle(.secondary)
+                    .help("macOS uses your default Mail account; this setting applies to iOS only.")
                 #endif
                 Text("Note: iOS uses the preferred address when possible. macOS uses your default Mail account.")
                     .font(.footnote)
@@ -126,11 +216,16 @@ public struct AttendanceEmailSettingsView: View {
         }
     }
 }
+#Preview {
+    AttendanceEmailSettingsView()
+}
 
 // MARK: - iOS Mail Composer Wrapper
 #if os(iOS)
 import MessageUI
 
+/// SwiftUI wrapper for MFMailComposeViewController.
+/// - Important: Check AttendanceEmail.isAvailable before presenting.
 public struct MailComposerView: UIViewControllerRepresentable {
     public typealias UIViewControllerType = MFMailComposeViewController
 
@@ -176,19 +271,25 @@ public struct MailComposerView: UIViewControllerRepresentable {
 #endif
 
 // MARK: - macOS Mail Sender Helper
+
+/// Helper for composing email via the system Mail service on macOS.
+/// - Note: Uses NSSharingService(.composeEmail). Completion reflects success/failure callbacks provided by the service.
 #if os(macOS)
 public enum MacOSMailSender {
     public static func send(to recipient: String?, subject: String, body: String, completion: @escaping (Bool) -> Void) {
         guard let service = NSSharingService(named: .composeEmail) else {
-            completion(false)
+            DispatchQueue.main.async { completion(false) }
             return
         }
-        if let r = recipient, !r.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            service.recipients = [r]
+        if let r = recipient {
+            let recipients = AttendanceEmail.parseRecipients(from: r)
+            if !recipients.isEmpty {
+                service.recipients = recipients
+            }
         }
         service.subject = subject
         let delegate = SharingDelegate { success in
-            completion(success)
+            DispatchQueue.main.async { completion(success) }
         }
         service.delegate = delegate
         // Keep the delegate alive until completion by retaining it on the service via associated object.
@@ -199,6 +300,8 @@ public enum MacOSMailSender {
     private final class SharingDelegate: NSObject, NSSharingServiceDelegate {
         private let completion: (Bool) -> Void
         init(completion: @escaping (Bool) -> Void) { self.completion = completion }
+
+        // TODO: Cancellation may not invoke either success or failure callbacks on some system versions. Consider a timeout-based fallback if needed.
         func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
             completion(true)
             clearAssociation(from: sharingService)
@@ -213,4 +316,7 @@ public enum MacOSMailSender {
     }
 }
 #endif
+
+
+
 
