@@ -39,7 +39,8 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    SettingsGroup(title: "Database Overview", systemImage: "rectangle.grid.2x2") {
+                    // MARK: - Overview Section
+                    SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
                         LazyVGrid(columns: [
                             GridItem(.flexible(), spacing: 16),
                             GridItem(.flexible(), spacing: 16),
@@ -67,7 +68,10 @@ struct SettingsView: View {
                                      systemImage: "checkmark.circle.fill")
                         }
                     }
-
+                    
+                    // MARK: - Data Management Section
+                    SettingsCategoryHeader(title: "Data Management")
+                    
                     HStack(alignment: .top, spacing: 24) {
                         // Backup & Restore
                         SettingsGroup(title: "Backup & Restore", systemImage: "arrow.triangle.2.circlepath") {
@@ -195,22 +199,35 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                     }
                     
+                    // MARK: - School Configuration Section
+                    SettingsCategoryHeader(title: "School Configuration")
+                    
                     SettingsGroup(title: "School Calendar", systemImage: "calendar.badge.exclamationmark") {
                         SchoolCalendarSettingsView()
                             .frame(maxWidth: .infinity)
                     }
                     
-                    SettingsGroup(title: "Attendance Filters", systemImage: "person.crop.circle.badge.checkmark") {
-                        PresentNowSettingsView()
-                            .frame(maxWidth: .infinity)
+                    // MARK: - Attendance Section
+                    SettingsCategoryHeader(title: "Attendance")
+                    
+                    HStack(alignment: .top, spacing: 24) {
+                        SettingsGroup(title: "Present Now Filters", systemImage: "line.3.horizontal.decrease.circle") {
+                            PresentNowSettingsView()
+                                .frame(maxWidth: .infinity)
+                        }
+                        .frame(maxWidth: .infinity)
+                        
+                        SettingsGroup(title: "Email Reports", systemImage: "envelope") {
+                            AttendanceEmailSettingsView()
+                                .frame(maxWidth: .infinity)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     
-                    SettingsGroup(title: "Attendance Email", systemImage: "envelope") {
-                        AttendanceEmailSettingsView()
-                            .frame(maxWidth: .infinity)
-                    }
+                    // MARK: - Planning Section
+                    SettingsCategoryHeader(title: "Planning")
                     
-                    SettingsGroup(title: "Planning – Lesson Age Indicator", systemImage: "clock.badge.exclamationmark") {
+                    SettingsGroup(title: "Lesson Age Indicator", systemImage: "clock.badge.exclamationmark") {
                         LessonAgeSettingsView()
                             .frame(maxWidth: .infinity)
                     }
@@ -427,6 +444,21 @@ struct SectionHeader: View {
         }
         .textCase(nil)
         .padding(.bottom, 2)
+    }
+}
+
+struct SettingsCategoryHeader: View {
+    let title: String
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundStyle(.primary)
+            Spacer()
+        }
+        .padding(.top, 8)
     }
 }
 
