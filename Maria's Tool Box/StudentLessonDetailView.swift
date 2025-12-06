@@ -18,6 +18,8 @@ struct StudentLessonDetailView: View {
     let autoFocusLessonPicker: Bool
     var onDone: (() -> Void)? = nil
 
+    // Local editing state (not saved until user clicks Save)
+    @State private var editingLessonID: UUID
     @State private var scheduledFor: Date?
     @State private var givenAt: Date?
     @State private var isPresented: Bool
@@ -57,10 +59,15 @@ struct StudentLessonDetailView: View {
     @State private var showQuickBanner: Bool = false
     @State private var quickBannerText: String = ""
     @State private var quickBannerColor: Color = .green
+    @State private var showLessonPicker: Bool = false
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
         self.studentLesson = studentLesson
         self.onDone = onDone
+        self.autoFocusLessonPicker = autoFocusLessonPicker
+        
+        // Initialize local editing state from the student lesson
+        _editingLessonID = State(initialValue: studentLesson.lessonID)
         _scheduledFor = State(initialValue: studentLesson.scheduledFor)
         _givenAt = State(initialValue: studentLesson.givenAt)
         _isPresented = State(initialValue: studentLesson.isPresented)
@@ -69,14 +76,16 @@ struct StudentLessonDetailView: View {
         _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
         _followUpWork = State(initialValue: studentLesson.followUpWork)
         _selectedStudentIDs = State(initialValue: Set(studentLesson.studentIDs))
-        self.autoFocusLessonPicker = autoFocusLessonPicker
+        
         _lessonPickerVM = StateObject(wrappedValue: LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: studentLesson.lessonID))
+        // Show picker initially if auto-focus is requested
+        _showLessonPicker = State(initialValue: autoFocusLessonPicker)
     }
 
     private var resolvedPickerLesson: Lesson? { lessons.first(where: { $0.id == lessonPickerVM.selectedLessonID }) ?? lessonObject }
 
     private var lessonObject: Lesson? {
-        lessons.first(where: { $0.id == studentLesson.lessonID })
+        lessons.first(where: { $0.id == editingLessonID })
     }
 
     private var lessonName: String {
@@ -276,33 +285,67 @@ struct StudentLessonDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Student Lesson")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
-
-            Divider()
-
             ScrollView {
-                VStack(spacing: 28) {
-                    lessonPickerSection
-                    summarySection
-                    scheduleSection
-                    givenSection
-                    nextLessonSection
-                    flagsSection
-                    followUpSection
+                VStack(spacing: 0) {
+                    // 1. Lesson Title & Tags Header
+                    lessonHeaderSection
+                        .padding(.horizontal, 32)
+                        .padding(.top, 32)
+                    
+                    // 2. Conditional Lesson Picker (only when not selected or user wants to change)
+                    if lessonObject == nil || showLessonPicker {
+                        lessonPickerSection
+                            .padding(.horizontal, 32)
+                            .padding(.top, 16)
+                    } else {
+                        // Minimal "Change Lesson" button
+                        HStack {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showLessonPicker = true
+                                }
+                            } label: {
+                                Label("Change Lesson…", systemImage: "pencil")
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 32)
+                        .padding(.top, 8)
+                    }
+                    
+                    // 3. Student Pills Block
+                    studentPillsSection
+                        .padding(.horizontal, 32)
+                        .padding(.top, 20)
+                    
+                    Divider()
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 20)
+                    
+                    // 4. Inbox/Scheduling Status Row
+                    inboxStatusSection
+                        .padding(.horizontal, 32)
+                    
+                    Divider()
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 20)
+                    
+                    // 5. Lesson Progress Section
+                    lessonProgressSection
+                        .padding(.horizontal, 32)
+                    
+                    // 6. Notes Section
                     notesSection
+                        .padding(.horizontal, 32)
+                        .padding(.top, 24)
+                        .padding(.bottom, 32)
                 }
-                .padding(.horizontal, 32)
-                .padding(.top, 28)
-                .padding(.bottom, 24)
             }
         }
-        .frame(minWidth: 680, minHeight: 600)
+        .frame(minWidth: 720, minHeight: 640)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 0) {
                 Divider()
@@ -370,11 +413,18 @@ struct StudentLessonDetailView: View {
             lessonPickerVM.configure(lessons: lessons, students: studentsAll)
         }
         .onChange(of: lessonPickerVM.selectedLessonID) { _, newValue in
-            if let newID = newValue, newID != studentLesson.lessonID {
-                studentLesson.lessonID = newID
-                studentLesson.lesson = lessons.first(where: { $0.id == newID })
-                studentLesson.syncSnapshotsFromRelationships()
-                try? modelContext.save()
+            if let newID = newValue {
+                // Just update local state, don't save to model
+                editingLessonID = newID
+                
+                // Hide the lesson picker after selection
+                showLessonPicker = false
+            }
+        }
+        .onChange(of: showingStudentPickerPopover) { _, isShowing in
+            // Don't let student picker affect lesson picker state
+            if !isShowing && lessonPickerFocused {
+                lessonPickerFocused = false
             }
         }
     }
@@ -388,188 +438,391 @@ struct StudentLessonDetailView: View {
             )
         }
     }
-
-    private var summarySection: some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(lessonName)
-                    .font(.system(size: AppTheme.FontSize.titleLarge, weight: .heavy, design: .rounded))
-                    .multilineTextAlignment(.center)
-                if !subject.isEmpty {
-                    Text(subject)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .foregroundColor(subjectColor)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(subjectColor.opacity(0.15))
-                        )
+    
+    // MARK: - New Redesigned Sections
+    
+    /// 1. Lesson Header: Large title + subject/category pills
+    private var lessonHeaderSection: some View {
+        VStack(spacing: 12) {
+            Text(lessonName)
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+            
+            // Subject / Category / Subcategory Pills
+            if let lesson = lessonObject {
+                HStack(spacing: 8) {
+                    if !lesson.subject.isEmpty {
+                        pillTag(lesson.subject, color: subjectColor)
+                    }
+                    if !lesson.group.isEmpty {
+                        pillTag(lesson.group, color: .secondary.opacity(0.6))
+                    }
+                    // Subcategory could be added here if Lesson model has that property
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+    
+    /// Pill-style tag for subjects/categories
+    private func pillTag(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .foregroundColor(color)
+            .background(
+                Capsule()
+                    .fill(color.opacity(0.15))
+            )
+    }
+    
+    /// 3. Student Pills + Add/Remove
+    private var studentPillsSection: some View {
+        VStack(spacing: 12) {
+            // Student pills in a flowing wrap
+            FlowLayout(spacing: 8) {
+                ForEach(selectedStudentsList, id: \.id) { student in
+                    studentChip(for: student)
                 }
             }
-            .frame(maxWidth: .infinity)
-
-            // Use ViewThatFits to intelligently wrap the buttons
-            ViewThatFits(in: .horizontal) {
-                // Try to fit everything on one line
-                HStack(alignment: .center, spacing: 8) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(selectedStudentsList, id: \.id) { student in
-                                studentChip(for: student)
+            
+            // Buttons below
+            HStack(spacing: 12) {
+                Button {
+                    showingStudentPickerPopover = true
+                } label: {
+                    Label("Add/Remove Students", systemImage: "person.2.badge.gearshape")
+                        .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                }
+                .buttonStyle(.bordered)
+                .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
+                    studentPickerPopover
+                }
+                
+                if selectedStudentsList.count > 1 && !isPresented {
+                    Button {
+                        studentsToMove = []
+                        showingMoveStudentsSheet = true
+                    } label: {
+                        Label("Move Students", systemImage: "arrow.right.square")
+                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+    
+    /// 4. Inbox/Scheduling Status
+    private var inboxStatusSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "tray")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 16))
+                Text("Inbox Status")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            
+            // Show schedule status or allow scheduling
+            if scheduledFor != nil {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(.blue)
+                        .font(.system(size: 14))
+                    Text("Scheduled: \(scheduleStatusText)")
+                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                        .foregroundColor(.blue)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.blue.opacity(0.1))
+                )
+                
+                Button {
+                    scheduledFor = nil
+                } label: {
+                    Label("Remove from Schedule", systemImage: "xmark.circle")
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 14))
+                    Text("Unscheduled")
+                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.secondary.opacity(0.08))
+                )
+                
+                OptionalDatePicker(
+                    toggleLabel: "Schedule Lesson",
+                    dateLabel: "Schedule For",
+                    date: $scheduledFor,
+                    displayedComponents: [.date, .hourAndMinute],
+                    defaultHour: 9
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    /// 5. Lesson Progress Section (consolidated presentation, practice, re-present, follow-up)
+    private var lessonProgressSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.seal")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 16))
+                Text("Lesson Progress")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            
+            VStack(alignment: .leading, spacing: 16) {
+                // Presented Toggle + Date
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Toggle(isOn: $isPresented) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(isPresented ? .green : .secondary)
+                                    .font(.system(size: 18))
+                                Text("Presented")
+                                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
                             }
                         }
-                    }
-
-                    Spacer(minLength: 0)
-
-                    if selectedStudentsList.count > 1 && !isPresented {
-                        Button {
-                            studentsToMove = []
-                            showingMoveStudentsSheet = true
-                        } label: {
-                            Label("Move Students", systemImage: "arrow.right.square")
-                                .labelStyle(.titleAndIcon)
-                        }
+                        .toggleStyle(.button)
                         .buttonStyle(.borderless)
-                    }
-
-                    Button {
-                        showingStudentPickerPopover = true
-                    } label: {
-                        Label("Add/Remove Students", systemImage: "person.2.badge.plus")
-                            .labelStyle(.titleAndIcon)
-                    }
-                    .buttonStyle(.borderless)
-                    .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
-                        studentPickerPopover
+                        .tint(.green)
+                        
+                        Spacer()
+                        
+                        // Quick date picker button
+                        if isPresented {
+                            Button {
+                                presentedDate = calendar.startOfDay(for: givenAt ?? Date())
+                                showPresentedPopover.toggle()
+                            } label: {
+                                HStack(spacing: 4) {
+                                    if let date = givenAt {
+                                        Text(date, style: .date)
+                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    } else {
+                                        Text("Add Date")
+                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    }
+                                    Image(systemName: "calendar")
+                                        .font(.system(size: 12))
+                                }
+                                .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .popover(isPresented: $showPresentedPopover, arrowEdge: .top) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Presentation Date")
+                                        .font(.headline)
+                                    DatePicker("Date", selection: $presentedDate, displayedComponents: [.date])
+                                    #if os(macOS)
+                                    .datePickerStyle(.field)
+                                    #else
+                                    .datePickerStyle(.compact)
+                                    #endif
+                                    HStack {
+                                        Button("Clear") {
+                                            givenAt = nil
+                                            showPresentedPopover = false
+                                        }
+                                        Spacer()
+                                        Button("Set") {
+                                            givenAt = calendar.startOfDay(for: presentedDate)
+                                            showPresentedPopover = false
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                    }
+                                }
+                                .padding(12)
+                                .frame(minWidth: 280)
+                            }
+                        }
                     }
                 }
                 
-                // If it doesn't fit, wrap buttons to a new line
-                VStack(spacing: 8) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(selectedStudentsList, id: \.id) { student in
-                                studentChip(for: student)
-                            }
+                // Needs Practice Flag
+                HStack {
+                    Toggle(isOn: $needsPractice) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .foregroundStyle(needsPractice ? .purple : .secondary)
+                                .font(.system(size: 18))
+                            Text("Needs Practice")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
                         }
                     }
+                    .toggleStyle(.button)
+                    .buttonStyle(.borderless)
+                    .tint(.purple)
                     
-                    HStack(spacing: 8) {
-                        Spacer()
-                        
-                        if selectedStudentsList.count > 1 && !isPresented {
-                            Button {
-                                studentsToMove = []
-                                showingMoveStudentsSheet = true
-                            } label: {
-                                Label("Move Students", systemImage: "arrow.right.square")
-                                    .labelStyle(.titleAndIcon)
+                    Spacer()
+                }
+                
+                // Needs Another Presentation Flag
+                HStack {
+                    Toggle(isOn: $needsAnotherPresentation) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                                .foregroundStyle(needsAnotherPresentation ? .orange : .secondary)
+                                .font(.system(size: 18))
+                            Text("Needs Another Presentation")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                        }
+                    }
+                    .toggleStyle(.button)
+                    .buttonStyle(.borderless)
+                    .tint(.orange)
+                    
+                    Spacer()
+                    
+                    // Re-present button appears when flagged
+                    if needsAnotherPresentation {
+                        Button {
+                            rePresentDate = defaultRePresentDate()
+                            showRePresentPopover.toggle()
+                        } label: {
+                            Label("Schedule", systemImage: "calendar.badge.clock")
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        }
+                        .buttonStyle(.bordered)
+                        .popover(isPresented: $showRePresentPopover, arrowEdge: .top) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Schedule Re-presentation")
+                                    .font(.headline)
+                                DatePicker("Date", selection: $rePresentDate, displayedComponents: [.date])
+                                #if os(macOS)
+                                .datePickerStyle(.field)
+                                #else
+                                .datePickerStyle(.compact)
+                                #endif
+                                HStack {
+                                    Spacer()
+                                    Button("Schedule") {
+                                        scheduleRePresent(on: rePresentDate)
+                                        showRePresentPopover = false
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                }
                             }
-                            .buttonStyle(.borderless)
+                            .padding(12)
+                            .frame(minWidth: 280)
+                        }
+                    }
+                }
+                
+                // Follow-Up Work
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(.yellow)
+                            .font(.system(size: 16))
+                        Text("Follow-Up Work")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    }
+                    
+                    TextField("Describe follow-up work…", text: $followUpWork, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(2...4)
+                }
+                
+                // Next lesson section (when presented)
+                if isPresented, let next = nextLessonInGroup {
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.right.circle")
+                                .foregroundStyle(.blue)
+                                .font(.system(size: 16))
+                            Text("Next in Group: \(next.name)")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
                         }
                         
                         Button {
-                            showingStudentPickerPopover = true
+                            planNextLessonInGroup()
                         } label: {
-                            Label("Add/Remove Students", systemImage: "person.2.badge.plus")
-                                .labelStyle(.titleAndIcon)
+                            Label("Plan Next Lesson", systemImage: "calendar.badge.plus")
+                                .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
                         }
-                        .buttonStyle(.borderless)
-                        .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
-                            studentPickerPopover
-                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(didPlanNext || studentLessonsAll.contains { sl in
+                            sl.lessonID == next.id && Set(sl.studentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
+                        })
                     }
                 }
             }
-
-            // Quick Actions Row
-            HStack(spacing: 8) {
-                // Presented quick action (immediate) + popover to adjust date
-                HStack(spacing: 4) {
-                    Button {
-                        markPresented(on: Date())
-                    } label: {
-                        Label("Presented", systemImage: "checkmark.circle")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        presentedDate = calendar.startOfDay(for: givenAt ?? Date())
-                        showPresentedPopover.toggle()
-                    } label: {
-                        Image(systemName: "chevron.down.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    .popover(isPresented: $showPresentedPopover, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Mark as Presented")
-                                .font(.headline)
-                            DatePicker("Date", selection: $presentedDate, displayedComponents: [.date])
-                            #if os(macOS)
-                            .datePickerStyle(.field)
-                            #else
-                            .datePickerStyle(.compact)
-                            #endif
-                            HStack {
-                                Spacer()
-                                Button("Set") {
-                                    markPresented(on: presentedDate)
-                                    showPresentedPopover = false
-                                }
-                                .buttonStyle(.borderedProminent)
-                            }
-                        }
-                        .padding(12)
-                        .frame(minWidth: 280)
-                    }
-                    .accessibilityLabel("Adjust presented date")
-                }
-
-                // Practice quick action
-                Button {
-                    addPracticeIfNeeded()
-                } label: {
-                    Label("Practice", systemImage: "arrow.triangle.2.circlepath")
-                }
-                .buttonStyle(.bordered)
-
-                // Re-present quick action with date popover
-                Button {
-                    rePresentDate = defaultRePresentDate()
-                    showRePresentPopover.toggle()
-                } label: {
-                    Label("Re-present", systemImage: "calendar.badge.clock")
-                }
-                .buttonStyle(.bordered)
-                .popover(isPresented: $showRePresentPopover, arrowEdge: .top) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Schedule Re-present")
-                            .font(.headline)
-                        DatePicker("Date", selection: $rePresentDate, displayedComponents: [.date])
-                        #if os(macOS)
-                        .datePickerStyle(.field)
-                        #else
-                        .datePickerStyle(.compact)
-                        #endif
-                        HStack {
-                            Spacer()
-                            Button("Schedule") {
-                                scheduleRePresent(on: rePresentDate)
-                                showRePresentPopover = false
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
-                    .padding(12)
-                    .frame(minWidth: 280)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.03))
+            )
         }
-        .frame(maxWidth: .infinity)
     }
+    
+    /// 6. Notes Section with subtle ruled-paper aesthetic
+    private var notesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "note.text")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 16))
+                Text("Notes")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            
+            ZStack(alignment: .topLeading) {
+                // Subtle ruled-paper background
+                VStack(spacing: 0) {
+                    ForEach(0..<8, id: \.self) { _ in
+                        Divider()
+                            .background(Color.secondary.opacity(0.1))
+                            .padding(.vertical, 16)
+                    }
+                }
+                .allowsHitTesting(false)
+                
+                TextEditor(text: $notes)
+                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
+                    .frame(minHeight: 180)
+                    .padding(8)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(.textBackgroundColor).opacity(0.5))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+            )
+        }
+    }
+    
+    // MARK: - Helper Views (kept for compatibility)
     
     private func studentChip(for student: Student) -> some View {
         HStack(spacing: 6) {
@@ -951,27 +1204,9 @@ struct StudentLessonDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var notesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "doc.plaintext")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-
-            TextEditor(text: $notes)
-                .frame(minHeight: 140)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                )
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
+    
+    // MARK: - Banner Views
+    
     private var plannedBanner: some View {
         Text("Next lesson added to Ready to Schedule")
             .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
@@ -1037,7 +1272,7 @@ struct StudentLessonDetailView: View {
 
         let newStudentLesson = StudentLesson(
             id: UUID(),
-            lessonID: studentLesson.lessonID,
+            lessonID: editingLessonID,
             studentIDs: Array(selectedStudentIDs),
             createdAt: Date(),
             scheduledFor: scheduled,
@@ -1067,6 +1302,7 @@ struct StudentLessonDetailView: View {
 
     private func saveImmediate() {
         // Persist minimal fields immediately without dismissing the sheet
+        studentLesson.lessonID = editingLessonID
         studentLesson.scheduledFor = scheduledFor
         studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
         studentLesson.isPresented = isPresented
@@ -1077,13 +1313,15 @@ struct StudentLessonDetailView: View {
         studentLesson.studentIDs = Array(selectedStudentIDs)
 
         studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
-        studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
+        studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
         studentLesson.syncSnapshotsFromRelationships()
 
         try? modelContext.save()
     }
 
     private func save() {
+        // Commit all local editing state to the model
+        studentLesson.lessonID = editingLessonID
         studentLesson.scheduledFor = scheduledFor
         studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
         studentLesson.isPresented = isPresented
@@ -1093,8 +1331,9 @@ struct StudentLessonDetailView: View {
         studentLesson.followUpWork = followUpWork
         studentLesson.studentIDs = Array(selectedStudentIDs)
 
+        // Update relationships
         studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
-        studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
+        studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
         studentLesson.syncSnapshotsFromRelationships()
         
         // Auto-create a WorkModel for Needs Practice when flagged
@@ -1212,4 +1451,62 @@ struct OptionKeyMonitor: NSViewRepresentable {
     }
 }
 #endif
+
+// MARK: - FlowLayout Helper
+
+/// A simple flow layout that wraps content horizontally
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(
+            in: proposal.replacingUnspecifiedDimensions().width,
+            subviews: subviews,
+            spacing: spacing
+        )
+        return result.size
+    }
+    
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(
+            in: bounds.width,
+            subviews: subviews,
+            spacing: spacing
+        )
+        for (index, subview) in subviews.enumerated() {
+            let position = result.positions[index]
+            subview.place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
+        }
+    }
+    
+    struct FlowResult {
+        var size: CGSize = .zero
+        var positions: [CGPoint] = []
+        
+        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
+            var currentX: CGFloat = 0
+            var currentY: CGFloat = 0
+            var lineHeight: CGFloat = 0
+            
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+                
+                if currentX + size.width > maxWidth && currentX > 0 {
+                    // Move to next line
+                    currentX = 0
+                    currentY += lineHeight + spacing
+                    lineHeight = 0
+                }
+                
+                positions.append(CGPoint(x: currentX, y: currentY))
+                lineHeight = max(lineHeight, size.height)
+                currentX += size.width + spacing
+            }
+            
+            self.size = CGSize(width: maxWidth, height: currentY + lineHeight)
+        }
+    }
+}
+
+
 
