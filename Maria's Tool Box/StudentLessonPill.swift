@@ -196,7 +196,8 @@ struct StudentLessonPill: View {
                 modelContext: modelContext,
                 targetLessonID: snapshot.lessonID,
                 targetStudentLessonID: targetStudentLessonID,
-                setHighlight: { isValid in isValidDragTarget = isValid }
+                setHighlight: { isValid in isValidDragTarget = isValid },
+                canAccept: { isValidDragTarget }
             ))
         }
     }
@@ -224,10 +225,14 @@ struct StudentLessonPill: View {
         let targetLessonID: UUID
         let targetStudentLessonID: UUID?
         let setHighlight: (Bool) -> Void
+        let canAccept: () -> Bool
 
         func dropEntered(info: DropInfo) { checkHighlight(info: info) }
 
-        func dropUpdated(info: DropInfo) -> DropProposal? { checkHighlight(info: info); return DropProposal(operation: .copy) }
+        func dropUpdated(info: DropInfo) -> DropProposal? {
+            checkHighlight(info: info)
+            return canAccept() ? DropProposal(operation: .copy) : DropProposal(operation: .cancel)
+        }
 
         func dropExited(info: DropInfo) { setHighlight(false) }
 
@@ -235,6 +240,7 @@ struct StudentLessonPill: View {
 
         func performDrop(info: DropInfo) -> Bool {
             setHighlight(false)
+            guard canAccept() else { return false }
             guard let targetID = targetStudentLessonID else { return false }
             let providers = info.itemProviders(for: [UTType.text])
             guard let provider = providers.first else { return false }
@@ -300,3 +306,4 @@ struct StudentLessonPill: View {
         }
     }
 }
+

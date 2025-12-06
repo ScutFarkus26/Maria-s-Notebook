@@ -26,6 +26,8 @@ public struct InboxSheetView: View {
   @State private var itemFrames: [UUID: CGRect] = [:]
   @State private var spaceID = UUID()
   @State private var isTargeted = false
+  @State private var insertionIndex: Int? = nil
+  @State private var baseFrames: [UUID: CGRect]? = nil
   @State private var toastMessage: String? = nil
 
   private static let mediumDateFormatter: DateFormatter = {
@@ -187,7 +189,7 @@ public struct InboxSheetView: View {
 
         ScrollView {
           VStack(spacing: 10) {
-            ForEach(orderedUnscheduledLessons, id: \.id) { sl in
+            ForEach(Array(orderedUnscheduledLessons.enumerated()), id: \.element.id) { index, sl in
               InboxRow(
                 sl: sl,
                 isSelected: selected.contains(sl.id),
@@ -200,6 +202,7 @@ public struct InboxSheetView: View {
                 onQuickActions: onQuickActions,
                 onPlanNext: onPlanNext
               )
+              // Removed offset to reduce layout churn
             }
           }
           .padding(.horizontal, 12)
@@ -209,15 +212,97 @@ public struct InboxSheetView: View {
         .onPreferenceChange(InboxPillFramePreference.self) { prefs in
           itemFrames = prefs
         }
-        .onDrop(
-          of: [UTType.text],
-          isTargeted: $isTargeted,
-          perform: handleDrop(providers:location:)
+        .onDrop(of: [UTType.text], delegate: InboxDropDelegate(
+          getCurrent: { orderedUnscheduledLessons },
+          itemFramesProvider: { baseFrames ?? itemFrames },
+          onTargetChange: { targeted in
+            withAnimation(.easeInOut(duration: 0.1)) { isTargeted = targeted }
+            if targeted {
+              if baseFrames == nil { baseFrames = itemFrames }
+            } else {
+              baseFrames = nil
+            }
+          },
+          onInsertionIndexChange: { idx in
+            if idx != insertionIndex {
+              withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
+            }
+          },
+          performDropHandler: { providers, location in
+            handleDrop(providers: providers, location: location)
+          }
+        ))
+        .overlay(
+          GeometryReader { proxy in
+            let placeholderWidth = max(0, proxy.size.width - 24) // content has 12pt horizontal padding on each side
+            let placeholderHeight: CGFloat = 44
+
+            Group {
+              if let idx = insertionIndex {
+                let frames: [(UUID, CGRect)] = orderedUnscheduledLessons.compactMap { item in
+                  if let rect = (baseFrames ?? itemFrames)[item.id] { return (item.id, rect) }
+                  return nil
+                }.sorted { $0.1.minY < $1.1.minY }
+
+                if frames.isEmpty {
+                  // Empty list case: show placeholder near the top padding
+                  let yTop = 10 + placeholderHeight / 2
+                  RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+                    .overlay(
+                      RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    )
+                    .frame(width: placeholderWidth, height: placeholderHeight)
+                    .position(x: proxy.size.width / 2, y: yTop)
+                    .transition(.opacity.combined(with: .scale))
+                } else {
+                  let y: CGFloat = (idx < frames.count) ? frames[idx].1.minY : (frames.last!.1.maxY)
+                  let placeholderY = y + placeholderHeight / 2
+
+                  // Spacer behind placeholder to reserve vertical space
+                  Color.clear
+                    .frame(width: placeholderWidth, height: placeholderHeight)
+                    .position(x: proxy.size.width / 2, y: placeholderY)
+                    .allowsHitTesting(false)
+
+                  // Ghost placeholder
+                  RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+                    .overlay(
+                      RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    )
+                    .frame(width: placeholderWidth, height: placeholderHeight)
+                    .position(x: proxy.size.width / 2, y: placeholderY)
+                    .transition(.opacity.combined(with: .scale))
+
+                  // Accent insertion line
+                  Capsule()
+                    .fill(Color.accentColor)
+                    .frame(width: placeholderWidth, height: 3)
+                    .shadow(color: Color.accentColor.opacity(0.3), radius: 4)
+                    .position(x: proxy.size.width / 2, y: y)
+                }
+              } else if isTargeted && orderedUnscheduledLessons.isEmpty {
+                // No insertion index yet, but we are targeted and empty: hint at top
+                let yTop = 10 + placeholderHeight / 2
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                  .fill(Color.accentColor.opacity(0.08))
+                  .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                      .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                  )
+                  .frame(width: placeholderWidth, height: placeholderHeight)
+                  .position(x: proxy.size.width / 2, y: yTop)
+                  .transition(.opacity.combined(with: .scale))
+              }
+            }
+          }
         )
         .overlay(
           RoundedRectangle(cornerRadius: 8)
             .stroke(isTargeted ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 2)
-            .animation(.easeInOut(duration: 0.2), value: isTargeted)
         )
       }
     }
@@ -413,6 +498,49 @@ fileprivate struct InboxRow: View {
           )
       }
     )
+  }
+}
+
+fileprivate struct InboxDropDelegate: DropDelegate {
+  let getCurrent: () -> [StudentLesson]
+  let itemFramesProvider: () -> [UUID: CGRect]
+  let onTargetChange: (Bool) -> Void
+  let onInsertionIndexChange: (Int?) -> Void
+  let performDropHandler: ([NSItemProvider], CGPoint) -> Bool
+  func dropEntered(info: DropInfo) {
+    onTargetChange(true)
+    onInsertionIndexChange(computeIndex(info))
+  }
+
+  func dropUpdated(info: DropInfo) -> DropProposal? {
+    onInsertionIndexChange(computeIndex(info))
+    return DropProposal(operation: .move)
+  }
+
+  func dropExited(info: DropInfo) {
+    onTargetChange(false)
+    onInsertionIndexChange(nil)
+  }
+
+  func validateDrop(info: DropInfo) -> Bool {
+    return info.hasItemsConforming(to: [UTType.text])
+  }
+
+  func performDrop(info: DropInfo) -> Bool {
+    onTargetChange(false)
+    onInsertionIndexChange(nil)
+    let providers = info.itemProviders(for: [UTType.text])
+    return performDropHandler(providers, info.location)
+  }
+
+  private func computeIndex(_ info: DropInfo) -> Int {
+    let current = getCurrent()
+    let frames = itemFramesProvider()
+    let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+      if let rect = frames[item.id] { return (item.id, rect) }
+      return nil
+    })
+    return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
   }
 }
 

@@ -19,6 +19,7 @@ struct AgendaSlot: View {
     @State private var zoneSpaceID = UUID()
     @State private var isTargeted: Bool = false
     @State private var insertionIndex: Int? = nil
+    @State private var baseFrames: [UUID: CGRect]? = nil
 
     private var scheduledLessonsForSlot: [StudentLesson] {
         allStudentLessons.filter { sl in
@@ -51,12 +52,12 @@ struct AgendaSlot: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.primary.opacity(0.02))
+                .fill(Color.primary.opacity(isTargeted ? 0.04 : 0.02))
 
             if isTargeted {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.accentColor.opacity(0.6), lineWidth: 3)
-                    .transition(.opacity)
+                    .stroke(Color.accentColor.opacity(0.7), lineWidth: 3)
+                    .shadow(color: Color.accentColor.opacity(0.25), radius: 6)
                     .allowsHitTesting(false)
             }
 
@@ -72,7 +73,6 @@ struct AgendaSlot: View {
                         StudentLessonPill(snapshot: sl.snapshot(), day: day, sourceStudentLessonID: sl.id, targetStudentLessonID: sl.id)
                             .onDrag { NSItemProvider(object: NSString(string: sl.id.uuidString)) }
                             .scaleEffect((isTargeted && insertionIndex == index) ? 1.02 : 1.0)
-                            .animation(.spring(response: 0.2, dampingFraction: 0.9), value: insertionIndex)
                             .onTapGesture { onSelectLesson(sl) }
                             .contextMenu {
                                 Button { onQuickActions(sl) } label: { Label("Quick Actions…", systemImage: "bolt") }
@@ -93,21 +93,61 @@ struct AgendaSlot: View {
                 }
             }
             .padding(12)
-            .animation(.spring(response: 0.25, dampingFraction: 0.9), value: scheduledLessonsForSlot.map { $0.id })
             .overlay(
                 GeometryReader { proxy in
-                    if let idx = insertionIndex {
-                        let frames: [(UUID, CGRect)] = scheduledLessonsForSlot.compactMap { item in
-                            if let rect = itemFrames[item.id] { return (item.id, rect) }
-                            return nil
-                        }.sorted { $0.1.minY < $1.1.minY }
-                        if !frames.isEmpty {
-                            let y: CGFloat = (idx < frames.count) ? frames[idx].1.minY : (frames.last!.1.maxY)
-                            Rectangle()
-                                .fill(Color.accentColor)
-                                .frame(height: 2)
-                                .position(x: proxy.size.width / 2, y: y)
-                                .animation(.easeInOut(duration: 0.12), value: insertionIndex)
+                    let placeholderWidth = max(0, proxy.size.width - 24) // account for 12pt horizontal padding
+                    let placeholderHeight: CGFloat = 44
+
+                    Group {
+                        if let idx = insertionIndex {
+                            let frames: [(UUID, CGRect)] = scheduledLessonsForSlot.compactMap { item in
+                                if let rect = (baseFrames ?? itemFrames)[item.id] { return (item.id, rect) }
+                                return nil
+                            }.sorted { $0.1.minY < $1.1.minY }
+
+                            if frames.isEmpty {
+                                // Empty list case: show placeholder at top padding
+                                let yTop = 12 + placeholderHeight / 2
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.accentColor.opacity(0.08))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                                    )
+                                    .frame(width: placeholderWidth, height: placeholderHeight)
+                                    .position(x: proxy.size.width / 2, y: yTop)
+                            } else {
+                                let y: CGFloat = (idx < frames.count) ? frames[idx].1.minY : (frames.last!.1.maxY)
+                                let placeholderY = y + placeholderHeight / 2
+
+                                // Ghost placeholder
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.accentColor.opacity(0.08))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                                    )
+                                    .frame(width: placeholderWidth, height: placeholderHeight)
+                                    .position(x: proxy.size.width / 2, y: placeholderY)
+
+                                // Accent insertion line
+                                Capsule()
+                                    .fill(Color.accentColor)
+                                    .frame(width: placeholderWidth, height: 3)
+                                    .shadow(color: Color.accentColor.opacity(0.3), radius: 4)
+                                    .position(x: proxy.size.width / 2, y: y)
+                            }
+                        } else if isTargeted && scheduledLessonsForSlot.isEmpty {
+                            // No insertion index yet, but we are targeted and empty: hint at top
+                            let yTop = 12 + placeholderHeight / 2
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.08))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                                )
+                                .frame(width: placeholderWidth, height: placeholderHeight)
+                                .position(x: proxy.size.width / 2, y: yTop)
                         }
                     }
                 }
@@ -118,83 +158,28 @@ struct AgendaSlot: View {
             itemFrames = frames
         }
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .onDrop(of: [UTType.text], isTargeted: $isTargeted) { providers, location in
-            guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
-
-            provider.loadObject(ofClass: NSString.self) { reading, _ in
-                guard let ns = reading as? NSString else { return }
-                let payload = ns as String
-
-                Task { @MainActor in
-                    // First, handle student-to-slot payloads
-                    if payload.hasPrefix("STUDENT_TO_INBOX:") || payload.hasPrefix("STUDENT_TO_SLOT:") {
-                        let parts = payload.split(separator: ":")
-                        if parts.count == 4,
-                           let srcID = UUID(uuidString: String(parts[1])),
-                           let lessonID = UUID(uuidString: String(parts[2])),
-                           let studentID = UUID(uuidString: String(parts[3])) {
-
-                            let current = scheduledLessonsForSlot
-                            var ids = current.map { $0.id }
-                            let frames = itemFrames
-                            let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-                                if let rect = frames[item.id] { return (item.id, rect) }
-                                return nil
-                            })
-                            let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
-
-                            let existing = allStudentLessons.first(where: { $0.lessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [studentID] })
-                            let targetSL: StudentLesson
-                            if let ex = existing {
-                                targetSL = ex
-                            } else {
-                                let new = StudentLesson(id: UUID(), lessonID: lessonID, studentIDs: [studentID], createdAt: Date(), scheduledFor: nil, givenAt: nil, notes: "", needsPractice: false, needsAnotherPresentation: false, followUpWork: "")
-                                let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-                                let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-                                new.lesson = (try? modelContext.fetch(lessonFetch))?.first
-                                if let s = (try? modelContext.fetch(studentFetch))?.first { new.students = [s] }
-                                new.syncSnapshotsFromRelationships()
-                                modelContext.insert(new)
-                                targetSL = new
-                            }
-
-                            ids.removeAll(where: { $0 == targetSL.id })
-                            let boundedIndex = max(0, min(insertionIndex, ids.count))
-                            ids.insert(targetSL.id, at: boundedIndex)
-                            let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
-                            let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
-                            for id in ids {
-                                if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] }
-                                if id == targetSL.id { targetSL.scheduledFor = timeMap[id] }
-                            }
-                            if let src = allStudentLessons.first(where: { $0.id == srcID }) {
-                                src.studentIDs.removeAll { $0 == studentID }
-                                src.students.removeAll { $0.id == studentID }
-                                if src.studentIDs.isEmpty { modelContext.delete(src) } else { src.syncSnapshotsFromRelationships() }
-                            }
-                            try? modelContext.save()
-                            return
-                        }
-                    }
-
-                    // Fallback: treat as a plain StudentLesson ID and delegate
-                    _ = AgendaSlotDropDelegate(
-                        calendar: calendar,
-                        modelContext: modelContext,
-                        allStudentLessons: allStudentLessons,
-                        day: day,
-                        period: period,
-                        getCurrent: { scheduledLessonsForSlot },
-                        itemFramesProvider: { itemFrames },
-                        onTargetChange: { _ in },
-                        onInsertionIndexChange: { _ in }
-                    ).performDropFromProvidersAsync(providers: providers, location: location)
+        .onDrop(of: [UTType.text], delegate: AgendaSlotDropDelegate(
+            calendar: calendar,
+            modelContext: modelContext,
+            allStudentLessons: allStudentLessons,
+            day: day,
+            period: period,
+            getCurrent: { scheduledLessonsForSlot },
+            itemFramesProvider: { itemFrames },
+            onTargetChange: { targeted in
+                withAnimation(.easeInOut(duration: 0.1)) { self.isTargeted = targeted }
+                if targeted {
+                    if baseFrames == nil { baseFrames = itemFrames }
+                } else {
+                    baseFrames = nil
+                }
+            },
+            onInsertionIndexChange: { idx in
+                if idx != self.insertionIndex {
+                    withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { self.insertionIndex = idx }
                 }
             }
-
-            // Accept the drop; processing will complete asynchronously
-            return true
-        }
+        ))
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
@@ -310,6 +295,62 @@ struct AgendaSlotDropDelegate: DropDelegate {
             let payload = ns as String
 
             Task { @MainActor in
+                // First, handle student-to-slot or student-to-inbox payloads
+                if payload.hasPrefix("STUDENT_TO_INBOX:") || payload.hasPrefix("STUDENT_TO_SLOT:") {
+                    let parts = payload.split(separator: ":")
+                    if parts.count == 4,
+                       let srcID = UUID(uuidString: String(parts[1])),
+                       let lessonID = UUID(uuidString: String(parts[2])),
+                       let studentID = UUID(uuidString: String(parts[3])) {
+
+                        let current = getCurrent()
+                        var ids = current.map { $0.id }
+                        let frames = itemFramesProvider()
+                        let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+                            if let rect = frames[item.id] { return (item.id, rect) }
+                            return nil
+                        })
+                        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
+
+                        let existing = allStudentLessons.first(where: { $0.lessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && $0.studentIDs == [studentID] })
+                        let targetSL: StudentLesson
+                        if let ex = existing {
+                            targetSL = ex
+                        } else {
+                            let new = StudentLesson(id: UUID(), lessonID: lessonID, studentIDs: [studentID], createdAt: Date(), scheduledFor: nil, givenAt: nil, notes: "", needsPractice: false, needsAnotherPresentation: false, followUpWork: "")
+                            let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+                            let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+                            new.lesson = (try? modelContext.fetch(lessonFetch))?.first
+                            if let s = (try? modelContext.fetch(studentFetch))?.first { new.students = [s] }
+                            new.syncSnapshotsFromRelationships()
+                            modelContext.insert(new)
+                            targetSL = new
+                        }
+
+                        ids.removeAll(where: { $0 == targetSL.id })
+                        let boundedIndex = max(0, min(insertionIndex, ids.count))
+                        ids.insert(targetSL.id, at: boundedIndex)
+                        let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
+                        let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+                        for id in ids {
+                            if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] }
+                            if id == targetSL.id { targetSL.scheduledFor = timeMap[id] }
+                        }
+                        if let src = allStudentLessons.first(where: { $0.id == srcID }) {
+                            src.studentIDs.removeAll { $0 == studentID }
+                            src.students.removeAll { $0.id == studentID }
+                            if src.studentIDs.isEmpty { modelContext.delete(src) } else { src.syncSnapshotsFromRelationships() }
+                        }
+                        try? modelContext.save()
+
+                        // Clear visual state
+                        onTargetChange(false)
+                        onInsertionIndexChange(nil)
+                        return
+                    }
+                }
+
+                // Fallback: treat as a plain StudentLesson ID and reorder within the slot
                 if let id = UUID(uuidString: payload.trimmingCharacters(in: .whitespacesAndNewlines)) {
                     var ids = getCurrent().map { $0.id }
                     if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
@@ -325,6 +366,10 @@ struct AgendaSlotDropDelegate: DropDelegate {
                     let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
                     for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] } }
                     try? modelContext.save()
+
+                    // Clear visual state
+                    onTargetChange(false)
+                    onInsertionIndexChange(nil)
                 }
             }
         }
