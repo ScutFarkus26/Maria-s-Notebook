@@ -476,7 +476,9 @@ fileprivate struct InboxRow: View {
           }
         }
         .onDrag {
-          NSItemProvider(object: NSString(string: sl.id.uuidString))
+          let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
+          provider.suggestedName = sl.lesson?.name ?? "Lesson"
+          return provider
         }
         .contextMenu {
           Button { onQuickActions(sl.id) } label: { Label("Quick Actions…", systemImage: "bolt") }

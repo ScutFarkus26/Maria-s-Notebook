@@ -850,7 +850,7 @@ struct StudentLessonDetailView: View {
     private var givenSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "checkmark.clock")
+                Image(systemName: "clock.badge.checkmark")
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
                 Text("Presented")

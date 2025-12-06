@@ -145,7 +145,9 @@ struct DropZone: View {
                         src.syncSnapshotsFromRelationships()
                     }
                 }
-                Task { @MainActor in try? modelContext.save() }
+                Task { @MainActor in 
+                    try? modelContext.save()
+                }
                 return true
             }
 
@@ -165,10 +167,14 @@ struct DropZone: View {
             let base = dateForSlot(day: day, period: period)
             let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: base, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
             for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] } }
-            Task { @MainActor in try? modelContext.save() }
+            Task { @MainActor in 
+                try? modelContext.save()
+            }
             return true
         }, isTargeted: { hovering in
-            isTargeted = hovering
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isTargeted = hovering
+            }
         })
     }
 

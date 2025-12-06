@@ -19,7 +19,6 @@ struct AgendaSlot: View {
     @State private var zoneSpaceID = UUID()
     @State private var isTargeted: Bool = false
     @State private var insertionIndex: Int? = nil
-    @State private var baseFrames: [UUID: CGRect]? = nil
 
     private var scheduledLessonsForSlot: [StudentLesson] {
         allStudentLessons.filter { sl in
@@ -57,7 +56,6 @@ struct AgendaSlot: View {
             if isTargeted {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(Color.accentColor.opacity(0.7), lineWidth: 3)
-                    .shadow(color: Color.accentColor.opacity(0.25), radius: 6)
                     .allowsHitTesting(false)
             }
 
@@ -70,84 +68,32 @@ struct AgendaSlot: View {
                         .padding(.horizontal, 10)
                 } else {
                     ForEach(Array(scheduledLessonsForSlot.enumerated()), id: \.element.id) { index, sl in
-                        StudentLessonPill(snapshot: sl.snapshot(), day: day, sourceStudentLessonID: sl.id, targetStudentLessonID: sl.id)
-                            .onDrag { NSItemProvider(object: NSString(string: sl.id.uuidString)) }
-                            .scaleEffect((isTargeted && insertionIndex == index) ? 1.02 : 1.0)
-                            .onTapGesture { onSelectLesson(sl) }
-                            .contextMenu {
-                                Button { onQuickActions(sl) } label: { Label("Quick Actions…", systemImage: "bolt") }
-                                Button { onPlanNext(sl) } label: { Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus") }
-                                Button { onSelectLesson(sl) } label: { Label("Open Details", systemImage: "info.circle") }
-                                Button { onMoveStudents(sl) } label: { Label("Move Students…", systemImage: "person.2.arrow.right") }
-                                Button { onMoveToInbox(sl) } label: { Label("Move to Inbox", systemImage: "tray") }
-                            }
-                            .background(
-                                GeometryReader { proxy in
-                                    Color.clear.preference(
-                                        key: PillFramePreference.self,
-                                        value: [sl.id: proxy.frame(in: .named(zoneSpaceID))]
-                                    )
-                                }
-                            )
+                        lessonPillView(for: sl)
                     }
                 }
             }
             .padding(12)
             .overlay(
                 GeometryReader { proxy in
-                    let placeholderWidth = max(0, proxy.size.width - 24) // account for 12pt horizontal padding
-                    let placeholderHeight: CGFloat = 44
+                    if let idx = insertionIndex {
+                        let frames: [(UUID, CGRect)] = scheduledLessonsForSlot.compactMap { item in
+                            if let rect = itemFrames[item.id] { return (item.id, rect) }
+                            return nil
+                        }.sorted { $0.1.minY < $1.1.minY }
 
-                    Group {
-                        if let idx = insertionIndex {
-                            let frames: [(UUID, CGRect)] = scheduledLessonsForSlot.compactMap { item in
-                                if let rect = (baseFrames ?? itemFrames)[item.id] { return (item.id, rect) }
-                                return nil
-                            }.sorted { $0.1.minY < $1.1.minY }
-
-                            if frames.isEmpty {
-                                // Empty list case: show placeholder at top padding
-                                let yTop = 12 + placeholderHeight / 2
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color.accentColor.opacity(0.08))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                            .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
-                                    )
-                                    .frame(width: placeholderWidth, height: placeholderHeight)
-                                    .position(x: proxy.size.width / 2, y: yTop)
-                            } else {
-                                let y: CGFloat = (idx < frames.count) ? frames[idx].1.minY : (frames.last!.1.maxY)
-                                let placeholderY = y + placeholderHeight / 2
-
-                                // Ghost placeholder
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color.accentColor.opacity(0.08))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                            .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
-                                    )
-                                    .frame(width: placeholderWidth, height: placeholderHeight)
-                                    .position(x: proxy.size.width / 2, y: placeholderY)
-
-                                // Accent insertion line
-                                Capsule()
-                                    .fill(Color.accentColor)
-                                    .frame(width: placeholderWidth, height: 3)
-                                    .shadow(color: Color.accentColor.opacity(0.3), radius: 4)
-                                    .position(x: proxy.size.width / 2, y: y)
-                            }
-                        } else if isTargeted && scheduledLessonsForSlot.isEmpty {
-                            // No insertion index yet, but we are targeted and empty: hint at top
-                            let yTop = 12 + placeholderHeight / 2
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.08))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
-                                )
-                                .frame(width: placeholderWidth, height: placeholderHeight)
-                                .position(x: proxy.size.width / 2, y: yTop)
+                        if frames.isEmpty {
+                            // Empty slot - show indicator at top
+                            Capsule()
+                                .fill(Color.accentColor)
+                                .frame(width: proxy.size.width - 24, height: 3)
+                                .position(x: proxy.size.width / 2, y: 12)
+                        } else {
+                            // Show indicator at insertion position
+                            let y: CGFloat = (idx < frames.count) ? frames[idx].1.minY : (frames.last!.1.maxY + 8)
+                            Capsule()
+                                .fill(Color.accentColor)
+                                .frame(width: proxy.size.width - 24, height: 3)
+                                .position(x: proxy.size.width / 2, y: y)
                         }
                     }
                 }
@@ -167,23 +113,78 @@ struct AgendaSlot: View {
             getCurrent: { scheduledLessonsForSlot },
             itemFramesProvider: { itemFrames },
             onTargetChange: { targeted in
-                withAnimation(.easeInOut(duration: 0.1)) { self.isTargeted = targeted }
-                if targeted {
-                    if baseFrames == nil { baseFrames = itemFrames }
-                } else {
-                    baseFrames = nil
-                }
+                isTargeted = targeted
             },
             onInsertionIndexChange: { idx in
-                if idx != self.insertionIndex {
-                    withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { self.insertionIndex = idx }
-                }
+                insertionIndex = idx
             }
         ))
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
+    @ViewBuilder
+    private func lessonPillView(for sl: StudentLesson) -> some View {
+        StudentLessonPill(
+            snapshot: sl.snapshot(),
+            day: day,
+            sourceStudentLessonID: sl.id,
+            targetStudentLessonID: sl.id
+        )
+        .draggable(sl.id.uuidString) {
+            // Custom drag preview
+            StudentLessonPill(
+                snapshot: sl.snapshot(),
+                day: day,
+                sourceStudentLessonID: sl.id,
+                targetStudentLessonID: sl.id
+            )
+            .opacity(0.8)
+        }
+        .onTapGesture {
+            onSelectLesson(sl)
+        }
+        .contextMenu {
+            Button {
+                onQuickActions(sl)
+            } label: {
+                Label("Quick Actions…", systemImage: "bolt")
+            }
+            
+            Button {
+                onPlanNext(sl)
+            } label: {
+                Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
+            }
+            
+            Button {
+                onSelectLesson(sl)
+            } label: {
+                Label("Open Details", systemImage: "info.circle")
+            }
+            
+            Button {
+                onMoveStudents(sl)
+            } label: {
+                Label("Move Students…", systemImage: "person.2.arrow.right")
+            }
+            
+            Button {
+                onMoveToInbox(sl)
+            } label: {
+                Label("Move to Inbox", systemImage: "tray")
+            }
+        }
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: PillFramePreference.self,
+                    value: [sl.id: proxy.frame(in: .named(zoneSpaceID))]
+                )
+            }
+        )
+    }
+    
     private func isInSlot(_ date: Date, period: DayPeriod) -> Bool {
         let hour = calendar.component(.hour, from: date)
         switch period {
@@ -253,6 +254,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
 
     func performDrop(info: DropInfo) -> Bool {
         onTargetChange(false)
+        onInsertionIndexChange(nil)
         let providers = info.itemProviders(for: [UTType.text])
         return performDropFromProvidersAsync(providers: providers, location: info.location)
     }
@@ -288,10 +290,14 @@ struct AgendaSlotDropDelegate: DropDelegate {
     }
 
     func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
-        guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
+        guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { 
+            return false 
+        }
 
         provider.loadObject(ofClass: NSString.self) { reading, _ in
-            guard let ns = reading as? NSString else { return }
+            guard let ns = reading as? NSString else { 
+                return 
+            }
             let payload = ns as String
 
             Task { @MainActor in
@@ -332,20 +338,18 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         ids.insert(targetSL.id, at: boundedIndex)
                         let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
                         let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+                        
                         for id in ids {
                             if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] }
                             if id == targetSL.id { targetSL.scheduledFor = timeMap[id] }
                         }
+                        
                         if let src = allStudentLessons.first(where: { $0.id == srcID }) {
                             src.studentIDs.removeAll { $0 == studentID }
                             src.students.removeAll { $0.id == studentID }
                             if src.studentIDs.isEmpty { modelContext.delete(src) } else { src.syncSnapshotsFromRelationships() }
                         }
                         try? modelContext.save()
-
-                        // Clear visual state
-                        onTargetChange(false)
-                        onInsertionIndexChange(nil)
                         return
                     }
                 }
@@ -364,12 +368,13 @@ struct AgendaSlotDropDelegate: DropDelegate {
                     ids.insert(id, at: bounded)
                     let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
                     let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
-                    for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] } }
+                    
+                    for id in ids { 
+                        if let item = allStudentLessons.first(where: { $0.id == id }) { 
+                            item.scheduledFor = timeMap[id] 
+                        } 
+                    }
                     try? modelContext.save()
-
-                    // Clear visual state
-                    onTargetChange(false)
-                    onInsertionIndexChange(nil)
                 }
             }
         }
