@@ -32,9 +32,13 @@ struct WorkView: View {
     @SceneStorage("WorkView.grouping") private var groupingStorage: String = ""
     @SceneStorage("WorkView.mode") private var modeStorage: String = "overview"
     @SceneStorage("WorkView.level") private var levelStorage: String = "All"
+    @SceneStorage("WorkView.overviewLayout") private var overviewLayoutStorage: String = "list"
     
     private enum Mode: String { case overview, items }
     @State private var mode: Mode = .overview
+    
+    private enum OverviewLayout: String { case list, grid }
+    @State private var overviewLayout: OverviewLayout = .list
     
     // Lookup service
     private var lookupService: WorkLookupService {
@@ -181,6 +185,7 @@ struct WorkView: View {
             filters.level = level
         }
         mode = Mode(rawValue: modeStorage) ?? .overview
+        overviewLayout = OverviewLayout(rawValue: overviewLayoutStorage) ?? .list
     }
     
     private func syncFiltersToStorage() {
@@ -190,6 +195,7 @@ struct WorkView: View {
         selectedStudentIDsStorage = filters.selectedStudentIDs.map { $0.uuidString }.joined(separator: ",")
         levelStorage = filters.level.rawValue
         modeStorage = mode.rawValue
+        overviewLayoutStorage = overviewLayout.rawValue
     }
     
     private func handleWorkSelection(_ work: WorkModel) {
@@ -206,26 +212,35 @@ struct WorkView: View {
     }
 
 #if !os(macOS)
+    @MainActor
+    private func performAfterMenuDismiss(_ action: @escaping () -> Void) {
+        // Defer state changes until after the Menu has fully dismissed to avoid
+        // presenting/dismissing remote views during Menu lifetime (prevents ViewBridge disconnects).
+        DispatchQueue.main.async { action() }
+    }
+#endif
+
+#if !os(macOS)
     private var filtersMenu: some View {
         Menu {
             Section("Students") {
-                Button("Select Students…") { isShowingStudentFilterPopover = true }
-                Button("Clear Selected") { filters.selectedStudentIDs = [] }
+                Button("Select Students…") { performAfterMenuDismiss { isShowingStudentFilterPopover = true } }
+                Button("Clear Selected") { performAfterMenuDismiss { filters.selectedStudentIDs = [] } }
             }
             Section("Level") {
-                Button("All") { filters.level = .all }
-                Button("Lower") { filters.level = .lower }
-                Button("Upper") { filters.level = .upper }
+                Button("All") { performAfterMenuDismiss { filters.level = .all } }
+                Button("Lower") { performAfterMenuDismiss { filters.level = .lower } }
+                Button("Upper") { performAfterMenuDismiss { filters.level = .upper } }
             }
             Section("Subject") {
-                Button("All Subjects") { filters.selectedSubject = nil }
+                Button("All Subjects") { performAfterMenuDismiss { filters.selectedSubject = nil } }
                 ForEach(lookupService.subjects, id: \.self) { subject in
-                    Button(subject) { filters.selectedSubject = subject }
+                    Button(subject) { performAfterMenuDismiss { filters.selectedSubject = subject } }
                 }
             }
             Section("Group By") {
                 ForEach(WorkFilters.Grouping.allCases, id: \.self) { grouping in
-                    Button(grouping.displayName) { filters.grouping = grouping }
+                    Button(grouping.displayName) { performAfterMenuDismiss { filters.grouping = grouping } }
                 }
             }
         } label: {
@@ -251,6 +266,7 @@ struct WorkView: View {
             .onChange(of: filters.selectedStudentIDs) { _, _ in syncFiltersToStorage() }
             .onChange(of: filters.level) { _, _ in syncFiltersToStorage() }
             .onChange(of: mode) { _, _ in syncFiltersToStorage() }
+            .onChange(of: overviewLayout) { _, _ in syncFiltersToStorage() }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewWorkRequested"))) { _ in
                 isPresentingAddWork = true
             }
@@ -271,6 +287,14 @@ struct WorkView: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 200)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        overviewLayout = (overviewLayout == .list) ? .grid : .list
+                    } label: {
+                        Image(systemName: overviewLayout == .list ? "square.grid.2x2" : "list.bullet")
+                    }
+                    .help(overviewLayout == .list ? "Show Grid" : "Show List")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -339,16 +363,29 @@ struct WorkView: View {
             // Content area
             Group {
                 if mode == .overview {
-                    WorkOverviewList(
-                        summaries: workSummaries,
-                        openWorksByStudentID: openWorksByStudentID,
-                        lookupService: lookupService,
-                        onTapStudent: { student in
-                            filters.selectedStudentIDs = [student.id]
-                            mode = .items
-                        },
-                        onTapWork: handleWorkSelection
-                    )
+                    if overviewLayout == .list {
+                        WorkOverviewList(
+                            summaries: workSummaries,
+                            openWorksByStudentID: openWorksByStudentID,
+                            lookupService: lookupService,
+                            onTapStudent: { student in
+                                filters.selectedStudentIDs = [student.id]
+                                mode = .items
+                            },
+                            onTapWork: handleWorkSelection
+                        )
+                    } else {
+                        WorkStudentsGrid(
+                            summaries: workSummaries,
+                            openWorksByStudentID: openWorksByStudentID,
+                            lookupService: lookupService,
+                            onTapStudent: { student in
+                                filters.selectedStudentIDs = [student.id]
+                                mode = .items
+                            },
+                            onTapWork: handleWorkSelection
+                        )
+                    }
                 } else {
                     if workItems.isEmpty {
                         WorkEmptyStateView(type: .noWork)
@@ -401,16 +438,29 @@ struct WorkView: View {
 #endif
                 Group {
                     if mode == .overview {
-                        WorkOverviewList(
-                            summaries: workSummaries,
-                            openWorksByStudentID: openWorksByStudentID,
-                            lookupService: lookupService,
-                            onTapStudent: { student in
-                                filters.selectedStudentIDs = [student.id]
-                                mode = .items
-                            },
-                            onTapWork: handleWorkSelection
-                        )
+                        if overviewLayout == .list {
+                            WorkOverviewList(
+                                summaries: workSummaries,
+                                openWorksByStudentID: openWorksByStudentID,
+                                lookupService: lookupService,
+                                onTapStudent: { student in
+                                    filters.selectedStudentIDs = [student.id]
+                                    mode = .items
+                                },
+                                onTapWork: handleWorkSelection
+                            )
+                        } else {
+                            WorkStudentsGrid(
+                                summaries: workSummaries,
+                                openWorksByStudentID: openWorksByStudentID,
+                                lookupService: lookupService,
+                                onTapStudent: { student in
+                                    filters.selectedStudentIDs = [student.id]
+                                    mode = .items
+                                },
+                                onTapWork: handleWorkSelection
+                            )
+                        }
                     } else {
                         if workItems.isEmpty {
                             WorkEmptyStateView(type: .noWork)
@@ -429,14 +479,26 @@ struct WorkView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topTrailing) {
-                    Button {
-                        isPresentingAddWork = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: AppTheme.FontSize.titleXLarge))
-                            .foregroundStyle(.green)
+                    HStack(spacing: 12) {
+                        Button {
+                            overviewLayout = (overviewLayout == .list) ? .grid : .list
+                        } label: {
+                            Image(systemName: overviewLayout == .list ? "square.grid.2x2" : "list.bullet")
+                                .font(.system(size: AppTheme.FontSize.titleXLarge))
+                                .foregroundStyle(.primary)
+                        }
+                        .buttonStyle(.plain)
+                        .help(overviewLayout == .list ? "Show Grid" : "Show List")
+
+                        Button {
+                            isPresentingAddWork = true
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: AppTheme.FontSize.titleXLarge))
+                                .foregroundStyle(.green)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                     .padding()
                 }
             }

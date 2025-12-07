@@ -257,7 +257,7 @@ private struct DefaultStudentCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .top) {
                 Text(displayName)
                     .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                 Spacer(minLength: 0)
@@ -390,7 +390,7 @@ private struct AgeStudentCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .top) {
                     Text(displayName)
                         .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
@@ -438,7 +438,7 @@ private struct BirthdayStudentCard: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 // Top: name + balloon (subtle, not competing)
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .top) {
                     Text(displayName)
                         .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)

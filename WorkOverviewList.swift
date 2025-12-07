@@ -34,6 +34,7 @@ struct WorkOverviewList: View {
 
     var body: some View {
         List {
+            WorkTypeLegendListRow()
             ForEach(summaries) { summary in
                 VStack(alignment: .leading, spacing: 8) {
                     let hasOpen = !(openWorksByStudentID[summary.id] ?? []).isEmpty
@@ -116,12 +117,6 @@ private struct MinimalOpenWorksList: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 0)
-                    Text(typeLabel(for: work.workType))
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(color(for: work.workType))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(color(for: work.workType).opacity(0.12)))
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { onTapWork(work) }
@@ -235,6 +230,25 @@ private struct TotalBadge: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Capsule().fill(Color.primary.opacity(0.06)))
+    }
+}
+
+private struct WorkTypeLegendListRow: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            legendItem(color: .purple, label: "Practice")
+            legendItem(color: .orange, label: "Follow-Up")
+            legendItem(color: .teal, label: "Research")
+        }
+        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+        .foregroundStyle(.secondary)
+    }
+
+    private func legendItem(color: Color, label: String) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(label)
+        }
     }
 }
 
