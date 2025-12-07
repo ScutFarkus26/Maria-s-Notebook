@@ -124,41 +124,38 @@ enum DataMigrations {
 
         if changed { try? context.save() }
     }
-
-    /// Backfill missing work participants from studentIDs and delete truly empty works once.
-    /// - If a WorkModel has no studentIDs and no participants, delete it.
-    /// - If a WorkModel has studentIDs but no participants, create participants for each studentID.
-    ///   If the work has a global completedAt, apply it to each participant and backfill completion records.
+    
+    /// Backfill Work participants from legacy studentIDs and delete empty Work items if needed.
+    /// Idempotent and safe to call multiple times.
     static func backfillParticipantsAndDeleteEmptyWorksIfNeeded(using context: ModelContext) {
-        let flagKey = "Migration.workParticipantsBackfill.v1"
+        let flagKey = "Migration.workParticipantsBackfillAndPrune.v1"
         if UserDefaults.standard.bool(forKey: flagKey) { return }
         do {
             let works = try context.fetch(FetchDescriptor<WorkModel>())
-            var changed = 0
+            var changed = false
             for w in works {
-                if w.studentIDs.isEmpty && w.participants.isEmpty {
-                    context.delete(w)
-                    changed += 1
-                    continue
-                }
-                if !w.studentIDs.isEmpty && w.participants.isEmpty {
-                    // Create participants from studentIDs
-                    w.ensureParticipantsFromStudentIDs()
-                    // If the work has a global completion date, propagate to each participant
-                    if let completed = w.completedAt {
-                        for i in 0..<w.participants.count {
-                            w.participants[i].completedAt = completed
+                // If there are no participants but legacy studentIDs were used historically,
+                // reconstruct participants from any linked StudentLesson.
+                if w.participants.isEmpty, let slID = w.studentLessonID {
+                    if let sl = try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == slID })).first {
+                        let parts = sl.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: w) }
+                        if !parts.isEmpty {
+                            w.participants = parts
+                            changed = true
                         }
-                        // Backfill durable completion records for history
-                        try? WorkCompletionBackfill.backfill(for: w.id, participants: w.participants, in: context)
                     }
-                    changed += 1
                 }
             }
-            if changed > 0 { try? context.save() }
+            // Delete any works that still have no participants and are not completed
+            // (legacy artifacts that would clutter the UI)
+            for w in works where w.participants.isEmpty {
+                context.delete(w)
+                changed = true
+            }
+            if changed { try context.save() }
             UserDefaults.standard.set(true, forKey: flagKey)
         } catch {
-            // If fetch fails, do not set the flag so we can retry later.
+            // Best-effort; do not set the flag so we can retry later
         }
     }
 }

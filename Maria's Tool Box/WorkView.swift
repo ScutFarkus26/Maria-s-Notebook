@@ -59,19 +59,11 @@ struct WorkView: View {
         case .all:
             return base
         case .lower, .upper:
-            let map = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
             return base.filter { work in
-                if work.participants.isEmpty {
-                    // Fallback: no participants yet — use studentIDs
-                    return work.studentIDs.contains { id in
-                        guard let s = map[id] else { return false }
-                        return (filters.level == .lower && s.level == .lower) || (filters.level == .upper && s.level == .upper)
-                    }
-                } else {
-                    return work.participants.contains { p in
-                        guard let s = map[p.studentID] else { return false }
-                        return (filters.level == .lower && s.level == .lower) || (filters.level == .upper && s.level == .upper)
-                    }
+                let map = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+                return work.participants.contains { p in
+                    guard let s = map[p.studentID] else { return false }
+                    return (filters.level == .lower && s.level == .lower) || (filters.level == .upper && s.level == .upper)
                 }
             }
         }
@@ -105,19 +97,10 @@ struct WorkView: View {
     private var openWorksByStudentID: [UUID: [WorkModel]] {
         var map: [UUID: [WorkModel]] = [:]
         for work in openWorks {
-            if work.participants.isEmpty {
-                // Fallback: if no participants, treat all listed studentIDs as open
-                for sid in work.studentIDs {
-                    guard isParticipantVisible(sid) else { continue }
-                    map[sid, default: []].append(work)
-                }
-            } else {
-                // Normal path: include only participants who haven't completed yet
-                for p in work.participants {
-                    guard isParticipantVisible(p.studentID) else { continue }
-                    if p.completedAt == nil {
-                        map[p.studentID, default: []].append(work)
-                    }
+            for p in work.participants {
+                guard isParticipantVisible(p.studentID) else { continue }
+                if p.completedAt == nil {
+                    map[p.studentID, default: []].append(work)
                 }
             }
         }
@@ -127,31 +110,15 @@ struct WorkView: View {
     private var workSummaries: [StudentWorkSummary] {
         var counts: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
         for work in openWorks {
-            if work.participants.isEmpty {
-                // Fallback: if no participants, treat all listed studentIDs as open
-                for sid in work.studentIDs {
-                    guard isParticipantVisible(sid) else { continue }
-                    switch work.workType {
-                    case .practice:
-                        counts[sid, default: (0,0,0)].practice += 1
-                    case .followUp:
-                        counts[sid, default: (0,0,0)].follow += 1
-                    case .research:
-                        counts[sid, default: (0,0,0)].research += 1
-                    }
-                }
-            } else {
-                // Normal path: count only participants who haven't completed yet
-                for p in work.participants {
-                    guard isParticipantVisible(p.studentID) else { continue }
-                    switch work.workType {
-                    case .practice:
-                        if p.completedAt == nil { counts[p.studentID, default: (0,0,0)].practice += 1 }
-                    case .followUp:
-                        if p.completedAt == nil { counts[p.studentID, default: (0,0,0)].follow += 1 }
-                    case .research:
-                        if p.completedAt == nil { counts[p.studentID, default: (0,0,0)].research += 1 }
-                    }
+            for p in work.participants {
+                guard isParticipantVisible(p.studentID) else { continue }
+                switch work.workType {
+                case .practice:
+                    if p.completedAt == nil { counts[p.studentID, default: (0,0,0)].practice += 1 }
+                case .followUp:
+                    if p.completedAt == nil { counts[p.studentID, default: (0,0,0)].follow += 1 }
+                case .research:
+                    if p.completedAt == nil { counts[p.studentID, default: (0,0,0)].research += 1 }
                 }
             }
         }
@@ -258,6 +225,7 @@ struct WorkView: View {
             }
             .onAppear {
                 syncFiltersFromStorage()
+                WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
                 mode = Mode(rawValue: modeStorage) ?? .overview
             }
             .onChange(of: filters.grouping) { _, _ in syncFiltersToStorage() }
@@ -309,8 +277,8 @@ struct WorkView: View {
             }
         }
         .sheet(isPresented: Binding(get: { selectedWorkID != nil }, set: { if !$0 { selectedWorkID = nil } })) {
-            if let id = selectedWorkID, let work = workItems.first(where: { $0.id == id }) {
-                WorkDetailView(work: work) {
+            if let id = selectedWorkID {
+                WorkDetailContainerView(workID: id) {
                     selectedWorkID = nil
                 }
             } else {

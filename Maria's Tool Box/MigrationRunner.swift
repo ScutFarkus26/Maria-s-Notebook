@@ -25,14 +25,12 @@ enum MigrationRunner {
                     let w = WorkModel(
                         id: UUID(),
                         title: "Practice: \(sl.lesson?.name ?? "Lesson")",
-                        studentIDs: sl.studentIDs,
                         workType: .practice,
                         studentLessonID: sl.id,
                         notes: "",
                         createdAt: Date()
                     )
-                    w.ensureParticipantsFromStudentIDs()
-                    w.mirrorStudentIDsFromParticipants()
+                    w.participants = sl.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: w) }
                     context.insert(w)
                 }
             }
@@ -45,14 +43,12 @@ enum MigrationRunner {
                     let w = WorkModel(
                         id: UUID(),
                         title: "Follow Up: \(sl.lesson?.name ?? "Lesson")",
-                        studentIDs: sl.studentIDs,
                         workType: .followUp,
                         studentLessonID: sl.id,
                         notes: trimmed,
                         createdAt: Date()
                     )
-                    w.ensureParticipantsFromStudentIDs()
-                    w.mirrorStudentIDsFromParticipants()
+                    w.participants = sl.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: w) }
                     context.insert(w)
                 }
             }

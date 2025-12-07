@@ -114,9 +114,9 @@ private struct WorkCard: View {
     }
 
     private var activeStudentNames: [String] {
-        work.studentIDs.compactMap { id -> String? in
-            guard let s = studentsByID[id] else { return nil }
-            guard !work.isStudentCompleted(id) else { return nil }
+        work.participants.compactMap { p -> String? in
+            guard let s = studentsByID[p.studentID] else { return nil }
+            guard p.completedAt == nil else { return nil }
             let parts = s.fullName.split(separator: " ")
             guard let first = parts.first else { return s.fullName }
             let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
@@ -125,16 +125,16 @@ private struct WorkCard: View {
     }
 
     private var completedCount: Int {
-        work.studentIDs.filter { work.isStudentCompleted($0) }.count
+        work.participants.filter { $0.completedAt != nil }.count
     }
     
     private var isFullyComplete: Bool {
-        let total = work.studentIDs.count
+        let total = work.participants.count
         return total > 0 && completedCount == total
     }
     
     private var progress: Double {
-        let total = max(work.studentIDs.count, 1)
+        let total = max(work.participants.count, 1)
         return Double(completedCount) / Double(total)
     }
     
@@ -157,7 +157,7 @@ private struct WorkCard: View {
                         .stroke(Color.green, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                 }
-                .accessibilityLabel("\(completedCount) of \(work.studentIDs.count) students complete")
+                .accessibilityLabel("\(completedCount) of \(work.participants.count) students complete")
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
@@ -243,7 +243,11 @@ private struct WorkCard: View {
     let studentB = Student(firstName: "Blair", lastName: "Chen", birthday: Date(timeIntervalSince1970: 0), level: .lower)
     let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro", writeUp: "")
     let sl = StudentLesson(lessonID: lesson.id, studentIDs: [studentA.id, studentB.id])
-    let work = WorkModel(studentIDs: [studentA.id, studentB.id], workType: .practice, studentLessonID: sl.id, notes: "Practiced with golden beads.")
+    let work = WorkModel(workType: .practice, studentLessonID: sl.id, notes: "Practiced with golden beads.")
+    work.participants = [
+        WorkParticipantEntity(studentID: studentA.id),
+        WorkParticipantEntity(studentID: studentB.id)
+    ]
 
     return WorkCardsGridView(
         works: [work],

@@ -27,5 +27,5 @@ struct PerStudentCompletionSection: View {
 
 #Preview {
     // Minimal preview stub; real data should be provided by the app context.
-    PerStudentCompletionSection(vm: WorkDetailViewModel(work: WorkModel(title: "", studentIDs: [], workType: .research, studentLessonID: nil, notes: "")))
+    PerStudentCompletionSection(vm: WorkDetailViewModel(work: WorkModel(title: "", workType: .research, studentLessonID: nil, notes: "")))
 }

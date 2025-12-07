@@ -3,15 +3,14 @@ import SwiftData
 
 // MARK: - WorkModel Check-in Counts
 extension WorkModel {
-    /// Returns (completed, total, upcoming) counts for this work based on the current studentIDs.
-    /// - completed: Number of students who have a completion/check-in recorded for this work.
-    /// - total: Total number of students attached to this work.
-    /// - upcoming: Students who have not yet checked in (total - completed), clamped to >= 0.
+    /// Returns (completed, total, upcoming) counts for this work based on current participants.
+    /// - completed: Number of participants who have completed this work.
+    /// - total: Total number of participants attached to this work.
+    /// - upcoming: Participants who have not yet completed (total - completed), clamped to >= 0.
     func checkInCounts() -> (completed: Int, total: Int, upcoming: Int) {
-        let total = studentIDs.count
-        // Use existing API on WorkModel to avoid depending on relationship names
-        let completed = studentIDs.reduce(into: 0) { partial, sid in
-            if self.isStudentCompleted(sid) { partial += 1 }
+        let total = participants.count
+        let completed = participants.reduce(0) { partial, p in
+            partial + (p.completedAt != nil ? 1 : 0)
         }
         let upcoming = max(0, total - completed)
         return (completed, total, upcoming)

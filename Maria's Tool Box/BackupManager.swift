@@ -287,7 +287,7 @@ struct SchoolDayOverrideDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 14
+    static let currentVersion: Int = 15
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -358,7 +358,7 @@ enum BackupManager {
             WorkDTO(
                 id: w.id,
                 title: w.title,
-                studentIDs: w.resolvedStudentIDs,
+                studentIDs: w.participants.map { $0.studentID },
                 workType: w.workType.rawValue,
                 studentLessonID: w.studentLessonID,
                 notes: w.notes,
@@ -549,13 +549,17 @@ enum BackupManager {
                     // skip unknown workTypes
                     continue
                 }
-                let participants: [WorkParticipantEntity] = dto.participants.map { part in
-                    WorkParticipantEntity(studentID: part.studentID, completedAt: part.completedAt)
+                let participants: [WorkParticipantEntity]
+                if dto.participants.isEmpty {
+                    participants = dto.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil) }
+                } else {
+                    participants = dto.participants.map { part in
+                        WorkParticipantEntity(studentID: part.studentID, completedAt: part.completedAt)
+                    }
                 }
                 let work = WorkModel(
                     id: dto.id,
                     title: dto.title,
-                    studentIDs: dto.studentIDs,
                     workType: workTypeEnum,
                     studentLessonID: dto.studentLessonID,
                     notes: dto.notes,
@@ -563,7 +567,6 @@ enum BackupManager {
                     completedAt: dto.completedAt,
                     participants: participants
                 )
-                work.mirrorStudentIDsFromParticipants()
                 for p in work.participants { p.work = work }
                 context.insert(work)
             }

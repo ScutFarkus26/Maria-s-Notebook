@@ -171,14 +171,12 @@ struct StudentLessonQuickActionsView: View {
                             let followUp = WorkModel(
                                 id: UUID(),
                                 title: "Follow Up: \(lesson?.name ?? "Lesson")",
-                                studentIDs: studentLesson.studentIDs,
                                 workType: .followUp,
                                 studentLessonID: studentLesson.id,
                                 notes: trimmed,
                                 createdAt: Date()
                             )
-                            followUp.ensureParticipantsFromStudentIDs()
-                            followUp.mirrorStudentIDsFromParticipants()
+                            followUp.participants = studentLesson.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: followUp) }
                             modelContext.insert(followUp)
                             try? modelContext.save()
                         }
@@ -290,14 +288,12 @@ struct StudentLessonQuickActionsView: View {
             let practice = WorkModel(
                 id: UUID(),
                 title: "Practice: \(lesson?.name ?? "Lesson")",
-                studentIDs: studentLesson.studentIDs,
                 workType: .practice,
                 studentLessonID: studentLesson.id,
                 notes: "",
                 createdAt: Date()
             )
-            practice.ensureParticipantsFromStudentIDs()
-            practice.mirrorStudentIDsFromParticipants()
+            practice.participants = studentLesson.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practice) }
             modelContext.insert(practice)
             try? modelContext.save()
         }

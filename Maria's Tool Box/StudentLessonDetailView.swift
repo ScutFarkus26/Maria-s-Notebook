@@ -442,14 +442,12 @@ struct StudentLessonDetailView: View {
                             let work = WorkModel(
                                 id: UUID(),
                                 title: "Follow Up: \(lessonObject?.name ?? "Lesson")",
-                                studentIDs: Array(selectedStudentIDs),
                                 workType: .followUp,
                                 studentLessonID: studentLesson.id,
                                 notes: trimmed,
                                 createdAt: Date()
                             )
-                            work.ensureParticipantsFromStudentIDs()
-                            work.mirrorStudentIDsFromParticipants()
+                            work.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: work) }
                             modelContext.insert(work)
                             try? modelContext.save()
                         }
@@ -1193,14 +1191,12 @@ struct StudentLessonDetailView: View {
             let practiceWork = WorkModel(
                 id: UUID(),
                 title: "Practice: \(lessonObject?.name ?? "Lesson")",
-                studentIDs: Array(selectedStudentIDs),
                 workType: .practice,
                 studentLessonID: studentLesson.id,
                 notes: "",
                 createdAt: Date()
             )
-            practiceWork.ensureParticipantsFromStudentIDs()
-            practiceWork.mirrorStudentIDsFromParticipants()
+            practiceWork.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork) }
             modelContext.insert(practiceWork)
             try? modelContext.save()
         }

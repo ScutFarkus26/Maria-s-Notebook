@@ -410,7 +410,7 @@ struct StudentDetailView: View {
             #endif
         }
         .sheet(item: $vm.selectedWorkForDetail) { w in
-            WorkDetailView(work: w) {
+            WorkDetailContainerView(workID: w.id) {
                 vm.selectedWorkForDetail = nil
             }
             #if os(macOS)
@@ -434,6 +434,7 @@ struct StudentDetailView: View {
             #endif
         }
         .onAppear {
+            WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             ensureChecklistSubjectSelection()
         }

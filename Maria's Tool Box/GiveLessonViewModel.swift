@@ -97,7 +97,7 @@ final class LessonPickerViewModel: ObservableObject {
         let query = lessonSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return sortedLessons }
 
-        return sortedLessons.filter { lesson in
+        return filteredLessons.filter { lesson in
             lesson.name.lowercased().contains(query) ||
             lesson.subject.lowercased().contains(query) ||
             lesson.group.lowercased().contains(query)
@@ -271,15 +271,13 @@ final class LessonPickerViewModel: ObservableObject {
             if !hasPractice {
                 let practiceWork = WorkModel(
                     id: UUID(),
-                    studentIDs: Array(selectedStudentIDs),
                     workType: .practice,
                     studentLessonID: studentLesson.id,
                     notes: "",
                     createdAt: Date()
                 )
+                practiceWork.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork) }
                 context.insert(practiceWork)
-                practiceWork.ensureParticipantsFromStudentIDs()
-                practiceWork.mirrorStudentIDsFromParticipants()
             }
         }
         
@@ -289,15 +287,13 @@ final class LessonPickerViewModel: ObservableObject {
             let followUp = WorkModel(
                 id: UUID(),
                 title: "Follow Up: \(finalLesson.name)",
-                studentIDs: Array(selectedStudentIDs),
                 workType: .followUp,
                 studentLessonID: studentLesson.id,
                 notes: trimmedFollowUp,
                 createdAt: Date()
             )
+            followUp.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: followUp) }
             context.insert(followUp)
-            followUp.ensureParticipantsFromStudentIDs()
-            followUp.mirrorStudentIDsFromParticipants()
         }
         
         do {

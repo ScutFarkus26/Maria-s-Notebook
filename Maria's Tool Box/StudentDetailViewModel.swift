@@ -34,7 +34,7 @@ final class StudentDetailViewModel: ObservableObject {
 
         // Works for this student
         worksForStudent = workModels
-            .filter { $0.resolvedStudentIDs.contains(student.id) }
+            .filter { $0.participants.contains { $0.studentID == student.id } }
             .sorted { $0.createdAt > $1.createdAt }
 
         // Next lessons for this student (not yet presented)
@@ -201,14 +201,12 @@ final class StudentDetailViewModel: ObservableObject {
         let work = WorkModel(
             id: UUID(),
             title: "\(type.rawValue): \(lesson.name)",
-            studentIDs: [student.id],
             workType: type,
             studentLessonID: sl.id,
             notes: "",
             createdAt: Date()
         )
-        work.ensureParticipantsFromStudentIDs()
-        work.mirrorStudentIDsFromParticipants()
+        work.participants = [WorkParticipantEntity(studentID: student.id, completedAt: nil, work: work)]
         modelContext.insert(work)
         try? modelContext.save()
         selectedWorkForDetail = work
@@ -259,14 +257,12 @@ final class StudentDetailViewModel: ObservableObject {
             let work = WorkModel(
                 id: UUID(),
                 title: "\(type.rawValue): \(lesson.name)",
-                studentIDs: [sid],
                 workType: type,
                 studentLessonID: sl.id,
                 notes: "",
                 createdAt: Date()
             )
-            work.ensureParticipantsFromStudentIDs()
-            work.mirrorStudentIDsFromParticipants()
+            work.participants = [WorkParticipantEntity(studentID: sid, completedAt: nil, work: work)]
             modelContext.insert(work)
             try? modelContext.save()
             showToast("\(type.rawValue) work created")

@@ -62,7 +62,9 @@ final class WorkFilters {
         
         // Student filter (works that include ANY of the selected students)
         if !selectedStudentIDs.isEmpty {
-            base = base.filter { !Set($0.studentIDs).isDisjoint(with: selectedStudentIDs) }
+            base = base.filter { work in
+                work.participants.contains { selectedStudentIDs.contains($0.studentID) }
+            }
         }
         
         // Text search on notes, title and linked lesson name
@@ -93,3 +95,4 @@ final class WorkFilters {
         grouping = .none
     }
 }
+

@@ -26,6 +26,7 @@ struct WorkDetailView: View {
     @State private var notesExpanded = false
     @State private var showStudentChips = false
     @State private var rebuildTask: Task<Void, Never>? = nil
+    @State private var isDeleting = false
 
     private enum PresentedSheet: Identifiable {
         case linkedLessonDetails
@@ -95,29 +96,35 @@ struct WorkDetailView: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    titleField
-                    studentsArea
-                    lessonAndTypeSection
-                    completionSection
-                    splitCompletedButton
-                    notesCollapsibleSection
-                    checkInsTimelineSection
-                    metadataSection
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
-                .onAppear { scheduleCacheRebuild() }
-                .onChange(of: lessons.map(\.id)) { 
-                    scheduleCacheRebuild()
-                }
-                .onChange(of: studentsAll.map(\.id)) { 
-                    scheduleCacheRebuild()
-                }
-                .onChange(of: studentLessons.map(\.id)) { 
-                    scheduleCacheRebuild()
+        Group {
+            if isDeleting {
+                VStack { ProgressView("Deleting…") }.padding()
+            } else {
+                VStack(spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            titleField
+                            studentsArea
+                            lessonAndTypeSection
+                            completionSection
+                            splitCompletedButton
+                            notesCollapsibleSection
+                            checkInsTimelineSection
+                            metadataSection
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 20)
+                        .onAppear { scheduleCacheRebuild() }
+                        .onChange(of: lessons.map(\.id)) { 
+                            scheduleCacheRebuild()
+                        }
+                        .onChange(of: studentsAll.map(\.id)) { 
+                            scheduleCacheRebuild()
+                        }
+                        .onChange(of: studentLessons.map(\.id)) { 
+                            scheduleCacheRebuild()
+                        }
+                    }
                 }
             }
         }
@@ -514,7 +521,6 @@ struct WorkDetailView: View {
             #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            .padding(.bottom, 16)
             #endif
         }
     }
@@ -537,7 +543,6 @@ struct WorkDetailView: View {
             #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            .padding(.bottom, 16)
             #endif
         }
     }
@@ -584,7 +589,9 @@ struct WorkDetailView: View {
     }
     
     private func handleDelete() {
+        isDeleting = true
         vm.deleteWork(modelContext: modelContext) {
+            isDeleting = false
             if let onDone = onDone {
                 onDone()
             } else {

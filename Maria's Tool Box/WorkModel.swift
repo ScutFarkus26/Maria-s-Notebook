@@ -11,20 +11,20 @@ import SwiftUI
 
     var id: UUID
     var title: String
-    var studentIDs: [UUID]
+    // var studentIDs: [UUID]  // Removed as per instructions
     // Persisted raw value for the enum to keep storage simple and stable
     private var workTypeRaw: String
     var studentLessonID: UUID?
     var notes: String
     var createdAt: Date
     var completedAt: Date?
-    @Relationship(inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity] = []
-    @Relationship(inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn] = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity] = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn] = []
 
     init(
         id: UUID = UUID(),
         title: String = "",
-        studentIDs: [UUID] = [],
+        // studentIDs: [UUID] = [],  // Removed parameter
         workType: WorkType = .research,
         studentLessonID: UUID? = nil,
         notes: String = "",
@@ -34,7 +34,7 @@ import SwiftUI
     ) {
         self.id = id
         self.title = title
-        self.studentIDs = studentIDs
+        // self.studentIDs = studentIDs  // Removed assignment
         self.workTypeRaw = workType.rawValue
         self.studentLessonID = studentLessonID
         self.notes = notes
@@ -78,18 +78,6 @@ import SwiftUI
         } else {
             participants.append(WorkParticipantEntity(studentID: studentID, completedAt: normalized, work: self))
         }
-    }
-
-    func ensureParticipantsFromStudentIDs() {
-        // Ensure participants mirror studentIDs, preserving any existing completion dates
-        let currentIDs = Set(participants.map { $0.studentID })
-        let targetIDs = Set(studentIDs)
-        // Add missing
-        for id in targetIDs.subtracting(currentIDs) {
-            participants.append(WorkParticipantEntity(studentID: id, work: self))
-        }
-        // Remove extras (students removed from work)
-        participants.removeAll { !targetIDs.contains($0.studentID) }
     }
 }
 

@@ -24,7 +24,7 @@ final class WorkDetailViewModel: ObservableObject {
     init(work: WorkModel, onDone: (() -> Void)? = nil) {
         self.work = work
         self.onDone = onDone
-        self.selectedStudentIDs = Set(work.studentIDs)
+        self.selectedStudentIDs = Set(work.participants.map { $0.studentID })
         self.workType = work.workType
         self.selectedStudentLessonID = work.studentLessonID
         self.title = work.title
@@ -118,11 +118,15 @@ final class WorkDetailViewModel: ObservableObject {
         }
 
         work.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        work.studentIDs = Array(selectedStudentIDs)
         work.workType = workType
         work.studentLessonID = selectedStudentLessonID
         work.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        work.ensureParticipantsFromStudentIDs()
+
+        // Rebuild participants from selectedStudentIDs, preserving completion where possible
+        let existing = Dictionary(uniqueKeysWithValues: work.participants.map { ($0.studentID, $0.completedAt) })
+        work.participants = Array(selectedStudentIDs).map { sid in
+            WorkParticipantEntity(studentID: sid, completedAt: existing[sid] ?? nil, work: work)
+        }
 
         // Safety: if participants are still empty, delete this work
         if work.participants.isEmpty {
@@ -146,12 +150,14 @@ final class WorkDetailViewModel: ObservableObject {
     }
 
     func deleteWork(modelContext: ModelContext, dismiss: @escaping () -> Void) {
-        modelContext.delete(work)
+        // Route deletion through the repository for safe, fault-resolved delete
+        let repo = WorkRepository(context: modelContext)
         do {
-            try modelContext.save()
+            try repo.deleteWork(id: work.id)
             dismiss()
         } catch {
-            // Handle save error if needed
+            // Handle save/delete error if needed
+            dismiss()
         }
     }
     

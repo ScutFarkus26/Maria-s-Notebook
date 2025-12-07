@@ -101,7 +101,7 @@ struct OpenWorkListView: View {
             .navigationTitle("Open Work")
         }
         .sheet(item: $selectedWork) { work in
-            WorkDetailView(work: work) {
+            WorkDetailContainerView(workID: work.id) {
                 selectedWork = nil
             }
             #if os(macOS)

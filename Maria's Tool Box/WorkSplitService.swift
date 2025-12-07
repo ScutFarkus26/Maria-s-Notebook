@@ -12,7 +12,6 @@ enum WorkSplitService {
             let completedCopy = WorkModel(
                 id: UUID(),
                 title: work.title,
-                studentIDs: Array(completedIDs),
                 workType: .practice,
                 studentLessonID: work.studentLessonID,
                 notes: work.notes,
@@ -20,13 +19,12 @@ enum WorkSplitService {
                 completedAt: Date()
             )
             completedCopy.participants = completedIDs.map { WorkParticipantEntity(studentID: $0, completedAt: Date(), work: completedCopy) }
-            completedCopy.mirrorStudentIDsFromParticipants()
             context.insert(completedCopy)
         }
 
-        work.studentIDs = Array(remaining)
-        work.ensureParticipantsFromStudentIDs()
-        work.mirrorStudentIDsFromParticipants()
+        // Retain only remaining participants and clear completion on them
+        work.participants.removeAll { !remaining.contains($0.studentID) }
+        for i in work.participants.indices { work.participants[i].completedAt = nil }
         work.completedAt = nil
         try? context.save()
     }
