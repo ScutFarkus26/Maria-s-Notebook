@@ -36,6 +36,45 @@ struct WorkViewSidebar: View {
                 )
             }
 
+            Text("Level")
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+
+            SidebarFilterButton(
+                icon: "rectangle.3.group",
+                title: "All",
+                color: .accentColor,
+                isSelected: filters.level == .all
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    filters.level = .all
+                }
+            }
+
+            SidebarFilterButton(
+                icon: "circle.fill",
+                title: "Lower",
+                color: .blue,
+                isSelected: filters.level == .lower
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    filters.level = .lower
+                }
+            }
+
+            SidebarFilterButton(
+                icon: "circle.fill",
+                title: "Upper",
+                color: .pink,
+                isSelected: filters.level == .upper
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    filters.level = .upper
+                }
+            }
+
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField("Search notes or lesson names", text: $filters.searchText)

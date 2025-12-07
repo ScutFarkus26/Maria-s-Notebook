@@ -109,12 +109,29 @@ final class WorkDetailViewModel: ObservableObject {
     }
 
     func save(modelContext: ModelContext, dismiss: @escaping () -> Void) {
+        // Enforce: no work should save without a student attached
+        if selectedStudentIDs.isEmpty {
+            modelContext.delete(work)
+            try? modelContext.save()
+            if let onDone = onDone { onDone() } else { dismiss() }
+            return
+        }
+
         work.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         work.studentIDs = Array(selectedStudentIDs)
         work.workType = workType
         work.studentLessonID = selectedStudentLessonID
         work.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         work.ensureParticipantsFromStudentIDs()
+
+        // Safety: if participants are still empty, delete this work
+        if work.participants.isEmpty {
+            modelContext.delete(work)
+            try? modelContext.save()
+            if let onDone = onDone { onDone() } else { dismiss() }
+            return
+        }
+
         work.completedAt = completedAt
         do {
             try modelContext.save()

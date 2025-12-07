@@ -7,6 +7,17 @@ final class WorkFilters {
     var selectedSubject: String?
     var selectedStudentIDs: Set<UUID> = []
     var selectedWorkType: WorkModel.WorkType?
+    
+    enum LevelFilter: String, CaseIterable {
+        case all = "All"
+        case lower = "Lower"
+        case upper = "Upper"
+
+        var displayName: String { rawValue }
+    }
+
+    var level: LevelFilter = .all
+    
     var grouping: Grouping = .none
     
     enum Grouping: String, CaseIterable {
@@ -78,6 +89,7 @@ final class WorkFilters {
         selectedSubject = nil
         selectedStudentIDs = []
         selectedWorkType = nil
+        level = .all
         grouping = .none
     }
 }

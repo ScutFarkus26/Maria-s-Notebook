@@ -126,6 +126,7 @@ struct MariasToolboxApp: App {
                     MigrationRunner.runIfNeeded(context: sharedModelContainer.mainContext)
                     DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
                     DataMigrations.normalizeWorkDatesToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
+                    DataMigrations.backfillParticipantsAndDeleteEmptyWorksIfNeeded(using: sharedModelContainer.mainContext)
                 }
         }
         #if os(macOS)

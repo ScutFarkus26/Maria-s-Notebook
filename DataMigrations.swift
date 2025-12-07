@@ -124,4 +124,41 @@ enum DataMigrations {
 
         if changed { try? context.save() }
     }
+
+    /// Backfill missing work participants from studentIDs and delete truly empty works once.
+    /// - If a WorkModel has no studentIDs and no participants, delete it.
+    /// - If a WorkModel has studentIDs but no participants, create participants for each studentID.
+    ///   If the work has a global completedAt, apply it to each participant and backfill completion records.
+    static func backfillParticipantsAndDeleteEmptyWorksIfNeeded(using context: ModelContext) {
+        let flagKey = "Migration.workParticipantsBackfill.v1"
+        if UserDefaults.standard.bool(forKey: flagKey) { return }
+        do {
+            let works = try context.fetch(FetchDescriptor<WorkModel>())
+            var changed = 0
+            for w in works {
+                if w.studentIDs.isEmpty && w.participants.isEmpty {
+                    context.delete(w)
+                    changed += 1
+                    continue
+                }
+                if !w.studentIDs.isEmpty && w.participants.isEmpty {
+                    // Create participants from studentIDs
+                    w.ensureParticipantsFromStudentIDs()
+                    // If the work has a global completion date, propagate to each participant
+                    if let completed = w.completedAt {
+                        for i in 0..<w.participants.count {
+                            w.participants[i].completedAt = completed
+                        }
+                        // Backfill durable completion records for history
+                        try? WorkCompletionBackfill.backfill(for: w.id, participants: w.participants, in: context)
+                    }
+                    changed += 1
+                }
+            }
+            if changed > 0 { try? context.save() }
+            UserDefaults.standard.set(true, forKey: flagKey)
+        } catch {
+            // If fetch fails, do not set the flag so we can retry later.
+        }
+    }
 }
