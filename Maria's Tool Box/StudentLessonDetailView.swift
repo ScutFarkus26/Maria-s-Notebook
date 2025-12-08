@@ -1,10 +1,6 @@
 import SwiftUI
 import SwiftData
 
-#if os(macOS)
-import AppKit
-#endif
-
 struct StudentLessonDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -34,23 +30,14 @@ struct StudentLessonDetailView: View {
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var showingAddStudentSheet = false
     @State private var showingStudentPickerPopover = false
-    @State private var studentSearchText: String = ""
     @State private var showDeleteAlert: Bool = false
 
-    private enum LevelFilter: String, CaseIterable {
-        case all = "All"
-        case lower = "Lower"
-        case upper = "Upper"
-    }
-
-    @State private var studentLevelFilter: LevelFilter = .all
     @State private var didPlanNext: Bool = false
     @State private var showPlannedBanner: Bool = false
     @State private var showingMoveStudentsSheet = false
     @State private var studentsToMove: Set<UUID> = []
     @State private var showMovedBanner: Bool = false
     @State private var movedStudentNames: [String] = []
-    @State private var isOptionDown: Bool = false
 
     @State private var showPresentedPopover: Bool = false
     @State private var presentedDate: Date = Date()
@@ -142,6 +129,7 @@ struct StudentLessonDetailView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             showPlannedBanner = false
         }
+        notifyInboxRefresh()
     }
     
     private func moveStudentsToInbox() {
@@ -188,7 +176,7 @@ struct StudentLessonDetailView: View {
         try? modelContext.save()
 
         // Notify agenda/inbox to refresh immediately
-        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+        notifyInboxRefresh()
 
         // Show confirmation banner
         showMovedBanner = true
@@ -203,78 +191,6 @@ struct StudentLessonDetailView: View {
             .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
     }
     
-    private var absentIDsForSelection: Set<UUID> {
-        let ids = Set(selectedStudentsList.compactMap { s -> UUID? in
-            let id = s.id
-            let status = modelContext.attendanceStatuses(for: [id], on: scheduledFor ?? Date())[id]
-            return status == .absent ? id : nil
-        })
-        return ids
-    }
-    
-    private var filteredStudentsForPicker: [Student] {
-        let query = studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let searched: [Student]
-        if query.isEmpty {
-            searched = studentsAll
-        } else {
-            searched = studentsAll.filter { s in
-                let f = s.firstName.lowercased()
-                let l = s.lastName.lowercased()
-                let full = s.fullName.lowercased()
-                return f.contains(query) || l.contains(query) || full.contains(query)
-            }
-        }
-        let leveled: [Student] = searched.filter { s in
-            switch studentLevelFilter {
-            case .all: return true
-            case .lower: return s.level == .lower
-            case .upper: return s.level == .upper
-            }
-        }
-        return leveled.sorted {
-            let lhs = ($0.firstName, $0.lastName)
-            let rhs = ($1.firstName, $1.lastName)
-            if lhs.0.caseInsensitiveCompare(rhs.0) == .orderedSame {
-                return lhs.1.caseInsensitiveCompare(rhs.1) == .orderedAscending
-            }
-            return lhs.0.caseInsensitiveCompare(rhs.0) == .orderedAscending
-        }
-    }
-
-    private func displayName(for student: Student) -> String {
-        return StudentFormatter.displayName(for: student)
-    }
-
-    private func dateChip(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.primary.opacity(0.12))
-            )
-    }
-
-    private var dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate("EEE, MMM d, h:mm a")
-        return formatter
-    }()
-    
-    private var scheduleStatusText: String {
-        guard let date = scheduledFor else {
-            return "Not Scheduled Yet"
-        }
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
-        let datePart = fmt.string(from: date)
-        let hour = Calendar.current.component(.hour, from: date)
-        let period = hour < 12 ? "Morning" : "Afternoon"
-        return "\(datePart) in the \(period)"
-    }
-
     // Added as per instruction 1
     private var openLinkedWorks: [WorkModel] {
         workModels.filter { w in
@@ -512,7 +428,7 @@ struct StudentLessonDetailView: View {
                     newStudentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
                     modelContext.insert(newStudentLesson)
                     try? modelContext.save()
-                    NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+                    notifyInboxRefresh()
                 }
             }
         }
@@ -532,454 +448,80 @@ struct StudentLessonDetailView: View {
     
     /// 1. Lesson Header: Large title + subject/category pills
     private var lessonHeaderSection: some View {
-        VStack(spacing: 12) {
-            Text(lessonName)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-            
-            // Subject / Category / Subcategory Pills
-            if let lesson = lessonObject {
-                HStack(spacing: 8) {
-                    if !lesson.subject.isEmpty {
-                        pillTag(lesson.subject, color: subjectColor)
-                    }
-                    if !lesson.group.isEmpty {
-                        pillTag(lesson.group, color: .secondary.opacity(0.6))
-                    }
-                    // Subcategory could be added here if Lesson model has that property
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
+        StudentLessonHeaderView(
+            lessonName: lessonName,
+            subject: lessonObject?.subject ?? "",
+            group: lessonObject?.group ?? "",
+            subjectColor: subjectColor
+        )
     }
     
-    /// Pill-style tag for subjects/categories
-    private func pillTag(_ text: String, color: Color) -> some View {
-        Text(text)
-            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .foregroundColor(color)
-            .background(
-                Capsule()
-                    .fill(color.opacity(0.15))
-            )
-    }
-    
-    /// 3. Student Pills + Add/Remove
+    /// 3. Student Pills + Add/Remove (replaced with extracted view)
     private var studentPillsSection: some View {
-        VStack(spacing: 12) {
-            // Student pills in a flowing wrap
-            FlowLayout(spacing: 8) {
-                ForEach(selectedStudentsList, id: \.id) { student in
-                    studentChip(for: student)
-                }
-            }
-            
-            // Buttons below
-            HStack(spacing: 12) {
-                Button {
-                    showingStudentPickerPopover = true
-                } label: {
-                    Label("Add/Remove Students", systemImage: "person.2.badge.gearshape")
-                        .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
-                }
-                .buttonStyle(.bordered)
-                .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
-                    StudentPickerPopover(
-                        students: studentsAll,
-                        selectedIDs: $selectedStudentIDs,
-                        onDone: { showingStudentPickerPopover = false }
-                    )
-                    .padding(12)
-                    .frame(minWidth: 320)
-                }
-                
-                if selectedStudentsList.count > 1 && !isPresented {
-                    Button {
-                        studentsToMove = []
-                        showingMoveStudentsSheet = true
-                    } label: {
-                        Label("Move Students", systemImage: "arrow.right.square")
-                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        StudentPillsSection(
+            students: selectedStudentsList,
+            subjectColor: subjectColor,
+            onRemove: { id in selectedStudentIDs.remove(id) },
+            onOpenPicker: { showingStudentPickerPopover = true },
+            onOpenMove: {
+                studentsToMove = []
+                showingMoveStudentsSheet = true
+            },
+            canMoveStudents: selectedStudentsList.count > 1 && !isPresented
+        )
+        .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
+            StudentPickerPopover(
+                students: studentsAll,
+                selectedIDs: $selectedStudentIDs,
+                onDone: { showingStudentPickerPopover = false }
+            )
+            .padding(12)
+            .frame(minWidth: 320)
         }
     }
     
-    /// 4. Inbox/Scheduling Status
+    /// 4. Inbox/Scheduling Status (replaced with extracted view)
     private var inboxStatusSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "tray")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 16))
-                Text("Inbox Status")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Show schedule status or allow scheduling
-            if scheduledFor != nil {
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar")
-                        .foregroundStyle(.blue)
-                        .font(.system(size: 14))
-                    Text("Scheduled: \(scheduleStatusText)")
-                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                        .foregroundColor(.blue)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.blue.opacity(0.1))
-                )
-                
-                Button {
-                    scheduledFor = nil
-                } label: {
-                    Label("Remove from Schedule", systemImage: "xmark.circle")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "clock")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 14))
-                    Text("Unscheduled")
-                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.secondary.opacity(0.08))
-                )
-                
-                OptionalDatePicker(
-                    toggleLabel: "Schedule Lesson",
-                    dateLabel: "Schedule For",
-                    date: $scheduledFor,
-                    displayedComponents: [.date, .hourAndMinute],
-                    defaultHour: 9
-                )
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        InboxStatusSection(scheduledFor: $scheduledFor)
     }
     
-    /// 5. Lesson Progress Section (consolidated presentation, practice, re-present, follow-up)
+    /// 5. Lesson Progress Section (replaced with extracted view)
     private var lessonProgressSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.seal")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 16))
-                Text("Lesson Progress")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            
-            VStack(alignment: .leading, spacing: 16) {
-                // Presented Toggle + Date
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Toggle(isOn: $isPresented) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(isPresented ? .green : .secondary)
-                                    .font(.system(size: 18))
-                                Text("Presented")
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                            }
-                        }
-                        .toggleStyle(.button)
-                        .buttonStyle(.borderless)
-                        .tint(.green)
-                        
-                        Spacer()
-                        
-                        // Quick date picker button
-                        if isPresented {
-                            Button {
-                                presentedDate = calendar.startOfDay(for: givenAt ?? Date())
-                                showPresentedPopover.toggle()
-                            } label: {
-                                HStack(spacing: 4) {
-                                    if let date = givenAt {
-                                        Text(date, style: .date)
-                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                    } else {
-                                        Text("Add Date")
-                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                    }
-                                    Image(systemName: "calendar")
-                                        .font(.system(size: 12))
-                                }
-                                .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .popover(isPresented: $showPresentedPopover, arrowEdge: .top) {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Presentation Date")
-                                        .font(.headline)
-                                    DatePicker("Date", selection: $presentedDate, displayedComponents: [.date])
-                                    #if os(macOS)
-                                    .datePickerStyle(.field)
-                                    #else
-                                    .datePickerStyle(.compact)
-                                    #endif
-                                    HStack {
-                                        Button("Clear") {
-                                            givenAt = nil
-                                            showPresentedPopover = false
-                                        }
-                                        Spacer()
-                                        Button("Set") {
-                                            givenAt = calendar.startOfDay(for: presentedDate)
-                                            showPresentedPopover = false
-                                        }
-                                        .buttonStyle(.borderedProminent)
-                                    }
-                                }
-                                .padding(12)
-                                .frame(minWidth: 280)
-                            }
-                        }
-                    }
-                }
-                
-                // Replace Needs Practice Flag with action button
-                HStack {
-                    Button {
-                        addPracticeIfNeeded()
-                    } label: {
-                        Label("Add Practice", systemImage: "arrow.triangle.2.circlepath")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                    }
-                    .buttonStyle(.bordered)
-                    Spacer()
-                }
-                
-                // Needs Another Presentation Flag
-                HStack {
-                    Toggle(isOn: $needsAnotherPresentation) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.clockwise.circle.fill")
-                                .foregroundStyle(needsAnotherPresentation ? .orange : .secondary)
-                                .font(.system(size: 18))
-                            Text("Needs Another Presentation")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                        }
-                    }
-                    .toggleStyle(.button)
-                    .buttonStyle(.borderless)
-                    .tint(.orange)
-                    
-                    Spacer()
-                    
-                    // Re-present button appears when flagged
-                    if needsAnotherPresentation {
-                        Button {
-                            rePresentDate = defaultRePresentDate()
-                            showRePresentPopover.toggle()
-                        } label: {
-                            Label("Schedule", systemImage: "calendar.badge.clock")
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        }
-                        .buttonStyle(.bordered)
-                        .popover(isPresented: $showRePresentPopover, arrowEdge: .top) {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Schedule Re-presentation")
-                                    .font(.headline)
-                                DatePicker("Date", selection: $rePresentDate, displayedComponents: [.date])
-                                #if os(macOS)
-                                .datePickerStyle(.field)
-                                #else
-                                .datePickerStyle(.compact)
-                                #endif
-                                HStack {
-                                    Spacer()
-                                    Button("Schedule") {
-                                        scheduleRePresent(on: rePresentDate)
-                                        showRePresentPopover = false
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                }
-                            }
-                            .padding(12)
-                            .frame(minWidth: 280)
-                        }
-                    }
-                }
-                
-                // Replace Follow-Up Work with Add button and sheet
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                            .foregroundStyle(.yellow)
-                            .font(.system(size: 16))
-                        Text("Follow-Up Work")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                    }
-
-                    Button {
-                        followUpDraft = ""
-                        showFollowUpSheet = true
-                    } label: {
-                        Label("Add Follow-Up…", systemImage: "plus")
-                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
-                    }
-                    .buttonStyle(.bordered)
-                }
-                
-                // Next lesson section (when presented)
-                if isPresented, let next = nextLessonInGroup {
-                    Divider()
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.right.circle")
-                                .foregroundStyle(.blue)
-                                .font(.system(size: 16))
-                            Text("Next in Group: \(next.name)")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                        }
-                        
-                        Button {
-                            planNextLessonInGroup()
-                        } label: {
-                            Label("Plan Next Lesson", systemImage: "calendar.badge.plus")
-                                .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(didPlanNext || studentLessonsAll.contains { sl in
-                            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
-                        })
-                    }
-                }
-            }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.primary.opacity(0.03))
-            )
-        }
+        LessonProgressSection(
+            subjectColor: subjectColor,
+            isPresented: $isPresented,
+            givenAt: $givenAt,
+            needsAnotherPresentation: $needsAnotherPresentation,
+            selectedStudentIDs: $selectedStudentIDs,
+            lesson: lessonObject,
+            nextLessonInGroup: nextLessonInGroup,
+            studentLessonID: studentLesson.id,
+            studentsAll: studentsAll,
+            lessonsAll: lessons,
+            studentLessonsAll: studentLessonsAll,
+            didPlanNext: $didPlanNext,
+            showPlannedBanner: $showPlannedBanner,
+            showFollowUpSheet: $showFollowUpSheet,
+            followUpDraft: $followUpDraft,
+            showQuickBanner: $showQuickBanner,
+            quickBannerText: $quickBannerText,
+            quickBannerColor: $quickBannerColor
+        )
     }
     
-    // Added as per instruction 3
+    /// 6. Linked Work Section (replaced with extracted view)
     private var linkedWorkSection: some View {
-        Group {
-            if !openLinkedWorks.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "link")
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 16))
-                        Text("Linked Work")
-                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    VStack(spacing: 10) {
-                        ForEach(openLinkedWorks, id: \.id) { work in
-                            let (icon, color) = workIconAndColor(work.workType)
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: icon)
-                                        .foregroundStyle(color)
-                                    Text(work.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? (work.workType == .practice ? "Practice" : "Follow Up") : work.title)
-                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                }
-
-                                // Per-student completion toggles for participants
-                                FlowLayout(spacing: 8) {
-                                    ForEach(work.participants, id: \.id) { participant in
-                                        if let student = studentsAll.first(where: { $0.id == participant.studentID }) {
-                                            let done = participant.completedAt != nil
-                                            Button {
-                                                toggleWorkCompletion(work, studentID: student.id)
-                                            } label: {
-                                                HStack(spacing: 6) {
-                                                    Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                                                    Text(displayName(for: student))
-                                                }
-                                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 6)
-                                                .foregroundStyle(color)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                        .fill(color.opacity(0.15))
-                                                )
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color.primary.opacity(0.03))
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        LinkedWorkSection(
+            works: openLinkedWorks,
+            studentsAll: studentsAll,
+            displayName: displayName(for:),
+            iconAndColor: workIconAndColor(_:),
+            onToggle: { work, studentID in toggleWorkCompletion(work, studentID: studentID) }
+        )
     }
 
-    /// 6. Notes Section with subtle ruled-paper aesthetic
-    private var notesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "note.text")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 16))
-                Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            
-            ZStack(alignment: .topLeading) {
-                // Subtle ruled-paper background
-                VStack(spacing: 0) {
-                    ForEach(0..<8, id: \.self) { _ in
-                        Divider()
-                            .background(Color.secondary.opacity(0.1))
-                            .padding(.vertical, 16)
-                    }
-                }
-                .allowsHitTesting(false)
-                
-                TextEditor(text: $notes)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                    .scrollContentBackground(.hidden)
-                    .background(Color.clear)
-                    .frame(minHeight: 180)
-                    .padding(8)
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(.textBackgroundColor).opacity(0.5))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-            )
-        }
-    }
+    /// 7. Notes Section with subtle ruled-paper aesthetic (replaced with extracted view)
+    private var notesSection: some View { NotesSectionView(notes: $notes) }
     
     // MARK: - Helper Views (kept for compatibility)
     
@@ -1038,127 +580,63 @@ struct StudentLessonDetailView: View {
             .padding(.top, 8)
     }
 
-    private var scheduleSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "calendar")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text("Scheduled For")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            OptionalDatePicker(
-                toggleLabel: "Schedule",
-                dateLabel: "Schedule For",
-                date: $scheduledFor,
-                displayedComponents: [.date, .hourAndMinute],
-                defaultHour: 9
-            )
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private enum Formatters {
+        static let scheduleDay: DateFormatter = {
+            let f = DateFormatter()
+            f.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
+            return f
+        }()
     }
 
-    private var givenSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "clock.badge.checkmark")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text("Presented")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-
-            Toggle("Presented", isOn: $isPresented)
-
-            Toggle("Add date", isOn: Binding(
-                get: { givenAt != nil },
-                set: { newValue in
-                    givenAt = newValue ? (givenAt ?? Date()) : nil
-                }
-            ))
-
-            if givenAt != nil {
-                DatePicker("Date", selection: Binding(
-                    get: { givenAt ?? Date() },
-                    set: { givenAt = calendar.startOfDay(for: $0) }
-                ), displayedComponents: [.date])
-                #if os(macOS)
-                .datePickerStyle(.field)
-                #else
-                .datePickerStyle(.compact)
-                #endif
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private var scheduleStatusText: String {
+        guard let date = scheduledFor else { return "Not Scheduled Yet" }
+        let datePart = Formatters.scheduleDay.string(from: date)
+        let hour = Calendar.current.component(.hour, from: date)
+        let period = hour < 12 ? "Morning" : "Afternoon"
+        return "\(datePart) in the \(period)"
     }
 
-    private var nextLessonSection: some View {
-        Group {
-            if isPresented {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "calendar.badge.plus")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20)
-                        Text("Next Lesson in Group")
-                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                    if let next = nextLessonInGroup {
-                        Text(next.name)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                        Button {
-                            planNextLessonInGroup()
-                        } label: {
-                            Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(didPlanNext || studentLessonsAll.contains { sl in
-                            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
-                        })
-                    } else {
-                        Text("No next lesson available")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
+    private func displayName(for student: Student) -> String {
+        return StudentFormatter.displayName(for: student)
     }
 
-
-    
-    // MARK: - Banner Views
-    
-    private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
-        quickBannerText = text
-        quickBannerColor = color
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-            showQuickBanner = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
-            withAnimation(.easeInOut(duration: 0.2)) { showQuickBanner = false }
-        }
+    private func notifyInboxRefresh() {
+        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
     }
 
-    private func markPresented(on date: Date) {
-        let normalized = calendar.startOfDay(for: date)
-        isPresented = true
-        givenAt = normalized
-        saveImmediate()
-        // Phase 3: Auto-create next lesson in group when marking presented
-        if let next = nextLessonInGroup {
+    private func applyEditsToModel() {
+        studentLesson.lessonID = editingLessonID
+        studentLesson.scheduledFor = scheduledFor
+        studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
+        studentLesson.isPresented = isPresented
+        studentLesson.notes = notes
+        studentLesson.needsAnotherPresentation = needsAnotherPresentation
+        studentLesson.studentIDs = Array(selectedStudentIDs)
+        studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
+        studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
+    }
+
+    private func saveImmediate() {
+        applyEditsToModel()
+        try? modelContext.save()
+    }
+
+    private func save() {
+        // Capture prior presented state
+        let wasGiven = studentLesson.isPresented || studentLesson.givenAt != nil
+
+        // Apply local edits to the model
+        applyEditsToModel()
+
+        // Auto-create next lesson in group when marking presented
+        let nowGiven = isPresented || (givenAt != nil)
+        if !wasGiven && nowGiven, let next = nextLessonInGroup {
             let sameStudents = Set(selectedStudentIDs)
             let exists = studentLessonsAll.contains { sl in
-                sl.resolvedLessonID == next.id &&
-                Set(sl.resolvedStudentIDs) == sameStudents &&
-                sl.givenAt == nil
+                sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
             }
             if !exists {
-                let newSL = StudentLesson(
+                let newStudentLesson = StudentLesson(
                     id: UUID(),
                     lessonID: next.id,
                     studentIDs: Array(sameStudents),
@@ -1170,17 +648,47 @@ struct StudentLessonDetailView: View {
                     needsAnotherPresentation: false,
                     followUpWork: ""
                 )
-                newSL.students = studentsAll.filter { sameStudents.contains($0.id) }
-                newSL.lesson = lessons.first(where: { $0.id == next.id })
-                modelContext.insert(newSL)
-                try? modelContext.save()
-                NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+                newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+                newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+                modelContext.insert(newStudentLesson)
+                // Notify inbox to refresh
+                notifyInboxRefresh()
             }
         }
-        let fmt = DateFormatter()
-        fmt.dateStyle = .medium
-        fmt.timeStyle = .none
-        showBanner(text: "Marked Presented (\(fmt.string(from: normalized)))", color: .green)
+
+        do {
+            try modelContext.save()
+            // Notify agenda/inbox to refresh immediately after save
+            notifyInboxRefresh()
+
+            if let onDone {
+                onDone()
+            } else {
+                dismiss()
+            }
+        } catch {
+            // Handle save error if needed
+        }
+    }
+
+    private func delete() {
+        // Delete synchronously first to avoid views reading a detached object
+        modelContext.delete(studentLesson)
+        do {
+            try modelContext.save()
+        } catch {
+            // Handle delete error if needed
+        }
+
+        // Notify agenda/inbox to refresh immediately after deletion
+        notifyInboxRefresh()
+
+        // Now dismiss after the @Query has updated
+        if let onDone {
+            onDone()
+        } else {
+            dismiss()
+        }
     }
 
     private func addPracticeIfNeeded() {
@@ -1237,194 +745,16 @@ struct StudentLessonDetailView: View {
         return calendar.startOfDay(for: base)
     }
 
-    private func saveImmediate() {
-        // Persist minimal fields immediately without dismissing the sheet
-        studentLesson.lessonID = editingLessonID
-        studentLesson.scheduledFor = scheduledFor
-        studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
-        studentLesson.isPresented = isPresented
-        studentLesson.notes = notes
-        studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.studentIDs = Array(selectedStudentIDs)
-
-        studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
-        studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
-
-        try? modelContext.save()
-    }
-
-    private func save() {
-        // Phase 1: Capture prior presented state
-        let wasGiven = studentLesson.isPresented || studentLesson.givenAt != nil
-
-        // Commit all local editing state to the model
-        studentLesson.lessonID = editingLessonID
-        studentLesson.scheduledFor = scheduledFor
-        studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
-        studentLesson.isPresented = isPresented
-        studentLesson.notes = notes
-        studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.studentIDs = Array(selectedStudentIDs)
-
-        // Update relationships
-        studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
-        studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
-        
-        // Phase 3: Auto-create next lesson in group when marking presented
-        let nowGiven = isPresented || (givenAt != nil)
-        if !wasGiven && nowGiven, let next = nextLessonInGroup {
-            let sameStudents = Set(selectedStudentIDs)
-            let exists = studentLessonsAll.contains { sl in
-                sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
-            }
-            if !exists {
-                let newStudentLesson = StudentLesson(
-                    id: UUID(),
-                    lessonID: next.id,
-                    studentIDs: Array(sameStudents),
-                    createdAt: Date(),
-                    scheduledFor: nil,
-                    givenAt: nil,
-                    notes: "",
-                    needsPractice: false,
-                    needsAnotherPresentation: false,
-                    followUpWork: ""
-                )
-                newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-                newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
-                modelContext.insert(newStudentLesson)
-                // Notify inbox to refresh
-                NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
-            }
-        }
-        
-        do {
-            try modelContext.save()
-
-            // Notify agenda/inbox to refresh immediately after deletion
-            NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
-
-            if let onDone {
-                onDone()
-            } else {
-                dismiss()
-            }
-        } catch {
-            // Handle save error if needed
-        }
-    }
-
-    private func delete() {
-        // Delete synchronously first to avoid views reading a detached object
-        modelContext.delete(studentLesson)
-        do {
-            try modelContext.save()
-        } catch {
-            // Handle delete error if needed
-        }
-
-        // Notify agenda/inbox to refresh immediately after deletion
-        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
-
-        // Now dismiss after the @Query has updated
-        if let onDone {
-            onDone()
-        } else {
-            dismiss()
-        }
-    }
-}
-
-#Preview {
-    Text("StudentLessonDetailView preview requires real model data")
-}
-
-#if os(macOS)
-struct OptionKeyMonitor: NSViewRepresentable {
-    let onChange: (Bool) -> Void
-    func makeCoordinator() -> Coordinator { Coordinator(onChange: onChange) }
-
-    func makeNSView(context: Context) -> NSView {
-        context.coordinator.start()
-        return NSView(frame: .zero)
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {}
-
-    final class Coordinator {
-        let onChange: (Bool) -> Void
-        private var monitor: Any?
-
-        init(onChange: @escaping (Bool) -> Void) {
-            self.onChange = onChange
-        }
-
-        func start() {
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-                self?.onChange(event.modifierFlags.contains(.option))
-                return event
-            }
-        }
-
-        deinit {
-            if let monitor { NSEvent.removeMonitor(monitor) }
-        }
-    }
-}
-#endif
-
-// MARK: - FlowLayout Helper
-
-/// A simple flow layout that wraps content horizontally
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
+    // MARK: - Banner Views
     
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = FlowResult(
-            in: proposal.replacingUnspecifiedDimensions().width,
-            subviews: subviews,
-            spacing: spacing
-        )
-        return result.size
-    }
-    
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = FlowResult(
-            in: bounds.width,
-            subviews: subviews,
-            spacing: spacing
-        )
-        for (index, subview) in subviews.enumerated() {
-            let position = result.positions[index]
-            subview.place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
+    private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
+        quickBannerText = text
+        quickBannerColor = color
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            showQuickBanner = true
         }
-    }
-    
-    struct FlowResult {
-        var size: CGSize = .zero
-        var positions: [CGPoint] = []
-        
-        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
-            var currentX: CGFloat = 0
-            var currentY: CGFloat = 0
-            var lineHeight: CGFloat = 0
-            
-            for subview in subviews {
-                let size = subview.sizeThatFits(.unspecified)
-                
-                if currentX + size.width > maxWidth && currentX > 0 {
-                    // Move to next line
-                    currentX = 0
-                    currentY += lineHeight + spacing
-                    lineHeight = 0
-                }
-                
-                positions.append(CGPoint(x: currentX, y: currentY))
-                lineHeight = max(lineHeight, size.height)
-                currentX += size.width + spacing
-            }
-            
-            self.size = CGSize(width: maxWidth, height: currentY + lineHeight)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            withAnimation(.easeInOut(duration: 0.2)) { showQuickBanner = false }
         }
     }
 }

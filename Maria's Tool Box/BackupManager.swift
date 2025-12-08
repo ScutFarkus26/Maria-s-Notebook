@@ -25,10 +25,21 @@ struct BackupPayload: Codable {
     var schoolDayOverrides: [SchoolDayOverrideDTO]
     var presentNowExcludedNames: String?
     var planningInboxOrder: String?
+    var attendanceEmailEnabled: Bool?
+    var attendanceEmailTo: String?
+    var attendanceEmailFrom: String?
+    var lessonAgeWarningDays: Int?
+    var lessonAgeOverdueDays: Int?
+    var lessonAgeFreshColorHex: String?
+    var lessonAgeWarningColorHex: String?
+    var lessonAgeOverdueColorHex: String?
+    var selectedChecklistSubject: String?
+    var lastBackupTimeInterval: Double?
 
     private enum CodingKeys: String, CodingKey {
         case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns
         case nonSchoolDays, schoolDayOverrides, presentNowExcludedNames, planningInboxOrder
+        case attendanceEmailEnabled, attendanceEmailTo, attendanceEmailFrom, lessonAgeWarningDays, lessonAgeOverdueDays, lessonAgeFreshColorHex, lessonAgeWarningColorHex, lessonAgeOverdueColorHex, selectedChecklistSubject, lastBackupTimeInterval
     }
 
     init(
@@ -47,7 +58,17 @@ struct BackupPayload: Codable {
         nonSchoolDays: [NonSchoolDayDTO],
         schoolDayOverrides: [SchoolDayOverrideDTO],
         presentNowExcludedNames: String?,
-        planningInboxOrder: String?
+        planningInboxOrder: String?,
+        attendanceEmailEnabled: Bool? = nil,
+        attendanceEmailTo: String? = nil,
+        attendanceEmailFrom: String? = nil,
+        lessonAgeWarningDays: Int? = nil,
+        lessonAgeOverdueDays: Int? = nil,
+        lessonAgeFreshColorHex: String? = nil,
+        lessonAgeWarningColorHex: String? = nil,
+        lessonAgeOverdueColorHex: String? = nil,
+        selectedChecklistSubject: String? = nil,
+        lastBackupTimeInterval: Double? = nil
     ) {
         self.version = version
         self.createdAt = createdAt
@@ -65,6 +86,16 @@ struct BackupPayload: Codable {
         self.schoolDayOverrides = schoolDayOverrides
         self.presentNowExcludedNames = presentNowExcludedNames
         self.planningInboxOrder = planningInboxOrder
+        self.attendanceEmailEnabled = attendanceEmailEnabled
+        self.attendanceEmailTo = attendanceEmailTo
+        self.attendanceEmailFrom = attendanceEmailFrom
+        self.lessonAgeWarningDays = lessonAgeWarningDays
+        self.lessonAgeOverdueDays = lessonAgeOverdueDays
+        self.lessonAgeFreshColorHex = lessonAgeFreshColorHex
+        self.lessonAgeWarningColorHex = lessonAgeWarningColorHex
+        self.lessonAgeOverdueColorHex = lessonAgeOverdueColorHex
+        self.selectedChecklistSubject = selectedChecklistSubject
+        self.lastBackupTimeInterval = lastBackupTimeInterval
     }
 
     init(from decoder: Decoder) throws {
@@ -85,6 +116,16 @@ struct BackupPayload: Codable {
         self.schoolDayOverrides = try container.decodeIfPresent([SchoolDayOverrideDTO].self, forKey: .schoolDayOverrides) ?? []
         self.presentNowExcludedNames = try container.decodeIfPresent(String.self, forKey: .presentNowExcludedNames)
         self.planningInboxOrder = try container.decodeIfPresent(String.self, forKey: .planningInboxOrder)
+        self.attendanceEmailEnabled = try container.decodeIfPresent(Bool.self, forKey: .attendanceEmailEnabled)
+        self.attendanceEmailTo = try container.decodeIfPresent(String.self, forKey: .attendanceEmailTo)
+        self.attendanceEmailFrom = try container.decodeIfPresent(String.self, forKey: .attendanceEmailFrom)
+        self.lessonAgeWarningDays = try container.decodeIfPresent(Int.self, forKey: .lessonAgeWarningDays)
+        self.lessonAgeOverdueDays = try container.decodeIfPresent(Int.self, forKey: .lessonAgeOverdueDays)
+        self.lessonAgeFreshColorHex = try container.decodeIfPresent(String.self, forKey: .lessonAgeFreshColorHex)
+        self.lessonAgeWarningColorHex = try container.decodeIfPresent(String.self, forKey: .lessonAgeWarningColorHex)
+        self.lessonAgeOverdueColorHex = try container.decodeIfPresent(String.self, forKey: .lessonAgeOverdueColorHex)
+        self.selectedChecklistSubject = try container.decodeIfPresent(String.self, forKey: .selectedChecklistSubject)
+        self.lastBackupTimeInterval = try container.decodeIfPresent(Double.self, forKey: .lastBackupTimeInterval)
     }
 }
 
@@ -150,6 +191,7 @@ struct StudentLessonDTO: Codable {
     var createdAt: Date
     var scheduledFor: Date?
     var givenAt: Date?
+    var isPresented: Bool
     var notes: String
     var needsPractice: Bool
     var needsAnotherPresentation: Bool
@@ -157,7 +199,7 @@ struct StudentLessonDTO: Codable {
     var studentGroupKey: String?
 
     private enum CodingKeys: String, CodingKey {
-        case id, lessonID, studentIDs, createdAt, scheduledFor, givenAt, notes, needsPractice, needsAnotherPresentation, followUpWork, studentGroupKey
+        case id, lessonID, studentIDs, createdAt, scheduledFor, givenAt, isPresented, notes, needsPractice, needsAnotherPresentation, followUpWork, studentGroupKey
     }
 
     init(
@@ -167,6 +209,7 @@ struct StudentLessonDTO: Codable {
         createdAt: Date,
         scheduledFor: Date?,
         givenAt: Date?,
+        isPresented: Bool,
         notes: String,
         needsPractice: Bool,
         needsAnotherPresentation: Bool,
@@ -179,6 +222,7 @@ struct StudentLessonDTO: Codable {
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
+        self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
@@ -193,7 +237,9 @@ struct StudentLessonDTO: Codable {
         self.studentIDs = try container.decode([UUID].self, forKey: .studentIDs)
         self.createdAt = try container.decode(Date.self, forKey: .createdAt)
         self.scheduledFor = try container.decodeIfPresent(Date.self, forKey: .scheduledFor)
-        self.givenAt = try container.decodeIfPresent(Date.self, forKey: .givenAt)
+        let givenAt = try container.decodeIfPresent(Date.self, forKey: .givenAt)
+        self.givenAt = givenAt
+        self.isPresented = try container.decodeIfPresent(Bool.self, forKey: .isPresented) ?? (givenAt != nil)
         self.notes = try container.decode(String.self, forKey: .notes)
         self.needsPractice = try container.decode(Bool.self, forKey: .needsPractice)
         self.needsAnotherPresentation = try container.decode(Bool.self, forKey: .needsAnotherPresentation)
@@ -287,7 +333,7 @@ struct SchoolDayOverrideDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 15
+    static let currentVersion: Int = 16
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -343,6 +389,7 @@ enum BackupManager {
                 createdAt: sl.createdAt,
                 scheduledFor: sl.scheduledFor,
                 givenAt: sl.givenAt,
+                isPresented: sl.isPresented,
                 notes: sl.notes,
                 needsPractice: sl.needsPractice,
                 needsAnotherPresentation: sl.needsAnotherPresentation,
@@ -427,6 +474,18 @@ enum BackupManager {
         let presentNowExcludedNames = UserDefaults.standard.string(forKey: "StudentsView.presentNow.excludedNames")
         let planningInboxOrder = UserDefaults.standard.string(forKey: "PlanningInbox.order")
 
+        // Read new preferences for backup
+        let attendanceEmailEnabled = UserDefaults.standard.object(forKey: AttendanceEmailPrefs.enabledKey) as? Bool
+        let attendanceEmailTo = UserDefaults.standard.string(forKey: AttendanceEmailPrefs.toKey)
+        let attendanceEmailFrom = UserDefaults.standard.string(forKey: AttendanceEmailPrefs.fromKey)
+        let lessonAgeWarningDays = UserDefaults.standard.object(forKey: "LessonAge.warningDays") as? Int
+        let lessonAgeOverdueDays = UserDefaults.standard.object(forKey: "LessonAge.overdueDays") as? Int
+        let lessonAgeFreshColorHex = UserDefaults.standard.string(forKey: "LessonAge.freshColorHex")
+        let lessonAgeWarningColorHex = UserDefaults.standard.string(forKey: "LessonAge.warningColorHex")
+        let lessonAgeOverdueColorHex = UserDefaults.standard.string(forKey: "LessonAge.overdueColorHex")
+        let selectedChecklistSubject = UserDefaults.standard.string(forKey: "StudentDetailView.selectedChecklistSubject")
+        let lastBackupTimeInterval = UserDefaults.standard.object(forKey: "lastBackupTimeInterval") as? Double
+
         // Compute subjects and per-subject group orders from current data and saved preferences
         let existingSubjects: [String] = Array(Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
         let subjectOrder: [String] = FilterOrderStore.loadSubjectOrder(existing: existingSubjects)
@@ -462,7 +521,17 @@ enum BackupManager {
             nonSchoolDays: nonSchoolDaysDTO,
             schoolDayOverrides: schoolDayOverridesDTO,
             presentNowExcludedNames: presentNowExcludedNames,
-            planningInboxOrder: planningInboxOrder
+            planningInboxOrder: planningInboxOrder,
+            attendanceEmailEnabled: attendanceEmailEnabled,
+            attendanceEmailTo: attendanceEmailTo,
+            attendanceEmailFrom: attendanceEmailFrom,
+            lessonAgeWarningDays: lessonAgeWarningDays,
+            lessonAgeOverdueDays: lessonAgeOverdueDays,
+            lessonAgeFreshColorHex: lessonAgeFreshColorHex,
+            lessonAgeWarningColorHex: lessonAgeWarningColorHex,
+            lessonAgeOverdueColorHex: lessonAgeOverdueColorHex,
+            selectedChecklistSubject: selectedChecklistSubject,
+            lastBackupTimeInterval: lastBackupTimeInterval
         )
         let encoder = JSONEncoder()
         // Use compact encoding for smaller backups and faster encode
@@ -536,6 +605,7 @@ enum BackupManager {
                 needsAnotherPresentation: dto.needsAnotherPresentation,
                 followUpWork: dto.followUpWork
             )
+            sl.isPresented = dto.isPresented
             if let groupKey = dto.studentGroupKey {
                 sl.studentGroupKeyPersisted = groupKey
             }
@@ -694,6 +764,38 @@ enum BackupManager {
         }
         if let s = payload.planningInboxOrder {
             UserDefaults.standard.set(s, forKey: "PlanningInbox.order")
+        }
+
+        // Restore new preferences from backup if present
+        if let attendanceEmailEnabled = payload.attendanceEmailEnabled {
+            UserDefaults.standard.set(attendanceEmailEnabled, forKey: AttendanceEmailPrefs.enabledKey)
+        }
+        if let attendanceEmailTo = payload.attendanceEmailTo {
+            UserDefaults.standard.set(attendanceEmailTo, forKey: AttendanceEmailPrefs.toKey)
+        }
+        if let attendanceEmailFrom = payload.attendanceEmailFrom {
+            UserDefaults.standard.set(attendanceEmailFrom, forKey: AttendanceEmailPrefs.fromKey)
+        }
+        if let lessonAgeWarningDays = payload.lessonAgeWarningDays {
+            UserDefaults.standard.set(lessonAgeWarningDays, forKey: "LessonAge.warningDays")
+        }
+        if let lessonAgeOverdueDays = payload.lessonAgeOverdueDays {
+            UserDefaults.standard.set(lessonAgeOverdueDays, forKey: "LessonAge.overdueDays")
+        }
+        if let lessonAgeFreshColorHex = payload.lessonAgeFreshColorHex {
+            UserDefaults.standard.set(lessonAgeFreshColorHex, forKey: "LessonAge.freshColorHex")
+        }
+        if let lessonAgeWarningColorHex = payload.lessonAgeWarningColorHex {
+            UserDefaults.standard.set(lessonAgeWarningColorHex, forKey: "LessonAge.warningColorHex")
+        }
+        if let lessonAgeOverdueColorHex = payload.lessonAgeOverdueColorHex {
+            UserDefaults.standard.set(lessonAgeOverdueColorHex, forKey: "LessonAge.overdueColorHex")
+        }
+        if let selectedChecklistSubject = payload.selectedChecklistSubject {
+            UserDefaults.standard.set(selectedChecklistSubject, forKey: "StudentDetailView.selectedChecklistSubject")
+        }
+        if let lastBackupTimeInterval = payload.lastBackupTimeInterval {
+            UserDefaults.standard.set(lastBackupTimeInterval, forKey: "lastBackupTimeInterval")
         }
 
         try context.save()
