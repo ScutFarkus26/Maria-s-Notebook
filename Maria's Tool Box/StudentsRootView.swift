@@ -25,7 +25,47 @@ struct StudentsRootView: View {
         let message: String
     }
 
+    private enum Mode: String, CaseIterable, Identifiable { 
+        case roster = "Roster"
+        case attendance = "Attendance"
+        var id: String { rawValue }
+    }
+
+    @AppStorage("StudentsRootView.mode") private var modeRaw: String = Mode.roster.rawValue
+    private var mode: Mode { Mode(rawValue: modeRaw) ?? .roster }
+
     var body: some View {
+        VStack(spacing: 0) {
+            // Top pill navigation (Roster / Attendance)
+            HStack {
+                Spacer()
+                HStack(spacing: 12) {
+                    PillNavButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
+                    PillNavButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
+                }
+                Spacer()
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+
+            Divider()
+
+            Group {
+                if mode == .roster {
+                    rosterContent
+                } else {
+                    AttendanceView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        // Allow external triggers to jump straight to Attendance mode
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenAttendanceRequested"))) { _ in
+            modeRaw = Mode.attendance.rawValue
+        }
+    }
+
+    private var rosterContent: some View {
         StudentsView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {

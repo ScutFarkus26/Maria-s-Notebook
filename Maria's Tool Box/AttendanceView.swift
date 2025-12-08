@@ -40,9 +40,17 @@ struct AttendanceView: View {
             content
         }
         .onAppear {
+            // Ensure initial selection is a school day
+            let coerced = SchoolCalendar.nearestSchoolDay(to: viewModel.selectedDate, using: modelContext)
+            if coerced != viewModel.selectedDate { viewModel.selectedDate = coerced }
             viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
         }
         .onChange(of: viewModel.selectedDate) { _, newValue in
+            let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+            if coerced != newValue {
+                viewModel.selectedDate = coerced
+                return
+            }
             viewModel.load(for: newValue, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
         }
         .onChange(of: allStudents.map { $0.id }) { _, _ in
@@ -91,16 +99,18 @@ struct AttendanceView: View {
         VStack(spacing: 10) {
             HStack(spacing: 12) {
                 Button {
-                    if let newDate = Calendar.current.date(byAdding: .day, value: -1, to: viewModel.selectedDate) {
-                        viewModel.selectedDate = newDate.normalizedDay()
-                    }
+                    let prev = SchoolCalendar.previousSchoolDay(before: viewModel.selectedDate, using: modelContext)
+                    viewModel.selectedDate = prev.normalizedDay()
                 } label: {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.plain)
                 .help("Previous Day")
 
-                DatePicker("Date", selection: Binding(get: { viewModel.selectedDate }, set: { viewModel.selectedDate = $0.normalizedDay() }), displayedComponents: .date)
+                DatePicker("Date", selection: Binding(get: { viewModel.selectedDate }, set: { newValue in
+                    let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+                    viewModel.selectedDate = coerced.normalizedDay()
+                }), displayedComponents: .date)
 #if os(macOS)
                     .datePickerStyle(.field)
 #else
@@ -108,9 +118,8 @@ struct AttendanceView: View {
 #endif
 
                 Button {
-                    if let newDate = Calendar.current.date(byAdding: .day, value: 1, to: viewModel.selectedDate) {
-                        viewModel.selectedDate = newDate.normalizedDay()
-                    }
+                    let next = SchoolCalendar.nextSchoolDay(after: viewModel.selectedDate, using: modelContext)
+                    viewModel.selectedDate = next.normalizedDay()
                 } label: {
                     Image(systemName: "chevron.right")
                 }
@@ -118,7 +127,9 @@ struct AttendanceView: View {
                 .help("Next Day")
 
                 Button("Today") {
-                    viewModel.selectedDate = Date().normalizedDay()
+                    let today = Date()
+                    let coerced = SchoolCalendar.nearestSchoolDay(to: today, using: modelContext)
+                    viewModel.selectedDate = coerced.normalizedDay()
                 }
                 .buttonStyle(.plain)
                 .help("Jump to Today")

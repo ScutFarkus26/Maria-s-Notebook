@@ -7,7 +7,7 @@ import SwiftData
 ///   - For any group with more than one student:
 ///       - Choose a primary student to keep (prefers: earliest dateStarted, then earliest birthday, then lowest manualOrder).
 ///       - Merge fields into the primary (fill missing birthday/dateStarted/level if primary lacks them).
-///       - Update references in StudentLesson.studentIDs and WorkModel.studentIDs to point to the primary.
+///       - Update references in StudentLesson.studentIDs and WorkModel.participants to point to the primary.
 ///       - Delete redundant students.
 /// - Returns a summary of merges performed.
 struct StudentDuplicatesCleaner {
@@ -89,18 +89,46 @@ struct StudentDuplicatesCleaner {
                 }
             }
 
-            // Update references in WorkModel
+            // Update references in WorkModel participants
             for i in 0..<works.count {
                 let w = works[i]
-                if w.studentIDs.contains(where: { plan.duplicateIDs.contains($0) }) {
-                    var set = Set(w.studentIDs)
-                    for d in plan.duplicateIDs { set.remove(d) }
-                    set.insert(primary.id)
-                    let newList = Array(set)
-                    if newList != w.studentIDs {
-                        w.studentIDs = newList
-                        referencesUpdated += 1
+                var changed = false
+
+                // 1) Repoint any participant entries that reference a duplicate student ID
+                for p in w.participants {
+                    if plan.duplicateIDs.contains(p.studentID) {
+                        p.studentID = primary.id
+                        changed = true
                     }
+                }
+
+                // 2) Deduplicate participants so there is at most one per student
+                var seen: [UUID: WorkParticipantEntity] = [:]
+                for p in w.participants {
+                    if let existing = seen[p.studentID] {
+                        // Merge completion: prefer a non-nil date; if both non-nil, keep earliest
+                        switch (existing.completedAt, p.completedAt) {
+                        case (nil, let r?):
+                            existing.completedAt = r
+                            changed = true
+                        case (let l?, let r?):
+                            if r < l {
+                                existing.completedAt = r
+                                changed = true
+                            }
+                        default:
+                            break
+                        }
+                        // Remove the duplicate participant
+                        context.delete(p)
+                        changed = true
+                    } else {
+                        seen[p.studentID] = p
+                    }
+                }
+
+                if changed {
+                    referencesUpdated += 1
                 }
             }
 

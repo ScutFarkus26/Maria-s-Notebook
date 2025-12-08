@@ -19,12 +19,10 @@ struct WorkDetailWindowContainer: View {
             }
             .frame(minWidth: 520, minHeight: 560)
         } else {
-            VStack(spacing: 12) {
-                Text("Work not found")
-                    .font(.headline)
-                Button("Close") { dismiss() }
-            }
-            .frame(minWidth: 400, minHeight: 300)
+            // Auto-dismiss the window when the work is missing (e.g., deleted)
+            Color.clear
+                .frame(minWidth: 1, minHeight: 1)
+                .onAppear { dismiss() }
         }
     }
 }

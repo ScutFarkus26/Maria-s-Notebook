@@ -49,7 +49,6 @@ struct WorkRepository {
         // Resolve attributes that UI might still touch briefly
         _ = work.title
         _ = work.notes
-        _ = work.studentIDs
         _ = work.createdAt
         _ = work.completedAt
         _ = work.workType

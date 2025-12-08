@@ -255,12 +255,14 @@ final class StudentLessonDetailViewModel {
                 let practiceWork = WorkModel(
                     id: UUID(),
                     title: "Practice: \(studentLesson.lesson?.name ?? "Lesson")",
-                    studentIDs: Array(selectedStudentIDs),
                     workType: .practice,
                     studentLessonID: studentLesson.id,
                     notes: "",
                     createdAt: Date()
                 )
+                practiceWork.participants = Array(selectedStudentIDs).map { sid in
+                    WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork)
+                }
                 modelContext.insert(practiceWork)
             }
         }
@@ -278,12 +280,14 @@ final class StudentLessonDetailViewModel {
                 let followUp = WorkModel(
                     id: UUID(),
                     title: "Follow Up: \(studentLesson.lesson?.name ?? "Lesson")",
-                    studentIDs: Array(selectedStudentIDs),
                     workType: .followUp,
                     studentLessonID: studentLesson.id,
                     notes: trimmedFollowUp,
                     createdAt: Date()
                 )
+                followUp.participants = Array(selectedStudentIDs).map { sid in
+                    WorkParticipantEntity(studentID: sid, completedAt: nil, work: followUp)
+                }
                 modelContext.insert(followUp)
             }
         }
@@ -296,3 +300,4 @@ final class StudentLessonDetailViewModel {
         try modelContext.save()
     }
 }
+

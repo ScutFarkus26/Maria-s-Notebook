@@ -97,7 +97,7 @@ final class LessonPickerViewModel: ObservableObject {
         let query = lessonSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return sortedLessons }
 
-        return filteredLessons.filter { lesson in
+        return sortedLessons.filter { lesson in
             lesson.name.lowercased().contains(query) ||
             lesson.subject.lowercased().contains(query) ||
             lesson.group.lowercased().contains(query)

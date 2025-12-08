@@ -22,6 +22,8 @@ struct RootView: View {
     private var selectedTab: Tab {
         Tab(rawValue: selectedTabRaw) ?? .albumlessons
     }
+    
+    private var pillTabs: [Tab] { Tab.allCases.filter { $0 != .attendance } }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -53,7 +55,7 @@ struct RootView: View {
                 Spacer()
 
                 HStack(spacing: 12) {
-                    ForEach(Tab.allCases) { tab in
+                    ForEach(pillTabs) { tab in
                         Button {
                             if tab == .albumlessons {
                                 // Disable animation when switching to the Albums view
@@ -108,12 +110,18 @@ struct RootView: View {
         .onAppear {
             backfillRelationshipsIfNeeded()
             backfillIsPresentedIfNeeded()
+            // Migrate legacy top-level Attendance tab to Students -> Attendance mode
+            if Tab(rawValue: selectedTabRaw) == .attendance {
+                selectedTabRaw = Tab.students.rawValue
+                UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackfillIsPresentedRequested"))) { _ in
             backfillIsPresentedIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenAttendanceRequested"))) { _ in
-            selectedTabRaw = Tab.attendance.rawValue
+            selectedTabRaw = Tab.students.rawValue
+            UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
         }
     }
 
@@ -227,3 +235,4 @@ struct PlanningRootView: View {
         }
     }
 }
+

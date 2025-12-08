@@ -167,12 +167,14 @@ struct AddWorkView: View {
                 Button("Save") {
                     let work = WorkModel(
                         title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-                        studentIDs: Array(selectedStudents),
                         workType: workType,
                         studentLessonID: selectedStudentLessonID,
                         notes: notes,
                         createdAt: Date()
                     )
+                    work.participants = Array(selectedStudents).map { sid in
+                        WorkParticipantEntity(studentID: sid, completedAt: nil, work: work)
+                    }
                     modelContext.insert(work)
                     do {
                         try modelContext.save()

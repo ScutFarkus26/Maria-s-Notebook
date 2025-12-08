@@ -130,5 +130,48 @@ struct SchoolCalendar {
             }
         }
     }
+
+    /// Returns the next school day strictly after the given date.
+    /// Weekends and configured non-school days are skipped; weekend overrides are respected.
+    static func nextSchoolDay(after date: Date, using context: ModelContext) -> Date {
+        let cal = self.cal
+        var d = cal.startOfDay(for: date)
+        // Start from the following day
+        d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+        // Safety cap to avoid infinite loops in case of data errors
+        for _ in 0..<730 { // up to ~2 years
+            if !isNonSchoolDay(d, using: context) { return d }
+            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+        }
+        return cal.startOfDay(for: date)
+    }
+    /// Returns the previous school day strictly before the given date.
+    /// Weekends and configured non-school days are skipped; weekend overrides are respected.
+    static func previousSchoolDay(before date: Date, using context: ModelContext) -> Date {
+        let cal = self.cal
+        var d = cal.startOfDay(for: date)
+        // Start from the previous day
+        d = cal.date(byAdding: .day, value: -1, to: d) ?? d
+        for _ in 0..<730 { // up to ~2 years
+            if !isNonSchoolDay(d, using: context) { return d }
+            d = cal.date(byAdding: .day, value: -1, to: d) ?? d
+        }
+        return cal.startOfDay(for: date)
+    }
+
+    /// Coerces the provided date to the nearest school day.
+    /// If the date is already a school day, it is returned unchanged. Otherwise, the closer of the previous/next school day is chosen (ties prefer the next day).
+    static func nearestSchoolDay(to date: Date, using context: ModelContext) -> Date {
+        let cal = self.cal
+        let day = cal.startOfDay(for: date)
+        if !isNonSchoolDay(day, using: context) { return day }
+        let prev = previousSchoolDay(before: day, using: context)
+        let next = nextSchoolDay(after: day, using: context)
+        let distPrev = abs(prev.timeIntervalSince(day))
+        let distNext = abs(next.timeIntervalSince(day))
+        if distPrev < distNext { return prev }
+        // On tie or next closer, prefer next
+        return next
+    }
 }
 
