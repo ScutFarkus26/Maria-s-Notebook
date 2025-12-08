@@ -26,6 +26,10 @@
 		519158F12EE65865007D4AB1 /* NotesSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519158F02EE65865007D4AB1 /* NotesSectionView.swift */; };
 		519158F32EE65867007D4AB1 /* LessonProgressSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519158F22EE65867007D4AB1 /* LessonProgressSection.swift */; };
 		519158F52EE6586B007D4AB1 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519158F42EE6586B007D4AB1 /* FlowLayout.swift */; };
+		519158F72EE65D90007D4AB1 /* QuickBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519158F62EE65D90007D4AB1 /* QuickBannerView.swift */; };
+		519158F92EE65D91007D4AB1 /* StudentLessonDetailUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519158F82EE65D91007D4AB1 /* StudentLessonDetailUtilities.swift */; };
+		519158FB2EE65D94007D4AB1 /* ChangeLessonControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519158FA2EE65D94007D4AB1 /* ChangeLessonControl.swift */; };
+		519158FF2EE65EFA007D4AB1 /* StudentLessonDetailActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519158FE2EE65EFA007D4AB1 /* StudentLessonDetailActions.swift */; };
 		51D5C1F52EE48E710036BFF1 /* OpenPracticeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D5C1F42EE48E710036BFF1 /* OpenPracticeListView.swift */; };
 		51D5C1F72EE48E770036BFF1 /* OpenWorkListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D5C1F62EE48E770036BFF1 /* OpenWorkListView.swift */; };
 /* End PBXBuildFile section */
@@ -51,6 +55,10 @@
 		519158F02EE65865007D4AB1 /* NotesSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesSectionView.swift; sourceTree = "<group>"; };
 		519158F22EE65867007D4AB1 /* LessonProgressSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonProgressSection.swift; sourceTree = "<group>"; };
 		519158F42EE6586B007D4AB1 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
+		519158F62EE65D90007D4AB1 /* QuickBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickBannerView.swift; sourceTree = "<group>"; };
+		519158F82EE65D91007D4AB1 /* StudentLessonDetailUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailUtilities.swift; sourceTree = "<group>"; };
+		519158FA2EE65D94007D4AB1 /* ChangeLessonControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangeLessonControl.swift; sourceTree = "<group>"; };
+		519158FE2EE65EFA007D4AB1 /* StudentLessonDetailActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonDetailActions.swift; sourceTree = "<group>"; };
 		51D5C1F42EE48E710036BFF1 /* OpenPracticeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenPracticeListView.swift; sourceTree = "<group>"; };
 		51D5C1F62EE48E770036BFF1 /* OpenWorkListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenWorkListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -113,6 +121,10 @@
 				519158F02EE65865007D4AB1 /* NotesSectionView.swift */,
 				519158F22EE65867007D4AB1 /* LessonProgressSection.swift */,
 				519158F42EE6586B007D4AB1 /* FlowLayout.swift */,
+				519158F62EE65D90007D4AB1 /* QuickBannerView.swift */,
+				519158F82EE65D91007D4AB1 /* StudentLessonDetailUtilities.swift */,
+				519158FA2EE65D94007D4AB1 /* ChangeLessonControl.swift */,
+				519158FE2EE65EFA007D4AB1 /* StudentLessonDetailActions.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -210,11 +222,15 @@
 				51388D252EE6153E0045C29A /* WorkStudentsGrid.swift in Sources */,
 				51388D272EE621320045C29A /* WorkRepository.swift in Sources */,
 				519158E92EE65841007D4AB1 /* StudentLessonHeaderView.swift in Sources */,
+				519158F72EE65D90007D4AB1 /* QuickBannerView.swift in Sources */,
 				519158EB2EE65845007D4AB1 /* StudentPillsSection.swift in Sources */,
 				519158ED2EE6584C007D4AB1 /* InboxStatusSection.swift in Sources */,
 				519158F52EE6586B007D4AB1 /* FlowLayout.swift in Sources */,
 				519158F32EE65867007D4AB1 /* LessonProgressSection.swift in Sources */,
+				519158FF2EE65EFA007D4AB1 /* StudentLessonDetailActions.swift in Sources */,
+				519158F92EE65D91007D4AB1 /* StudentLessonDetailUtilities.swift in Sources */,
 				519158EF2EE65863007D4AB1 /* LinkedWorkSection.swift in Sources */,
+				519158FB2EE65D94007D4AB1 /* ChangeLessonControl.swift in Sources */,
 				515EC5C22EE3C7C1004E918B /* OptionalDatePicker.swift in Sources */,
 				515EC5BE2EE3BC7A004E918B /* DataMigrations.swift in Sources */,
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,

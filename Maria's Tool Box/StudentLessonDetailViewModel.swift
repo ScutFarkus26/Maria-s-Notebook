@@ -1,3 +1,4 @@
+#if false
 import SwiftUI
 import SwiftData
 
@@ -301,3 +302,4 @@ final class StudentLessonDetailViewModel {
     }
 }
 
+#endif

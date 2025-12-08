@@ -48,6 +48,8 @@ struct StudentLessonDetailView: View {
     @State private var quickBannerColor: Color = .green
     @State private var showLessonPicker: Bool = false
 
+    @StateObject private var vm = StudentLessonDetailActions()
+
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
         self.studentLesson = studentLesson
         self.onDone = onDone
@@ -87,102 +89,39 @@ struct StudentLessonDetailView: View {
 
     private var nextLessonInGroup: Lesson? {
         guard let current = lessonObject else { return nil }
-        let currentSubject = current.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentGroup = current.group.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return nil }
-        let candidates = lessons.filter { l in
-            l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
-        }
-        .sorted { $0.orderInGroup < $1.orderInGroup }
-        guard let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count else { return nil }
-        return candidates[idx + 1]
+        return vm.nextLessonInGroup(from: current, lessons: lessons)
     }
 
     private func planNextLessonInGroup() {
         guard let next = nextLessonInGroup else { return }
-        let sameStudents = Set(selectedStudentIDs)
-        let exists = studentLessonsAll.contains { sl in
-            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
+        let didCreate = vm.planNextLessonInGroup(
+            next: next,
+            selectedStudentIDs: selectedStudentIDs,
+            studentsAll: studentsAll,
+            lessons: lessons,
+            studentLessonsAll: studentLessonsAll,
+            context: modelContext
+        )
+        if didCreate {
+            didPlanNext = true
+            showPlannedBanner = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { showPlannedBanner = false }
         }
-        if !exists {
-            let newStudentLesson = StudentLesson(
-                id: UUID(),
-                lessonID: next.id,
-                studentIDs: Array(selectedStudentIDs),
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
-            )
-            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-            newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
-            modelContext.insert(newStudentLesson)
-            try? modelContext.save()
-        }
-        didPlanNext = true
-
-        showPlannedBanner = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            showPlannedBanner = false
-        }
-        notifyInboxRefresh()
     }
     
     private func moveStudentsToInbox() {
         guard !studentsToMove.isEmpty, let currentLesson = lessonObject else { return }
-
-        // Get names for the banner
-        movedStudentNames = studentsAll
-            .filter { studentsToMove.contains($0.id) }
-            .map { displayName(for: $0) }
-
-        // Find or create one unscheduled group StudentLesson for these students
-        let targetSet = studentsToMove
-        let existing = studentLessonsAll.first(where: { sl in
-            sl.resolvedLessonID == currentLesson.id && sl.scheduledFor == nil && !sl.isGiven && Set(sl.resolvedStudentIDs) == targetSet
-        })
-
-        if let ex = existing {
-            // Ensure relationships are up to date
-            ex.students = studentsAll.filter { targetSet.contains($0.id) }
-            ex.lesson = currentLesson
-        } else {
-            let newStudentLesson = StudentLesson(
-                id: UUID(),
-                lessonID: currentLesson.id,
-                studentIDs: Array(targetSet),
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
-            )
-            newStudentLesson.students = studentsAll.filter { targetSet.contains($0.id) }
-            newStudentLesson.lesson = currentLesson
-            modelContext.insert(newStudentLesson)
-        }
-
-        // Remove the students from the current lesson selection
+        movedStudentNames = vm.moveStudentsToInbox(
+            currentLesson: currentLesson,
+            studentsToMove: studentsToMove,
+            studentsAll: studentsAll,
+            studentLessonsAll: studentLessonsAll,
+            context: modelContext
+        )
         selectedStudentIDs.subtract(studentsToMove)
         studentsToMove.removeAll()
-
-        // Save changes
-        try? modelContext.save()
-
-        // Notify agenda/inbox to refresh immediately
-        notifyInboxRefresh()
-
-        // Show confirmation banner
         showMovedBanner = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            showMovedBanner = false
-        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { showMovedBanner = false }
     }
 
     private var selectedStudentsList: [Student] {
@@ -215,22 +154,10 @@ struct StudentLessonDetailView: View {
                             .padding(.horizontal, 32)
                             .padding(.top, 16)
                     } else {
-                        // Minimal "Change Lesson" button
-                        HStack {
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    showLessonPicker = true
-                                }
-                            } label: {
-                                Label("Change Lesson…", systemImage: "pencil")
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 32)
-                        .padding(.top, 8)
+                        // Use ChangeLessonControl instead of manual "Change Lesson" button
+                        ChangeLessonControl(showLessonPicker: $showLessonPicker)
+                            .padding(.horizontal, 32)
+                            .padding(.top, 8)
                     }
                     
                     // 3. Student Pills Block
@@ -316,7 +243,7 @@ struct StudentLessonDetailView: View {
                 } else if showMovedBanner {
                     MovedStudentsBanner(studentNames: movedStudentNames)
                 } else if showQuickBanner {
-                    quickBanner
+                    QuickBannerView(text: quickBannerText, color: quickBannerColor)
                 }
             }
             .allowsHitTesting(false)
@@ -428,7 +355,7 @@ struct StudentLessonDetailView: View {
                     newStudentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
                     modelContext.insert(newStudentLesson)
                     try? modelContext.save()
-                    notifyInboxRefresh()
+                    StudentLessonDetailUtilities.notifyInboxRefresh()
                 }
             }
         }
@@ -535,12 +462,7 @@ struct StudentLessonDetailView: View {
     }
 
     private func toggleWorkCompletion(_ work: WorkModel, studentID: UUID) {
-        if work.isStudentCompleted(studentID) {
-            work.markStudent(studentID, completedAt: nil)
-        } else {
-            work.markStudent(studentID, completedAt: Date())
-        }
-        try? modelContext.save()
+        vm.toggleWorkCompletion(work, studentID: studentID, context: modelContext)
     }
 
     private func studentChip(for student: Student) -> some View {
@@ -566,31 +488,11 @@ struct StudentLessonDetailView: View {
         )
     }
     
-    private var quickBanner: some View {
-        Text(quickBannerText)
-            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(quickBannerColor.opacity(0.95))
-            )
-            .foregroundColor(.white)
-            .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
-            .padding(.top, 8)
-    }
-
-    private enum Formatters {
-        static let scheduleDay: DateFormatter = {
-            let f = DateFormatter()
-            f.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
-            return f
-        }()
-    }
-
+// Removed the private var quickBanner: some View {...} as per instructions
+    
     private var scheduleStatusText: String {
         guard let date = scheduledFor else { return "Not Scheduled Yet" }
-        let datePart = Formatters.scheduleDay.string(from: date)
+        let datePart = StudentLessonDetailUtilities.Formatters.scheduleDay.string(from: date)
         let hour = Calendar.current.component(.hour, from: date)
         let period = hour < 12 ? "Morning" : "Afternoon"
         return "\(datePart) in the \(period)"
@@ -601,19 +503,23 @@ struct StudentLessonDetailView: View {
     }
 
     private func notifyInboxRefresh() {
-        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+        StudentLessonDetailUtilities.notifyInboxRefresh()
     }
 
     private func applyEditsToModel() {
-        studentLesson.lessonID = editingLessonID
-        studentLesson.scheduledFor = scheduledFor
-        studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
-        studentLesson.isPresented = isPresented
-        studentLesson.notes = notes
-        studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.studentIDs = Array(selectedStudentIDs)
-        studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
-        studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
+        vm.applyEditsToModel(
+            studentLesson: studentLesson,
+            editingLessonID: editingLessonID,
+            scheduledFor: scheduledFor,
+            givenAt: givenAt,
+            isPresented: isPresented,
+            notes: notes,
+            needsAnotherPresentation: needsAnotherPresentation,
+            selectedStudentIDs: selectedStudentIDs,
+            studentsAll: studentsAll,
+            lessons: lessons,
+            calendar: calendar
+        )
     }
 
     private func saveImmediate() {
@@ -630,36 +536,21 @@ struct StudentLessonDetailView: View {
 
         // Auto-create next lesson in group when marking presented
         let nowGiven = isPresented || (givenAt != nil)
-        if !wasGiven && nowGiven, let next = nextLessonInGroup {
-            let sameStudents = Set(selectedStudentIDs)
-            let exists = studentLessonsAll.contains { sl in
-                sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
-            }
-            if !exists {
-                let newStudentLesson = StudentLesson(
-                    id: UUID(),
-                    lessonID: next.id,
-                    studentIDs: Array(sameStudents),
-                    createdAt: Date(),
-                    scheduledFor: nil,
-                    givenAt: nil,
-                    notes: "",
-                    needsPractice: false,
-                    needsAnotherPresentation: false,
-                    followUpWork: ""
-                )
-                newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-                newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
-                modelContext.insert(newStudentLesson)
-                // Notify inbox to refresh
-                notifyInboxRefresh()
-            }
-        }
+        vm.autoCreateNextIfNeeded(
+            wasGiven: wasGiven,
+            nowGiven: nowGiven,
+            nextLesson: nextLessonInGroup,
+            selectedStudentIDs: selectedStudentIDs,
+            studentsAll: studentsAll,
+            lessons: lessons,
+            studentLessonsAll: studentLessonsAll,
+            context: modelContext
+        )
 
         do {
             try modelContext.save()
             // Notify agenda/inbox to refresh immediately after save
-            notifyInboxRefresh()
+            StudentLessonDetailUtilities.notifyInboxRefresh()
 
             if let onDone {
                 onDone()
@@ -681,7 +572,7 @@ struct StudentLessonDetailView: View {
         }
 
         // Notify agenda/inbox to refresh immediately after deletion
-        notifyInboxRefresh()
+        StudentLessonDetailUtilities.notifyInboxRefresh()
 
         // Now dismiss after the @Query has updated
         if let onDone {
