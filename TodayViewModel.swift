@@ -1,0 +1,234 @@
+import Foundation
+import SwiftUI
+import SwiftData
+import Combine
+
+@MainActor
+final class TodayViewModel: ObservableObject {
+    // MARK: - Types
+    struct AttendanceSummary {
+        var presentCount: Int = 0 // Present + Tardy
+        var absentCount: Int = 0
+        var leftEarlyCount: Int = 0
+    }
+
+    enum LevelFilter: String, CaseIterable, Identifiable {
+        case all = "All"
+        case lower = "Lower"
+        case upper = "Upper"
+        var id: String { rawValue }
+        func matches(_ level: Student.Level) -> Bool {
+            switch self {
+            case .all: return true
+            case .lower: return level == .lower
+            case .upper: return level == .upper
+            }
+        }
+    }
+
+    // MARK: - Dependencies
+    private let context: ModelContext
+
+    // MARK: - Inputs
+    @Published var date: Date {
+        didSet {
+            let normalized = Calendar.current.startOfDay(for: date)
+            if date != normalized {
+                date = normalized
+                return
+            }
+            reload()
+        }
+    }
+    @Published var levelFilter: LevelFilter = .all { didSet { reload() } }
+
+    // MARK: - Outputs
+    @Published var todaysLessons: [StudentLesson] = []
+    @Published var overdueCheckIns: [WorkCheckIn] = []
+    @Published var todaysCheckIns: [WorkCheckIn] = []
+    @Published var inProgressWork: [WorkModel] = []
+    @Published var completedToday: [WorkCompletionRecord] = []
+    @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
+
+    // Lightweight lookup caches for rows (avoid per-row fetches)
+    @Published private(set) var studentsByID: [UUID: Student] = [:]
+    @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
+    @Published private(set) var worksByID: [UUID: WorkModel] = [:]
+    @Published private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
+
+    // MARK: - Init
+    init(context: ModelContext, date: Date = Date()) {
+        self.context = context
+        self.date = Calendar.current.startOfDay(for: date)
+        reload()
+    }
+
+    // MARK: - Public API
+    func reload() {
+        let cal = Calendar.current
+        let day = cal.startOfDay(for: date)
+        let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day
+
+        // Build lookup caches first
+        let students = (try? context.fetch(FetchDescriptor<Student>())) ?? []
+        studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
+        lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        let allWorks = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
+        worksByID = Dictionary(uniqueKeysWithValues: allWorks.map { ($0.id, $0) })
+        let allStudentLessons = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
+        studentLessonsByID = Dictionary(uniqueKeysWithValues: allStudentLessons.map { ($0.id, $0) })
+
+        // Lessons scheduled for today — fetch by denormalized day and by exact scheduled time separately,
+        // then merge to avoid optional/OR predicate pitfalls.
+        do {
+            let byDayDescriptor = FetchDescriptor<StudentLesson>(
+                predicate: #Predicate { sl in
+                    sl.scheduledForDay >= day && sl.scheduledForDay < nextDay
+                },
+                sortBy: []
+            )
+            let byExactDescriptor = FetchDescriptor<StudentLesson>(
+                predicate: #Predicate { sl in
+                    sl.scheduledFor != nil && sl.scheduledFor! >= day && sl.scheduledFor! < nextDay
+                },
+                sortBy: []
+            )
+            let byDay = try context.fetch(byDayDescriptor)
+            let byExact = try context.fetch(byExactDescriptor)
+
+            // Merge unique by id
+            let mergedDict = Dictionary(uniqueKeysWithValues: (byDay + byExact).map { ($0.id, $0) })
+            var merged = Array(mergedDict.values)
+
+            // Stable sort: by scheduledForDay, then scheduledFor (if available), then createdAt
+            merged.sort { lhs, rhs in
+                if lhs.scheduledForDay != rhs.scheduledForDay {
+                    return lhs.scheduledForDay < rhs.scheduledForDay
+                }
+                switch (lhs.scheduledFor, rhs.scheduledFor) {
+                case let (l?, r?): return l < r
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: return lhs.createdAt < rhs.createdAt
+                }
+            }
+
+            todaysLessons = filterByLevelIfNeeded(merged, studentsByID: self.studentsByID)
+        } catch {
+            todaysLessons = []
+        }
+
+        // Check-ins
+        do {
+            let overdueDescriptor = FetchDescriptor<WorkCheckIn>(
+                predicate: #Predicate { ci in ci.date < day },
+                sortBy: [SortDescriptor(\.date, order: .forward)]
+            )
+            let todayDescriptor = FetchDescriptor<WorkCheckIn>(
+                predicate: #Predicate { ci in ci.date >= day && ci.date < nextDay },
+                sortBy: [SortDescriptor(\.date, order: .forward)]
+            )
+            let overdueAll = try context.fetch(overdueDescriptor)
+            let todayAll = try context.fetch(todayDescriptor)
+            let overdueScheduled = overdueAll.filter { $0.status == .scheduled }
+            let todayScheduled = todayAll.filter { $0.status == .scheduled }
+            overdueCheckIns = filterCheckInsByLevelIfNeeded(overdueScheduled, studentsByID: self.studentsByID)
+            todaysCheckIns = filterCheckInsByLevelIfNeeded(todayScheduled, studentsByID: self.studentsByID)
+        } catch {
+            overdueCheckIns = []
+            todaysCheckIns = []
+        }
+
+        // In-progress work (isOpen) for selected level
+        do {
+            let descriptor = FetchDescriptor<WorkModel>(
+                predicate: #Predicate { w in w.completedAt == nil },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
+            let allOpen = try context.fetch(descriptor)
+            inProgressWork = filterWorksByLevelIfNeeded(allOpen, studentsByID: self.studentsByID)
+        } catch {
+            inProgressWork = []
+        }
+
+        // Completions today
+        do {
+            let descriptor = FetchDescriptor<WorkCompletionRecord>(
+                predicate: #Predicate { rc in rc.completedAt >= day && rc.completedAt < nextDay },
+                sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
+            )
+            let all = try context.fetch(descriptor)
+            completedToday = all.filter { rc in
+                guard let s = self.studentsByID[rc.studentID] else { return false }
+                return levelFilter.matches(s.level)
+            }
+        } catch {
+            completedToday = []
+        }
+
+        // Attendance summary for the day
+        do {
+            let descriptor = FetchDescriptor<AttendanceRecord>(
+                predicate: #Predicate { rec in rec.date >= day && rec.date < nextDay },
+                sortBy: []
+            )
+            let records = try context.fetch(descriptor)
+            var present = 0
+            var absent = 0
+            var leftEarly = 0
+            for rec in records {
+                if let s = self.studentsByID[rec.studentID], !levelFilter.matches(s.level) { continue }
+                switch rec.status {
+                case .present, .tardy: present += 1
+                case .absent: absent += 1
+                case .leftEarly: leftEarly += 1
+                case .unmarked: break
+                }
+            }
+            attendanceSummary = AttendanceSummary(presentCount: present, absentCount: absent, leftEarlyCount: leftEarly)
+        } catch {
+            attendanceSummary = AttendanceSummary()
+        }
+    }
+
+    // MARK: - Helpers
+    private func filterByLevelIfNeeded(_ lessons: [StudentLesson], studentsByID: [UUID: Student]) -> [StudentLesson] {
+        guard levelFilter != .all else { return lessons }
+        return lessons.filter { sl in
+            let ids = sl.resolvedStudentIDs
+            // If no students are attached, keep it visible under any filter
+            if ids.isEmpty { return true }
+
+            var anyKnownStudent = false
+            for sid in ids {
+                if let s = studentsByID[sid] {
+                    anyKnownStudent = true
+                    if levelFilter.matches(s.level) { return true }
+                }
+            }
+            // If none of the students could be resolved from cache, do not drop the lesson
+            return !anyKnownStudent
+        }
+    }
+
+    private func filterCheckInsByLevelIfNeeded(_ items: [WorkCheckIn], studentsByID: [UUID: Student]) -> [WorkCheckIn] {
+        guard levelFilter != .all else { return items }
+        // Map WorkModel.id -> participants
+        let participantsByWorkID: [UUID: [UUID]] = Dictionary(uniqueKeysWithValues: worksByID.map { ($0.key, $0.value.participants.map { $0.studentID }) })
+        return items.filter { ci in
+            guard let p = participantsByWorkID[ci.workID] else { return false }
+            for sid in p { if let s = studentsByID[sid], levelFilter.matches(s.level) { return true } }
+            return false
+        }
+    }
+
+    private func filterWorksByLevelIfNeeded(_ works: [WorkModel], studentsByID: [UUID: Student]) -> [WorkModel] {
+        guard levelFilter != .all else { return works }
+        return works.filter { w in
+            for p in w.participants { if let s = studentsByID[p.studentID], levelFilter.matches(s.level) { return true } }
+            return false
+        }
+    }
+}
+

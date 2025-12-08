@@ -4,9 +4,9 @@ import SwiftData
 struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
         case students = "Students"
-        case albumlessons = "Albums"         // Lessons library (albums view)
+        case lessons = "Lessons" // New container with submenus (Albums / Lessons Log)
         case planning = "Planning"
-        case studentLessons = "Lessons" // Student lessons (pills)
+        case today = "Today"
         case work = "Work"
         case settings = "Settings"
         case attendance = "Attendance"
@@ -14,13 +14,13 @@ struct RootView: View {
         var id: String { rawValue }
     }
 
-    @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.albumlessons.rawValue
+    @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.students.rawValue
     @Environment(\.modelContext) private var modelContext
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
 
     private var selectedTab: Tab {
-        Tab(rawValue: selectedTabRaw) ?? .albumlessons
+        Tab(rawValue: selectedTabRaw) ?? .students
     }
     
     private var pillTabs: [Tab] { Tab.allCases.filter { $0 != .attendance } }
@@ -57,14 +57,7 @@ struct RootView: View {
                 HStack(spacing: 12) {
                     ForEach(pillTabs) { tab in
                         Button {
-                            if tab == .albumlessons {
-                                // Disable animation when switching to the Albums view
-                                withAnimation(nil) {
-                                    selectedTabRaw = tab.rawValue
-                                }
-                            } else {
-                                selectedTabRaw = tab.rawValue
-                            }
+                            selectedTabRaw = tab.rawValue
                         } label: {
                             Text(tab.rawValue)
                                 .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
@@ -89,10 +82,10 @@ struct RootView: View {
             // Active view
             Group {
                 switch selectedTab {
-                case .studentLessons:
-                    StudentLessonsRootView()
-                case .albumlessons:
-                    LessonsRootView()
+                case .today:
+                    TodayView(context: modelContext) // Wires the Today hub
+                case .lessons:
+                    LessonsMenuRootView()
                 case .students:
                     StudentsRootView()
                 case .planning:
@@ -114,6 +107,10 @@ struct RootView: View {
             if Tab(rawValue: selectedTabRaw) == .attendance {
                 selectedTabRaw = Tab.students.rawValue
                 UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
+            }
+            // Migrate legacy top-level Albums/Lessons tabs into new Lessons container
+            if selectedTabRaw == "Albums" || selectedTabRaw == "Lessons" {
+                selectedTabRaw = Tab.lessons.rawValue
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackfillIsPresentedRequested"))) { _ in
@@ -229,6 +226,47 @@ struct PlanningRootView: View {
                     PlanningAgendaView()
                 } else {
                     PlanningWeekView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+struct LessonsMenuRootView: View {
+    enum Mode: String, CaseIterable, Identifiable {
+        case albums = "Albums"
+        case log = "Lessons Log"
+        var id: String { rawValue }
+    }
+    @AppStorage("LessonsMenuRootView.mode") private var modeRaw: String = Mode.albums.rawValue
+    private var mode: Mode { Mode(rawValue: modeRaw) ?? .albums }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Top pill navigation (Albums / Lessons Log)
+            HStack {
+                Spacer()
+                HStack(spacing: 12) {
+                    PillNavButton(title: Mode.albums.rawValue, isSelected: mode == .albums) {
+                        modeRaw = Mode.albums.rawValue
+                    }
+                    PillNavButton(title: Mode.log.rawValue, isSelected: mode == .log) {
+                        modeRaw = Mode.log.rawValue
+                    }
+                }
+                Spacer()
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+
+            Divider()
+
+            Group {
+                if mode == .albums {
+                    LessonsRootView()
+                } else {
+                    StudentLessonsRootView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

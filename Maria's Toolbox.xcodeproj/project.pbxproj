@@ -9,12 +9,16 @@
 /* Begin PBXBuildFile section */
 		510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819952EDEA8020000BE47 /* PillButton 2.swift */; };
 		5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */; };
+		519159012EE676BC007D4AB1 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159002EE676BC007D4AB1 /* TodayViewModel.swift */; };
+		519159032EE676DC007D4AB1 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159022EE676DC007D4AB1 /* TodayView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		510819952EDEA8020000BE47 /* PillButton 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PillButton 2.swift"; sourceTree = "<group>"; };
 		5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StudentHeaderView 2.swift"; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		519159002EE676BC007D4AB1 /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
+		519159022EE676DC007D4AB1 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -56,6 +60,8 @@
 				5141E7F62ED77B0F004F918F /* Products */,
 				510819952EDEA8020000BE47 /* PillButton 2.swift */,
 				5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */,
+				519159002EE676BC007D4AB1 /* TodayViewModel.swift */,
+				519159022EE676DC007D4AB1 /* TodayView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -141,6 +147,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				519159012EE676BC007D4AB1 /* TodayViewModel.swift in Sources */,
+				519159032EE676DC007D4AB1 /* TodayView.swift in Sources */,
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
 				510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */,
 			);
