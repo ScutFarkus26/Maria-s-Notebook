@@ -58,6 +58,16 @@ struct LessonsRootView: View {
     private var lessonIDs: [UUID] {
         lessons.map { $0.id }
     }
+    private var lessonsFingerprint: String {
+        lessons.map { lesson in
+            [
+                lesson.id.uuidString,
+                lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                lesson.group.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                String(lesson.orderInGroup)
+            ].joined(separator: "|")
+        }.joined(separator: ";")
+    }
 
     @StateObject private var filterState = LessonsFilterState()
 
@@ -274,6 +284,11 @@ struct LessonsRootView: View {
         .onChange(of: lessonIDs) { _, _ in
             groupsCache.removeAll()
             ensureInitialOrderInGroupIfNeeded()
+            recomputeFilteredLessons()
+        }
+        .onChange(of: lessonsFingerprint) { _, _ in
+            // React to subject/group/order changes so the grid updates immediately
+            groupsCache.removeAll()
             recomputeFilteredLessons()
         }
         .onChange(of: filterState.selectedSubject) { _, newValue in

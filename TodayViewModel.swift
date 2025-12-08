@@ -28,19 +28,20 @@ final class TodayViewModel: ObservableObject {
 
     // MARK: - Dependencies
     private let context: ModelContext
+    private var calendar: Calendar
 
     // MARK: - Inputs
     @Published var date: Date {
         didSet {
-            let normalized = Calendar.current.startOfDay(for: date)
+            let normalized = calendar.startOfDay(for: date)
             if date != normalized {
                 date = normalized
                 return
             }
-            reload()
+            scheduleReload()
         }
     }
-    @Published var levelFilter: LevelFilter = .all { didSet { reload() } }
+    @Published var levelFilter: LevelFilter = .all { didSet { scheduleReload() } }
 
     // MARK: - Outputs
     @Published var todaysLessons: [StudentLesson] = []
@@ -56,16 +57,38 @@ final class TodayViewModel: ObservableObject {
     @Published private(set) var worksByID: [UUID: WorkModel] = [:]
     @Published private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
 
+    // MARK: - Scheduling
+    private var reloadScheduled = false
+    private func scheduleReload() {
+        guard !reloadScheduled else { return }
+        reloadScheduled = true
+        Task { @MainActor in
+            reloadScheduled = false
+            reload()
+        }
+    }
+
     // MARK: - Init
-    init(context: ModelContext, date: Date = Date()) {
+    init(context: ModelContext, date: Date = Date(), calendar: Calendar = .current) {
         self.context = context
-        self.date = Calendar.current.startOfDay(for: date)
-        reload()
+        self.calendar = calendar
+        self.date = calendar.startOfDay(for: date)
+        scheduleReload()
+    }
+
+    func setCalendar(_ cal: Calendar) {
+        self.calendar = cal
+        let normalized = cal.startOfDay(for: self.date)
+        if self.date != normalized {
+            self.date = normalized
+        } else {
+            scheduleReload()
+        }
     }
 
     // MARK: - Public API
     func reload() {
-        let cal = Calendar.current
+        let cal = calendar
         let day = cal.startOfDay(for: date)
         let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day
 

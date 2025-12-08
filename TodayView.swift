@@ -3,6 +3,7 @@ import SwiftData
 
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendar) private var calendar
 
     @StateObject private var viewModel: TodayViewModel
 
@@ -28,7 +29,7 @@ struct TodayView: View {
     private var studentNameForID: (UUID) -> String { { id in viewModel.studentsByID[id]?.fullName ?? "Student" } }
 
     init(context: ModelContext) {
-        _viewModel = StateObject(wrappedValue: TodayViewModel(context: context))
+        _viewModel = StateObject(wrappedValue: TodayViewModel(context: context, calendar: .current))
     }
 
     var body: some View {
@@ -48,6 +49,9 @@ struct TodayView: View {
                     .padding(.vertical, 12)
                 }
             }
+        }
+        .onAppear {
+            viewModel.setCalendar(calendar)
         }
         .sheet(isPresented: Binding(get: { selectedWorkID != nil }, set: { if !$0 { selectedWorkID = nil } })) {
             if let id = selectedWorkID {
@@ -76,7 +80,7 @@ struct TodayView: View {
 
     // MARK: - Header
     private var header: some View {
-        let cal = Calendar.current
+        let cal = calendar
         return VStack(spacing: 8) {
             HStack(spacing: 12) {
                 Text("Today")
@@ -118,6 +122,15 @@ struct TodayView: View {
                     viewModel.date = cal.startOfDay(for: Date())
                 }
                 .buttonStyle(.plain)
+            }
+            HStack(spacing: 8) {
+                Text(viewModel.date, format: Date.FormatStyle().weekday(.abbreviated).month(.abbreviated).day())
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Text("Lessons: \(viewModel.todaysLessons.count)")
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Spacer()
             }
         }
         .padding(.horizontal, 16)
