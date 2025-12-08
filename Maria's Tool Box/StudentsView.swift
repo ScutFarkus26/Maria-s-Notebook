@@ -5,8 +5,11 @@ import SwiftData
 /// Shows a filter sidebar and a grid of student cards.
 struct StudentsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendar) private var calendar
     @Query private var students: [Student]
     @Query private var attendanceRecords: [AttendanceRecord]
+    @Query private var studentLessons: [StudentLesson]
+    @Query private var lessons: [Lesson]
     
     private let viewModel = StudentsViewModel()
 
@@ -19,6 +22,7 @@ struct StudentsView: View {
         case "manual": return .manual
         case "age": return .age
         case "birthday": return .birthday
+        case "lastLesson": return .lastLesson
         default: return .alphabetical
         }
     }
@@ -68,6 +72,47 @@ struct StudentsView: View {
     }
     
     private var presentNowCount: Int { presentNowIDs.count }
+
+    private var daysSinceLastLessonByStudent: [UUID: Int] {
+        var result: [UUID: Int] = [:]
+
+        // Build excluded lesson IDs where subject or group is "Parsha" (case-insensitive, trimmed)
+        let excludedLessonIDs: Set<UUID> = {
+            func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            let ids = lessons.filter { l in
+                let s = norm(l.subject)
+                let g = norm(l.group)
+                return s == "parsha" || g == "parsha"
+            }.map { $0.id }
+            return Set(ids)
+        }()
+
+        // Given lessons excluding Parsha
+        let given = studentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
+
+        // Compute most recent date per student
+        var lastDateByStudent: [UUID: Date] = [:]
+        for sl in given {
+            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+            for sid in sl.resolvedStudentIDs {
+                if let existing = lastDateByStudent[sid] {
+                    if when > existing { lastDateByStudent[sid] = when }
+                } else {
+                    lastDateByStudent[sid] = when
+                }
+            }
+        }
+
+        for s in students {
+            if let last = lastDateByStudent[s.id] {
+                let days = LessonAgeHelper.schoolDaysSinceCreation(createdAt: last, asOf: Date(), using: modelContext, calendar: calendar)
+                result[s.id] = days
+            } else {
+                result[s.id] = -1
+            }
+        }
+        return result
+    }
 
     /// Returns students ordered by the persisted manual order, with any missing/extra appended.
     private func applyManualOrder(to students: [Student]) -> [Student] {
@@ -130,7 +175,31 @@ struct StudentsView: View {
 
     /// Students after applying the current filter and sort order.
     private var filteredStudents: [Student] {
-        viewModel.filteredStudents(students: students, filter: selectedFilter, sortOrder: sortOrder, presentNowIDs: presentNowIDs)
+        if sortOrder == .lastLesson {
+            // Start from filtered base using alphabetical to keep deterministic base ordering
+            let base = viewModel.filteredStudents(students: students, filter: selectedFilter, sortOrder: .alphabetical, presentNowIDs: presentNowIDs)
+            // Build a map of studentID -> days since last lesson (school days), defaulting to 0 when none
+            let daysMap = daysSinceLastLessonByStudent
+            return base.sorted { lhs, rhs in
+                let l = daysMap[lhs.id] ?? -1
+                let r = daysMap[rhs.id] ?? -1
+
+                // No lessons first (we use -1 to indicate none)
+                let lNo = l < 0
+                let rNo = r < 0
+                if lNo != rNo { return lNo && !rNo }
+
+                // Both have or both don't have lessons: sort by days descending
+                if l != r { return l > r }
+
+                // Tie-breakers
+                let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
+                if nameOrder == .orderedSame { return lhs.manualOrder < rhs.manualOrder }
+                return nameOrder == .orderedAscending
+            }
+        } else {
+            return viewModel.filteredStudents(students: students, filter: selectedFilter, sortOrder: sortOrder, presentNowIDs: presentNowIDs)
+        }
     }
 
     /// Available level filters.
@@ -239,6 +308,17 @@ struct StudentsView: View {
                     studentsSortOrderRaw = "birthday"
                 }
             }
+            
+            SidebarFilterButton(
+                icon: "clock.badge.exclamationmark",
+                title: "Last Lesson",
+                color: .accentColor,
+                isSelected: sortOrder == .lastLesson
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    studentsSortOrderRaw = "lastLesson"
+                }
+            }
 
             SidebarFilterButton(
                 icon: "arrow.up.arrow.down",
@@ -321,6 +401,8 @@ struct StudentsView: View {
                     students: filteredStudents,
                     isBirthdayMode: sortOrder == .birthday,
                     isAgeMode: sortOrder == .age,
+                    isLastLessonMode: sortOrder == .lastLesson,
+                    lastLessonDays: daysSinceLastLessonByStudent,
                     isManualMode: sortOrder == .manual,
                     onTapStudent: { selectedStudentID = $0.id },
                     onReorder: { movingStudent, fromIndex, toIndex, subset in

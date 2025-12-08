@@ -185,9 +185,6 @@ struct AttendanceView: View {
                                 Capsule().fill(Color.accentColor.opacity(0.12))
                             )
                     }
-                    Text("Present + Tardy")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
                 }
 
                 Divider()

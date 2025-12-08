@@ -28,6 +28,8 @@ struct StudentsCardsGridView: View {
     let students: [Student]
     let isBirthdayMode: Bool
     let isAgeMode: Bool
+    let isLastLessonMode: Bool
+    let lastLessonDays: [UUID: Int]
     let isManualMode: Bool
     let onTapStudent: (Student) -> Void
     // Called when drag ends with final target index within the provided `students` subset
@@ -60,6 +62,8 @@ struct StudentsCardsGridView: View {
             BirthdayStudentCard(student: student)
         } else if isAgeMode {
             AgeStudentCard(student: student)
+        } else if isLastLessonMode {
+            LastLessonStudentCard(student: student, days: lastLessonDays[student.id] ?? 0)
         } else {
             DefaultStudentCard(student: student, showAge: false)
         }
@@ -414,6 +418,52 @@ private struct AgeStudentCard: View {
             bob = true
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Last Lesson Card
+private struct LastLessonStudentCard: View {
+    let student: Student
+    let days: Int
+
+    private var displayName: String {
+        let parts = student.fullName.split(separator: " ")
+        guard let first = parts.first else { return student.fullName }
+        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
+        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+    }
+
+    private var headline: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(days < 0 ? "—" : "\(days)")
+                .font(.system(size: 44, weight: .black, design: .rounded))
+                .foregroundStyle(.primary)
+            Text("since last lesson")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityLabel(days < 0 ? "No lessons yet" : "\(days) days since last lesson")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                Text(displayName)
+                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                Spacer(minLength: 0)
+                Image(systemName: "clock.badge.exclamationmark").foregroundStyle(.orange)
+            }
+            headline
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .frame(minHeight: 100)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(NSColor.windowBackgroundColor))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+        )
     }
 }
 

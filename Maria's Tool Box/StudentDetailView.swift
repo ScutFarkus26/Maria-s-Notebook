@@ -487,6 +487,7 @@ struct StudentDetailView: View {
             }
             InfoRowView(icon: "gift", title: "Age", value: ageDescription)
             InfoRowView(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
+            DaysSinceLastLessonView(student: student)
             attendanceInfoRow
         }
         .padding(.horizontal, 8)

@@ -40,8 +40,8 @@ struct StudentsRootView: View {
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
-                    PillNavButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
                     PillNavButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
+                    PillNavButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
                 }
                 Spacer()
             }
