@@ -32,14 +32,10 @@ struct WorkView: View {
     @SceneStorage("WorkView.grouping") private var groupingStorage: String = ""
     @SceneStorage("WorkView.mode") private var modeStorage: String = "overview"
     @SceneStorage("WorkView.level") private var levelStorage: String = "All"
-    @SceneStorage("WorkView.overviewLayout") private var overviewLayoutStorage: String = "list"
     
     private enum Mode: String { case overview, items }
     @State private var mode: Mode = .overview
-    
-    private enum OverviewLayout: String { case list, grid }
-    @State private var overviewLayout: OverviewLayout = .list
-    
+
     // Lookup service
     private var lookupService: WorkLookupService {
         WorkLookupService(
@@ -152,7 +148,6 @@ struct WorkView: View {
             filters.level = level
         }
         mode = Mode(rawValue: modeStorage) ?? .overview
-        overviewLayout = OverviewLayout(rawValue: overviewLayoutStorage) ?? .list
     }
     
     private func syncFiltersToStorage() {
@@ -162,7 +157,6 @@ struct WorkView: View {
         selectedStudentIDsStorage = filters.selectedStudentIDs.map { $0.uuidString }.joined(separator: ",")
         levelStorage = filters.level.rawValue
         modeStorage = mode.rawValue
-        overviewLayoutStorage = overviewLayout.rawValue
     }
     
     private func handleWorkSelection(_ work: WorkModel) {
@@ -234,7 +228,6 @@ struct WorkView: View {
             .onChange(of: filters.selectedStudentIDs) { _, _ in syncFiltersToStorage() }
             .onChange(of: filters.level) { _, _ in syncFiltersToStorage() }
             .onChange(of: mode) { _, _ in syncFiltersToStorage() }
-            .onChange(of: overviewLayout) { _, _ in syncFiltersToStorage() }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewWorkRequested"))) { _ in
                 isPresentingAddWork = true
             }
@@ -249,21 +242,12 @@ struct WorkView: View {
         .toolbar {
             if hSize == .compact {
                 ToolbarItem(placement: .topBarLeading) {
-                    Picker("", selection: $mode) {
-                        Text("Overview").tag(Mode.overview)
-                        Text("Items").tag(Mode.items)
+                    HStack(spacing: 12) {
+                        PillNavButton(title: "Overview", isSelected: mode == .overview) { mode = .overview }
+                        PillNavButton(title: "Items", isSelected: mode == .items) { mode = .items }
                     }
-                    .pickerStyle(.segmented)
-                    .frame(width: 200)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        overviewLayout = (overviewLayout == .list) ? .grid : .list
-                    } label: {
-                        Image(systemName: overviewLayout == .list ? "square.grid.2x2" : "list.bullet")
-                    }
-                    .help(overviewLayout == .list ? "Show Grid" : "Show List")
-                }
+                // Removed ToolbarItem for overviewLayout toggle here
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isPresentingAddWork = true
@@ -331,29 +315,16 @@ struct WorkView: View {
             // Content area
             Group {
                 if mode == .overview {
-                    if overviewLayout == .list {
-                        WorkOverviewList(
-                            summaries: workSummaries,
-                            openWorksByStudentID: openWorksByStudentID,
-                            lookupService: lookupService,
-                            onTapStudent: { student in
-                                filters.selectedStudentIDs = [student.id]
-                                mode = .items
-                            },
-                            onTapWork: handleWorkSelection
-                        )
-                    } else {
-                        WorkStudentsGrid(
-                            summaries: workSummaries,
-                            openWorksByStudentID: openWorksByStudentID,
-                            lookupService: lookupService,
-                            onTapStudent: { student in
-                                filters.selectedStudentIDs = [student.id]
-                                mode = .items
-                            },
-                            onTapWork: handleWorkSelection
-                        )
-                    }
+                    WorkStudentsGrid(
+                        summaries: workSummaries,
+                        openWorksByStudentID: openWorksByStudentID,
+                        lookupService: lookupService,
+                        onTapStudent: { student in
+                            filters.selectedStudentIDs = [student.id]
+                            mode = .items
+                        },
+                        onTapWork: handleWorkSelection
+                    )
                 } else {
                     if workItems.isEmpty {
                         WorkEmptyStateView(type: .noWork)
@@ -396,39 +367,29 @@ struct WorkView: View {
             Divider()
 
             VStack(spacing: 0) {
-#if os(macOS)
-                Picker("Mode", selection: $mode) {
-                    Text("Overview").tag(Mode.overview)
-                    Text("Items").tag(Mode.items)
+                HStack {
+                    Spacer()
+                    HStack(spacing: 12) {
+                        PillNavButton(title: "Overview", isSelected: mode == .overview) { mode = .overview }
+                        PillNavButton(title: "Items", isSelected: mode == .items) { mode = .items }
+                    }
+                    Spacer()
                 }
-                .pickerStyle(.segmented)
-                .padding([.top, .horizontal])
-#endif
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+                
                 Group {
                     if mode == .overview {
-                        if overviewLayout == .list {
-                            WorkOverviewList(
-                                summaries: workSummaries,
-                                openWorksByStudentID: openWorksByStudentID,
-                                lookupService: lookupService,
-                                onTapStudent: { student in
-                                    filters.selectedStudentIDs = [student.id]
-                                    mode = .items
-                                },
-                                onTapWork: handleWorkSelection
-                            )
-                        } else {
-                            WorkStudentsGrid(
-                                summaries: workSummaries,
-                                openWorksByStudentID: openWorksByStudentID,
-                                lookupService: lookupService,
-                                onTapStudent: { student in
-                                    filters.selectedStudentIDs = [student.id]
-                                    mode = .items
-                                },
-                                onTapWork: handleWorkSelection
-                            )
-                        }
+                        WorkStudentsGrid(
+                            summaries: workSummaries,
+                            openWorksByStudentID: openWorksByStudentID,
+                            lookupService: lookupService,
+                            onTapStudent: { student in
+                                filters.selectedStudentIDs = [student.id]
+                                mode = .items
+                            },
+                            onTapWork: handleWorkSelection
+                        )
                     } else {
                         if workItems.isEmpty {
                             WorkEmptyStateView(type: .noWork)
@@ -448,16 +409,8 @@ struct WorkView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topTrailing) {
                     HStack(spacing: 12) {
-                        Button {
-                            overviewLayout = (overviewLayout == .list) ? .grid : .list
-                        } label: {
-                            Image(systemName: overviewLayout == .list ? "square.grid.2x2" : "list.bullet")
-                                .font(.system(size: AppTheme.FontSize.titleXLarge))
-                                .foregroundStyle(.primary)
-                        }
-                        .buttonStyle(.plain)
-                        .help(overviewLayout == .list ? "Show Grid" : "Show List")
-
+                        // Removed overviewLayout toggle button here
+                        
                         Button {
                             isPresentingAddWork = true
                         } label: {

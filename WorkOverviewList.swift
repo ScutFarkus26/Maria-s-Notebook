@@ -1,3 +1,10 @@
+// NOTE: Unused after removing the Overview List option
+// The Work view no longer supports the list layout and now always uses the grid.
+// This view (WorkOverviewList) appears to be unused and can be safely deleted.
+// If you still need a list-style overview in the future, consider migrating any
+// reusable pieces before deleting this file.
+// TODO: Delete this file if confirmed unused.
+
 import SwiftUI
 
 struct StudentWorkSummary: Identifiable {
