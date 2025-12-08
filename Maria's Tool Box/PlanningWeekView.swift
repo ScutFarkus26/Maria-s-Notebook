@@ -206,6 +206,25 @@ import SwiftData
                     }
                 }
             }
+            .overlay(alignment: .topTrailing) {
+                Menu {
+                    Button {
+                        PlanningActions.pushLessonsWithAbsentStudents(in: days, calendar: calendar, context: modelContext)
+                    } label: {
+                        Label("Absent → Next Day", systemImage: "person.fill.xmark")
+                    }
+                    Button {
+                        PlanningActions.pushAllLessonsByOneDay(in: days, calendar: calendar, context: modelContext)
+                    } label: {
+                        Label("All → +1 Day", systemImage: "calendar.badge.clock")
+                    }
+                } label: {
+                    Label("Reschedule", systemImage: "arrow.forward.circle")
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, UIConstants.contentHorizontalPadding)
+                .padding(.top, UIConstants.headerVerticalPadding)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: studentLessons.map { $0.id }) { _, _ in

@@ -222,6 +222,24 @@ struct PlanningAgendaView: View {
             }
             .keyboardShortcut("n", modifiers: [])
             .buttonStyle(.plain)
+
+            Menu {
+                Button {
+                    PlanningActions.pushLessonsWithAbsentStudents(in: days, calendar: calendar, context: modelContext)
+                    viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
+                } label: {
+                    Label("Absent → Next Day", systemImage: "person.fill.xmark")
+                }
+                Button {
+                    PlanningActions.pushAllLessonsByOneDay(in: days, calendar: calendar, context: modelContext)
+                    viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
+                } label: {
+                    Label("All → +1 Day", systemImage: "calendar.badge.clock")
+                }
+            } label: {
+                Label("Reschedule", systemImage: "arrow.forward.circle")
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
