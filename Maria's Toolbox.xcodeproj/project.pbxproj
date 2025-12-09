@@ -14,6 +14,8 @@
 		519159052EE77712007D4AB1 /* DaysSinceLastLessonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */; };
 		519159072EE78CCD007D4AB1 /* PrintUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159062EE78CCD007D4AB1 /* PrintUtils.swift */; };
 		519159092EE7D8BD007D4AB1 /* QuickLookPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159082EE7D8BD007D4AB1 /* QuickLookPreview.swift */; };
+		5191590B2EE897A1007D4AB1 /* LessonFileStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5191590A2EE897A1007D4AB1 /* LessonFileStorage.swift */; };
+		5191590D2EE897C1007D4AB1 /* LessonFileStorage 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5191590C2EE897C1007D4AB1 /* LessonFileStorage 2.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,6 +27,8 @@
 		519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaysSinceLastLessonView.swift; sourceTree = "<group>"; };
 		519159062EE78CCD007D4AB1 /* PrintUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintUtils.swift; sourceTree = "<group>"; };
 		519159082EE7D8BD007D4AB1 /* QuickLookPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPreview.swift; sourceTree = "<group>"; };
+		5191590A2EE897A1007D4AB1 /* LessonFileStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonFileStorage.swift; sourceTree = "<group>"; };
+		5191590C2EE897C1007D4AB1 /* LessonFileStorage 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LessonFileStorage 2.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -71,6 +75,8 @@
 				519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */,
 				519159062EE78CCD007D4AB1 /* PrintUtils.swift */,
 				519159082EE7D8BD007D4AB1 /* QuickLookPreview.swift */,
+				5191590A2EE897A1007D4AB1 /* LessonFileStorage.swift */,
+				5191590C2EE897C1007D4AB1 /* LessonFileStorage 2.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -156,8 +162,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5191590B2EE897A1007D4AB1 /* LessonFileStorage.swift in Sources */,
 				519159012EE676BC007D4AB1 /* TodayViewModel.swift in Sources */,
 				519159092EE7D8BD007D4AB1 /* QuickLookPreview.swift in Sources */,
+				5191590D2EE897C1007D4AB1 /* LessonFileStorage 2.swift in Sources */,
 				519159032EE676DC007D4AB1 /* TodayView.swift in Sources */,
 				519159052EE77712007D4AB1 /* DaysSinceLastLessonView.swift in Sources */,
 				519159072EE78CCD007D4AB1 /* PrintUtils.swift in Sources */,

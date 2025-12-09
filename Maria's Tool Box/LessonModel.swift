@@ -20,6 +20,8 @@ final class Lesson: Identifiable {
     var writeUp: String
     /// Linked Pages document bookmark
     var pagesFileBookmark: Data? = nil
+    /// Relative path to an imported file inside the app's managed container (iCloud/Documents/Lesson Files or local fallback)
+    var pagesFileRelativePath: String? = nil
 
     init(
         id: UUID = UUID(),
@@ -28,7 +30,8 @@ final class Lesson: Identifiable {
         group: String = "",
         subheading: String = "",
         writeUp: String = "",
-        pagesFileBookmark: Data? = nil
+        pagesFileBookmark: Data? = nil,
+        pagesFileRelativePath: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -37,5 +40,7 @@ final class Lesson: Identifiable {
         self.subheading = subheading
         self.writeUp = writeUp
         self.pagesFileBookmark = pagesFileBookmark
+        self.pagesFileRelativePath = pagesFileRelativePath
     }
 }
+

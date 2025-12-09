@@ -24,6 +24,7 @@ struct LessonDetailView: View {
     @State private var showingPagesImporter = false
     @State private var resolvedPagesURL: URL? = nil
     @State private var importError: String? = nil
+    @State private var previousManagedURL: URL? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -60,6 +61,7 @@ struct LessonDetailView: View {
         }
         .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
+                if let url = resolveLessonFileURL() { try? LessonFileStorage.deleteIfManaged(url) }
                 modelContext.delete(lesson)
                 if let onDone { onDone() } else { dismiss() }
             }
@@ -69,16 +71,37 @@ struct LessonDetailView: View {
         }
         .onAppear {
             seedDrafts()
-            resolvedPagesURL = resolvePagesURL()
+            resolvedPagesURL = resolveLessonFileURL()
+            if let url = resolvedPagesURL, LessonFileStorage.isManagedURL(url) {
+                previousManagedURL = url
+            }
+            migrateLegacyLinkedFileIfNeeded()
         }
         .fileImporter(
             isPresented: $showingPagesImporter,
             allowedContentTypes: [UTType(filenameExtension: "pages")!]
         ) { result in
             switch result {
-            case .success(let url):
-                savePagesBookmark(from: url)
-                resolvedPagesURL = resolvePagesURL()
+            case .success(let pickedURL):
+                Task(priority: .userInitiated) {
+                    let needsAccess = pickedURL.startAccessingSecurityScopedResource()
+                    defer { if needsAccess { pickedURL.stopAccessingSecurityScopedResource() } }
+                    do {
+                        let destURL = try LessonFileStorage.importFile(from: pickedURL, forLessonWithID: lesson.id, lessonName: lesson.name)
+                        let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
+                        let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
+                        if let oldURL = previousManagedURL { try? LessonFileStorage.deleteIfManaged(oldURL) }
+                        await MainActor.run {
+                            lesson.pagesFileBookmark = bookmark
+                            lesson.pagesFileRelativePath = rel
+                            resolvedPagesURL = destURL
+                            previousManagedURL = destURL
+                            try? modelContext.save()
+                        }
+                    } catch {
+                        await MainActor.run { importError = error.localizedDescription }
+                    }
+                }
             case .failure(let error):
                 importError = error.localizedDescription
             }
@@ -175,18 +198,24 @@ struct LessonDetailView: View {
                 .textFieldStyle(.roundedBorder)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Linked Pages File")
+                Text("Imported Pages File")
                     .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         if resolvedPagesURL != nil {
                             Button("Remove") {
-                                clearPagesLink()
+                                if let url = resolvedPagesURL {
+                                    try? LessonFileStorage.deleteIfManaged(url)
+                                }
+                                lesson.pagesFileBookmark = nil
+                                lesson.pagesFileRelativePath = nil
                                 resolvedPagesURL = nil
+                                previousManagedURL = nil
+                                try? modelContext.save()
                             }
                         }
-                        Button("Choose…") { showingPagesImporter = true }
+                        Button("Import…") { showingPagesImporter = true }
                     }
                     if let url = resolvedPagesURL {
                         OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
@@ -298,6 +327,34 @@ struct LessonDetailView: View {
             return url
         } catch {
             return nil
+        }
+    }
+
+    private func resolveLessonFileURL() -> URL? {
+        if let rel = lesson.pagesFileRelativePath, !rel.isEmpty, let url = try? LessonFileStorage.resolve(relativePath: rel) {
+            return url
+        }
+        return resolvePagesURL()
+    }
+
+    private func migrateLegacyLinkedFileIfNeeded() {
+        guard lesson.pagesFileRelativePath == nil, lesson.pagesFileBookmark != nil else { return }
+        guard let legacyURL = resolvePagesURL(), !LessonFileStorage.isManagedURL(legacyURL) else { return }
+        Task(priority: .utility) {
+            do {
+                let destURL = try LessonFileStorage.importFile(from: legacyURL, forLessonWithID: lesson.id, lessonName: lesson.name)
+                let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
+                let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
+                await MainActor.run {
+                    lesson.pagesFileBookmark = bookmark
+                    lesson.pagesFileRelativePath = rel
+                    resolvedPagesURL = destURL
+                    previousManagedURL = destURL
+                    try? modelContext.save()
+                }
+            } catch {
+                await MainActor.run { importError = error.localizedDescription }
+            }
         }
     }
 
