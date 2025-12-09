@@ -14,6 +14,31 @@ struct WorkStudentsGrid: View {
         GridItem(.adaptive(minimum: 260, maximum: 340), spacing: 24)
     ]
 
+    @ViewBuilder
+    func printableView(monochrome: Bool = false, dense: Bool = false, ultraDense: Bool = false, minW: CGFloat = 200, maxW: CGFloat = 260, spacing: CGFloat = 12, cornerRadius: CGFloat = 12, scale: CGFloat = 1.0) -> some View {
+        let printColumns: [GridItem] = [GridItem(.adaptive(minimum: minW, maximum: maxW), spacing: spacing)]
+        VStack(alignment: .leading, spacing: ultraDense ? 6 : (dense ? 8 : 12)) {
+            LazyVGrid(columns: printColumns, alignment: .leading, spacing: spacing) {
+                ForEach(summaries) { summary in
+                    StudentWorkCard(
+                        summary: summary,
+                        works: openWorksByStudentID[summary.id] ?? [],
+                        lookupService: lookupService,
+                        onTapStudent: onTapStudent,
+                        onTapWork: onTapWork,
+                        monochrome: monochrome,
+                        dense: dense,
+                        ultraDense: ultraDense,
+                        cornerRadius: cornerRadius,
+                        scale: scale
+                    )
+                }
+            }
+            .padding(dense ? 12 : 24)
+        }
+        .background(Color.white)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
@@ -43,6 +68,13 @@ private struct StudentWorkCard: View {
     let onTapStudent: (Student) -> Void
     let onTapWork: (WorkModel) -> Void
 
+    // Print style flags
+    var monochrome: Bool = false
+    var dense: Bool = false
+    var ultraDense: Bool = false
+    var cornerRadius: CGFloat = 14
+    var scale: CGFloat = 1.0
+
     private var levelColor: Color {
         AppColors.color(forLevel: summary.student.level)
     }
@@ -52,6 +84,7 @@ private struct StudentWorkCard: View {
     }
 
     private func typeColor(_ type: WorkModel.WorkType) -> Color {
+        if monochrome { return .primary }
         switch type {
         case .practice: return .purple
         case .followUp: return .orange
@@ -78,7 +111,7 @@ private struct StudentWorkCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ultraDense ? 6 : (dense ? 8 : 12)) {
             // Header: student name + level pill + counts
             HStack(alignment: .top, spacing: 10) {
                 Text(studentDisplayName(summary.student))
@@ -87,17 +120,17 @@ private struct StudentWorkCard: View {
                     .onTapGesture { onTapStudent(summary.student) }
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {
-                    CountBadge(count: summary.practiceOpen, color: .purple)
-                    CountBadge(count: summary.followUpOpen, color: .orange)
-                    CountBadge(count: summary.researchOpen, color: .teal)
+                    CountBadge(count: summary.practiceOpen, color: monochrome ? .primary : .purple, monochrome: monochrome, dense: dense || ultraDense)
+                    CountBadge(count: summary.followUpOpen, color: monochrome ? .primary : .orange, monochrome: monochrome, dense: dense || ultraDense)
+                    CountBadge(count: summary.researchOpen, color: monochrome ? .primary : .teal, monochrome: monochrome, dense: dense || ultraDense)
                 }
             }
 
             // Open works list (if any)
             if !works.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: ultraDense ? 4 : (dense ? 6 : 8)) {
                     ForEach(works, id: \.id) { work in
-                        HStack(spacing: 8) {
+                        HStack(spacing: ultraDense ? 4 : (dense ? 6 : 8)) {
                             Circle().fill(typeColor(work.workType)).frame(width: 6, height: 6)
                             Text(title(for: work))
                                 .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
@@ -110,7 +143,7 @@ private struct StudentWorkCard: View {
                         .onTapGesture { onTapWork(work) }
                     }
                 }
-                .padding(12)
+                .padding(ultraDense ? 8 : (dense ? 10 : 12))
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color.primary.opacity(0.04))
@@ -122,39 +155,47 @@ private struct StudentWorkCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
+        .padding(ultraDense ? 8 : (dense ? 10 : 14))
+        .frame(maxWidth: .infinity, minHeight: ultraDense ? 120 : (dense ? 140 : 180), alignment: .topLeading)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill({
-                    #if os(macOS)
-                    Color(NSColor.windowBackgroundColor)
-                    #else
-                    Color(uiColor: .secondarySystemBackground)
-                    #endif
+                    if monochrome {
+                        return Color.white
+                    } else {
+                        #if os(macOS)
+                        return Color(NSColor.windowBackgroundColor)
+                        #else
+                        return Color(uiColor: .secondarySystemBackground)
+                        #endif
+                    }
                 }())
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke((monochrome ? Color.primary.opacity(0.2) : Color.primary.opacity(0.06)), lineWidth: 1)
                 )
-                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+                .shadow(color: (monochrome || dense || ultraDense) ? Color.clear : Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         )
+        .scaleEffect(scale, anchor: .topLeading)
     }
 }
 
 private struct CountBadge: View {
     let count: Int
     let color: Color
+    var monochrome: Bool = false
+    var dense: Bool = false
 
     var body: some View {
+        let textColor = monochrome ? Color.primary : color
         HStack(spacing: 6) {
             Text("\(count)")
                 .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                .foregroundStyle(color)
+                .foregroundStyle(textColor)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(color.opacity(0.12)))
+        .padding(.horizontal, dense ? 6 : 8)
+        .padding(.vertical, dense ? 3 : 4)
+        .background(Capsule().fill(monochrome ? Color.primary.opacity(0.08) : color.opacity(0.12)))
     }
 }
 

@@ -22,6 +22,11 @@ struct WorkView: View {
     // UI state
     @State private var filters = WorkFilters()
     @State private var isPresentingAddWork = false
+    @State private var isPresentingPrintShare = false
+    @State private var printShareItem: Any? = nil
+    @State private var printIsMonochrome: Bool = true
+    @State private var printDenseLevel: Int = 2 // 0=normal,1=compact,2=ultra
+    @State private var printPaper: String = "Letter" // or "A4"
     @State private var selectedWorkID: UUID? = nil
     @State private var isShowingStudentFilterPopover = false
 
@@ -102,6 +107,81 @@ struct WorkView: View {
         }
         return map
     }
+    
+    private func makeOverviewPrintImage(maxWidth: CGFloat = 1024) -> PlatformImage? {
+        let ultra = (printDenseLevel >= 2)
+        let compact = (printDenseLevel >= 1)
+        let v = WorkStudentsGrid(
+            summaries: workSummaries,
+            openWorksByStudentID: openWorksByStudentID,
+            lookupService: lookupService,
+            onTapStudent: { _ in },
+            onTapWork: { _ in }
+        ).printableView(
+            monochrome: printIsMonochrome,
+            dense: compact,
+            ultraDense: ultra,
+            minW: ultra ? 180 : (compact ? 200 : 240),
+            maxW: ultra ? 220 : (compact ? 260 : 300),
+            spacing: ultra ? 8 : (compact ? 10 : 14),
+            cornerRadius: ultra ? 8 : (compact ? 10 : 12),
+            scale: ultra ? 0.9 : (compact ? 0.95 : 1.0)
+        )
+        let size = CGSize(width: maxWidth, height: 0)
+        return PrintUtils.renderImage(from: v, preferredSize: size, scale: 2.0)
+    }
+    
+#if os(macOS)
+    private func exportOverviewPDF(jobTitle: String) {
+        let ultra = (printDenseLevel >= 2)
+        let compact = (printDenseLevel >= 1)
+        // Page size for Letter/A4 at 72 dpi
+        let portraitSize: CGSize = (printPaper == "A4") ? CGSize(width: 595.0, height: 842.0) : CGSize(width: 612.0, height: 792.0)
+        let pageSize: CGSize = CGSize(width: portraitSize.height, height: portraitSize.width) // landscape
+        // Render a single tall image first; Preview can handle long pages, but we will fit to page width.
+        let view = WorkStudentsGrid(
+            summaries: workSummaries,
+            openWorksByStudentID: openWorksByStudentID,
+            lookupService: lookupService,
+            onTapStudent: { _ in },
+            onTapWork: { _ in }
+        ).printableView(
+            monochrome: printIsMonochrome,
+            dense: compact,
+            ultraDense: ultra,
+            minW: ultra ? 180 : (compact ? 200 : 240),
+            maxW: ultra ? 220 : (compact ? 260 : 300),
+            spacing: ultra ? 8 : (compact ? 10 : 14),
+            cornerRadius: ultra ? 8 : (compact ? 10 : 12),
+            scale: ultra ? 0.9 : (compact ? 0.95 : 1.0)
+        )
+        // Render to NSImage at a wide width to capture detail, then scale to page width.
+        let renderWidth: CGFloat = 1800
+        guard let image: NSImage = PrintUtils.renderImage(from: view, preferredSize: CGSize(width: renderWidth, height: 0), scale: 2.0) else { return }
+        // Convert to CGImage for drawing
+        var rect = CGRect(origin: .zero, size: image.size)
+        guard let cg = image.cgImage(forProposedRect: &rect, context: nil, hints: nil) else { return }
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Open Work Overview.pdf")
+        guard let consumer = CGDataConsumer(url: url as CFURL), let ctx = CGContext(consumer: consumer, mediaBox: nil, nil) else { return }
+        // Compute scale to fit width
+        let scale = pageSize.width / CGFloat(cg.width)
+        var y: CGFloat = 0
+        while y < CGFloat(cg.height) {
+            let remaining = CGFloat(cg.height) - y
+            let sliceHeight = min(remaining, pageSize.height / scale)
+            let sliceRect = CGRect(x: 0, y: CGFloat(cg.height) - y - sliceHeight, width: CGFloat(cg.width), height: sliceHeight)
+            ctx.beginPDFPage([kCGPDFContextMediaBox as String: CGRect(origin: .zero, size: pageSize)] as CFDictionary)
+            if let slice = cg.cropping(to: sliceRect) {
+                let drawRect = CGRect(x: 0, y: 0, width: pageSize.width, height: sliceHeight * scale)
+                ctx.draw(slice, in: drawRect)
+            }
+            ctx.endPDFPage()
+            y += sliceHeight
+        }
+        ctx.closePDF()
+        NSWorkspace.shared.open(url)
+    }
+#endif
     
     private var workSummaries: [StudentWorkSummary] {
         var counts: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
@@ -217,6 +297,15 @@ struct WorkView: View {
                     isPresentingAddWork = false
                 }
             }
+#if os(iOS)
+            .sheet(isPresented: $isPresentingPrintShare) {
+                if let image = printShareItem as? UIImage {
+                    ActivityView(activityItems: [image])
+                } else {
+                    Text("Nothing to share")
+                }
+            }
+#endif
             .onAppear {
                 syncFiltersFromStorage()
                 WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
@@ -247,7 +336,22 @@ struct WorkView: View {
                         PillNavButton(title: "Items", isSelected: mode == .items) { mode = .items }
                     }
                 }
-                // Removed ToolbarItem for overviewLayout toggle here
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+#if os(macOS)
+                        if let img = makeOverviewPrintImage(maxWidth: 1200) {
+                            PrintUtils.printImage(img, jobTitle: "Open Work Overview")
+                        }
+#else
+                        if let img = makeOverviewPrintImage(maxWidth: UIScreen.main.bounds.width * 2) {
+                            printShareItem = img
+                            isPresentingPrintShare = true
+                        }
+#endif
+                    } label: {
+                        Image(systemName: "printer")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isPresentingAddWork = true
@@ -409,7 +513,54 @@ struct WorkView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topTrailing) {
                     HStack(spacing: 12) {
-                        // Removed overviewLayout toggle button here
+#if os(macOS)
+                        Menu {
+                            Section("Actions") {
+                                Button("Print…") {
+                                    if let img = makeOverviewPrintImage(maxWidth: 1400) {
+                                        PrintUtils.printImage(img, jobTitle: "Open Work Overview")
+                                    }
+                                }
+                                Button("Export PDF…") {
+                                    exportOverviewPDF(jobTitle: "Open Work Overview")
+                                }
+                            }
+                            Section("Style") {
+                                Toggle("Black & White", isOn: $printIsMonochrome)
+                                Picker("Density", selection: $printDenseLevel) {
+                                    Text("Normal").tag(0)
+                                    Text("Compact").tag(1)
+                                    Text("Ultra Compact").tag(2)
+                                }
+                                .pickerStyle(.menu)
+                            }
+                            Section("Paper") {
+                                Picker("Paper Size", selection: $printPaper) {
+                                    Text("Letter").tag("Letter")
+                                    Text("A4").tag("A4")
+                                }
+                                .pickerStyle(.menu)
+                            }
+                        } label: {
+                            Image(systemName: "printer")
+                                .font(.system(size: AppTheme.FontSize.titleXLarge))
+                                .foregroundStyle(.secondary)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+#else
+                        Button {
+                            if let img = makeOverviewPrintImage(maxWidth: 1400) {
+                                printShareItem = img
+                                isPresentingPrintShare = true
+                            }
+                        } label: {
+                            Image(systemName: "printer")
+                                .font(.system(size: AppTheme.FontSize.titleXLarge))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+#endif
                         
                         Button {
                             isPresentingAddWork = true
@@ -426,4 +577,18 @@ struct WorkView: View {
         }
     }
 }
+
+#if os(iOS)
+import UIKit
+struct ActivityView: UIViewControllerRepresentable {
+    var activityItems: [Any]
+    var applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+    }
+
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+#endif
 
