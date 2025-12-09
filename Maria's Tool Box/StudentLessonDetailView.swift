@@ -563,22 +563,28 @@ struct StudentLessonDetailView: View {
     }
 
     private func delete() {
-        // Delete synchronously first to avoid views reading a detached object
-        modelContext.delete(studentLesson)
-        do {
-            try modelContext.save()
-        } catch {
-            // Handle delete error if needed
-        }
+        // Capture the id and context to perform deletion after dismiss
+        let id = studentLesson.id
+        let ctx = modelContext
 
-        // Notify agenda/inbox to refresh immediately after deletion
-        StudentLessonDetailUtilities.notifyInboxRefresh()
-
-        // Now dismiss after the @Query has updated
+        // Dismiss UI first so no view tries to read this instance during the same render pass
         if let onDone {
             onDone()
         } else {
             dismiss()
+        }
+
+        // Delete on the next runloop tick by refetching a fresh instance
+        DispatchQueue.main.async {
+            let desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+            if let toDelete = try? ctx.fetch(desc).first {
+                // Force-load commonly faulted attributes before deleting to avoid SwiftData traps
+                _ = toDelete.studentIDs
+                ctx.delete(toDelete)
+                try? ctx.save()
+            }
+            // Notify agenda/inbox to refresh after deletion
+            StudentLessonDetailUtilities.notifyInboxRefresh()
         }
     }
 
