@@ -1,5 +1,9 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#endif
 
 public enum LessonDetailInitialMode {
     case normal
@@ -22,6 +26,23 @@ struct LessonDetailCard: View {
     @State private var draftSubheading: String = ""
     @State private var draftWriteUp: String = ""
     @State private var showDeleteAlert = false
+
+    @State private var showingPagesImporter = false
+    @State private var resolvedPagesURL: URL? = nil
+    @State private var importError: String? = nil
+
+#if canImport(UniformTypeIdentifiers)
+    private var pagesAllowedTypes: [UTType] {
+        var set: Set<UTType> = []
+        if let t = UTType("com.apple.iwork.pages.sffpages") { set.insert(t) }
+        if let t2 = UTType(filenameExtension: "pages") { set.insert(t2) }
+        set.insert(.package)
+        set.insert(.data)
+        set.insert(.content)
+        set.insert(.item)
+        return Array(set)
+    }
+#endif
 
     var body: some View {
         VStack(spacing: 16) {
@@ -159,6 +180,7 @@ struct LessonDetailCard: View {
                 // Trigger the Give Lesson flow immediately and then close the detail card if needed
                 onGiveLesson?(lesson)
             }
+            resolvedPagesURL = resolvePagesURL()
         }
         .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
@@ -169,22 +191,51 @@ struct LessonDetailCard: View {
         } message: {
             Text("This action cannot be undone.")
         }
+        .fileImporter(
+            isPresented: $showingPagesImporter,
+            allowedContentTypes: pagesAllowedTypes
+        ) { result in
+            do {
+                let url = try result.get()
+                let needsAccess = url.startAccessingSecurityScopedResource()
+                defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+                savePagesBookmark(from: url)
+                resolvedPagesURL = url
+            } catch {
+                importError = error.localizedDescription
+            }
+        }
+        .alert("Import Failed", isPresented: Binding(
+            get: { importError != nil },
+            set: { if !$0 { importError = nil } }
+        )) {
+            Button("OK") { importError = nil }
+        } message: {
+            Text(importError ?? "")
+        }
         .accessibilityElement(children: .contain)
     }
 
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let url = resolvedPagesURL {
+                HStack { Spacer() }
+                OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
+                    .padding(.vertical, 8)
+                HStack { Spacer() }
+            }
+
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
                     Image(systemName: "doc.plaintext")
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
-                    Text("Write Up")
+                    Text("Notes")
                         .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
                 if lesson.writeUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text("No write up yet.")
+                    Text("No notes yet.")
                         .foregroundStyle(.secondary)
                 } else {
                     ScrollView {
@@ -211,8 +262,39 @@ struct LessonDetailCard: View {
             }
             TextField("Subheading", text: $draftSubheading)
                 .textFieldStyle(.roundedBorder)
+
             VStack(alignment: .leading, spacing: 6) {
-                Text("Write Up")
+                Text("Linked Pages File")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        if resolvedPagesURL != nil {
+                            Button("Remove") {
+                                clearPagesLink()
+                                resolvedPagesURL = nil
+                            }
+                        }
+                        Button("Choose…") {
+                            #if os(macOS)
+                            presentMacOpenPanel()
+                            #else
+                            showingPagesImporter = true
+                            #endif
+                        }
+                    }
+                    if let url = resolvedPagesURL {
+                        OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
+                            .padding(.top, 4)
+                    } else {
+                        Text("No file selected")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Notes")
                     .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftWriteUp)
@@ -246,11 +328,78 @@ struct LessonDetailCard: View {
         draftWriteUp = lesson.writeUp
     }
 
+    private func resolvePagesURL() -> URL? {
+        guard let bookmark = lesson.pagesFileBookmark else { return nil }
+        var stale = false
+        do {
+            let url = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+            if stale {
+                let newBookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+                lesson.pagesFileBookmark = newBookmark
+            }
+            _ = url.startAccessingSecurityScopedResource()
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    private func savePagesBookmark(from url: URL) {
+        do {
+            let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+            lesson.pagesFileBookmark = bookmark
+            try? modelContext.save()
+        } catch {
+            // ignore errors here
+        }
+    }
+
+    private func clearPagesLink() {
+        lesson.pagesFileBookmark = nil
+        try? modelContext.save()
+    }
+
     private var cardBackgroundColor: Color {
         #if os(macOS)
         return Color(NSColor.windowBackgroundColor)
         #else
         return Color(uiColor: .secondarySystemBackground)
+        #endif
+    }
+    
+    #if os(macOS)
+    private func presentMacOpenPanel() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        if #available(macOS 12.0, *) {
+            panel.allowedContentTypes = pagesAllowedTypes
+        } else {
+            panel.allowedFileTypes = ["pages"]
+        }
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                savePagesBookmark(from: url)
+                resolvedPagesURL = url
+            }
+        }
+    }
+    #endif
+
+    private func openInPages(_ url: URL) {
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        #if os(iOS)
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        #elseif os(macOS)
+        if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.open([url], withApplicationAt: pagesAppURL, configuration: config, completionHandler: nil)
+        } else {
+            NSWorkspace.shared.open(url)
+        }
         #endif
     }
 }

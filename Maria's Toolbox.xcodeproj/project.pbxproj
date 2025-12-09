@@ -13,6 +13,7 @@
 		519159032EE676DC007D4AB1 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159022EE676DC007D4AB1 /* TodayView.swift */; };
 		519159052EE77712007D4AB1 /* DaysSinceLastLessonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */; };
 		519159072EE78CCD007D4AB1 /* PrintUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159062EE78CCD007D4AB1 /* PrintUtils.swift */; };
+		519159092EE7D8BD007D4AB1 /* QuickLookPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159082EE7D8BD007D4AB1 /* QuickLookPreview.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,7 @@
 		519159022EE676DC007D4AB1 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaysSinceLastLessonView.swift; sourceTree = "<group>"; };
 		519159062EE78CCD007D4AB1 /* PrintUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintUtils.swift; sourceTree = "<group>"; };
+		519159082EE7D8BD007D4AB1 /* QuickLookPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPreview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -68,6 +70,7 @@
 				519159022EE676DC007D4AB1 /* TodayView.swift */,
 				519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */,
 				519159062EE78CCD007D4AB1 /* PrintUtils.swift */,
+				519159082EE7D8BD007D4AB1 /* QuickLookPreview.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -154,6 +157,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				519159012EE676BC007D4AB1 /* TodayViewModel.swift in Sources */,
+				519159092EE7D8BD007D4AB1 /* QuickLookPreview.swift in Sources */,
 				519159032EE676DC007D4AB1 /* TodayView.swift in Sources */,
 				519159052EE77712007D4AB1 /* DaysSinceLastLessonView.swift in Sources */,
 				519159072EE78CCD007D4AB1 /* PrintUtils.swift in Sources */,

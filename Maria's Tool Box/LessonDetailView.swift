@@ -1,5 +1,9 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#endif
 
 struct LessonDetailView: View {
     var lesson: Lesson
@@ -16,6 +20,10 @@ struct LessonDetailView: View {
     @State private var draftSubheading: String = ""
     @State private var draftWriteUp: String = ""
     @State private var showDeleteAlert = false
+
+    @State private var showingPagesImporter = false
+    @State private var resolvedPagesURL: URL? = nil
+    @State private var importError: String? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -59,7 +67,35 @@ struct LessonDetailView: View {
         } message: {
             Text("This action cannot be undone.")
         }
-        .onAppear(perform: seedDrafts)
+        .onAppear {
+            seedDrafts()
+            resolvedPagesURL = resolvePagesURL()
+        }
+        .fileImporter(
+            isPresented: $showingPagesImporter,
+            allowedContentTypes: [UTType(filenameExtension: "pages")!]
+        ) { result in
+            switch result {
+            case .success(let url):
+                savePagesBookmark(from: url)
+                resolvedPagesURL = resolvePagesURL()
+            case .failure(let error):
+                importError = error.localizedDescription
+            }
+        }
+        .alert("Import Failed", isPresented: Binding(get: {
+            importError != nil
+        }, set: { newValue in
+            if !newValue {
+                importError = nil
+            }
+        })) {
+            Button("OK", role: .cancel) {
+                importError = nil
+            }
+        } message: {
+            Text(importError ?? "")
+        }
     }
 
     // MARK: - Subviews
@@ -100,12 +136,12 @@ struct LessonDetailView: View {
                     Image(systemName: "doc.plaintext")
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
-                    Text("Write Up")
+                    Text("Notes")
                         .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
                 if lesson.writeUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text("No write up yet.")
+                    Text("No notes yet.")
                         .foregroundStyle(.secondary)
                 } else {
                     Text(lesson.writeUp)
@@ -114,6 +150,13 @@ struct LessonDetailView: View {
                 }
             }
             .padding(.top, 6)
+
+            if let url = resolvedPagesURL {
+                HStack { Spacer() }
+                OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
+                    .padding(.vertical, 8)
+                HStack { Spacer() }
+            }
         }
         .padding(.horizontal, 8)
     }
@@ -130,8 +173,33 @@ struct LessonDetailView: View {
             }
             TextField("Subheading", text: $draftSubheading)
                 .textFieldStyle(.roundedBorder)
+
             VStack(alignment: .leading, spacing: 6) {
-                Text("Write Up")
+                Text("Linked Pages File")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        if resolvedPagesURL != nil {
+                            Button("Remove") {
+                                clearPagesLink()
+                                resolvedPagesURL = nil
+                            }
+                        }
+                        Button("Choose…") { showingPagesImporter = true }
+                    }
+                    if let url = resolvedPagesURL {
+                        OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
+                            .padding(.top, 4)
+                    } else {
+                        Text("No file selected")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Notes")
                     .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftWriteUp)
@@ -206,6 +274,89 @@ struct LessonDetailView: View {
         draftSubheading = lesson.subheading
         draftWriteUp = lesson.writeUp
     }
+
+    private func resolvePagesURL() -> URL? {
+        guard let bookmarkData = lesson.pagesFileBookmark else {
+            return nil
+        }
+
+        var isStale = false
+        do {
+            let url = try URL(resolvingBookmarkData: bookmarkData, options: [.withoutUI, .withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &isStale)
+
+#if os(iOS)
+            if url.startAccessingSecurityScopedResource() {
+                // Caller must call stopAccessingSecurityScopedResource when done, but here we keep it open as long as resolvedPagesURL is set
+                // So keep it open; will be released when resolvedPagesURL changes or view disappears
+            }
+#endif
+
+            if isStale {
+                // Optionally recreate bookmark here
+                savePagesBookmark(from: url)
+            }
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    private func savePagesBookmark(from url: URL) {
+#if os(iOS)
+        do {
+            let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+            lesson.pagesFileBookmark = bookmark
+        } catch {
+            // ignore error
+        }
+#elseif os(macOS)
+        do {
+            let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+            lesson.pagesFileBookmark = bookmark
+        } catch {
+            // ignore error
+        }
+#endif
+    }
+
+    private func clearPagesLink() {
+        lesson.pagesFileBookmark = nil
+    }
+
+    private func openInPages(_ url: URL) {
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        #if os(iOS)
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        #elseif os(macOS)
+        if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.open([url], withApplicationAt: pagesAppURL, configuration: config, completionHandler: nil)
+        } else {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
+    }
+}
+
+struct OpenInPagesButton: View {
+    var title: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.accentColor.opacity(0.15))
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
 }
 
 #Preview {
@@ -214,3 +365,4 @@ struct LessonDetailView: View {
         onSave: { _ in }
     )
 }
+

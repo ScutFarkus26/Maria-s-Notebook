@@ -18,6 +18,8 @@ final class Lesson: Identifiable {
     var subheading: String
     /// Markdown or rich text source for the lesson write-up
     var writeUp: String
+    /// Linked Pages document bookmark
+    var pagesFileBookmark: Data? = nil
 
     init(
         id: UUID = UUID(),
@@ -25,7 +27,8 @@ final class Lesson: Identifiable {
         subject: String = "",
         group: String = "",
         subheading: String = "",
-        writeUp: String = ""
+        writeUp: String = "",
+        pagesFileBookmark: Data? = nil
     ) {
         self.id = id
         self.name = name
@@ -33,5 +36,6 @@ final class Lesson: Identifiable {
         self.group = group
         self.subheading = subheading
         self.writeUp = writeUp
+        self.pagesFileBookmark = pagesFileBookmark
     }
 }
