@@ -105,29 +105,6 @@ struct WorksPlanningView: View {
         return d
     }
 
-    private func scheduledCheckIns(on day: Date, period: DayPeriod) -> [(WorkModel, WorkCheckIn)] {
-        var result: [(WorkModel, WorkCheckIn)] = []
-        let dayStart = calendar.startOfDay(for: day)
-        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
-
-        for work in works {
-            for ci in work.checkIns where ci.status != .completed && ci.status != .skipped {
-                let date = ci.date
-                if date >= dayStart && date < dayEnd {
-                    let hour = calendar.component(.hour, from: date)
-                    switch period {
-                    case .morning:
-                        if hour < 12 { result.append((work, ci)) }
-                    case .afternoon:
-                        if hour >= 12 { result.append((work, ci)) }
-                    }
-                }
-            }
-        }
-        result.sort { $0.1.date < $1.1.date }
-        return result
-    }
-
     private func workTitle(for work: WorkModel) -> String {
         let t = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if !t.isEmpty { return t }
@@ -478,10 +455,6 @@ struct WorksPlanningView: View {
             .fixedSize()
     }
 
-    private func scheduledItems(on day: Date, period: DayPeriod) -> [ScheduledItem] {
-        scheduledCheckIns(on: day, period: period).map { ScheduledItem(work: $0.0, checkIn: $0.1) }
-    }
-
     private func periodCard(day: Date, period: DayPeriod) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             periodChip(for: period)
@@ -491,6 +464,7 @@ struct WorksPlanningView: View {
                 works: works,
                 isNonSchool: isNonSchoolDay(day),
                 namesForWork: { work in participantNames(for: work) },
+                titleForWork: workTitle(for:),
                 onOpenWork: { wid in selectedWorkID = wid },
                 onMarkCompleted: { checkIn in
                     let service = WorkCheckInService(context: modelContext)
@@ -518,49 +492,6 @@ struct WorksPlanningView: View {
         }
     }
 
-    @ViewBuilder
-    private func scheduledRow(_ item: ScheduledItem) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "hammer")
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(workTitle(for: item.work))
-                    .font(.callout.weight(.semibold))
-                let names = participantNames(for: item.work)
-                if !names.isEmpty {
-                    Text(names)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Text(item.checkIn.date, style: .time)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Menu {
-                Button("Open Work", systemImage: "arrow.forward.circle") {
-                    selectedWorkID = item.work.id
-                }
-                Button("Mark Completed", systemImage: "checkmark.circle") {
-                    let service = WorkCheckInService(context: modelContext)
-                    do {
-                        try service.markCompleted(item.checkIn)
-                    } catch {
-                        // silently fail
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle").foregroundStyle(.secondary)
-            }
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .draggable("CHECKIN:\(item.checkIn.id.uuidString)")
-    }
-
     private struct WorkDropList: View {
         @Environment(\.modelContext) private var modelContext
         @Environment(\.calendar) private var calendar
@@ -570,6 +501,7 @@ struct WorksPlanningView: View {
         let works: [WorkModel]
         let isNonSchool: Bool
         let namesForWork: (WorkModel) -> String
+        let titleForWork: (WorkModel) -> String
         let onOpenWork: (UUID) -> Void
         let onMarkCompleted: (WorkCheckIn) -> Void
 
@@ -683,7 +615,7 @@ struct WorksPlanningView: View {
                 Image(systemName: "hammer")
                     .foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(workTitle(for: item.work))
+                    Text(titleForWork(item.work))
                         .font(.callout.weight(.semibold))
                     let names = namesForWork(item.work)
                     if !names.isEmpty {
@@ -709,27 +641,6 @@ struct WorksPlanningView: View {
                     .fill(Color.primary.opacity(0.04))
             )
             .onTapGesture { onOpenWork(item.work.id) }
-        }
-
-        private func workTitle(for work: WorkModel) -> String {
-            let t = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !t.isEmpty { return t }
-            if let slID = work.studentLessonID {
-                let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == slID })
-                if let sl = (try? modelContext.fetch(descriptor))?.first {
-                    let lessonID = sl.lessonID
-                    if let l = (try? modelContext.fetch(FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })))?.first {
-                        return l.name
-                    }
-                }
-            }
-            return work.workType.rawValue
-        }
-
-        private func dateForSlot(day: Date, period: DayPeriod) -> Date {
-            let startOfDay = calendar.startOfDay(for: day)
-            let hour: Int = (period == .morning) ? UIConstants.morningHour : UIConstants.afternoonHour
-            return calendar.date(byAdding: .hour, value: hour, to: startOfDay) ?? startOfDay
         }
 
         private struct PillFramePreference: PreferenceKey {
@@ -926,7 +837,7 @@ struct WorksPlanningView: View {
     }
 }
 #Preview {
-    let container = try! ModelContainer(for: Schema([Item.self, Student.self, Lesson.self, StudentLesson.self, WorkModel.self, WorkParticipantEntity.self, WorkCompletionRecord.self, AttendanceRecord.self, WorkCheckIn.self, WorkCompletionRecord.self]), configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let container = try! ModelContainer(for: Schema([Item.self, Student.self, Lesson.self, StudentLesson.self, WorkModel.self, WorkParticipantEntity.self, WorkCompletionRecord.self, AttendanceRecord.self, WorkCheckIn.self]), configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     return WorksPlanningView()
         .modelContainer(container)
 }
