@@ -4,6 +4,12 @@ import UniformTypeIdentifiers
 #if os(iOS)
 import MessageUI
 #endif
+#if os(macOS)
+import AppKit
+#endif
+#if os(iOS)
+import UIKit
+#endif
 
 struct AttendanceView: View {
     @Environment(\.modelContext) private var modelContext
@@ -133,9 +139,7 @@ struct AttendanceView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Jump to Today")
-#if os(macOS)
                 .keyboardShortcut("t", modifiers: [.command])
-#endif
 
                 Spacer()
 
@@ -222,18 +226,14 @@ struct AttendanceView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isNonSchoolDay)
-#if os(macOS)
                 .keyboardShortcut("p", modifiers: [.command, .shift])
-#endif
 
                 Button("Reset Day") {
                     viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
                 }
                 .buttonStyle(.bordered)
                 .disabled(isNonSchoolDay)
-#if os(macOS)
                 .keyboardShortcut("r", modifiers: [.command, .shift])
-#endif
             }
         }
         .padding(.horizontal, 16)
@@ -356,8 +356,16 @@ private struct AttendanceCard: View {
 
     private var background: some View {
         // Neutral card background with subtle elevation
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color(.windowBackgroundColor))
+        let bgColor: Color = {
+#if os(macOS)
+            return Color(nsColor: .windowBackgroundColor)
+#else
+            return Color(uiColor: .systemBackground)
+#endif
+        }()
+
+        return RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(bgColor)
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(Color.primary.opacity(0.06), lineWidth: 1)

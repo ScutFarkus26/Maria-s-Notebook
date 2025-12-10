@@ -18,8 +18,10 @@ final class Lesson: Identifiable {
     var subheading: String
     /// Markdown or rich text source for the lesson write-up
     var writeUp: String
-    /// Linked Pages document bookmark
-    var pagesFileBookmark: Data? = nil
+    /// Store large bookmark blobs as external storage so SwiftData/CloudKit can manage them as assets.
+    /// Note: The bookmark may contain device-specific security scope. Consider treating this as a hint only
+    /// and prefer `pagesFileRelativePath` to re-resolve files within the app-managed container on each device.
+    @Attribute(.externalStorage) var pagesFileBookmark: Data? = nil
     /// Relative path to an imported file inside the app's managed container (iCloud/Documents/Lesson Files or local fallback)
     var pagesFileRelativePath: String? = nil
 

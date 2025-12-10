@@ -75,7 +75,18 @@ struct LessonProgressSection: View {
 
     private var presentedRow: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            HStack(spacing: 8) {
+                // New: "Just Presented" button to quickly mark as presented today
+                Button {
+                    isPresented = true
+                    givenAt = calendar.startOfDay(for: Date())
+                } label: {
+                    Text("Just Presented")
+                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                }
+                .buttonStyle(.bordered)
+                .tint(.green)
+
                 Toggle(isOn: $isPresented) {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")

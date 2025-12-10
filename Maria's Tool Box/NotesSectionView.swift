@@ -33,7 +33,7 @@ struct NotesSectionView: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(.textBackgroundColor).opacity(0.5))
+                    .fill(notesBackgroundColor)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -41,4 +41,13 @@ struct NotesSectionView: View {
             )
         }
     }
+    
+    private var notesBackgroundColor: Color {
+        #if os(macOS)
+        return Color(nsColor: .controlBackgroundColor).opacity(0.5)
+        #else
+        return Color(uiColor: .secondarySystemBackground).opacity(0.5)
+        #endif
+    }
 }
+

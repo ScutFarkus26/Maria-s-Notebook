@@ -357,9 +357,17 @@ struct LessonDetailCard: View {
         guard let bookmark = lesson.pagesFileBookmark else { return nil }
         var stale = false
         do {
+#if os(macOS)
             let url = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+#else
+            let url = try URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+#endif
             if stale {
+#if os(macOS)
                 let newBookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+#else
+                let newBookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+#endif
                 lesson.pagesFileBookmark = newBookmark
             }
             _ = url.startAccessingSecurityScopedResource()
@@ -403,7 +411,11 @@ struct LessonDetailCard: View {
 
     private func savePagesBookmark(from url: URL) {
         do {
+#if os(macOS)
             let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+#else
+            let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+#endif
             lesson.pagesFileBookmark = bookmark
             try? modelContext.save()
         } catch {

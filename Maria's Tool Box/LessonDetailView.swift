@@ -311,7 +311,11 @@ struct LessonDetailView: View {
 
         var isStale = false
         do {
+#if os(macOS)
             let url = try URL(resolvingBookmarkData: bookmarkData, options: [.withoutUI, .withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &isStale)
+#else
+            let url = try URL(resolvingBookmarkData: bookmarkData, options: [.withoutUI], relativeTo: nil, bookmarkDataIsStale: &isStale)
+#endif
 
 #if os(iOS)
             if url.startAccessingSecurityScopedResource() {
@@ -361,14 +365,14 @@ struct LessonDetailView: View {
     private func savePagesBookmark(from url: URL) {
 #if os(iOS)
         do {
-            let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+            let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
             lesson.pagesFileBookmark = bookmark
         } catch {
             // ignore error
         }
 #elseif os(macOS)
         do {
-            let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+            let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
             lesson.pagesFileBookmark = bookmark
         } catch {
             // ignore error

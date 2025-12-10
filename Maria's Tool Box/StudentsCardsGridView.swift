@@ -1,10 +1,26 @@
 import SwiftUI
 import Foundation
+#if canImport(AppKit)
+import AppKit
+#endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 private enum SymbolSupportCache {
-    static let hasStarFill = (NSImage(systemSymbolName: "star.fill", accessibilityDescription: nil) != nil)
-    static let hasSparkles = (NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil) != nil)
-    static let hasBalloonFill = (NSImage(systemSymbolName: "balloon.fill", accessibilityDescription: nil) != nil)
+    #if canImport(AppKit)
+    static let hasStarFill: Bool = (NSImage(systemSymbolName: "star.fill", accessibilityDescription: nil) != nil)
+    static let hasSparkles: Bool = (NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil) != nil)
+    static let hasBalloonFill: Bool = (NSImage(systemSymbolName: "balloon.fill", accessibilityDescription: nil) != nil)
+    #elseif canImport(UIKit)
+    static let hasStarFill: Bool = (UIImage(systemName: "star.fill") != nil)
+    static let hasSparkles: Bool = (UIImage(systemName: "sparkles") != nil)
+    static let hasBalloonFill: Bool = (UIImage(systemName: "balloon.fill") != nil)
+    #else
+    static let hasStarFill: Bool = true
+    static let hasSparkles: Bool = true
+    static let hasBalloonFill: Bool = true
+    #endif
 }
 
 extension View {
@@ -21,6 +37,18 @@ extension View {
         self.transaction { tx in
             if condition { tx.animation = nil }
         }
+    }
+}
+
+private extension Color {
+    static var cardBackground: Color {
+        #if canImport(AppKit)
+        return Color(NSColor.windowBackgroundColor)
+        #elseif canImport(UIKit)
+        return Color(UIColor.secondarySystemBackground)
+        #else
+        return Color.white
+        #endif
     }
 }
 
@@ -282,7 +310,7 @@ private struct DefaultStudentCard: View {
         .frame(minHeight: 100)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(NSColor.windowBackgroundColor))
+                .fill(Color.cardBackground)
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.06), lineWidth: 1))
                 .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         )
@@ -460,7 +488,7 @@ private struct LastLessonStudentCard: View {
         .frame(minHeight: 100)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(NSColor.windowBackgroundColor))
+                .fill(Color.cardBackground)
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.06), lineWidth: 1))
                 .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         )

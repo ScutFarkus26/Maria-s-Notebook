@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if os(iOS)
+import UIKit
+#endif
 
 struct WorkView: View {
     @Environment(\.modelContext) private var modelContext
@@ -49,6 +52,16 @@ struct WorkView: View {
             studentLessons: studentLessons
         )
     }
+    
+#if os(iOS)
+    private func currentScreenWidth(_ scene: UIScene? = UIApplication.shared.connectedScenes.first) -> CGFloat {
+        guard let windowScene = scene as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            return 1024 // sensible fallback
+        }
+        return window.bounds.width
+    }
+#endif
     
     private var filteredWorks: [WorkModel] {
         let base = filters.filterWorks(
@@ -343,7 +356,7 @@ struct WorkView: View {
                             PrintUtils.printImage(img, jobTitle: "Open Work Overview")
                         }
 #else
-                        if let img = makeOverviewPrintImage(maxWidth: UIScreen.main.bounds.width * 2) {
+                        if let img = makeOverviewPrintImage(maxWidth: currentScreenWidth() * 2) {
                             printShareItem = img
                             isPresentingPrintShare = true
                         }
@@ -351,6 +364,7 @@ struct WorkView: View {
                     } label: {
                         Image(systemName: "printer")
                     }
+                    .keyboardShortcut("p", modifiers: [.command])
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -358,6 +372,7 @@ struct WorkView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                     }
+                    .keyboardShortcut("n", modifiers: [.command])
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     filtersMenu
@@ -550,7 +565,7 @@ struct WorkView: View {
                         .menuIndicator(.hidden)
 #else
                         Button {
-                            if let img = makeOverviewPrintImage(maxWidth: 1400) {
+                            if let img = makeOverviewPrintImage(maxWidth: currentScreenWidth() * 2) {
                                 printShareItem = img
                                 isPresentingPrintShare = true
                             }
@@ -560,6 +575,7 @@ struct WorkView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
+                        .keyboardShortcut("p", modifiers: [.command])
 #endif
                         
                         Button {
@@ -570,6 +586,7 @@ struct WorkView: View {
                                 .foregroundStyle(.green)
                         }
                         .buttonStyle(.plain)
+                        .keyboardShortcut("n", modifiers: [.command])
                     }
                     .padding()
                 }

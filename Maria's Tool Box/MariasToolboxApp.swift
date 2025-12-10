@@ -17,6 +17,18 @@ struct MariasToolboxApp: App {
     static let ephemeralSessionFlagKey = "SwiftDataEphemeralSession"
     static let lastStoreErrorDescriptionKey = "SwiftDataLastErrorDescription"
 
+    /// Remove the local persistent store directory to allow the app to recreate a fresh store on next launch.
+    /// NOTE: When using a CloudKit-backed SwiftData store, the system manages the store location and this path
+    /// may not be used. To fully reset CloudKit development data, use CloudKit Dashboard (Development DB) and
+    /// then reinstall/relaunch the app.
+    static func resetPersistentStore() throws {
+        let url = storeDirectoryURL()
+        let fm = FileManager.default
+        if fm.fileExists(atPath: url.path) {
+            try fm.removeItem(at: url)
+        }
+    }
+
     /// Directory where the SwiftData store will be placed.
     /// Using an explicit location makes it possible to reset/repair the store safely.
     static func storeDirectoryURL() -> URL {
@@ -29,16 +41,23 @@ struct MariasToolboxApp: App {
         return dir
     }
 
-    /// Remove the persistent store directory to allow the app to recreate a fresh store on next launch.
-    /// This is destructive and should be used only when the store is corrupted/incompatible.
-    static func resetPersistentStore() throws {
-        let url = storeDirectoryURL()
-        let fm = FileManager.default
-        if fm.fileExists(atPath: url.path) {
-            try fm.removeItem(at: url)
-        }
-    }
-
+    /*
+     CloudKit Sync Notes (SwiftData)
+     --------------------------------
+     - This app uses SwiftData with a CloudKit-backed ModelContainer so your data syncs
+       between macOS and iPadOS (including iPad Simulator) via the same CloudKit container.
+     - To test syncing:
+       • Sign into the SAME iCloud Apple ID on your Mac (System Settings → Apple ID), your physical iPad (Settings → Apple ID), and inside the iPad Simulator (Settings app → sign in).
+       • Run the SAME build/version of the app on macOS, iPad, and the iPad Simulator.
+       • Make changes on one device; they will propagate to the others. CloudKit may take a short time to deliver changes (a few seconds to a couple of minutes), especially after first launch.
+     - Free Apple developer account limitations:
+       • Sync uses the CloudKit DEVELOPMENT environment only. Your data and schema live only in development.
+       • Apps installed on a device with a free profile expire after ~7 days and must be reinstalled.
+       • If you need to reset all development data, use CloudKit Dashboard (Development DB) to delete records/types, then reinstall and relaunch the app so SwiftData can re-create the schema.
+     - Troubleshooting:
+       • If you toggle the in-memory store (Troubleshooting menu), syncing is disabled for that launch.
+       • Ensure both the macOS and iPadOS targets use the SAME Team, Bundle ID family, and CloudKit container.
+    */
     var sharedModelContainer: ModelContainer = {
         let schemaTypes: [any PersistentModel.Type] = [
             Item.self,
@@ -64,16 +83,36 @@ struct MariasToolboxApp: App {
                 print("SwiftData: Using in-memory store for this launch (toggle enabled).")
                 return container
             } else {
-                // Use an explicit on-disk location so the store can be reset if it becomes incompatible
-                let config = ModelConfiguration(url: MariasToolboxApp.storeDirectoryURL())
-                let container = try ModelContainer(for: Schema(schemaTypes), configurations: config)
-                UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-                return container
+                // Primary: Try to open a CloudKit-backed store (driven by entitlements and the selected container).
+                // If that fails (e.g., entitlements misconfigured, offline, schema mismatch),
+                // fall back to a persistent on-disk local store at our explicit directory instead of in-memory.
+                do {
+                    let cloudConfig = ModelConfiguration()
+                    let cloudContainer = try ModelContainer(for: Schema(schemaTypes), configurations: cloudConfig)
+                    UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                    UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                    return cloudContainer
+                } catch {
+                    let ns = error as NSError
+                    print("SwiftData: CloudKit store failed to open, trying local persistent store at custom URL.")
+                    print("CloudKit open error:", ns, "userInfo:", ns.userInfo)
+                    // Local persistent fallback at a stable, explicit directory so existing local data is reused.
+                    do {
+                        let localConfig = ModelConfiguration(url: MariasToolboxApp.storeDirectoryURL())
+                        let localContainer = try ModelContainer(for: Schema(schemaTypes), configurations: localConfig)
+                        UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                        UserDefaults.standard.set("Using local on-disk store due to CloudKit open error: \(ns.localizedDescription)", forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                        print("SwiftData: Using local persistent store at", MariasToolboxApp.storeDirectoryURL().path)
+                        return localContainer
+                    } catch {
+                        // Let the outer catch handle (will fall back to in-memory in DEBUG).
+                        throw error
+                    }
+                }
             }
         } catch {
             let ns = error as NSError
-            print("SwiftData container error:", error)
+            print("SwiftData (CloudKit) container error:", error)
             print("userInfo:", ns.userInfo)
             UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
             var message = "\(ns.domain) code=\(ns.code): \(ns.localizedDescription)"

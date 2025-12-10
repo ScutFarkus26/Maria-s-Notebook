@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct LifecycleIndicatorView: View {
     let wasPresented: Bool
@@ -6,7 +11,11 @@ struct LifecycleIndicatorView: View {
     let isPlanned: Bool
 
     var body: some View {
-        let tokenBackground = Color(nsColor: .windowBackgroundColor)
+        #if os(macOS)
+        let tokenBackground = Color(nsColor: NSColor.windowBackgroundColor)
+        #else
+        let tokenBackground = Color(uiColor: UIColor.systemBackground)
+        #endif
         Group {
             if wasPresented && !hasPending {
                 Circle()

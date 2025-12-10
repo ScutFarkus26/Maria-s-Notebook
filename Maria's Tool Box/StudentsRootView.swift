@@ -77,6 +77,7 @@ struct StudentsRootView: View {
                         .foregroundStyle(.green)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut("n", modifiers: [.command])
                 .contextMenu {
                     Button {
                         showingStudentCSVImporter = true
@@ -85,6 +86,11 @@ struct StudentsRootView: View {
                     }
                 }
                 .padding()
+
+                Button("") { showingStudentCSVImporter = true }
+                    .keyboardShortcut("I", modifiers: [.command, .shift])
+                    .opacity(0.001)
+                    .accessibilityHidden(true)
             }
             .overlay {
                 ParsingOverlay(isParsing: $isParsing) {

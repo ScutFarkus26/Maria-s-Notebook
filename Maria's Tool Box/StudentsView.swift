@@ -223,12 +223,22 @@ struct StudentsView: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
+        GeometryReader { proxy in
+            let isNarrow = proxy.size.width < 520
+            Group {
+                if isNarrow {
+                    compactLayout
+                } else {
+                    HStack(spacing: 0) {
+                        sidebar
 
-            Divider()
+                        Divider()
 
-            content
+                        content
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
@@ -437,6 +447,44 @@ struct StudentsView: View {
             }
             .buttonStyle(.plain)
             .padding()
+        }
+    }
+
+    // MARK: - Compact Layout (narrow iPad/iPhone split)
+    private var compactLayout: some View {
+        VStack(spacing: 0) {
+            // Top compact controls: Filters/Sort menu
+            HStack {
+                Spacer()
+                filtersMenu
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            Divider()
+
+            content
+        }
+    }
+
+    // MARK: - Filters Menu (used in compact layout)
+    private var filtersMenu: some View {
+        Menu {
+            Section("Sort Order") {
+                Button("A–Z") { studentsSortOrderRaw = "alphabetical" }
+                Button("Age") { studentsSortOrderRaw = "age" }
+                Button("Birthday") { studentsSortOrderRaw = "birthday" }
+                Button("Last Lesson") { studentsSortOrderRaw = "lastLesson" }
+                Button("Manual") { studentsSortOrderRaw = "manual" }
+            }
+            Section("Filters") {
+                Button("All") { studentsFilterRaw = "all" }
+                Button("Present Now") { studentsFilterRaw = "presentNow" }
+                ForEach(levelFilters, id: \.self) { filter in
+                    Button(filter.title) { selectedFilterRawAssignment(for: filter) }
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
         }
     }
 }
