@@ -19,7 +19,8 @@ final class StudentLessonDetailActions: ObservableObject {
         calendar: Calendar
     ) {
         studentLesson.lessonID = editingLessonID
-        studentLesson.scheduledFor = scheduledFor
+        studentLesson.setScheduledFor(scheduledFor, using: calendar)
+        print("[Detail] tz=\(calendar.timeZone.identifier) set scheduledFor=\(String(describing: scheduledFor)) for sl=\(studentLesson.id)")
         studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
         studentLesson.isPresented = isPresented
         studentLesson.notes = notes

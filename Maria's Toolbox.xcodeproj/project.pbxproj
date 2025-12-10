@@ -17,6 +17,7 @@
 		5191590B2EE897A1007D4AB1 /* LessonFileStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5191590A2EE897A1007D4AB1 /* LessonFileStorage.swift */; };
 		5191590D2EE897C1007D4AB1 /* LessonFileStorage 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5191590C2EE897C1007D4AB1 /* LessonFileStorage 2.swift */; };
 		5191590F2EE8BE2E007D4AB1 /* EnsureResizableWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5191590E2EE8BE2E007D4AB1 /* EnsureResizableWindow.swift */; };
+		51C143582EE923DD00255AF0 /* AppCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C143572EE923DD00255AF0 /* AppCalendar.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		5191590A2EE897A1007D4AB1 /* LessonFileStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonFileStorage.swift; sourceTree = "<group>"; };
 		5191590C2EE897C1007D4AB1 /* LessonFileStorage 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LessonFileStorage 2.swift"; sourceTree = "<group>"; };
 		5191590E2EE8BE2E007D4AB1 /* EnsureResizableWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnsureResizableWindow.swift; sourceTree = "<group>"; };
+		51C143572EE923DD00255AF0 /* AppCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCalendar.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -80,6 +82,7 @@
 				5191590A2EE897A1007D4AB1 /* LessonFileStorage.swift */,
 				5191590C2EE897C1007D4AB1 /* LessonFileStorage 2.swift */,
 				5191590E2EE8BE2E007D4AB1 /* EnsureResizableWindow.swift */,
+				51C143572EE923DD00255AF0 /* AppCalendar.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -174,6 +177,7 @@
 				519159072EE78CCD007D4AB1 /* PrintUtils.swift in Sources */,
 				5191590F2EE8BE2E007D4AB1 /* EnsureResizableWindow.swift in Sources */,
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
+				51C143582EE923DD00255AF0 /* AppCalendar.swift in Sources */,
 				510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

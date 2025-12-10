@@ -11,10 +11,34 @@ struct TodayView: View {
     @State private var selectedWorkID: UUID? = nil
     @State private var selectedStudentLesson: StudentLesson? = nil
 
+    @Query private var studentLessonsAll: [StudentLesson]
+
     // Lookup helpers from VM caches to avoid per-row fetches
     private var nameForLesson: (UUID) -> String { { id in viewModel.lessonsByID[id]?.name ?? "Lesson" } }
+    
+    // Compute first names that appear more than once (case-insensitive, trimmed)
+    private var duplicateFirstNames: Set<String> {
+        let firsts = viewModel.studentsByID.values.map { $0.firstName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        var counts: [String: Int] = [:]
+        for f in firsts { counts[f, default: 0] += 1 }
+        return Set(counts.filter { $0.value > 1 }.map { $0.key })
+    }
+
+    // Display name rule: First name; append last initial when the first name is not unique
+    private var displayNameForID: (UUID) -> String { { id in
+        guard let s = viewModel.studentsByID[id] else { return "Student" }
+        let first = s.firstName
+        let key = first.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if duplicateFirstNames.contains(key) {
+            if let initialChar = s.lastName.trimmingCharacters(in: .whitespacesAndNewlines).first {
+                return "\(first) \(String(initialChar).uppercased())."
+            }
+        }
+        return first
+    } }
+
     private var studentNamesForIDs: ([UUID]) -> String { { ids in
-        let names = ids.compactMap { viewModel.studentsByID[$0]?.fullName }
+        let names = ids.map { displayNameForID($0) }
         return names.joined(separator: ", ")
     } }
     private var workTitleForID: (UUID) -> String { { id in
@@ -26,10 +50,15 @@ struct TodayView: View {
         }
         return w.workType.rawValue
     } }
-    private var studentNameForID: (UUID) -> String { { id in viewModel.studentsByID[id]?.fullName ?? "Student" } }
+    private var studentNameForID: (UUID) -> String { { id in displayNameForID(id) } }
+    private var studentNamesForWorkID: (UUID) -> String { { id in
+        guard let w = viewModel.worksByID[id] else { return "" }
+        let names = w.participants.map { p in displayNameForID(p.studentID) }
+        return names.joined(separator: ", ")
+    } }
 
     init(context: ModelContext) {
-        _viewModel = StateObject(wrappedValue: TodayViewModel(context: context, calendar: .current))
+        _viewModel = StateObject(wrappedValue: TodayViewModel(context: context, calendar: AppCalendar.shared))
     }
 
     var body: some View {
@@ -52,6 +81,24 @@ struct TodayView: View {
         }
         .onAppear {
             viewModel.setCalendar(calendar)
+        }
+        .onChange(of: calendar) { _, newCal in
+            viewModel.setCalendar(newCal)
+        }
+        .onChange(of: studentLessonsAll.map { $0.id }) { _, _ in
+            viewModel.reload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .PlanningInboxNeedsRefresh)) { _ in
+            viewModel.reload()
+        }
+        .onChange(of: studentLessonsAll.map { $0.scheduledForDay.timeIntervalSinceReferenceDate }) { _, _ in
+            viewModel.reload()
+        }
+        .onChange(of: studentLessonsAll.map { $0.scheduledFor?.timeIntervalSinceReferenceDate ?? -1 }) { _, _ in
+            viewModel.reload()
+        }
+        .onChange(of: studentLessonsAll.map { $0.isPresented }) { _, _ in
+            viewModel.reload()
         }
         .sheet(isPresented: Binding(get: { selectedWorkID != nil }, set: { if !$0 { selectedWorkID = nil } })) {
             if let id = selectedWorkID {
@@ -199,7 +246,7 @@ struct TodayView: View {
                             .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                             .foregroundStyle(.red)
                         ForEach(viewModel.overdueCheckIns, id: \.id) { ci in
-                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID)) { selectedWorkID = ci.workID }
+                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID), studentNames: studentNamesForWorkID(ci.workID)) { selectedWorkID = ci.workID }
                         }
                     }
                     if !viewModel.todaysCheckIns.isEmpty {
@@ -207,7 +254,7 @@ struct TodayView: View {
                             .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                             .foregroundStyle(.secondary)
                         ForEach(viewModel.todaysCheckIns, id: \.id) { ci in
-                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID)) { selectedWorkID = ci.workID }
+                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID), studentNames: studentNamesForWorkID(ci.workID)) { selectedWorkID = ci.workID }
                         }
                     }
                 }
@@ -218,13 +265,13 @@ struct TodayView: View {
     // MARK: - In Progress
     private var inProgressSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(title: "In Progress Work", systemImage: "hammer")
+            SectionHeader(title: "Follow-Ups Due", systemImage: "bolt")
             if viewModel.inProgressWork.isEmpty {
-                ContentUnavailableView("No open work", systemImage: "tray")
+                ContentUnavailableView("No follow-ups due", systemImage: "checkmark.circle")
             } else {
                 VStack(spacing: 8) {
                     ForEach(viewModel.inProgressWork, id: \.id) { work in
-                        WorkRow(work: work) { selectedWorkID = work.id }
+                        WorkRow(work: work, studentNames: studentNamesForWorkID(work.id)) { selectedWorkID = work.id }
                     }
                 }
             }
@@ -263,13 +310,14 @@ private struct LessonRow: View {
         HStack(spacing: 10) {
             Image(systemName: "text.book.closed").foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
-                Text(lessonName)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                if !studentNames.isEmpty {
+                if !studentNames.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(studentNames)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
                 }
+                Text(lessonName)
+                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
             }
             Spacer()
             if isPresented {
@@ -289,6 +337,7 @@ private struct LessonRow: View {
 private struct CheckInRow: View {
     let ci: WorkCheckIn
     let workTitle: String
+    let studentNames: String
     var onTap: () -> Void
 
     var body: some View {
@@ -296,10 +345,16 @@ private struct CheckInRow: View {
             HStack(spacing: 10) {
                 Image(systemName: "bell").foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
+                    if !studentNames.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(studentNames)
+                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    }
                     Text(workTitle)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                    Text(ci.date, style: .date)
                         .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text(ci.date, style: .date)
+                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -319,6 +374,7 @@ private struct CheckInRow: View {
 
 private struct WorkRow: View {
     let work: WorkModel
+    let studentNames: String
     var onTap: () -> Void
 
     var body: some View {
@@ -326,10 +382,16 @@ private struct WorkRow: View {
             HStack(spacing: 10) {
                 Image(systemName: "hammer").foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
+                    if !studentNames.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(studentNames)
+                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    }
                     Text(work.title.isEmpty ? work.workType.rawValue : work.title)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                    Text(work.createdAt, style: .date)
                         .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text(work.createdAt, style: .date)
+                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -352,6 +414,7 @@ private struct CompletionRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(studentName)
                     .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
                 Text(workName)
                     .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                     .foregroundStyle(.secondary)

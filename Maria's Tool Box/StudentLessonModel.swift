@@ -15,7 +15,7 @@ import SwiftData
     var scheduledFor: Date? {
         didSet {
             if let date = scheduledFor {
-                scheduledForDay = Calendar.current.startOfDay(for: date)
+                scheduledForDay = AppCalendar.shared.startOfDay(for: date)
             } else {
                 scheduledForDay = Date.distantPast
             }
@@ -53,7 +53,7 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
-        self.scheduledForDay = scheduledFor.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantPast
+        self.scheduledForDay = scheduledFor.map { AppCalendar.shared.startOfDay(for: $0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -82,7 +82,7 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
-        self.scheduledForDay = scheduledFor.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantPast
+        self.scheduledForDay = scheduledFor.map { AppCalendar.shared.startOfDay(for: $0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -118,6 +118,17 @@ import SwiftData
     func updateDenormalizedKeys() {
         let ids = self.resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
         self.studentGroupKeyPersisted = ids.map { $0.uuidString }.joined(separator: ",")
+    }
+    
+    /// Sets `scheduledFor` and updates `scheduledForDay` using the provided calendar.
+    func setScheduledFor(_ date: Date?, using calendar: Calendar) {
+        if let date {
+            self.scheduledFor = date
+            self.scheduledForDay = calendar.startOfDay(for: date)
+        } else {
+            self.scheduledFor = nil
+            self.scheduledForDay = Date.distantPast
+        }
     }
 }
 

@@ -1,10 +1,6 @@
 import SwiftUI
 import SwiftData
 
-private extension Notification.Name {
-    static let PlanningInboxNeedsRefresh = Notification.Name("PlanningInboxNeedsRefresh")
-}
-
 struct PlanningAgendaView: View {
     @StateObject private var viewModel = PlanningAgendaViewModel()
 
@@ -389,19 +385,6 @@ struct PlanningAgendaView: View {
 
     private func computeInitialStartDate() -> Date {
         let today = calendar.startOfDay(for: Date())
-        // Earliest upcoming scheduled day (start-of-day) that is a school day
-        let upcomingScheduled = studentLessons.compactMap { sl -> Date? in
-            guard let s = sl.scheduledFor, !sl.isGiven else { return nil }
-            let d = calendar.startOfDay(for: s)
-            return d >= today ? d : nil
-        }.sorted().first
-
-        if let upcoming = upcomingScheduled {
-            // Prefer the earliest upcoming scheduled day; if it is non-school, fall back to next school day from today
-            if !isNonSchoolDay(upcoming) {
-                return upcoming
-            }
-        }
         return firstSchoolDay(onOrAfter: today)
     }
 }

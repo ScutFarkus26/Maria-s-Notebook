@@ -192,11 +192,8 @@ final class PlanningAgendaViewModel: ObservableObject {
         let predicate = #Predicate<StudentLesson> { sl in
             sl.isPresented == false &&
             sl.givenAt == nil &&
-            sl.scheduledFor != nil &&
-            (
-                (sl.scheduledForDay >= range.lowerBound && sl.scheduledForDay < range.upperBound) ||
-                (sl.scheduledFor! >= range.lowerBound && sl.scheduledFor! < range.upperBound)
-            )
+            sl.scheduledForDay >= range.lowerBound &&
+            sl.scheduledForDay < range.upperBound
         }
         let descriptor = FetchDescriptor<StudentLesson>(
             predicate: predicate,

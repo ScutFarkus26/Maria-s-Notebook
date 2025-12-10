@@ -10,7 +10,7 @@ struct SchoolCalendar {
         static var monthSets: [Date: Set<Date>] = [:] // key = start-of-month date
     }
 
-    private static var cal: Calendar { Calendar.current }
+    private static var cal: Calendar { AppCalendar.shared }
 
     private static func monthKey(for date: Date) -> Date {
         let comps = cal.dateComponents([.year, .month], from: date)

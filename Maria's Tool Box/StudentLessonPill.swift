@@ -216,7 +216,7 @@ struct StudentLessonPill: View {
         merged.hour = timeComps.hour
         merged.minute = timeComps.minute
         let combined = calendar.date(from: merged) ?? newTime
-        sl.scheduledFor = combined
+        sl.setScheduledFor(combined, using: calendar)
         try? modelContext.save()
     }
 

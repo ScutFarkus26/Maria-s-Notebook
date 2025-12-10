@@ -161,7 +161,11 @@ struct MariasToolboxApp: App {
     var body: some Scene {
         WindowGroup("") {
             RootView()
+                .environment(\.calendar, AppCalendar.shared)
                 .onAppear {
+                    DataMigrations.repairScheduledForDayIfNeeded(using: sharedModelContainer.mainContext, calendar: AppCalendar.shared)
+                    NotificationCenter.default.post(name: .PlanningInboxNeedsRefresh, object: nil)
+                    AppCalendar.adopt(timeZoneFrom: Calendar.current)
                     MigrationRunner.runIfNeeded(context: sharedModelContainer.mainContext)
                     DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
                     DataMigrations.normalizeWorkDatesToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
@@ -228,6 +232,7 @@ struct MariasToolboxApp: App {
         WindowGroup("", id: "WorkDetailWindow", for: UUID.self) { $workID in
             if let id = workID {
                 WorkDetailWindowContainer(workID: id)
+                    .environment(\.calendar, AppCalendar.shared)
             } else {
                 Text("No work selected")
                     .frame(minWidth: 400, minHeight: 300)

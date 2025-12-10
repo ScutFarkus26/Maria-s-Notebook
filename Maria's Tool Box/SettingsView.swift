@@ -494,13 +494,14 @@ struct SettingsGroup<Content: View>: View {
 
 struct SchoolCalendarSettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendar) private var calendar
     @State private var currentMonth: Date = Date()
     @State private var selected: Set<DateComponents> = []
     @State private var nonSchoolDates: Set<Date> = []
     @State private var selectedSingleDate: Date = Date()
 
     private var monthInterval: DateInterval {
-        let cal = Calendar.current
+        let cal = calendar
         let start = cal.date(from: cal.dateComponents([.year, .month], from: currentMonth)) ?? Date()
         let end = cal.date(byAdding: .month, value: 1, to: start) ?? start
         return DateInterval(start: start, end: end)
@@ -524,7 +525,7 @@ struct SchoolCalendarSettingsView: View {
             CalendarMonthGridView(
                 month: currentMonth,
                 onDateToggled: { date, isNonSchool in
-                    let day = Calendar.current.startOfDay(for: date)
+                    let day = calendar.startOfDay(for: date)
                     if isNonSchool {
                         nonSchoolDates.insert(day)
                     } else {
@@ -566,7 +567,7 @@ struct SchoolCalendarSettingsView: View {
     }
 
     private func shiftMonth(_ delta: Int) {
-        if let newDate = Calendar.current.date(byAdding: .month, value: delta, to: currentMonth) {
+        if let newDate = calendar.date(byAdding: .month, value: delta, to: currentMonth) {
             currentMonth = newDate
             reload()
         }
@@ -579,7 +580,7 @@ struct SchoolCalendarSettingsView: View {
     }
 
     private func clearMonth() {
-        let cal = Calendar.current
+        let cal = calendar
         var d = cal.startOfDay(for: monthInterval.start)
         while d < monthInterval.end {
             let descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == d })
@@ -594,7 +595,7 @@ struct SchoolCalendarSettingsView: View {
 
     private func markWeekdaysAsSchoolDays() {
         // Unmark weekends only for the current month: keep Sat/Sun marked; unmark weekdays
-        let cal = Calendar.current
+        let cal = calendar
         var d = cal.startOfDay(for: monthInterval.start)
         while d < monthInterval.end {
             let weekday = cal.component(.weekday, from: d)
