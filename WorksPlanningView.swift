@@ -10,8 +10,18 @@ struct WorksPlanningView: View {
     @Query private var students: [Student]
     @Query private var lessons: [Lesson]
 
-    @State private var selectedWorkID: UUID? = nil
-    @State private var showScheduleSheet: Bool = false
+    private enum ActiveSheet: Identifiable, Equatable {
+        case schedule(workID: UUID)
+        case detail(workID: UUID)
+        var id: String {
+            switch self {
+            case .schedule(let id): return "schedule-\(id)"
+            case .detail(let id): return "detail-\(id)"
+            }
+        }
+    }
+    @State private var activeSheet: ActiveSheet? = nil
+
     @State private var scheduleDate: Date = Date()
     @State private var inboxIsTargeted: Bool = false
 
@@ -43,7 +53,7 @@ struct WorksPlanningView: View {
     }
 
     private var days: [Date] {
-        (0..<5).map { offset in
+        (0..<UIConstants.planningWindowDays).map { offset in
             calendar.date(byAdding: .day, value: offset, to: startDate) ?? startDate
         }
     }
@@ -146,41 +156,21 @@ struct WorksPlanningView: View {
         .onChange(of: startDate) { _, new in
             startDateRaw = new.timeIntervalSince1970
         }
-        .sheet(isPresented: $showScheduleSheet) {
-            if let id = selectedWorkID,
-               let work = (try? modelContext.fetch(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })))?.first {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Schedule Check-In").font(.headline)
-                    DatePicker("Date", selection: $scheduleDate, displayedComponents: .date)
-                    HStack {
-                        Spacer()
-                        Button("Cancel") { showScheduleSheet = false }
-                        Button("Save") {
-                            let service = WorkCheckInService(context: modelContext)
-                            do {
-                                _ = try service.createCheckIn(for: work, date: scheduleDate, status: .scheduled, purpose: "", note: "")
-                                showScheduleSheet = false
-                            } catch {
-                                showScheduleSheet = false
-                            }
-                        }
-                        .keyboardShortcut(.defaultAction)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .schedule(let id):
+                ScheduleCheckInSheet(workID: id, initialDate: scheduleDate, onCancel: { activeSheet = nil }, onSave: { date in
+                    let service = WorkCheckInService(context: modelContext)
+                    if let work = (try? modelContext.fetch(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })))?.first {
+                        _ = try? service.createCheckIn(for: work, date: date, status: .scheduled, purpose: "", note: "")
                     }
-                }
-                .padding()
+                    activeSheet = nil
+                })
 #if os(macOS)
                 .frame(minWidth: 360)
 #endif
-            } else {
-                Text("Work not found")
-                    .padding()
-            }
-        }
-        .sheet(isPresented: Binding(get: { selectedWorkID != nil }, set: { if !$0 { selectedWorkID = nil } })) {
-            if let id = selectedWorkID {
-                WorkDetailContainerView(workID: id) {
-                    selectedWorkID = nil
-                }
+            case .detail(let id):
+                WorkDetailContainerView(workID: id) { activeSheet = nil }
 #if os(macOS)
                 .frame(minWidth: 720, minHeight: 640)
                 .presentationSizing(.fitted)
@@ -188,188 +178,58 @@ struct WorksPlanningView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
 #endif
-            } else {
-                EmptyView()
             }
         }
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Inbox")
-                    .font(.title2.weight(.semibold))
-                Spacer()
-                Text("\(unscheduledWorks.count)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+        InboxSidebarView(
+            unscheduledWorks: unscheduledWorks,
+            workTitle: { workTitle(for: $0) },
+            participantNames: { participantNames(for: $0) },
+            onOpen: { id in activeSheet = .detail(workID: id) },
+            onSchedule: { id in
+                scheduleDate = Date()
+                activeSheet = .schedule(workID: id)
             }
-            .padding(.horizontal, 14)
-            ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(unscheduledWorks, id: \.id) { w in
-                        Button {
-                            selectedWorkID = w.id
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "hammer")
-                                    .foregroundStyle(.tint)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(workTitle(for: w))
-                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                                    let names = participantNames(for: w)
-                                    if !names.isEmpty {
-                                        Text(names)
-                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Text(w.createdAt, style: .date)
-                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Menu {
-                                    Button("Open", systemImage: "arrow.forward.circle") { selectedWorkID = w.id }
-                                    Button("Schedule Check-In", systemImage: "calendar.badge.plus") {
-                                        scheduleDate = Date()
-                                        selectedWorkID = w.id
-                                        showScheduleSheet = true
-                                    }
-                                } label: {
-                                    Image(systemName: "ellipsis.circle").foregroundStyle(.secondary)
-                                }
-                            }
-                            .padding(10)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
-                        }
-                        .buttonStyle(.plain)
-                        .draggable("WORK:\(w.id.uuidString)") {
-                            HStack(spacing: 10) {
-                                Image(systemName: "hammer").foregroundStyle(.tint)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(workTitle(for: w))
-                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                                    let names = participantNames(for: w)
-                                    if !names.isEmpty {
-                                        Text(names)
-                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Text(w.createdAt, style: .date)
-                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }
-                            .padding(10)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.08)))
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 14)
-            }
-            .onDrop(of: [UTType.text], delegate: WorksInboxDropDelegate(
-                modelContext: modelContext,
-                onTargetChange: { targeted in
-                    withAnimation(.easeInOut(duration: 0.12)) { inboxIsTargeted = targeted }
-                }
-            ))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(inboxIsTargeted ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 2)
-            )
-        }
-        .frame(width: 280)
+        )
     }
 
     private var header: some View {
         let first = days.first ?? Date()
         let last = days.last ?? Date()
-        let fmt: Date.FormatStyle = Date.FormatStyle()
-            .month(.abbreviated)
-            .day()
-        return HStack(spacing: 12) {
-            Button {
+        return AgendaHeaderView(
+            firstDate: first,
+            lastDate: last,
+            onPrev: {
                 withAnimation {
-                    startDate = movedStart(bySchoolDays: -7)
+                    startDate = movedStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
                 }
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.borderless)
-
-            Spacer()
-
-            Text("\(first.formatted(fmt)) - \(last.formatted(fmt))")
-                .font(.title3.weight(.semibold))
-
-            Spacer()
-
-            Button {
+            },
+            onToday: {
                 withAnimation {
                     startDate = computeInitialStartDate()
                 }
-            } label: {
-                Text("Today")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.tint)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.1)))
-            }
-            .buttonStyle(.borderless)
-
-            Button {
+            },
+            onNext: {
                 withAnimation {
-                    startDate = movedStart(bySchoolDays: 7)
+                    startDate = movedStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
                 }
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.borderless)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.bar)
+        )
     }
 
     private var agenda: some View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
                 // Day strip
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
-                        ForEach(days, id: \.self) { day in
-                            Button {
-                                withAnimation {
-                                    proxy.scrollTo(dayID(day), anchor: .top)
-                                }
-                            } label: {
-                                Text(dayShortLabel(for: day))
-                                    .font(.callout.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color.primary.opacity(0.1))
-                                    )
-                            }
-                            .buttonStyle(.borderless)
-                        }
+                DayStripView(days: days) { day in
+                    withAnimation {
+                        proxy.scrollTo(dayID(day), anchor: .top)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
 
                 Divider()
 
@@ -465,7 +325,7 @@ struct WorksPlanningView: View {
                 isNonSchool: isNonSchoolDay(day),
                 namesForWork: { work in participantNames(for: work) },
                 titleForWork: workTitle(for:),
-                onOpenWork: { wid in selectedWorkID = wid },
+                onOpenWork: { wid in activeSheet = .detail(workID: wid) },
                 onMarkCompleted: { checkIn in
                     let service = WorkCheckInService(context: modelContext)
                     do { try service.markCompleted(checkIn) } catch { }
@@ -488,7 +348,7 @@ struct WorksPlanningView: View {
                             .fill(Color.black.opacity(0.35))
                     )
                     .offset(x: -80, y: 0)
-            } else { EmptyView() }
+            }
         }
     }
 
@@ -532,6 +392,17 @@ struct WorksPlanningView: View {
         }
 
         var body: some View {
+            let dropDelegate = WorksCheckInDropDelegate(
+                calendar: calendar,
+                modelContext: modelContext,
+                works: works,
+                day: day,
+                period: period,
+                getCurrent: { items.map { $0.checkIn } },
+                itemFramesProvider: { itemFrames },
+                onTargetChange: { targeted in withAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted } },
+                onInsertionIndexChange: { idx in if insertionIndex != idx { withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx } } }
+            )
             ZStack(alignment: .topLeading) {
                 // Background and targeted outline
                 RoundedRectangle(cornerRadius: 10)
@@ -595,17 +466,7 @@ struct WorksPlanningView: View {
                 itemFrames = frames
             }
             .contentShape(RoundedRectangle(cornerRadius: 10))
-            .onDrop(of: [UTType.text], delegate: WorksCheckInDropDelegate(
-                calendar: calendar,
-                modelContext: modelContext,
-                works: works,
-                day: day,
-                period: period,
-                getCurrent: { items.map { $0.checkIn } },
-                itemFramesProvider: { itemFrames },
-                onTargetChange: { targeted in withAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted } },
-                onInsertionIndexChange: { idx in if insertionIndex != idx { withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx } } }
-            ))
+            .onDrop(of: [UTType.text], delegate: dropDelegate)
             .disabled(isNonSchool)
         }
 
@@ -697,9 +558,25 @@ struct WorksPlanningView: View {
         }
 
         @MainActor
+        private func applyOrder(currentIDs: [UUID], inserting id: UUID, baseDate: Date, insertionIndex: Int) {
+            var ids = currentIDs
+            ids.removeAll(where: { $0 == id })
+            let bounded = max(0, min(insertionIndex, ids.count))
+            ids.insert(id, at: bounded)
+            let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
+            let allCIs = works.flatMap { $0.checkIns }
+            for id in ids {
+                if let target = allCIs.first(where: { $0.id == id }) {
+                    target.date = timeMap[id] ?? target.date
+                    target.status = .scheduled
+                }
+            }
+            try? modelContext.save()
+        }
+
+        @MainActor
         private func handlePayload(_ payload: String, locationY: CGFloat) {
             let current = getCurrent()
-            var ids = current.map { $0.id }
             let frames = itemFramesProvider()
             let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
                 if let rect = frames[item.id] { return (item.id, rect) }
@@ -713,22 +590,9 @@ struct WorksPlanningView: View {
                 if let wid = UUID(uuidString: idStr), let work = works.first(where: { $0.id == wid }) {
                     // Create a new check-in for this work
                     let service = WorkCheckInService(context: modelContext)
-                    let ci = (try? service.createCheckIn(for: work, date: baseDate, status: .scheduled, purpose: "", note: ""))
-                    guard let newCI = ci else { return }
-                    ids.removeAll(where: { $0 == newCI.id })
-                    let bounded = max(0, min(insertionIndex, ids.count))
-                    ids.insert(newCI.id, at: bounded)
-                    // Assign sequential times
-                    let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
-                    // Update all affected check-ins
-                    let allCIs = works.flatMap { $0.checkIns }
-                    for id in ids {
-                        if let target = allCIs.first(where: { $0.id == id }) {
-                            target.date = timeMap[id] ?? target.date
-                            target.status = .scheduled
-                        }
+                    if let newCI = try? service.createCheckIn(for: work, date: baseDate, status: .scheduled, purpose: "", note: "") {
+                        applyOrder(currentIDs: current.map { $0.id }, inserting: newCI.id, baseDate: baseDate, insertionIndex: insertionIndex)
                     }
-                    try? modelContext.save()
                 }
                 return
             }
@@ -737,36 +601,14 @@ struct WorksPlanningView: View {
                 let idStr = String(payload.dropFirst("CHECKIN:".count))
                 if let cid = UUID(uuidString: idStr) {
                     // Move/reorder existing check-in
-                    ids.removeAll(where: { $0 == cid })
-                    let bounded = max(0, min(insertionIndex, ids.count))
-                    ids.insert(cid, at: bounded)
-                    let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
-                    let allCIs = works.flatMap { $0.checkIns }
-                    for id in ids {
-                        if let target = allCIs.first(where: { $0.id == id }) {
-                            target.date = timeMap[id] ?? target.date
-                            target.status = .scheduled
-                        }
-                    }
-                    try? modelContext.save()
+                    applyOrder(currentIDs: current.map { $0.id }, inserting: cid, baseDate: baseDate, insertionIndex: insertionIndex)
                 }
                 return
             }
 
             // Fallback: treat as raw UUID of a check-in
             if let cid = UUID(uuidString: payload.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                ids.removeAll(where: { $0 == cid })
-                let bounded = max(0, min(insertionIndex, ids.count))
-                ids.insert(cid, at: bounded)
-                let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
-                let allCIs = works.flatMap { $0.checkIns }
-                for id in ids {
-                    if let target = allCIs.first(where: { $0.id == id }) {
-                        target.date = timeMap[id] ?? target.date
-                        target.status = .scheduled
-                    }
-                }
-                try? modelContext.save()
+                applyOrder(currentIDs: current.map { $0.id }, inserting: cid, baseDate: baseDate, insertionIndex: insertionIndex)
             }
         }
 
@@ -787,7 +629,7 @@ struct WorksPlanningView: View {
         }
     }
 
-    private struct WorksInboxDropDelegate: DropDelegate {
+    fileprivate struct WorksInboxDropDelegate: DropDelegate {
         let modelContext: ModelContext
         let onTargetChange: (Bool) -> Void
 
@@ -836,6 +678,203 @@ struct WorksPlanningView: View {
         }
     }
 }
+
+// MARK: - Subviews
+
+private struct InboxSidebarView: View {
+    let unscheduledWorks: [WorkModel]
+    let workTitle: (WorkModel) -> String
+    let participantNames: (WorkModel) -> String
+    let onOpen: (UUID) -> Void
+    let onSchedule: (UUID) -> Void
+
+    @State private var inboxIsTargeted: Bool = false
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Inbox")
+                    .font(.title2.weight(.semibold))
+                Spacer()
+                Text("\(unscheduledWorks.count)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(unscheduledWorks, id: \.id) { w in
+                        Button {
+                            onOpen(w.id)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "hammer")
+                                    .foregroundStyle(.tint)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(workTitle(w))
+                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                    let names = participantNames(w)
+                                    if !names.isEmpty {
+                                        Text(names)
+                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Text(w.createdAt, style: .date)
+                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Menu {
+                                    Button("Open", systemImage: "arrow.forward.circle") { onOpen(w.id) }
+                                    Button("Schedule Check-In", systemImage: "calendar.badge.plus") {
+                                        onSchedule(w.id)
+                                    }
+                                } label: {
+                                    Image(systemName: "ellipsis.circle").foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(10)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
+                        }
+                        .buttonStyle(.plain)
+                        .draggable("WORK:\(w.id.uuidString)") {
+                            HStack(spacing: 10) {
+                                Image(systemName: "hammer").foregroundStyle(.tint)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(workTitle(w))
+                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                    let names = participantNames(w)
+                                    if !names.isEmpty {
+                                        Text(names)
+                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Text(w.createdAt, style: .date)
+                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                            .padding(10)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.08)))
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 14)
+            }
+            .onDrop(of: [UTType.text], delegate: WorksPlanningView.WorksInboxDropDelegate(
+                modelContext: modelContext,
+                onTargetChange: { targeted in
+                    withAnimation(.easeInOut(duration: 0.12)) { inboxIsTargeted = targeted }
+                }
+            ))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(inboxIsTargeted ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 2)
+            )
+        }
+        .frame(width: 280)
+    }
+}
+
+private struct AgendaHeaderView: View {
+    let firstDate: Date
+    let lastDate: Date
+    let onPrev: () -> Void
+    let onToday: () -> Void
+    let onNext: () -> Void
+
+    var body: some View {
+        let fmt: Date.FormatStyle = Date.FormatStyle()
+            .month(.abbreviated)
+            .day()
+        HStack(spacing: 12) {
+            Button {
+                onPrev()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+
+            Spacer()
+
+            Text("\(firstDate.formatted(fmt)) - \(lastDate.formatted(fmt))")
+                .font(.title3.weight(.semibold))
+
+            Spacer()
+
+            Button {
+                onToday()
+            } label: {
+                Text("Today")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.tint)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.1)))
+            }
+            .buttonStyle(.borderless)
+
+            Button {
+                onNext()
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(.bar)
+    }
+}
+
+private struct DayStripView: View {
+    let days: [Date]
+    let onTap: (Date) -> Void
+
+    @Environment(\.calendar) private var calendar
+
+    private func dayShortLabel(for day: Date) -> String {
+        let fmt = Date.FormatStyle()
+            .weekday(.abbreviated)
+            .day()
+        return day.formatted(fmt)
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 14) {
+                ForEach(days, id: \.self) { day in
+                    Button {
+                        onTap(day)
+                    } label: {
+                        Text(dayShortLabel(for: day))
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.primary.opacity(0.1))
+                            )
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
+    }
+}
+
 #Preview {
     let container = try! ModelContainer(for: Schema([Item.self, Student.self, Lesson.self, StudentLesson.self, WorkModel.self, WorkParticipantEntity.self, WorkCompletionRecord.self, AttendanceRecord.self, WorkCheckIn.self]), configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     return WorksPlanningView()

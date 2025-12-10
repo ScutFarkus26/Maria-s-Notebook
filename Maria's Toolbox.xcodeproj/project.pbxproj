@@ -20,6 +20,7 @@
 		51C143582EE923DD00255AF0 /* AppCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C143572EE923DD00255AF0 /* AppCalendar.swift */; };
 		51D4DE622EE9F0A8004F8A3B /* WorkCheckInDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE612EE9F0A8004F8A3B /* WorkCheckInDefaults.swift */; };
 		51D4DE642EE9F0B8004F8A3B /* WorksPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE632EE9F0B8004F8A3B /* WorksPlanningView.swift */; };
+		51D4DE662EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE652EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,7 @@
 		51C143572EE923DD00255AF0 /* AppCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCalendar.swift; sourceTree = "<group>"; };
 		51D4DE612EE9F0A8004F8A3B /* WorkCheckInDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCheckInDefaults.swift; sourceTree = "<group>"; };
 		51D4DE632EE9F0B8004F8A3B /* WorksPlanningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorksPlanningView.swift; sourceTree = "<group>"; };
+		51D4DE652EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleCheckInSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -89,6 +91,7 @@
 				51C143572EE923DD00255AF0 /* AppCalendar.swift */,
 				51D4DE612EE9F0A8004F8A3B /* WorkCheckInDefaults.swift */,
 				51D4DE632EE9F0B8004F8A3B /* WorksPlanningView.swift */,
+				51D4DE652EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -183,6 +186,7 @@
 				519159072EE78CCD007D4AB1 /* PrintUtils.swift in Sources */,
 				5191590F2EE8BE2E007D4AB1 /* EnsureResizableWindow.swift in Sources */,
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
+				51D4DE662EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift in Sources */,
 				51D4DE622EE9F0A8004F8A3B /* WorkCheckInDefaults.swift in Sources */,
 				51D4DE642EE9F0B8004F8A3B /* WorksPlanningView.swift in Sources */,
 				51C143582EE923DD00255AF0 /* AppCalendar.swift in Sources */,
