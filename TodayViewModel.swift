@@ -86,7 +86,7 @@ final class TodayViewModel: ObservableObject {
     }
 
     // MARK: - Init
-    init(context: ModelContext, date: Date = Date(), calendar: Calendar = AppCalendar.shared) {
+    init(context: ModelContext, date: Date = Date(), calendar: Calendar = .current) {
         self.context = context
         self.calendar = calendar
         self.date = calendar.startOfDay(for: date)

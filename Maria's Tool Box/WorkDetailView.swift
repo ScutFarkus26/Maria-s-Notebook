@@ -6,7 +6,8 @@ struct WorkDetailView: View {
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    
+    @Environment(\.calendar) private var calendar
+
     // MARK: - Queries
     @Query private var lessons: [Lesson]
     @Query private var studentsAll: [Student]
@@ -14,12 +15,16 @@ struct WorkDetailView: View {
 
     // MARK: - View Model
     @StateObject private var vm: WorkDetailViewModel
-    
+
     // MARK: - UI State
     @State private var checkInDate = Date()
     @State private var checkInPurpose = ""
     @State private var editingCheckInNote: WorkCheckIn?
     @State private var noteText = ""
+    @State private var reschedulingCheckIn: WorkCheckIn? = nil
+    @State private var rescheduleDate = Date()
+    @State private var scheduleNextDate = Date()
+    @State private var showScheduleNextSheet = false
     @State private var showDeleteAlert = false
     @State private var showingStudentPickerPopover = false
     @State private var showInlineCheckInComposer = false
@@ -86,6 +91,21 @@ struct WorkDetailView: View {
             : AppColors.color(forSubject: vm.subject)
     }
 
+    private var linkedStudentLesson: StudentLesson? {
+        if let id = vm.selectedStudentLessonID { return vm.studentLessonsByID[id] }
+        return nil
+    }
+    
+    private var currentLesson: Lesson? {
+        guard let sl = linkedStudentLesson else { return nil }
+        return vm.lessonsByID[sl.lessonID]
+    }
+    
+    private var nextLessonInGroupFromWork: Lesson? {
+        let actions = StudentLessonDetailActions()
+        return actions.nextLessonInGroup(from: currentLesson, lessons: lessons)
+    }
+
     private var separatorStrokeColor: Color {
         #if os(macOS)
         return Color.primary.opacity(0.12)
@@ -106,6 +126,7 @@ struct WorkDetailView: View {
                             titleField
                             studentsArea
                             lessonAndTypeSection
+                            nextInGroupSection
                             completionSection
                             splitCompletedButton
                             notesCollapsibleSection
@@ -181,6 +202,47 @@ struct WorkDetailView: View {
                 onCancel: handleNoteEditorCancel
             )
         }
+        .sheet(item: $reschedulingCheckIn) { checkIn in
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Reschedule Check-In").font(.headline)
+                DatePicker("Date", selection: $rescheduleDate, displayedComponents: .date)
+                HStack {
+                    Spacer()
+                    Button("Cancel") { reschedulingCheckIn = nil }
+                    Button("Save") {
+                        let service = WorkCheckInService(context: modelContext)
+                        do { try service.reschedule(checkIn, to: rescheduleDate) } catch { }
+                        reschedulingCheckIn = nil
+                        updateCaches()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding()
+#if os(macOS)
+            .frame(minWidth: 360)
+#endif
+        }
+        .sheet(isPresented: $showScheduleNextSheet) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Schedule Next Lesson").font(.headline)
+                DatePicker("Date", selection: $scheduleNextDate, displayedComponents: .date)
+                HStack {
+                    Spacer()
+                    Button("Cancel") { showScheduleNextSheet = false }
+                    Button("Schedule") {
+                        scheduleNextLessonInGroup(on: scheduleNextDate)
+                        showScheduleNextSheet = false
+                        updateCaches()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding()
+        #if os(macOS)
+            .frame(minWidth: 360)
+        #endif
+        }
     }
 
     // MARK: - View Sections
@@ -239,6 +301,34 @@ struct WorkDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 lessonSection
                 WorkTypePickerSection(workType: $vm.workType)
+            }
+        }
+    }
+
+    private var nextInGroupSection: some View {
+        Group {
+            if let next = nextLessonInGroupFromWork, !vm.selectedStudentIDs.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.right.circle")
+                            .foregroundStyle(.blue)
+                        Text("Next in Group: \(next.name)")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    }
+                    Button {
+                        scheduleNextDate = defaultScheduleDate()
+                        showScheduleNextSheet = true
+                    } label: {
+                        Label("Schedule Next in Group", systemImage: "calendar.badge.plus")
+                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.primary.opacity(0.05))
+                )
             }
         }
     }
@@ -448,6 +538,21 @@ struct WorkDetailView: View {
                     }
                     Spacer()
                     Menu {
+                        Button("Mark Completed", systemImage: "checkmark.circle") {
+                            let service = WorkCheckInService(context: modelContext)
+                            do { try service.markCompleted(item) } catch { }
+                            updateCaches()
+                        }
+                        Button("Skip", systemImage: "forward.end") {
+                            let service = WorkCheckInService(context: modelContext)
+                            do { try service.skip(item) } catch { }
+                            updateCaches()
+                        }
+                        Button("Reschedule", systemImage: "calendar") {
+                            rescheduleDate = item.date
+                            reschedulingCheckIn = item
+                        }
+                        Divider()
                         Button("Edit Note", systemImage: "square.and.pencil") {
                             noteText = item.note
                             editingCheckInNote = item
@@ -547,6 +652,12 @@ struct WorkDetailView: View {
         }
     }
     
+    // MARK: - Helpers
+    private func defaultScheduleDate() -> Date {
+        let base = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        return calendar.startOfDay(for: base)
+    }
+    
     // MARK: - Actions
     private func scheduleCacheRebuild() {
         // Debounce cache rebuilds to avoid repeated heavy work during rapid updates
@@ -609,6 +720,34 @@ struct WorkDetailView: View {
     private func handleNoteEditorCancel() {
         editingCheckInNote = nil
         noteText = ""
+    }
+
+    private func scheduleNextLessonInGroup(on date: Date) {
+        guard let next = nextLessonInGroupFromWork else { return }
+        let startOfDay = calendar.startOfDay(for: date)
+        let scheduled = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+        let sameStudents = Set(vm.selectedStudentIDs)
+        if let existing = studentLessons.first(where: { $0.resolvedLessonID == next.id && Set($0.resolvedStudentIDs) == sameStudents && $0.givenAt == nil }) {
+            existing.setScheduledFor(scheduled, using: calendar)
+        } else {
+            let newStudentLesson = StudentLesson(
+                id: UUID(),
+                lessonID: next.id,
+                studentIDs: Array(sameStudents),
+                createdAt: Date(),
+                scheduledFor: scheduled,
+                givenAt: nil,
+                notes: "",
+                needsPractice: false,
+                needsAnotherPresentation: false,
+                followUpWork: ""
+            )
+            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+            newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+            modelContext.insert(newStudentLesson)
+        }
+        do { try modelContext.save() } catch { }
+        StudentLessonDetailUtilities.notifyInboxRefresh()
     }
 }
 

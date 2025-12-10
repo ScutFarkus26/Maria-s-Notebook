@@ -38,11 +38,11 @@ struct WorkView: View {
     @SceneStorage("WorkView.selectedStudentIDs") private var selectedStudentIDsStorage: String = ""
     @SceneStorage("WorkView.searchText") private var searchTextStorage: String = ""
     @SceneStorage("WorkView.grouping") private var groupingStorage: String = ""
-    @SceneStorage("WorkView.mode") private var modeStorage: String = "overview"
+    @SceneStorage("WorkView.mode") private var modeStorage: String = "items"
     @SceneStorage("WorkView.level") private var levelStorage: String = "All"
     
-    private enum Mode: String { case overview, items }
-    @State private var mode: Mode = .overview
+    private enum Mode: String { case items, planning }
+    @State private var mode: Mode = .items
 
     // Lookup service
     private var lookupService: WorkLookupService {
@@ -240,7 +240,8 @@ struct WorkView: View {
         if let level = WorkFilters.LevelFilter(rawValue: levelStorage) {
             filters.level = level
         }
-        mode = Mode(rawValue: modeStorage) ?? .overview
+        mode = Mode(rawValue: modeStorage) ?? .items
+        if modeStorage == "overview" { modeStorage = "items" }
     }
     
     private func syncFiltersToStorage() {
@@ -322,7 +323,8 @@ struct WorkView: View {
             .onAppear {
                 syncFiltersFromStorage()
                 WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
-                mode = Mode(rawValue: modeStorage) ?? .overview
+                mode = Mode(rawValue: modeStorage) ?? .items
+                if modeStorage == "overview" { modeStorage = "items" }
             }
             .onChange(of: filters.grouping) { _, _ in syncFiltersToStorage() }
             .onChange(of: filters.selectedSubject) { _, _ in syncFiltersToStorage() }
@@ -345,26 +347,9 @@ struct WorkView: View {
             if hSize == .compact {
                 ToolbarItem(placement: .topBarLeading) {
                     HStack(spacing: 12) {
-                        PillNavButton(title: "Overview", isSelected: mode == .overview) { mode = .overview }
                         PillNavButton(title: "Items", isSelected: mode == .items) { mode = .items }
+                        PillNavButton(title: "Planning", isSelected: mode == .planning) { mode = .planning }
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-#if os(macOS)
-                        if let img = makeOverviewPrintImage(maxWidth: 1200) {
-                            PrintUtils.printImage(img, jobTitle: "Open Work Overview")
-                        }
-#else
-                        if let img = makeOverviewPrintImage(maxWidth: currentScreenWidth() * 2) {
-                            printShareItem = img
-                            isPresentingPrintShare = true
-                        }
-#endif
-                    } label: {
-                        Image(systemName: "printer")
-                    }
-                    .keyboardShortcut("p", modifiers: [.command])
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -433,18 +418,7 @@ struct WorkView: View {
 
             // Content area
             Group {
-                if mode == .overview {
-                    WorkStudentsGrid(
-                        summaries: workSummaries,
-                        openWorksByStudentID: openWorksByStudentID,
-                        lookupService: lookupService,
-                        onTapStudent: { student in
-                            filters.selectedStudentIDs = [student.id]
-                            mode = .items
-                        },
-                        onTapWork: handleWorkSelection
-                    )
-                } else {
+                if mode == .items {
                     if workItems.isEmpty {
                         WorkEmptyStateView(type: .noWork)
                     } else if filteredWorks.isEmpty {
@@ -458,6 +432,8 @@ struct WorkView: View {
                             onToggleComplete: handleToggleComplete
                         )
                     }
+                } else {
+                    WorksPlanningView()
                 }
             }
         }
@@ -489,8 +465,8 @@ struct WorkView: View {
                 HStack {
                     Spacer()
                     HStack(spacing: 12) {
-                        PillNavButton(title: "Overview", isSelected: mode == .overview) { mode = .overview }
                         PillNavButton(title: "Items", isSelected: mode == .items) { mode = .items }
+                        PillNavButton(title: "Planning", isSelected: mode == .planning) { mode = .planning }
                     }
                     Spacer()
                 }
@@ -498,18 +474,7 @@ struct WorkView: View {
                 .padding(.bottom, 8)
                 
                 Group {
-                    if mode == .overview {
-                        WorkStudentsGrid(
-                            summaries: workSummaries,
-                            openWorksByStudentID: openWorksByStudentID,
-                            lookupService: lookupService,
-                            onTapStudent: { student in
-                                filters.selectedStudentIDs = [student.id]
-                                mode = .items
-                            },
-                            onTapWork: handleWorkSelection
-                        )
-                    } else {
+                    if mode == .items {
                         if workItems.isEmpty {
                             WorkEmptyStateView(type: .noWork)
                         } else if filteredWorks.isEmpty {
@@ -523,60 +488,13 @@ struct WorkView: View {
                                 onToggleComplete: handleToggleComplete
                             )
                         }
+                    } else {
+                        WorksPlanningView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topTrailing) {
                     HStack(spacing: 12) {
-#if os(macOS)
-                        Menu {
-                            Section("Actions") {
-                                Button("Print…") {
-                                    if let img = makeOverviewPrintImage(maxWidth: 1400) {
-                                        PrintUtils.printImage(img, jobTitle: "Open Work Overview")
-                                    }
-                                }
-                                Button("Export PDF…") {
-                                    exportOverviewPDF(jobTitle: "Open Work Overview")
-                                }
-                            }
-                            Section("Style") {
-                                Toggle("Black & White", isOn: $printIsMonochrome)
-                                Picker("Density", selection: $printDenseLevel) {
-                                    Text("Normal").tag(0)
-                                    Text("Compact").tag(1)
-                                    Text("Ultra Compact").tag(2)
-                                }
-                                .pickerStyle(.menu)
-                            }
-                            Section("Paper") {
-                                Picker("Paper Size", selection: $printPaper) {
-                                    Text("Letter").tag("Letter")
-                                    Text("A4").tag("A4")
-                                }
-                                .pickerStyle(.menu)
-                            }
-                        } label: {
-                            Image(systemName: "printer")
-                                .font(.system(size: AppTheme.FontSize.titleXLarge))
-                                .foregroundStyle(.secondary)
-                        }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-#else
-                        Button {
-                            if let img = makeOverviewPrintImage(maxWidth: currentScreenWidth() * 2) {
-                                printShareItem = img
-                                isPresentingPrintShare = true
-                            }
-                        } label: {
-                            Image(systemName: "printer")
-                                .font(.system(size: AppTheme.FontSize.titleXLarge))
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .keyboardShortcut("p", modifiers: [.command])
-#endif
                         
                         Button {
                             isPresentingAddWork = true

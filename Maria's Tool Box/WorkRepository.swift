@@ -28,6 +28,30 @@ struct WorkRepository {
         )
         work.participants = studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: work) }
         context.insert(work)
+
+        // Automatically schedule a default check-in according to WorkCheckInDefaults
+        let cal = AppCalendar.shared
+        let offsetDays = WorkCheckInDefaults.daysOffset(for: type)
+        if let dueDate = cal.date(byAdding: .day, value: offsetDays, to: Date()) {
+            let due = cal.startOfDay(for: dueDate)
+            let defaultPurpose: String
+            switch type {
+            case .research: defaultPurpose = "Follow up on research"
+            case .followUp: defaultPurpose = "Check progress"
+            case .practice: defaultPurpose = "Review practice"
+            }
+            let ci = WorkCheckIn(
+                workID: work.id,
+                date: due,
+                status: .scheduled,
+                purpose: defaultPurpose,
+                note: "",
+                work: work
+            )
+            context.insert(ci)
+            work.checkIns.append(ci)
+        }
+
         try context.save()
         return work
     }

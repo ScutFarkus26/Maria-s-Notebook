@@ -5,9 +5,9 @@ struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
         case students = "Students"
         case lessons = "Lessons" // New container with submenus (Albums / Lessons Log)
-        case planning = "Planning"
+        case planning = "Lesson Planning"
         case today = "Today"
-        case work = "Work"
+        case work = "Work Planning"
         case settings = "Settings"
         case attendance = "Attendance"
 
@@ -111,6 +111,13 @@ struct RootView: View {
             // Migrate legacy top-level Albums/Lessons tabs into new Lessons container
             if selectedTabRaw == "Albums" || selectedTabRaw == "Lessons" {
                 selectedTabRaw = Tab.lessons.rawValue
+            }
+            // Migrate legacy tab labels Planning -> Lesson Planning, Work -> Work Planning
+            if selectedTabRaw == "Planning" {
+                selectedTabRaw = Tab.planning.rawValue
+            }
+            if selectedTabRaw == "Work" {
+                selectedTabRaw = Tab.work.rawValue
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackfillIsPresentedRequested"))) { _ in

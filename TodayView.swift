@@ -246,7 +246,10 @@ struct TodayView: View {
                             .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                             .foregroundStyle(.red)
                         ForEach(viewModel.overdueCheckIns, id: \.id) { ci in
-                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID), studentNames: studentNamesForWorkID(ci.workID)) { selectedWorkID = ci.workID }
+                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID), studentNames: studentNamesForWorkID(ci.workID)) { selectedWorkID = ci.workID } onChanged: {
+                                selectedWorkID = nil
+                                viewModel.reload()
+                            }
                         }
                     }
                     if !viewModel.todaysCheckIns.isEmpty {
@@ -254,7 +257,10 @@ struct TodayView: View {
                             .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                             .foregroundStyle(.secondary)
                         ForEach(viewModel.todaysCheckIns, id: \.id) { ci in
-                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID), studentNames: studentNamesForWorkID(ci.workID)) { selectedWorkID = ci.workID }
+                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID), studentNames: studentNamesForWorkID(ci.workID)) { selectedWorkID = ci.workID } onChanged: {
+                                selectedWorkID = nil
+                                viewModel.reload()
+                            }
                         }
                     }
                 }
@@ -339,6 +345,11 @@ private struct CheckInRow: View {
     let workTitle: String
     let studentNames: String
     var onTap: () -> Void
+    var onChanged: (() -> Void)? = nil
+
+    @Environment(\.modelContext) private var modelContext
+    @State private var showRescheduleSheet = false
+    @State private var rescheduleDate = Date()
 
     var body: some View {
         Button(action: onTap) {
@@ -364,11 +375,51 @@ private struct CheckInRow: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
                     .background(Capsule().fill(Color.orange.opacity(0.12)))
+                Menu {
+                    Button("Mark Completed", systemImage: "checkmark.circle") {
+                        let service = WorkCheckInService(context: modelContext)
+                        do { try service.markCompleted(ci) } catch {}
+                        onChanged?()
+                    }
+                    Button("Skip", systemImage: "forward.end") {
+                        let service = WorkCheckInService(context: modelContext)
+                        do { try service.skip(ci) } catch {}
+                        onChanged?()
+                    }
+                    Button("Reschedule", systemImage: "calendar") {
+                        rescheduleDate = ci.date
+                        showRescheduleSheet = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
         }
         .buttonStyle(.plain)
+        .sheet(isPresented: $showRescheduleSheet) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Reschedule Check-In").font(.headline)
+                DatePicker("Date", selection: $rescheduleDate, displayedComponents: .date)
+                HStack {
+                    Spacer()
+                    Button("Cancel") { showRescheduleSheet = false }
+                    Button("Save") {
+                        let service = WorkCheckInService(context: modelContext)
+                        do { try service.reschedule(ci, to: rescheduleDate) } catch {}
+                        showRescheduleSheet = false
+                        onChanged?()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding()
+#if os(macOS)
+            .frame(minWidth: 360)
+#endif
+        }
     }
 }
 
