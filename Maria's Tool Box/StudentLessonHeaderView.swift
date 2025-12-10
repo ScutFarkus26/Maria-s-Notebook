@@ -5,13 +5,25 @@ struct StudentLessonHeaderView: View {
     let subject: String
     let group: String
     let subjectColor: Color
+    var onTapTitle: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 12) {
-            Text(lessonName)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
+            if let onTapTitle {
+                Button(action: onTapTitle) {
+                    Text(lessonName)
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open Pages file for \(lessonName)")
+            } else {
+                Text(lessonName)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
 
             HStack(spacing: 8) {
                 if !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

@@ -1,6 +1,12 @@
 import SwiftUI
 import SwiftData
 
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
+
 struct StudentLessonDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -90,6 +96,44 @@ struct StudentLessonDetailView: View {
     private var nextLessonInGroup: Lesson? {
         guard let current = lessonObject else { return nil }
         return vm.nextLessonInGroup(from: current, lessons: lessons)
+    }
+    
+    private func resolveLessonPagesURL() -> URL? {
+        guard let lesson = lessonObject else { return nil }
+        // Prefer relative path inside managed container
+        if let rel = lesson.pagesFileRelativePath, !rel.isEmpty, let url = try? LessonFileStorage.resolve(relativePath: rel) {
+            return url
+        }
+        // Fallback to legacy bookmark
+        guard let bookmark = lesson.pagesFileBookmark else { return nil }
+        var stale = false
+        do {
+#if os(macOS)
+            let url = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+#else
+            let url = try URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+#endif
+            _ = url.startAccessingSecurityScopedResource()
+            return url
+        } catch {
+            return nil
+        }
+    }
+    
+    private func openInPages(_ url: URL) {
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+#if os(iOS)
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+#elseif os(macOS)
+        if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.open([url], withApplicationAt: pagesAppURL, configuration: config, completionHandler: nil)
+        } else {
+            NSWorkspace.shared.open(url)
+        }
+#endif
     }
 
     private func planNextLessonInGroup() {
@@ -375,11 +419,19 @@ struct StudentLessonDetailView: View {
     
     /// 1. Lesson Header: Large title + subject/category pills
     private var lessonHeaderSection: some View {
-        StudentLessonHeaderView(
+        let hasFile: Bool = {
+            if let lesson = lessonObject {
+                if let rel = lesson.pagesFileRelativePath, !rel.isEmpty { return true }
+                if lesson.pagesFileBookmark != nil { return true }
+            }
+            return false
+        }()
+        return StudentLessonHeaderView(
             lessonName: lessonName,
             subject: lessonObject?.subject ?? "",
             group: lessonObject?.group ?? "",
-            subjectColor: subjectColor
+            subjectColor: subjectColor,
+            onTapTitle: hasFile ? { if let url = resolveLessonPagesURL() { openInPages(url) } } : nil
         )
     }
     

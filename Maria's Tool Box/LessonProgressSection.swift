@@ -5,6 +5,8 @@ struct LessonProgressSection: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
 
+    private enum PresentedMode { case none, just, previous }
+
     let subjectColor: Color
 
     @Binding var isPresented: Bool
@@ -39,11 +41,14 @@ struct LessonProgressSection: View {
     @State private var presentedDate: Date = Date()
     @State private var showRePresentPopover = false
     @State private var rePresentDate: Date = Date()
+    @State private var showJustPresentedFlash = false
+    @State private var actionBounceID = UUID()
+    @State private var presentedMode: PresentedMode = .none
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 12) {
             header
-            content
+            progressCard
         }
     }
 
@@ -58,210 +63,206 @@ struct LessonProgressSection: View {
         }
     }
 
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            presentedRow
-            practiceRow
-            rePresentRow
-            followUpRow
-            nextLessonRow
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
-        )
-    }
-
-    private var presentedRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                // New: "Just Presented" button to quickly mark as presented today
-                Button {
-                    isPresented = true
-                    givenAt = calendar.startOfDay(for: Date())
-                } label: {
-                    Text("Just Presented")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                }
-                .buttonStyle(.bordered)
-                .tint(.green)
-
-                Toggle(isOn: $isPresented) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(isPresented ? .green : .secondary)
-                            .font(.system(size: 18))
-                        Text("Presented")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                    }
-                }
-                .toggleStyle(.button)
-                .buttonStyle(.borderless)
-                .tint(.green)
-
-                Spacer()
-
-                if isPresented {
+    private var progressCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 16) {
+                // State chips row
+                HStack(spacing: 10) {
+                    // Just Presented
                     Button {
-                        presentedDate = calendar.startOfDay(for: givenAt ?? Date())
-                        showPresentedPopover.toggle()
-                    } label: {
-                        HStack(spacing: 4) {
-                            if let date = givenAt {
-                                Text(date, style: .date)
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                            } else {
-                                Text("Add Date")
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                            }
-                            Image(systemName: "calendar")
-                                .font(.system(size: 12))
+                        isPresented = true
+                        givenAt = calendar.startOfDay(for: Date())
+                        presentedMode = .just
+                        showJustPresentedFlash = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                            showJustPresentedFlash = false
                         }
-                        .foregroundStyle(.secondary)
+                    } label: {
+                        StatusChip(
+                            title: "Just Presented",
+                            systemImage: "checkmark.circle.fill",
+                            tint: .green,
+                            active: presentedMode == .just
+                        )
                     }
                     .buttonStyle(.plain)
-                    .popover(isPresented: $showPresentedPopover, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Presentation Date")
-                                .font(.headline)
-                            DatePicker("Date", selection: $presentedDate, displayedComponents: [.date])
-                            #if os(macOS)
-                            .datePickerStyle(.field)
-                            #else
-                            .datePickerStyle(.compact)
-                            #endif
-                            HStack {
-                                Button("Clear") {
-                                    givenAt = nil
-                                    showPresentedPopover = false
-                                }
-                                Spacer()
-                                Button("Set") {
-                                    givenAt = calendar.startOfDay(for: presentedDate)
-                                    showPresentedPopover = false
-                                }
-                                .buttonStyle(.borderedProminent)
-                            }
-                        }
-                        .padding(12)
-                        .frame(minWidth: 280)
-                    }
-                }
-            }
-        }
-    }
+                    .sensoryFeedback(.success, trigger: showJustPresentedFlash)
 
-    private var practiceRow: some View {
-        HStack {
-            Button {
-                addPracticeIfNeeded()
-            } label: {
-                Label("Add Practice", systemImage: "arrow.triangle.2.circlepath")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-            }
-            .buttonStyle(.bordered)
-            Spacer()
-        }
-    }
-
-    private var rePresentRow: some View {
-        HStack {
-            Toggle(isOn: $needsAnotherPresentation) {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.clockwise.circle.fill")
-                        .foregroundStyle(needsAnotherPresentation ? .orange : .secondary)
-                        .font(.system(size: 18))
-                    Text("Needs Another Presentation")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                }
-            }
-            .toggleStyle(.button)
-            .buttonStyle(.borderless)
-            .tint(.orange)
-
-            Spacer()
-
-            if needsAnotherPresentation {
-                Button {
-                    rePresentDate = defaultRePresentDate()
-                    showRePresentPopover.toggle()
-                } label: {
-                    Label("Schedule", systemImage: "calendar.badge.clock")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                }
-                .buttonStyle(.bordered)
-                .popover(isPresented: $showRePresentPopover, arrowEdge: .top) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Schedule Re-presentation")
-                            .font(.headline)
-                        DatePicker("Date", selection: $rePresentDate, displayedComponents: [.date])
-                        #if os(macOS)
-                        .datePickerStyle(.field)
-                        #else
-                        .datePickerStyle(.compact)
-                        #endif
-                        HStack {
-                            Spacer()
-                            Button("Schedule") {
-                                scheduleRePresent(on: rePresentDate)
-                                showRePresentPopover = false
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
-                    .padding(12)
-                    .frame(minWidth: 280)
-                }
-            }
-        }
-    }
-
-    private var followUpRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(.yellow)
-                    .font(.system(size: 16))
-                Text("Follow-Up Work")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-            }
-
-            Button {
-                followUpDraft = ""
-                showFollowUpSheet = true
-            } label: {
-                Label("Add Follow-Up…", systemImage: "plus")
-                    .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
-    private var nextLessonRow: some View {
-        Group {
-            if isPresented, let next = nextLessonInGroup {
-                Divider()
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.right.circle")
-                            .foregroundStyle(.blue)
-                            .font(.system(size: 16))
-                        Text("Next in Group: \(next.name)")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                    }
-
+                    // Previously Presented
                     Button {
-                        planNextLessonInGroup()
+                        isPresented = true
+                        // Date is optional; leave as-is until chosen
+                        presentedMode = .previous
                     } label: {
-                        Label("Plan Next Lesson", systemImage: "calendar.badge.plus")
-                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                        StatusChip(
+                            title: "Previously Presented",
+                            systemImage: "clock.badge.checkmark",
+                            tint: .green,
+                            active: presentedMode == .previous
+                        )
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(didPlanNext || studentLessonsAll.contains { sl in
-                        sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
-                    })
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    if presentedMode == .previous && isPresented {
+                        Button {
+                            presentedDate = calendar.startOfDay(for: givenAt ?? Date())
+                            showPresentedPopover.toggle()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "calendar")
+                                if let date = givenAt {
+                                    Text(date, style: .date)
+                                } else {
+                                    Text("Add Date")
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showPresentedPopover, arrowEdge: .top) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Presentation Date")
+                                    .font(.headline)
+                                DatePicker("Date", selection: $presentedDate, displayedComponents: [.date])
+                                #if os(macOS)
+                                .datePickerStyle(.field)
+                                #else
+                                .datePickerStyle(.compact)
+                                #endif
+                                HStack {
+                                    Button("Clear") {
+                                        givenAt = nil
+                                        showPresentedPopover = false
+                                    }
+                                    Spacer()
+                                    Button("Set") {
+                                        givenAt = calendar.startOfDay(for: presentedDate)
+                                        showPresentedPopover = false
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                }
+                            }
+                            .padding(12)
+                            .frame(minWidth: 280)
+                        }
+                    }
+                }
+
+                // Bottom row: Needs another presentation aligned right
+                HStack {
+                    Spacer()
+                    Toggle(isOn: $needsAnotherPresentation) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                                .foregroundStyle(needsAnotherPresentation ? .orange : .secondary)
+                                .font(.system(size: 18))
+                            Text("Needs Another Presentation")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                        }
+                    }
+                    .toggleStyle(.button)
+                    .buttonStyle(.borderless)
+                    .tint(.orange)
+
+                    if needsAnotherPresentation {
+                        Button {
+                            rePresentDate = defaultRePresentDate()
+                            showRePresentPopover.toggle()
+                        } label: {
+                            Label("Schedule", systemImage: "calendar.badge.clock")
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        }
+                        .buttonStyle(.bordered)
+                        .popover(isPresented: $showRePresentPopover, arrowEdge: .top) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Schedule Re-presentation")
+                                    .font(.headline)
+                                DatePicker("Date", selection: $rePresentDate, displayedComponents: [.date])
+                                #if os(macOS)
+                                .datePickerStyle(.field)
+                                #else
+                                .datePickerStyle(.compact)
+                                #endif
+                                HStack {
+                                    Spacer()
+                                    Button("Schedule") {
+                                        scheduleRePresent(on: rePresentDate)
+                                        showRePresentPopover = false
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                }
+                            }
+                            .padding(12)
+                            .frame(minWidth: 280)
+                        }
+                    }
+                }
+
+                // Hairline divider
+                Divider().overlay(Color.white.opacity(0.06))
+
+                // Actions row
+                HStack(spacing: 12) {
+                    ActionPill(
+                        title: "Add Practice",
+                        systemImage: "arrow.triangle.2.circlepath",
+                        tint: .purple
+                    ) {
+                        addPracticeIfNeeded()
+                    }
+
+                    ActionPill(
+                        title: "Add Follow‑Up",
+                        systemImage: "plus",
+                        tint: .yellow
+                    ) {
+                        followUpDraft = ""
+                        showFollowUpSheet = true
+                    }
+                    
+                    Spacer()
+                }
+
+                // Next in group suggestion
+                if isPresented, let next = nextLessonInGroup {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.right.circle")
+                                .foregroundStyle(.blue)
+                            Text("Next in Group: \(next.name)")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                        }
+                        Button {
+                            planNextLessonInGroup()
+                        } label: {
+                            Label("Plan Next Lesson", systemImage: "calendar.badge.plus")
+                                .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(didPlanNext || studentLessonsAll.contains { sl in
+                            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
+                        })
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color.green.opacity(showJustPresentedFlash ? 0.5 : 0.0), lineWidth: 2)
+            )
+            .animation(.easeInOut(duration: 0.6), value: showJustPresentedFlash)
+            .onAppear {
+                if isPresented {
+                    if let date = givenAt, calendar.isDateInToday(date) {
+                        presentedMode = .just
+                    } else {
+                        presentedMode = .previous
+                    }
+                } else {
+                    presentedMode = .none
                 }
             }
         }
@@ -364,3 +365,76 @@ struct LessonProgressSection: View {
         }
     }
 }
+
+private struct GlassCard<Content: View>: View {
+    let content: () -> Content
+    init(@ViewBuilder content: @escaping () -> Content) { self.content = content }
+    var body: some View {
+        content()
+            .padding(16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                    .blendMode(.overlay)
+            )
+            .shadow(color: .black.opacity(0.25), radius: 20, y: 10)
+    }
+}
+
+private struct StatusChip: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    var active: Bool = true
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+            Text(title)
+        }
+        .font(.callout.weight(.semibold))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .foregroundStyle(tint)
+        .background(
+            Capsule(style: .continuous)
+                .fill(tint.opacity(active ? 0.20 : 0.10))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(tint.opacity(0.35), lineWidth: 1)
+        )
+        .contentTransition(.opacity)
+        .animation(.spring(response: 0.25, dampingFraction: 0.9), value: active)
+    }
+}
+
+private struct ActionPill: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let action: () -> Void
+    @State private var bounce = false
+
+    var body: some View {
+        Button {
+            bounce.toggle()
+            action()
+        } label: {
+            Label(title, systemImage: systemImage)
+                .font(.callout.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.06))
+                )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(tint)
+        .symbolEffect(.bounce, value: bounce)
+    }
+}
+
