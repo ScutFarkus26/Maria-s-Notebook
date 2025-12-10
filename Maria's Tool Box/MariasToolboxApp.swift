@@ -131,6 +131,8 @@ struct MariasToolboxApp: App {
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
+        .windowResizability(.automatic)
+        .defaultSize(width: 1200, height: 800)
         #endif
         .modelContainer(sharedModelContainer)
         .commands {
@@ -193,6 +195,8 @@ struct MariasToolboxApp: App {
             }
         }
         .windowStyle(.hiddenTitleBar)
+        .windowResizability(.automatic)
+        .defaultSize(width: 900, height: 700)
         .modelContainer(sharedModelContainer)
         #endif
     }

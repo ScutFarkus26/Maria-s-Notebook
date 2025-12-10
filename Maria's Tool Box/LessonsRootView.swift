@@ -310,135 +310,137 @@ struct LessonsRootView: View {
 
     // MARK: - Sidebar
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Filters")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-
-            // Search field replacing the previous "All" filter
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Filters")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
-                TextField("Search all lessons", text: $filterState.searchText)
-                    .textFieldStyle(.plain)
-                if !filterState.searchText.isEmpty {
-                    Button {
-                        filterState.searchText = ""
-                        recomputeFilteredLessons()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-            )
+                    .padding(.horizontal, 8)
 
-            ForEach(Array(subjects.enumerated()), id: \.element) { pair in
-                let index = pair.offset
-                let subject = pair.element
-                SidebarFilterButton(
-                    icon: "folder.fill",
-                    title: subject,
-                    color: AppColors.color(forSubject: subject),
-                    isSelected: (filterState.selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (filterState.selectedGroup == nil),
-                    trailingIcon: "chevron.right",
-                    trailingIconRotationDegrees: isExpanded(subject) ? 90 : 0,
-                    trailingIconAction: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                            toggleExpanded(subject)
-                        }
-                        let key = LessonsFilterPersistence.normalizeSubjectKey(subject)
-                        if groupsCache[key] == nil {
-                            let computed = viewModel.groups(for: subject, lessons: lessons)
-                            DispatchQueue.main.async {
-                                groupsCache[key] = computed
-                            }
-                        }
-                    }
-                ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        // Clear any active search so the subject filter takes effect immediately
-                        filterState.searchText = ""
-                        filterState.selectedSubject = subject
-                        filterState.selectedGroup = nil
-                    }
-                    recomputeFilteredLessons()
-                }
-                .onDrag {
-                    self.subjectDragState.from = index
-                    return NSItemProvider(object: NSString(string: subject))
-                }
-                .onDrop(of: [UTType.text], delegate: SubjectDropDelegate(
-                    index: index,
-                    currentItems: subjects,
-                    dragState: $subjectDragState,
-                    onReorder: { from, to in
-                        var new = subjects
-                        let item = new.remove(at: from)
-                        new.insert(item, at: to)
-                        FilterOrderStore.saveSubjectOrder(new)
-                    }
-                ))
-
-                if isExpanded(subject) {
-                    let groupsForSubject = groups(for: subject)
-                    ForEach(Array(groupsForSubject.enumerated()), id: \.element) { gpair in
-                        let gindex = gpair.offset
-                        let group = gpair.element
-                        SidebarFilterButton(
-                            icon: "tag.fill",
-                            title: group,
-                            color: AppColors.color(forSubject: subject),
-                            isSelected: (filterState.selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (filterState.selectedGroup?.caseInsensitiveCompare(group) == .orderedSame)
-                        ) {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                                // Clear any active search so the group filter takes effect immediately
-                                filterState.searchText = ""
-                                filterState.selectedSubject = subject
-                                filterState.selectedGroup = group
-                                if !isExpanded(subject) { toggleExpanded(subject) }
-                            }
+                // Search field replacing the previous "All" filter
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search all lessons", text: $filterState.searchText)
+                        .textFieldStyle(.plain)
+                    if !filterState.searchText.isEmpty {
+                        Button {
+                            filterState.searchText = ""
                             recomputeFilteredLessons()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(.leading, 16)
-                        .onDrag {
-                            self.groupDragState[subject, default: (nil,nil)].from = gindex
-                            return NSItemProvider(object: NSString(string: group))
-                        }
-                        .onDrop(of: [UTType.text], delegate: GroupDropDelegate(
-                            subject: subject,
-                            index: gindex,
-                            currentItems: groupsForSubject,
-                            dragState: Binding(get: {
-                                groupDragState[subject, default: (nil,nil)]
-                            }, set: { newValue in
-                                groupDragState[subject] = newValue
-                            }),
-                            onReorder: { from, to in
-                                var new = groupsForSubject
-                                let item = new.remove(at: from)
-                                new.insert(item, at: to)
-                                FilterOrderStore.saveGroupOrder(new, for: subject)
-                                let key = LessonsFilterPersistence.normalizeSubjectKey(subject)
-                                groupsCache[key] = new
-                            }
-                        ))
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear search")
                     }
                 }
-            }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.primary.opacity(0.06))
+                )
 
-            Spacer(minLength: 0)
+                ForEach(Array(subjects.enumerated()), id: \.element) { pair in
+                    let index = pair.offset
+                    let subject = pair.element
+                    SidebarFilterButton(
+                        icon: "folder.fill",
+                        title: subject,
+                        color: AppColors.color(forSubject: subject),
+                        isSelected: (filterState.selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (filterState.selectedGroup == nil),
+                        trailingIcon: "chevron.right",
+                        trailingIconRotationDegrees: isExpanded(subject) ? 90 : 0,
+                        trailingIconAction: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                                toggleExpanded(subject)
+                            }
+                            let key = LessonsFilterPersistence.normalizeSubjectKey(subject)
+                            if groupsCache[key] == nil {
+                                let computed = viewModel.groups(for: subject, lessons: lessons)
+                                DispatchQueue.main.async {
+                                    groupsCache[key] = computed
+                                }
+                            }
+                        }
+                    ) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                            // Clear any active search so the subject filter takes effect immediately
+                            filterState.searchText = ""
+                            filterState.selectedSubject = subject
+                            filterState.selectedGroup = nil
+                        }
+                        recomputeFilteredLessons()
+                    }
+                    .onDrag {
+                        self.subjectDragState.from = index
+                        return NSItemProvider(object: NSString(string: subject))
+                    }
+                    .onDrop(of: [UTType.text], delegate: SubjectDropDelegate(
+                        index: index,
+                        currentItems: subjects,
+                        dragState: $subjectDragState,
+                        onReorder: { from, to in
+                            var new = subjects
+                            let item = new.remove(at: from)
+                            new.insert(item, at: to)
+                            FilterOrderStore.saveSubjectOrder(new)
+                        }
+                    ))
+
+                    if isExpanded(subject) {
+                        let groupsForSubject = groups(for: subject)
+                        ForEach(Array(groupsForSubject.enumerated()), id: \.element) { gpair in
+                            let gindex = gpair.offset
+                            let group = gpair.element
+                            SidebarFilterButton(
+                                icon: "tag.fill",
+                                title: group,
+                                color: AppColors.color(forSubject: subject),
+                                isSelected: (filterState.selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame) && (filterState.selectedGroup?.caseInsensitiveCompare(group) == .orderedSame)
+                            ) {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                                    // Clear any active search so the group filter takes effect immediately
+                                    filterState.searchText = ""
+                                    filterState.selectedSubject = subject
+                                    filterState.selectedGroup = group
+                                    if !isExpanded(subject) { toggleExpanded(subject) }
+                                }
+                                recomputeFilteredLessons()
+                            }
+                            .padding(.leading, 16)
+                            .onDrag {
+                                self.groupDragState[subject, default: (nil,nil)].from = gindex
+                                return NSItemProvider(object: NSString(string: group))
+                            }
+                            .onDrop(of: [UTType.text], delegate: GroupDropDelegate(
+                                subject: subject,
+                                index: gindex,
+                                currentItems: groupsForSubject,
+                                dragState: Binding(get: {
+                                    groupDragState[subject, default: (nil,nil)]
+                                }, set: { newValue in
+                                    groupDragState[subject] = newValue
+                                }),
+                                onReorder: { from, to in
+                                    var new = groupsForSubject
+                                    let item = new.remove(at: from)
+                                    new.insert(item, at: to)
+                                    FilterOrderStore.saveGroupOrder(new, for: subject)
+                                    let key = LessonsFilterPersistence.normalizeSubjectKey(subject)
+                                    groupsCache[key] = new
+                                }
+                            ))
+                        }
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 16)
+            .padding(.leading, 16)
         }
-        .padding(.vertical, 16)
-        .padding(.leading, 16)
         .frame(width: 180, alignment: .topLeading)
         .background(Color.gray.opacity(0.08))
     }

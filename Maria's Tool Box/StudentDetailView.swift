@@ -80,11 +80,7 @@ struct StudentDetailView: View {
     }
 
     private var ageDescription: String {
-        let comps = Calendar.current.dateComponents([.year, .month, .day], from: student.birthday, to: Date())
-        let years = comps.year ?? 0
-        if years <= 0 { return "Less than 1 year old" }
-        if years == 1 { return "1 year old" }
-        return "\(years) years old"
+        AgeUtils.verboseAgeString(for: student.birthday)
     }
 
     private var initials: String {

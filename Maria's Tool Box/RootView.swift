@@ -120,6 +120,9 @@ struct RootView: View {
             selectedTabRaw = Tab.students.rawValue
             UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
         }
+#if os(macOS)
+        .background(EnsureResizableWindow(minSize: NSSize(width: 900, height: 600)))
+#endif
     }
 
     // MARK: - Styling
