@@ -12,7 +12,6 @@ struct PlanningDragItem: Codable, Transferable, Equatable {
     let id: UUID
 
     static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .planningDragItem)
         ProxyRepresentation(exporting: \.stringPayload)
     }
     

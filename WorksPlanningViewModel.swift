@@ -31,6 +31,24 @@ final class WorksPlanningViewModel {
         PlanningEngine.days(from: startDate, window: window, calendar: calendar)
     }
 
+    func computeSchoolDays(count: Int) -> [Date] {
+        var result: [Date] = []
+        var d = startDate
+        var safety = 0
+        while result.count < count && safety < 1000 {
+            if !isNonSchoolDay(d) {
+                result.append(d)
+            }
+            if let next = calendar.date(byAdding: .day, value: 1, to: d) {
+                d = next
+            } else {
+                break
+            }
+            safety += 1
+        }
+        return result
+    }
+
     func moveStart(bySchoolDays days: Int) {
         startDate = PlanningEngine.moveBySchoolDays(from: startDate, days: days, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }

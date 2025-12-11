@@ -26,23 +26,6 @@ final class TodayViewModel: ObservableObject {
         }
     }
 
-#if DEBUG
-    // Lightweight debug logging for TodayViewModel
-    private static let iso: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.timeZone = .current
-        return f
-    }()
-    private func fmt(_ d: Date?) -> String {
-        guard let d = d else { return "nil" }
-        if d == Date.distantPast { return "distantPast" }
-        return TodayViewModel.iso.string(from: d)
-    }
-    private func dbg(_ s: @autoclosure () -> String) {
-        print("[Today]", s())
-    }
-#endif
-
     // MARK: - Dependencies
     private let context: ModelContext
     private var calendar: Calendar
@@ -109,10 +92,6 @@ final class TodayViewModel: ObservableObject {
         let day = cal.startOfDay(for: date)
         let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day
 
-#if DEBUG
-        dbg("tz=\(cal.timeZone.identifier) date=\(fmt(self.date)) day=\(fmt(day)) next=\(fmt(nextDay)) level=\(levelFilter.rawValue)")
-#endif
-
         // Build lookup caches first
         let students = (try? context.fetch(FetchDescriptor<Student>())) ?? []
         studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
@@ -122,17 +101,6 @@ final class TodayViewModel: ObservableObject {
         worksByID = Dictionary(uniqueKeysWithValues: allWorks.map { ($0.id, $0) })
         let allStudentLessons = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
         studentLessonsByID = Dictionary(uniqueKeysWithValues: allStudentLessons.map { ($0.id, $0) })
-
-#if DEBUG
-        dbg("caches: students=\(studentsByID.count) lessons=\(lessonsByID.count) works=\(worksByID.count) sls=\(studentLessonsByID.count)")
-        let slAllCount = studentLessonsByID.count
-        if slAllCount > 0 {
-            let sample = Array(studentLessonsByID.values.prefix(5))
-            for sl in sample {
-                dbg("sample sl=\(sl.id) scheduledForDay=\(fmt(sl.scheduledForDay)) scheduledFor=\(fmt(sl.scheduledFor)) isGiven=\(sl.isGiven)")
-            }
-        }
-#endif
 
         // Lessons scheduled for today — fetch by denormalized day and by exact scheduled time separately,
         // then merge to avoid optional/OR predicate pitfalls.
@@ -144,10 +112,6 @@ final class TodayViewModel: ObservableObject {
                 sortBy: []
             )
             var lessons = try context.fetch(byDayDescriptor)
-
-#if DEBUG
-            dbg("byDay=\(lessons.count)")
-#endif
 
             // Stable sort: by scheduledForDay, then scheduledFor (if available), then createdAt
             lessons.sort { lhs, rhs in
@@ -164,13 +128,7 @@ final class TodayViewModel: ObservableObject {
 
             todaysLessons = filterByLevelIfNeeded(lessons, studentsByID: self.studentsByID)
 
-#if DEBUG
-            dbg("todaysLessons after filter=\(todaysLessons.count)")
-#endif
         } catch {
-#if DEBUG
-            dbg("fetch error: \(error)")
-#endif
             // Fallback: filter in-memory if predicate fetch fails (e.g., schema mismatch during migration)
             let inMem = allStudentLessons.filter { sl in
                 let sfd = sl.scheduledForDay
@@ -182,9 +140,6 @@ final class TodayViewModel: ObservableObject {
                 }()
                 return matchesDay || matchesExact
             }
-#if DEBUG
-            dbg("fallback in-mem matched=\(inMem.count)")
-#endif
             todaysLessons = filterByLevelIfNeeded(inMem, studentsByID: self.studentsByID)
         }
 

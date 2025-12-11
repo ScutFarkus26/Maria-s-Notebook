@@ -162,7 +162,7 @@ struct WorksPlanningView: View {
     }
 
     private var header: some View {
-        let days = viewModel.computeDays(window: UIConstants.planningWindowDays)
+        let days = viewModel.computeSchoolDays(count: 7)
         let first = days.first ?? Date()
         let last = days.last ?? Date()
         return AgendaHeaderView(
@@ -187,7 +187,7 @@ struct WorksPlanningView: View {
     }
 
     private var agenda: some View {
-        let days: [Date] = viewModel.computeDays(window: UIConstants.planningWindowDays)
+        let days: [Date] = viewModel.computeSchoolDays(count: 7)
         let grouped: [DayKey: [ScheduledItem]] = viewModel.groupedItems(works: works)
 
         return ScrollViewReader { proxy in
@@ -369,7 +369,7 @@ struct WorksPlanningView: View {
                     } else {
                         ForEach(items) { item in
                             rowView(for: item)
-                                .draggable("CHECKIN:\(item.checkIn.id.uuidString)") {
+                                .draggable(PlanningDragItem.checkIn(item.checkIn.id)) {
                                     rowView(for: item).opacity(0.9)
                                 }
                                 .background(
@@ -418,7 +418,7 @@ struct WorksPlanningView: View {
                 itemFrames = frames
             }
             .contentShape(RoundedRectangle(cornerRadius: 10))
-            .onDrop(of: [UTType.planningDragItem, .plainText], delegate: WorkAgendaDropDelegate(
+            .onDrop(of: [.plainText], delegate: WorkAgendaDropDelegate(
                 calendar: calendar,
                 modelContext: modelContext,
                 works: works,
@@ -567,49 +567,41 @@ struct WorkAgendaDropDelegate: DropDelegate {
     }
 
     func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [UTType.planningDragItem, .plainText])
+        info.hasItemsConforming(to: [.plainText])
     }
 
     func performDrop(info: DropInfo) -> Bool {
         onTargetChange(false)
         onInsertionIndexChange(nil)
-        let providers = info.itemProviders(for: [UTType.planningDragItem, .plainText])
+        let providers = info.itemProviders(for: [.plainText])
         return performDropFromProvidersAsync(providers: providers, location: info.location)
     }
 
     private func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
-        guard let provider = providers.first else { return false }
+        guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
 
-        // Prefer our custom transferable payload
-        if provider.hasItemConformingToTypeIdentifier(UTType.planningDragItem.identifier) {
-            provider.loadDataRepresentation(forTypeIdentifier: UTType.planningDragItem.identifier) { data, _ in
-                guard let data else { return }
-                let decoder = JSONDecoder()
-                if let payload = try? decoder.decode(PlanningDragItem.self, from: data) {
-                    Task { @MainActor in
-                        handleTypedPayload(payload, locationY: location.y)
-                    }
+        provider.loadObject(ofClass: NSString.self) { reading, _ in
+            guard let ns = reading as? NSString else { return }
+            let s = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            let payload: PlanningDragItem?
+            if s.hasPrefix("WORK:"), let id = UUID(uuidString: String(s.dropFirst("WORK:".count))) {
+                payload = .work(id)
+            } else if s.hasPrefix("CHECKIN:"), let id = UUID(uuidString: String(s.dropFirst("CHECKIN:".count))) {
+                payload = .checkIn(id)
+            } else if let id = UUID(uuidString: s) {
+                payload = .checkIn(id)
+            } else {
+                payload = nil
+            }
+
+            if let payload {
+                Task { @MainActor in
+                    handleTypedPayload(payload, locationY: location.y)
                 }
             }
-            return true
         }
-
-        // Fallback: accept plain text UUIDs (treat as check-in IDs)
-        if provider.canLoadObject(ofClass: NSString.self) {
-            provider.loadObject(ofClass: NSString.self) { reading, _ in
-                guard let ns = reading as? NSString else { return }
-                let s = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
-                if let id = UUID(uuidString: s) {
-                    let payload = PlanningDragItem.checkIn(id)
-                    Task { @MainActor in
-                        handleTypedPayload(payload, locationY: location.y)
-                    }
-                }
-            }
-            return true
-        }
-
-        return false
+        return true
     }
 
     @MainActor
@@ -708,7 +700,7 @@ private struct InboxSidebarView: View {
                                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
                         }
                         .buttonStyle(.plain)
-                        .draggable("WORK:\(w.id.uuidString)") {
+                        .draggable(PlanningDragItem.work(w.id)) {
                             inboxRowContent(w, includeMenu: false)
                                 .padding(10)
                                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.08)))
