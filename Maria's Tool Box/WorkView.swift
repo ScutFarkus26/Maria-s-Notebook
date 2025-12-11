@@ -345,12 +345,6 @@ struct WorkView: View {
 #if !os(macOS)
         .toolbar {
             if hSize == .compact {
-                ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 12) {
-                        PillNavButton(title: "Items", isSelected: mode == .items) { mode = .items }
-                        PillNavButton(title: "Planning", isSelected: mode == .planning) { mode = .planning }
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isPresentingAddWork = true
@@ -358,9 +352,6 @@ struct WorkView: View {
                         Image(systemName: "plus.circle.fill")
                     }
                     .keyboardShortcut("n", modifiers: [.command])
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    filtersMenu
                 }
             }
         }
@@ -393,57 +384,7 @@ struct WorkView: View {
 #if !os(macOS)
     private var compactLayout: some View {
         VStack(spacing: 0) {
-            // Inline search
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search notes or lesson names", text: $filters.searchText)
-                if !filters.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button { filters.searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-            )
-            .padding(.horizontal)
-            .padding(.top, 8)
-
-            Divider()
-
-            // Content area
-            Group {
-                if mode == .items {
-                    if workItems.isEmpty {
-                        WorkEmptyStateView(type: .noWork)
-                    } else if filteredWorks.isEmpty {
-                        WorkEmptyStateView(type: .noMatchingFilters)
-                    } else {
-                        WorkContentView(
-                            works: filteredWorks,
-                            grouping: filters.grouping,
-                            lookupService: lookupService,
-                            onTapWork: handleWorkSelection,
-                            onToggleComplete: handleToggleComplete
-                        )
-                    }
-                } else {
-                    WorksPlanningView()
-                }
-            }
-        }
-        .popover(isPresented: $isShowingStudentFilterPopover, arrowEdge: .top) {
-            StudentFilterView(
-                selectedStudentIDs: $filters.selectedStudentIDs,
-                students: students,
-                displayName: lookupService.displayName,
-                onDismiss: { isShowingStudentFilterPopover = false }
-            )
+            WorksPlanningView()
         }
     }
 #endif
@@ -465,8 +406,7 @@ struct WorkView: View {
                 HStack {
                     Spacer()
                     HStack(spacing: 12) {
-                        PillNavButton(title: "Items", isSelected: mode == .items) { mode = .items }
-                        PillNavButton(title: "Planning", isSelected: mode == .planning) { mode = .planning }
+                        PillNavButton(title: "Planning", isSelected: true) { }
                     }
                     Spacer()
                 }
@@ -474,23 +414,7 @@ struct WorkView: View {
                 .padding(.bottom, 8)
                 
                 Group {
-                    if mode == .items {
-                        if workItems.isEmpty {
-                            WorkEmptyStateView(type: .noWork)
-                        } else if filteredWorks.isEmpty {
-                            WorkEmptyStateView(type: .noMatchingFilters)
-                        } else {
-                            WorkContentView(
-                                works: filteredWorks,
-                                grouping: filters.grouping,
-                                lookupService: lookupService,
-                                onTapWork: handleWorkSelection,
-                                onToggleComplete: handleToggleComplete
-                            )
-                        }
-                    } else {
-                        WorksPlanningView()
-                    }
+                    WorksPlanningView()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topTrailing) {

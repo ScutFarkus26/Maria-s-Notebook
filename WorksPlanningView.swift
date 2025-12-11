@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import Observation
 
 struct WorksPlanningView: View {
     @Environment(\.modelContext) private var modelContext
@@ -10,110 +11,17 @@ struct WorksPlanningView: View {
     @Query private var students: [Student]
     @Query private var lessons: [Lesson]
 
-    private enum ActiveSheet: Identifiable, Equatable {
-        case schedule(workID: UUID)
-        case detail(workID: UUID)
-        var id: String {
-            switch self {
-            case .schedule(let id): return "schedule-\(id)"
-            case .detail(let id): return "detail-\(id)"
-            }
-        }
-    }
-    @State private var activeSheet: ActiveSheet? = nil
-
-    @State private var scheduleDate: Date = Date()
-    @State private var inboxIsTargeted: Bool = false
-
     @AppStorage("WorkPlanningAgenda.startDate") private var startDateRaw: Double = 0
-    @State private var startDate: Date = Date()
+
+    @State private var viewModel = WorksPlanningViewModel(
+        startDate: Date(),
+        calendar: Calendar.current,
+        isNonSchoolDay: { _ in false },
+        checkInService: { WorkCheckInService(context: $0) }
+    )
 
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
-
-    private enum DayPeriod: CaseIterable {
-        case morning, afternoon
-    }
-
-    private struct ScheduledItem: Identifiable {
-        let work: WorkModel
-        let checkIn: WorkCheckIn
-        var id: UUID { checkIn.id }
-    }
-
-    private var unscheduledWorks: [WorkModel] {
-        works.filter { work in
-            guard work.isOpen else { return false }
-            // Check if any incomplete check-in exists
-            return !work.checkIns.contains(where: { ci in
-                ci.status != .completed && ci.status != .skipped
-            })
-        }
-        .sorted(by: { $0.createdAt < $1.createdAt })
-    }
-
-    private var days: [Date] {
-        (0..<UIConstants.planningWindowDays).map { offset in
-            calendar.date(byAdding: .day, value: offset, to: startDate) ?? startDate
-        }
-    }
-
-    private func dayID(_ day: Date) -> String {
-        let start = calendar.startOfDay(for: day)
-        return "day_\(Int(start.timeIntervalSince1970))"
-    }
-
-    private func dayName(for day: Date) -> String {
-        let fmt = Date.FormatStyle()
-            .weekday(.abbreviated)
-        return day.formatted(fmt)
-    }
-
-    private func dayNumber(for day: Date) -> String {
-        let fmt = Date.FormatStyle()
-            .day()
-        return day.formatted(fmt)
-    }
-
-    private func dayShortLabel(for day: Date) -> String {
-        let fmt = Date.FormatStyle()
-            .weekday(.abbreviated)
-            .day()
-        return day.formatted(fmt)
-    }
-
-    private func isNonSchoolDay(_ day: Date) -> Bool {
-        SchoolCalendar.isNonSchoolDay(day, using: modelContext)
-    }
-
-    private func computeInitialStartDate() -> Date {
-        let today = calendar.startOfDay(for: .now)
-        return firstSchoolDay(onOrAfter: today)
-    }
-
-    private func firstSchoolDay(onOrAfter date: Date) -> Date {
-        var d = date
-        while isNonSchoolDay(d) {
-            guard let next = calendar.date(byAdding: .day, value: 1, to: d) else { break }
-            d = next
-        }
-        return d
-    }
-
-    private func movedStart(bySchoolDays days: Int) -> Date {
-        var count = abs(days)
-        let forward = days >= 0
-
-        var d = startDate
-        while count > 0 {
-            guard let next = calendar.date(byAdding: .day, value: forward ? 1 : -1, to: d) else { break }
-            d = next
-            if !isNonSchoolDay(d) {
-                count -= 1
-            }
-        }
-        return d
-    }
 
     private func workTitle(for work: WorkModel) -> String {
         let t = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -148,29 +56,39 @@ struct WorksPlanningView: View {
         }
         .onAppear {
             if startDateRaw != 0 {
-                startDate = Date(timeIntervalSince1970: startDateRaw)
+                viewModel.startDate = Date(timeIntervalSince1970: startDateRaw)
             } else {
-                startDate = computeInitialStartDate()
+                viewModel.startDate = PlanningEngine.firstSchoolDay(
+                    onOrAfter: calendar.startOfDay(for: .now),
+                    calendar: calendar,
+                    isNonSchoolDay: { SchoolCalendar.isNonSchoolDay($0, using: modelContext) }
+                )
             }
+            // Rebind closure to capture actual modelContext
+            viewModel = WorksPlanningViewModel(
+                startDate: viewModel.startDate,
+                calendar: calendar,
+                isNonSchoolDay: { day in SchoolCalendar.isNonSchoolDay(day, using: modelContext) },
+                checkInService: { WorkCheckInService(context: $0) }
+            )
         }
-        .onChange(of: startDate) { _, new in
+        .onChange(of: viewModel.startDate) { _, new in
             startDateRaw = new.timeIntervalSince1970
         }
-        .sheet(item: $activeSheet) { sheet in
+        .sheet(item: $viewModel.activeSheet) { (sheet: ActiveSheet) in
             switch sheet {
             case .schedule(let id):
-                ScheduleCheckInSheet(workID: id, initialDate: scheduleDate, onCancel: { activeSheet = nil }, onSave: { date in
-                    let service = WorkCheckInService(context: modelContext)
-                    if let work = (try? modelContext.fetch(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })))?.first {
-                        _ = try? service.createCheckIn(for: work, date: date, status: .scheduled, purpose: "", note: "")
-                    }
-                    activeSheet = nil
+                ScheduleCheckInSheet(workID: id, initialDate: viewModel.scheduleDate,
+                                     onCancel: { viewModel.activeSheet = nil },
+                                     onSave: { date in
+                    try? viewModel.scheduleCheckIn(for: id, on: date, context: modelContext)
+                    viewModel.activeSheet = nil
                 })
 #if os(macOS)
                 .frame(minWidth: 360)
 #endif
             case .detail(let id):
-                WorkDetailContainerView(workID: id) { activeSheet = nil }
+                WorkDetailContainerView(workID: id) { viewModel.activeSheet = nil }
 #if os(macOS)
                 .frame(minWidth: 720, minHeight: 640)
                 .presentationSizing(.fitted)
@@ -180,22 +98,28 @@ struct WorksPlanningView: View {
 #endif
             }
         }
+        .alert("Error", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
+            Button("OK", role: .cancel) { viewModel.errorMessage = nil }
+        } message: {
+            Text(viewModel.errorMessage ?? "")
+        }
     }
 
     private var sidebar: some View {
         InboxSidebarView(
-            unscheduledWorks: unscheduledWorks,
+            unscheduledWorks: viewModel.unscheduledWorks(from: works),
             workTitle: { workTitle(for: $0) },
             participantNames: { participantNames(for: $0) },
-            onOpen: { id in activeSheet = .detail(workID: id) },
+            onOpen: { id in viewModel.activeSheet = .detail(workID: id) },
             onSchedule: { id in
-                scheduleDate = Date()
-                activeSheet = .schedule(workID: id)
+                viewModel.scheduleDate = Date()
+                viewModel.activeSheet = .schedule(workID: id)
             }
         )
     }
 
     private var header: some View {
+        let days = viewModel.computeDays(window: UIConstants.planningWindowDays)
         let first = days.first ?? Date()
         let last = days.last ?? Date()
         return AgendaHeaderView(
@@ -203,29 +127,32 @@ struct WorksPlanningView: View {
             lastDate: last,
             onPrev: {
                 withAnimation {
-                    startDate = movedStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
+                    viewModel.moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
                 }
             },
             onToday: {
                 withAnimation {
-                    startDate = computeInitialStartDate()
+                    viewModel.resetToFirstSchoolDay(from: calendar.startOfDay(for: .now))
                 }
             },
             onNext: {
                 withAnimation {
-                    startDate = movedStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
+                    viewModel.moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
                 }
             }
         )
     }
 
     private var agenda: some View {
-        ScrollViewReader { proxy in
+        let days = viewModel.computeDays(window: UIConstants.planningWindowDays)
+        let grouped = viewModel.groupedItems(works: works)
+
+        return ScrollViewReader { proxy in
             VStack(spacing: 0) {
                 // Day strip
                 DayStripView(days: days) { day in
                     withAnimation {
-                        proxy.scrollTo(dayID(day), anchor: .top)
+                        proxy.scrollTo(viewModel.dayID(day), anchor: .top)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -240,28 +167,28 @@ struct WorksPlanningView: View {
                             Section(header: dayHeader(day)) {
                                 VStack(spacing: 12) {
                                     ForEach(DayPeriod.allCases, id: \.self) { period in
-                                        periodCard(day: day, period: period)
+                                        periodCard(day: day, period: period, grouped: grouped)
                                     }
                                 }
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 10)
                             }
-                            .id(dayID(day))
+                            .id(viewModel.dayID(day))
                         }
                     }
                     .padding(.vertical, 10)
                 }
             }
-            .onChange(of: startDate) { _, _ in
+            .onChange(of: viewModel.startDate) { _, _ in
                 if let firstDay = days.first {
                     withAnimation {
-                        proxy.scrollTo(dayID(firstDay), anchor: .top)
+                        proxy.scrollTo(viewModel.dayID(firstDay), anchor: .top)
                     }
                 }
             }
             .onAppear {
                 if let firstDay = days.first {
-                    proxy.scrollTo(dayID(firstDay), anchor: .top)
+                    proxy.scrollTo(viewModel.dayID(firstDay), anchor: .top)
                 }
             }
         }
@@ -270,12 +197,12 @@ struct WorksPlanningView: View {
     @ViewBuilder
     private func dayHeader(_ day: Date) -> some View {
         HStack(spacing: 10) {
-            Text(dayName(for: day))
+            Text(viewModel.dayName(day))
                 .font(.headline.weight(.semibold))
-            Text(dayNumber(for: day))
+            Text(viewModel.dayNumber(day))
                 .font(.title2.weight(.semibold))
             Spacer()
-            if isNonSchoolDay(day) {
+            if viewModel.isNonSchool(day) {
                 Text("No School")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -293,16 +220,8 @@ struct WorksPlanningView: View {
     }
 
     private func periodChip(for period: DayPeriod) -> some View {
-        let text: String
-        let color: Color
-        switch period {
-        case .morning:
-            text = "Morning"
-            color = .blue
-        case .afternoon:
-            text = "Afternoon"
-            color = .orange
-        }
+        let text = period.label
+        let color = period.color
         return Text(text)
             .font(.caption.weight(.semibold))
             .foregroundColor(color)
@@ -315,21 +234,17 @@ struct WorksPlanningView: View {
             .fixedSize()
     }
 
-    private func periodCard(day: Date, period: DayPeriod) -> some View {
+    private func periodCard(day: Date, period: DayPeriod, grouped: [DayKey: [ScheduledItem]]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             periodChip(for: period)
             WorkDropList(
                 day: day,
                 period: period,
                 works: works,
-                isNonSchool: isNonSchoolDay(day),
+                grouped: grouped,
+                isNonSchool: viewModel.isNonSchool(day),
                 namesForWork: { work in participantNames(for: work) },
-                titleForWork: workTitle(for:),
-                onOpenWork: { wid in activeSheet = .detail(workID: wid) },
-                onMarkCompleted: { checkIn in
-                    let service = WorkCheckInService(context: modelContext)
-                    do { try service.markCompleted(checkIn) } catch { }
-                }
+                titleForWork: workTitle(for:)
             )
         }
         .padding(10)
@@ -338,7 +253,7 @@ struct WorksPlanningView: View {
                 .fill(Color.primary.opacity(0.06))
         )
         .overlay(alignment: .center) {
-            if isNonSchoolDay(day) {
+            if viewModel.isNonSchool(day) {
                 Text("No School")
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(.white)
@@ -359,50 +274,21 @@ struct WorksPlanningView: View {
         let day: Date
         let period: DayPeriod
         let works: [WorkModel]
+        let grouped: [DayKey: [ScheduledItem]]
         let isNonSchool: Bool
         let namesForWork: (WorkModel) -> String
         let titleForWork: (WorkModel) -> String
-        let onOpenWork: (UUID) -> Void
-        let onMarkCompleted: (WorkCheckIn) -> Void
+        let onOpenWork: (UUID) -> Void = { _ in }
+        let onMarkCompleted: (WorkCheckIn) -> Void = { _ in }
 
         @State private var isTargeted: Bool = false
         @State private var insertionIndex: Int? = nil
         @State private var itemFrames: [UUID: CGRect] = [:]
         @State private var zoneSpaceID = UUID()
 
-        private var items: [ScheduledItem] {
-            let dayStart = calendar.startOfDay(for: day)
-            let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
-            var result: [ScheduledItem] = []
-            for work in works {
-                for ci in work.checkIns where ci.status != .completed && ci.status != .skipped {
-                    let date = ci.date
-                    if date >= dayStart && date < dayEnd {
-                        let hour = calendar.component(.hour, from: date)
-                        switch period {
-                        case .morning:
-                            if hour < 12 { result.append(ScheduledItem(work: work, checkIn: ci)) }
-                        case .afternoon:
-                            if hour >= 12 { result.append(ScheduledItem(work: work, checkIn: ci)) }
-                        }
-                    }
-                }
-            }
-            return result.sorted { $0.checkIn.date < $1.checkIn.date }
-        }
-
         var body: some View {
-            let dropDelegate = WorksCheckInDropDelegate(
-                calendar: calendar,
-                modelContext: modelContext,
-                works: works,
-                day: day,
-                period: period,
-                getCurrent: { items.map { $0.checkIn } },
-                itemFramesProvider: { itemFrames },
-                onTargetChange: { targeted in withAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted } },
-                onInsertionIndexChange: { idx in if insertionIndex != idx { withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx } } }
-            )
+            let items = grouped[DayKey(dayStart: calendar.startOfDay(for: day), period: period)] ?? []
+
             ZStack(alignment: .topLeading) {
                 // Background and targeted outline
                 RoundedRectangle(cornerRadius: 10)
@@ -422,7 +308,7 @@ struct WorksPlanningView: View {
                     } else {
                         ForEach(items) { item in
                             rowView(for: item)
-                                .draggable("CHECKIN:\(item.checkIn.id.uuidString)") {
+                                .draggable(PlanningDragItem.checkIn(item.checkIn.id)) {
                                     rowView(for: item).opacity(0.9)
                                 }
                                 .background(
@@ -466,8 +352,62 @@ struct WorksPlanningView: View {
                 itemFrames = frames
             }
             .contentShape(RoundedRectangle(cornerRadius: 10))
-            .onDrop(of: [UTType.text], delegate: dropDelegate)
+            .dropDestination(for: PlanningDragItem.self) { items, location in
+                guard let payload = items.first else { return false }
+                handleTypedPayload(payload, locationY: location.y)
+                return true
+            }
             .disabled(isNonSchool)
+        }
+
+        @MainActor
+        private func handleTypedPayload(_ payload: PlanningDragItem, locationY: CGFloat) {
+            let current = getCurrent()
+            let frames = itemFrames
+            let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+                if let rect = frames[item.id] { return (item.id, rect) }
+                return nil
+            })
+            let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: locationY, frames: dict)
+            let baseDate = dateForSlot(day: day, period: period)
+
+            switch payload.kind {
+            case .work:
+                if let work = works.first(where: { $0.id == payload.id }) {
+                    let service = WorkCheckInService(context: modelContext)
+                    if let newCI = try? service.createCheckIn(for: work, date: baseDate, status: .scheduled, purpose: "", note: "") {
+                        applyOrder(currentIDs: current.map { $0.id }, inserting: newCI.id, baseDate: baseDate, insertionIndex: insertionIndex)
+                    }
+                }
+            case .checkIn:
+                applyOrder(currentIDs: current.map { $0.id }, inserting: payload.id, baseDate: baseDate, insertionIndex: insertionIndex)
+            }
+        }
+
+        private func getCurrent() -> [ScheduledItem] {
+            grouped[DayKey(dayStart: calendar.startOfDay(for: day), period: period)] ?? []
+        }
+
+        @MainActor
+        private func applyOrder(currentIDs: [UUID], inserting id: UUID, baseDate: Date, insertionIndex: Int) {
+            var ids = currentIDs
+            ids.removeAll(where: { $0 == id })
+            let bounded = max(0, min(insertionIndex, ids.count))
+            ids.insert(id, at: bounded)
+            let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
+            let allCIs = works.flatMap { $0.checkIns }
+            for id in ids {
+                if let target = allCIs.first(where: { $0.id == id }) {
+                    target.date = timeMap[id] ?? target.date
+                    target.status = .scheduled
+                }
+            }
+            try? modelContext.save()
+        }
+
+        private func dateForSlot(day: Date, period: DayPeriod) -> Date {
+            let startOfDay = calendar.startOfDay(for: day)
+            return calendar.date(byAdding: .hour, value: period.baseHour, to: startOfDay) ?? startOfDay
         }
 
         @ViewBuilder
@@ -512,171 +452,7 @@ struct WorksPlanningView: View {
         }
     }
 
-    private struct WorksCheckInDropDelegate: DropDelegate {
-        let calendar: Calendar
-        let modelContext: ModelContext
-        let works: [WorkModel]
-        let day: Date
-        let period: DayPeriod
-        let getCurrent: () -> [WorkCheckIn]
-        let itemFramesProvider: () -> [UUID: CGRect]
-        let onTargetChange: (Bool) -> Void
-        let onInsertionIndexChange: (Int?) -> Void
-
-        func dropEntered(info: DropInfo) {
-            onTargetChange(true)
-            onInsertionIndexChange(computeIndex(info))
-        }
-
-        func dropUpdated(info: DropInfo) -> DropProposal? {
-            onInsertionIndexChange(computeIndex(info))
-            return DropProposal(operation: .move)
-        }
-
-        func dropExited(info: DropInfo) {
-            onTargetChange(false)
-            onInsertionIndexChange(nil)
-        }
-
-        func validateDrop(info: DropInfo) -> Bool {
-            info.hasItemsConforming(to: [UTType.text])
-        }
-
-        func performDrop(info: DropInfo) -> Bool {
-            onTargetChange(false)
-            onInsertionIndexChange(nil)
-            let providers = info.itemProviders(for: [UTType.text])
-            guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
-            provider.loadObject(ofClass: NSString.self) { reading, _ in
-                guard let ns = reading as? NSString else { return }
-                let payload = ns as String
-                Task { @MainActor in
-                    handlePayload(payload, locationY: info.location.y)
-                }
-            }
-            return true
-        }
-
-        @MainActor
-        private func applyOrder(currentIDs: [UUID], inserting id: UUID, baseDate: Date, insertionIndex: Int) {
-            var ids = currentIDs
-            ids.removeAll(where: { $0 == id })
-            let bounded = max(0, min(insertionIndex, ids.count))
-            ids.insert(id, at: bounded)
-            let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
-            let allCIs = works.flatMap { $0.checkIns }
-            for id in ids {
-                if let target = allCIs.first(where: { $0.id == id }) {
-                    target.date = timeMap[id] ?? target.date
-                    target.status = .scheduled
-                }
-            }
-            try? modelContext.save()
-        }
-
-        @MainActor
-        private func handlePayload(_ payload: String, locationY: CGFloat) {
-            let current = getCurrent()
-            let frames = itemFramesProvider()
-            let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-                if let rect = frames[item.id] { return (item.id, rect) }
-                return nil
-            })
-            let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: locationY, frames: dict)
-            let baseDate = dateForSlot(day: day, period: period)
-
-            if payload.hasPrefix("WORK:") {
-                let idStr = String(payload.dropFirst("WORK:".count))
-                if let wid = UUID(uuidString: idStr), let work = works.first(where: { $0.id == wid }) {
-                    // Create a new check-in for this work
-                    let service = WorkCheckInService(context: modelContext)
-                    if let newCI = try? service.createCheckIn(for: work, date: baseDate, status: .scheduled, purpose: "", note: "") {
-                        applyOrder(currentIDs: current.map { $0.id }, inserting: newCI.id, baseDate: baseDate, insertionIndex: insertionIndex)
-                    }
-                }
-                return
-            }
-
-            if payload.hasPrefix("CHECKIN:") {
-                let idStr = String(payload.dropFirst("CHECKIN:".count))
-                if let cid = UUID(uuidString: idStr) {
-                    // Move/reorder existing check-in
-                    applyOrder(currentIDs: current.map { $0.id }, inserting: cid, baseDate: baseDate, insertionIndex: insertionIndex)
-                }
-                return
-            }
-
-            // Fallback: treat as raw UUID of a check-in
-            if let cid = UUID(uuidString: payload.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                applyOrder(currentIDs: current.map { $0.id }, inserting: cid, baseDate: baseDate, insertionIndex: insertionIndex)
-            }
-        }
-
-        private func computeIndex(_ info: DropInfo) -> Int {
-            let current = getCurrent()
-            let frames = itemFramesProvider()
-            let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-                if let rect = frames[item.id] { return (item.id, rect) }
-                return nil
-            })
-            return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
-        }
-
-        private func dateForSlot(day: Date, period: DayPeriod) -> Date {
-            let startOfDay = calendar.startOfDay(for: day)
-            let hour: Int = (period == .morning) ? UIConstants.morningHour : UIConstants.afternoonHour
-            return calendar.date(byAdding: .hour, value: hour, to: startOfDay) ?? startOfDay
-        }
-    }
-
-    fileprivate struct WorksInboxDropDelegate: DropDelegate {
-        let modelContext: ModelContext
-        let onTargetChange: (Bool) -> Void
-
-        func dropEntered(info: DropInfo) {
-            onTargetChange(true)
-        }
-
-        func dropUpdated(info: DropInfo) -> DropProposal? {
-            onTargetChange(true)
-            return DropProposal(operation: .move)
-        }
-
-        func dropExited(info: DropInfo) {
-            onTargetChange(false)
-        }
-
-        func validateDrop(info: DropInfo) -> Bool {
-            info.hasItemsConforming(to: [UTType.text])
-        }
-
-        func performDrop(info: DropInfo) -> Bool {
-            onTargetChange(false)
-            let providers = info.itemProviders(for: [UTType.text])
-            guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
-            provider.loadObject(ofClass: NSString.self) { reading, _ in
-                guard let ns = reading as? NSString else { return }
-                let s = ns as String
-                if s.hasPrefix("CHECKIN:") {
-                    let idStr = String(s.dropFirst("CHECKIN:".count))
-                    if let cid = UUID(uuidString: idStr) {
-                        Task { @MainActor in
-                            let fetch = FetchDescriptor<WorkCheckIn>(predicate: #Predicate { $0.id == cid })
-                            if let ci = (try? modelContext.fetch(fetch))?.first {
-                                let svc = WorkCheckInService(context: modelContext)
-                                if let parent = ci.work {
-                                    try? svc.delete(ci, from: parent)
-                                } else {
-                                    try? svc.delete(ci)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return true
-        }
-    }
+    // Keep WorksInboxDropDelegate for now
 }
 
 // MARK: - Subviews
@@ -738,7 +514,7 @@ private struct InboxSidebarView: View {
                             .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
                         }
                         .buttonStyle(.plain)
-                        .draggable("WORK:\(w.id.uuidString)") {
+                        .draggable(PlanningDragItem.work(w.id)) {
                             HStack(spacing: 10) {
                                 Image(systemName: "hammer").foregroundStyle(.tint)
                                 VStack(alignment: .leading, spacing: 2) {
@@ -764,16 +540,26 @@ private struct InboxSidebarView: View {
                 .padding(.vertical, 8)
                 .padding(.horizontal, 14)
             }
-            .onDrop(of: [UTType.text], delegate: WorksPlanningView.WorksInboxDropDelegate(
-                modelContext: modelContext,
-                onTargetChange: { targeted in
-                    withAnimation(.easeInOut(duration: 0.12)) { inboxIsTargeted = targeted }
+            .dropDestination(for: PlanningDragItem.self) { items, _ in
+                guard let item = items.first, item.kind == .checkIn else { return false }
+                Task { @MainActor in
+                    let fetch = FetchDescriptor<WorkCheckIn>(predicate: #Predicate { $0.id == item.id })
+                    if let ci = (try? modelContext.fetch(fetch))?.first {
+                        let svc = WorkCheckInService(context: modelContext)
+                        if let parent = ci.work {
+                            try? svc.delete(ci, from: parent)
+                        } else {
+                            try? svc.delete(ci)
+                        }
+                    }
                 }
-            ))
+                return true
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(inboxIsTargeted ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 2)
             )
+            .onDrop(of: [UTType.text], isTargeted: $inboxIsTargeted) { _ in false }
         }
         .frame(width: 280)
     }
@@ -844,21 +630,15 @@ private struct DayStripView: View {
 
     @Environment(\.calendar) private var calendar
 
-    private func dayShortLabel(for day: Date) -> String {
-        let fmt = Date.FormatStyle()
-            .weekday(.abbreviated)
-            .day()
-        return day.formatted(fmt)
-    }
-
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
                 ForEach(days, id: \.self) { day in
+                    let label = day.formatted(Date.FormatStyle().weekday(.abbreviated).day())
                     Button {
                         onTap(day)
                     } label: {
-                        Text(dayShortLabel(for: day))
+                        Text(label)
                             .font(.callout.weight(.semibold))
                             .foregroundStyle(.primary)
                             .padding(.horizontal, 12)

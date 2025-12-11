@@ -8,6 +8,7 @@ struct RootView: View {
         case planning = "Lesson Planning"
         case today = "Today"
         case work = "Work Planning"
+        case logs = "Logs"
         case settings = "Settings"
         case attendance = "Attendance"
 
@@ -92,6 +93,8 @@ struct RootView: View {
                     PlanningRootView()
                 case .work:
                     WorkView()
+                case .logs:
+                    LogsMenuRootView()
                 case .attendance:
                     AttendanceView()
                 case .settings:
@@ -246,7 +249,6 @@ struct PlanningRootView: View {
 struct LessonsMenuRootView: View {
     enum Mode: String, CaseIterable, Identifiable {
         case albums = "Albums"
-        case log = "Lessons Log"
         var id: String { rawValue }
     }
     @AppStorage("LessonsMenuRootView.mode") private var modeRaw: String = Mode.albums.rawValue
@@ -261,9 +263,6 @@ struct LessonsMenuRootView: View {
                     PillNavButton(title: Mode.albums.rawValue, isSelected: mode == .albums) {
                         modeRaw = Mode.albums.rawValue
                     }
-                    PillNavButton(title: Mode.log.rawValue, isSelected: mode == .log) {
-                        modeRaw = Mode.log.rawValue
-                    }
                 }
                 Spacer()
             }
@@ -273,11 +272,7 @@ struct LessonsMenuRootView: View {
             Divider()
 
             Group {
-                if mode == .albums {
-                    LessonsRootView()
-                } else {
-                    StudentLessonsRootView()
-                }
+                LessonsRootView()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

@@ -21,6 +21,11 @@
 		51D4DE622EE9F0A8004F8A3B /* WorkCheckInDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE612EE9F0A8004F8A3B /* WorkCheckInDefaults.swift */; };
 		51D4DE642EE9F0B8004F8A3B /* WorksPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE632EE9F0B8004F8A3B /* WorksPlanningView.swift */; };
 		51D4DE662EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE652EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift */; };
+		51D4DE6C2EEA3F0A004F8A3B /* PlanningEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE6B2EEA3F0A004F8A3B /* PlanningEngine.swift */; };
+		51D4DE6E2EEA3F10004F8A3B /* WorksPlanningViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE6D2EEA3F10004F8A3B /* WorksPlanningViewModel.swift */; };
+		51D4DE702EEA3F1C004F8A3B /* AgendaScaffoldingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE6F2EEA3F1C004F8A3B /* AgendaScaffoldingViews.swift */; };
+		51D4DE722EEA4048004F8A3B /* PlanningModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE712EEA4048004F8A3B /* PlanningModels.swift */; };
+		51D4DE742EEA406D004F8A3B /* PlanningDND.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D4DE732EEA406D004F8A3B /* PlanningDND.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +44,11 @@
 		51D4DE612EE9F0A8004F8A3B /* WorkCheckInDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCheckInDefaults.swift; sourceTree = "<group>"; };
 		51D4DE632EE9F0B8004F8A3B /* WorksPlanningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorksPlanningView.swift; sourceTree = "<group>"; };
 		51D4DE652EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleCheckInSheet.swift; sourceTree = "<group>"; };
+		51D4DE6B2EEA3F0A004F8A3B /* PlanningEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningEngine.swift; sourceTree = "<group>"; };
+		51D4DE6D2EEA3F10004F8A3B /* WorksPlanningViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorksPlanningViewModel.swift; sourceTree = "<group>"; };
+		51D4DE6F2EEA3F1C004F8A3B /* AgendaScaffoldingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaScaffoldingViews.swift; sourceTree = "<group>"; };
+		51D4DE712EEA4048004F8A3B /* PlanningModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningModels.swift; sourceTree = "<group>"; };
+		51D4DE732EEA406D004F8A3B /* PlanningDND.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningDND.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -92,6 +102,11 @@
 				51D4DE612EE9F0A8004F8A3B /* WorkCheckInDefaults.swift */,
 				51D4DE632EE9F0B8004F8A3B /* WorksPlanningView.swift */,
 				51D4DE652EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift */,
+				51D4DE6B2EEA3F0A004F8A3B /* PlanningEngine.swift */,
+				51D4DE6D2EEA3F10004F8A3B /* WorksPlanningViewModel.swift */,
+				51D4DE6F2EEA3F1C004F8A3B /* AgendaScaffoldingViews.swift */,
+				51D4DE712EEA4048004F8A3B /* PlanningModels.swift */,
+				51D4DE732EEA406D004F8A3B /* PlanningDND.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -188,7 +203,12 @@
 				5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */,
 				51D4DE662EEA3D1E004F8A3B /* ScheduleCheckInSheet.swift in Sources */,
 				51D4DE622EE9F0A8004F8A3B /* WorkCheckInDefaults.swift in Sources */,
+				51D4DE702EEA3F1C004F8A3B /* AgendaScaffoldingViews.swift in Sources */,
+				51D4DE6E2EEA3F10004F8A3B /* WorksPlanningViewModel.swift in Sources */,
+				51D4DE6C2EEA3F0A004F8A3B /* PlanningEngine.swift in Sources */,
+				51D4DE722EEA4048004F8A3B /* PlanningModels.swift in Sources */,
 				51D4DE642EE9F0B8004F8A3B /* WorksPlanningView.swift in Sources */,
+				51D4DE742EEA406D004F8A3B /* PlanningDND.swift in Sources */,
 				51C143582EE923DD00255AF0 /* AppCalendar.swift in Sources */,
 				510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */,
 			);
