@@ -234,50 +234,36 @@ struct WorksPlanningView: View {
         let days: [Date] = viewModel.computeSchoolDays(count: 7)
         let grouped: [DayKey: [ScheduledItem]] = viewModel.groupedItems(works: works)
 
-        return ScrollViewReader { proxy in
-            VStack(spacing: 0) {
-                // Day strip
+        return AgendaView(
+            days: days,
+            dayID: { day in viewModel.dayID(day) },
+            dayHeader: { day in DayHeaderView(name: viewModel.dayName(day), number: viewModel.dayNumber(day), nonSchool: viewModel.isNonSchool(day)) },
+            topBar: { scrollToDay in
                 DayStripView(days: days) { day in
-                    withAnimation {
-                        proxy.scrollTo(viewModel.dayID(day), anchor: .top)
-                    }
+                    scrollToDay(day)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-
                 Divider()
-
-                // Scrollable agenda with pinned headers
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 18, pinnedViews: [.sectionHeaders]) {
-                        if !overdueItems.isEmpty {
-                            Section(header: overdueHeader) {
-                                overdueList(items: overdueItems)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                            }
-                            .id("overdue_section")
+            },
+            preface: {
+                Group {
+                    if !overdueItems.isEmpty {
+                        Section(header: overdueHeader) {
+                            overdueList(items: overdueItems)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
                         }
-                        ForEach(days, id: \.self) { day in
-                            daySection(day: day, grouped: grouped)
-                                .id(viewModel.dayID(day))
-                        }
-                    }
-                    .padding(.vertical, 10)
-                }
-            }
-            .onChange(of: viewModel.startDate) { _, _ in
-                if let firstDay = days.first {
-                    withAnimation {
-                        proxy.scrollTo(viewModel.dayID(firstDay), anchor: .top)
+                        .id("overdue_section")
                     }
                 }
+            },
+            contentForDay: { day in
+                periodsList(for: day, grouped: grouped)
             }
-            .onAppear {
-                if let firstDay = days.first {
-                    proxy.scrollTo(viewModel.dayID(firstDay), anchor: .top)
-                }
-            }
+        )
+        .onChange(of: viewModel.startDate) { _, _ in
+            // No-op: AgendaView handles initial scroll; here we preserve previous behavior of snapping to first day on start change if needed.
         }
     }
 
@@ -834,6 +820,27 @@ private struct InboxSidebarView: View {
         }
     }
 
+    private struct StudentChip: View {
+        let label: String
+        let isAbsent: Bool
+        let tint: Color
+
+        var body: some View {
+            Text(label)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(isAbsent ? .secondary : .primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(tint.opacity(isAbsent ? 0.06 : 0.15))
+                )
+                .overlay(
+                    Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1)
+                )
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -935,47 +942,16 @@ private struct InboxSidebarView: View {
             VStack(alignment: .leading, spacing: 2) {
                 let studentIDs = w.participants.map { $0.studentID }
                 if !studentIDs.isEmpty {
-                    HStack(spacing: 4) {
-                        ForEach(Array(studentIDs.enumerated()), id: \.element) { idx, sid in
-                            let raw = nameForStudentID(sid).trimmingCharacters(in: .whitespacesAndNewlines)
-                            if !raw.isEmpty {
-                                Group {
-                                    if absentTodayIDs.contains(sid) {
-                                        Text(raw)
-                                            .font(.callout.weight(.bold))
-                                            .foregroundStyle(.primary)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 6)
-                                                    .stroke(Color.red, lineWidth: 1.0)
-                                            )
-                                            .lineLimit(1)
-                                            .fixedSize(horizontal: true, vertical: false)
-                                            .allowsTightening(true)
-                                    } else {
-                                        Text(raw)
-                                            .font(.callout.weight(.bold))
-                                            .foregroundStyle(.primary)
-                                            .lineLimit(1)
-                                            .fixedSize(horizontal: true, vertical: false)
-                                            .allowsTightening(true)
-                                    }
-                                }
-                                if idx < studentIDs.count - 1 {
-                                    Text(",")
-                                        .font(.callout.weight(.bold))
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                        .fixedSize(horizontal: true, vertical: false)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(studentIDs, id: \.self) { sid in
+                                let raw = nameForStudentID(sid).trimmingCharacters(in: .whitespacesAndNewlines)
+                                if !raw.isEmpty {
+                                    StudentChip(label: raw, isAbsent: absentTodayIDs.contains(sid), tint: iconColor)
                                 }
                             }
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .clipped()
                 }
                 Text(workTitle(w))
                     .font(.subheadline)

@@ -30,18 +30,31 @@ struct DayHeaderView: View {
     }
 }
 
-struct AgendaView<Content: View>: View {
+struct AgendaView<Content: View, TopBar: View, Preface: View>: View {
     let days: [Date]
     let dayID: (Date) -> String
     let dayHeader: (Date) -> DayHeaderView
+    @ViewBuilder let topBar: (_ scrollToDay: @escaping (Date) -> Void) -> TopBar
+    @ViewBuilder let preface: () -> Preface
     @ViewBuilder let contentForDay: (Date) -> Content
 
     var body: some View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
                 Divider()
+
+                // Optional top bar (e.g., day strip) with access to scrollToDay
+                topBar { day in
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        proxy.scrollTo(dayID(day), anchor: .top)
+                    }
+                }
+
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 18, pinnedViews: [.sectionHeaders]) {
+                        // Optional preface section (e.g., Overdue)
+                        preface()
+
                         ForEach(days, id: \.self) { day in
                             Section(header: dayHeader(day)) {
                                 contentForDay(day)
@@ -62,3 +75,19 @@ struct AgendaView<Content: View>: View {
         }
     }
 }
+extension AgendaView where TopBar == EmptyView, Preface == EmptyView {
+    init(
+        days: [Date],
+        dayID: @escaping (Date) -> String,
+        dayHeader: @escaping (Date) -> DayHeaderView,
+        @ViewBuilder contentForDay: @escaping (Date) -> Content
+    ) {
+        self.days = days
+        self.dayID = dayID
+        self.dayHeader = dayHeader
+        self.topBar = { _ in EmptyView() }
+        self.preface = { EmptyView() }
+        self.contentForDay = contentForDay
+    }
+}
+
