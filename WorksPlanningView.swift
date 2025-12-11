@@ -419,27 +419,11 @@ struct WorksPlanningView: View {
 
     @ViewBuilder
     private func dayHeader(_ day: Date) -> some View {
-        HStack(spacing: 10) {
-            Text(viewModel.dayName(day))
-                .font(.headline.weight(.semibold))
-            Text(viewModel.dayNumber(day))
-                .font(.title2.weight(.semibold))
-            Spacer()
-            if viewModel.isNonSchool(day) {
-                Text("No School")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.2))
-                    )
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 6)
-        .background(.bar)
+        DayHeaderView(
+            name: viewModel.dayName(day),
+            number: viewModel.dayNumber(day),
+            nonSchool: viewModel.isNonSchool(day)
+        )
     }
 
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
@@ -454,19 +438,18 @@ struct WorksPlanningView: View {
         let text = period.label
         let color = period.color
         return Text(text)
-            .font(.caption.weight(.semibold))
-            .foregroundColor(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(color.opacity(0.6), lineWidth: 1)
+                Capsule().fill(color.opacity(0.12))
             )
             .fixedSize()
     }
 
     private func periodCard(day: Date, period: DayPeriod, grouped: [DayKey: [ScheduledItem]]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             periodChip(for: period)
             WorkDropList(
                 day: day,
@@ -489,22 +472,11 @@ struct WorksPlanningView: View {
                 }
             )
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.primary.opacity(0.06))
-        )
         .overlay(alignment: .center) {
             if viewModel.isNonSchool(day) {
                 Text("No School")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(.white)
-                    .padding(5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(Color.black.opacity(0.35))
-                    )
-                    .offset(x: -80, y: 0)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -1176,13 +1148,12 @@ private struct DayStripView: View {
                         onTap(day)
                     } label: {
                         Text(label)
-                            .font(.callout.weight(.semibold))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.primary.opacity(0.1))
+                                Capsule().fill(Color.primary.opacity(0.06))
                             )
                     }
                     .buttonStyle(.borderless)
