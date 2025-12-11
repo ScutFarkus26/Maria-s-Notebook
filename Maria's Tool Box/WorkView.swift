@@ -406,7 +406,7 @@ struct WorkView: View {
                 HStack {
                     Spacer()
                     HStack(spacing: 12) {
-                        PillNavButton(title: "Planning", isSelected: true) { }
+                        PillNavButton(title: "Works Agenda", isSelected: true) { }
                     }
                     Spacer()
                 }

@@ -4,10 +4,9 @@ import SwiftData
 struct RootView: View {
     enum Tab: String, CaseIterable, Identifiable {
         case students = "Students"
-        case lessons = "Lessons" // New container with submenus (Albums / Lessons Log)
-        case planning = "Lesson Planning"
+        case albums = "Albums" // Albums
+        case planning = "Planning"
         case today = "Today"
-        case work = "Work Planning"
         case logs = "Logs"
         case settings = "Settings"
         case attendance = "Attendance"
@@ -85,14 +84,12 @@ struct RootView: View {
                 switch selectedTab {
                 case .today:
                     TodayView(context: modelContext) // Wires the Today hub
-                case .lessons:
+                case .albums:
                     LessonsMenuRootView()
                 case .students:
                     StudentsRootView()
                 case .planning:
                     PlanningRootView()
-                case .work:
-                    WorkView()
                 case .logs:
                     LogsMenuRootView()
                 case .attendance:
@@ -111,16 +108,18 @@ struct RootView: View {
                 selectedTabRaw = Tab.students.rawValue
                 UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
             }
-            // Migrate legacy top-level Albums/Lessons tabs into new Lessons container
-            if selectedTabRaw == "Albums" || selectedTabRaw == "Lessons" {
-                selectedTabRaw = Tab.lessons.rawValue
+            // Migrate legacy Lessons container to new top-level Albums tab
+            if selectedTabRaw == "Lessons" {
+                selectedTabRaw = Tab.albums.rawValue
             }
-            // Migrate legacy tab labels Planning -> Lesson Planning, Work -> Work Planning
-            if selectedTabRaw == "Planning" {
+            // Migrate legacy tab labels Lesson Planning -> Planning
+            if selectedTabRaw == "Lesson Planning" {
                 selectedTabRaw = Tab.planning.rawValue
             }
-            if selectedTabRaw == "Work" {
-                selectedTabRaw = Tab.work.rawValue
+            // Migrate removal of Work Planning tab: route to Planning → Works Agenda
+            if selectedTabRaw == "Work Planning" || selectedTabRaw == "Work" {
+                selectedTabRaw = Tab.planning.rawValue
+                UserDefaults.standard.set(PlanningRootView.Mode.works.rawValue, forKey: "PlanningRootView.mode")
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackfillIsPresentedRequested"))) { _ in
@@ -207,8 +206,9 @@ struct RootView: View {
 
 struct PlanningRootView: View {
     enum Mode: String, CaseIterable, Identifiable {
-        case agenda = "Agenda"
-        case board = "Board"
+        case agenda = "Lessons Agenda"
+        case board = "Lessons Board"
+        case works = "Works Agenda"
         var id: String { rawValue }
     }
 
@@ -226,6 +226,9 @@ struct PlanningRootView: View {
                     PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) {
                         modeRaw = Mode.board.rawValue
                     }
+                    PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) {
+                        modeRaw = Mode.works.rawValue
+                    }
                 }
                 Spacer()
             }
@@ -237,45 +240,30 @@ struct PlanningRootView: View {
             Group {
                 if mode == .agenda {
                     PlanningAgendaView()
-                } else {
+                } else if mode == .board {
                     PlanningWeekView()
+                } else {
+                    WorksPlanningView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear {
+                // Migrate legacy stored mode labels to new ones
+                if modeRaw == "Agenda" {
+                    modeRaw = Mode.agenda.rawValue
+                }
+                if modeRaw == "Board" {
+                    modeRaw = Mode.board.rawValue
+                }
+            }
         }
     }
 }
 
 struct LessonsMenuRootView: View {
-    enum Mode: String, CaseIterable, Identifiable {
-        case albums = "Albums"
-        var id: String { rawValue }
-    }
-    @AppStorage("LessonsMenuRootView.mode") private var modeRaw: String = Mode.albums.rawValue
-    private var mode: Mode { Mode(rawValue: modeRaw) ?? .albums }
-
     var body: some View {
-        VStack(spacing: 0) {
-            // Top pill navigation (Albums / Lessons Log)
-            HStack {
-                Spacer()
-                HStack(spacing: 12) {
-                    PillNavButton(title: Mode.albums.rawValue, isSelected: mode == .albums) {
-                        modeRaw = Mode.albums.rawValue
-                    }
-                }
-                Spacer()
-            }
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-
-            Divider()
-
-            Group {
-                LessonsRootView()
-            }
+        LessonsRootView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
     }
 }
 

@@ -187,5 +187,25 @@ enum DataMigrations {
             // Best-effort; do not set the flag so we can retry later
         }
     }
+    
+    /// Backfill nil WorkModel.title values to empty string once.
+    static func backfillEmptyWorkTitlesIfNeeded(using context: ModelContext) {
+        let flagKey = "Migration.workTitlesBackfillEmpty.v1"
+        if UserDefaults.standard.bool(forKey: flagKey) { return }
+        do {
+            let works = try context.fetch(FetchDescriptor<WorkModel>())
+            var changed = false
+            for w in works {
+                if w.title == nil {
+                    w.title = ""
+                    changed = true
+                }
+            }
+            if changed { try? context.save() }
+            UserDefaults.standard.set(true, forKey: flagKey)
+        } catch {
+            // If fetch fails, do not set the flag so we can retry later.
+        }
+    }
 }
 

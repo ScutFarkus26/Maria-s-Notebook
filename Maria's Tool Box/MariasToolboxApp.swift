@@ -170,6 +170,7 @@ struct MariasToolboxApp: App {
                     DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
                     DataMigrations.normalizeWorkDatesToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
                     DataMigrations.backfillParticipantsAndDeleteEmptyWorksIfNeeded(using: sharedModelContainer.mainContext)
+                    DataMigrations.backfillEmptyWorkTitlesIfNeeded(using: sharedModelContainer.mainContext)
                 }
         }
         #if os(macOS)

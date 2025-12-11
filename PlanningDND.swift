@@ -2,7 +2,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension UTType {
-    static let planningDragItem = UTType(exportedAs: "com.yourorg.planning.drag-item")
+    // Use importedAs to avoid requiring an Info.plist exported type declaration during development.
+    static let planningDragItem = UTType(importedAs: "com.yourorg.planning.drag-item")
 }
 
 struct PlanningDragItem: Codable, Transferable, Equatable {
@@ -12,8 +13,19 @@ struct PlanningDragItem: Codable, Transferable, Equatable {
 
     static var transferRepresentation: some TransferRepresentation {
         CodableRepresentation(contentType: .planningDragItem)
+        ProxyRepresentation(exporting: \.stringPayload)
+    }
+    
+    private var stringPayload: String {
+        switch kind {
+        case .work:
+            return "WORK:\(id.uuidString)"
+        case .checkIn:
+            return "CHECKIN:\(id.uuidString)"
+        }
     }
 
     static func work(_ id: UUID) -> PlanningDragItem { .init(kind: .work, id: id) }
     static func checkIn(_ id: UUID) -> PlanningDragItem { .init(kind: .checkIn, id: id) }
 }
+
