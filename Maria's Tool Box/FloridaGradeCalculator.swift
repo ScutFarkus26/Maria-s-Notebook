@@ -1,7 +1,10 @@
+// FloridaGradeCalculator.swift
+// Determines Florida grade equivalents based on birthday and configurable school-year start.
+// Behavior-preserving cleanup: comments and MARKs only.
+
 import Foundation
 
-/// Semantic result for grade determination.
-/// Adjust display via `displayString` without touching the core logic.
+/// Semantic grade result used by the calculator and UI.
 enum GradeResult: Equatable {
     case kindergarten
     case grade(Int)   // 1...6
@@ -30,9 +33,11 @@ enum GradeResult: Equatable {
     }
 }
 
-/// Central place to tweak Florida's grade rule.
-/// Change the constants below to adjust the cutoff date or mapping.
+/// Grade calculation helpers with configurable constants for school-year boundaries.
+/// All functions are pure computations.
 struct FloridaGradeCalculator {
+    // MARK: - Configuration
+
     /// Month of the school year start (default: September)
     static var schoolStartMonth: Int = 9
     /// Day of the school year start (default: 1st)
@@ -41,6 +46,8 @@ struct FloridaGradeCalculator {
     static var minimumFirstGradeAge: Int = 6
     /// Ages at or above this threshold are considered "Graduated" (default: 12)
     static var graduatedAgeThreshold: Int = 12
+
+    // MARK: - Helpers
 
     /// Computes September 1 (or your configured start) for the proper school year
     /// relative to the given reference date.
@@ -61,6 +68,8 @@ struct FloridaGradeCalculator {
         let start = schoolYearStart(for: referenceDate, calendar: calendar)
         return calendar.dateComponents([.year], from: birthday, to: start).year ?? 0
     }
+
+    // MARK: - Public API
 
     /// Determines the grade result for a given birthday using Florida's rule.
     /// Mapping:
@@ -85,3 +94,4 @@ struct FloridaGradeCalculator {
         }
     }
 }
+

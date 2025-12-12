@@ -1,6 +1,14 @@
+// AgeUtils.swift
+// Age formatting utilities (rounded, quarter, half-year, and fraction strings).
+// Behavior-preserving cleanup: comments and MARKs only.
+
 import Foundation
 
+/// Utilities for computing and formatting ages in different rounding schemes.
+/// All functions are pure and side-effect free.
 struct AgeUtils {
+    // MARK: - Core Computations
+
     /// Returns (years, months) rounded by pushing days >= half a month up to the next month.
     static func roundedAgeComponents(birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> (years: Int, months: Int) {
         let comps = calendar.dateComponents([.year, .month, .day], from: birthday, to: today)
@@ -39,6 +47,8 @@ struct AgeUtils {
         }
     }
 
+    // MARK: - Verbose Strings
+
     /// Verbose age string like "2 years, 3 months", handling singulars and zero-parts.
     static func verboseAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {
         let age = roundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
@@ -57,6 +67,8 @@ struct AgeUtils {
         return "\(y) years, \(m) months"
     }
 
+    // MARK: - Concise Strings
+
     /// Concise age string like "2y 3m", handling singulars and zero-parts.
     static func conciseAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {
         let age = roundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
@@ -74,6 +86,8 @@ struct AgeUtils {
         if m == 0 { return y == 1 ? "1 yr" : "\(y) yr" }
         return "\(y)y \(m)m"
     }
+
+    // MARK: - Fraction / Half-Year
 
     /// Quarter-fraction age string like "8 1/4", "8 1/2", "8 3/4"; under 1 year shows "1/4", "1/2", or "3/4" (or "0").
     static func quarterFractionAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {

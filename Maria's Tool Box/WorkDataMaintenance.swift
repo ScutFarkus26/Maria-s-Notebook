@@ -1,7 +1,14 @@
+// WorkDataMaintenance.swift
+// Best-effort data maintenance helpers for WorkModel.
+// Behavior-preserving cleanup: comments and MARKs only.
+
 import Foundation
 import SwiftData
 
+/// Non-critical maintenance utilities for keeping WorkModel data consistent.
+/// These functions are idempotent and safe to call multiple times.
 enum WorkDataMaintenance {
+    // MARK: - Backfill
     /// Backfill participants for any WorkModel that is missing them.
     /// If a WorkModel links to a StudentLesson, mirror its studentIDs into participants.
     /// Safe to call multiple times; it is idempotent.
@@ -29,3 +36,4 @@ enum WorkDataMaintenance {
         }
     }
 }
+

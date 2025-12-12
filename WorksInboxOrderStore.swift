@@ -4,7 +4,10 @@
 
 import Foundation
 
+/// Stores and applies a stable order for unscheduled works using a comma-separated UUID list.
+/// All methods are pure helpers. No behavior changes in this refactor.
 enum WorksInboxOrderStore {
+    // MARK: - Public API
     static func parse(_ raw: String) -> [UUID] {
         raw.split(separator: ",").compactMap { UUID(uuidString: String($0)) }
     }

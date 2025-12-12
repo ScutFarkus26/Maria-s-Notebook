@@ -1,17 +1,27 @@
+// TodayViewModel.swift
+// View model powering the Today hub. Fetches lessons, check-ins, in-progress work, and attendance summaries
+// for the selected day. Uses lightweight lookup caches to avoid per-row fetches. Behavior-preserving refactor.
+
 import Foundation
 import SwiftUI
 import SwiftData
 import Combine
 
+/// View model for the Today screen.
+/// - Manages date selection and a level filter.
+/// - Builds in-memory caches to avoid repeated fetches per row.
+/// - Exposes published outputs for the view layer. No behavior changes in this refactor.
 @MainActor
 final class TodayViewModel: ObservableObject {
     // MARK: - Types
+    /// Lightweight counts shown in the Today header.
     struct AttendanceSummary {
         var presentCount: Int = 0 // Present + Tardy
         var absentCount: Int = 0
         var leftEarlyCount: Int = 0
     }
 
+    /// Filter for Lower/Upper/All levels. Used to reduce the visible items across sections.
     enum LevelFilter: String, CaseIterable, Identifiable {
         case all = "All"
         case lower = "Lower"
@@ -51,6 +61,7 @@ final class TodayViewModel: ObservableObject {
     @Published var completedToday: [WorkCompletionRecord] = []
     @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
 
+    // MARK: - Caches
     // Lightweight lookup caches for rows (avoid per-row fetches)
     @Published private(set) var studentsByID: [UUID: Student] = [:]
     @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
@@ -276,4 +287,3 @@ final class TodayViewModel: ObservableObject {
         }
     }
 }
-

@@ -4,13 +4,18 @@
 import SwiftUI
 import SwiftData
 
+/// Detail sheet for a single student, with Overview, Checklist, History, Meetings, and Notes tabs.
+/// This refactor adds comments, MARKs, and tiny local naming cleanups without altering behavior.
 struct StudentDetailView: View {
+    // MARK: - Inputs
     let student: Student
     var onDone: (() -> Void)? = nil
 
+    // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    // MARK: - State
     @StateObject private var vm: StudentDetailViewModel
 
     @State private var isEditing = false
@@ -25,6 +30,7 @@ struct StudentDetailView: View {
 
     @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
 
+    // MARK: - Queries
     @Query private var lessons: [Lesson]
     @Query(sort: [
         SortDescriptor(\StudentLesson.scheduledFor, order: .forward),
@@ -121,8 +127,8 @@ struct StudentDetailView: View {
     }
 
     private func workTitle(for work: WorkModel) -> String {
-        let t = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !t.isEmpty { return t }
+        let trimmedTitle = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty { return trimmedTitle }
         if let lesson = workLesson(for: work) { return lesson.name }
         return work.workType.rawValue
     }
@@ -144,6 +150,7 @@ struct StudentDetailView: View {
         return dateString
     }
 
+    // TODO: This icon/color mapping is duplicated in multiple files. Consider unifying via a local helper or extension.
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
         switch type {
         case .research: return ("magnifyingglass", .teal)
@@ -467,6 +474,7 @@ struct StudentDetailView: View {
         }
     }
 
+    /// Creates the detail view for a student. Keeps StateObject identity stable across sheet presentations.
     init(student: Student, onDone: (() -> Void)? = nil) {
         self.student = student
         self.onDone = onDone

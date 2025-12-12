@@ -1,3 +1,7 @@
+// WorkCheckInService.swift
+// Small persistence service for WorkCheckIn operations to keep model methods side-effect free.
+// Behavior-preserving cleanup: comments and MARKs only.
+
 import Foundation
 import SwiftData
 
@@ -6,6 +10,7 @@ import SwiftData
 /// This service ensures that model methods remain free of side-effects
 /// (no implicit saves), while callers can perform explicit, transactional
 /// operations that throw on failure.
+/// This file includes only structural and documentation improvements; behavior is unchanged.
 struct WorkCheckInService {
     let context: ModelContext
 

@@ -1,12 +1,21 @@
+// LessonProgressSection.swift
+// UI section for managing presentation state and quick actions within StudentLesson detail.
+// Behavior-preserving cleanup: comments, MARKs, and small helpers docs.
+
 import SwiftUI
 import SwiftData
 
+/// Presents lesson progress controls (presented state, needs another presentation, quick actions).
+/// Safe refactor adds structure and docs only.
 struct LessonProgressSection: View {
+    // MARK: - Environment
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
 
+    // MARK: - Local Types
     private enum PresentedMode { case none, just, previous }
 
+    // MARK: - Inputs
     let subjectColor: Color
 
     @Binding var isPresented: Bool
@@ -36,7 +45,7 @@ struct LessonProgressSection: View {
     @Binding var quickBannerText: String
     @Binding var quickBannerColor: Color
 
-    // Local UI state
+    // MARK: - Local UI State
     @State private var showPresentedPopover = false
     @State private var presentedDate: Date = Date()
     @State private var showRePresentPopover = false
@@ -45,6 +54,7 @@ struct LessonProgressSection: View {
     @State private var actionBounceID = UUID()
     @State private var presentedMode: PresentedMode = .none
 
+    // MARK: - Body
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
@@ -52,6 +62,7 @@ struct LessonProgressSection: View {
         }
     }
 
+    // MARK: - Subviews
     private var header: some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.seal")
@@ -366,6 +377,7 @@ struct LessonProgressSection: View {
     }
 }
 
+/// Simple glass-like card container used within this section. Purely presentational.
 private struct GlassCard<Content: View>: View {
     let content: () -> Content
     init(@ViewBuilder content: @escaping () -> Content) { self.content = content }
@@ -382,6 +394,7 @@ private struct GlassCard<Content: View>: View {
     }
 }
 
+/// Small state chip used for presented/previously presented toggles.
 private struct StatusChip: View {
     let title: String
     let systemImage: String
@@ -410,6 +423,7 @@ private struct StatusChip: View {
     }
 }
 
+/// Action pill button with subtle bounce effect. Used for quick actions.
 private struct ActionPill: View {
     let title: String
     let systemImage: String

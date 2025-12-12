@@ -1,6 +1,13 @@
+// LessonsViewModel.swift
+// Helpers for ordering and filtering lessons by subject/group. No behavior changes.
+
 import Foundation
 
+/// Provides filtering and ordering utilities for Lessons screens.
+/// Methods here are pure functions and do not mutate external state.
 struct LessonsViewModel {
+    // MARK: - Public API
+
     // Compute ordered unique subjects using FilterOrderStore
     func subjects(from lessons: [Lesson]) -> [String] {
         let unique = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })
@@ -21,6 +28,8 @@ struct LessonsViewModel {
         return FilterOrderStore.loadGroupOrder(for: trimmedSubject, existing: existing)
     }
 
+    // MARK: - Private Helpers
+
     private func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
 
     private func subjectIndexMap(from lessons: [Lesson]) -> [String: Int] {
@@ -40,6 +49,8 @@ struct LessonsViewModel {
         if cache[key] == nil { cache[key] = groupIndex(for: subject, lessons: lessons) }
         return cache[key]?[norm(group)] ?? Int.max
     }
+
+    // MARK: - Sorting Pipelines
 
     // Main filter/sort pipeline extracted from LessonsRootView
     func filteredLessons(lessons: [Lesson], searchText: String, selectedSubject: String?, selectedGroup: String?) -> [Lesson] {
@@ -130,6 +141,8 @@ struct LessonsViewModel {
         }
     }
 
+    // MARK: - Data Maintenance
+
     // Ensure per-(subject, group) orderInGroup uniqueness, return true if any changes were made
     func ensureInitialOrderInGroupIfNeeded(_ lessons: [Lesson]) -> Bool {
         var changed = false
@@ -173,3 +186,4 @@ struct LessonsViewModel {
         return changed
     }
 }
+

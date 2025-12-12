@@ -1,18 +1,28 @@
+// WorksPlanningView.swift
+// Planning → Works Agenda screen. Presents inbox of unscheduled work and a 7‑day agenda with drag/drop.
+// Behavior-preserving cleanup: comments, MARKs, and local naming clarity.
+
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
+/// Displays the Works Agenda with an inbox sidebar and a 7‑day agenda area.
+/// Safe refactor only: structure and comments without changing behavior.
 struct WorksPlanningView: View {
+    // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
+    // MARK: - Queries
     @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]) private var works: [WorkModel]
     @Query private var students: [Student]
     @Query private var lessons: [Lesson]
 
+    // MARK: - Storage
     @AppStorage("WorkPlanningAgenda.startDate") private var startDateRaw: Double = 0
     @AppStorage("WorksPlanningInbox.order") private var worksInboxOrderRaw: String = ""
 
+    // MARK: - State
     @State private var viewModel = WorksPlanningViewModel(
         startDate: Date(),
         calendar: Calendar.current,
@@ -22,9 +32,11 @@ struct WorksPlanningView: View {
     @State private var reschedulingCheckIn: WorkCheckIn? = nil
     @State private var rescheduleDate: Date = Date()
 
+    // MARK: - Derived Caches
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
     
+    // MARK: - Computed
     private var absentTodayIDs: Set<UUID> {
         let today = calendar.startOfDay(for: Date())
         let descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.date == today })
@@ -50,9 +62,10 @@ struct WorksPlanningView: View {
         .sorted { $0.checkIn.date < $1.checkIn.date }
     }
 
+    // MARK: - Formatting
     private func workTitle(for work: WorkModel) -> String {
-        let t = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !t.isEmpty { return t }
+        let trimmedTitle = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty { return trimmedTitle }
         if let slID = work.studentLessonID {
             let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == slID })
             if let sl = (try? modelContext.fetch(descriptor))?.first,
@@ -70,6 +83,7 @@ struct WorksPlanningView: View {
         return names.joined(separator: ", ")
     }
     
+    // MARK: - Persistence
     private func updateInboxOrder() {
         let base: [WorkModel] = viewModel.unscheduledWorks(from: works)
         let baseIDs: [UUID] = base.map { $0.id }
@@ -93,6 +107,7 @@ struct WorksPlanningView: View {
         )
     }
 
+    // MARK: - Body
     var body: some View {
         HStack(spacing: 0) {
             sidebar
@@ -412,6 +427,7 @@ struct WorksPlanningView: View {
         )
     }
 
+    // TODO: Consider centralizing icon/color mapping for WorkModel.WorkType to avoid duplication across views.
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
         switch type {
         case .research: return ("magnifyingglass", .teal)
@@ -467,6 +483,7 @@ struct WorksPlanningView: View {
         }
     }
 
+    /// Drop target list for a day/period slot in the Works Agenda. Purely presentational + onDrop wiring.
     private struct WorkDropList: View {
         @Environment(\.modelContext) private var modelContext
         @Environment(\.calendar) private var calendar
@@ -794,6 +811,7 @@ struct WorkAgendaDropDelegate: DropDelegate {
 
 // MARK: - Subviews
 
+/// Sidebar list of unscheduled works with drag to agenda and reordering via drop delegate.
 private struct InboxSidebarView: View {
     let unscheduledWorks: [WorkModel]
     let orderedUnscheduled: [WorkModel]
@@ -1139,6 +1157,7 @@ private struct DayStripView: View {
     }
 }
 
+// MARK: - Preview
 #Preview {
     let schema = Schema([
         Item.self,

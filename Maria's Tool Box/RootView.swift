@@ -1,7 +1,13 @@
+// RootView.swift
+// App root container with top pill navigation and tab routing.
+// Behavior-preserving cleanup: comments and MARKs only.
+
 import SwiftUI
 import SwiftData
 
+/// Top-level container that manages app-wide navigation between Students, Albums, Planning, Today, Logs, and Settings.
 struct RootView: View {
+    // MARK: - Tabs
     enum Tab: String, CaseIterable, Identifiable {
         case students = "Students"
         case albums = "Albums" // Albums
@@ -14,17 +20,20 @@ struct RootView: View {
         var id: String { rawValue }
     }
 
+    // MARK: - Storage
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.students.rawValue
     @Environment(\.modelContext) private var modelContext
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
 
+    // MARK: - Computed
     private var selectedTab: Tab {
         Tab(rawValue: selectedTabRaw) ?? .students
     }
     
     private var pillTabs: [Tab] { Tab.allCases.filter { $0 != .attendance } }
 
+    // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
             if UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
@@ -152,6 +161,8 @@ struct RootView: View {
         }
     }
 
+    // MARK: - Backfill
+
     private func backfillRelationshipsIfNeeded() {
         guard !didBackfillRelationships else { return }
         do {
@@ -204,7 +215,9 @@ struct RootView: View {
     }
 }
 
+/// Container for Planning modes (Agenda, Board, Works). Uses pill navigation and stores last mode in AppStorage.
 struct PlanningRootView: View {
+    // MARK: - Mode
     enum Mode: String, CaseIterable, Identifiable {
         case agenda = "Lessons Agenda"
         case board = "Lessons Board"
@@ -215,6 +228,7 @@ struct PlanningRootView: View {
     @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
     private var mode: Mode { Mode(rawValue: modeRaw) ?? .agenda }
 
+    // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -260,10 +274,10 @@ struct PlanningRootView: View {
     }
 }
 
+/// Thin wrapper to host the Lessons root inside the main container.
 struct LessonsMenuRootView: View {
     var body: some View {
         LessonsRootView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-

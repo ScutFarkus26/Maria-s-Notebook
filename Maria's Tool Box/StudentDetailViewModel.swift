@@ -1,12 +1,21 @@
+// StudentDetailViewModel.swift
+// View model for StudentDetailView. Manages caches, selections, and derived summaries.
+// Behavior-preserving cleanup: comments and MARKs only.
+
 import Foundation
 import SwiftData
 import Combine
 import SwiftUI
 
+/// View model backing StudentDetailView.
+/// Builds in-memory caches and exposes selection state for sheets.
+/// All methods maintain existing behavior; this refactor adds structure and docs only.
 @MainActor
 final class StudentDetailViewModel: ObservableObject {
+    // MARK: - Properties
     let student: Student
 
+    // MARK: - Published Caches
     // Published caches and summaries
     @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
     @Published private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
@@ -16,6 +25,7 @@ final class StudentDetailViewModel: ObservableObject {
     @Published private(set) var masteredLessonIDs: Set<UUID> = []
     @Published private(set) var plannedLessonIDs: Set<UUID> = []
 
+    // MARK: - UI State
     // UI selection and toast state moved from the view
     @Published var selectedLessonForGive: Lesson? = nil
     @Published var giveStartGiven: Bool = false
@@ -23,10 +33,12 @@ final class StudentDetailViewModel: ObservableObject {
     @Published var selectedStudentLessonForDetail: StudentLesson? = nil
     @Published var toastMessage: String? = nil
 
+    // MARK: - Initialization
     init(student: Student) {
         self.student = student
     }
 
+    // MARK: - Public API
     func updateData(lessons: [Lesson], studentLessons: [StudentLesson], workModels: [WorkModel]) {
         // Build caches
         lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
@@ -59,6 +71,8 @@ final class StudentDetailViewModel: ObservableObject {
         plannedLessonIDs = Set(nextLessonsForStudent.map { $0.lessonID })
     }
 
+    /// Computes summary sets for a single student across their works.
+    /// Pure helper that does not mutate external state.
     private static func computeWorkSummary(for studentID: UUID, works: [WorkModel], studentLessonsByID: [UUID: StudentLesson]) -> WorkSummary {
         var practice = Set<UUID>()
         var follow = Set<UUID>()
@@ -96,6 +110,7 @@ final class StudentDetailViewModel: ObservableObject {
         )
     }
 
+    // MARK: - Types
     struct WorkSummary {
         let practiceLessonIDs: Set<UUID>
         let followUpLessonIDs: Set<UUID>
@@ -269,3 +284,4 @@ final class StudentDetailViewModel: ObservableObject {
         }
     }
 }
+

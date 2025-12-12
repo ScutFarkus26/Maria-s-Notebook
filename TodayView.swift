@@ -1,6 +1,11 @@
+// TodayView.swift
+// Today hub showing lessons, check-ins, follow-ups, and completions for a selected day.
+// Behavior-preserving cleanup: comments and MARKs only.
+
 import SwiftUI
 import SwiftData
 
+/// Today hub view. Binds to TodayViewModel and renders multiple sections without changing behavior.
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
@@ -41,6 +46,7 @@ struct TodayView: View {
         let names = ids.map { displayNameForID($0) }
         return names.joined(separator: ", ")
     } }
+    // TODO: Unify work title formatting with other views to avoid duplication.
     private var workTitleForID: (UUID) -> String { { id in
         guard let w = viewModel.worksByID[id] else { return "Work" }
         let t = w.title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -57,6 +63,7 @@ struct TodayView: View {
         return names.joined(separator: ", ")
     } }
 
+    // MARK: - Init
     init(context: ModelContext) {
         _viewModel = StateObject(wrappedValue: TodayViewModel(context: context, calendar: AppCalendar.shared))
     }
