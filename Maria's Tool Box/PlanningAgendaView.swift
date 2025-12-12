@@ -9,22 +9,6 @@ struct PlanningAgendaView: View {
     private static let dayNumberStyle = Date.FormatStyle.dateTime.day()
     private static let weekStyle = Date.FormatStyle.dateTime.month(.abbreviated).day()
 
-    // MARK: - Helpers
-    private func startOfDay(_ date: Date) -> Date { calendar.startOfDay(for: date) }
-    
-    private func periodChip(for period: DayPeriod) -> some View {
-        let title = (period == .morning ? "Morning" : "Afternoon")
-        let tint: Color = (period == .morning ? .blue : .orange)
-        return Text(title)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule().fill(tint.opacity(0.12))
-            )
-    }
-
     // MARK: - Environment / Queries
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
@@ -64,14 +48,12 @@ struct PlanningAgendaView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        AgendaShellView {
             sidebar
-            Divider()
-            VStack(spacing: 0) {
-                header
-                Divider()
-                agenda
-            }
+        } header: {
+            header
+        } content: {
+            agenda
         }
         .onChange(of: inboxOrderChangeToken) { _, _ in
             let base = viewModel.unscheduledLessons
@@ -114,7 +96,7 @@ struct PlanningAgendaView: View {
         .onAppear {
             DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
             if startDateRaw == 0 {
-                let initial = computeInitialStartDate()
+                let initial = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
                 startDate = initial
                 startDateRaw = initial.timeIntervalSinceReferenceDate
             } else {
@@ -127,7 +109,6 @@ struct PlanningAgendaView: View {
             viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
         }
         .onChange(of: studentLessons.map { $0.id }) { _, _ in
-            // Keep the inbox in sync with underlying data changes (e.g., deletions)
             DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
             viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
         }
@@ -159,43 +140,25 @@ struct PlanningAgendaView: View {
 
     // MARK: - Header
     private var header: some View {
-        HStack(spacing: 12) {
-            Button {
+        AgendaWeekHeaderView(
+            startDate: startDate,
+            days: days,
+            onPrev: {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    startDate = movedStart(bySchoolDays: -7)
+                    startDate = AgendaSchoolDayRules.movedStart(bySchoolDays: -7, from: startDate, calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
                 }
-            } label: {
-                Image(systemName: "chevron.left")
-                    .accessibilityLabel("Previous week")
-            }
-            .buttonStyle(.plain)
-
-            Text(weekRangeString)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-
-            Button {
+            },
+            onNext: {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    startDate = movedStart(bySchoolDays: 7)
+                    startDate = AgendaSchoolDayRules.movedStart(bySchoolDays: 7, from: startDate, calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
                 }
-            } label: {
-                Image(systemName: "chevron.right")
-                    .accessibilityLabel("Next week")
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Button("Today") {
+            },
+            onToday: {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    startDate = computeInitialStartDate()
+                    startDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
                 }
             }
-            .keyboardShortcut("t", modifiers: [])
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.primary.opacity(0.08), in: Capsule())
-
+        ) {
             Button {
                 let newSL = StudentLesson(
                     lesson: nil,
@@ -237,8 +200,6 @@ struct PlanningAgendaView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     // MARK: - Agenda
@@ -246,23 +207,11 @@ struct PlanningAgendaView: View {
         ScrollViewReader { proxy in
             VStack(alignment: .leading, spacing: 8) {
                 // Day strip
-                HStack(spacing: 8) {
-                    ForEach(days, id: \.self) { day in
-                        Button(dayShortLabel(for: day)) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                proxy.scrollTo(dayID(day), anchor: .top)
-                            }
-                        }
-                        .buttonStyle(.borderless)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .accessibilityLabel("\(dayName(for: day)) \(dayNumber(for: day))")
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Color.primary.opacity(0.06)))
+                AgendaDayStripView(days: days) { day in
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        proxy.scrollTo(dayID(day), anchor: .top)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
 
                 // Scrollable agenda with pinned headers
                 ScrollView(.vertical) {
@@ -309,30 +258,17 @@ struct PlanningAgendaView: View {
 
     @ViewBuilder
     private func dayHeader(_ day: Date) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(dayName(for: day))
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-            Text(dayNumber(for: day))
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-            if viewModel.isNonSchoolDayFast(day) {
-                Text("No School")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.red.opacity(0.15)))
-                    .foregroundStyle(.red)
-            }
+        HStack { // wrapper to preserve exact background and pinned header behavior
+            AgendaDaySectionHeaderView(day: day, isNonSchoolDay: viewModel.isNonSchoolDayFast(day))
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 2)
-        .accessibilityAddTraits(.isHeader)
+        .padding(.vertical, 0) // no extra padding beyond internal header view
     }
 
     @ViewBuilder
     private func dayBody(_ day: Date) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach([DayPeriod.morning, .afternoon], id: \.self) { period in
-                periodChip(for: period)
+                AgendaPeriodChipView(period: period)
                     .padding(.bottom, 4)
                 AgendaSlot(
                     allStudentLessons: studentLessons,
@@ -358,39 +294,9 @@ struct PlanningAgendaView: View {
             }
         }
     }
-
-    private func isNonSchoolDay(_ day: Date) -> Bool {
-        SchoolCalendar.isNonSchoolDay(day, using: modelContext)
-    }
-
-    private func firstSchoolDay(onOrAfter date: Date) -> Date {
-        var cursor = calendar.startOfDay(for: date)
-        while viewModel.isNonSchoolDayFast(cursor) {
-            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
-        }
-        return cursor
-    }
-
-    private func movedStart(bySchoolDays delta: Int) -> Date {
-        guard delta != 0 else { return startOfDay(startDate) }
-        var remaining = abs(delta)
-        var cursor = calendar.startOfDay(for: startDate)
-        let step = delta > 0 ? 1 : -1
-        while remaining > 0 {
-            cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
-            if !viewModel.isNonSchoolDayFast(cursor) { remaining -= 1 }
-        }
-        return cursor
-    }
-
-    private func computeInitialStartDate() -> Date {
-        let today = calendar.startOfDay(for: Date())
-        return firstSchoolDay(onOrAfter: today)
-    }
 }
 
 #Preview {
     PlanningAgendaView()
         .frame(minWidth: 1000, minHeight: 600)
 }
-
