@@ -10,6 +10,9 @@
 		510819962EDEA8020000BE47 /* PillButton 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510819952EDEA8020000BE47 /* PillButton 2.swift */; };
 		5108199E2EDEAD2D0000BE47 /* StudentHeaderView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */; };
 		516E82052EECD43B0038E160 /* AgendaComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82042EECD43B0038E160 /* AgendaComponents.swift */; };
+		516E82072EECD5880038E160 /* StudentWorkPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82062EECD5880038E160 /* StudentWorkPill.swift */; };
+		516E82092EECD58B0038E160 /* MeetingsAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82082EECD58B0038E160 /* MeetingsAgendaView.swift */; };
+		516E820B2EECD58F0038E160 /* MeetingsAgendaViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E820A2EECD58F0038E160 /* MeetingsAgendaViewModel.swift */; };
 		519159012EE676BC007D4AB1 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159002EE676BC007D4AB1 /* TodayViewModel.swift */; };
 		519159032EE676DC007D4AB1 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159022EE676DC007D4AB1 /* TodayView.swift */; };
 		519159052EE77712007D4AB1 /* DaysSinceLastLessonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */; };
@@ -36,6 +39,9 @@
 		5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StudentHeaderView 2.swift"; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		516E82042EECD43B0038E160 /* AgendaComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaComponents.swift; sourceTree = "<group>"; };
+		516E82062EECD5880038E160 /* StudentWorkPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentWorkPill.swift; sourceTree = "<group>"; };
+		516E82082EECD58B0038E160 /* MeetingsAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsAgendaView.swift; sourceTree = "<group>"; };
+		516E820A2EECD58F0038E160 /* MeetingsAgendaViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsAgendaViewModel.swift; sourceTree = "<group>"; };
 		519159002EE676BC007D4AB1 /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
 		519159022EE676DC007D4AB1 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaysSinceLastLessonView.swift; sourceTree = "<group>"; };
@@ -116,6 +122,9 @@
 				51D4DE7B2EEA4C4F004F8A3B /* WorksInboxOrderStore.swift */,
 				51F2B1D62EEBC86900B96584 /* CanonicalPillButton.swift */,
 				516E82042EECD43B0038E160 /* AgendaComponents.swift */,
+				516E82062EECD5880038E160 /* StudentWorkPill.swift */,
+				516E82082EECD58B0038E160 /* MeetingsAgendaView.swift */,
+				516E820A2EECD58F0038E160 /* MeetingsAgendaViewModel.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -218,7 +227,10 @@
 				51D4DE7C2EEA4C4F004F8A3B /* WorksInboxOrderStore.swift in Sources */,
 				51D4DE722EEA4048004F8A3B /* PlanningModels.swift in Sources */,
 				51F2B1D72EEBC86900B96584 /* CanonicalPillButton.swift in Sources */,
+				516E82072EECD5880038E160 /* StudentWorkPill.swift in Sources */,
+				516E82092EECD58B0038E160 /* MeetingsAgendaView.swift in Sources */,
 				516E82052EECD43B0038E160 /* AgendaComponents.swift in Sources */,
+				516E820B2EECD58F0038E160 /* MeetingsAgendaViewModel.swift in Sources */,
 				51D4DE642EE9F0B8004F8A3B /* WorksPlanningView.swift in Sources */,
 				51D4DE742EEA406D004F8A3B /* PlanningDND.swift in Sources */,
 				51C143582EE923DD00255AF0 /* AppCalendar.swift in Sources */,

@@ -30,10 +30,10 @@ struct DayHeaderView: View {
     }
 }
 
-struct AgendaView<Content: View, TopBar: View, Preface: View>: View {
+struct AgendaView<Content: View, TopBar: View, Preface: View, Header: View>: View {
     let days: [Date]
     let dayID: (Date) -> String
-    let dayHeader: (Date) -> DayHeaderView
+    let dayHeader: (Date) -> Header
     @ViewBuilder let topBar: (_ scrollToDay: @escaping (Date) -> Void) -> TopBar
     @ViewBuilder let preface: () -> Preface
     @ViewBuilder let contentForDay: (Date) -> Content
@@ -79,7 +79,7 @@ extension AgendaView where TopBar == EmptyView, Preface == EmptyView {
     init(
         days: [Date],
         dayID: @escaping (Date) -> String,
-        dayHeader: @escaping (Date) -> DayHeaderView,
+        dayHeader: @escaping (Date) -> Header,
         @ViewBuilder contentForDay: @escaping (Date) -> Content
     ) {
         self.days = days
@@ -90,4 +90,3 @@ extension AgendaView where TopBar == EmptyView, Preface == EmptyView {
         self.contentForDay = contentForDay
     }
 }
-

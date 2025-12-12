@@ -109,24 +109,18 @@ struct WorksPlanningView: View {
 
     // MARK: - Body
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            Divider()
-            VStack(spacing: 0) {
-                header
-                Divider()
-                agenda
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+        AgendaShellView(
+            sidebar: { sidebar.frame(width: 280) },
+            header: { header },
+            content: { agenda }
+        )
         .onAppear {
             if startDateRaw != 0 {
                 viewModel.startDate = Date(timeIntervalSince1970: startDateRaw)
             } else {
-                viewModel.startDate = PlanningEngine.firstSchoolDay(
-                    onOrAfter: calendar.startOfDay(for: .now),
+                viewModel.startDate = AgendaSchoolDayRules.computeInitialStartDate(
                     calendar: calendar,
-                    isNonSchoolDay: { SchoolCalendar.isNonSchoolDay($0, using: modelContext) }
+                    isNonSchoolDay: { day in SchoolCalendar.isNonSchoolDay(day, using: modelContext) }
                 )
             }
             // Rebind closure to capture actual modelContext
@@ -222,26 +216,13 @@ struct WorksPlanningView: View {
 
     private var header: some View {
         let days = viewModel.computeSchoolDays(count: 7)
-        let first = days.first ?? Date()
-        let last = days.last ?? Date()
-        return AgendaHeaderView(
-            firstDate: first,
-            lastDate: last,
-            onPrev: {
-                withAnimation {
-                    viewModel.moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
-                }
-            },
-            onToday: {
-                withAnimation {
-                    viewModel.resetToFirstSchoolDay(from: calendar.startOfDay(for: .now))
-                }
-            },
-            onNext: {
-                withAnimation {
-                    viewModel.moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
-                }
-            }
+        return AgendaWeekHeaderView(
+            startDate: viewModel.startDate,
+            days: days,
+            onPrev: { withAnimation { viewModel.moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) } },
+            onNext: { withAnimation { viewModel.moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) } },
+            onToday: { withAnimation { viewModel.resetToFirstSchoolDay(from: calendar.startOfDay(for: .now)) } },
+            actions: { EmptyView() }
         )
     }
 
@@ -252,34 +233,26 @@ struct WorksPlanningView: View {
         return AgendaView(
             days: days,
             dayID: { day in viewModel.dayID(day) },
-            dayHeader: { day in DayHeaderView(name: viewModel.dayName(day), number: viewModel.dayNumber(day), nonSchool: viewModel.isNonSchool(day)) },
+            dayHeader: { day in AgendaDaySectionHeaderView(day: day, isNonSchoolDay: viewModel.isNonSchool(day)) },
             topBar: { scrollToDay in
-                DayStripView(days: days) { day in
+                AgendaDayStripView(days: days) { day in
                     scrollToDay(day)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                Divider()
             },
             preface: {
-                Group {
-                    if !overdueItems.isEmpty {
-                        Section(header: overdueHeader) {
-                            overdueList(items: overdueItems)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 10)
-                        }
-                        .id("overdue_section")
+                if !overdueItems.isEmpty {
+                    Section(header: overdueHeader) {
+                        overdueList(items: overdueItems)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
                     }
+                    .id("overdue_section")
                 }
             },
             contentForDay: { day in
                 periodsList(for: day, grouped: grouped)
             }
         )
-        .onChange(of: viewModel.startDate) { _, _ in
-            // No-op: AgendaView handles initial scroll; here we preserve previous behavior of snapping to first day on start change if needed.
-        }
     }
 
     @ViewBuilder
@@ -436,23 +409,9 @@ struct WorksPlanningView: View {
         }
     }
 
-    private func periodChip(for period: DayPeriod) -> some View {
-        let text = period.label
-        let color = period.color
-        return Text(text)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule().fill(color.opacity(0.12))
-            )
-            .fixedSize()
-    }
-
     private func periodCard(day: Date, period: DayPeriod, grouped: [DayKey: [ScheduledItem]]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            periodChip(for: period)
+            AgendaPeriodChipView(period: period)
             WorkDropList(
                 day: day,
                 period: period,
@@ -612,69 +571,14 @@ struct WorksPlanningView: View {
 
         @ViewBuilder
         private func rowView(for item: ScheduledItem) -> some View {
-            let (iconName, iconColor) = iconAndColor(for: item.work.workType)
-            HStack(spacing: 10) {
-                Image(systemName: iconName)
-                    .foregroundStyle(iconColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    let isTodaySlot = calendar.isDate(day, inSameDayAs: Date())
-                    let studentIDs = item.work.participants.map { $0.studentID }
-                    if !studentIDs.isEmpty {
-                        HStack(spacing: 4) {
-                            ForEach(Array(studentIDs.enumerated()), id: \.element) { idx, sid in
-                                let raw = nameForStudentID(sid).trimmingCharacters(in: .whitespacesAndNewlines)
-                                if !raw.isEmpty {
-                                    Group {
-                                        if isTodaySlot && absentTodayIDs.contains(sid) {
-                                            Text(raw)
-                                                .font(.callout.weight(.bold))
-                                                .foregroundStyle(.primary)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 6)
-                                                        .stroke(Color.red, lineWidth: 1.0)
-                                                )
-                                        } else {
-                                            Text(raw)
-                                                .font(.callout.weight(.bold))
-                                                .foregroundStyle(.primary)
-                                        }
-                                    }
-                                    if idx < studentIDs.count - 1 {
-                                        Text(",")
-                                            .font(.callout.weight(.bold))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Text(titleForWork(item.work))
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                    let purpose = item.checkIn.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !purpose.isEmpty {
-                        Text(purpose)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                Menu {
+            let pill = StudentWorkPill(item: item, nameForStudentID: nameForStudentID, absentTodayIDs: absentTodayIDs)
+            pill
+                .contentShape(Rectangle())
+                .onTapGesture { onOpenWork(item.work.id) }
+                .contextMenu {
                     Button("Open Work", systemImage: "arrow.forward.circle") { onOpenWork(item.work.id) }
                     Button("Mark Completed", systemImage: "checkmark.circle") { onMarkCompleted(item.checkIn) }
-                } label: {
-                    Image(systemName: "ellipsis.circle").foregroundStyle(.secondary)
                 }
-            }
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.04))
-            )
-            .contentShape(Rectangle())
-            .onTapGesture { onOpenWork(item.work.id) }
         }
 
         private struct PillFramePreference: PreferenceKey {
@@ -845,7 +749,7 @@ private struct InboxSidebarView: View {
 
         var body: some View {
             Text(label)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
                 .foregroundStyle(isAbsent ? .secondary : .primary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
@@ -869,7 +773,7 @@ private struct InboxSidebarView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 16)
             ScrollView {
                 VStack(spacing: 8) {
                     ForEach(orderedUnscheduled, id: \.id) { w in
@@ -878,13 +782,11 @@ private struct InboxSidebarView: View {
                         } label: {
                             inboxRowContent(w, includeMenu: true)
                                 .padding(10)
-                                .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
                         }
                         .buttonStyle(.plain)
                         .draggable(PlanningDragItem.work(w.id)) {
                             inboxRowContent(w, includeMenu: false)
                                 .padding(10)
-                                .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.08)))
                         }
                         .background(
                             GeometryReader { proxy in
@@ -896,8 +798,8 @@ private struct InboxSidebarView: View {
                         )
                     }
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 16)
             }
             .coordinateSpace(name: spaceID)
             .onPreferenceChange(WorkInboxPillFramePreference.self) { frames in
@@ -993,6 +895,9 @@ private struct InboxSidebarView: View {
                 }
             }
         }
+        .padding(8)
+        .background(Capsule().fill(Color.primary.opacity(0.06)))
+        .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
     }
 
     // MARK: - Drop handling helpers
@@ -1070,82 +975,7 @@ fileprivate struct WorkInboxPillFramePreference: PreferenceKey {
     }
 }
 
-private struct AgendaHeaderView: View {
-    let firstDate: Date
-    let lastDate: Date
-    let onPrev: () -> Void
-    let onToday: () -> Void
-    let onNext: () -> Void
-
-    var body: some View {
-        let fmt: Date.FormatStyle = Date.FormatStyle()
-            .month(.abbreviated)
-            .day()
-        HStack(spacing: 12) {
-            Button {
-                onPrev()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.borderless)
-
-            Spacer()
-
-            Text("\(firstDate.formatted(fmt)) - \(lastDate.formatted(fmt))")
-                .font(.title3.weight(.semibold))
-
-            Spacer()
-
-            Button {
-                onToday()
-            } label: {
-                Text("Today")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.tint)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.1)))
-            }
-            .buttonStyle(.borderless)
-
-            Button {
-                onNext()
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.borderless)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.bar)
-    }
-}
-
-private struct DayStripView: View {
-    let days: [Date]
-    let onTap: (Date) -> Void
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 14) {
-                ForEach(days, id: \.self) { day in
-                    let label = day.formatted(Date.FormatStyle().weekday(.abbreviated).day())
-                    CanonicalPillButton(label, isSelected: false) {
-                        onTap(day)
-                    }
-                }
-            }
-        }
-    }
-}
+// Removed private struct AgendaHeaderView and private struct DayStripView as instructed.
 
 // MARK: - Preview
 #Preview {
@@ -1265,4 +1095,3 @@ struct WorksInboxDropDelegate: DropDelegate {
         }
     }
 }
-

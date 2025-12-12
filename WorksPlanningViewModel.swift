@@ -50,11 +50,11 @@ final class WorksPlanningViewModel {
     }
 
     func moveStart(bySchoolDays days: Int) {
-        startDate = PlanningEngine.moveBySchoolDays(from: startDate, days: days, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
+        startDate = AgendaSchoolDayRules.movedStart(bySchoolDays: days, from: startDate, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }
 
     func resetToFirstSchoolDay(from date: Date) {
-        startDate = PlanningEngine.firstSchoolDay(onOrAfter: date, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
+        startDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }
 
     func unscheduledWorks(from works: [WorkModel]) -> [WorkModel] {
