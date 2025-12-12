@@ -168,14 +168,16 @@ struct StudentLessonPill: View {
             .overlay(alignment: .trailing) {
                 HStack(spacing: 6) {
                     if let scheduled = scheduledDate {
-                        Button { showTimeEditor = true } label: {
+                        CanonicalPillButton(
+                            isSelected: false,
+                            contentFont: .system(.caption2, design: .rounded),
+                            horizontalPadding: 6,
+                            verticalPadding: 3
+                        ) {
+                            showTimeEditor = true
+                        } content: {
                             Text(Self.timeOnlyFormatter.string(from: scheduled))
-                                .font(.caption2)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(Capsule().fill(Color.primary.opacity(0.08)))
                         }
-                        .buttonStyle(.plain)
                         #if os(macOS)
                         .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
                             DatePicker("Time", selection: Binding(get: {

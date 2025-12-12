@@ -1138,19 +1138,9 @@ private struct DayStripView: View {
             HStack(spacing: 14) {
                 ForEach(days, id: \.self) { day in
                     let label = day.formatted(Date.FormatStyle().weekday(.abbreviated).day())
-                    Button {
+                    CanonicalPillButton(label, isSelected: false) {
                         onTap(day)
-                    } label: {
-                        Text(label)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule().fill(Color.primary.opacity(0.06))
-                            )
                     }
-                    .buttonStyle(.borderless)
                 }
             }
         }
