@@ -988,7 +988,8 @@ fileprivate struct WorkInboxPillFramePreference: PreferenceKey {
         WorkParticipantEntity.self,
         WorkCompletionRecord.self,
         AttendanceRecord.self,
-        WorkCheckIn.self
+        WorkCheckIn.self,
+        Note.self
     ])
     let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: configuration)

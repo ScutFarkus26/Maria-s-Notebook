@@ -14,6 +14,8 @@
 		516E82092EECD58B0038E160 /* MeetingsAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82082EECD58B0038E160 /* MeetingsAgendaView.swift */; };
 		516E820B2EECD58F0038E160 /* MeetingsAgendaViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E820A2EECD58F0038E160 /* MeetingsAgendaViewModel.swift */; };
 		516E820D2EECECCE0038E160 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E820C2EECECCE0038E160 /* Note.swift */; };
+		516E82112EECEE300038E160 /* NotesHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82102EECEE300038E160 /* NotesHelpers.swift */; };
+		516E82132EECF03F0038E160 /* ScopedNotesSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82122EECF03F0038E160 /* ScopedNotesSection.swift */; };
 		519159012EE676BC007D4AB1 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159002EE676BC007D4AB1 /* TodayViewModel.swift */; };
 		519159032EE676DC007D4AB1 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159022EE676DC007D4AB1 /* TodayView.swift */; };
 		519159052EE77712007D4AB1 /* DaysSinceLastLessonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */; };
@@ -44,6 +46,8 @@
 		516E82082EECD58B0038E160 /* MeetingsAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsAgendaView.swift; sourceTree = "<group>"; };
 		516E820A2EECD58F0038E160 /* MeetingsAgendaViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsAgendaViewModel.swift; sourceTree = "<group>"; };
 		516E820C2EECECCE0038E160 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
+		516E82102EECEE300038E160 /* NotesHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesHelpers.swift; sourceTree = "<group>"; };
+		516E82122EECF03F0038E160 /* ScopedNotesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopedNotesSection.swift; sourceTree = "<group>"; };
 		519159002EE676BC007D4AB1 /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
 		519159022EE676DC007D4AB1 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaysSinceLastLessonView.swift; sourceTree = "<group>"; };
@@ -128,6 +132,8 @@
 				516E82082EECD58B0038E160 /* MeetingsAgendaView.swift */,
 				516E820A2EECD58F0038E160 /* MeetingsAgendaViewModel.swift */,
 				516E820C2EECECCE0038E160 /* Note.swift */,
+				516E82102EECEE300038E160 /* NotesHelpers.swift */,
+				516E82122EECF03F0038E160 /* ScopedNotesSection.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -235,6 +241,8 @@
 				516E82092EECD58B0038E160 /* MeetingsAgendaView.swift in Sources */,
 				516E82052EECD43B0038E160 /* AgendaComponents.swift in Sources */,
 				516E820B2EECD58F0038E160 /* MeetingsAgendaViewModel.swift in Sources */,
+				516E82132EECF03F0038E160 /* ScopedNotesSection.swift in Sources */,
+				516E82112EECEE300038E160 /* NotesHelpers.swift in Sources */,
 				51D4DE642EE9F0B8004F8A3B /* WorksPlanningView.swift in Sources */,
 				51D4DE742EEA406D004F8A3B /* PlanningDND.swift in Sources */,
 				51C143582EE923DD00255AF0 /* AppCalendar.swift in Sources */,

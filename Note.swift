@@ -89,13 +89,13 @@ final class Note: Identifiable {
     @Relationship var work: WorkModel?
 
     // Computed, Codable scope
-    var scope: NoteScope {
+    @MainActor var scope: NoteScope {
         get { decodeScope() ?? .all }
         set { scopeBlob = try? JSONEncoder().encode(newValue) }
     }
 
     // Initializer with defaults
-    init(
+    @MainActor init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
@@ -116,10 +116,11 @@ final class Note: Identifiable {
     }
 
     // MARK: - Private helpers
-    private func decodeScope() -> NoteScope? {
+    @MainActor private func decodeScope() -> NoteScope? {
         guard let data = scopeBlob else { return nil }
         return try? JSONDecoder().decode(NoteScope.self, from: data)
     }
 }
 
 // TODO: Migrate any legacy string notes on Lesson/Work into Note objects when ready.
+

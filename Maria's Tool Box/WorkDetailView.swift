@@ -29,9 +29,11 @@ struct WorkDetailView: View {
     @State private var showingStudentPickerPopover = false
     @State private var showInlineCheckInComposer = false
     @State private var notesExpanded = false
+    @State private var fromLessonExpanded: Bool = false
     @State private var showStudentChips = false
     @State private var rebuildTask: Task<Void, Never>? = nil
     @State private var isDeleting = false
+    @State private var selectedNotesStudentID: UUID? = nil
 
     private enum PresentedSheet: Identifiable {
         case linkedLessonDetails
@@ -91,6 +93,90 @@ struct WorkDetailView: View {
             : AppColors.color(forSubject: vm.subject)
     }
 
+    private var sourceLesson: Lesson? {
+        return currentLesson
+    }
+
+    private var sourceLessonPresentedDate: Date? {
+        if let sl = linkedStudentLesson {
+            return sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+        }
+        return nil
+    }
+
+    @MainActor
+    private func fromLessonVisibleNotes() -> [Note] {
+        guard let lesson = sourceLesson else { return [] }
+        let notes: [Note]
+        if let sid = selectedNotesStudentID {
+            notes = lesson.notesVisible(to: sid)
+        } else {
+            notes = lesson.notes
+        }
+        return notes.sorted { lhs, rhs in
+            if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+            return lhs.createdAt > rhs.createdAt
+        }
+    }
+
+    @MainActor
+    @ViewBuilder
+    private func fromLessonNoteRow(_ note: Note) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(scopeText(for: note))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .overlay(
+                        Capsule().stroke(Color.primary.opacity(0.12))
+                    )
+                Spacer()
+                HStack(spacing: 2) {
+                    Text(note.updatedAt, style: .date)
+                    Text(note.updatedAt, style: .time)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Text(note.body)
+                .font(.body)
+                .foregroundStyle(.primary)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+    }
+
+    @MainActor
+    private func scopeText(for note: Note) -> String {
+        switch note.scope {
+        case .all: return "All"
+        case .student(let id):
+            if let s = selectedStudentsList.first(where: { $0.id == id }) {
+                return StudentFormatter.displayName(for: s)
+            }
+            return "Student"
+        case .students(let ids):
+            return "\(ids.count) students"
+        }
+    }
+
+    private var availableStudentsForNotes: [Student] {
+        selectedStudentsList
+    }
+
+    @MainActor
+    private var displayedScopedNotes: [Note] {
+        if let sid = selectedNotesStudentID {
+            return work.notesVisible(to: sid)
+        }
+        return work.noteItems
+    }
+
     private var linkedStudentLesson: StudentLesson? {
         if let id = vm.selectedStudentLessonID { return vm.studentLessonsByID[id] }
         return nil
@@ -130,6 +216,8 @@ struct WorkDetailView: View {
                             completionSection
                             splitCompletedButton
                             notesCollapsibleSection
+                            scopedNotesSection
+                            fromLessonNotesSection
                             checkInsTimelineSection
                             metadataSection
                         }
@@ -428,6 +516,76 @@ struct WorkDetailView: View {
         }
     }
     
+    private var scopedNotesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "note.text")
+                    .foregroundColor(.secondary)
+                Text("Notes (Scoped)")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+                Picker("Filter", selection: $selectedNotesStudentID) {
+                    Text("All").tag(nil as UUID?)
+                    ForEach(selectedStudentsList, id: \.id) { s in
+                        Text(StudentFormatter.displayName(for: s)).tag(Optional(s.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 220)
+            }
+            ScopedNotesSection(
+                title: "Notes",
+                notes: displayedScopedNotes,
+                availableStudents: availableStudentsForNotes,
+                defaultScope: .all,
+                onAddNote: { body, scope in
+                    addScopedNote(body: body, scope: scope)
+                }
+            )
+        }
+    }
+
+    private var fromLessonNotesSection: some View {
+        Group {
+            if let lesson = sourceLesson {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "text.book.closed")
+                            .foregroundColor(.secondary)
+                        Text("From lesson: \(lesson.name)")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        if let date = sourceLessonPresentedDate {
+                            Text(Self.dateOnlyFormatter.string(from: date))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Button(fromLessonExpanded ? "Hide" : "Show") {
+                            withAnimation(.easeInOut) { fromLessonExpanded.toggle() }
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                    if fromLessonExpanded {
+                        let notes = fromLessonVisibleNotes()
+                        if notes.isEmpty {
+                            Text("No notes for this lesson.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(notes, id: \.id) { note in
+                                    fromLessonNoteRow(note)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     private var scheduledCheckInsList: some View {
         ScheduledCheckInsListSection(
             checkIns: vm.checkIns,
@@ -658,6 +816,15 @@ struct WorkDetailView: View {
         return calendar.startOfDay(for: base)
     }
     
+    private func addScopedNote(body: String, scope: NoteScope) {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let note = Note(body: trimmed, scope: scope, work: work)
+        modelContext.insert(note)
+        work.noteItems.append(note)
+        do { try modelContext.save() } catch { }
+    }
+
     // MARK: - Actions
     private func scheduleCacheRebuild() {
         // Debounce cache rebuilds to avoid repeated heavy work during rapid updates

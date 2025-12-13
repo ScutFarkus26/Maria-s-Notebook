@@ -20,6 +20,7 @@ import SwiftUI
     var completedAt: Date?
     @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity] = []
     @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn] = []
+    @Relationship(deleteRule: .cascade, inverse: \Note.work) var noteItems: [Note] = []
 
     init(
         id: UUID = UUID(),

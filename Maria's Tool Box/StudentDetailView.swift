@@ -39,6 +39,7 @@ struct StudentDetailView: View {
     @Query(sort: [
         SortDescriptor(\WorkModel.createdAt, order: .reverse)
     ]) private var workModelsRaw: [WorkModel]
+    @Query private var studentsAll: [Student]
 
     private var selectedChecklistSubject: String? {
         let s = selectedChecklistSubjectRaw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -148,6 +149,96 @@ struct StudentDetailView: View {
             return "\(base) • \(dateString)"
         }
         return dateString
+    }
+
+    // MARK: - Notes projection (Step 5)
+    @MainActor
+    private var lessonNotesVisible: [Note] {
+        // Collect lessons where this student is attached, then include notes visible to this student
+        let lessonIDsForStudent = Set(studentLessonsAll.map { $0.resolvedLessonID })
+        let attachedLessons = lessons.filter { lessonIDsForStudent.contains($0.id) }
+        let all = attachedLessons.flatMap { $0.notesVisible(to: student.id) }
+        return all.sorted { lhs, rhs in
+            if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+            return lhs.createdAt > rhs.createdAt
+        }
+    }
+
+    @MainActor
+    private var workNotesVisible: [Note] {
+        let all = worksForStudent.flatMap { $0.notesVisible(to: student.id) }
+        return all.sorted { lhs, rhs in
+            if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+            return lhs.createdAt > rhs.createdAt
+        }
+    }
+
+    @MainActor
+    private func scopeLabel(for note: Note) -> String {
+        switch note.scope {
+        case .all:
+            return "All"
+        case .student(let id):
+            if let s = vm.lessonsByID.isEmpty ? nil : studentsAll.first(where: { $0.id == id }) {
+                return StudentFormatter.displayName(for: s)
+            }
+            return "Student"
+        case .students(let ids):
+            return "\(ids.count) students"
+        }
+    }
+
+    @MainActor
+    private func parentTitle(for note: Note) -> String {
+        if let lesson = note.lesson {
+            return lesson.name
+        }
+        if let work = note.work {
+            return workTitle(for: work)
+        }
+        return ""
+    }
+
+    @MainActor
+    @ViewBuilder
+    private func noteRow(_ note: Note) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                if !parentTitle(for: note).isEmpty {
+                    Text(parentTitle(for: note))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule().fill(Color.primary.opacity(0.06))
+                        )
+                }
+                Text(scopeLabel(for: note))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .overlay(
+                        Capsule().stroke(Color.primary.opacity(0.12))
+                    )
+                Spacer()
+                HStack(spacing: 2) {
+                    Text(note.updatedAt, style: .date)
+                    Text(note.updatedAt, style: .time)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Text(note.body)
+                .font(.body)
+                .foregroundStyle(.primary)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
     }
 
     // TODO: This icon/color mapping is duplicated in multiple files. Consider unifying via a local helper or extension.
@@ -274,7 +365,12 @@ struct StudentDetailView: View {
                             Divider()
                                 .padding(.top, 8)
 
-                            WorkListSection(works: worksForStudent, workTitle: workTitle(for:), workSubtitle: workSubtitle(for:), iconAndColor: iconAndColor(for:))
+                            WorkListSection(
+                                works: worksForStudent,
+                                workTitle: { work in workTitle(for: work) },
+                                workSubtitle: { work in workSubtitle(for: work) },
+                                iconAndColor: { type in iconAndColor(for: type) }
+                            )
 
                             Divider()
                                 .padding(.top, 8)
@@ -307,7 +403,7 @@ struct StudentDetailView: View {
                         meetingsPlaceholder
                             .padding(.top, 36)
                     } else if selectedTab == .notes {
-                        notesPlaceholder
+                        studentNotesTab
                             .padding(.top, 36)
                     }
                 }
@@ -541,6 +637,49 @@ struct StudentDetailView: View {
             description: Text("This will show the student's notes.")
         )
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var studentNotesTab: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if lessonNotesVisible.isEmpty && workNotesVisible.isEmpty {
+                notesPlaceholder
+            } else {
+                if !lessonNotesVisible.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "text.book.closed")
+                                .foregroundColor(.secondary)
+                            Text("Lesson Notes")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(lessonNotesVisible, id: \ .id) { note in
+                                noteRow(note)
+                            }
+                        }
+                    }
+                }
+                if !workNotesVisible.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "note.text")
+                                .foregroundColor(.secondary)
+                            Text("Work Notes")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(workNotesVisible, id: \ .id) { note in
+                                noteRow(note)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Extracted builders to help the type-checker
