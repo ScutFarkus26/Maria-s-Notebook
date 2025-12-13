@@ -28,6 +28,10 @@ struct StudentDetailView: View {
     private enum StudentDetailTab { case overview, checklist, history, meetings, notes }
     @State private var selectedTab: StudentDetailTab = .overview
 
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
     @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
 
     // MARK: - Queries
@@ -334,6 +338,39 @@ struct StudentDetailView: View {
             .padding(.top, 18)
 
             // Top pill navigation (Overview / Checklist)
+            #if os(iOS)
+            Group {
+                if horizontalSizeClass == .compact {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                            PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                            PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                            PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                            PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                        }
+                        .padding(.horizontal, 12)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                } else {
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                            PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                            PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                            PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                            PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                }
+            }
+            #else
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
@@ -347,6 +384,7 @@ struct StudentDetailView: View {
             }
             .padding(.top, 8)
             .padding(.bottom, 8)
+            #endif
 
             Divider()
                 .padding(.top, 8)

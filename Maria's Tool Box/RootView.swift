@@ -26,6 +26,9 @@ struct RootView: View {
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
     @AppStorage("Backfill.scheduledForDay.v1") private var didBackfillScheduledForDay: Bool = false
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     // MARK: - Computed
     private var selectedTab: Tab {
@@ -61,9 +64,65 @@ struct RootView: View {
             }
 
             // Top pill navigation
+            #if os(iOS)
+            Group {
+                if horizontalSizeClass == .compact {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(pillTabs) { tab in
+                                Button {
+                                    selectedTabRaw = tab.rawValue
+                                } label: {
+                                    Text(tab.rawValue)
+                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 8)
+                                        .frame(minHeight: 30)
+                                        .background(pillBackground(for: tab))
+                                        .foregroundStyle(pillForeground(for: tab))
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+                } else {
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            ForEach(pillTabs) { tab in
+                                Button {
+                                    selectedTabRaw = tab.rawValue
+                                } label: {
+                                    Text(tab.rawValue)
+                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 8)
+                                        .frame(minHeight: 30)
+                                        .background(pillBackground(for: tab))
+                                        .foregroundStyle(pillForeground(for: tab))
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+                }
+            }
+            #else
             HStack {
                 Spacer()
-
                 HStack(spacing: 12) {
                     ForEach(pillTabs) { tab in
                         Button {
@@ -71,6 +130,8 @@ struct RootView: View {
                         } label: {
                             Text(tab.rawValue)
                                 .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 8)
                                 .frame(minHeight: 30)
@@ -81,11 +142,11 @@ struct RootView: View {
                         .buttonStyle(.plain)
                     }
                 }
-
                 Spacer()
             }
             .padding(.top, 12)
             .padding(.bottom, 8)
+            #endif
 
             Divider()
 
@@ -251,28 +312,56 @@ struct PlanningRootView: View {
     }
 
     @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
     private var mode: Mode { Mode(rawValue: modeRaw) ?? .agenda }
 
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
+            Group {
+                if horizontalSizeClass == .compact {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
+                            PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
+                            PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                        }
+                        .padding(.horizontal, 12)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                } else {
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
+                            PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
+                            PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                }
+            }
+            #else
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
-                    PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) {
-                        modeRaw = Mode.agenda.rawValue
-                    }
-                    PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) {
-                        modeRaw = Mode.board.rawValue
-                    }
-                    PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) {
-                        modeRaw = Mode.works.rawValue
-                    }
+                    PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
+                    PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
+                    PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                 }
                 Spacer()
             }
             .padding(.top, 8)
             .padding(.bottom, 8)
+            #endif
 
             Divider()
 
@@ -306,3 +395,4 @@ struct LessonsMenuRootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+

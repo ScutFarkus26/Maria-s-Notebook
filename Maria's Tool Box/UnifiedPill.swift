@@ -69,6 +69,8 @@ struct AppPillButton<Label: View>: View {
         Button(action: action) {
             label()
                 .font(metrics.font)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundStyle(AppPill.foreground(isSelected: isSelected, selectionStyle: selectionStyle))
                 .padding(.horizontal, metrics.horizontalPadding)
                 .padding(.vertical, metrics.verticalPadding)

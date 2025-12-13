@@ -13,6 +13,7 @@ import UIKit
 
 struct AttendanceView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var hSizeClass
 
     @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)])
     private var allStudents: [Student]
@@ -32,7 +33,12 @@ struct AttendanceView: View {
     }
 
     private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 16)]
+    #if os(iOS)
+        if hSizeClass == .compact {
+            return [GridItem(.flexible(minimum: 0), spacing: 12)]
+        }
+    #endif
+        return [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 16)]
     }
 
     private var isNonSchoolDay: Bool {
@@ -98,10 +104,47 @@ struct AttendanceView: View {
                     .padding(.top, 8)
             }
         }
+#if os(iOS)
+        .toolbar {
+            if hSizeClass == .compact {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    if emailEnabled {
+                        Button {
+                            prepareAttendanceEmail()
+                        } label: {
+                            Label("Email", systemImage: "envelope")
+                        }
+                        .disabled(isNonSchoolDay)
+                    }
+                    Button("Reset") {
+                        viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
+                    }
+                    .disabled(isNonSchoolDay)
+                    Button("All Present") {
+                        viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
+                    }
+                    .disabled(isNonSchoolDay)
+                }
+            }
+        }
+#endif
+    }
+
+    @ViewBuilder
+    private var header: some View {
+    #if os(iOS)
+        if hSizeClass == .compact {
+            compactHeader
+        } else {
+            regularHeader
+        }
+    #else
+        regularHeader
+    #endif
     }
 
     // MARK: - Header
-    private var header: some View {
+    private var regularHeader: some View {
         VStack(spacing: 10) {
             HStack(spacing: 12) {
                 Button {
@@ -238,6 +281,119 @@ struct AttendanceView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    // Compact header for iPhone (compact width)
+    private var compactHeader: some View {
+        VStack(spacing: 10) {
+            // Row 1: Date navigation
+            HStack(spacing: 12) {
+                Button {
+                    let prev = SchoolCalendar.previousSchoolDay(before: viewModel.selectedDate, using: modelContext)
+                    viewModel.selectedDate = prev.normalizedDay()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .buttonStyle(.plain)
+
+                DatePicker("", selection: Binding(get: { viewModel.selectedDate }, set: { newValue in
+                    let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+                    viewModel.selectedDate = coerced.normalizedDay()
+                }), displayedComponents: .date)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+
+                Button {
+                    let next = SchoolCalendar.nextSchoolDay(after: viewModel.selectedDate, using: modelContext)
+                    viewModel.selectedDate = next.normalizedDay()
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button("Today") {
+                    let today = Date()
+                    let coerced = SchoolCalendar.nearestSchoolDay(to: today, using: modelContext)
+                    viewModel.selectedDate = coerced.normalizedDay()
+                }
+                .buttonStyle(.plain)
+            }
+
+            if isNonSchoolDay {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                    Text("Marked as a non-school day. Attendance is optional; bulk actions disabled.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
+            }
+
+            // Row 2: Primary stat + breakdown chips (scrollable)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .center, spacing: 8) {
+                    // In Class primary stat
+                    HStack(spacing: 8) {
+                        Text("In Class")
+                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                        Text("\(viewModel.inClassCount)")
+                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule().fill(Color.accentColor.opacity(0.12))
+                            )
+                    }
+
+                    // Breakdown chips
+                    breakdownChip(title: "Present", count: viewModel.countPresent, color: .green)
+                    breakdownChip(title: "Tardy", count: viewModel.countTardy, color: .blue)
+                    breakdownChip(title: "Absent", count: viewModel.countAbsent, color: .red)
+                    breakdownChip(title: "Left Early", count: viewModel.countLeftEarly, color: .purple)
+                    breakdownChip(title: "Unmarked", count: viewModel.countUnmarked, color: .gray)
+                }
+                .padding(.vertical, 2)
+            }
+
+            // Row 3: Filters (fit horizontally if possible; stack if not)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    Picker("Level", selection: $viewModel.levelFilter) {
+                        Text("All").tag(AttendanceViewModel.LevelFilter.all)
+                        Text("Lower").tag(AttendanceViewModel.LevelFilter.lower)
+                        Text("Upper").tag(AttendanceViewModel.LevelFilter.upper)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker("Sort", selection: $viewModel.sortKey) {
+                        Text("First").tag(AttendanceViewModel.SortKey.firstName)
+                        Text("Last").tag(AttendanceViewModel.SortKey.lastName)
+                    }
+                    .pickerStyle(.segmented)
+                }
+                VStack(spacing: 8) {
+                    Picker("Level", selection: $viewModel.levelFilter) {
+                        Text("All").tag(AttendanceViewModel.LevelFilter.all)
+                        Text("Lower").tag(AttendanceViewModel.LevelFilter.lower)
+                        Text("Upper").tag(AttendanceViewModel.LevelFilter.upper)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker("Sort", selection: $viewModel.sortKey) {
+                        Text("First").tag(AttendanceViewModel.SortKey.firstName)
+                        Text("Last").tag(AttendanceViewModel.SortKey.lastName)
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     private func statChip(label: String, value: Int, color: Color) -> some View {

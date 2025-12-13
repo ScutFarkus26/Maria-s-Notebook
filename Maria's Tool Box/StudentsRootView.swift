@@ -37,6 +37,10 @@ struct StudentsRootView: View {
         case workOverview = "Overview"
         var id: String { rawValue }
     }
+    
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     @AppStorage("StudentsRootView.mode") private var modeRaw: String = Mode.roster.rawValue
     private var mode: Mode { Mode(rawValue: modeRaw) ?? .roster }
@@ -44,6 +48,40 @@ struct StudentsRootView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Top pill navigation (Roster / Attendance / Overview)
+            #if os(iOS)
+            Group {
+                if horizontalSizeClass == .compact {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            Spacer(minLength: 0)
+                            HStack(spacing: 12) {
+                                PillNavButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
+                                PillNavButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
+                                PillNavButton(title: Mode.workOverview.rawValue, isSelected: mode == .workOverview) { modeRaw = Mode.workOverview.rawValue }
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                } else {
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            PillNavButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
+                            PillNavButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
+                            PillNavButton(title: Mode.workOverview.rawValue, isSelected: mode == .workOverview) { modeRaw = Mode.workOverview.rawValue }
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                }
+            }
+            #else
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
@@ -55,6 +93,7 @@ struct StudentsRootView: View {
             }
             .padding(.top, 8)
             .padding(.bottom, 8)
+            #endif
 
             Divider()
 
