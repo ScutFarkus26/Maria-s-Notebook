@@ -3,7 +3,7 @@ import SwiftData
 
 enum PlanningActions {
     static func moveToInbox(_ sl: StudentLesson, context: ModelContext) {
-        sl.scheduledFor = nil
+        sl.setScheduledFor(nil, using: AppCalendar.shared)
         Task { @MainActor in try? context.save() }
     }
 
@@ -94,7 +94,7 @@ enum PlanningActions {
             let nextDay = SchoolCalendar.nextSchoolDay(after: day, using: context)
             let comps = calendar.dateComponents([.hour, .minute, .second], from: when)
             if let newDate = calendar.date(bySettingHour: comps.hour ?? 9, minute: comps.minute ?? 0, second: comps.second ?? 0, of: nextDay) {
-                sl.scheduledFor = newDate
+                sl.setScheduledFor(newDate, using: AppCalendar.shared)
                 changed = true
             }
         }
@@ -124,7 +124,7 @@ enum PlanningActions {
             let nextDay = SchoolCalendar.nextSchoolDay(after: day, using: context)
             let comps = calendar.dateComponents([.hour, .minute, .second], from: when)
             if let newDate = calendar.date(bySettingHour: comps.hour ?? 9, minute: comps.minute ?? 0, second: comps.second ?? 0, of: nextDay) {
-                sl.scheduledFor = newDate
+                sl.setScheduledFor(newDate, using: AppCalendar.shared)
                 changed = true
             }
         }

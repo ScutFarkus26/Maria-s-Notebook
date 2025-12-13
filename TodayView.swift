@@ -99,9 +99,11 @@ struct TodayView: View {
         }
         .onAppear {
             viewModel.setCalendar(calendar)
+            AppCalendar.adopt(timeZoneFrom: calendar)
         }
         .onChange(of: calendar) { _, newCal in
             viewModel.setCalendar(newCal)
+            AppCalendar.adopt(timeZoneFrom: newCal)
         }
         .onChange(of: studentLessonsAll.map { $0.id }) { _, _ in
             viewModel.reload()
@@ -162,13 +164,13 @@ struct TodayView: View {
             HStack(spacing: 12) {
                 Button {
                     if let prev = cal.date(byAdding: .day, value: -1, to: viewModel.date) {
-                        viewModel.date = cal.startOfDay(for: prev)
+                        viewModel.date = AppCalendar.startOfDay(prev)
                     }
                 } label: { Image(systemName: "chevron.left") }
                 .buttonStyle(.plain)
 
                 DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
-                    viewModel.date = cal.startOfDay(for: newValue)
+                    viewModel.date = AppCalendar.startOfDay(newValue)
                 }), displayedComponents: .date)
 #if os(macOS)
                 .datePickerStyle(.field)
@@ -178,13 +180,13 @@ struct TodayView: View {
 
                 Button {
                     if let next = cal.date(byAdding: .day, value: 1, to: viewModel.date) {
-                        viewModel.date = cal.startOfDay(for: next)
+                        viewModel.date = AppCalendar.startOfDay(next)
                     }
                 } label: { Image(systemName: "chevron.right") }
                 .buttonStyle(.plain)
 
                 Button("Today") {
-                    viewModel.date = cal.startOfDay(for: Date())
+                    viewModel.date = AppCalendar.startOfDay(Date())
                 }
                 .buttonStyle(.plain)
             }

@@ -25,6 +25,7 @@ struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
+    @AppStorage("Backfill.scheduledForDay.v1") private var didBackfillScheduledForDay: Bool = false
 
     // MARK: - Computed
     private var selectedTab: Tab {
@@ -112,6 +113,7 @@ struct RootView: View {
         .onAppear {
             backfillRelationshipsIfNeeded()
             backfillIsPresentedIfNeeded()
+            backfillScheduledForDayIfNeeded()
             // Migrate legacy top-level Attendance tab to Students -> Attendance mode
             if Tab(rawValue: selectedTabRaw) == .attendance {
                 selectedTabRaw = Tab.students.rawValue
@@ -211,6 +213,29 @@ struct RootView: View {
             }
         } catch {
             // If backfill fails, skip and try again next launch
+        }
+    }
+    
+    private func backfillScheduledForDayIfNeeded() {
+        guard !didBackfillScheduledForDay else { return }
+        do {
+            let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+            var fixed = 0
+            for sl in sls {
+                let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+                if sl.scheduledForDay != correct {
+                    sl.scheduledForDay = correct
+                    fixed += 1
+                }
+            }
+            if fixed > 0 {
+                try modelContext.save()
+            }
+            didBackfillScheduledForDay = true
+            print("Backfill.scheduledForDay: fixed \(fixed) records")
+        } catch {
+            didBackfillScheduledForDay = true
+            print("Backfill.scheduledForDay: fixed 0 records due to error")
         }
     }
 }

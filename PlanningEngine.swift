@@ -28,7 +28,7 @@ enum PlanningEngine {
     }
 
     static func dayID(_ day: Date, calendar: Calendar) -> String {
-        let start = calendar.startOfDay(for: day)
+        let start = AppCalendar.startOfDay(day)
         return "day_\(Int(start.timeIntervalSince1970))"
     }
 
@@ -51,7 +51,7 @@ enum PlanningEngine {
     }
 
     static func dateForSlot(day: Date, period: DayPeriod, calendar: Calendar) -> Date {
-        let startOfDay = calendar.startOfDay(for: day)
+        let startOfDay = AppCalendar.startOfDay(day)
         return calendar.date(byAdding: .hour, value: period.baseHour, to: startOfDay) ?? startOfDay
     }
 
@@ -59,7 +59,7 @@ enum PlanningEngine {
         var result: [DayKey: [ScheduledItem]] = [:]
         for work in works where work.isOpen {
             for ci in work.checkIns where ci.status != .completed && ci.status != .skipped {
-                let dayStart = calendar.startOfDay(for: ci.date)
+                let dayStart = AppCalendar.startOfDay(ci.date)
                 let hour = calendar.component(.hour, from: ci.date)
                 let period: DayPeriod = hour < 12 ? .morning : .afternoon
                 let key = DayKey(dayStart: dayStart, period: period)

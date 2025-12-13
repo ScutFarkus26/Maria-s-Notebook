@@ -15,7 +15,7 @@ import SwiftData
     var scheduledFor: Date? {
         didSet {
             if let date = scheduledFor {
-                scheduledForDay = AppCalendar.shared.startOfDay(for: date)
+                scheduledForDay = AppCalendar.startOfDay(date)
             } else {
                 scheduledForDay = Date.distantPast
             }
@@ -55,7 +55,7 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
-        self.scheduledForDay = scheduledFor.map { AppCalendar.shared.startOfDay(for: $0) } ?? Date.distantPast
+        self.scheduledForDay = scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -84,7 +84,7 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
-        self.scheduledForDay = scheduledFor.map { AppCalendar.shared.startOfDay(for: $0) } ?? Date.distantPast
+        self.scheduledForDay = scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -122,11 +122,19 @@ import SwiftData
         self.studentGroupKeyPersisted = ids.map { $0.uuidString }.joined(separator: ",")
     }
     
+    func normalizeDenormalizedFields() {
+        if let s = scheduledFor {
+            scheduledForDay = AppCalendar.startOfDay(s)
+        } else {
+            scheduledForDay = Date.distantPast
+        }
+    }
+    
     /// Sets `scheduledFor` and updates `scheduledForDay` using the provided calendar.
     func setScheduledFor(_ date: Date?, using calendar: Calendar) {
         if let date {
             self.scheduledFor = date
-            self.scheduledForDay = calendar.startOfDay(for: date)
+            self.scheduledForDay = AppCalendar.startOfDay(date)
         } else {
             self.scheduledFor = nil
             self.scheduledForDay = Date.distantPast
@@ -150,4 +158,3 @@ struct StudentLessonSnapshot: Identifiable {
     var isScheduled: Bool { scheduledFor != nil }
     var isGiven: Bool { isPresented || givenAt != nil }
 }
-

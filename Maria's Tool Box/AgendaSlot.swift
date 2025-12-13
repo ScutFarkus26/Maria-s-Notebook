@@ -280,7 +280,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                 ids.insert(id, at: bounded)
                 let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
                 let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
-                for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.setScheduledFor(timeMap[id], using: calendar) } }
+                for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.setScheduledFor(timeMap[id], using: AppCalendar.shared) } }
                 result = true
             }
         }
@@ -338,8 +338,8 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
                         
                         for id in ids {
-                            if let item = allStudentLessons.first(where: { $0.id == id }) { item.setScheduledFor(timeMap[id], using: calendar) }
-                            if id == targetSL.id { targetSL.setScheduledFor(timeMap[id], using: calendar) }
+                            if let item = allStudentLessons.first(where: { $0.id == id }) { item.setScheduledFor(timeMap[id], using: AppCalendar.shared) }
+                            if id == targetSL.id { targetSL.setScheduledFor(timeMap[id], using: AppCalendar.shared) }
                         }
                         
                         if let src = allStudentLessons.first(where: { $0.id == srcID }) {
@@ -369,7 +369,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                     
                     for id in ids { 
                         if let item = allStudentLessons.first(where: { $0.id == id }) { 
-                            item.setScheduledFor(timeMap[id], using: calendar) 
+                            item.setScheduledFor(timeMap[id], using: AppCalendar.shared) 
                         } 
                     }
                     try? modelContext.save()

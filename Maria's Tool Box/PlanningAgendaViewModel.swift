@@ -39,6 +39,9 @@ final class PlanningAgendaViewModel: ObservableObject {
         // Keep a consistent calendar for all helper computations
         activeCalendar = calendar
 
+        // Adopt the timezone into AppCalendar
+        AppCalendar.adopt(timeZoneFrom: calendar)
+
         // 1) Build a local cache of non-school days for a window around the start date
         let window = dayRange(around: startDate, bufferDays: 10, calendar: calendar)
         var localCache = NonSchoolCache(
@@ -64,15 +67,8 @@ final class PlanningAgendaViewModel: ObservableObject {
         // 3) Fetch scheduled lessons for the visible range
         let newScheduledLessons: [StudentLesson]
         if let first = newVisibleDays.first, let last = newVisibleDays.last {
-            let lower = calendar.startOfDay(for: first)
-            let upper: Date = {
-                if let u = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: last)) {
-                    return u
-                } else {
-                    assertionFailure("Calendar failed to add one day when computing upper bound")
-                    return lower
-                }
-            }()
+            let (lower, _) = AppCalendar.dayRange(for: first)
+            let (_, upper) = AppCalendar.dayRange(for: last)
             newScheduledLessons = fetchScheduledLessons(in: lower..<upper, context: context)
         } else {
             newScheduledLessons = []
@@ -101,27 +97,13 @@ final class PlanningAgendaViewModel: ObservableObject {
 
     // MARK: - Private helpers
     private func startOfDay(_ date: Date) -> Date {
-        activeCalendar.startOfDay(for: date)
+        AppCalendar.startOfDay(date)
     }
 
     private func dayRange(around start: Date, bufferDays: Int, calendar: Calendar) -> Range<Date> {
-        let startDay = calendar.startOfDay(for: start)
-        let lower: Date = {
-            if let d = calendar.date(byAdding: .day, value: -bufferDays, to: startDay) {
-                return d
-            } else {
-                assertionFailure("Calendar failed to subtract days for lower bound")
-                return startDay
-            }
-        }()
-        let upper: Date = {
-            if let d = calendar.date(byAdding: .day, value: bufferDays + 1, to: startDay) {
-                return d
-            } else {
-                assertionFailure("Calendar failed to add days for upper bound")
-                return startDay
-            }
-        }()
+        let startDay = AppCalendar.startOfDay(start)
+        let lower = AppCalendar.addingDays(-bufferDays, to: startDay)
+        let upper = AppCalendar.addingDays(bufferDays + 1, to: startDay)
         return lower..<upper
     }
 
@@ -133,7 +115,7 @@ final class PlanningAgendaViewModel: ObservableObject {
         cache: inout NonSchoolCache
     ) -> [Date] {
         var result: [Date] = []
-        var cursor = calendar.startOfDay(for: start)
+        var cursor = AppCalendar.startOfDay(start)
         let maxLookAheadDays = 365
         var daysSearched = 0
         while result.count < count {
@@ -146,15 +128,12 @@ final class PlanningAgendaViewModel: ObservableObject {
             ensureCoverage(cursor, cache: &cache, calendar: calendar, context: context)
 
             // Prefer cached classification; fall back defensively if needed
-            let dayStart = calendar.startOfDay(for: cursor)
+            let dayStart = AppCalendar.startOfDay(cursor)
             let isNonSchool = cache.days.contains(dayStart) || SchoolCalendar.isNonSchoolDay(cursor, using: context)
             if !isNonSchool { result.append(dayStart) }
 
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else {
-                assertionFailure("Calendar failed to add one day while computing school days")
-                break
-            }
-            cursor = calendar.startOfDay(for: next)
+            let next = AppCalendar.addingDays(1, to: cursor)
+            cursor = AppCalendar.startOfDay(next)
             daysSearched += 1
         }
         return result
@@ -162,16 +141,13 @@ final class PlanningAgendaViewModel: ObservableObject {
 
     private func computeNonSchoolDays(in range: Range<Date>, calendar: Calendar, context: ModelContext) -> Set<Date> {
         var result: Set<Date> = []
-        var cursor = calendar.startOfDay(for: range.lowerBound)
+        var cursor = AppCalendar.startOfDay(range.lowerBound)
         while cursor < range.upperBound {
             if SchoolCalendar.isNonSchoolDay(cursor, using: context) {
                 result.insert(cursor)
             }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else {
-                assertionFailure("Calendar failed to add one day while computing non-school days")
-                break
-            }
-            cursor = calendar.startOfDay(for: next)
+            let next = AppCalendar.addingDays(1, to: cursor)
+            cursor = AppCalendar.startOfDay(next)
         }
         return result
     }
@@ -227,4 +203,3 @@ final class PlanningAgendaViewModel: ObservableObject {
         refreshTask?.cancel()
     }
 }
-

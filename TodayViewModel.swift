@@ -43,7 +43,7 @@ final class TodayViewModel: ObservableObject {
     // MARK: - Inputs
     @Published var date: Date {
         didSet {
-            let normalized = calendar.startOfDay(for: date)
+            let normalized = AppCalendar.startOfDay(date)
             if date != normalized {
                 date = normalized
                 return
@@ -85,13 +85,15 @@ final class TodayViewModel: ObservableObject {
     init(context: ModelContext, date: Date = Date(), calendar: Calendar = .current) {
         self.context = context
         self.calendar = calendar
-        self.date = calendar.startOfDay(for: date)
+        AppCalendar.adopt(timeZoneFrom: calendar)
+        self.date = AppCalendar.startOfDay(date)
         scheduleReload()
     }
 
     func setCalendar(_ cal: Calendar) {
         self.calendar = cal
-        let normalized = cal.startOfDay(for: self.date)
+        AppCalendar.adopt(timeZoneFrom: cal)
+        let normalized = AppCalendar.startOfDay(self.date)
         if self.date != normalized {
             self.date = normalized
         } else {
@@ -102,8 +104,7 @@ final class TodayViewModel: ObservableObject {
     // MARK: - Public API
     func reload() {
         let cal = calendar
-        let day = cal.startOfDay(for: date)
-        let nextDay = cal.date(byAdding: .day, value: 1, to: day) ?? day
+        let (day, nextDay) = AppCalendar.dayRange(for: date)
 
         // Build lookup caches first
         let students = (try? context.fetch(FetchDescriptor<Student>())) ?? []
@@ -301,4 +302,3 @@ final class TodayViewModel: ObservableObject {
         }
     }
 }
-

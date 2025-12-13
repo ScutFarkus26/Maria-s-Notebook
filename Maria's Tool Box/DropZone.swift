@@ -268,8 +268,8 @@ struct BoardDropDelegate: DropDelegate {
                         let baseDate = dateForSlot(day: day, period: period)
                         let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
                         for id in ids {
-                            if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] }
-                            if id == targetSL.id { targetSL.scheduledFor = timeMap[id] }
+                            if let item = allStudentLessons.first(where: { $0.id == id }) { item.setScheduledFor(timeMap[id], using: AppCalendar.shared) }
+                            if id == targetSL.id { targetSL.setScheduledFor(timeMap[id], using: AppCalendar.shared) }
                         }
 
                         // Remove student from source SL; delete if empty
@@ -298,7 +298,7 @@ struct BoardDropDelegate: DropDelegate {
                     ids.insert(id, at: bounded)
                     let baseDate = dateForSlot(day: day, period: period)
                     let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
-                    for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.scheduledFor = timeMap[id] } }
+                    for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.setScheduledFor(timeMap[id], using: AppCalendar.shared) } }
                     try? modelContext.save()
                 }
             }
@@ -322,4 +322,3 @@ struct BoardDropDelegate: DropDelegate {
         return calendar.date(byAdding: .hour, value: hour, to: startOfDay) ?? startOfDay
     }
 }
-

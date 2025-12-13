@@ -38,7 +38,7 @@ struct WorksPlanningView: View {
     
     // MARK: - Computed
     private var absentTodayIDs: Set<UUID> {
-        let today = calendar.startOfDay(for: Date())
+        let today = AppCalendar.startOfDay(Date())
         let descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.date == today })
         let records = (try? modelContext.fetch(descriptor)) ?? []
         return Set(records.filter { $0.status == .absent }.map { $0.studentID })
@@ -53,7 +53,7 @@ struct WorksPlanningView: View {
     }
 
     private var overdueItems: [ScheduledItem] {
-        let todayStart = calendar.startOfDay(for: Date())
+        let todayStart = AppCalendar.startOfDay(Date())
         return works.flatMap { work -> [ScheduledItem] in
             guard work.isOpen else { return [] }
             let overdue = work.checkIns.filter { $0.status == .scheduled && $0.date < todayStart }
@@ -221,7 +221,7 @@ struct WorksPlanningView: View {
             days: days,
             onPrev: { withAnimation { viewModel.moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) } },
             onNext: { withAnimation { viewModel.moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) } },
-            onToday: { withAnimation { viewModel.resetToFirstSchoolDay(from: calendar.startOfDay(for: .now)) } },
+            onToday: { withAnimation { viewModel.resetToFirstSchoolDay(from: AppCalendar.startOfDay(Date())) } },
             actions: { EmptyView() }
         )
     }
