@@ -6,7 +6,7 @@ import SwiftData
 /// pair preserve the full completion history.
 @Model final class WorkCompletionRecord: Identifiable {
     // MARK: - Identity
-    @Attribute(.unique) var id: UUID
+    var id: UUID
 
     // MARK: - Foreign Keys (soft references)
     /// The identifier of the work item that was completed.

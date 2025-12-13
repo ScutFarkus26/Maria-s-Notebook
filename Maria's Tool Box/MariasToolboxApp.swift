@@ -16,6 +16,7 @@ struct MariasToolboxApp: App {
     static let useInMemoryFlagKey = "UseInMemoryStoreOnce"
     static let ephemeralSessionFlagKey = "SwiftDataEphemeralSession"
     static let lastStoreErrorDescriptionKey = "SwiftDataLastErrorDescription"
+    static let allowLocalStoreFallbackKey = "AllowLocalStoreFallback"
 
     /// Remove the local persistent store directory to allow the app to recreate a fresh store on next launch.
     /// NOTE: When using a CloudKit-backed SwiftData store, the system manages the store location and this path
@@ -85,29 +86,41 @@ struct MariasToolboxApp: App {
                 print("SwiftData: Using in-memory store for this launch (toggle enabled).")
                 return container
             } else {
-                // Primary: Try to open a CloudKit-backed store (driven by entitlements and the selected container).
-                // If that fails (e.g., entitlements misconfigured, offline, schema mismatch),
-                // fall back to a persistent on-disk local store at our explicit directory instead of in-memory.
+                // Primary: Open a CloudKit-backed store using the explicit private container.
+                let schema = Schema(schemaTypes)
                 do {
-                    let cloudConfig = ModelConfiguration()
-                    let cloudContainer = try ModelContainer(for: Schema(schemaTypes), configurations: cloudConfig)
+                    let cloudConfig = ModelConfiguration(
+                        schema: schema,
+                        cloudKitDatabase: .private("iCloud.mariastoolbox")
+                    )
+                    let cloudContainer = try ModelContainer(for: schema, configurations: cloudConfig)
                     UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                     UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                     return cloudContainer
                 } catch {
                     let ns = error as NSError
-                    print("SwiftData: CloudKit store failed to open, trying local persistent store at custom URL.")
-                    print("CloudKit open error:", ns, "userInfo:", ns.userInfo)
-                    // Local persistent fallback at a stable, explicit directory so existing local data is reused.
+                    // Log full error and persist a readable message
+                    print("SwiftData: CloudKit store failed to open (explicit). Error:", ns)
+                    print("userInfo:", ns.userInfo)
+                    var message = "\(ns.domain) code=\(ns.code): \(ns.localizedDescription)"
+                    if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+                        message += " | underlying: \(underlying.domain) code=\(underlying.code): \(underlying.localizedDescription)"
+                    }
+                    UserDefaults.standard.set(message, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+
+                    // Always attempt local persistent fallback if CloudKit open fails.
+                    // This prevents a hard crash on launch and lets the app run offline.
                     do {
                         let localConfig = ModelConfiguration(url: MariasToolboxApp.storeDirectoryURL())
-                        let localContainer = try ModelContainer(for: Schema(schemaTypes), configurations: localConfig)
+                        let localContainer = try ModelContainer(for: schema, configurations: localConfig)
                         UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                        UserDefaults.standard.set("Using local on-disk store due to CloudKit open error: \(ns.localizedDescription)", forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-                        print("SwiftData: Using local persistent store at", MariasToolboxApp.storeDirectoryURL().path)
+                        print("SwiftData: Falling back to local persistent store at", MariasToolboxApp.storeDirectoryURL().path)
                         return localContainer
                     } catch {
-                        // Let the outer catch handle (will fall back to in-memory in DEBUG).
+                        #if DEBUG
+                        assertionFailure("SwiftData CloudKit container open failed and local fallback also failed: \(message) | local error: \(error)")
+                        #endif
+                        // If local fallback also fails, rethrow to outer handler.
                         throw error
                     }
                 }
@@ -116,39 +129,16 @@ struct MariasToolboxApp: App {
             let ns = error as NSError
             print("SwiftData (CloudKit) container error:", error)
             print("userInfo:", ns.userInfo)
-            UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
             var message = "\(ns.domain) code=\(ns.code): \(ns.localizedDescription)"
             if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
                 message += " | underlying: \(underlying.domain) code=\(underlying.code): \(underlying.localizedDescription)"
             }
             UserDefaults.standard.set(message, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-            // In DEBUG, fall back to in-memory so the app can launch and you can repair/migrate.
-            // In RELEASE, fail loudly to avoid silent data loss across launches.
+            UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
             #if DEBUG
-                do {
-                    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-                    let fallback = try ModelContainer(for: Schema(schemaTypes), configurations: config)
-                    print("SwiftData: Falling back to in-memory store due to error. Data won't persist this session.")
-                    if UserDefaults.standard.string(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey) == nil {
-                        let ns3 = error as NSError
-                        var msg = "\(ns3.domain) code=\(ns3.code): \(ns3.localizedDescription)"
-                        if let underlying = ns3.userInfo[NSUnderlyingErrorKey] as? NSError {
-                            msg += " | underlying: \(underlying.domain) code=\(underlying.code): \(underlying.localizedDescription)"
-                        }
-                        UserDefaults.standard.set(msg, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-                    }
-                    return fallback
-                } catch {
-                    let ns2 = error as NSError
-                    print("SwiftData in-memory fallback error:", error)
-                    print("userInfo:", ns2.userInfo)
-                    // Keep flags set; crash as a last resort.
-                    fatalError("Failed to create persistent ModelContainer (including in-memory fallback): \(error)")
-                }
-            #else
-                // In release builds, avoid silently running in-memory. Surface the error and stop.
-                fatalError("Failed to open persistent SwiftData store: \(error). Delete and reinstall the app, then restore from backup.")
+            assertionFailure("SwiftData persistent store failed to open: \(message)")
             #endif
+            fatalError("Failed to open persistent SwiftData store: \(message)")
         }
     }()
 
@@ -216,6 +206,15 @@ struct MariasToolboxApp: App {
                 }
             }
             CommandMenu("Troubleshooting") {
+                #if os(macOS)
+                Toggle(
+                    "Allow Local Store Fallback",
+                    isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey) },
+                        set: { UserDefaults.standard.set($0, forKey: MariasToolboxApp.allowLocalStoreFallbackKey) }
+                    )
+                )
+                #endif
                 Button("Use In-Memory Store On Next Launch") {
                     UserDefaults.standard.set(true, forKey: MariasToolboxApp.useInMemoryFlagKey)
                     #if os(macOS)

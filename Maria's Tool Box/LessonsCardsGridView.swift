@@ -228,23 +228,6 @@ private struct LessonCardContainer: View {
 private struct LessonCard: View {
     let lesson: Lesson
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: lesson.subject)
-    }
-
-    private var subjectBadge: some View {
-        HStack(spacing: 6) {
-            Circle().fill(subjectColor).frame(width: 6, height: 6)
-            Text(lesson.subject.isEmpty ? "Subject" : lesson.subject)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                .foregroundStyle(subjectColor)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(subjectColor.opacity(0.12)))
-        .accessibilityLabel("Subject: \(lesson.subject)")
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
@@ -255,7 +238,6 @@ private struct LessonCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
                 Spacer(minLength: 0)
-                subjectBadge
             }
 
             if !lesson.group.isEmpty || !lesson.subject.isEmpty {
@@ -368,3 +350,4 @@ private class RightClickView: NSView {
         onGiveLesson: nil
     )
 }
+

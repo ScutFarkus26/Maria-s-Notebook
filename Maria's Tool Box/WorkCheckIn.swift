@@ -8,7 +8,7 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
 }
 
 @Model final class WorkCheckIn: Identifiable {
-    @Attribute(.unique) var id: UUID
+    var id: UUID
     var workID: UUID
     @Relationship var work: WorkModel?
     var date: Date
