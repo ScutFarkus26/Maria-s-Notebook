@@ -10,6 +10,7 @@
 		5174C9DA2EEDC67C00BBB03D /* SaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */; };
 		5174C9DC2EEDC94300BBB03D /* PreviewEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */; };
 		5174C9DE2EEDCB6F00BBB03D /* AppSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */; };
+		51956F602EEE12230064A2E4 /* WorkDetailVM.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51956F5F2EEE12230064A2E4 /* WorkDetailVM.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +18,7 @@
 		5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveCoordinator.swift; sourceTree = "<group>"; };
 		5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewEnvironment.swift; sourceTree = "<group>"; };
 		5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchema.swift; sourceTree = "<group>"; };
+		51956F5F2EEE12230064A2E4 /* WorkDetailVM.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkDetailVM.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,6 +61,7 @@
 				5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */,
 				5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */,
 				5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */,
+				51956F5F2EEE12230064A2E4 /* WorkDetailVM.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -147,6 +150,7 @@
 				5174C9DA2EEDC67C00BBB03D /* SaveCoordinator.swift in Sources */,
 				5174C9DE2EEDCB6F00BBB03D /* AppSchema.swift in Sources */,
 				5174C9DC2EEDC94300BBB03D /* PreviewEnvironment.swift in Sources */,
+				51956F602EEE12230064A2E4 /* WorkDetailVM.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
