@@ -1,11 +1,9 @@
 import SwiftUI
 
-/// Canonical pill button used across the app, matching the Lessons Agenda neutral pill style.
-/// Visual characteristics:
-/// - Neutral very-light fill, subtle 1pt outline
-/// - Optional accent outline when selected/active
-/// - Semibold rounded text by default (overridable)
-/// - Comfortable insets by default (overridable)
+/// Backwards-compatible wrapper for the app's canonical pill implementation.
+///
+/// Use `AppPillButton` for new code. This type remains so existing views compile
+/// without requiring call-site edits.
 struct CanonicalPillButton<Content: View>: View {
     let isSelected: Bool
     let action: () -> Void
@@ -31,32 +29,21 @@ struct CanonicalPillButton<Content: View>: View {
     }
 
     var body: some View {
-        Button(action: action) {
-            content()
-                .font(contentFont ?? .system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, horizontalPadding)
-                .padding(.vertical, verticalPadding)
-                .background(
-                    Capsule()
-                        .fill(Color.primary.opacity(0.06))
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(Color.accentColor.opacity(isSelected ? 0.45 : 0.0), lineWidth: 2)
-                )
-        }
-        .buttonStyle(.plain)
-        .contentShape(Capsule())
+        var metrics = AppPill.Metrics()
+        metrics.font = contentFont ?? metrics.font
+        metrics.horizontalPadding = horizontalPadding
+        metrics.verticalPadding = verticalPadding
+        return AppPillButton(
+            isSelected: isSelected,
+            selectionStyle: .accentOutline,
+            metrics: metrics,
+            action: action,
+            label: content
+        )
     }
 }
 
 extension CanonicalPillButton where Content == Text {
-    /// Convenience init for simple text labels.
     init(
         _ title: String,
         isSelected: Bool = false,

@@ -49,4 +49,11 @@ enum AppCalendar {
     static func weekdayLabel(for date: Date) -> String {
         date.formatted(Date.FormatStyle().weekday(.abbreviated))
     }
+
+    /// Stable identifier for a day bucket (start-of-day epoch seconds).
+    /// Useful for `id:` values in `ForEach` when you want day-identity rather than full timestamps.
+    static func dayID(_ day: Date) -> String {
+        let start = startOfDay(day)
+        return "day_\(Int(start.timeIntervalSince1970))"
+    }
 }

@@ -1,46 +1,29 @@
 import SwiftUI
 
+/// Backwards-compatible nav pill.
+///
+/// For new code, prefer `AppPillButton` directly.
 struct PillNavButton: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
 
-    private var backgroundStyle: some ShapeStyle {
-        if isSelected {
-            return AnyShapeStyle(Color.accentColor)
-        } else {
-            // Cross-platform neutral background (matches PillButton.swift)
-            return AnyShapeStyle(Color.primary.opacity(0.08))
-        }
-    }
-
-    private var foregroundStyle: some ShapeStyle {
-        if isSelected {
-            return AnyShapeStyle(Color.white)
-        } else {
-            return AnyShapeStyle(Color.primary)
-        }
-    }
-
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .frame(minHeight: 30)
-                .background(backgroundStyle)
-                .foregroundStyle(foregroundStyle)
-                .overlay(
-                    Capsule()
-                        .stroke(Color.primary.opacity(isSelected ? 0.0 : 0.10), lineWidth: 1)
-                )
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .contentShape(Capsule())
-        .accessibilityLabel(Text(title))
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        var metrics = AppPill.Metrics()
+        metrics.font = .system(size: AppTheme.FontSize.body, weight: .semibold)
+        metrics.horizontalPadding = 20
+        metrics.verticalPadding = 8
+        metrics.minHeight = 30
+
+        // Use the same selection language as agenda pills (accent outline) to keep
+        // pill appearance consistent across the app.
+        return AppPillButton(title,
+                             isSelected: isSelected,
+                             selectionStyle: .accentOutline,
+                             metrics: metrics,
+                             action: action)
+            .accessibilityLabel(Text(title))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

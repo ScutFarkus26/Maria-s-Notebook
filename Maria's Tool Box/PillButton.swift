@@ -11,33 +11,18 @@ public struct PillButton: View {
         self.action = action
     }
 
-    private var backgroundStyle: some ShapeStyle {
-        if isSelected {
-            return AnyShapeStyle(Color.accentColor)
-        } else {
-            return AnyShapeStyle(Color.primary.opacity(0.08))
-        }
-    }
-
-    private var foregroundStyle: some ShapeStyle {
-        if isSelected {
-            return AnyShapeStyle(Color.white)
-        } else {
-            return AnyShapeStyle(Color.primary)
-        }
-    }
-
     public var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .frame(minHeight: 30)
-                .background(backgroundStyle)
-                .foregroundStyle(foregroundStyle)
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
+        var metrics = AppPill.Metrics()
+        metrics.font = .system(size: AppTheme.FontSize.body, weight: .semibold)
+        metrics.horizontalPadding = 20
+        metrics.verticalPadding = 8
+        metrics.minHeight = 30
+
+        // Match agenda pill language for a unified look.
+        return AppPillButton(title,
+                             isSelected: isSelected,
+                             selectionStyle: .accentOutline,
+                             metrics: metrics,
+                             action: action)
     }
 }

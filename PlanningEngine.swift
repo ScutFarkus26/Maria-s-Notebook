@@ -28,8 +28,8 @@ enum PlanningEngine {
     }
 
     static func dayID(_ day: Date, calendar: Calendar) -> String {
-        let start = AppCalendar.startOfDay(day)
-        return "day_\(Int(start.timeIntervalSince1970))"
+        // Kept signature for backwards compatibility; calendar is not used.
+        AppCalendar.dayID(day)
     }
 
     static func dayName(_ day: Date) -> String {

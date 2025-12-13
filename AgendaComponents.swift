@@ -164,32 +164,15 @@ struct AgendaPeriodChipView: View {
 
 struct AgendaSchoolDayRules {
     static func computeInitialStartDate(calendar: Calendar, isNonSchoolDay: (Date) -> Bool) -> Date {
-        var day = calendar.startOfDay(for: Date())
-        while isNonSchoolDay(day) {
-            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
-            day = next
-        }
-        return day
+        // Centralize school-day movement rules in PlanningEngine to keep behavior consistent
+        // across agenda-style views.
+        let today = AppCalendar.startOfDay(Date())
+        return PlanningEngine.firstSchoolDay(onOrAfter: today, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }
 
     static func movedStart(bySchoolDays delta: Int, from start: Date, calendar: Calendar, isNonSchoolDay: (Date) -> Bool) -> Date {
-        if delta == 0 {
-            return calendar.startOfDay(for: start)
-        }
-
-        var daysMoved = 0
-        var current = start
-
-        while daysMoved != delta {
-            let step = delta > 0 ? 1 : -1
-            guard let next = calendar.date(byAdding: .day, value: step, to: current) else { break }
-            current = next
-            if !isNonSchoolDay(current) {
-                daysMoved += step
-            }
-        }
-
-        return calendar.startOfDay(for: current)
+        let startDay = AppCalendar.startOfDay(start)
+        return PlanningEngine.moveBySchoolDays(from: startDay, days: delta, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }
 }
 
