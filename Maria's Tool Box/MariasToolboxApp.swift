@@ -25,20 +25,21 @@ struct MariasToolboxApp: App {
     @StateObject private var bootstrapper = AppBootstrapper.shared
 
     static func resetPersistentStore() throws {
-        let url = storeDirectoryURL()
+        let url = storeFileURL()
         let fm = FileManager.default
         if fm.fileExists(atPath: url.path) {
             try fm.removeItem(at: url)
         }
     }
 
-    static func storeDirectoryURL() -> URL {
+    static func storeFileURL() -> URL {
         let fm = FileManager.default
         let appSupport = try! fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let bundleID = Bundle.main.bundleIdentifier ?? "MariasToolbox"
-        let dir = appSupport.appendingPathComponent(bundleID, isDirectory: true).appendingPathComponent("SwiftDataStore", isDirectory: true)
-        try? fm.createDirectory(at: dir.deletingLastPathComponent(), withIntermediateDirectories: true)
-        return dir
+        let containerDir = appSupport.appendingPathComponent(bundleID, isDirectory: true)
+        try? fm.createDirectory(at: containerDir, withIntermediateDirectories: true)
+        // IMPORTANT: return a file URL for the SwiftData store package. Do not pre-create it.
+        return containerDir.appendingPathComponent("SwiftData.store", isDirectory: false)
     }
 
     var sharedModelContainer: ModelContainer = {
@@ -55,7 +56,7 @@ struct MariasToolboxApp: App {
                 let config = ModelConfiguration(schema: schema, cloudKitDatabase: .private("iCloud.mariastoolbox"))
                 return try ModelContainer(for: schema, configurations: config)
             } else {
-                let config = ModelConfiguration(url: url ?? MariasToolboxApp.storeDirectoryURL())
+                let config = ModelConfiguration(url: url ?? MariasToolboxApp.storeFileURL())
                 return try ModelContainer(for: schema, configurations: config)
             }
         }
@@ -64,6 +65,7 @@ struct MariasToolboxApp: App {
             if useInMemory {
                 let container = try makeContainer(inMemory: true)
                 UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                UserDefaults.standard.set("Using temporary in-memory store on next launch.", forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                 UserDefaults.standard.set(false, forKey: MariasToolboxApp.useInMemoryFlagKey)
                 print("SwiftData: Using in-memory store.")
                 return container
@@ -80,19 +82,33 @@ struct MariasToolboxApp: App {
                         print("SwiftData: CloudKit failed, performing INTENTIONAL local fallback. Error: \(error)")
                         let container = try makeContainer(inMemory: false)
                         UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                        UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                         return container
                     } else {
                         // Capture error and return a safe, empty in-memory container
                         // so the app launches to the Error View instead of crashing.
                         print("SwiftData: CloudKit failed. HALTING to prevent split-brain. Error: \(error)")
+                        UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                        UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                         MariasToolboxApp.initError = error
                         return try makeContainer(inMemory: true)
                     }
                 }
             }
         } catch {
-            // If even the in-memory fallback fails, we must crash.
-            fatalError("Failed to open SwiftData store: \(error)")
+            // If even the in-memory fallback fails, we must surface the blocking error view instead of crashing.
+            print("SwiftData: Failed to open SwiftData store even for fallback: \(error)")
+            MariasToolboxApp.initError = error
+            UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+            UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+            // As a last resort, create an empty in-memory container so the app can show the blocking error view
+            do {
+                let empty = Schema([])
+                let config = ModelConfiguration(isStoredInMemoryOnly: true)
+                return try ModelContainer(for: empty, configurations: config)
+            } catch {
+                fatalError("Failed to create even an empty in-memory SwiftData container: \(error)")
+            }
         }
     }()
 
