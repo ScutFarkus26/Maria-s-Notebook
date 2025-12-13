@@ -166,6 +166,7 @@ struct WorkCompletionHistoryView: View {
 }
 
 /// A lightweight in-memory container for previews.
+/// Note: This preview only uses WorkCompletionRecord; ScopedNote is not required here.
 private struct PreviewContainer<Content: View>: View {
     private let content: Content
     init(_ content: Content) { self.content = content }

@@ -16,6 +16,8 @@
 		516E820D2EECECCE0038E160 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E820C2EECECCE0038E160 /* Note.swift */; };
 		516E82112EECEE300038E160 /* NotesHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82102EECEE300038E160 /* NotesHelpers.swift */; };
 		516E82132EECF03F0038E160 /* ScopedNotesSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82122EECF03F0038E160 /* ScopedNotesSection.swift */; };
+		516E82152EED02860038E160 /* ScopedNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82142EED02860038E160 /* ScopedNote.swift */; };
+		516E82172EED02AF0038E160 /* LegacyNotesMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516E82162EED02AF0038E160 /* LegacyNotesMigration.swift */; };
 		519159012EE676BC007D4AB1 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159002EE676BC007D4AB1 /* TodayViewModel.swift */; };
 		519159032EE676DC007D4AB1 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159022EE676DC007D4AB1 /* TodayView.swift */; };
 		519159052EE77712007D4AB1 /* DaysSinceLastLessonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */; };
@@ -48,6 +50,8 @@
 		516E820C2EECECCE0038E160 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
 		516E82102EECEE300038E160 /* NotesHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesHelpers.swift; sourceTree = "<group>"; };
 		516E82122EECF03F0038E160 /* ScopedNotesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopedNotesSection.swift; sourceTree = "<group>"; };
+		516E82142EED02860038E160 /* ScopedNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopedNote.swift; sourceTree = "<group>"; };
+		516E82162EED02AF0038E160 /* LegacyNotesMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyNotesMigration.swift; sourceTree = "<group>"; };
 		519159002EE676BC007D4AB1 /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
 		519159022EE676DC007D4AB1 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		519159042EE77712007D4AB1 /* DaysSinceLastLessonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaysSinceLastLessonView.swift; sourceTree = "<group>"; };
@@ -134,6 +138,8 @@
 				516E820C2EECECCE0038E160 /* Note.swift */,
 				516E82102EECEE300038E160 /* NotesHelpers.swift */,
 				516E82122EECF03F0038E160 /* ScopedNotesSection.swift */,
+				516E82142EED02860038E160 /* ScopedNote.swift */,
+				516E82162EED02AF0038E160 /* LegacyNotesMigration.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -232,12 +238,14 @@
 				51D4DE622EE9F0A8004F8A3B /* WorkCheckInDefaults.swift in Sources */,
 				51D4DE702EEA3F1C004F8A3B /* AgendaScaffoldingViews.swift in Sources */,
 				51D4DE6E2EEA3F10004F8A3B /* WorksPlanningViewModel.swift in Sources */,
+				516E82152EED02860038E160 /* ScopedNote.swift in Sources */,
 				51D4DE6C2EEA3F0A004F8A3B /* PlanningEngine.swift in Sources */,
 				51D4DE7C2EEA4C4F004F8A3B /* WorksInboxOrderStore.swift in Sources */,
 				51D4DE722EEA4048004F8A3B /* PlanningModels.swift in Sources */,
 				51F2B1D72EEBC86900B96584 /* CanonicalPillButton.swift in Sources */,
 				516E82072EECD5880038E160 /* StudentWorkPill.swift in Sources */,
 				516E820D2EECECCE0038E160 /* Note.swift in Sources */,
+				516E82172EED02AF0038E160 /* LegacyNotesMigration.swift in Sources */,
 				516E82092EECD58B0038E160 /* MeetingsAgendaView.swift in Sources */,
 				516E82052EECD43B0038E160 /* AgendaComponents.swift in Sources */,
 				516E820B2EECD58F0038E160 /* MeetingsAgendaViewModel.swift in Sources */,

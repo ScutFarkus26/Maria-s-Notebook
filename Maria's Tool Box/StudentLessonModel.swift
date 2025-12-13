@@ -34,6 +34,8 @@ import SwiftData
     @Transient var students: [Student] = []
     @Transient var lesson: Lesson?
 
+    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.studentLesson) var scopedNotes: [ScopedNote] = []
+
     init(
         id: UUID = UUID(),
         lessonID: UUID,

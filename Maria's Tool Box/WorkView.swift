@@ -4,6 +4,9 @@ import SwiftData
 import UIKit
 #endif
 
+// Preview note: If you add a #Preview that touches StudentLesson or WorkModel relationships,
+// include ScopedNote.self in the Schema list to satisfy SwiftData relationship requirements.
+
 struct WorkView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSize

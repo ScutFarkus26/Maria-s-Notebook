@@ -71,6 +71,7 @@ struct MariasToolboxApp: App {
             WorkCheckIn.self,
             NonSchoolDay.self,
             SchoolDayOverride.self,
+            ScopedNote.self,
             Note.self
         ]
         let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
@@ -172,6 +173,12 @@ struct MariasToolboxApp: App {
                     DataMigrations.normalizeWorkDatesToDateOnlyIfNeeded(using: sharedModelContainer.mainContext)
                     DataMigrations.backfillParticipantsAndDeleteEmptyWorksIfNeeded(using: sharedModelContainer.mainContext)
                     DataMigrations.backfillEmptyWorkTitlesIfNeeded(using: sharedModelContainer.mainContext)
+
+                    // Run legacy scoped notes migration once, non-blocking
+                    Task {
+                        let context = ModelContext(sharedModelContainer)
+                        LegacyNotesMigration.runIfNeeded(modelContext: context)
+                    }
                 }
         }
         #if os(macOS)
@@ -247,4 +254,3 @@ struct MariasToolboxApp: App {
         #endif
     }
 }
-
