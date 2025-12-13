@@ -21,6 +21,7 @@ struct BackupPayload: Codable {
     var attendance: [AttendanceRecordDTO]
     var workCompletions: [WorkCompletionRecordDTO]
     var workCheckIns: [WorkCheckInDTO]
+    var notes: [ScopedNoteDTO]
     var nonSchoolDays: [NonSchoolDayDTO]
     var schoolDayOverrides: [SchoolDayOverrideDTO]
     var presentNowExcludedNames: String?
@@ -37,7 +38,7 @@ struct BackupPayload: Codable {
     var lastBackupTimeInterval: Double?
 
     private enum CodingKeys: String, CodingKey {
-        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns
+        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns, notes
         case nonSchoolDays, schoolDayOverrides, presentNowExcludedNames, planningInboxOrder
         case attendanceEmailEnabled, attendanceEmailTo, attendanceEmailFrom, lessonAgeWarningDays, lessonAgeOverdueDays, lessonAgeFreshColorHex, lessonAgeWarningColorHex, lessonAgeOverdueColorHex, selectedChecklistSubject, lastBackupTimeInterval
     }
@@ -55,6 +56,7 @@ struct BackupPayload: Codable {
         attendance: [AttendanceRecordDTO],
         workCompletions: [WorkCompletionRecordDTO],
         workCheckIns: [WorkCheckInDTO],
+        notes: [ScopedNoteDTO],
         nonSchoolDays: [NonSchoolDayDTO],
         schoolDayOverrides: [SchoolDayOverrideDTO],
         presentNowExcludedNames: String?,
@@ -82,6 +84,7 @@ struct BackupPayload: Codable {
         self.attendance = attendance
         self.workCompletions = workCompletions
         self.workCheckIns = workCheckIns
+        self.notes = notes
         self.nonSchoolDays = nonSchoolDays
         self.schoolDayOverrides = schoolDayOverrides
         self.presentNowExcludedNames = presentNowExcludedNames
@@ -112,6 +115,7 @@ struct BackupPayload: Codable {
         self.attendance = try container.decodeIfPresent([AttendanceRecordDTO].self, forKey: .attendance) ?? []
         self.workCompletions = try container.decodeIfPresent([WorkCompletionRecordDTO].self, forKey: .workCompletions) ?? []
         self.workCheckIns = try container.decodeIfPresent([WorkCheckInDTO].self, forKey: .workCheckIns) ?? []
+        self.notes = (try? container.decode([ScopedNoteDTO].self, forKey: .notes)) ?? []
         self.nonSchoolDays = try container.decodeIfPresent([NonSchoolDayDTO].self, forKey: .nonSchoolDays) ?? []
         self.schoolDayOverrides = try container.decodeIfPresent([SchoolDayOverrideDTO].self, forKey: .schoolDayOverrides) ?? []
         self.presentNowExcludedNames = try container.decodeIfPresent(String.self, forKey: .presentNowExcludedNames)
@@ -317,6 +321,17 @@ struct WorkCheckInDTO: Codable {
     var note: String
 }
 
+struct ScopedNoteDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var updatedAt: Date
+    var body: String
+    var scope: ScopedNote.Scope
+    var legacyFingerprint: String?
+    var studentLessonID: UUID?
+    var workID: UUID?
+}
+
 struct NonSchoolDayDTO: Codable {
     var id: UUID
     var date: Date
@@ -333,7 +348,7 @@ struct SchoolDayOverrideDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 16
+    static let currentVersion: Int = 17
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -457,6 +472,22 @@ enum BackupManager {
             )
         }
 
+        // Fetch all ScopedNotes
+        let notesFetch = FetchDescriptor<ScopedNote>()
+        let notes = try context.fetch(notesFetch)
+        let notesDTO: [ScopedNoteDTO] = notes.map { n in
+            ScopedNoteDTO(
+                id: n.id,
+                createdAt: n.createdAt,
+                updatedAt: n.updatedAt,
+                body: n.body,
+                scope: n.scope,
+                legacyFingerprint: n.legacyFingerprint,
+                studentLessonID: n.studentLesson?.id,
+                workID: n.work?.id
+            )
+        }
+
         // Fetch school calendar entities
         let nonSchoolDaysFetch = FetchDescriptor<NonSchoolDay>()
         let nonSchoolDays = try context.fetch(nonSchoolDaysFetch)
@@ -518,6 +549,7 @@ enum BackupManager {
             attendance: attendanceDTO,
             workCompletions: workCompletionsDTO,
             workCheckIns: workCheckInsDTO,
+            notes: notesDTO,
             nonSchoolDays: nonSchoolDaysDTO,
             schoolDayOverrides: schoolDayOverridesDTO,
             presentNowExcludedNames: presentNowExcludedNames,
@@ -689,6 +721,28 @@ enum BackupManager {
             }
         }
 
+        // Insert ScopedNotes (preserving IDs) if present
+        if !payload.notes.isEmpty {
+            // Build maps for relationships
+            let slsNow = try context.fetch(FetchDescriptor<StudentLesson>())
+            let slByID = Dictionary(uniqueKeysWithValues: slsNow.map { ($0.id, $0) })
+            let worksNow = try context.fetch(FetchDescriptor<WorkModel>())
+            let workByID = Dictionary(uniqueKeysWithValues: worksNow.map { ($0.id, $0) })
+            for dto in payload.notes {
+                let note = ScopedNote(
+                    id: dto.id,
+                    createdAt: dto.createdAt,
+                    updatedAt: dto.updatedAt,
+                    body: dto.body,
+                    scope: dto.scope,
+                    legacyFingerprint: dto.legacyFingerprint,
+                    studentLesson: dto.studentLessonID.flatMap { slByID[$0] },
+                    work: dto.workID.flatMap { workByID[$0] }
+                )
+                context.insert(note)
+            }
+        }
+
         // Backward compatibility: synthesize unscheduled StudentLesson records if missing but nextLessons present
         if payload.studentLessons.isEmpty {
             let existingLessonIDs = Set(try context.fetch(FetchDescriptor<Lesson>()).map { $0.id })
@@ -832,6 +886,11 @@ enum BackupManager {
         do {
             let cis = try context.fetch(FetchDescriptor<WorkCheckIn>())
             for obj in cis { context.delete(obj) }
+        }
+        // Delete ScopedNotes
+        do {
+            let notes = try context.fetch(FetchDescriptor<ScopedNote>())
+            for obj in notes { context.delete(obj) }
         }
         // Delete WorkCompletionRecords
         do {
