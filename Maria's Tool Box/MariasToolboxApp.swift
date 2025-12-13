@@ -70,7 +70,8 @@ struct MariasToolboxApp: App {
             AttendanceRecord.self,
             WorkCheckIn.self,
             NonSchoolDay.self,
-            SchoolDayOverride.self
+            SchoolDayOverride.self,
+            Note.self
         ]
         let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
         do {

@@ -25,6 +25,8 @@ final class Lesson: Identifiable {
     /// Relative path to an imported file inside the app's managed container (iCloud/Documents/Lesson Files or local fallback)
     var pagesFileRelativePath: String? = nil
 
+    @Relationship var notes: [Note] = []
+
     init(
         id: UUID = UUID(),
         name: String = "",
