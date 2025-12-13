@@ -112,7 +112,7 @@ struct WorksPlanningView: View {
     // MARK: - Body
     var body: some View {
         AgendaShellView(
-            sidebar: { sidebar.frame(width: 280) },
+            sidebar: { sidebar },
             header: { header },
             content: { agenda }
         )
@@ -862,7 +862,6 @@ private struct InboxSidebarView: View {
             )
             .animation(.easeInOut(duration: 0.15), value: inboxIsTargeted)
         }
-        .frame(width: 280)
     }
 
     @ViewBuilder

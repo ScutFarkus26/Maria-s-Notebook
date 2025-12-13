@@ -15,9 +15,69 @@ struct AgendaShellView<Sidebar: View, Header: View, Content: View>: View {
         self.content = content
     }
 
+    @State private var showSidebarSheet: Bool = false
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
     var body: some View {
+        #if os(iOS)
+        if horizontalSizeClass == .compact {
+            VStack(spacing: 0) {
+                // Compact top bar with Sidebar trigger
+                HStack(spacing: 12) {
+                    Button {
+                        showSidebarSheet = true
+                    } label: {
+                        Label("Inbox", systemImage: "tray.full")
+                            .font(.callout.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(.bar)
+
+                Divider()
+
+                VStack(spacing: 0) {
+                    header()
+                    Divider()
+                    content()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .sheet(isPresented: $showSidebarSheet) {
+                NavigationStack {
+                    sidebar()
+                        .navigationTitle("Inbox")
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { showSidebarSheet = false }
+                            }
+                        }
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+        } else {
+            HStack(spacing: 0) {
+                sidebar()
+                    .frame(width: 280)
+                Divider()
+                VStack(spacing: 0) {
+                    header()
+                    Divider()
+                    content()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        #else
         HStack(spacing: 0) {
             sidebar()
+                .frame(width: 280)
             Divider()
             VStack(spacing: 0) {
                 header()
@@ -26,6 +86,7 @@ struct AgendaShellView<Sidebar: View, Header: View, Content: View>: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        #endif
     }
 }
 

@@ -135,7 +135,6 @@ struct PlanningAgendaView: View {
                 viewModel.refreshNow(calendar: calendar, context: modelContext, startDate: startDate)
             }
         )
-        .frame(width: 280)
     }
 
     // MARK: - Header
