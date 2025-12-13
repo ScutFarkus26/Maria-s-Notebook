@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct WorkContentView: View {
     let works: [WorkModel]
@@ -37,17 +38,27 @@ struct GroupedWorksView: View {
     let onTapWork: (WorkModel) -> Void
     let onToggleComplete: (WorkModel) -> Void
     
+    @Environment(\.modelContext) private var modelContext
+    @State private var groupedIDs: [String: [UUID]] = [:]
+    private var worksByID: [UUID: WorkModel] { Dictionary(uniqueKeysWithValues: works.map { ($0.id, $0) }) }
+    
     private var sectionOrder: [String] {
         WorkGroupingService.sectionOrder(for: grouping)
     }
     
     private func itemsForSection(_ key: String) -> [WorkModel] {
-        WorkGroupingService.itemsForSection(
-            key,
-            grouping: grouping,
-            works: works,
-            linkedDate: lookupService.linkedDate
-        )
+        if grouping == .checkIns {
+            // Use async-computed groups of IDs and map back to models for display
+            let ids = groupedIDs[key] ?? []
+            return ids.compactMap { worksByID[$0] }
+        } else {
+            return WorkGroupingService.itemsForSection(
+                key,
+                grouping: grouping,
+                works: works,
+                linkedDate: lookupService.linkedDate
+            )
+        }
     }
     
     var body: some View {
@@ -82,5 +93,20 @@ struct GroupedWorksView: View {
             .padding(24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: grouping.rawValue + works.map { $0.id.uuidString }.joined(separator: ",")) {
+            if grouping == .checkIns {
+                let actor = WorkGroupingServiceActor(modelContainer: modelContext.container)
+                let ids = works.map { $0.id }
+                do {
+                    let result = try await WorkGroupingService.groupByCheckIns(workIDs: ids, using: actor)
+                    groupedIDs = result
+                } catch {
+                    groupedIDs = [:]
+                }
+            } else {
+                groupedIDs = [:]
+            }
+        }
     }
 }
+

@@ -311,10 +311,9 @@ struct WorksPlanningView: View {
         }
     }
 
-    @ViewBuilder
     private func overdueRow(for item: ScheduledItem) -> some View {
         let (iconName, iconColor) = iconAndColor(for: item.work.workType)
-        HStack(spacing: 10) {
+        return HStack(spacing: 10) {
             Image(systemName: iconName)
                 .foregroundStyle(iconColor)
             VStack(alignment: .leading, spacing: 2) {
@@ -392,6 +391,8 @@ struct WorksPlanningView: View {
         .onTapGesture {
             viewModel.activeSheet = .detail(workID: item.work.id)
         }
+        // Enable dragging overdue items directly into day/period slots to reschedule them
+        .draggable(PlanningDragItem.checkIn(item.checkIn.id))
     }
 
     @ViewBuilder
