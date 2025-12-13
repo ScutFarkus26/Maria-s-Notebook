@@ -14,6 +14,7 @@ struct StudentDetailView: View {
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     // MARK: - State
     @StateObject private var vm: StudentDetailViewModel
@@ -474,7 +475,7 @@ struct StudentDetailView: View {
                             student.birthday = draftBirthday
                             student.level = draftLevel
                             student.dateStarted = draftStartDate
-                            try? modelContext.save()
+                            _ = saveCoordinator.save(modelContext, reason: "Edit student details")
                             isEditing = false
                         }
                         .keyboardShortcut(.defaultAction)
@@ -525,6 +526,7 @@ struct StudentDetailView: View {
         .alert("Delete Student?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 modelContext.delete(student)
+                _ = saveCoordinator.save(modelContext, reason: "Delete student")
                 if let onDone { onDone() } else { dismiss() }
             }
             Button("Cancel", role: .cancel) {}
@@ -766,7 +768,7 @@ struct StudentDetailView: View {
         newSL.students = [student]
         newSL.lesson = lesson
         modelContext.insert(newSL)
-        try? modelContext.save()
+        _ = saveCoordinator.save(modelContext, reason: "Create draft student lesson")
         return newSL
     }
 
@@ -778,16 +780,13 @@ struct StudentDetailView: View {
     }()
 }
 #Preview {
-    // NOTE: This preview uses placeholders and will need a real Student from your model to render accurately.
-    // Creating a lightweight mock to preview layout only.
-    struct MockStudent: Hashable {
-        var fullName: String
-        var birthday: Date
-        enum Level: String { case upper = "Upper", lower = "Lower" }
-        var level: Level
-        var nextLessons: [Int]
-    }
-    // The preview below is a visual placeholder and not compiled with the app target.
-    return Text("StudentDetailView Preview requires app data model.")
+    let container = ModelContainer.preview
+    let context = container.mainContext
+
+    // Seed a sample student and minimal references used by the view
+    let student = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(timeIntervalSince1970: 0), level: .upper)
+    context.insert(student)
+    return StudentDetailView(student: student)
+        .previewEnvironment(using: container)
 }
 

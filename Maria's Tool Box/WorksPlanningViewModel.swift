@@ -71,17 +71,23 @@ final class WorksPlanningViewModel {
         PlanningEngine.groupedItems(works: works, calendar: calendar)
     }
 
-    func scheduleCheckIn(for workID: UUID, on date: Date, context: ModelContext) throws {
+    func scheduleCheckIn(for workID: UUID, on date: Date, context: ModelContext, saveCoordinator: SaveCoordinator) throws {
         let service = checkInServiceFactory(context)
         if let work = try? context.fetch(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })).first {
             _ = try? service.createCheckIn(for: work, date: date, status: .scheduled, purpose: "", note: "")
+            _ = saveCoordinator.save(context, reason: "Schedule check-in")
         }
     }
 
-    func markCompleted(_ ci: WorkCheckIn, context: ModelContext) {
+    func markCompleted(_ ci: WorkCheckIn, context: ModelContext, saveCoordinator: SaveCoordinator) {
         let svc = checkInServiceFactory(context)
-        do { try svc.markCompleted(ci) }
-        catch { errorMessage = "Failed to mark as completed. Please try again." }
+        do {
+            try svc.markCompleted(ci)
+            _ = saveCoordinator.save(context, reason: "Mark check-in completed")
+        }
+        catch {
+            errorMessage = "Failed to mark as completed. Please try again."
+        }
     }
 }
 

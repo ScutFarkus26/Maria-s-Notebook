@@ -34,7 +34,6 @@ struct WorkCheckInService {
                              work: work)
         context.insert(ci)
         work.checkIns.append(ci)
-        try context.save()
         return ci
     }
 
@@ -43,26 +42,22 @@ struct WorkCheckInService {
     /// Mark a check-in as completed and persist immediately.
     func markCompleted(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
         checkIn.markCompleted(note: note, at: date, in: context)
-        try context.save()
     }
 
     /// Reschedule a check-in and persist immediately.
     func reschedule(_ checkIn: WorkCheckIn, to date: Date, note: String? = nil) throws {
         checkIn.reschedule(to: date, note: note, in: context)
-        try context.save()
     }
 
     /// Skip a check-in and persist immediately.
     func skip(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
         checkIn.skip(note: note, at: date, in: context)
-        try context.save()
     }
 
     /// Update the note on a check-in and persist immediately.
     func updateNote(_ checkIn: WorkCheckIn, to note: String?) throws {
         let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         checkIn.note = trimmed
-        try context.save()
     }
 
     /// Update core fields on a check-in and persist immediately.
@@ -71,7 +66,6 @@ struct WorkCheckInService {
         checkIn.status = status
         checkIn.purpose = purpose.trimmingCharacters(in: .whitespacesAndNewlines)
         checkIn.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        try context.save()
     }
 
     // MARK: - Deletion
@@ -82,6 +76,5 @@ struct WorkCheckInService {
             work.checkIns.removeAll { $0.id == checkIn.id }
         }
         context.delete(checkIn)
-        try context.save()
     }
 }

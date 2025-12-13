@@ -10,6 +10,7 @@ import UIKit
 struct WorkView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSize
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
 #if os(macOS)
     @Environment(\.openWindow) private var openWindow
@@ -266,7 +267,7 @@ struct WorkView: View {
     
     private func handleToggleComplete(_ work: WorkModel) {
         work.completedAt = work.isCompleted ? nil : Date()
-        do { try modelContext.save() } catch { }
+        _ = saveCoordinator.save(modelContext, reason: "Toggle work completed")
     }
 
 #if !os(macOS)

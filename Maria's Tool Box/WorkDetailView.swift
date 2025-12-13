@@ -7,6 +7,7 @@ struct WorkDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     // MARK: - Queries
     @Query private var lessons: [Lesson]
@@ -237,6 +238,7 @@ struct WorkDetailView: View {
                 }
             }
         }
+        .saveErrorAlert()
         .safeAreaInset(edge: .bottom) {
             WorkDetailBottomBar(
                 onDelete: { showDeleteAlert = true },
@@ -300,6 +302,7 @@ struct WorkDetailView: View {
                     Button("Save") {
                         let service = WorkCheckInService(context: modelContext)
                         do { try service.reschedule(checkIn, to: rescheduleDate) } catch { }
+                        _ = saveCoordinator.save(modelContext, reason: "Reschedule check-in")
                         reschedulingCheckIn = nil
                         updateCaches()
                     }
@@ -594,7 +597,10 @@ struct WorkDetailView: View {
                 editingCheckInNote = checkIn
             },
             onSetStatus: vm.setCheckInDraftStatus,
-            onDelete: { vm.deleteCheckInDraft($0, modelContext: modelContext) }
+            onDelete: {
+                vm.deleteCheckInDraft($0, modelContext: modelContext)
+                _ = saveCoordinator.save(modelContext, reason: "Delete check-in")
+            }
         )
     }
     
@@ -609,6 +615,7 @@ struct WorkDetailView: View {
                 note: "",
                 modelContext: modelContext
             )
+            _ = saveCoordinator.save(modelContext, reason: "Add check-in")
             checkInPurpose = ""
             checkInDate = Date()
         }
@@ -699,11 +706,13 @@ struct WorkDetailView: View {
                         Button("Mark Completed", systemImage: "checkmark.circle") {
                             let service = WorkCheckInService(context: modelContext)
                             do { try service.markCompleted(item) } catch { }
+                            _ = saveCoordinator.save(modelContext, reason: "Mark check-in completed")
                             updateCaches()
                         }
                         Button("Skip", systemImage: "forward.end") {
                             let service = WorkCheckInService(context: modelContext)
                             do { try service.skip(item) } catch { }
+                            _ = saveCoordinator.save(modelContext, reason: "Skip check-in")
                             updateCaches()
                         }
                         Button("Reschedule", systemImage: "calendar") {
@@ -756,6 +765,7 @@ struct WorkDetailView: View {
                                 note: "",
                                 modelContext: modelContext
                             )
+                            _ = saveCoordinator.save(modelContext, reason: "Add check-in")
                             checkInPurpose = ""
                             checkInDate = Date()
                             withAnimation(.easeInOut) { showInlineCheckInComposer = false }
@@ -795,7 +805,7 @@ struct WorkDetailView: View {
            let lesson = vm.lessonsByID[sl.lessonID] {
             LessonDetailView(lesson: lesson, onSave: { _ in
                 Task { @MainActor in
-                    try? modelContext.save()
+                    _ = saveCoordinator.save(modelContext, reason: "Save lesson changes")
                 }
             }, onDone: {
                 presentedSheet = nil
@@ -822,7 +832,7 @@ struct WorkDetailView: View {
         let note = Note(body: trimmed, scope: scope, work: work)
         modelContext.insert(note)
         work.noteItems.append(note)
-        do { try modelContext.save() } catch { }
+        _ = saveCoordinator.save(modelContext, reason: "Add scoped note")
     }
 
     // MARK: - Actions
@@ -858,6 +868,7 @@ struct WorkDetailView: View {
     
     private func handleSave() {
         vm.save(modelContext: modelContext) {
+            _ = saveCoordinator.save(modelContext, reason: "Save work details")
             if let onDone = onDone {
                 onDone()
             } else {
@@ -869,6 +880,7 @@ struct WorkDetailView: View {
     private func handleDelete() {
         isDeleting = true
         vm.deleteWork(modelContext: modelContext) {
+            _ = saveCoordinator.save(modelContext, reason: "Delete work")
             isDeleting = false
             if let onDone = onDone {
                 onDone()
@@ -880,6 +892,7 @@ struct WorkDetailView: View {
     
     private func handleNoteEditorSave() {
         vm.updateCheckInNote(editingCheckInNote!.id, note: noteText)
+        _ = saveCoordinator.save(modelContext, reason: "Update check-in note")
         editingCheckInNote = nil
         noteText = ""
     }
@@ -913,8 +926,24 @@ struct WorkDetailView: View {
             newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
             modelContext.insert(newStudentLesson)
         }
-        do { try modelContext.save() } catch { }
+        _ = saveCoordinator.save(modelContext, reason: "Schedule next lesson in group")
         StudentLessonDetailUtilities.notifyInboxRefresh()
     }
 }
 
+#Preview {
+    let container = ModelContainer.preview
+    let ctx = container.mainContext
+    // Seed minimal data for WorkDetailView
+    let lesson = Lesson(name: "Long Division", subject: "Math", group: "Operations", subheading: "", writeUp: "")
+    let student = Student(firstName: "Grace", lastName: "Hopper", birthday: Date(timeIntervalSince1970: 0), level: .upper)
+    let sl = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), scheduledFor: nil, givenAt: nil, isPresented: false, notes: "", needsPractice: false, needsAnotherPresentation: false, followUpWork: "")
+    ctx.insert(lesson)
+    ctx.insert(student)
+    ctx.insert(sl)
+    let work = WorkModel(title: "Practice Long Division", workType: .practice, studentLessonID: sl.id)
+    work.participants = [WorkParticipantEntity(studentID: student.id, completedAt: nil, work: work)]
+    ctx.insert(work)
+    return WorkDetailView(work: work)
+        .previewEnvironment(using: container)
+}

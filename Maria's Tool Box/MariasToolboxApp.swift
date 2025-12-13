@@ -18,6 +18,8 @@ struct MariasToolboxApp: App {
     static let lastStoreErrorDescriptionKey = "SwiftDataLastErrorDescription"
     static let allowLocalStoreFallbackKey = "AllowLocalStoreFallback"
 
+    @StateObject private var saveCoordinator = SaveCoordinator()
+
     /// Remove the local persistent store directory to allow the app to recreate a fresh store on next launch.
     /// NOTE: When using a CloudKit-backed SwiftData store, the system manages the store location and this path
     /// may not be used. To fully reset CloudKit development data, use CloudKit Dashboard (Development DB) and
@@ -60,26 +62,12 @@ struct MariasToolboxApp: App {
        • Ensure both the macOS and iPadOS targets use the SAME Team, Bundle ID family, and CloudKit container.
     */
     var sharedModelContainer: ModelContainer = {
-        let schemaTypes: [any PersistentModel.Type] = [
-            Item.self,
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCompletionRecord.self,
-            AttendanceRecord.self,
-            WorkCheckIn.self,
-            NonSchoolDay.self,
-            SchoolDayOverride.self,
-            ScopedNote.self,
-            Note.self
-        ]
+        let schema = AppSchema.schema
         let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
         do {
             if useInMemory {
                 let config = ModelConfiguration(isStoredInMemoryOnly: true)
-                let container = try ModelContainer(for: Schema(schemaTypes), configurations: config)
+                let container = try ModelContainer(for: schema, configurations: config)
                 UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                 UserDefaults.standard.set("Using in-memory store by user toggle.", forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                 UserDefaults.standard.set(false, forKey: MariasToolboxApp.useInMemoryFlagKey)
@@ -87,7 +75,7 @@ struct MariasToolboxApp: App {
                 return container
             } else {
                 // Primary: Open a CloudKit-backed store using the explicit private container.
-                let schema = Schema(schemaTypes)
+                let schema = AppSchema.schema
                 do {
                     let cloudConfig = ModelConfiguration(
                         schema: schema,
@@ -154,6 +142,7 @@ struct MariasToolboxApp: App {
         WindowGroup("") {
             RootView()
                 .environment(\.calendar, AppCalendar.shared)
+                .environmentObject(saveCoordinator)
                 .onAppear {
                     DataMigrations.repairScheduledForDayIfNeeded(using: sharedModelContainer.mainContext, calendar: AppCalendar.shared)
                     NotificationCenter.default.post(name: .PlanningInboxNeedsRefresh, object: nil)
@@ -241,6 +230,7 @@ struct MariasToolboxApp: App {
             if let id = workID {
                 WorkDetailWindowContainer(workID: id)
                     .environment(\.calendar, AppCalendar.shared)
+                    .environmentObject(saveCoordinator)
             } else {
                 Text("No work selected")
                     .frame(minWidth: 400, minHeight: 300)
@@ -253,3 +243,4 @@ struct MariasToolboxApp: App {
         #endif
     }
 }
+

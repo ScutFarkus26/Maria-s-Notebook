@@ -5,6 +5,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import Combine
 
 /// Displays the Works Agenda with an inbox sidebar and a 7‑day agenda area.
 /// Safe refactor only: structure and comments without changing behavior.
@@ -12,6 +13,7 @@ struct WorksPlanningView: View {
     // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     // MARK: - Queries
     @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]) private var works: [WorkModel]
@@ -150,6 +152,7 @@ struct WorksPlanningView: View {
                     Button("Save") {
                         let service = WorkCheckInService(context: modelContext)
                         do { try service.reschedule(checkIn, to: rescheduleDate) } catch { }
+                        _ = saveCoordinator.save(modelContext, reason: "Reschedule check-in")
                         reschedulingCheckIn = nil
                     }
                     .keyboardShortcut(.defaultAction)
@@ -174,7 +177,7 @@ struct WorksPlanningView: View {
             ScheduleCheckInSheet(workID: id, initialDate: viewModel.scheduleDate,
                                  onCancel: { viewModel.activeSheet = nil },
                                  onSave: { date in
-                try? viewModel.scheduleCheckIn(for: id, on: date, context: modelContext)
+                try? viewModel.scheduleCheckIn(for: id, on: date, context: modelContext, saveCoordinator: saveCoordinator)
                 viewModel.activeSheet = nil
             })
     #if os(macOS)
@@ -370,7 +373,7 @@ struct WorksPlanningView: View {
                     viewModel.activeSheet = .detail(workID: item.work.id)
                 }
                 Button("Mark Completed", systemImage: "checkmark.circle") {
-                    viewModel.markCompleted(item.checkIn, context: modelContext)
+                    viewModel.markCompleted(item.checkIn, context: modelContext, saveCoordinator: saveCoordinator)
                 }
                 Button("Reschedule", systemImage: "calendar") {
                     rescheduleDate = item.checkIn.date
@@ -425,12 +428,13 @@ struct WorksPlanningView: View {
                 },
                 onMarkCompleted: { ci in
                     ci.status = .completed
-                    try? modelContext.save()
+                    _ = saveCoordinator.save(modelContext, reason: "Mark check-in completed")
                 },
                 absentTodayIDs: absentTodayIDs,
                 nameForStudentID: { id in
                     (studentsByID[id]?.firstName.trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
-                }
+                },
+                onDidMutate: { reason in _ = saveCoordinator.save(modelContext, reason: reason) }
             )
         }
         .overlay(alignment: .center) {
@@ -446,6 +450,7 @@ struct WorksPlanningView: View {
     private struct WorkDropList: View {
         @Environment(\.modelContext) private var modelContext
         @Environment(\.calendar) private var calendar
+        // Removed @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
         let day: Date
         let period: DayPeriod
@@ -459,6 +464,8 @@ struct WorksPlanningView: View {
 
         let absentTodayIDs: Set<UUID>
         let nameForStudentID: (UUID) -> String
+
+        let onDidMutate: (String) -> Void
 
         @State private var isTargeted: Bool = false
         @State private var insertionIndex: Int? = nil
@@ -556,7 +563,8 @@ struct WorksPlanningView: View {
                 },
                 onInsertionIndexChange: { idx in
                     if insertionIndex != idx { insertionIndex = idx }
-                }
+                },
+                onDidMutate: onDidMutate
             ))
             .disabled(isNonSchool)
         }
@@ -602,6 +610,7 @@ struct WorkAgendaDropDelegate: DropDelegate {
     let itemFramesProvider: () -> [UUID: CGRect]
     let onTargetChange: (Bool) -> Void
     let onInsertionIndexChange: (Int?) -> Void
+    let onDidMutate: (String) -> Void // replaced saveCoordinator
 
     func dropEntered(info: DropInfo) {
         onTargetChange(true)
@@ -694,7 +703,7 @@ struct WorkAgendaDropDelegate: DropDelegate {
                 target.status = .scheduled
             }
         }
-        try? modelContext.save()
+        onDidMutate("Reorder/schedule check-ins")
     }
 
     private func dateForSlot(day: Date, period: DayPeriod) -> Date {
@@ -733,6 +742,7 @@ private struct InboxSidebarView: View {
     @State private var spaceID = UUID()
 
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
         switch type {
@@ -819,7 +829,8 @@ private struct InboxSidebarView: View {
                 },
                 onUpdateOrder: { newRaw in
                     onUpdateOrder(newRaw)
-                }
+                },
+                onDidMutate: { reason in _ = saveCoordinator.save(modelContext, reason: reason) }
             ))
             .overlay(
                 GeometryReader { proxy in
@@ -948,6 +959,7 @@ private struct InboxSidebarView: View {
             } else {
                 try? svc.delete(ci)
             }
+            _ = saveCoordinator.save(modelContext, reason: "Move check-in to inbox")
         }
     }
 
@@ -995,7 +1007,7 @@ fileprivate struct WorkInboxPillFramePreference: PreferenceKey {
     let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: configuration)
     return WorksPlanningView()
-        .modelContainer(container)
+        .previewEnvironment(using: container)
 }
 
 // New drop delegate for inbox reordering and dropping
@@ -1007,6 +1019,7 @@ struct WorksInboxDropDelegate: DropDelegate {
     let onTargetChange: (Bool) -> Void
     let onInsertionIndexChange: (Int?) -> Void
     let onUpdateOrder: (String) -> Void
+    let onDidMutate: (String) -> Void // replaced saveCoordinator
 
     func dropEntered(info: DropInfo) {
         onTargetChange(true)
@@ -1094,6 +1107,7 @@ struct WorksInboxDropDelegate: DropDelegate {
             } else {
                 try? svc.delete(ci)
             }
+            onDidMutate("Move check-in to inbox")
         }
     }
 }

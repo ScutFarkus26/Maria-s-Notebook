@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct LessonsRootView: View {
     @StateObject private var vm = LessonsRootViewModel()
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
     @State private var selectedLesson: Lesson? = nil
@@ -98,11 +99,7 @@ struct LessonsRootView: View {
                             existing.group = updated.group
                             existing.subheading = updated.subheading
                             existing.writeUp = updated.writeUp
-                            do {
-                                try modelContext.save()
-                            } catch {
-                                importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
-                            }
+                            _ = saveCoordinator.save(modelContext, reason: "Update lesson details")
                         }
                     },
                     onClose: {
@@ -453,11 +450,7 @@ struct LessonsRootView: View {
 
     private func ensureInitialOrderInGroupIfNeeded() {
         if viewModel.ensureInitialOrderInGroupIfNeeded(lessons) {
-            do {
-                try modelContext.save()
-            } catch {
-                importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
-            }
+            _ = saveCoordinator.save(modelContext, reason: "Ensure initial order in group")
         }
     }
 
@@ -466,6 +459,7 @@ struct LessonsRootView: View {
         guard filterState.selectedGroup != nil else { return }
         do {
             try LessonsReorderService.reorder(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset, context: modelContext)
+            _ = saveCoordinator.save(modelContext, reason: "Reorder lessons")
         } catch {
             importAlert = ImportAlert(title: "Save Failed", message: error.localizedDescription)
         }

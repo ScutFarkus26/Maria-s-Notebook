@@ -63,7 +63,8 @@ final class AttendanceViewModel: ObservableObject {
         selectedDate = target
         let store = AttendanceStore(context: modelContext)
         do {
-            let records = try store.loadOrCreateRecords(for: target, students: students)
+            let result = try store.loadOrCreateRecords(for: target, students: students)
+            let records = result.records
             let allowed = Set(students.map { $0.id })
             let filtered = records.filter { allowed.contains($0.studentID) }
             self.recordsByStudent = Dictionary(uniqueKeysWithValues: filtered.map { ($0.studentID, $0) })
@@ -77,10 +78,9 @@ final class AttendanceViewModel: ObservableObject {
         guard let rec = recordsByStudent[student.id] else { return }
         let next = nextStatus(after: rec.status)
         let store = AttendanceStore(context: modelContext)
-        do {
-            try store.updateStatus(rec, to: next)
+        if store.updateStatus(rec, to: next) {
             recordsByStudent[student.id]?.status = next
-        } catch { }
+        }
     }
 
     private func nextStatus(after current: AttendanceStatus) -> AttendanceStatus {
@@ -96,11 +96,10 @@ final class AttendanceViewModel: ObservableObject {
     func updateNote(for student: Student, note: String?, modelContext: ModelContext) {
         guard let rec = recordsByStudent[student.id] else { return }
         let store = AttendanceStore(context: modelContext)
-        do {
-            try store.updateNote(rec, to: note)
+        if store.updateNote(rec, to: note) {
             let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             recordsByStudent[student.id]?.note = trimmed.isEmpty ? nil : trimmed
-        } catch { }
+        }
     }
 
     func markAllPresent(students: [Student], modelContext: ModelContext) {

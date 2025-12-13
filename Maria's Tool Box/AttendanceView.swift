@@ -14,6 +14,7 @@ import UIKit
 struct AttendanceView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)])
     private var allStudents: [Student]
@@ -56,6 +57,7 @@ struct AttendanceView: View {
             let coerced = SchoolCalendar.nearestSchoolDay(to: viewModel.selectedDate, using: modelContext)
             if coerced != viewModel.selectedDate { viewModel.selectedDate = coerced }
             viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
+            _ = saveCoordinator.save(modelContext, reason: "Ensure attendance records exist for selected day")
         }
         .onChange(of: viewModel.selectedDate) { _, newValue in
             let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
@@ -64,10 +66,12 @@ struct AttendanceView: View {
                 return
             }
             viewModel.load(for: newValue, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
+            _ = saveCoordinator.save(modelContext, reason: "Ensure attendance records exist for selected day")
         }
         .onChange(of: allStudents.map { $0.id }) { _, _ in
             // If students change (added/removed), ensure records exist
             viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
+            _ = saveCoordinator.save(modelContext, reason: "Ensure attendance records exist for selected day")
         }
 #if os(iOS)
         .sheet(isPresented: $showMailSheet) {
@@ -118,10 +122,12 @@ struct AttendanceView: View {
                     }
                     Button("Reset") {
                         viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
+                        _ = saveCoordinator.save(modelContext, reason: "Reset day")
                     }
                     .disabled(isNonSchoolDay)
                     Button("All Present") {
                         viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
+                        _ = saveCoordinator.save(modelContext, reason: "Mark all present")
                     }
                     .disabled(isNonSchoolDay)
                 }
@@ -266,6 +272,7 @@ struct AttendanceView: View {
 
                 Button("Mark All Present") {
                     viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Mark all present")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isNonSchoolDay)
@@ -273,6 +280,7 @@ struct AttendanceView: View {
 
                 Button("Reset Day") {
                     viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Reset day")
                 }
                 .buttonStyle(.bordered)
                 .disabled(isNonSchoolDay)
@@ -428,8 +436,10 @@ struct AttendanceView: View {
                 ForEach(filteredStudents, id: \.id) { student in
                     AttendanceCard(student: student, record: viewModel.recordsByStudent[student.id]) {
                         viewModel.cycleStatus(for: student, modelContext: modelContext)
+                        _ = saveCoordinator.save(modelContext, reason: "Update attendance status")
                     } onEditNote: { newNote in
                         viewModel.updateNote(for: student, note: newNote, modelContext: modelContext)
+                        _ = saveCoordinator.save(modelContext, reason: "Update attendance note")
                     }
                 }
             }
@@ -654,6 +664,13 @@ private struct NoteEditorSheet: View {
 }
 
 #Preview {
-    AttendanceView()
+    let container = ModelContainer.preview
+    let ctx = container.mainContext
+    // Seed a couple of students for layout
+    let s1 = Student(firstName: "Maria", lastName: "Montessori", birthday: Date(timeIntervalSince1970: 0), level: .lower)
+    let s2 = Student(firstName: "Jean", lastName: "Piaget", birthday: Date(timeIntervalSince1970: 0), level: .upper)
+    ctx.insert(s1); ctx.insert(s2)
+    return AttendanceView()
+        .previewEnvironment(using: container)
 }
 

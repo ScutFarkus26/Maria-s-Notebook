@@ -4,6 +4,7 @@
 
 import SwiftUI
 import SwiftData
+import Combine
 
 /// Top-level container that manages app-wide navigation between Students, Albums, Planning, Today, Logs, and Settings.
 struct RootView: View {
@@ -23,6 +24,7 @@ struct RootView: View {
     // MARK: - Storage
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.students.rawValue
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
     @AppStorage("Backfill.scheduledForDay.v1") private var didBackfillScheduledForDay: Bool = false
@@ -201,6 +203,7 @@ struct RootView: View {
             selectedTabRaw = Tab.students.rawValue
             UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
         }
+        .saveErrorAlert()
 #if os(macOS)
         .background(EnsureResizableWindow(minSize: NSSize(width: 900, height: 600)))
 #endif
@@ -251,7 +254,7 @@ struct RootView: View {
                 }
             }
             if changed {
-                try modelContext.save()
+                _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
             }
             didBackfillRelationships = true
         } catch {
@@ -270,7 +273,7 @@ struct RootView: View {
                 }
             }
             if changed {
-                try modelContext.save()
+                _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
             }
         } catch {
             // If backfill fails, skip and try again next launch
@@ -290,7 +293,7 @@ struct RootView: View {
                 }
             }
             if fixed > 0 {
-                try modelContext.save()
+                _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
             }
             didBackfillScheduledForDay = true
             print("Backfill.scheduledForDay: fixed \(fixed) records")
@@ -394,5 +397,10 @@ struct LessonsMenuRootView: View {
         LessonsRootView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+#Preview {
+    RootView()
+        .previewEnvironment()
 }
 

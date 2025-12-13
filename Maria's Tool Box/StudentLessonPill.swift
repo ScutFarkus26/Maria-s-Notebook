@@ -7,7 +7,8 @@ struct StudentLessonPill: View {
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
     @Environment(\.calendar) private var calendar
-    
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+
     @AppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
     @AppStorage("LessonAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
     @AppStorage("LessonAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
@@ -199,7 +200,8 @@ struct StudentLessonPill: View {
                 targetLessonID: snapshot.lessonID,
                 targetStudentLessonID: targetStudentLessonID,
                 setHighlight: { isValid in isValidDragTarget = isValid },
-                canAccept: { isValidDragTarget }
+                canAccept: { isValidDragTarget },
+                onDidMutate: { reason in _ = saveCoordinator.save(modelContext, reason: reason) }
             ))
         }
     }
@@ -219,7 +221,7 @@ struct StudentLessonPill: View {
         merged.minute = timeComps.minute
         let combined = calendar.date(from: merged) ?? newTime
         sl.setScheduledFor(combined, using: calendar)
-        try? modelContext.save()
+        _ = saveCoordinator.save(modelContext, reason: "Update lesson time")
     }
 
     private struct PillDropDelegate: DropDelegate {
@@ -228,6 +230,7 @@ struct StudentLessonPill: View {
         let targetStudentLessonID: UUID?
         let setHighlight: (Bool) -> Void
         let canAccept: () -> Bool
+        let onDidMutate: (String) -> Void
 
         func dropEntered(info: DropInfo) { checkHighlight(info: info) }
 
@@ -281,7 +284,7 @@ struct StudentLessonPill: View {
                         source.students = fetched
                         // Removed: source.syncSnapshotsFromRelationships()
                     }
-                    try? modelContext.save()
+                    onDidMutate("Move student between lessons")
                     NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
                 }
             }

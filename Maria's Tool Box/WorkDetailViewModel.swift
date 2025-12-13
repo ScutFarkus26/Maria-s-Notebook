@@ -112,7 +112,7 @@ final class WorkDetailViewModel: ObservableObject {
         // Enforce: no work should save without a student attached
         if selectedStudentIDs.isEmpty {
             modelContext.delete(work)
-            try? modelContext.save()
+            // Persistence handled by caller via SaveCoordinator; do not save here.
             if let onDone = onDone { onDone() } else { dismiss() }
             return
         }
@@ -131,21 +131,17 @@ final class WorkDetailViewModel: ObservableObject {
         // Safety: if participants are still empty, delete this work
         if work.participants.isEmpty {
             modelContext.delete(work)
-            try? modelContext.save()
+            // Persistence handled by caller via SaveCoordinator; do not save here.
             if let onDone = onDone { onDone() } else { dismiss() }
             return
         }
 
         work.completedAt = completedAt
-        do {
-            try modelContext.save()
-            if let onDone = onDone {
-                onDone()
-            } else {
-                dismiss()
-            }
-        } catch {
-            // Handle save error if needed
+        // Persistence handled by caller via SaveCoordinator; do not save here.
+        if let onDone = onDone {
+            onDone()
+        } else {
+            dismiss()
         }
     }
 

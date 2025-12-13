@@ -94,10 +94,10 @@ struct AttendanceStore {
     }
 
     /// Loads all AttendanceRecords for the given date (normalized internally).
-    /// For any students without a record, creates an unmarked record and saves immediately.
-    /// - Returns: The full set of records for the date, one per student.
+    /// For any students without a record, creates an unmarked record but does not save immediately.
+    /// - Returns: The full set of records for the date, one per student, and a flag indicating if any inserts occurred.
     @discardableResult
-    func loadOrCreateRecords(for date: Date, students: [Student]) throws -> [AttendanceRecord] {
+    func loadOrCreateRecords(for date: Date, students: [Student]) throws -> (records: [AttendanceRecord], didInsert: Bool) {
         let day = date.normalizedDay(using: calendar)
         var existing = try fetchRecords(for: day)
         let existingByStudent = Dictionary(uniqueKeysWithValues: existing.map { ($0.studentID, $0) })
@@ -111,40 +111,40 @@ struct AttendanceStore {
                 didInsert = true
             }
         }
-        if didInsert {
-            try context.save()
-        }
-        return existing
+        return (existing, didInsert)
     }
 
-    /// Update a record's status and persist immediately.
-    func updateStatus(_ record: AttendanceRecord, to newStatus: AttendanceStatus) throws {
+    /// Update a record's status and return whether it changed.
+    @discardableResult
+    func updateStatus(_ record: AttendanceRecord, to newStatus: AttendanceStatus) -> Bool {
+        let old = record.status
         record.status = newStatus
-        try context.save()
+        return old != newStatus
     }
 
-    /// Update a record's note and persist immediately.
-    func updateNote(_ record: AttendanceRecord, to newNote: String?) throws {
+    /// Update a record's note and return whether it changed.
+    @discardableResult
+    func updateNote(_ record: AttendanceRecord, to newNote: String?) -> Bool {
         let trimmed = newNote?.trimmingCharacters(in: .whitespacesAndNewlines)
-        record.note = (trimmed?.isEmpty == true) ? nil : trimmed
-        try context.save()
+        let newVal = (trimmed?.isEmpty == true) ? nil : trimmed
+        let old = record.note
+        record.note = newVal
+        return old != newVal
     }
 
     /// Convenience: Mark all students present for the date, creating missing records.
     @discardableResult
     func markAllPresent(for date: Date, students: [Student]) throws -> [AttendanceRecord] {
-        let records = try loadOrCreateRecords(for: date, students: students)
-        for rec in records { rec.status = .present }
-        try context.save()
-        return records
+        let result = try loadOrCreateRecords(for: date, students: students)
+        for rec in result.records { rec.status = .present }
+        return result.records
     }
 
     /// Convenience: Reset all to unmarked and clear notes for the date, creating missing records.
     @discardableResult
     func resetDay(for date: Date, students: [Student]) throws -> [AttendanceRecord] {
-        let records = try loadOrCreateRecords(for: date, students: students)
-        for rec in records { rec.status = .unmarked; rec.note = nil }
-        try context.save()
-        return records
+        let result = try loadOrCreateRecords(for: date, students: students)
+        for rec in result.records { rec.status = .unmarked; rec.note = nil }
+        return result.records
     }
 }

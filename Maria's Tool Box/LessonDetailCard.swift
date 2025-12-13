@@ -18,6 +18,7 @@ struct LessonDetailCard: View {
     var initialMode: LessonDetailInitialMode = .normal
 
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @State private var isEditing = false
     @State private var draftName: String = ""
@@ -189,8 +190,8 @@ struct LessonDetailCard: View {
         }
         .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
-                if let url = resolveLessonFileURL() { try? LessonFileStorage.deleteIfManaged(url) }
                 modelContext.delete(lesson)
+                _ = saveCoordinator.save(modelContext, reason: "Delete lesson")
                 onClose()
             }
             Button("Cancel", role: .cancel) {}
@@ -216,7 +217,7 @@ struct LessonDetailCard: View {
                             lesson.pagesFileRelativePath = rel
                             resolvedPagesURL = destURL
                             previousManagedURL = destURL
-                            try? modelContext.save()
+                            _ = saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
                         }
                     } catch {
                         await MainActor.run { importError = error.localizedDescription }
@@ -297,7 +298,7 @@ struct LessonDetailCard: View {
                                 lesson.pagesFileRelativePath = nil
                                 resolvedPagesURL = nil
                                 previousManagedURL = nil
-                                try? modelContext.save()
+                                _ = saveCoordinator.save(modelContext, reason: "Clear Pages link")
                             }
                         }
                         Button("Import…") {
@@ -401,7 +402,7 @@ struct LessonDetailCard: View {
                     lesson.pagesFileRelativePath = rel
                     resolvedPagesURL = destURL
                     previousManagedURL = destURL
-                    try? modelContext.save()
+                    _ = saveCoordinator.save(modelContext, reason: "Migrate lesson file to managed storage")
                 }
             } catch {
                 await MainActor.run { importError = error.localizedDescription }
@@ -417,7 +418,7 @@ struct LessonDetailCard: View {
             let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
 #endif
             lesson.pagesFileBookmark = bookmark
-            try? modelContext.save()
+            _ = saveCoordinator.save(modelContext, reason: "Save Pages bookmark")
         } catch {
             // ignore errors here
         }
@@ -425,7 +426,7 @@ struct LessonDetailCard: View {
 
     private func clearPagesLink() {
         lesson.pagesFileBookmark = nil
-        try? modelContext.save()
+        _ = saveCoordinator.save(modelContext, reason: "Clear Pages link")
     }
 
     private var cardBackgroundColor: Color {
@@ -460,7 +461,7 @@ struct LessonDetailCard: View {
                             lesson.pagesFileRelativePath = rel
                             resolvedPagesURL = destURL
                             previousManagedURL = destURL
-                            try? modelContext.save()
+                            _ = saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
                         }
                     } catch {
                         await MainActor.run { importError = error.localizedDescription }
@@ -489,15 +490,11 @@ struct LessonDetailCard: View {
 }
 
 #Preview {
-    LessonDetailCard(
-        lesson: Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "A foundational presentation of the decimal system."),
-        onSave: { _ in },
-        onClose: {},
-        onGiveLesson: nil,
-        initialMode: .normal
-    )
-    .padding()
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(Color.gray.opacity(0.15))
+    let container = ModelContainer.preview
+    let ctx = container.mainContext
+    let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "A foundational presentation.")
+    ctx.insert(lesson)
+    return LessonDetailCard(lesson: lesson, onSave: { _ in }, onClose: {})
+        .previewEnvironment(using: container)
 }
 

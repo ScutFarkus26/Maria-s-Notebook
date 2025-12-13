@@ -12,6 +12,7 @@ struct LessonDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @State private var isEditing = false
     @State private var draftName: String = ""
@@ -63,6 +64,7 @@ struct LessonDetailView: View {
             Button("Delete", role: .destructive) {
                 if let url = resolveLessonFileURL() { try? LessonFileStorage.deleteIfManaged(url) }
                 modelContext.delete(lesson)
+                _ = saveCoordinator.save(modelContext, reason: "Delete lesson")
                 if let onDone { onDone() } else { dismiss() }
             }
             Button("Cancel", role: .cancel) {}
@@ -96,7 +98,7 @@ struct LessonDetailView: View {
                             lesson.pagesFileRelativePath = rel
                             resolvedPagesURL = destURL
                             previousManagedURL = destURL
-                            try? modelContext.save()
+                            _ = saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
                         }
                     } catch {
                         await MainActor.run { importError = error.localizedDescription }
@@ -212,7 +214,7 @@ struct LessonDetailView: View {
                                 lesson.pagesFileRelativePath = nil
                                 resolvedPagesURL = nil
                                 previousManagedURL = nil
-                                try? modelContext.save()
+                                _ = saveCoordinator.save(modelContext, reason: "Remove lesson Pages file")
                             }
                         }
                         Button("Import…") { showingPagesImporter = true }
@@ -354,7 +356,7 @@ struct LessonDetailView: View {
                     lesson.pagesFileRelativePath = rel
                     resolvedPagesURL = destURL
                     previousManagedURL = destURL
-                    try? modelContext.save()
+                    _ = saveCoordinator.save(modelContext, reason: "Migrate lesson file to managed storage")
                 }
             } catch {
                 await MainActor.run { importError = error.localizedDescription }
@@ -421,9 +423,11 @@ struct OpenInPagesButton: View {
 }
 
 #Preview {
-    LessonDetailView(
-        lesson: Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "This is a sample write up."),
-        onSave: { _ in }
-    )
+    let container = ModelContainer.preview
+    let ctx = container.mainContext
+    let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "Sample write up.")
+    ctx.insert(lesson)
+    return LessonDetailView(lesson: lesson, onSave: { _ in })
+        .previewEnvironment(using: container)
 }
 
