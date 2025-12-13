@@ -7,7 +7,7 @@ enum DataMigrations {
     static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.givenAtDateOnly.v1"
         if UserDefaults.standard.bool(forKey: flagKey) { return }
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         do {
             let fetch = FetchDescriptor<StudentLesson>()
             let lessons = try context.fetch(fetch)
@@ -36,7 +36,7 @@ enum DataMigrations {
     static func normalizeWorkDatesToDateOnlyIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.workDatesDateOnly.v1"
         if UserDefaults.standard.bool(forKey: flagKey) { return }
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         do {
             var changed = 0
             // WorkModel

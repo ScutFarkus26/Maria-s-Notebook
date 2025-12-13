@@ -17,6 +17,9 @@ struct MariasToolboxApp: App {
     static let ephemeralSessionFlagKey = "SwiftDataEphemeralSession"
     static let lastStoreErrorDescriptionKey = "SwiftDataLastErrorDescription"
     static let allowLocalStoreFallbackKey = "AllowLocalStoreFallback"
+    
+    // Track initialization errors to show in the UI
+    static var initError: Error?
 
     @StateObject private var saveCoordinator = SaveCoordinator()
     @StateObject private var bootstrapper = AppBootstrapper.shared
@@ -41,6 +44,7 @@ struct MariasToolboxApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = AppSchema.schema
         let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
+        let allowFallback = UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey)
         
         // Helper to create container
         func makeContainer(inMemory: Bool, url: URL? = nil, cloud: Bool = false) throws -> ModelContainer {
@@ -71,14 +75,23 @@ struct MariasToolboxApp: App {
                     UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                     return container
                 } catch {
-                    // Fallback to Local
-                    print("SwiftData: CloudKit failed, attempting local fallback. Error: \(error)")
-                    let container = try makeContainer(inMemory: false)
-                    UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                    return container
+                    // STOP: Do not silently fallback unless explicitly allowed.
+                    if allowFallback {
+                        print("SwiftData: CloudKit failed, performing INTENTIONAL local fallback. Error: \(error)")
+                        let container = try makeContainer(inMemory: false)
+                        UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                        return container
+                    } else {
+                        // Capture error and return a safe, empty in-memory container
+                        // so the app launches to the Error View instead of crashing.
+                        print("SwiftData: CloudKit failed. HALTING to prevent split-brain. Error: \(error)")
+                        MariasToolboxApp.initError = error
+                        return try makeContainer(inMemory: true)
+                    }
                 }
             }
         } catch {
+            // If even the in-memory fallback fails, we must crash.
             fatalError("Failed to open SwiftData store: \(error)")
         }
     }()
@@ -94,25 +107,76 @@ struct MariasToolboxApp: App {
     var body: some Scene {
         WindowGroup("") {
             Group {
-                if bootstrapper.state == .ready {
-                    RootView()
-                        .environment(\.calendar, AppCalendar.shared)
-                        .environmentObject(saveCoordinator)
-                } else {
-                    // Loading / Splash Screen
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .controlSize(.large)
-                        Text("Preparing Database...")
-                            .foregroundStyle(.secondary)
+                if let error = MariasToolboxApp.initError {
+                    // BLOCKING ERROR VIEW
+                    ContentUnavailableView {
+                        Label("Database Connection Failed", systemImage: "exclamationmark.triangle.fill")
+                    } description: {
+                        VStack(spacing: 8) {
+                            Text("The app could not connect to the iCloud database.")
+                            Text("To prevent data loss (Split-Brain), the app has stopped.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Error: \(error.localizedDescription)")
+                                .font(.caption2)
+                                .padding(.top)
+                                .textSelection(.enabled)
+                        }
+                    } actions: {
+                        VStack(spacing: 12) {
+                            Button("Quit & Retry") {
+                                #if os(macOS)
+                                NSApplication.shared.terminate(nil)
+                                #else
+                                exit(0)
+                                #endif
+                            }
+                            .buttonStyle(.borderedProminent)
+                            
+                            Button("Use Offline Mode (Warning: Syncs Separately)") {
+                                UserDefaults.standard.set(true, forKey: MariasToolboxApp.allowLocalStoreFallbackKey)
+                                #if os(macOS)
+                                NSApplication.shared.terminate(nil)
+                                #else
+                                exit(0)
+                                #endif
+                            }
+                            
+                            Button("Reset Local Database…", role: .destructive) {
+                                try? MariasToolboxApp.resetPersistentStore()
+                                #if os(macOS)
+                                NSApplication.shared.terminate(nil)
+                                #else
+                                exit(0)
+                                #endif
+                            }
+                        }
+                        .padding()
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    // Ensure you have a 'baseBackground' color in your assets, or change this to .background
-                    .background(Color.clear)
+                } else {
+                    // NORMAL APP FLOW
+                    if bootstrapper.state == .ready {
+                        RootView()
+                            .environment(\.calendar, AppCalendar.shared)
+                            .environmentObject(saveCoordinator)
+                    } else {
+                        // Loading / Splash Screen
+                        VStack(spacing: 20) {
+                            ProgressView()
+                                .controlSize(.large)
+                            Text("Preparing Database...")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.clear)
+                    }
                 }
             }
             .task {
-                await bootstrapper.bootstrap(modelContainer: sharedModelContainer)
+                // Only bootstrap if the store loaded successfully
+                if MariasToolboxApp.initError == nil {
+                    await bootstrapper.bootstrap(modelContainer: sharedModelContainer)
+                }
             }
         }
         #if os(macOS)

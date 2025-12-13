@@ -545,7 +545,7 @@ struct StudentLessonDetailView: View {
     private var scheduleStatusText: String {
         guard let date = scheduledFor else { return "Not Scheduled Yet" }
         let datePart = StudentLessonDetailUtilities.Formatters.scheduleDay.string(from: date)
-        let hour = Calendar.current.component(.hour, from: date)
+        let hour = calendar.component(.hour, from: date)
         let period = hour < 12 ? "Morning" : "Afternoon"
         return "\(datePart) in the \(period)"
     }

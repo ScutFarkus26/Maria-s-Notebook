@@ -10,11 +10,30 @@ struct AppColors {
 
     static func color(forSubject subject: String) -> Color {
         let key = subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Common explicit mappings for clarity and cross-view consistency
         switch key {
-        case "math": return .blue
-        case "language": return .purple
+        case "math", "mathematics": return .indigo
+        case "language", "language arts": return .purple
         case "science": return .teal
-        default: return .accentColor
+        case "practical life": return .orange
+        case "sensorial": return .pink
+        case "geography": return .brown
+        case "history": return .red
+        case "art": return .cyan
+        case "music": return .mint
+        case "grace & courtesy", "grace and courtesy": return .yellow
+        case "geometry": return .blue
+        case "botany": return .green
+        case "zoology": fallthrough
+        case "reading": return .blue
+        case "writing": return .orange
+        default:
+            let palette: [Color] = [
+                .blue, .purple, .teal, .orange, .pink, .green, .indigo, .brown, .cyan, .mint, .yellow, .red
+            ]
+            let index = abs(key.hashValue) % palette.count
+            return palette[index]
         }
     }
 }

@@ -40,7 +40,7 @@ import SwiftUI
         self.workTypeRaw = workType.rawValue
         self.studentLessonID = studentLessonID
         self.notes = notes
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         self.createdAt = cal.startOfDay(for: createdAt)
         self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.participants = participants
@@ -73,7 +73,7 @@ import SwiftUI
     }
 
     func markStudent(_ studentID: UUID, completedAt date: Date?) {
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         let normalized = date.map { cal.startOfDay(for: $0) }
         if let idx = participants.firstIndex(where: { $0.studentID == studentID }) {
             participants[idx].completedAt = normalized

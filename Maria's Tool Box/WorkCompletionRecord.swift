@@ -33,7 +33,7 @@ import SwiftData
         self.id = id
         self.workID = workID
         self.studentID = studentID
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         self.completedAt = cal.startOfDay(for: completedAt)
         self.note = note
     }
