@@ -42,7 +42,7 @@
 /* Begin PBXFileReference section */
 		510819952EDEA8020000BE47 /* PillButton 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PillButton 2.swift"; sourceTree = "<group>"; };
 		5108199D2EDEAD2D0000BE47 /* StudentHeaderView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StudentHeaderView 2.swift"; sourceTree = "<group>"; };
-		5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Tool Box.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		516E82042EECD43B0038E160 /* AgendaComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaComponents.swift; sourceTree = "<group>"; };
 		516E82062EECD5880038E160 /* StudentWorkPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentWorkPill.swift; sourceTree = "<group>"; };
 		516E82082EECD58B0038E160 /* MeetingsAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingsAgendaView.swift; sourceTree = "<group>"; };
@@ -74,12 +74,12 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		5141E8022ED77B10004F918F /* Exceptions for "Maria's Tool Box" folder in "Maria's Tool Box" target */ = {
+		5141E8022ED77B10004F918F /* Exceptions for "Maria's Tool Box" folder in "Maria's Toolbox" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 5141E7F42ED77B0F004F918F /* Maria's Tool Box */;
+			target = 5141E7F42ED77B0F004F918F /* Maria's Toolbox */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -87,7 +87,7 @@
 		5141E7F72ED77B0F004F918F /* Maria's Tool Box */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				5141E8022ED77B10004F918F /* Exceptions for "Maria's Tool Box" folder in "Maria's Tool Box" target */,
+				5141E8022ED77B10004F918F /* Exceptions for "Maria's Tool Box" folder in "Maria's Toolbox" target */,
 			);
 			path = "Maria's Tool Box";
 			sourceTree = "<group>";
@@ -146,7 +146,7 @@
 		5141E7F62ED77B0F004F918F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */,
+				5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -154,9 +154,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		5141E7F42ED77B0F004F918F /* Maria's Tool Box */ = {
+		5141E7F42ED77B0F004F918F /* Maria's Toolbox */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Tool Box" */;
+			buildConfigurationList = 5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Toolbox" */;
 			buildPhases = (
 				5141E7F12ED77B0F004F918F /* Sources */,
 				5141E7F22ED77B0F004F918F /* Frameworks */,
@@ -169,11 +169,11 @@
 			fileSystemSynchronizedGroups = (
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 			);
-			name = "Maria's Tool Box";
+			name = "Maria's Toolbox";
 			packageProductDependencies = (
 			);
 			productName = "Maria's Tool Box";
-			productReference = 5141E7F52ED77B0F004F918F /* Maria's Tool Box.app */;
+			productReference = 5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -205,7 +205,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				5141E7F42ED77B0F004F918F /* Maria's Tool Box */,
+				5141E7F42ED77B0F004F918F /* Maria's Toolbox */,
 			);
 		};
 /* End PBXProject section */
@@ -515,7 +515,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Tool Box" */ = {
+		5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Toolbox" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5141E8042ED77B10004F918F /* Debug */,
