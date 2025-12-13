@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct WorkCheckInNoteEditor: View {
-    let checkIn: WorkCheckIn
+    // Decoupled from WorkCheckIn model so it works with Drafts too
+    let date: Date
+    let purpose: String
+    
     @Binding var noteText: String
     let onSave: () -> Void
     let onCancel: () -> Void
@@ -32,10 +35,10 @@ struct WorkCheckInNoteEditor: View {
     private var checkInInfo: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text(checkIn.date.formatted(date: .abbreviated, time: .omitted))
+                Text(date.formatted(date: .abbreviated, time: .omitted))
                     .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
                 
-                let purposeText = checkIn.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+                let purposeText = purpose.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !purposeText.isEmpty {
                     Text("|")
                         .foregroundStyle(.secondary)

@@ -16,7 +16,7 @@ struct PerStudentCompletionSection: View {
                             get: { vm.isStudentCompletedDraft(student.id) },
                             set: { vm.setStudentCompletedDraft(student.id, $0) }
                         )) {
-                            Text(vm.studentLiteList.first(where: { $0.id == student.id })?.name ?? "")
+                            Text(StudentFormatter.displayName(for: student))
                         }
                     }
                 }

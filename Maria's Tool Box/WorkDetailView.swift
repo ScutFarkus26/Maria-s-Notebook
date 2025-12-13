@@ -20,9 +20,9 @@ struct WorkDetailView: View {
     // MARK: - UI State
     @State private var checkInDate = Date()
     @State private var checkInPurpose = ""
-    @State private var editingCheckInNote: WorkCheckIn?
+    @State private var editingCheckInNote: WorkDetailViewModel.CheckInDraft?
     @State private var noteText = ""
-    @State private var reschedulingCheckIn: WorkCheckIn? = nil
+    @State private var reschedulingCheckIn: WorkDetailViewModel.CheckInDraft? = nil
     @State private var rescheduleDate = Date()
     @State private var scheduleNextDate = Date()
     @State private var showScheduleNextSheet = false
@@ -60,7 +60,7 @@ struct WorkDetailView: View {
     init(work: WorkModel, onDone: (() -> Void)? = nil) {
         self.work = work
         self.onDone = onDone
-        _vm = StateObject(wrappedValue: WorkDetailViewModel(work: work, onDone: onDone))
+        _vm = StateObject(wrappedValue: WorkDetailViewModel(work: work))
     }
 
     // MARK: - Date Formatters
@@ -89,8 +89,8 @@ struct WorkDetailView: View {
     private var selectedStudentsList: [Student] { vm.selectedStudentsList }
 
     private var subjectColor: Color {
-        vm.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
-            ? .accentColor 
+        vm.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? .accentColor
             : AppColors.color(forSubject: vm.subject)
     }
 
@@ -225,15 +225,9 @@ struct WorkDetailView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 20)
                         .onAppear { scheduleCacheRebuild() }
-                        .onChange(of: lessons.map(\.id)) { 
-                            scheduleCacheRebuild()
-                        }
-                        .onChange(of: studentsAll.map(\.id)) { 
-                            scheduleCacheRebuild()
-                        }
-                        .onChange(of: studentLessons.map(\.id)) { 
-                            scheduleCacheRebuild()
-                        }
+                        .onChange(of: lessons.map(\.id)) { _,_ in scheduleCacheRebuild() }
+                        .onChange(of: studentsAll.map(\.id)) { _,_ in scheduleCacheRebuild() }
+                        .onChange(of: studentLessons.map(\.id)) { _,_ in scheduleCacheRebuild() }
                     }
                 }
             }
@@ -284,9 +278,10 @@ struct WorkDetailView: View {
                 showingStudentPickerPopover = false
             }
         }
-        .sheet(item: $editingCheckInNote) { checkIn in
+        .sheet(item: $editingCheckInNote) { draft in
             WorkCheckInNoteEditor(
-                checkIn: checkIn,
+                date: draft.date,
+                purpose: draft.purpose,
                 noteText: $noteText,
                 onSave: handleNoteEditorSave,
                 onCancel: handleNoteEditorCancel
@@ -300,11 +295,10 @@ struct WorkDetailView: View {
                     Spacer()
                     Button("Cancel") { reschedulingCheckIn = nil }
                     Button("Save") {
-                        let service = WorkCheckInService(context: modelContext)
-                        do { try service.reschedule(checkIn, to: rescheduleDate) } catch { }
-                        _ = saveCoordinator.save(modelContext, reason: "Reschedule check-in")
+                        var updated = checkIn
+                        updated.date = rescheduleDate
+                        vm.updateCheckInDraft(updated)
                         reschedulingCheckIn = nil
-                        updateCaches()
                     }
                     .keyboardShortcut(.defaultAction)
                 }
@@ -589,21 +583,6 @@ struct WorkDetailView: View {
         }
     }
     
-    private var scheduledCheckInsList: some View {
-        ScheduledCheckInsListSection(
-            checkIns: vm.checkIns,
-            onEditNote: { checkIn in
-                noteText = checkIn.note
-                editingCheckInNote = checkIn
-            },
-            onSetStatus: vm.setCheckInDraftStatus,
-            onDelete: {
-                vm.deleteCheckInDraft($0, modelContext: modelContext)
-                _ = saveCoordinator.save(modelContext, reason: "Delete check-in")
-            }
-        )
-    }
-    
     private var scheduleNewCheckInSection: some View {
         ScheduleCheckInSection(
             checkInDate: $checkInDate,
@@ -612,8 +591,7 @@ struct WorkDetailView: View {
             vm.addCheckInDraft(
                 date: checkInDate,
                 purpose: checkInPurpose,
-                note: "",
-                modelContext: modelContext
+                note: ""
             )
             _ = saveCoordinator.save(modelContext, reason: "Add check-in")
             checkInPurpose = ""
@@ -621,15 +599,15 @@ struct WorkDetailView: View {
         }
     }
     
-    private var sortedCheckIns: [WorkCheckIn] {
+    private var sortedCheckIns: [WorkDetailViewModel.CheckInDraft] {
         vm.checkIns.sorted { $0.date < $1.date }
     }
 
-    private var morningCheckIns: [WorkCheckIn] {
+    private var morningCheckIns: [WorkDetailViewModel.CheckInDraft] {
         sortedCheckIns.filter { Calendar.current.component(.hour, from: $0.date) < 12 }
     }
 
-    private var afternoonCheckIns: [WorkCheckIn] {
+    private var afternoonCheckIns: [WorkDetailViewModel.CheckInDraft] {
         sortedCheckIns.filter { Calendar.current.component(.hour, from: $0.date) >= 12 }
     }
 
@@ -655,7 +633,7 @@ struct WorkDetailView: View {
     }
 
     @ViewBuilder
-    private func timelineGroup(title: String, items: [WorkCheckIn]) -> some View {
+    private func timelineGroup(title: String, items: [WorkDetailViewModel.CheckInDraft]) -> some View {
         if !items.isEmpty {
             HStack {
                 Text(title.uppercased())
@@ -670,7 +648,7 @@ struct WorkDetailView: View {
     }
 
     @ViewBuilder
-    private func timelineRow(item: WorkCheckIn, isLast: Bool) -> some View {
+    private func timelineRow(item: WorkDetailViewModel.CheckInDraft, isLast: Bool) -> some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 4) {
                 Circle()
@@ -704,14 +682,12 @@ struct WorkDetailView: View {
                     Spacer()
                     Menu {
                         Button("Mark Completed", systemImage: "checkmark.circle") {
-                            let service = WorkCheckInService(context: modelContext)
-                            do { try service.markCompleted(item) } catch { }
+                            vm.setCheckInDraftStatus(item.id, to: .completed)
                             _ = saveCoordinator.save(modelContext, reason: "Mark check-in completed")
                             updateCaches()
                         }
                         Button("Skip", systemImage: "forward.end") {
-                            let service = WorkCheckInService(context: modelContext)
-                            do { try service.skip(item) } catch { }
+                            vm.setCheckInDraftStatus(item.id, to: .skipped)
                             _ = saveCoordinator.save(modelContext, reason: "Skip check-in")
                             updateCaches()
                         }
@@ -725,7 +701,7 @@ struct WorkDetailView: View {
                             editingCheckInNote = item
                         }
                         Button("Delete", systemImage: "trash", role: .destructive) {
-                            vm.deleteCheckInDraft(item, modelContext: modelContext)
+                            vm.deleteCheckInDraft(item)
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -762,8 +738,7 @@ struct WorkDetailView: View {
                             vm.addCheckInDraft(
                                 date: checkInDate,
                                 purpose: checkInPurpose,
-                                note: "",
-                                modelContext: modelContext
+                                note: ""
                             )
                             _ = saveCoordinator.save(modelContext, reason: "Add check-in")
                             checkInPurpose = ""
@@ -867,32 +842,32 @@ struct WorkDetailView: View {
     }
     
     private func handleSave() {
-        vm.save(modelContext: modelContext) {
-            _ = saveCoordinator.save(modelContext, reason: "Save work details")
-            if let onDone = onDone {
-                onDone()
-            } else {
-                dismiss()
-            }
+        vm.save(modelContext: modelContext)
+        _ = saveCoordinator.save(modelContext, reason: "Save work details")
+        if let onDone = onDone {
+            onDone()
+        } else {
+            dismiss()
         }
     }
     
     private func handleDelete() {
         isDeleting = true
-        vm.deleteWork(modelContext: modelContext) {
-            _ = saveCoordinator.save(modelContext, reason: "Delete work")
-            isDeleting = false
-            if let onDone = onDone {
-                onDone()
-            } else {
-                dismiss()
-            }
+        vm.deleteWork(modelContext: modelContext)
+        _ = saveCoordinator.save(modelContext, reason: "Delete work")
+        isDeleting = false
+        if let onDone = onDone {
+            onDone()
+        } else {
+            dismiss()
         }
     }
     
     private func handleNoteEditorSave() {
-        vm.updateCheckInNote(editingCheckInNote!.id, note: noteText)
-        _ = saveCoordinator.save(modelContext, reason: "Update check-in note")
+        if let item = editingCheckInNote {
+            vm.updateCheckInNote(item.id, note: noteText)
+            _ = saveCoordinator.save(modelContext, reason: "Update check-in note")
+        }
         editingCheckInNote = nil
         noteText = ""
     }
