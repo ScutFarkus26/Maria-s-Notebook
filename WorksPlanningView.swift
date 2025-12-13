@@ -755,7 +755,7 @@ private struct InboxSidebarView: View {
                 .padding(.vertical, 4)
                 .background(
                     Capsule()
-                        .fill(tint.opacity(isAbsent ? 0.06 : 0.15))
+                        .fill(Color.blue.opacity(isAbsent ? 0.06 : 0.15))
                 )
                 .overlay(
                     Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1)
@@ -860,6 +860,9 @@ private struct InboxSidebarView: View {
             Image(systemName: iconName)
                 .foregroundStyle(iconColor)
             VStack(alignment: .leading, spacing: 2) {
+                Text(workTitle(w))
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
                 let studentIDs = w.participants.map { $0.studentID }
                 if !studentIDs.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -873,9 +876,6 @@ private struct InboxSidebarView: View {
                         }
                     }
                 }
-                Text(workTitle(w))
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
                 let purpose = w.notes.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !purpose.isEmpty {
                     Text(purpose)
@@ -1095,3 +1095,4 @@ struct WorksInboxDropDelegate: DropDelegate {
         }
     }
 }
+

@@ -42,6 +42,11 @@ struct StudentWorkPill: View {
                     .padding(.top, 2)
 
                 VStack(alignment: .leading, spacing: 2) {
+                    Text(item.work.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? item.work.workType.rawValue : item.work.title)
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+
                     if !studentChips.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
@@ -51,17 +56,12 @@ struct StudentWorkPill: View {
                                         .foregroundStyle(chip.2 ? .secondary : .primary)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(Capsule().fill(iconColor.opacity(chip.2 ? 0.06 : 0.15)))
+                                        .background(Capsule().fill(Color.blue.opacity(chip.2 ? 0.06 : 0.15)))
                                         .overlay(Capsule().stroke(chip.2 ? Color.red : Color.clear, lineWidth: 1))
                                 }
                             }
                         }
                     }
-
-                    Text(item.work.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? item.work.workType.rawValue : item.work.title)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .lineLimit(nil)
-                        .fixedSize(horizontal: false, vertical: true)
 
                     let purpose = item.checkIn.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !purpose.isEmpty {

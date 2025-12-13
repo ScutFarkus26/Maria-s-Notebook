@@ -63,6 +63,17 @@ struct TodayView: View {
         return names.joined(separator: ", ")
     } }
 
+    // Compact student pill used next to attendance stats
+    @ViewBuilder
+    private func studentPill(_ name: String, color: Color) -> some View {
+        Text(name)
+            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(color.opacity(0.12)))
+    }
+
     // MARK: - Init
     init(context: ModelContext) {
         _viewModel = StateObject(wrappedValue: TodayViewModel(context: context, calendar: AppCalendar.shared))
@@ -197,6 +208,31 @@ struct TodayView: View {
             statChip(title: "Present", count: viewModel.attendanceSummary.presentCount, color: .green)
             statChip(title: "Absent", count: viewModel.attendanceSummary.absentCount, color: .red)
             statChip(title: "Left Early", count: viewModel.attendanceSummary.leftEarlyCount, color: .purple)
+
+            if !(viewModel.absentToday.isEmpty && viewModel.leftEarlyToday.isEmpty) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(viewModel.absentToday.sorted { displayNameForID($0).localizedCaseInsensitiveCompare(displayNameForID($1)) == .orderedAscending }, id: \.self) { sid in
+                            let name = displayNameForID(sid)
+                            if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                studentPill(name, color: .red)
+                            }
+                        }
+                        if !viewModel.absentToday.isEmpty && !viewModel.leftEarlyToday.isEmpty {
+                            Color.clear.frame(width: 8)
+                        }
+                        ForEach(viewModel.leftEarlyToday.sorted { displayNameForID($0).localizedCaseInsensitiveCompare(displayNameForID($1)) == .orderedAscending }, id: \.self) { sid in
+                            let name = displayNameForID(sid)
+                            if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                studentPill(name, color: .purple)
+                            }
+                        }
+                    }
+                    .padding(.leading, 8) // Little padding between the info and the names
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             Spacer()
         }
         .padding(8)

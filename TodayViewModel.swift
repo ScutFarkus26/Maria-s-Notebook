@@ -60,6 +60,8 @@ final class TodayViewModel: ObservableObject {
     @Published var inProgressWork: [WorkModel] = []
     @Published var completedToday: [WorkCompletionRecord] = []
     @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
+    @Published var absentToday: [UUID] = []
+    @Published var leftEarlyToday: [UUID] = []
 
     // MARK: - Caches
     // Lightweight lookup caches for rows (avoid per-row fetches)
@@ -233,18 +235,30 @@ final class TodayViewModel: ObservableObject {
             var present = 0
             var absent = 0
             var leftEarly = 0
+            var absentIDs: Set<UUID> = []
+            var leftEarlyIDs: Set<UUID> = []
             for rec in records {
                 if let s = self.studentsByID[rec.studentID], !levelFilter.matches(s.level) { continue }
                 switch rec.status {
-                case .present, .tardy: present += 1
-                case .absent: absent += 1
-                case .leftEarly: leftEarly += 1
-                case .unmarked: break
+                case .present, .tardy:
+                    present += 1
+                case .absent:
+                    absent += 1
+                    absentIDs.insert(rec.studentID)
+                case .leftEarly:
+                    leftEarly += 1
+                    leftEarlyIDs.insert(rec.studentID)
+                case .unmarked:
+                    break
                 }
             }
             attendanceSummary = AttendanceSummary(presentCount: present, absentCount: absent, leftEarlyCount: leftEarly)
+            self.absentToday = Array(absentIDs)
+            self.leftEarlyToday = Array(leftEarlyIDs)
         } catch {
             attendanceSummary = AttendanceSummary()
+            self.absentToday = []
+            self.leftEarlyToday = []
         }
     }
 
@@ -287,3 +301,4 @@ final class TodayViewModel: ObservableObject {
         }
     }
 }
+
