@@ -103,7 +103,6 @@ final class TodayViewModel: ObservableObject {
 
     // MARK: - Public API
     func reload() {
-        let cal = calendar
         let (day, nextDay) = AppCalendar.dayRange(for: date)
 
         // Build lookup caches first
@@ -302,3 +301,4 @@ final class TodayViewModel: ObservableObject {
         }
     }
 }
+
