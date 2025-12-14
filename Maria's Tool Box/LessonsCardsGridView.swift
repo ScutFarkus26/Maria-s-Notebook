@@ -20,19 +20,22 @@ struct LessonsCardsGridView: View {
     // Optional reorder callback; if provided and manual mode is enabled, supports drag reordering
     let onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)?
     let onGiveLesson: ((Lesson) -> Void)?
+    let statusCounts: [UUID: Int]?
 
     init(
         lessons: [Lesson],
         isManualMode: Bool,
         onTapLesson: @escaping (Lesson) -> Void,
         onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)? = nil,
-        onGiveLesson: ((Lesson) -> Void)? = nil
+        onGiveLesson: ((Lesson) -> Void)? = nil,
+        statusCounts: [UUID: Int]? = nil
     ) {
         self.lessons = lessons
         self.isManualMode = isManualMode
         self.onTapLesson = onTapLesson
         self.onReorder = onReorder
         self.onGiveLesson = onGiveLesson
+        self.statusCounts = statusCounts
     }
 
     @State private var draggingLessonID: UUID?
@@ -42,55 +45,46 @@ struct LessonsCardsGridView: View {
     @State private var hasAppeared: Bool = false
     @State private var showDeleteAlert: Bool = false
 
-    private let columns: [GridItem] = [
-        GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)
-    ]
+    private var columns: [GridItem] {
+        isManualMode
+        ? [GridItem(.flexible(minimum: 260), spacing: 24)]
+        : [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)]
+    }
 
     private var idList: [UUID] { lessons.map { $0.id } }
 
-    private var gridAnimation: Animation? {
-        if draggingLessonID != nil || !hasAppeared {
-            return nil
-        } else {
-            return .spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
-        }
+    private var groupedByGroup: [(key: String, value: [Lesson])] {
+        let dict = Dictionary(grouping: lessons) { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return dict
+            .map { (key: $0.key, value: $0.value.sorted { lhs, rhs in
+                if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            })}
+            .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
     }
 
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                ForEach(lessons, id: \.id) { lesson in
-                    let isDragging = isManualMode && draggingLessonID == lesson.id
-                    let isHover = hoverTargetID == lesson.id
-
-                    LessonCardContainer(
-                        lesson: lesson,
-                        isDragging: isDragging,
-                        isHover: isHover,
-                        hasAppeared: hasAppeared,
-                        gridNamespace: gridNamespace,
-                        disableAnimations: draggingLessonID != nil
-                    )
-#if os(macOS)
-                    .highPriorityGesture(TapGesture(count: 1).onEnded { onTapLesson(lesson) })
-#else
-                    .onTapGesture { onTapLesson(lesson) }
-#endif
-                    .when(isManualMode && onReorder != nil) { view in
-                        view.simultaneousGesture(longPressThenDrag(for: lesson))
-                    }
-#if os(macOS)
-                    .overlay(RightClickCatcher(onRightClick: { onGiveLesson?(lesson) }))
-#endif
-#if !os(macOS)
-                    .contextMenu {
-                        Button {
-                            onGiveLesson?(lesson)
-                        } label: {
-                            Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+                if groupedByGroup.count > 1 {
+                    ForEach(groupedByGroup, id: \.key) { entry in
+                        Section {
+                            ForEach(entry.value, id: \.id) { lesson in
+                                card(lesson)
+                            }
+                        } header: {
+                            Text(entry.key.isEmpty ? "Ungrouped" : entry.key)
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 4)
+                                .padding(.top, 8)
                         }
                     }
-#endif
+                } else {
+                    ForEach(lessons, id: \.id) { lesson in
+                        card(lesson)
+                    }
                 }
             }
             .transaction { tx in
@@ -109,6 +103,42 @@ struct LessonsCardsGridView: View {
                 hasAppeared = true
             }
         }
+    }
+
+    @ViewBuilder
+    private func card(_ lesson: Lesson) -> some View {
+        let isDragging = isManualMode && draggingLessonID == lesson.id
+        let isHover = hoverTargetID == lesson.id
+
+        LessonCardContainer(
+            lesson: lesson,
+            isDragging: isDragging,
+            isHover: isHover,
+            hasAppeared: hasAppeared,
+            gridNamespace: gridNamespace,
+            disableAnimations: draggingLessonID != nil,
+            statusCount: statusCounts?[lesson.id]
+        )
+#if os(macOS)
+        .highPriorityGesture(TapGesture(count: 1).onEnded { onTapLesson(lesson) })
+#else
+        .onTapGesture { onTapLesson(lesson) }
+#endif
+        .when(isManualMode && onReorder != nil) { view in
+            view.simultaneousGesture(longPressThenDrag(for: lesson))
+        }
+#if os(macOS)
+        .overlay(RightClickCatcher(onRightClick: { onGiveLesson?(lesson) }))
+#endif
+#if !os(macOS)
+        .contextMenu {
+            Button {
+                onGiveLesson?(lesson)
+            } label: {
+                Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+            }
+        }
+#endif
     }
 
     // MARK: - Gesture
@@ -177,6 +207,14 @@ struct LessonsCardsGridView: View {
                 onReorder?(lesson, fromIndex, toIndex, lessons)
             }
     }
+
+    private var gridAnimation: Animation? {
+        if draggingLessonID != nil || !hasAppeared {
+            return nil
+        } else {
+            return .spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
+        }
+    }
 }
 
 // MARK: - Preferences
@@ -194,9 +232,10 @@ private struct LessonCardContainer: View {
     let hasAppeared: Bool
     let gridNamespace: Namespace.ID
     let disableAnimations: Bool
+    let statusCount: Int?
 
     var body: some View {
-        LessonCard(lesson: lesson)
+        LessonCard(lesson: lesson, statusCount: statusCount)
             .matchedGeometryEffect(id: lesson.id, in: gridNamespace)
             .when(hasAppeared) { view in
                 view.transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -227,6 +266,7 @@ private struct LessonCardContainer: View {
 // MARK: - Lesson Card
 private struct LessonCard: View {
     let lesson: Lesson
+    let statusCount: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -256,6 +296,13 @@ private struct LessonCard: View {
                     .lineLimit(nil)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
+            } else if let firstLine = writeUpFirstLine {
+                Text(firstLine)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 0)
@@ -264,10 +311,33 @@ private struct LessonCard: View {
         .padding(14)
         .frame(minHeight: 100)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(cardBackgroundColor)
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.06), lineWidth: 1))
-                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(cardBackgroundColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(subjectColor.opacity(0.3), lineWidth: 2)
+                    )
+                    .overlay(alignment: .leading) {
+                        Rectangle()
+                            .fill(subjectColor)
+                            .frame(width: 4)
+                            .padding(.vertical, 8)
+                            .padding(.leading, 1)
+                    }
+                    .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+
+                if let count = statusCount, count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Color.orange.opacity(0.15)))
+                        .overlay(Capsule().stroke(Color.orange.opacity(0.5)))
+                        .padding(10)
+                        .accessibilityLabel("\(count) students need this")
+                }
+            }
         )
     }
 
@@ -286,6 +356,14 @@ private struct LessonCard: View {
         #else
         return Color(uiColor: .secondarySystemBackground)
         #endif
+    }
+
+    private var subjectColor: Color { AppColors.color(forSubject: lesson.subject) }
+
+    private var writeUpFirstLine: String? {
+        let trimmed = lesson.writeUp.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return trimmed.split(separator: "\n").first.map(String.init)
     }
 }
 

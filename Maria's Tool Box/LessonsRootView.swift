@@ -19,6 +19,14 @@ struct LessonsRootView: View {
     @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
     @SceneStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
     @SceneStorage("Lessons.expandedSubjects") private var lessonsExpandedSubjectsRaw: String = ""
+    @SceneStorage("Lessons.layoutMode") private var layoutModeRaw: String = "grid"
+
+    private enum LayoutMode: String { case grid, list }
+
+    private var layoutMode: LayoutMode {
+        get { LayoutMode(rawValue: layoutModeRaw) ?? .grid }
+        set { layoutModeRaw = newValue.rawValue }
+    }
 
     private enum PresentedSheet: Identifiable {
         case addLesson(defaultSubject: String?, defaultGroup: String?)
@@ -68,6 +76,11 @@ struct LessonsRootView: View {
                 String(lesson.orderInGroup)
             ].joined(separator: "|")
         }.joined(separator: ";")
+    }
+
+    private var lessonNeedsCounts: [UUID: Int] {
+        let grouped = Dictionary(grouping: studentLessons, by: { $0.resolvedLessonID })
+        return grouped.mapValues { list in list.filter { !$0.isGiven }.count }
     }
 
     @StateObject private var filterState = LessonsFilterState()
@@ -148,6 +161,95 @@ struct LessonsRootView: View {
         vm.recomputeFilteredLessons(all: lessons, filterState: filterState, using: viewModel)
     }
 
+    @ViewBuilder
+    private func viewForSheet(_ sheet: PresentedSheet) -> some View {
+        switch sheet {
+        case .addLesson(let subject, let group):
+            AddLessonView(defaultSubject: subject, defaultGroup: group)
+        case .bulkEntry(let subject, let group):
+            BulkLessonsEntryView(defaultSubject: subject, defaultGroup: group, onDone: {
+                presentedSheet = nil
+            })
+            #if os(macOS)
+            .frame(minWidth: 720, minHeight: 560)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+        case .studentLessonDraft(let id):
+            if let sl = studentLessons.first(where: { $0.id == id }) {
+                StudentLessonDetailView(studentLesson: sl, onDone: {
+                    presentedSheet = nil
+                })
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizing(.fitted)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
+            } else {
+                EmptyView()
+            }
+        case .importPreview(let parsed):
+            LessonImportPreviewView(parsed: parsed, onCancel: {
+                presentedSheet = nil
+            }, onConfirm: { filtered in
+                do {
+                    let result = try ImportCommitService.commitLessons(parsed: filtered, into: modelContext, existingLessons: lessons)
+                    importAlert = ImportAlert(title: result.title, message: result.message)
+                } catch {
+                    importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+                }
+                presentedSheet = nil
+            })
+            .frame(minWidth: 620, minHeight: 520)
+        }
+    }
+
+    private var layoutSelection: Binding<LayoutMode> {
+        Binding<LayoutMode>(
+            get: { LayoutMode(rawValue: self.layoutModeRaw) ?? .grid },
+            set: { self.layoutModeRaw = $0.rawValue }
+        )
+    }
+
+    @ViewBuilder
+    private var lessonsMainContent: some View {
+        if layoutMode == .grid {
+            LessonsCardsGridView(
+                lessons: filteredLessons,
+                isManualMode: isManualMode,
+                onTapLesson: { (lesson: Lesson) in
+                    selectedLesson = lesson
+                },
+                onReorder: { (movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson]) in
+                    reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
+                },
+                onGiveLesson: { (lesson: Lesson) in
+                    presentedSheet = nil
+                    let newSL = vm.createStudentLesson(basedOn: lesson, in: modelContext)
+                    presentedSheet = .studentLessonDraft(newSL.id)
+                },
+                statusCounts: lessonNeedsCounts
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            LessonsListView(
+                lessons: filteredLessons,
+                isManualMode: isManualMode,
+                onTapLesson: { (lesson: Lesson) in
+                    selectedLesson = lesson
+                },
+                onReorder: { (movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson]) in
+                    reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
+                }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
@@ -167,23 +269,20 @@ struct LessonsRootView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .onAppear { vm.seedSamplesIfNeeded(lessons: lessons, into: modelContext) }
                     } else {
-                        LessonsCardsGridView(
-                            lessons: filteredLessons,
-                            isManualMode: isManualMode,
-                            onTapLesson: { (lesson: Lesson) in
-                                selectedLesson = lesson
-                            },
-                            onReorder: { (movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson]) in
-                                reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
-                            },
-                            onGiveLesson: { (lesson: Lesson) in
-                                presentedSheet = nil
-                                let newSL = vm.createStudentLesson(basedOn: lesson, in: modelContext)
-                                presentedSheet = .studentLessonDraft(newSL.id)
+                        ZStack(alignment: .topTrailing) {
+                            lessonsMainContent
+
+                            HStack(spacing: 12) {
+                                Picker("Layout", selection: layoutSelection) {
+                                    Label("Grid", systemImage: "square.grid.2x2").tag(LayoutMode.grid)
+                                    Label("List", systemImage: "list.bullet").tag(LayoutMode.list)
+                                }
+                                .pickerStyle(.segmented)
+
+                                plusMenuOverlay
                             }
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .overlay(alignment: .topTrailing) { plusMenuOverlay }
+                            .padding()
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -199,49 +298,7 @@ struct LessonsRootView: View {
             }
         }
         .sheet(item: $presentedSheet) { sheet in
-            switch sheet {
-            case .addLesson(let subject, let group):
-                AddLessonView(defaultSubject: subject, defaultGroup: group)
-            case .bulkEntry(let subject, let group):
-                BulkLessonsEntryView(defaultSubject: subject, defaultGroup: group, onDone: {
-                    presentedSheet = nil
-                })
-                #if os(macOS)
-                .frame(minWidth: 720, minHeight: 560)
-                .presentationSizing(.fitted)
-                #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                #endif
-            case .studentLessonDraft(let id):
-                if let sl = studentLessons.first(where: { $0.id == id }) {
-                    StudentLessonDetailView(studentLesson: sl, onDone: {
-                        presentedSheet = nil
-                    })
-                    #if os(macOS)
-                    .frame(minWidth: 720, minHeight: 640)
-                    .presentationSizing(.fitted)
-                    #else
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-                    #endif
-                } else {
-                    EmptyView()
-                }
-            case .importPreview(let parsed):
-                LessonImportPreviewView(parsed: parsed, onCancel: {
-                    presentedSheet = nil
-                }, onConfirm: { filtered in
-                    do {
-                        let result = try ImportCommitService.commitLessons(parsed: filtered, into: modelContext, existingLessons: lessons)
-                        importAlert = ImportAlert(title: result.title, message: result.message)
-                    } catch {
-                        importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-                    }
-                    presentedSheet = nil
-                })
-                .frame(minWidth: 620, minHeight: 520)
-            }
+            viewForSheet(sheet)
         }
         .fileImporter(
             isPresented: $showingLessonCSVImporter,
@@ -509,6 +566,92 @@ struct LessonsRootView: View {
         }
         .buttonStyle(.plain)
         .padding()
+    }
+
+    private struct LessonsListView: View {
+        let lessons: [Lesson]
+        let isManualMode: Bool
+        let onTapLesson: (Lesson) -> Void
+        let onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)?
+        @State private var draggingLessonID: UUID? = nil
+        @State private var hoverTargetID: UUID? = nil
+
+        private var groupedByGroup: [(key: String, value: [Lesson])] {
+            let dict = Dictionary(grouping: lessons) { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
+            return dict
+                .map { (key: $0.key, value: $0.value.sorted { lhs, rhs in
+                    if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                })}
+                .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+        }
+
+        var body: some View {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    if groupedByGroup.count > 1 {
+                        ForEach(groupedByGroup, id: \.key) { entry in
+                            Section {
+                                ForEach(entry.value, id: \.id) { lesson in
+                                    row(lesson)
+                                }
+                            } header: {
+                                Text(entry.key.isEmpty ? "Ungrouped" : entry.key)
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 8)
+                            }
+                        }
+                    } else {
+                        ForEach(lessons, id: \.id) { lesson in
+                            row(lesson)
+                        }
+                    }
+                }
+                .padding(16)
+            }
+        }
+
+        @ViewBuilder
+        private func row(_ lesson: Lesson) -> some View {
+            let color = AppColors.color(forSubject: lesson.subject)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Rectangle()
+                    .fill(color)
+                    .frame(width: 4, height: 28)
+                    .cornerRadius(2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    if !lesson.group.isEmpty || !lesson.subject.isEmpty {
+                        Text(groupSubjectLine(for: lesson))
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onTapLesson(lesson) }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+        }
+
+        private func groupSubjectLine(for lesson: Lesson) -> String {
+            switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
+            case (false, false): return "\(lesson.subject) • \(lesson.group)"
+            case (false, true): return lesson.subject
+            case (true, false): return lesson.group
+            default: return ""
+            }
+        }
     }
 }
 
