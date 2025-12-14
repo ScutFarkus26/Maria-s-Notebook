@@ -17,6 +17,10 @@ struct AppSchema {
         NonSchoolDay.self,
         SchoolDayOverride.self,
         ScopedNote.self,
-        Note.self
+        Note.self,
+        CommunityTopic.self,
+        ProposedSolution.self,
+        MeetingNote.self,
+        CommunityAttachment.self
     ])
 }

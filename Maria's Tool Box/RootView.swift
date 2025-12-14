@@ -15,8 +15,9 @@ struct RootView: View {
         case planning = "Planning"
         case today = "Today"
         case logs = "Logs"
-        case settings = "Settings"
         case attendance = "Attendance"
+        case community = "Community Meetings"
+        case settings = "Settings"
 
         var id: String { rawValue }
     }
@@ -167,6 +168,8 @@ struct RootView: View {
                     LogsMenuRootView()
                 case .attendance:
                     AttendanceView()
+                case .community:
+                    CommunityMeetingsView()
                 case .settings:
                     SettingsView()
                 }
