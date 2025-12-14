@@ -109,13 +109,36 @@ struct WorksPlanningView: View {
         )
     }
 
+    // MARK: - Preface overdue section for UnifiedAgendaView
+    @ViewBuilder
+    private var prefaceOverdueSection: some View {
+        if !overdueItems.isEmpty {
+            Section(header: overdueHeader) {
+                overdueList(items: overdueItems)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+            }
+            .id("overdue_section")
+        } else {
+            EmptyView()
+        }
+    }
+
     // MARK: - Body
     var body: some View {
-        AgendaShellView(
+        UnifiedAgendaView(
+            startDate: viewModel.startDate,
+            days: viewModel.computeSchoolDays(count: 7),
+            isNonSchoolDay: { day in viewModel.isNonSchool(day) },
+            onPrev: { withAnimation { viewModel.moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) } },
+            onNext: { withAnimation { viewModel.moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) } },
+            onToday: { withAnimation { viewModel.resetToFirstSchoolDay(from: AppCalendar.startOfDay(Date())) } },
             sidebar: { sidebar },
-            header: { header },
-            content: { agenda }
-        )
+            headerActions: { EmptyView() },
+            preface: { prefaceOverdueSection }
+        ) { day in
+            periodsList(for: day, grouped: viewModel.groupedItems(works: works))
+        }
         .onAppear {
             if startDateRaw != 0 {
                 viewModel.startDate = Date(timeIntervalSince1970: startDateRaw)
@@ -215,56 +238,6 @@ struct WorksPlanningView: View {
                 (studentsByID[id]?.firstName.trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
             }
         )
-    }
-
-    private var header: some View {
-        let days = viewModel.computeSchoolDays(count: 7)
-        return AgendaWeekHeaderView(
-            startDate: viewModel.startDate,
-            days: days,
-            onPrev: { withAnimation { viewModel.moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) } },
-            onNext: { withAnimation { viewModel.moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) } },
-            onToday: { withAnimation { viewModel.resetToFirstSchoolDay(from: AppCalendar.startOfDay(Date())) } },
-            actions: { EmptyView() }
-        )
-    }
-
-    private var agenda: some View {
-        let days: [Date] = viewModel.computeSchoolDays(count: 7)
-        let grouped: [DayKey: [ScheduledItem]] = viewModel.groupedItems(works: works)
-
-        return AgendaView(
-            days: days,
-            dayID: { day in viewModel.dayID(day) },
-            dayHeader: { day in AgendaDaySectionHeaderView(day: day, isNonSchoolDay: viewModel.isNonSchool(day)) },
-            topBar: { scrollToDay in
-                AgendaDayStripView(days: days) { day in
-                    scrollToDay(day)
-                }
-            },
-            preface: {
-                if !overdueItems.isEmpty {
-                    Section(header: overdueHeader) {
-                        overdueList(items: overdueItems)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                    }
-                    .id("overdue_section")
-                }
-            },
-            contentForDay: { day in
-                periodsList(for: day, grouped: grouped)
-            }
-        )
-    }
-
-    @ViewBuilder
-    private func daySection(day: Date, grouped: [DayKey: [ScheduledItem]]) -> some View {
-        Section(header: dayHeader(day)) {
-            periodsList(for: day, grouped: grouped)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-        }
     }
 
     @ViewBuilder
@@ -393,15 +366,6 @@ struct WorksPlanningView: View {
         }
         // Enable dragging overdue items directly into day/period slots to reschedule them
         .draggable(PlanningDragItem.checkIn(item.checkIn.id))
-    }
-
-    @ViewBuilder
-    private func dayHeader(_ day: Date) -> some View {
-        DayHeaderView(
-            name: viewModel.dayName(day),
-            number: viewModel.dayNumber(day),
-            nonSchool: viewModel.isNonSchool(day)
-        )
     }
 
     // TODO: Consider centralizing icon/color mapping for WorkModel.WorkType to avoid duplication across views.

@@ -48,12 +48,29 @@ struct PlanningAgendaView: View {
     }
 
     var body: some View {
-        AgendaShellView {
-            sidebar
-        } header: {
-            header
-        } content: {
-            agenda
+        UnifiedAgendaView(
+            startDate: startDate,
+            days: days,
+            isNonSchoolDay: { day in viewModel.isNonSchoolDayFast(day) },
+            onPrev: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                    startDate = AgendaSchoolDayRules.movedStart(bySchoolDays: -7, from: startDate, calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
+                }
+            },
+            onNext: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                    startDate = AgendaSchoolDayRules.movedStart(bySchoolDays: 7, from: startDate, calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
+                }
+            },
+            onToday: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                    startDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
+                }
+            },
+            sidebar: { sidebar },
+            headerActions: { headerActions }
+        ) { day in
+            dayBody(day)
         }
         .onChange(of: inboxOrderChangeToken) { _, _ in
             let base = viewModel.unscheduledLessons
@@ -137,27 +154,8 @@ struct PlanningAgendaView: View {
         )
     }
 
-    // MARK: - Header
-    private var header: some View {
-        AgendaWeekHeaderView(
-            startDate: startDate,
-            days: days,
-            onPrev: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    startDate = AgendaSchoolDayRules.movedStart(bySchoolDays: -7, from: startDate, calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
-                }
-            },
-            onNext: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    startDate = AgendaSchoolDayRules.movedStart(bySchoolDays: 7, from: startDate, calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
-                }
-            },
-            onToday: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                    startDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
-                }
-            }
-        ) {
+    private var headerActions: some View {
+        Group {
             Button {
                 let newSL = StudentLesson(
                     lesson: nil,
@@ -201,68 +199,6 @@ struct PlanningAgendaView: View {
         }
     }
 
-    // MARK: - Agenda
-    private var agenda: some View {
-        ScrollViewReader { proxy in
-            VStack(alignment: .leading, spacing: 8) {
-                // Day strip
-                AgendaDayStripView(days: days) { day in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                        proxy.scrollTo(dayID(day), anchor: .top)
-                    }
-                }
-
-                // Scrollable agenda with pinned headers
-                ScrollView(.vertical) {
-                    LazyVStack(alignment: .leading, spacing: 24, pinnedViews: [.sectionHeaders]) {
-                        ForEach(days, id: \.self) { day in
-                            Section(header:
-                                dayHeader(day)
-                                    .background(.bar)
-                            ) {
-                                dayBody(day)
-                            }
-                            .id(dayID(day))
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-                }
-            }
-        }
-    }
-
-    // MARK: - Helpers
-    private var weekRangeString: String {
-        guard let first = days.first, let last = days.last else { return "" }
-        return "\(first.formatted(Self.weekStyle)) - \(last.formatted(Self.weekStyle))"
-    }
-
-    private func dayName(for day: Date) -> String {
-        day.formatted(Self.dayNameStyle)
-    }
-
-    private func dayNumber(for day: Date) -> String {
-        day.formatted(Self.dayNumberStyle)
-    }
-
-    private func dayID(_ day: Date) -> String {
-        let start = calendar.startOfDay(for: day)
-        return "day_\(Int(start.timeIntervalSince1970))"
-    }
-
-    private func dayShortLabel(for day: Date) -> String {
-        day.formatted(Self.dayNameStyle)
-    }
-
-    @ViewBuilder
-    private func dayHeader(_ day: Date) -> some View {
-        HStack { // wrapper to preserve exact background and pinned header behavior
-            AgendaDaySectionHeaderView(day: day, isNonSchoolDay: viewModel.isNonSchoolDayFast(day))
-        }
-        .padding(.vertical, 0) // no extra padding beyond internal header view
-    }
-
     @ViewBuilder
     private func dayBody(_ day: Date) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -292,6 +228,37 @@ struct PlanningAgendaView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func dayHeader(_ day: Date) -> some View {
+        HStack { // wrapper to preserve exact background and pinned header behavior
+            AgendaDaySectionHeaderView(day: day, isNonSchoolDay: viewModel.isNonSchoolDayFast(day))
+        }
+        .padding(.vertical, 0) // no extra padding beyond internal header view
+    }
+
+    // MARK: - Helpers
+    private var weekRangeString: String {
+        guard let first = days.first, let last = days.last else { return "" }
+        return "\(first.formatted(Self.weekStyle)) - \(last.formatted(Self.weekStyle))"
+    }
+
+    private func dayName(for day: Date) -> String {
+        day.formatted(Self.dayNameStyle)
+    }
+
+    private func dayNumber(for day: Date) -> String {
+        day.formatted(Self.dayNumberStyle)
+    }
+
+    private func dayID(_ day: Date) -> String {
+        let start = calendar.startOfDay(for: day)
+        return "day_\(Int(start.timeIntervalSince1970))"
+    }
+
+    private func dayShortLabel(for day: Date) -> String {
+        day.formatted(Self.dayNameStyle)
     }
 }
 

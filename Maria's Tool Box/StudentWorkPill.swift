@@ -9,11 +9,11 @@ struct StudentWorkPill: View {
     let nameForStudentID: (UUID) -> String
     let absentTodayIDs: Set<UUID>
 
-    private var iconAndColor: (String, Color) {
+    private var workTypeColor: Color {
         switch item.work.workType {
-        case .research: return ("magnifyingglass", .teal)
-        case .followUp: return ("bolt.fill", .orange)
-        case .practice: return ("arrow.triangle.2.circlepath", .purple)
+        case .research: return .teal
+        case .followUp: return .orange
+        case .practice: return .purple
         }
     }
 
@@ -26,38 +26,48 @@ struct StudentWorkPill: View {
         }.filter { !$0.1.isEmpty }
     }
 
+    struct ChipView: View {
+        let label: String
+        let isAbsent: Bool
+        let tint: Color
+
+        var body: some View {
+            Text(label)
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .foregroundStyle(isAbsent ? .secondary : .primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(tint.opacity(isAbsent ? 0.06 : 0.15)))
+                .overlay(Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1))
+        }
+    }
+
     var body: some View {
-        let (iconName, iconColor) = iconAndColor
         HStack(spacing: 0) {
             Rectangle()
-                .fill(iconColor)
+                .fill(workTypeColor)
                 .frame(width: UIConstants.ageIndicatorWidth)
                 .opacity(1.0)
                 .accessibilityHidden(true)
 
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: iconName)
-                    .foregroundStyle(iconColor)
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.top, 2)
+                Circle()
+                    .fill(workTypeColor)
+                    .frame(width: 6, height: 6)
+                    .padding(.top, 6)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.work.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? item.work.workType.rawValue : item.work.title)
                         .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                         .lineLimit(nil)
                         .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
 
                     if !studentChips.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 ForEach(studentChips, id: \.0) { chip in
-                                    Text(chip.1)
-                                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(chip.2 ? .secondary : .primary)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Capsule().fill(Color.blue.opacity(chip.2 ? 0.06 : 0.15)))
-                                        .overlay(Capsule().stroke(chip.2 ? Color.red : Color.clear, lineWidth: 1))
+                                    ChipView(label: chip.1, isAbsent: chip.2, tint: workTypeColor)
                                 }
                             }
                         }
