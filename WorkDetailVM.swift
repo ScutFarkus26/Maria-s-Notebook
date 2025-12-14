@@ -107,16 +107,40 @@ final class WorkDetailViewModel: ObservableObject {
         }
     }
 
-    func addCheckInDraft(date: Date, purpose: String, note: String) {
+    // Schedules a future check-in
+    func addScheduledCheckInDraft(date: Date, purpose: String) {
         let draft = CheckInDraft(
             id: UUID(),
             date: date,
             status: .scheduled,
             purpose: purpose,
+            note: "",
+            isNew: true
+        )
+        checkIns.append(draft)
+    }
+    
+    // Logs an immediate (unscheduled) check-in
+    func addInstantCheckIn(note: String) {
+        let draft = CheckInDraft(
+            id: UUID(),
+            date: Date(),
+            status: .completed,
+            purpose: "Quick Check-in",
             note: note,
             isNew: true
         )
         checkIns.append(draft)
+    }
+
+    // Completes a scheduled check-in with a note and updates date to now
+    func completeCheckIn(draftID: UUID, note: String) {
+        guard let index = checkIns.firstIndex(where: { $0.id == draftID }) else { return }
+        var updated = checkIns[index]
+        updated.status = .completed
+        updated.note = note
+        updated.date = Date() // Reset date to the moment it was actually done
+        checkIns[index] = updated
     }
 
     func setCheckInDraftStatus(_ draftID: UUID, to status: WorkCheckInStatus) {

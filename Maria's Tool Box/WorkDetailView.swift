@@ -20,7 +20,10 @@ struct WorkDetailView: View {
     // MARK: - UI State
     @State private var checkInDate = Date()
     @State private var checkInPurpose = ""
+    @State private var checkInNote = "" // For quick logs
     @State private var editingCheckInNote: WorkDetailViewModel.CheckInDraft?
+    @State private var completingCheckIn: WorkDetailViewModel.CheckInDraft? // For marking complete
+    @State private var completionNote = ""
     @State private var noteText = ""
     @State private var reschedulingCheckIn: WorkDetailViewModel.CheckInDraft? = nil
     @State private var rescheduleDate = Date()
@@ -29,6 +32,7 @@ struct WorkDetailView: View {
     @State private var showDeleteAlert = false
     @State private var showingStudentPickerPopover = false
     @State private var showInlineCheckInComposer = false
+    @State private var checkInComposerMode: Int = 0 // 0 = Quick, 1 = Schedule
     @State private var notesExpanded = false
     @State private var fromLessonExpanded: Bool = false
     @State private var showStudentChips = false
@@ -285,6 +289,18 @@ struct WorkDetailView: View {
                 noteText: $noteText,
                 onSave: handleNoteEditorSave,
                 onCancel: handleNoteEditorCancel
+            )
+        }
+        .sheet(item: $completingCheckIn) { draft in
+            WorkCheckInNoteEditor(
+                date: draft.date,
+                purpose: draft.purpose,
+                noteText: $completionNote,
+                onSave: handleCompletionSave,
+                onCancel: {
+                    completingCheckIn = nil
+                    completionNote = ""
+                }
             )
         }
         .sheet(item: $reschedulingCheckIn) { checkIn in
@@ -583,22 +599,6 @@ struct WorkDetailView: View {
         }
     }
     
-    private var scheduleNewCheckInSection: some View {
-        ScheduleCheckInSection(
-            checkInDate: $checkInDate,
-            checkInPurpose: $checkInPurpose
-        ) {
-            vm.addCheckInDraft(
-                date: checkInDate,
-                purpose: checkInPurpose,
-                note: ""
-            )
-            _ = saveCoordinator.save(modelContext, reason: "Add check-in")
-            checkInPurpose = ""
-            checkInDate = Date()
-        }
-    }
-    
     private var sortedCheckIns: [WorkDetailViewModel.CheckInDraft] {
         vm.checkIns.sorted { $0.date < $1.date }
     }
@@ -652,7 +652,7 @@ struct WorkDetailView: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 4) {
                 Circle()
-                    .fill(subjectColor)
+                    .fill(item.status == .completed ? Color.green : (item.status == .skipped ? Color.red : subjectColor))
                     .frame(width: 8, height: 8)
                     .overlay(
                         Circle()
@@ -671,31 +671,51 @@ struct WorkDetailView: View {
                     Text(Self.dateOnlyFormatter.string(from: item.date))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Text(item.purpose)
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                    if !item.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    
+                    if item.status == .completed {
+                        Text(item.note.isEmpty ? "Check-in completed" : item.note)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                            .lineLimit(2)
+                    } else {
+                        Text(item.purpose)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                    }
+                    
+                    if item.status == .completed && !item.note.isEmpty {
+                        // Note is already shown above for completed
+                    } else if !item.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Image(systemName: "text.bubble")
                             .foregroundColor(.secondary)
                     }
+                    
                     Spacer()
+                    
                     Menu {
-                        Button("Mark Completed", systemImage: "checkmark.circle") {
-                            vm.setCheckInDraftStatus(item.id, to: .completed)
-                            _ = saveCoordinator.save(modelContext, reason: "Mark check-in completed")
-                            updateCaches()
+                        if item.status == .scheduled {
+                            Button("Mark Completed & Add Note", systemImage: "checkmark.circle") {
+                                completionNote = item.note
+                                completingCheckIn = item
+                            }
                         }
+                        
                         Button("Skip", systemImage: "forward.end") {
                             vm.setCheckInDraftStatus(item.id, to: .skipped)
                             _ = saveCoordinator.save(modelContext, reason: "Skip check-in")
                             updateCaches()
                         }
-                        Button("Reschedule", systemImage: "calendar") {
-                            rescheduleDate = item.date
-                            reschedulingCheckIn = item
+                        
+                        if item.status == .scheduled {
+                            Button("Reschedule", systemImage: "calendar") {
+                                rescheduleDate = item.date
+                                reschedulingCheckIn = item
+                            }
                         }
+                        
                         Divider()
+                        
                         Button("Edit Note", systemImage: "square.and.pencil") {
                             noteText = item.note
                             editingCheckInNote = item
@@ -721,7 +741,7 @@ struct WorkDetailView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
                         .foregroundColor(subjectColor)
-                    Text("New check-in (time, purpose)")
+                    Text("Check-in...")
                         .foregroundColor(.secondary)
                     Spacer()
                 }
@@ -729,28 +749,70 @@ struct WorkDetailView: View {
             .buttonStyle(.plain)
 
             if showInlineCheckInComposer {
-                VStack(alignment: .leading, spacing: 8) {
-                    DatePicker("Date", selection: $checkInDate, displayedComponents: [.date])
-                    TextField("Purpose", text: $checkInPurpose)
-                        .textFieldStyle(.roundedBorder)
-                    HStack(spacing: 12) {
-                        Button("Add") {
-                            vm.addCheckInDraft(
-                                date: checkInDate,
-                                purpose: checkInPurpose,
-                                note: ""
-                            )
-                            _ = saveCoordinator.save(modelContext, reason: "Add check-in")
-                            checkInPurpose = ""
-                            checkInDate = Date()
-                            withAnimation(.easeInOut) { showInlineCheckInComposer = false }
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Mode", selection: $checkInComposerMode) {
+                        Text("Quick Log").tag(0)
+                        Text("Schedule Reminder").tag(1)
+                    }
+                    .pickerStyle(.segmented)
+                    
+                    if checkInComposerMode == 0 {
+                        // Quick Log Mode
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Log check-in for right now:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            TextField("Notes (e.g., student is making good progress)", text: $checkInNote, axis: .vertical)
+                                .textFieldStyle(.roundedBorder)
+                                .lineLimit(2...4)
+                            
+                            HStack(spacing: 12) {
+                                Button("Log Check-in") {
+                                    vm.addInstantCheckIn(note: checkInNote)
+                                    _ = saveCoordinator.save(modelContext, reason: "Quick check-in")
+                                    checkInNote = ""
+                                    withAnimation(.easeInOut) { showInlineCheckInComposer = false }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                
+                                Button("Cancel") {
+                                    withAnimation(.easeInOut) { showInlineCheckInComposer = false }
+                                }
+                                .foregroundColor(.secondary)
+                            }
                         }
-                        Button("Cancel") {
-                            withAnimation(.easeInOut) { showInlineCheckInComposer = false }
+                    } else {
+                        // Schedule Mode
+                        VStack(alignment: .leading, spacing: 8) {
+                            DatePicker("Date", selection: $checkInDate, displayedComponents: [.date])
+                            TextField("Purpose (e.g., check accuracy)", text: $checkInPurpose)
+                                .textFieldStyle(.roundedBorder)
+                            
+                            HStack(spacing: 12) {
+                                Button("Schedule") {
+                                    vm.addScheduledCheckInDraft(
+                                        date: checkInDate,
+                                        purpose: checkInPurpose
+                                    )
+                                    _ = saveCoordinator.save(modelContext, reason: "Schedule check-in")
+                                    checkInPurpose = ""
+                                    checkInDate = Date()
+                                    withAnimation(.easeInOut) { showInlineCheckInComposer = false }
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                Button("Cancel") {
+                                    withAnimation(.easeInOut) { showInlineCheckInComposer = false }
+                                }
+                                .foregroundColor(.secondary)
+                            }
                         }
-                        .foregroundColor(.secondary)
                     }
                 }
+                .padding(12)
+                .background(Color.secondary.opacity(0.05))
+                .cornerRadius(8)
             }
         }
     }
@@ -875,6 +937,15 @@ struct WorkDetailView: View {
     private func handleNoteEditorCancel() {
         editingCheckInNote = nil
         noteText = ""
+    }
+    
+    private func handleCompletionSave() {
+        if let item = completingCheckIn {
+            vm.completeCheckIn(draftID: item.id, note: completionNote)
+            _ = saveCoordinator.save(modelContext, reason: "Complete check-in")
+        }
+        completingCheckIn = nil
+        completionNote = ""
     }
 
     private func scheduleNextLessonInGroup(on date: Date) {
