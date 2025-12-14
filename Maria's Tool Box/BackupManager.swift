@@ -22,6 +22,7 @@ struct BackupPayload: Codable {
     var workCompletions: [WorkCompletionRecordDTO]
     var workCheckIns: [WorkCheckInDTO]
     var notes: [ScopedNoteDTO]
+    var standardNotes: [NoteDTO]
     var nonSchoolDays: [NonSchoolDayDTO]
     var schoolDayOverrides: [SchoolDayOverrideDTO]
     var presentNowExcludedNames: String?
@@ -38,7 +39,7 @@ struct BackupPayload: Codable {
     var lastBackupTimeInterval: Double?
 
     private enum CodingKeys: String, CodingKey {
-        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns, notes
+        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns, notes, standardNotes
         case nonSchoolDays, schoolDayOverrides, presentNowExcludedNames, planningInboxOrder
         case attendanceEmailEnabled, attendanceEmailTo, attendanceEmailFrom, lessonAgeWarningDays, lessonAgeOverdueDays, lessonAgeFreshColorHex, lessonAgeWarningColorHex, lessonAgeOverdueColorHex, selectedChecklistSubject, lastBackupTimeInterval
     }
@@ -57,6 +58,7 @@ struct BackupPayload: Codable {
         workCompletions: [WorkCompletionRecordDTO],
         workCheckIns: [WorkCheckInDTO],
         notes: [ScopedNoteDTO],
+        standardNotes: [NoteDTO],
         nonSchoolDays: [NonSchoolDayDTO],
         schoolDayOverrides: [SchoolDayOverrideDTO],
         presentNowExcludedNames: String?,
@@ -85,6 +87,7 @@ struct BackupPayload: Codable {
         self.workCompletions = workCompletions
         self.workCheckIns = workCheckIns
         self.notes = notes
+        self.standardNotes = standardNotes
         self.nonSchoolDays = nonSchoolDays
         self.schoolDayOverrides = schoolDayOverrides
         self.presentNowExcludedNames = presentNowExcludedNames
@@ -116,6 +119,7 @@ struct BackupPayload: Codable {
         self.workCompletions = try container.decodeIfPresent([WorkCompletionRecordDTO].self, forKey: .workCompletions) ?? []
         self.workCheckIns = try container.decodeIfPresent([WorkCheckInDTO].self, forKey: .workCheckIns) ?? []
         self.notes = (try? container.decode([ScopedNoteDTO].self, forKey: .notes)) ?? []
+        self.standardNotes = try container.decodeIfPresent([NoteDTO].self, forKey: .standardNotes) ?? []
         self.nonSchoolDays = try container.decodeIfPresent([NonSchoolDayDTO].self, forKey: .nonSchoolDays) ?? []
         self.schoolDayOverrides = try container.decodeIfPresent([SchoolDayOverrideDTO].self, forKey: .schoolDayOverrides) ?? []
         self.presentNowExcludedNames = try container.decodeIfPresent(String.self, forKey: .presentNowExcludedNames)
@@ -332,6 +336,17 @@ struct ScopedNoteDTO: Codable {
     var workID: UUID?
 }
 
+struct NoteDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var updatedAt: Date
+    var body: String
+    var isPinned: Bool
+    var scope: NoteScope
+    var lessonID: UUID?
+    var workID: UUID?
+}
+
 struct NonSchoolDayDTO: Codable {
     var id: UUID
     var date: Date
@@ -348,7 +363,7 @@ struct SchoolDayOverrideDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 17
+    static let currentVersion: Int = 18
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -487,6 +502,22 @@ enum BackupManager {
                 workID: n.work?.id
             )
         }
+        
+        // Fetch all standard Notes
+        let stdNotesFetch = FetchDescriptor<Note>()
+        let stdNotes = try context.fetch(stdNotesFetch)
+        let standardNotesDTO: [NoteDTO] = stdNotes.map { n in
+            NoteDTO(
+                id: n.id,
+                createdAt: n.createdAt,
+                updatedAt: n.updatedAt,
+                body: n.body,
+                isPinned: n.isPinned,
+                scope: n.scope,
+                lessonID: n.lesson?.id,
+                workID: n.work?.id
+            )
+        }
 
         // Fetch school calendar entities
         let nonSchoolDaysFetch = FetchDescriptor<NonSchoolDay>()
@@ -550,6 +581,7 @@ enum BackupManager {
             workCompletions: workCompletionsDTO,
             workCheckIns: workCheckInsDTO,
             notes: notesDTO,
+            standardNotes: standardNotesDTO,
             nonSchoolDays: nonSchoolDaysDTO,
             schoolDayOverrides: schoolDayOverridesDTO,
             presentNowExcludedNames: presentNowExcludedNames,
@@ -718,6 +750,28 @@ enum BackupManager {
                     work: worksByID[dto.workID]
                 )
                 context.insert(checkIn)
+            }
+        }
+
+        // Insert standard Notes (preserving IDs) if present
+        if !payload.standardNotes.isEmpty {
+            // Build maps for relationships
+            let lessonsNow = try context.fetch(FetchDescriptor<Lesson>())
+            let lessonsByID = Dictionary(uniqueKeysWithValues: lessonsNow.map { ($0.id, $0) })
+            let worksNow = try context.fetch(FetchDescriptor<WorkModel>())
+            let worksByID = Dictionary(uniqueKeysWithValues: worksNow.map { ($0.id, $0) })
+            for dto in payload.standardNotes {
+                let note = Note(
+                    id: dto.id,
+                    createdAt: dto.createdAt,
+                    updatedAt: dto.updatedAt,
+                    body: dto.body,
+                    scope: dto.scope,
+                    isPinned: dto.isPinned,
+                    lesson: dto.lessonID.flatMap { lessonsByID[$0] },
+                    work: dto.workID.flatMap { worksByID[$0] }
+                )
+                context.insert(note)
             }
         }
 
@@ -891,6 +945,11 @@ enum BackupManager {
         do {
             let notes = try context.fetch(FetchDescriptor<ScopedNote>())
             for obj in notes { context.delete(obj) }
+        }
+        // Delete Notes
+        do {
+            let stdNotes = try context.fetch(FetchDescriptor<Note>())
+            for obj in stdNotes { context.delete(obj) }
         }
         // Delete WorkCompletionRecords
         do {
