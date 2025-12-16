@@ -330,22 +330,6 @@ struct LessonDetailCard: View {
         }
     }
 
-    private func row(title: String, value: String, icon: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text(title)
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Text(value)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-        }
-    }
-
     private func seedDrafts() {
         draftName = lesson.name
         draftSubject = lesson.subject
@@ -408,25 +392,6 @@ struct LessonDetailCard: View {
                 await MainActor.run { importError = error.localizedDescription }
             }
         }
-    }
-
-    private func savePagesBookmark(from url: URL) {
-        do {
-#if os(macOS)
-            let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
-#else
-            let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
-#endif
-            lesson.pagesFileBookmark = bookmark
-            _ = saveCoordinator.save(modelContext, reason: "Save Pages bookmark")
-        } catch {
-            // ignore errors here
-        }
-    }
-
-    private func clearPagesLink() {
-        lesson.pagesFileBookmark = nil
-        _ = saveCoordinator.save(modelContext, reason: "Clear Pages link")
     }
 
     private var cardBackgroundColor: Color {

@@ -382,10 +382,6 @@ struct LessonDetailView: View {
 #endif
     }
 
-    private func clearPagesLink() {
-        lesson.pagesFileBookmark = nil
-    }
-
     private func openInPages(_ url: URL) {
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }

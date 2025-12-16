@@ -143,10 +143,6 @@ final class TopicDetailViewModel: ObservableObject {
         #endif
     }
 
-    func updateTagsFromDraft() {
-        topic?.tags = Self.parseTags(from: tagsDraft)
-    }
-
     func persistChanges(context: ModelContext) {
         guard let topic else { return }
         applyFields(to: topic)
