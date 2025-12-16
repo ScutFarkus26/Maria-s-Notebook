@@ -228,6 +228,13 @@ struct RootView: View {
 #endif
         .sheet(isPresented: $showWorkInboxSheet) {
             WorkInboxView()
+#if os(macOS)
+                .frame(minWidth: 720, minHeight: 600)
+                .presentationSizing(.fitted)
+#else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+#endif
         }
     }
 

@@ -527,7 +527,7 @@ private struct CompletionRow: View {
 }
 
 #Preview {
-    // This preview uses an in-memory model container; data will be empty.
-    let container = try! ModelContainer(for: Schema([Item.self, Student.self, Lesson.self, StudentLesson.self, WorkModel.self, WorkParticipantEntity.self, WorkCompletionRecord.self, AttendanceRecord.self, WorkCheckIn.self, NonSchoolDay.self, SchoolDayOverride.self, ScopedNote.self]), configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let schema = AppSchema.schema
+    let container = try! ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     return TodayView(context: container.mainContext)
 }

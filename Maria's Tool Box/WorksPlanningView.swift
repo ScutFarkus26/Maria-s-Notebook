@@ -955,19 +955,7 @@ fileprivate struct WorkInboxPillFramePreference: PreferenceKey {
 
 // MARK: - Preview
 #Preview {
-    let schema = Schema([
-        Item.self,
-        Student.self,
-        Lesson.self,
-        StudentLesson.self,
-        WorkModel.self,
-        WorkParticipantEntity.self,
-        WorkCompletionRecord.self,
-        AttendanceRecord.self,
-        WorkCheckIn.self,
-        Note.self,
-        ScopedNote.self
-    ])
+    let schema = AppSchema.schema
     let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: configuration)
     return WorksPlanningView()

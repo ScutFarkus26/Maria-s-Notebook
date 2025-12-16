@@ -21,6 +21,8 @@ struct AppSchema {
         CommunityTopic.self,
         ProposedSolution.self,
         MeetingNote.self,
-        CommunityAttachment.self
+        CommunityAttachment.self,
+        Presentation.self,
+        WorkContract.self
     ])
 }
