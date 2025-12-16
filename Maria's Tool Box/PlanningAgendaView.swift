@@ -22,6 +22,9 @@ struct PlanningAgendaView: View {
     @AppStorage("PlanningAgenda.startDate") private var startDateRaw: Double = 0
     @State private var startDate: Date = Date()
     @State private var activeSheet: ActiveSheet? = nil
+    @State private var selectedStudentID: UUID? = nil
+    @State private var showStudentFilterPopover: Bool = false
+    @State private var filterSelectedIDs: Set<UUID> = []
 
     private enum ActiveSheet: Identifiable {
         case studentLessonDetail(UUID)
@@ -43,6 +46,22 @@ struct PlanningAgendaView: View {
         InboxOrderStore.orderedUnscheduled(from: viewModel.unscheduledLessons, orderRaw: inboxOrderRaw)
     }
     
+    private var filteredStudentLessons: [StudentLesson] {
+        if let id = selectedStudentID {
+            return studentLessons.filter { $0.resolvedStudentIDs.contains(id) }
+        } else {
+            return studentLessons
+        }
+    }
+
+    private var orderedUnscheduledLessonsFiltered: [StudentLesson] {
+        if let id = selectedStudentID {
+            return orderedUnscheduledLessons.filter { $0.resolvedStudentIDs.contains(id) }
+        } else {
+            return orderedUnscheduledLessons
+        }
+    }
+
     private var inboxOrderChangeToken: String {
         viewModel.unscheduledLessons.map { $0.id.uuidString }.sorted().joined(separator: ",")
     }
@@ -111,6 +130,7 @@ struct PlanningAgendaView: View {
             startDateRaw = new.timeIntervalSinceReferenceDate
         }
         .onAppear {
+            selectedStudentID = nil
             DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
             if startDateRaw == 0 {
                 let initial = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: { viewModel.isNonSchoolDayFast($0) })
@@ -134,7 +154,7 @@ struct PlanningAgendaView: View {
     private var sidebar: some View {
         InboxSheetView(
             studentLessons: studentLessons,
-            orderedUnscheduledLessons: orderedUnscheduledLessons,
+            orderedUnscheduledLessons: orderedUnscheduledLessonsFiltered,
             inboxOrderRaw: $inboxOrderRaw,
             onOpenDetails: { id in
                 activeSheet = .studentLessonDetail(id)
@@ -155,7 +175,76 @@ struct PlanningAgendaView: View {
     }
 
     private var headerActions: some View {
-        Group {
+        HStack(spacing: 10) {
+            // Student filter pill/button
+            Button {
+                // Initialize single-select set from current selection
+                if let id = selectedStudentID { filterSelectedIDs = [id] } else { filterSelectedIDs = [] }
+                showStudentFilterPopover = true
+            } label: {
+                if let id = selectedStudentID, let student = students.first(where: { $0.id == id }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.fill")
+                        Text(StudentFormatter.displayName(for: student))
+                            .lineLimit(1)
+                        Button {
+                            selectedStudentID = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear student filter")
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule().fill(Color.primary.opacity(0.08))
+                    )
+                } else {
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                        Text("Filter by Student")
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule().fill(Color.primary.opacity(0.08))
+                    )
+                }
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showStudentFilterPopover, arrowEdge: .top) {
+                // Enforce single selection by wrapping the binding
+                let singleSelectBinding = Binding<Set<UUID>>(
+                    get: { filterSelectedIDs },
+                    set: { newValue in
+                        if newValue.count <= 1 {
+                            filterSelectedIDs = newValue
+                        } else {
+                            if let added = newValue.subtracting(filterSelectedIDs).first {
+                                filterSelectedIDs = [added]
+                            } else if filterSelectedIDs.subtracting(newValue).first != nil {
+                                filterSelectedIDs = []
+                            } else {
+                                filterSelectedIDs = [newValue.first!]
+                            }
+                        }
+                    }
+                )
+                StudentPickerPopover(
+                    students: students,
+                    selectedIDs: singleSelectBinding,
+                    onDone: {
+                        selectedStudentID = filterSelectedIDs.first
+                        showStudentFilterPopover = false
+                    }
+                )
+                .padding(12)
+                .frame(minWidth: 320)
+            }
+
+            // Existing actions
             Button {
                 let newSL = StudentLesson(
                     lesson: nil,
@@ -206,7 +295,7 @@ struct PlanningAgendaView: View {
                 AgendaPeriodChipView(period: period)
                     .padding(.bottom, 4)
                 AgendaSlot(
-                    allStudentLessons: studentLessons,
+                    allStudentLessons: filteredStudentLessons,
                     day: day,
                     period: period,
                     onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) },

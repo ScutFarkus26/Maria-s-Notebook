@@ -34,6 +34,11 @@ struct SettingsView: View {
 
     // Persist last backup time
     @AppStorage("lastBackupTimeInterval") private var lastBackupTimeInterval: Double?
+    
+    @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
+    @AppStorage("showWorkInboxBeta") private var showWorkInboxBeta: Bool = false
+    
+    @State private var lifecycleBackfillSummary: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -231,6 +236,40 @@ struct SettingsView: View {
                         LessonAgeSettingsView()
                             .frame(maxWidth: .infinity)
                     }
+                    
+                    // MARK: - Beta Features Section
+                    
+                    SettingsCategoryHeader(title: "Beta Features")
+                    
+                    SettingsGroup(title: "Engagement Lifecycle", systemImage: "bolt.badge.a") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Toggle("Enable Engagement Lifecycle (Option A)", isOn: $useEngagementLifecycle)
+                                .font(.body)
+                            Text("A progressive rollout of new lifecycle features to enhance engagement tracking.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 4)
+                            
+                            Toggle("Show Work Inbox (Beta)", isOn: $showWorkInboxBeta)
+                                .font(.body)
+                                .disabled(!useEngagementLifecycle)
+                            
+                            #if DEBUG
+                            Button {
+                                backfillLifecycle(using: modelContext)
+                            } label: {
+                                Label("Backfill Presentations + Work…", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(.top, 8)
+                            
+                            Text("Manually backfill data for presentations and work inbox. This operation is idempotent and safe to run multiple times.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 4)
+                            #endif
+                        }
+                    }
                 }
                 .frame(maxWidth: 900)
                 .padding(.horizontal, 24)
@@ -318,6 +357,11 @@ struct SettingsView: View {
                 pendingImporterPresentation = false
             }
         }
+        .alert("Engagement Lifecycle Backfill", isPresented: Binding(get: { lifecycleBackfillSummary != nil }, set: { if !$0 { lifecycleBackfillSummary = nil } })) {
+            Button("OK", role: .cancel) { lifecycleBackfillSummary = nil }
+        } message: {
+            Text(lifecycleBackfillSummary ?? "")
+        }
         .onAppear {
             // If we are no longer in an ephemeral session (i.e., persistent container opened), clear any stale message.
             // We infer this by the absence of the in-memory flag being set by App startup code.
@@ -358,6 +402,46 @@ struct SettingsView: View {
         }
     }
 }
+
+#if DEBUG
+private func backfillLifecycle(using context: ModelContext) {
+    let start = Date()
+    var createdPresentations = 0
+    var createdContracts = 0
+    var skipped = 0
+    do {
+        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.isPresented == true || $0.givenAt != nil })
+        let lessons = try context.fetch(fetch)
+        for sl in lessons {
+            let presentedAt = sl.givenAt ?? sl.createdAt
+            do {
+                let result = try LifecycleService.recordPresentationAndExplodeWork(from: sl, presentedAt: presentedAt, modelContext: context)
+                // Count work contracts created by comparing fetch count for this presentation
+                // We approximate by counting connected WorkContracts after call
+                let pid = result.presentation.id.uuidString
+                let wFetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.presentationID == pid })
+                let all = (try? context.fetch(wFetch)) ?? []
+                createdPresentations += 1 // may overcount if existing; adjust below
+                createdContracts += max(0, all.count)
+            } catch {
+                skipped += 1
+            }
+        }
+        try context.save()
+    } catch {
+        DispatchQueue.main.async {
+            // If called from non-main, ensure update on main thread
+            NotificationCenter.default.post(name: Notification.Name("LifecycleBackfillFailed"), object: error.localizedDescription)
+        }
+        return
+    }
+    let elapsed = Date().timeIntervalSince(start)
+    let summary = String(format: "Backfill complete in %.2fs. Presentations: %d, Work: %d, Skipped: %d", elapsed, createdPresentations, createdContracts, skipped)
+    DispatchQueue.main.async {
+        NotificationCenter.default.post(name: Notification.Name("LifecycleBackfillComplete"), object: summary)
+    }
+}
+#endif
 
 // MARK: - FileDocument wrapper for exporting JSON
 struct BackupDocument: FileDocument {

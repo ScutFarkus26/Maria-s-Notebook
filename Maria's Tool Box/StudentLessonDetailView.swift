@@ -11,6 +11,7 @@ struct StudentLessonDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
+    @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
     @Query private var lessons: [Lesson]
     @Query private var studentsAll: [Student]
     @Query private var studentLessonsAll: [StudentLesson]
@@ -588,6 +589,23 @@ struct StudentLessonDetailView: View {
 
         // Auto-create next lesson in group when marking presented
         let nowGiven = isPresented || (givenAt != nil)
+
+        // Dual-write to Engagement Lifecycle (Option A)
+        if useEngagementLifecycle, nowGiven {
+            let presentedDate: Date = givenAt ?? Date()
+            do {
+                let _ = try LifecycleService.recordPresentationAndExplodeWork(
+                    from: studentLesson,
+                    presentedAt: AppCalendar.startOfDay(presentedDate),
+                    modelContext: modelContext
+                )
+            } catch {
+                #if DEBUG
+                print("[Lifecycle] Error during dual-write: \(error)")
+                #endif
+            }
+        }
+
         vm.autoCreateNextIfNeeded(
             wasGiven: wasGiven,
             nowGiven: nowGiven,

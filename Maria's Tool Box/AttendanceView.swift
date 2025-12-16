@@ -27,6 +27,7 @@ struct AttendanceView: View {
 
     @State private var showMailSheet = false
     @State private var toastMessage: String? = nil
+    @State private var isEditing: Bool = false
 
     private var filteredStudents: [Student] {
         let visible = viewModel.visibleStudents(from: allStudents)
@@ -124,12 +125,12 @@ struct AttendanceView: View {
                         viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
                         _ = saveCoordinator.save(modelContext, reason: "Reset day")
                     }
-                    .disabled(isNonSchoolDay)
+                    .disabled(isNonSchoolDay || !isEditing)
                     Button("All Present") {
                         viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
                         _ = saveCoordinator.save(modelContext, reason: "Mark all present")
                     }
-                    .disabled(isNonSchoolDay)
+                    .disabled(isNonSchoolDay || !isEditing)
                 }
             }
         }
@@ -270,12 +271,19 @@ struct AttendanceView: View {
 
                 Spacer()
 
+                Button(isEditing ? "Done" : "Edit") {
+                    isEditing.toggle()
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut("e", modifiers: [.command])
+                .help(isEditing ? "Finish editing" : "Enable editing")
+
                 Button("Mark All Present") {
                     viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
                     _ = saveCoordinator.save(modelContext, reason: "Mark all present")
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(isNonSchoolDay)
+                .disabled(isNonSchoolDay || !isEditing)
                 .keyboardShortcut("p", modifiers: [.command, .shift])
 
                 Button("Reset Day") {
@@ -283,7 +291,7 @@ struct AttendanceView: View {
                     _ = saveCoordinator.save(modelContext, reason: "Reset day")
                 }
                 .buttonStyle(.bordered)
-                .disabled(isNonSchoolDay)
+                .disabled(isNonSchoolDay || !isEditing)
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             }
         }
@@ -327,6 +335,12 @@ struct AttendanceView: View {
                     viewModel.selectedDate = coerced.normalizedDay()
                 }
                 .buttonStyle(.plain)
+
+                Button(isEditing ? "Done" : "Edit") {
+                    isEditing.toggle()
+                }
+                .buttonStyle(.plain)
+                .help(isEditing ? "Finish editing" : "Enable editing")
             }
 
             if isNonSchoolDay {
@@ -434,13 +448,19 @@ struct AttendanceView: View {
         ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 ForEach(filteredStudents, id: \.id) { student in
-                    AttendanceCard(student: student, record: viewModel.recordsByStudent[student.id]) {
-                        viewModel.cycleStatus(for: student, modelContext: modelContext)
-                        _ = saveCoordinator.save(modelContext, reason: "Update attendance status")
-                    } onEditNote: { newNote in
-                        viewModel.updateNote(for: student, note: newNote, modelContext: modelContext)
-                        _ = saveCoordinator.save(modelContext, reason: "Update attendance note")
-                    }
+                    AttendanceCard(
+                        student: student,
+                        record: viewModel.recordsByStudent[student.id],
+                        isEditing: isEditing,
+                        onTap: {
+                            viewModel.cycleStatus(for: student, modelContext: modelContext)
+                            _ = saveCoordinator.save(modelContext, reason: "Update attendance status")
+                        },
+                        onEditNote: { newNote in
+                            viewModel.updateNote(for: student, note: newNote, modelContext: modelContext)
+                            _ = saveCoordinator.save(modelContext, reason: "Update attendance note")
+                        }
+                    )
                 }
             }
             .padding(12)
@@ -495,6 +515,7 @@ struct AttendanceView: View {
 private struct AttendanceCard: View {
     let student: Student
     let record: AttendanceRecord?
+    let isEditing: Bool
     let onTap: () -> Void
     let onEditNote: (String?) -> Void
 
@@ -553,8 +574,8 @@ private struct AttendanceCard: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 0)
-                    // Small note icon at far right (only when no note exists)
-                    if !hasNote {
+                    // Small note icon at far right (only when no note exists and editing)
+                    if !hasNote && isEditing {
                         Button {
                             draftNote = record?.note ?? ""
                             showingNoteEditor = true
@@ -578,12 +599,26 @@ private struct AttendanceCard: View {
                         Capsule().fill(accentColor.opacity(0.12))
                     )
 
-                // Clicking the note opens the editor
+                // Clicking the note opens the editor only if editing, otherwise static display
                 if hasNote {
-                    Button {
-                        draftNote = record?.note ?? ""
-                        showingNoteEditor = true
-                    } label: {
+                    if isEditing {
+                        Button {
+                            draftNote = record?.note ?? ""
+                            showingNoteEditor = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "note.text")
+                                    .foregroundStyle(.secondary)
+                                Text(record?.note ?? "")
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .help("Edit note")
+                    } else {
                         HStack(spacing: 6) {
                             Image(systemName: "note.text")
                                 .foregroundStyle(.secondary)
@@ -594,8 +629,6 @@ private struct AttendanceCard: View {
                                 .truncationMode(.tail)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .help("Edit note")
                 }
             }
             .padding(10)
@@ -605,16 +638,18 @@ private struct AttendanceCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 #if os(macOS)
-        .highPriorityGesture(TapGesture(count: 1).onEnded { onTap() })
+        .highPriorityGesture(TapGesture(count: 1).onEnded { if isEditing { onTap() } })
 #else
-        .onTapGesture { onTap() }
+        .onTapGesture { if isEditing { onTap() } }
 #endif
         .contextMenu {
-            Button {
-                draftNote = record?.note ?? ""
-                showingNoteEditor = true
-            } label: {
-                Label("Note…", systemImage: "square.and.pencil")
+            if isEditing {
+                Button {
+                    draftNote = record?.note ?? ""
+                    showingNoteEditor = true
+                } label: {
+                    Label("Note…", systemImage: "square.and.pencil")
+                }
             }
         }
         .sheet(isPresented: $showingNoteEditor) {
