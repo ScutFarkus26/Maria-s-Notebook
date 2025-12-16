@@ -37,6 +37,7 @@ struct SettingsView: View {
     
     @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
     @AppStorage("showWorkInboxBeta") private var showWorkInboxBeta: Bool = false
+    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
     
     @State private var lifecycleBackfillSummary: String? = nil
 
@@ -251,6 +252,10 @@ struct SettingsView: View {
                                 .padding(.leading, 4)
                             
                             Toggle("Show Work Inbox (Beta)", isOn: $showWorkInboxBeta)
+                                .font(.body)
+                                .disabled(!useEngagementLifecycle)
+                            
+                            Toggle("Show Work Agenda (Beta)", isOn: $showWorkAgendaBeta)
                                 .font(.body)
                                 .disabled(!useEngagementLifecycle)
                             

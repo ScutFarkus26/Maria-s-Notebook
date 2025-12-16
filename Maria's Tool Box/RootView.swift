@@ -343,10 +343,13 @@ struct PlanningRootView: View {
         case agenda = "Lessons Agenda"
         case board = "Lessons Board"
         case works = "Works Agenda"
+        case workAgendaBeta = "Work Agenda (Beta)"
         var id: String { rawValue }
     }
 
     @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
+    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
+    @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -364,6 +367,9 @@ struct PlanningRootView: View {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
                             PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            if useEngagementLifecycle && showWorkAgendaBeta {
+                                PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
+                            }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -377,6 +383,9 @@ struct PlanningRootView: View {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
                             PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            if useEngagementLifecycle && showWorkAgendaBeta {
+                                PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
+                            }
                         }
                         Spacer()
                     }
@@ -391,6 +400,9 @@ struct PlanningRootView: View {
                     PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                     PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
                     PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                    if useEngagementLifecycle && showWorkAgendaBeta {
+                        PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
+                    }
                 }
                 Spacer()
             }
@@ -405,8 +417,10 @@ struct PlanningRootView: View {
                     PlanningAgendaView()
                 } else if mode == .board {
                     PlanningWeekView()
-                } else {
+                } else if mode == .works {
                     WorksPlanningView()
+                } else {
+                    WorkAgendaView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
