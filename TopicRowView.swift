@@ -1,16 +1,20 @@
 import SwiftUI
+import SwiftData
 
 struct TopicRowView: View {
     let topic: CommunityTopic
     let onSelect: () -> Void
+    
+    @Environment(\.modelContext) private var modelContext
+    @State private var solutionCount: Int? = nil
 
     var body: some View {
         let isResolved = topic.isResolved
         let titleText = topic.title
         let issueText = topic.issueDescription
         let resolutionText = topic.resolution.trimmingCharacters(in: .whitespacesAndNewlines)
-        let solutionsCount = topic.proposedSolutions.count
-        let solutionsLabel = solutionsCount == 1 ? "solution" : "solutions"
+        let count = solutionCount ?? 0
+        let solutionsLabel = count == 1 ? "solution" : "solutions"
         let raisedBy = topic.raisedBy.trimmingCharacters(in: .whitespacesAndNewlines)
 
         Group {
@@ -53,7 +57,7 @@ struct TopicRowView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "lightbulb")
                             .foregroundColor(.accentColor)
-                        Text("\(solutionsCount) \(solutionsLabel)")
+                        Text("\(count) \(solutionsLabel)")
                             .font(.footnote)
                             .foregroundColor(.accentColor)
                     }
@@ -71,6 +75,25 @@ struct TopicRowView: View {
                             .fill(Color.primary.opacity(0.04))
                     )
             )
+        }
+        .task(id: topic.id) {
+            if solutionCount == nil {
+                do {
+                    let tid = topic.id
+                    let descriptor = FetchDescriptor<ProposedSolution>(
+                        predicate: #Predicate { s in
+                            s.topic?.id == tid
+                        }
+                    )
+                    let items = try modelContext.fetch(descriptor)
+                    solutionCount = items.count
+                } catch {
+                    #if DEBUG
+                    print("[DEBUG] Failed to fetch solution count for topic \(topic.id): \(error)")
+                    #endif
+                    solutionCount = 0
+                }
+            }
         }
         .onTapGesture(perform: onSelect)
     }

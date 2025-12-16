@@ -3,20 +3,17 @@ import SwiftData
 
 struct TopicDetailView: View, Identifiable {
     let id = UUID()
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
-    var topic: CommunityTopic
+    let topicID: UUID
     var onSave: (CommunityTopic) -> Void
 
-    @State private var title: String = ""
-    @State private var issue: String = ""
-    @State private var resolution: String = ""
-    @State private var addressed: Bool = false
-    @State private var addressedDate: Date = Date()
-    @State private var createdDate: Date = Date()
+    @StateObject private var vm = TopicDetailViewModel()
 
+    // Ephemeral input state for adding content
     @State private var newSolutionTitle: String = ""
     @State private var newSolutionDetails: String = ""
     @State private var newSolutionProposedBy: String = ""
@@ -24,39 +21,97 @@ struct TopicDetailView: View, Identifiable {
     @State private var newNoteSpeaker: String = ""
     @State private var newNoteContent: String = ""
 
-    @State private var tagsDraft: String = ""
-    @State private var broughtBy: String = ""
     @State private var showingImagePicker = false
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                TopicBasicsSection(title: $title, issue: $issue, broughtBy: $broughtBy)
-                CreatedDateSection(createdDate: $createdDate)
-                
-                TagsSection(topic: topic, tagsDraft: $tagsDraft)
+            if vm.isLoading || vm.topic == nil {
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text("Loading topic…")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 240)
+            } else {
+                VStack(spacing: 20) {
+                    TopicBasicsSection(title: $vm.title, issue: $vm.issue, broughtBy: $vm.raisedBy)
+                    CreatedDateSection(createdDate: $vm.createdAt)
 
-                ResolutionSection(addressed: $addressed, addressedDate: $addressedDate, resolution: $resolution)
+                    TagsSection(tags: vm.topic?.tags ?? [], tagsDraft: $vm.tagsDraft)
 
-                ProposedSolutionsSection(topic: topic, newSolutionTitle: $newSolutionTitle, newSolutionDetails: $newSolutionDetails, newSolutionProposedBy: $newSolutionProposedBy)
+                    ResolutionSection(addressed: $vm.addressed, addressedDate: $vm.addressedDate, resolution: $vm.resolution)
 
-                AttachmentsSection(topic: topic, showingImagePicker: $showingImagePicker)
+                    ProposedSolutionsSection(
+                        solutions: vm.proposedSolutions,
+                        newSolutionTitle: $newSolutionTitle,
+                        newSolutionDetails: $newSolutionDetails,
+                        newSolutionProposedBy: $newSolutionProposedBy,
+                        onToggleAdopted: { s in
+                            vm.toggleSolutionAdopted(s)
+                            _ = saveCoordinator.save(modelContext, reason: "Toggle solution adopted")
+                        },
+                        onDelete: { s in
+                            vm.deleteSolution(context: modelContext, s)
+                            _ = saveCoordinator.save(modelContext, reason: "Delete solution")
+                        },
+                        onAdd: {
+                            let title = newSolutionTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let details = newSolutionDetails.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let proposedBy = newSolutionProposedBy.trimmingCharacters(in: .whitespacesAndNewlines)
+                            vm.addSolution(context: modelContext, title: title, details: details, proposedBy: proposedBy)
+                            _ = saveCoordinator.save(modelContext, reason: "Add proposed solution")
+                            newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
+                        }
+                    )
 
-                MeetingNotesSection(topic: topic, newNoteSpeaker: $newNoteSpeaker, newNoteContent: $newNoteContent)
+                    AttachmentsSection(
+                        attachments: vm.attachments,
+                        showingImagePicker: $showingImagePicker,
+                        onDelete: { a in
+                            vm.deleteAttachment(context: modelContext, a)
+                            _ = saveCoordinator.save(modelContext, reason: "Delete attachment")
+                        }
+                    )
+
+                    MeetingNotesSection(
+                        notes: vm.notes,
+                        newNoteSpeaker: $newNoteSpeaker,
+                        newNoteContent: $newNoteContent,
+                        onDelete: { n in
+                            vm.deleteNote(context: modelContext, n)
+                            _ = saveCoordinator.save(modelContext, reason: "Delete note")
+                        },
+                        onAdd: {
+                            let speaker = newNoteSpeaker.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let content = newNoteContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !content.isEmpty else { return }
+                            vm.addNote(context: modelContext, speaker: speaker, content: content)
+                            _ = saveCoordinator.save(modelContext, reason: "Add note")
+                            newNoteSpeaker = ""; newNoteContent = ""
+                        }
+                    )
+                }
+                .padding()
             }
-            .padding()
         }
         .navigationTitle("Topic Details")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    save()
+                    guard let t = vm.topic else { return }
+                    vm.persistChanges(context: modelContext)
+                    onSave(t)
+                    dismiss()
                 }
             }
             ToolbarItem(placement: .automatic) {
                 Menu {
                     Button {
-                        shareMarkdown()
+                        if let t = vm.topic {
+                            let markdown = MarkdownExporter.markdown(for: t)
+                            MarkdownExporter.presentShare(markdown)
+                        }
                     } label: {
                         Label("Share as Markdown", systemImage: "square.and.arrow.up")
                     }
@@ -65,63 +120,18 @@ struct TopicDetailView: View, Identifiable {
                 }
             }
         }
-        .onAppear {
-            title = topic.title
-            issue = topic.issueDescription
-            broughtBy = topic.raisedBy
-            resolution = topic.resolution
-            createdDate = topic.createdAt
-            addressed = topic.isResolved
-            addressedDate = topic.addressedDate ?? Date()
-            tagsDraft = topic.tags.joined(separator: ", ")
+        .task(id: topicID) {
+            #if DEBUG
+            if let start = DebugTiming.lastTopicTapAt {
+                let ms = Date().timeIntervalSince(start) * 1000.0
+                print("[DEBUG] First frame after tap: \(String(format: "%.1f", ms)) ms")
+            }
+            #endif
+            await vm.load(context: modelContext, topicID: topicID)
         }
-    }
-
-    private func updateTags() {
-        let tags = tagsDraft
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        topic.tags = tags
-    }
-
-    private func save() {
-        updateTags()
-        topic.title = title
-        topic.issueDescription = issue
-        topic.raisedBy = broughtBy
-        topic.resolution = resolution
-        topic.createdAt = createdDate
-        topic.addressedDate = addressed ? addressedDate : nil
-        onSave(topic)
-        dismiss()
-    }
-
-    private func addNote() {
-        let speakerTrimmed = newNoteSpeaker.trimmingCharacters(in: .whitespacesAndNewlines)
-        let contentTrimmed = newNoteContent.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !speakerTrimmed.isEmpty && !contentTrimmed.isEmpty else { return }
-        let note = MeetingNote(speaker: speakerTrimmed, content: contentTrimmed)
-        modelContext.insert(note)
-        topic.notes.append(note)
-        _ = saveCoordinator.save(modelContext, reason: "Add note")
-        newNoteSpeaker = ""
-        newNoteContent = ""
-    }
-
-    private func deleteNote(_ note: MeetingNote) {
-        if let index = topic.notes.firstIndex(where: { $0.id == note.id }) {
-            topic.notes.remove(at: index)
-            modelContext.delete(note)
-            _ = saveCoordinator.save(modelContext, reason: "Delete note")
-        }
-    }
-
-    private func shareMarkdown() {
-        let markdown = MarkdownExporter.markdown(for: topic)
-        MarkdownExporter.presentShare(markdown)
     }
 }
+
 private struct TopicBasicsSection: View {
     @Binding var title: String
     @Binding var issue: String
@@ -142,6 +152,7 @@ private struct TopicBasicsSection: View {
         }
     }
 }
+
 private struct CreatedDateSection: View {
     @Binding var createdDate: Date
 
@@ -151,8 +162,9 @@ private struct CreatedDateSection: View {
         }
     }
 }
+
 private struct TagsSection: View {
-    var topic: CommunityTopic
+    let tags: [String]
     @Binding var tagsDraft: String
 
     var body: some View {
@@ -162,10 +174,10 @@ private struct TagsSection: View {
                     .font(.caption).foregroundStyle(.secondary)
                 TextField("e.g., Safety, Environment, Curriculum", text: $tagsDraft)
                     .textFieldStyle(.roundedBorder)
-                if !topic.tags.isEmpty {
+                if !tags.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
-                            ForEach(topic.tags, id: \.self) { tag in
+                            ForEach(tags, id: \.self) { tag in
                                 Text(tag)
                                     .font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8).padding(.vertical, 4)
@@ -199,36 +211,35 @@ private struct ResolutionSection: View {
 }
 
 private struct ProposedSolutionsSection: View {
-    @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
-
-    var topic: CommunityTopic
+    let solutions: [ProposedSolution]
     @Binding var newSolutionTitle: String
     @Binding var newSolutionDetails: String
     @Binding var newSolutionProposedBy: String
 
+    var onToggleAdopted: (ProposedSolution) -> Void
+    var onDelete: (ProposedSolution) -> Void
+    var onAdd: () -> Void
+
     var body: some View {
         GroupBox("Proposed Solutions") {
             VStack(alignment: .leading, spacing: 10) {
-                if topic.proposedSolutions.isEmpty {
+                if solutions.isEmpty {
                     Text("No solutions yet.").foregroundStyle(.secondary)
                 } else {
-                    ForEach(topic.proposedSolutions) { s in
+                    ForEach(solutions) { s in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
-                                Text(s.title.isEmpty ? "Untitled" : s.title)
+                                Text(s.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : s.title)
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
                                 if s.isAdopted { Label("Adopted", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon).font(.caption).foregroundStyle(.green) }
                                 Spacer()
                                 Menu {
                                     Button(s.isAdopted ? "Unmark Adopted" : "Mark Adopted", systemImage: "checkmark.circle") {
-                                        s.isAdopted.toggle()
-                                        _ = saveCoordinator.save(modelContext, reason: "Toggle solution adopted")
+                                        onToggleAdopted(s)
                                     }
                                     Button("Delete", systemImage: "trash", role: .destructive) {
-                                        modelContext.delete(s)
-                                        _ = saveCoordinator.save(modelContext, reason: "Delete solution")
+                                        onDelete(s)
                                     }
                                 } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                             }
@@ -255,17 +266,9 @@ private struct ProposedSolutionsSection: View {
 
                 HStack {
                     Spacer()
-                    Button("Add Solution") {
-                        let s = ProposedSolution(title: newSolutionTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-                                                 details: newSolutionDetails.trimmingCharacters(in: .whitespacesAndNewlines),
-                                                 proposedBy: newSolutionProposedBy.trimmingCharacters(in: .whitespacesAndNewlines),
-                                                 topic: topic)
-                        topic.proposedSolutions.append(s)
-                        _ = saveCoordinator.save(modelContext, reason: "Add proposed solution")
-                        newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(newSolutionTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && newSolutionDetails.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Add Solution", action: onAdd)
+                        .buttonStyle(.bordered)
+                        .disabled(newSolutionTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && newSolutionDetails.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
@@ -273,28 +276,25 @@ private struct ProposedSolutionsSection: View {
 }
 
 private struct AttachmentsSection: View {
-    @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
-
-    var topic: CommunityTopic
+    let attachments: [CommunityAttachment]
     @Binding var showingImagePicker: Bool
+    var onDelete: (CommunityAttachment) -> Void
 
     var body: some View {
         GroupBox("Attachments") {
             VStack(alignment: .leading, spacing: 10) {
-                if topic.attachments.isEmpty {
+                if attachments.isEmpty {
                     Text("No attachments yet.").foregroundStyle(.secondary)
                 } else {
-                    ForEach(topic.attachments) { a in
+                    ForEach(attachments) { a in
                         HStack(spacing: 8) {
                             Image(systemName: a.kind == .photo ? "photo" : "paperclip")
-                            Text(a.filename.isEmpty ? (a.kind == .photo ? "Photo" : "File") : a.filename)
+                            Text(a.filename.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? (a.kind == .photo ? "Photo" : "File") : a.filename)
                                 .font(.subheadline)
                             Spacer()
                             Menu {
                                 Button("Delete", systemImage: "trash", role: .destructive) {
-                                    modelContext.delete(a)
-                                    _ = saveCoordinator.save(modelContext, reason: "Delete attachment")
+                                    onDelete(a)
                                 }
                             } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                         }
@@ -320,20 +320,20 @@ private struct AttachmentsSection: View {
 }
 
 private struct MeetingNotesSection: View {
-    @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
-
-    var topic: CommunityTopic
+    let notes: [MeetingNote]
     @Binding var newNoteSpeaker: String
     @Binding var newNoteContent: String
+
+    var onDelete: (MeetingNote) -> Void
+    var onAdd: () -> Void
 
     var body: some View {
         GroupBox("Meeting Notes") {
             VStack(alignment: .leading, spacing: 10) {
-                if topic.notes.isEmpty {
+                if notes.isEmpty {
                     Text("No notes yet.").foregroundStyle(.secondary)
                 } else {
-                    let sortedNotes: [MeetingNote] = topic.notes.sorted { $0.createdAt < $1.createdAt }
+                    let sortedNotes: [MeetingNote] = notes.sorted { $0.createdAt < $1.createdAt }
                     ForEach(sortedNotes) { n in
                         HStack(alignment: .top, spacing: 8) {
                             if !n.speaker.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -346,8 +346,7 @@ private struct MeetingNotesSection: View {
                             Spacer()
                             Menu {
                                 Button("Delete", systemImage: "trash", role: .destructive) {
-                                    modelContext.delete(n)
-                                    _ = saveCoordinator.save(modelContext, reason: "Delete note")
+                                    onDelete(n)
                                 }
                             } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                         }
@@ -365,16 +364,9 @@ private struct MeetingNotesSection: View {
 
                 HStack {
                     Spacer()
-                    Button("Add Note") {
-                        let n = MeetingNote(speaker: newNoteSpeaker.trimmingCharacters(in: .whitespacesAndNewlines),
-                                            content: newNoteContent.trimmingCharacters(in: .whitespacesAndNewlines),
-                                            topic: topic)
-                        topic.notes.append(n)
-                        _ = saveCoordinator.save(modelContext, reason: "Add note")
-                        newNoteSpeaker = ""; newNoteContent = ""
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(newNoteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Add Note", action: onAdd)
+                        .buttonStyle(.bordered)
+                        .disabled(newNoteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }

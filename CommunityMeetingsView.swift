@@ -9,7 +9,10 @@ struct CommunityMeetingsView: View {
     private var topics: [CommunityTopic]
 
     @State private var showingAdd = false
-    @State private var selected: CommunityTopic? = nil
+    @State private var selectedTopicID: UUID? = nil
+    #if DEBUG
+    @State private var lastTapStart: Date? = nil
+    #endif
 
     enum DateFilter { case today, thisWeek, thisMonth, last30, thisYear }
     @State private var filterDate: DateFilter? = nil
@@ -125,9 +128,17 @@ struct CommunityMeetingsView: View {
                 _ = saveCoordinator.save(modelContext, reason: "Add community topic")
             }
         }
-        .sheet(item: $selected) { topic in
-            TopicDetailView(topic: topic) { _ in
-                _ = saveCoordinator.save(modelContext, reason: "Update community topic")
+        .sheet(isPresented: Binding<Bool>(
+            get: { selectedTopicID != nil },
+            set: { newValue in if newValue == false { selectedTopicID = nil } }
+        )) {
+            if let id = selectedTopicID {
+                TopicDetailView(topicID: id) { _ in
+                    _ = saveCoordinator.save(modelContext, reason: "Update community topic")
+                }
+            } else {
+                // Fallback empty view if selection became nil before presentation
+                EmptyView()
             }
         }
     }
@@ -146,7 +157,12 @@ struct CommunityMeetingsView: View {
                 // Clear the search text so the newly added appears and UI resets
                 searchText = ""
                 // Optionally open the detail editor for the new topic
-                selected = t
+                #if DEBUG
+                lastTapStart = Date()
+                DebugTiming.lastTopicTapAt = lastTapStart
+                print("[DEBUG] Tap->open (quick add) start at: \(lastTapStart!)")
+                #endif
+                selectedTopicID = t.id
             }
         )
     }
@@ -163,7 +179,14 @@ struct CommunityMeetingsView: View {
                 } else {
                     VStack(spacing: 10) {
                         ForEach(open) { t in
-                            TopicRowView(topic: t) { selected = t }
+                            TopicRowView(topic: t) {
+                                #if DEBUG
+                                lastTapStart = Date()
+                                DebugTiming.lastTopicTapAt = lastTapStart
+                                if let start = lastTapStart { print("[DEBUG] Tap on topic \(t.id) at: \(start)") }
+                                #endif
+                                selectedTopicID = t.id
+                            }
                         }
                     }
                 }
@@ -174,7 +197,14 @@ struct CommunityMeetingsView: View {
                 } else {
                     VStack(spacing: 10) {
                         ForEach(resolved) { t in
-                            TopicRowView(topic: t) { selected = t }
+                            TopicRowView(topic: t) {
+                                #if DEBUG
+                                lastTapStart = Date()
+                                DebugTiming.lastTopicTapAt = lastTapStart
+                                if let start = lastTapStart { print("[DEBUG] Tap on topic \(t.id) at: \(start)") }
+                                #endif
+                                selectedTopicID = t.id
+                            }
                         }
                     }
                 }

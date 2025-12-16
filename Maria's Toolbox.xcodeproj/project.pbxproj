@@ -15,6 +15,8 @@
 		511A5DFD2EEE61EC0048434D /* MarkdownExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 511A5DFC2EEE61EC0048434D /* MarkdownExporter.swift */; };
 		511A5DFF2EEE61F50048434D /* TopicDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 511A5DFE2EEE61F50048434D /* TopicDetailView.swift */; };
 		5170D5862EEE2983009D0BCB /* UnifiedAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5170D5852EEE2983009D0BCB /* UnifiedAgendaView.swift */; };
+		5172DDBD2EF0F7A500018BE1 /* DebugTiming.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDBC2EF0F7A500018BE1 /* DebugTiming.swift */; };
+		5172DDBF2EF0F7AC00018BE1 /* TopicDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDBE2EF0F7AC00018BE1 /* TopicDetailViewModel.swift */; };
 		5174C9DA2EEDC67C00BBB03D /* SaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */; };
 		5174C9DC2EEDC94300BBB03D /* PreviewEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */; };
 		5174C9DE2EEDCB6F00BBB03D /* AppSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */; };
@@ -31,6 +33,8 @@
 		511A5DFE2EEE61F50048434D /* TopicDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopicDetailView.swift; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5170D5852EEE2983009D0BCB /* UnifiedAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedAgendaView.swift; sourceTree = "<group>"; };
+		5172DDBC2EF0F7A500018BE1 /* DebugTiming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTiming.swift; sourceTree = "<group>"; };
+		5172DDBE2EF0F7AC00018BE1 /* TopicDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopicDetailViewModel.swift; sourceTree = "<group>"; };
 		5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveCoordinator.swift; sourceTree = "<group>"; };
 		5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewEnvironment.swift; sourceTree = "<group>"; };
 		5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchema.swift; sourceTree = "<group>"; };
@@ -86,6 +90,8 @@
 				511A5DFA2EEE61E50048434D /* AddTopicSheet.swift */,
 				511A5DFC2EEE61EC0048434D /* MarkdownExporter.swift */,
 				511A5DFE2EEE61F50048434D /* TopicDetailView.swift */,
+				5172DDBC2EF0F7A500018BE1 /* DebugTiming.swift */,
+				5172DDBE2EF0F7AC00018BE1 /* TopicDetailViewModel.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -180,6 +186,8 @@
 				511A5DFF2EEE61F50048434D /* TopicDetailView.swift in Sources */,
 				511A5DF32EEE5C260048434D /* CommunityModels.swift in Sources */,
 				511A5DFD2EEE61EC0048434D /* MarkdownExporter.swift in Sources */,
+				5172DDBF2EF0F7AC00018BE1 /* TopicDetailViewModel.swift in Sources */,
+				5172DDBD2EF0F7A500018BE1 /* DebugTiming.swift in Sources */,
 				511A5DF92EEE61E40048434D /* TopicRowView.swift in Sources */,
 				511A5DF72EEE61E10048434D /* MeetingsHeaderView.swift in Sources */,
 				511A5DFB2EEE61E50048434D /* AddTopicSheet.swift in Sources */,
