@@ -40,6 +40,8 @@ struct SettingsView: View {
     @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
     
     @State private var lifecycleBackfillSummary: String? = nil
+    @State private var showLifecycleNotesBackfillConfirm: Bool = false
+    @State private var isRunningLifecycleBackfill: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -258,6 +260,54 @@ struct SettingsView: View {
                             Toggle("Show Work Agenda (Beta)", isOn: $showWorkAgendaBeta)
                                 .font(.body)
                                 .disabled(!useEngagementLifecycle)
+                            
+                            Button {
+                                showLifecycleNotesBackfillConfirm = true
+                            } label: {
+                                Label("Backfill Notes to Engagement Lifecycle", systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.bordered)
+                            .confirmationDialog(
+                                "Backfill Notes?",
+                                isPresented: $showLifecycleNotesBackfillConfirm,
+                                titleVisibility: .visible
+                            ) {
+                                Button("Run Backfill") {
+                                    isRunningLifecycleBackfill = true
+                                    Task {
+                                        do {
+                                            let report = try NotesBackfillService.run(modelContext: modelContext)
+                                            // Compose summary string
+                                            var summaryLines = [
+                                                "Presentations touched: \(report.presentationsTouched)",
+                                                "WorkContracts touched: \(report.workContractsTouched)",
+                                                "Notes created: \(report.notesCreated)",
+                                                "Notes skipped as duplicates: \(report.notesSkippedAsDuplicates)",
+                                                "Unmatched legacy notes: \(report.unmatched)"
+                                            ]
+                                            if report.errorCount > 0 {
+                                                summaryLines.append("Errors: \(report.errorCount)")
+                                            }
+                                            lifecycleBackfillSummary = summaryLines.joined(separator: "\n")
+                                            _ = SaveCoordinator().save(modelContext, reason: "Backfill notes")
+                                        } catch {
+                                            lifecycleBackfillSummary = "Backfill failed: \(error.localizedDescription)"
+                                        }
+                                        isRunningLifecycleBackfill = false
+                                    }
+                                }
+                                Button("Cancel", role: .cancel) {}
+                            }
+                            
+                            if isRunningLifecycleBackfill {
+                                VStack(spacing: 8) {
+                                    ProgressView()
+                                    Text("Backfilling notes…")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.top, 8)
+                            }
                             
                             #if DEBUG
                             Button {

@@ -3,12 +3,14 @@ import SwiftUI
 struct LogsMenuRootView: View {
     enum Mode: String, CaseIterable, Identifiable {
         case lessons = "Lessons Log"
+        case presentations = "Presentation History"
         case works = "Works Log"
         // Future: add other logs here
         var id: String { rawValue }
     }
 
     @AppStorage("LogsMenuRootView.mode") private var modeRaw: String = Mode.lessons.rawValue
+    @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -23,6 +25,9 @@ struct LogsMenuRootView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             PillNavButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
+                            if useEngagementLifecycle {
+                                PillNavButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
+                            }
                             PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                         }
                         .padding(.horizontal, 12)
@@ -35,6 +40,9 @@ struct LogsMenuRootView: View {
                         Spacer()
                         HStack(spacing: 12) {
                             PillNavButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
+                            if useEngagementLifecycle {
+                                PillNavButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
+                            }
                             PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                         }
                         Spacer()
@@ -48,6 +56,9 @@ struct LogsMenuRootView: View {
                 Spacer()
                 HStack(spacing: 12) {
                     PillNavButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
+                    if useEngagementLifecycle {
+                        PillNavButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
+                    }
                     PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                 }
                 Spacer()
@@ -62,6 +73,8 @@ struct LogsMenuRootView: View {
                 switch mode {
                 case .lessons:
                     StudentLessonsRootView()
+                case .presentations:
+                    PresentationHistoryView()
                 case .works:
                     WorksLogView()
                 }

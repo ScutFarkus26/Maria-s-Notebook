@@ -24,6 +24,9 @@
 		5172DDC92EF19FE100018BE1 /* WorkInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDC82EF19FE100018BE1 /* WorkInboxView.swift */; };
 		5172DDCB2EF19FF800018BE1 /* AppSchema 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDCA2EF19FF800018BE1 /* AppSchema 2.swift */; };
 		5172DDCD2EF20BDF00018BE1 /* WorkAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDCC2EF20BDF00018BE1 /* WorkAgendaView.swift */; };
+		5172DDCF2EF218AC00018BE1 /* NotesBackfillService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDCE2EF218AC00018BE1 /* NotesBackfillService.swift */; };
+		5172DDD12EF223D300018BE1 /* PresentationHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDD02EF223D300018BE1 /* PresentationHistoryView.swift */; };
+		5172DDD32EF223E300018BE1 /* PresentationDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDD22EF223E300018BE1 /* PresentationDetailSheet.swift */; };
 		5174C9DA2EEDC67C00BBB03D /* SaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */; };
 		5174C9DC2EEDC94300BBB03D /* PreviewEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */; };
 		5174C9DE2EEDCB6F00BBB03D /* AppSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */; };
@@ -49,6 +52,9 @@
 		5172DDC82EF19FE100018BE1 /* WorkInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkInboxView.swift; sourceTree = "<group>"; };
 		5172DDCA2EF19FF800018BE1 /* AppSchema 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppSchema 2.swift"; sourceTree = "<group>"; };
 		5172DDCC2EF20BDF00018BE1 /* WorkAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAgendaView.swift; sourceTree = "<group>"; };
+		5172DDCE2EF218AC00018BE1 /* NotesBackfillService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesBackfillService.swift; sourceTree = "<group>"; };
+		5172DDD02EF223D300018BE1 /* PresentationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationHistoryView.swift; sourceTree = "<group>"; };
+		5172DDD22EF223E300018BE1 /* PresentationDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationDetailSheet.swift; sourceTree = "<group>"; };
 		5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveCoordinator.swift; sourceTree = "<group>"; };
 		5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewEnvironment.swift; sourceTree = "<group>"; };
 		5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchema.swift; sourceTree = "<group>"; };
@@ -113,6 +119,9 @@
 				5172DDC82EF19FE100018BE1 /* WorkInboxView.swift */,
 				5172DDCA2EF19FF800018BE1 /* AppSchema 2.swift */,
 				5172DDCC2EF20BDF00018BE1 /* WorkAgendaView.swift */,
+				5172DDCE2EF218AC00018BE1 /* NotesBackfillService.swift */,
+				5172DDD02EF223D300018BE1 /* PresentationHistoryView.swift */,
+				5172DDD22EF223E300018BE1 /* PresentationDetailSheet.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -214,7 +223,10 @@
 				5172DDCB2EF19FF800018BE1 /* AppSchema 2.swift in Sources */,
 				5172DDCD2EF20BDF00018BE1 /* WorkAgendaView.swift in Sources */,
 				5172DDBD2EF0F7A500018BE1 /* DebugTiming.swift in Sources */,
+				5172DDCF2EF218AC00018BE1 /* NotesBackfillService.swift in Sources */,
+				5172DDD12EF223D300018BE1 /* PresentationHistoryView.swift in Sources */,
 				5172DDC72EF19FE000018BE1 /* WorkContractDetailSheet.swift in Sources */,
+				5172DDD32EF223E300018BE1 /* PresentationDetailSheet.swift in Sources */,
 				5172DDC92EF19FE100018BE1 /* WorkInboxView.swift in Sources */,
 				511A5DF92EEE61E40048434D /* TopicRowView.swift in Sources */,
 				511A5DF72EEE61E10048434D /* MeetingsHeaderView.swift in Sources */,

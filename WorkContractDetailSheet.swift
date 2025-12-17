@@ -12,6 +12,16 @@ struct WorkContractDetailSheet: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
+    
+    @Query private var workNotes: [ScopedNote]
+    @Query private var presentations: [Presentation]
+    @State private var resolvedPresentationID: UUID? = nil
+    @State private var presentationNotes: [ScopedNote] = []
+    @State private var showPresentationNotes: Bool = false
+
+    // Notes UI state
+    @State private var showAddNoteSheet: Bool = false
+    @State private var newNoteText: String = ""
 
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
@@ -29,6 +39,30 @@ struct WorkContractDetailSheet: View {
         let d = contract.scheduledDate ?? Date()
         _hasSchedule = State(initialValue: contract.scheduledDate != nil)
         _scheduledDate = State(initialValue: d)
+        
+        // Initialize note queries (newest first)
+        let contractID = contract.id
+        let noteSort: [SortDescriptor<ScopedNote>] = [
+            SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
+            SortDescriptor(\ScopedNote.createdAt, order: .reverse)
+        ]
+        let workID = contractID.uuidString
+        _workNotes = Query(filter: #Predicate<ScopedNote> { $0.workContractID == workID }, sort: noteSort)
+    }
+    
+    private static let noteDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateStyle = .medium
+        df.timeStyle = .short
+        return df
+    }()
+    
+    private func scopeText(for scope: ScopedNote.Scope) -> String {
+        switch scope {
+        case .all: return "All"
+        case .student(_): return "Student"
+        case .students(let ids): return ids.isEmpty ? "Group" : "\(ids.count) students"
+        }
     }
 
     private func lessonTitle() -> String {
@@ -43,6 +77,38 @@ struct WorkContractDetailSheet: View {
             return StudentFormatter.displayName(for: s)
         }
         return "Student"
+    }
+    
+    private func resolvePresentationID() -> UUID? {
+        // 1) Prefer explicit presentationID on the contract
+        if let raw = contract.presentationID, let id = UUID(uuidString: raw) {
+            return id
+        }
+        // 2) Fallback: map via legacyStudentLessonID
+        if let legacy = contract.legacyStudentLessonID, !legacy.isEmpty {
+            // Presentations expose legacyStudentLessonID as a String? that should match
+            if let match = presentations.first(where: { ($0.legacyStudentLessonID ?? "") == legacy }) {
+                return match.id
+            }
+        }
+        return nil
+    }
+    
+    private func reloadPresentationNotes() {
+        guard let pid = resolvedPresentationID else {
+            presentationNotes = []
+            return
+        }
+        let sort: [SortDescriptor<ScopedNote>] = [
+            SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
+            SortDescriptor(\ScopedNote.createdAt, order: .reverse)
+        ]
+        let pidString = pid.uuidString
+        let fetch = FetchDescriptor<ScopedNote>(
+            predicate: #Predicate<ScopedNote> { $0.presentationID == pidString },
+            sortBy: sort
+        )
+        presentationNotes = (try? modelContext.fetch(fetch)) ?? []
     }
 
     var body: some View {
@@ -93,6 +159,78 @@ struct WorkContractDetailSheet: View {
                 Label("Schedule Next Lesson…", systemImage: "calendar.badge.plus")
             }
             .buttonStyle(.bordered)
+            
+            Divider().padding(.top, 8)
+
+            // Notes Section
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "note.text")
+                        .foregroundStyle(.secondary)
+                    Text("Notes")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Button {
+                        showAddNoteSheet = true
+                    } label: {
+                        Label("Add Note", systemImage: "plus")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if workNotes.isEmpty {
+                    Text("No notes yet")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(workNotes, id: \.id) { note in
+                            noteRow(note)
+                        }
+                    }
+                }
+
+                if resolvedPresentationID != nil {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Text("Presentation Notes (Group)")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Button(showPresentationNotes ? "Hide" : "Show") {
+                                withAnimation(.easeInOut) { showPresentationNotes.toggle() }
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        if showPresentationNotes {
+                            if presentationNotes.isEmpty {
+                                Text("No presentation notes")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    ForEach(presentationNotes, id: \.id) { note in
+                                        noteRow(note)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+
+                #if DEBUG
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("DEBUG: presentationID = \(resolvedPresentationID?.uuidString ?? "nil")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("DEBUG: presentationNotes = \(presentationNotes.count)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 4)
+                #endif
+            }
 
             HStack {
                 Spacer()
@@ -118,6 +256,27 @@ struct WorkContractDetailSheet: View {
                 }
             }
         }
+        .sheet(isPresented: $showAddNoteSheet) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Add Note")
+                    .font(.headline)
+                TextEditor(text: $newNoteText)
+                    .frame(minHeight: 120)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
+                HStack {
+                    Spacer()
+                    Button("Cancel") { showAddNoteSheet = false }
+                    Button("Add") {
+                        addNote(body: newNoteText)
+                        newNoteText = ""
+                        showAddNoteSheet = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(newNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(16)
+        }
         .overlay(alignment: .top) {
             if showPlannedBanner {
                 Text("Next lesson scheduled")
@@ -133,6 +292,46 @@ struct WorkContractDetailSheet: View {
                     .padding(.top, 8)
             }
         }
+        .onAppear {
+            let newID = resolvePresentationID()
+            resolvedPresentationID = newID
+            reloadPresentationNotes()
+        }
+        .onChange(of: presentations.map(\.id)) { _, _ in
+            let newID = resolvePresentationID()
+            if newID != resolvedPresentationID {
+                resolvedPresentationID = newID
+                reloadPresentationNotes()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func noteRow(_ note: ScopedNote) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(scopeText(for: note.scope))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .overlay(
+                        Capsule().stroke(Color.primary.opacity(0.12))
+                    )
+                Spacer()
+                Text(Self.noteDateFormatter.string(from: note.updatedAt))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(note.body)
+                .font(.body)
+                .foregroundStyle(.primary)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
     }
 
     private func label(for s: WorkStatus) -> String {
@@ -158,6 +357,32 @@ struct WorkContractDetailSheet: View {
         try? modelContext.save()
         close()
     }
+    
+    private func addNote(body: String) {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let now = Date()
+        let scope: ScopedNote.Scope
+        if let sid = UUID(uuidString: contract.studentID) {
+            scope = .student(sid)
+        } else {
+            scope = .all
+        }
+        let note = ScopedNote(
+            createdAt: now,
+            updatedAt: now,
+            body: trimmed,
+            scope: scope,
+            legacyFingerprint: nil,
+            migrationKey: nil,
+            studentLesson: nil,
+            work: nil,
+            presentation: nil,
+            workContract: contract
+        )
+        modelContext.insert(note)
+        try? modelContext.save()
+    }
 }
 
 #Preview {
@@ -171,6 +396,10 @@ struct WorkContractDetailSheet: View {
     ctx.insert(student); ctx.insert(lesson)
     let c = WorkContract(studentID: student.id.uuidString, lessonID: lesson.id.uuidString, status: .active, scheduledDate: Date())
     ctx.insert(c)
+    
+    let sampleNote = ScopedNote(body: "Student needed help setting up the work.", scope: .all, workContract: c)
+    ctx.insert(sampleNote)
+    
     return WorkContractDetailSheet(contract: c)
         .previewEnvironment(using: container)
 }

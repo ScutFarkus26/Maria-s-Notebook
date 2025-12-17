@@ -39,6 +39,83 @@ struct LifecycleService {
             createdNewPresentation = true
         }
 
+        // MIGRATION: Copy legacy notes from StudentLesson to Presentation (idempotent)
+        // Build existing migration keys for this Presentation to keep this fast and idempotent.
+        let presentationUUID = presentation.id
+        let existingForPresentationFetch = FetchDescriptor<ScopedNote>(predicate: #Predicate<ScopedNote> { ($0.presentationID ?? "") == presentationUUID.uuidString && $0.migrationKey != nil })
+        let existingForPresentation = try modelContext.fetch(existingForPresentationFetch)
+        var existingKeys: Set<String> = Set(existingForPresentation.compactMap { $0.migrationKey })
+
+        #if DEBUG
+        let legacyScopedCount = studentLesson.scopedNotes.count
+        var copiedScoped = 0
+        var skippedScoped = 0
+        var copiedString = false
+        var skippedString = false
+        #endif
+
+        // A) Scoped notes attached to StudentLesson → Presentation
+        for legacy in studentLesson.scopedNotes {
+            let mk = "studentLessonScopedNote:\(studentLesson.id.uuidString):\(legacy.id.uuidString)"
+            if existingKeys.contains(mk) {
+                #if DEBUG
+                skippedScoped += 1
+                #endif
+                continue
+            }
+            let newNote = ScopedNote(
+                createdAt: legacy.createdAt,
+                updatedAt: legacy.updatedAt,
+                body: legacy.body,
+                scope: legacy.scope,
+                legacyFingerprint: legacy.legacyFingerprint,
+                migrationKey: mk,
+                studentLesson: nil,
+                work: nil,
+                presentation: presentation,
+                workContract: nil
+            )
+            modelContext.insert(newNote)
+            existingKeys.insert(mk)
+            #if DEBUG
+            copiedScoped += 1
+            #endif
+        }
+
+        // B) StudentLesson freeform notes string → Presentation (single group note)
+        let trimmedNotesString = studentLesson.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedNotesString.isEmpty {
+            let mk2 = "studentLessonNotesString:\(studentLesson.id.uuidString)"
+            if existingKeys.contains(mk2) {
+                #if DEBUG
+                skippedString = true
+                #endif
+            } else {
+                let created = studentLesson.givenAt ?? studentLesson.createdAt
+                let newNote = ScopedNote(
+                    createdAt: created,
+                    updatedAt: created,
+                    body: trimmedNotesString,
+                    scope: .all,
+                    legacyFingerprint: nil,
+                    migrationKey: mk2,
+                    studentLesson: nil,
+                    work: nil,
+                    presentation: presentation,
+                    workContract: nil
+                )
+                modelContext.insert(newNote)
+                existingKeys.insert(mk2)
+                #if DEBUG
+                copiedString = true
+                #endif
+            }
+        }
+
+        #if DEBUG
+        print("[Lifecycle] Presentation notes migration: legacyScoped=\(legacyScopedCount) copied=\(copiedScoped) skipped=\(skippedScoped) stringCopied=\(copiedString) stringSkipped=\(skippedString)")
+        #endif
+
         // 2) Ensure WorkContracts exist per student
         var workForPresentation: [WorkContract] = []
         var createdCount = 0
@@ -96,3 +173,4 @@ struct LifecycleService {
         return try context.fetch(descriptor)
     }
 }
+
