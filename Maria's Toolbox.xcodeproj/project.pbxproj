@@ -31,6 +31,12 @@
 		5172DDD72EF2559A00018BE1 /* WorkPlanItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDD62EF2559A00018BE1 /* WorkPlanItem.swift */; };
 		5172DDD92EF255A600018BE1 /* WorkAgendaBetaViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDD82EF255A600018BE1 /* WorkAgendaBetaViewModel.swift */; };
 		5172DDDB2EF255C700018BE1 /* WorkAgendaBetaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDDA2EF255C700018BE1 /* WorkAgendaBetaView.swift */; };
+		5172DDDD2EF3033300018BE1 /* WorkAgendaSortMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDDC2EF3033300018BE1 /* WorkAgendaSortMode.swift */; };
+		5172DDDF2EF3033800018BE1 /* WorkAgendaDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDDE2EF3033800018BE1 /* WorkAgendaDragDrop.swift */; };
+		5172DDE12EF3033F00018BE1 /* WorkCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDE02EF3033F00018BE1 /* WorkCardView.swift */; };
+		5172DDE32EF3034C00018BE1 /* OpenWorkGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDE22EF3034C00018BE1 /* OpenWorkGrid.swift */; };
+		5172DDE52EF3035700018BE1 /* WorkAgendaCalendarPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDE42EF3035700018BE1 /* WorkAgendaCalendarPane.swift */; };
+		5172DDE72EF3035F00018BE1 /* WorksAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDE62EF3035F00018BE1 /* WorksAgendaView.swift */; };
 		5174C9DA2EEDC67C00BBB03D /* SaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */; };
 		5174C9DC2EEDC94300BBB03D /* PreviewEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */; };
 		5174C9DE2EEDCB6F00BBB03D /* AppSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */; };
@@ -63,6 +69,12 @@
 		5172DDD62EF2559A00018BE1 /* WorkPlanItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkPlanItem.swift; sourceTree = "<group>"; };
 		5172DDD82EF255A600018BE1 /* WorkAgendaBetaViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAgendaBetaViewModel.swift; sourceTree = "<group>"; };
 		5172DDDA2EF255C700018BE1 /* WorkAgendaBetaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAgendaBetaView.swift; sourceTree = "<group>"; };
+		5172DDDC2EF3033300018BE1 /* WorkAgendaSortMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAgendaSortMode.swift; sourceTree = "<group>"; };
+		5172DDDE2EF3033800018BE1 /* WorkAgendaDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAgendaDragDrop.swift; sourceTree = "<group>"; };
+		5172DDE02EF3033F00018BE1 /* WorkCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkCardView.swift; sourceTree = "<group>"; };
+		5172DDE22EF3034C00018BE1 /* OpenWorkGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenWorkGrid.swift; sourceTree = "<group>"; };
+		5172DDE42EF3035700018BE1 /* WorkAgendaCalendarPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAgendaCalendarPane.swift; sourceTree = "<group>"; };
+		5172DDE62EF3035F00018BE1 /* WorksAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorksAgendaView.swift; sourceTree = "<group>"; };
 		5174C9D92EEDC67C00BBB03D /* SaveCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveCoordinator.swift; sourceTree = "<group>"; };
 		5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewEnvironment.swift; sourceTree = "<group>"; };
 		5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchema.swift; sourceTree = "<group>"; };
@@ -134,6 +146,12 @@
 				5172DDD62EF2559A00018BE1 /* WorkPlanItem.swift */,
 				5172DDD82EF255A600018BE1 /* WorkAgendaBetaViewModel.swift */,
 				5172DDDA2EF255C700018BE1 /* WorkAgendaBetaView.swift */,
+				5172DDDC2EF3033300018BE1 /* WorkAgendaSortMode.swift */,
+				5172DDDE2EF3033800018BE1 /* WorkAgendaDragDrop.swift */,
+				5172DDE02EF3033F00018BE1 /* WorkCardView.swift */,
+				5172DDE22EF3034C00018BE1 /* OpenWorkGrid.swift */,
+				5172DDE42EF3035700018BE1 /* WorkAgendaCalendarPane.swift */,
+				5172DDE62EF3035F00018BE1 /* WorksAgendaView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -229,21 +247,27 @@
 				511A5DF32EEE5C260048434D /* CommunityModels.swift in Sources */,
 				511A5DFD2EEE61EC0048434D /* MarkdownExporter.swift in Sources */,
 				5172DDBF2EF0F7AC00018BE1 /* TopicDetailViewModel.swift in Sources */,
+				5172DDE72EF3035F00018BE1 /* WorksAgendaView.swift in Sources */,
 				5172DDC52EF19FB700018BE1 /* LifecycleService.swift in Sources */,
+				5172DDDF2EF3033800018BE1 /* WorkAgendaDragDrop.swift in Sources */,
 				5172DDC32EF19FB100018BE1 /* WorkContract.swift in Sources */,
+				5172DDE52EF3035700018BE1 /* WorkAgendaCalendarPane.swift in Sources */,
 				5172DDC12EF19FAD00018BE1 /* Presentation.swift in Sources */,
 				5172DDCB2EF19FF800018BE1 /* AppSchema 2.swift in Sources */,
 				5172DDD92EF255A600018BE1 /* WorkAgendaBetaViewModel.swift in Sources */,
 				5172DDCD2EF20BDF00018BE1 /* WorkAgendaView.swift in Sources */,
+				5172DDE12EF3033F00018BE1 /* WorkCardView.swift in Sources */,
 				5172DDBD2EF0F7A500018BE1 /* DebugTiming.swift in Sources */,
 				5172DDCF2EF218AC00018BE1 /* NotesBackfillService.swift in Sources */,
 				5172DDD52EF2502800018BE1 /* StudentDataWiper.swift in Sources */,
+				5172DDE32EF3034C00018BE1 /* OpenWorkGrid.swift in Sources */,
 				5172DDD12EF223D300018BE1 /* PresentationHistoryView.swift in Sources */,
 				5172DDDB2EF255C700018BE1 /* WorkAgendaBetaView.swift in Sources */,
 				5172DDC72EF19FE000018BE1 /* WorkContractDetailSheet.swift in Sources */,
 				5172DDD32EF223E300018BE1 /* PresentationDetailSheet.swift in Sources */,
 				5172DDC92EF19FE100018BE1 /* WorkInboxView.swift in Sources */,
 				5172DDD72EF2559A00018BE1 /* WorkPlanItem.swift in Sources */,
+				5172DDDD2EF3033300018BE1 /* WorkAgendaSortMode.swift in Sources */,
 				511A5DF92EEE61E40048434D /* TopicRowView.swift in Sources */,
 				511A5DF72EEE61E10048434D /* MeetingsHeaderView.swift in Sources */,
 				511A5DFB2EEE61E50048434D /* AddTopicSheet.swift in Sources */,
