@@ -9,7 +9,6 @@ struct LifecycleService {
         presentedAt: Date,
         modelContext: ModelContext
     ) throws -> (presentation: Presentation, work: [WorkContract]) {
-        let t0 = Date()
         let legacyID = studentLesson.id.uuidString
         let lessonIDStr = studentLesson.lessonID.uuidString
         let studentIDStrs = studentLesson.studentIDs.map { $0.uuidString }
@@ -18,7 +17,6 @@ struct LifecycleService {
         let existingPresentation: Presentation? = try fetchPresentation(byLegacyID: legacyID, context: modelContext)
 
         let presentation: Presentation
-        var createdNewPresentation = false
         if let p = existingPresentation {
             presentation = p
         } else {
@@ -36,7 +34,6 @@ struct LifecycleService {
                 lessonSubtitleSnapshot: subtitle
             )
             modelContext.insert(presentation)
-            createdNewPresentation = true
         }
 
         // MIGRATION: Copy legacy notes from StudentLesson to Presentation (idempotent)
@@ -46,21 +43,10 @@ struct LifecycleService {
         let existingForPresentation = try modelContext.fetch(existingForPresentationFetch)
         var existingKeys: Set<String> = Set(existingForPresentation.compactMap { $0.migrationKey })
 
-        #if DEBUG
-        let legacyScopedCount = studentLesson.scopedNotes.count
-        var copiedScoped = 0
-        var skippedScoped = 0
-        var copiedString = false
-        var skippedString = false
-        #endif
-
         // A) Scoped notes attached to StudentLesson → Presentation
         for legacy in studentLesson.scopedNotes {
             let mk = "studentLessonScopedNote:\(studentLesson.id.uuidString):\(legacy.id.uuidString)"
             if existingKeys.contains(mk) {
-                #if DEBUG
-                skippedScoped += 1
-                #endif
                 continue
             }
             let newNote = ScopedNote(
@@ -77,20 +63,13 @@ struct LifecycleService {
             )
             modelContext.insert(newNote)
             existingKeys.insert(mk)
-            #if DEBUG
-            copiedScoped += 1
-            #endif
         }
 
         // B) StudentLesson freeform notes string → Presentation (single group note)
         let trimmedNotesString = studentLesson.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedNotesString.isEmpty {
             let mk2 = "studentLessonNotesString:\(studentLesson.id.uuidString)"
-            if existingKeys.contains(mk2) {
-                #if DEBUG
-                skippedString = true
-                #endif
-            } else {
+            if !existingKeys.contains(mk2) {
                 let created = studentLesson.givenAt ?? studentLesson.createdAt
                 let newNote = ScopedNote(
                     createdAt: created,
@@ -106,15 +85,8 @@ struct LifecycleService {
                 )
                 modelContext.insert(newNote)
                 existingKeys.insert(mk2)
-                #if DEBUG
-                copiedString = true
-                #endif
             }
         }
-
-        #if DEBUG
-        print("[Lifecycle] Presentation notes migration: legacyScoped=\(legacyScopedCount) copied=\(copiedScoped) skipped=\(skippedScoped) stringCopied=\(copiedString) stringSkipped=\(skippedString)")
-        #endif
 
         // 2) Ensure WorkContracts exist per student
         var workForPresentation: [WorkContract] = []
@@ -146,11 +118,6 @@ struct LifecycleService {
         // Fetch all associated contracts to return a complete set
         let pid = presentation.id.uuidString
         let allForPresentation = try fetchAllWorkContracts(presentationID: pid, context: modelContext)
-
-        #if DEBUG
-        let dt = Date().timeIntervalSince(t0)
-        print("[Lifecycle] recordPresentation: legacyID=\(legacyID.prefix(8))… foundExisting=\(!createdNewPresentation) students=\(studentIDStrs.count) time=\(String(format: "%.3f", dt))s created=\(createdCount) skipped=\(skippedCount)")
-        #endif
 
         return (presentation, allForPresentation)
     }

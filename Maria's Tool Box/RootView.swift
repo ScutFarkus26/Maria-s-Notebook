@@ -322,13 +322,20 @@ struct RootView: View {
                 }
             }
             if fixed > 0 {
+#if DEBUG
+                print("Backfill.scheduledForDay: fixed \(fixed) records")
+#endif
                 _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
             }
             didBackfillScheduledForDay = true
+#if DEBUG
             print("Backfill.scheduledForDay: fixed \(fixed) records")
+#endif
         } catch {
             didBackfillScheduledForDay = true
+#if DEBUG
             print("Backfill.scheduledForDay: fixed 0 records due to error")
+#endif
         }
     }
     
@@ -420,7 +427,7 @@ struct PlanningRootView: View {
                 } else if mode == .works {
                     WorksPlanningView()
                 } else {
-                    WorkAgendaView()
+                    WorkAgendaBetaView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

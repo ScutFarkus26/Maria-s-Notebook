@@ -592,25 +592,13 @@ struct StudentLessonDetailView: View {
 
         // Dual-write to Engagement Lifecycle (Option A)
         if useEngagementLifecycle, nowGiven {
-#if DEBUG
-            print("[Presented] Action: lifecycle ON, attempting to record presentation for SL=\(studentLesson.id)")
-#endif
             do {
-                let result = try LifecycleService.recordPresentationAndExplodeWork(
+                let _ = try LifecycleService.recordPresentationAndExplodeWork(
                     from: studentLesson,
                     presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
                     modelContext: modelContext
                 )
-#if DEBUG
-                let pid = result.presentation.id.uuidString
-                let wFetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.presentationID == pid })
-                let all = (try? modelContext.fetch(wFetch)) ?? []
-                print("[Presented] Lifecycle created/has \(all.count) WorkContracts for presentationID=\(pid.prefix(8))…")
-#endif
             } catch {
-#if DEBUG
-                print("[Lifecycle] Error during dual-write: \(error)")
-#endif
             }
         }
 
@@ -627,9 +615,6 @@ struct StudentLessonDetailView: View {
 
         do {
             try modelContext.save()
-#if DEBUG
-            print("[Presented] Save succeeded")
-#endif
             // Notify agenda/inbox to refresh immediately after save
             StudentLessonDetailUtilities.notifyInboxRefresh()
 
@@ -639,9 +624,6 @@ struct StudentLessonDetailView: View {
                 dismiss()
             }
         } catch {
-#if DEBUG
-            print("[Presented] Save failed: \(error)")
-#endif
             // Handle save error if needed
         }
     }

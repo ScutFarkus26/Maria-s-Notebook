@@ -1,11 +1,13 @@
 import SwiftUI
 import SwiftData
+import Combine
 
 struct WorkInboxView: View {
     private enum GroupMode: String, CaseIterable, Identifiable { case byDate, byLesson; var id: String { rawValue } }
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @Query private var contracts: [WorkContract]
     @Query private var lessons: [Lesson]
@@ -13,12 +15,28 @@ struct WorkInboxView: View {
     @Query private var presentations: [Presentation]
     @AppStorage("WorkInboxView.groupMode") private var groupModeRaw: String = GroupMode.byDate.rawValue
     @State private var groupMode: GroupMode = .byDate
+    @State private var searchText: String = ""
+
+#if os(iOS)
+    @State private var editMode: EditMode = .inactive
+#else
+    @State private var macEditing: Bool = false
+#endif
+
+    private var isEditing: Bool {
+#if os(iOS)
+        return editMode == .active
+#else
+        return macEditing
+#endif
+    }
 
     private struct SelectionToken: Identifiable, Equatable {
         let id: UUID
         let contractID: UUID
     }
     @State private var selected: SelectionToken? = nil
+    @State private var selectedContractIDs = Set<UUID>()
 
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
@@ -34,26 +52,83 @@ struct WorkInboxView: View {
 
     private var openContracts: [WorkContract] { contracts.filter { $0.status != .complete } }
 
+    private func matchesSearch(_ c: WorkContract) -> Bool {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return true }
+
+        var fields: [String] = []
+
+        // Lesson fields: name, subject, group
+        if let lid = UUID(uuidString: c.lessonID), let lesson = lessonsByID[lid] {
+            fields.append(lesson.name)
+            fields.append(lesson.subject)
+            fields.append(lesson.group)
+        }
+        // Fallback lesson titles (including presentation snapshots)
+        fields.append(lessonName(for: c))
+        fields.append(lessonTitle(forLessonID: c.lessonID, presentationID: c.presentationID))
+
+        // Student fields: first, last, full, and display name
+        if let sid = UUID(uuidString: c.studentID), let s = studentsByID[sid] {
+            fields.append(s.firstName)
+            fields.append(s.lastName)
+            fields.append(s.fullName)
+            fields.append(StudentFormatter.displayName(for: s))
+        } else {
+            fields.append(studentName(for: c))
+        }
+
+        // Status badge text (e.g., Active, Review)
+        fields.append(badge(for: c.status))
+
+        // Normalize and match
+        return fields.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().contains(q) }
+    }
+
+    private var filteredOpenContracts: [WorkContract] { openContracts.filter { matchesSearch($0) } }
+
     private var overdue: [WorkContract] {
-        openContracts.filter { c in
+        filteredOpenContracts.filter { c in
             if let d = c.scheduledDate { return d < startOfToday }
             return false
         }.sorted { ($0.scheduledDate ?? .distantFuture) < ($1.scheduledDate ?? .distantFuture) }
     }
     private var today: [WorkContract] {
-        openContracts.filter { c in
+        filteredOpenContracts.filter { c in
             if let d = c.scheduledDate { return calendar.isDate(d, inSameDayAs: startOfToday) }
             return false
         }.sorted { ($0.scheduledDate ?? .distantFuture) < ($1.scheduledDate ?? .distantFuture) }
     }
     private var upcoming: [WorkContract] {
-        openContracts.filter { c in
+        filteredOpenContracts.filter { c in
             if let d = c.scheduledDate { return d > startOfToday }
             return false
         }.sorted { ($0.scheduledDate ?? .distantFuture) < ($1.scheduledDate ?? .distantFuture) }
     }
     private var unscheduled: [WorkContract] {
-        openContracts.filter { $0.scheduledDate == nil }.sorted { $0.createdAt < $1.createdAt }
+        filteredOpenContracts.filter { $0.scheduledDate == nil }.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    @ViewBuilder
+    private func listContent() -> some View {
+        switch groupMode {
+        case .byDate:
+            if !overdue.isEmpty { section(title: "Overdue", items: overdue) }
+            if !today.isEmpty { section(title: "Today", items: today) }
+            if !upcoming.isEmpty { section(title: "Upcoming", items: upcoming) }
+            if !unscheduled.isEmpty { section(title: "Unscheduled", items: unscheduled) }
+
+            if overdue.isEmpty && today.isEmpty && upcoming.isEmpty && unscheduled.isEmpty {
+                if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    ContentUnavailableView("No work to show", systemImage: "tray")
+                } else {
+                    ContentUnavailableView("No results", systemImage: "magnifyingglass")
+                }
+            }
+
+        case .byLesson:
+            lessonGroupedSections()
+        }
     }
 
     var body: some View {
@@ -68,55 +143,59 @@ struct WorkInboxView: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
-                List {
-#if DEBUG
-                    // DEBUG diagnostics: show total and open counts
-                    let total = contracts.count
-                    let open = contracts.filter { $0.status != .complete }.count
-                    Text("DEBUG: WorkContracts total = \(total), open = \(open)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        listContent()
+                    }
+                    .animation(nil, value: groupMode)
+#if os(iOS)
+                    .animation(nil, value: editMode)
+#else
+                    .animation(nil, value: macEditing)
 #endif
-
-                    switch groupMode {
-                    case .byDate:
-                        if !overdue.isEmpty { section(title: "Overdue", items: overdue) }
-                        if !today.isEmpty { section(title: "Today", items: today) }
-                        if !upcoming.isEmpty { section(title: "Upcoming", items: upcoming) }
-                        if !unscheduled.isEmpty { section(title: "Unscheduled", items: unscheduled) }
-
-#if DEBUG
-                        if openContracts.isEmpty == false {
-                            Section("All Open Work (DEBUG)") {
-                                ForEach(openContracts) { c in
-                                    Button {
-                                        selected = nil
-                                        let token = SelectionToken(id: UUID(), contractID: c.id)
-                                        DispatchQueue.main.async { selected = token }
-                                    } label: { row(c) }
-                                    .buttonStyle(.plain)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) { swipeActions(for: c) }
-                                    .contextMenu { contextMenu(for: c) }
-                                }
+                    .animation(nil, value: selectedContractIDs)
+                }
+                .navigationTitle("Work Inbox (Beta)")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            markSelectedComplete()
+                        } label: {
+                            Label("Mark Completed", systemImage: "checkmark.circle")
+                        }
+                        .disabled(selectedContractIDs.isEmpty)
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        if isEditing {
+                            Button("Cancel") {
+                                selectedContractIDs.removeAll()
+#if os(iOS)
+                                withAnimation { editMode = .inactive }
+#else
+                                withAnimation { macEditing = false }
+#endif
                             }
                         }
-#endif
-
-                        if overdue.isEmpty && today.isEmpty && upcoming.isEmpty && unscheduled.isEmpty {
-                            ContentUnavailableView("No work to show", systemImage: "tray")
+                    }
+                    ToolbarItem(placement: .automatic) {
+#if os(iOS)
+                        EditButton()
+#else
+                        Button(isEditing ? "Done" : "Edit") {
+                            withAnimation { macEditing.toggle() }
                         }
-
-                    case .byLesson:
-                        lessonGroupedSections()
+#endif
                     }
                 }
 #if os(iOS)
-                .listStyle(.insetGrouped)
+                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search by lesson, student, or status")
 #else
-                .listStyle(.inset)
+                .searchable(text: $searchText, prompt: "Search by lesson, student, or status")
+#endif
+#if os(iOS)
+                .environment(\.editMode, $editMode)
 #endif
             }
-            .navigationTitle("Work Inbox (Beta)")
         }
         .sheet(item: $selected, onDismiss: { selected = nil }) { token in
             if let c = contracts.first(where: { $0.id == token.contractID }) {
@@ -131,21 +210,34 @@ struct WorkInboxView: View {
         }
         .onChange(of: groupMode) { _, new in
             groupModeRaw = new.rawValue
+            // Clear multi-selection when changing grouping to avoid stale IDs
+            selectedContractIDs.removeAll()
         }
+#if os(iOS)
+        .onChange(of: editMode) { _, new in
+            if new != .active {
+                selectedContractIDs.removeAll()
+            }
+        }
+#else
+        .onChange(of: macEditing) { _, new in
+            if !new {
+                selectedContractIDs.removeAll()
+            }
+        }
+#endif
     }
 
     @ViewBuilder
     private func section(title: String, items: [WorkContract]) -> some View {
-        Section(title) {
-            ForEach(items) { c in
-                Button {
-                    selected = nil
-                    let token = SelectionToken(id: UUID(), contractID: c.id)
-                    DispatchQueue.main.async { selected = token }
-                } label: { row(c) }
-                .buttonStyle(.plain)
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) { swipeActions(for: c) }
-                .contextMenu { contextMenu(for: c) }
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+            ForEach(items, id: \.id) { c in
+                row(c)
             }
         }
     }
@@ -153,7 +245,7 @@ struct WorkInboxView: View {
     @ViewBuilder
     private func lessonGroupedSections() -> some View {
         // Group open contracts by lessonID (string)
-        let dict = Dictionary(grouping: openContracts, by: { $0.lessonID })
+        let dict = Dictionary(grouping: filteredOpenContracts, by: { $0.lessonID })
         let result: [(lessonID: String, items: [WorkContract])] = dict.map { (lessonID: $0.key, items: $0.value.sorted { ($0.scheduledDate ?? .distantFuture) < ($1.scheduledDate ?? .distantFuture) }) }
 
         // Sort sections by earliest scheduled date (nil last), then title
@@ -174,16 +266,14 @@ struct WorkInboxView: View {
             ContentUnavailableView("No work to show", systemImage: "tray")
         } else {
             ForEach(sorted, id: \.lessonID) { group in
-                Section(header: Text(lessonTitle(forLessonID: group.lessonID, presentationID: group.items.first?.presentationID))) {
-                    ForEach(group.items) { c in
-                        Button {
-                            selected = nil
-                            let token = SelectionToken(id: UUID(), contractID: c.id)
-                            DispatchQueue.main.async { selected = token }
-                        } label: { row(c) }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) { swipeActions(for: c) }
-                        .contextMenu { contextMenu(for: c) }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(lessonTitle(forLessonID: group.lessonID, presentationID: group.items.first?.presentationID))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                    ForEach(group.items, id: \.id) { c in
+                        row(c)
                     }
                 }
             }
@@ -192,7 +282,20 @@ struct WorkInboxView: View {
 
     @ViewBuilder
     private func row(_ c: WorkContract) -> some View {
+        let isSelected = selectedContractIDs.contains(c.id)
         HStack(spacing: 10) {
+            // Reserved selection affordance space (constant width)
+            Group {
+                if isEditing {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                } else {
+                    Image(systemName: "circle")
+                        .opacity(0)
+                }
+            }
+            .frame(width: 24)
+
             Image(systemName: iconName(for: c.status))
                 .foregroundStyle(color(for: c.status))
             VStack(alignment: .leading, spacing: 2) {
@@ -215,7 +318,32 @@ struct WorkInboxView: View {
                 .padding(.vertical, 3)
                 .background(Capsule().fill(color(for: c.status).opacity(0.15)))
         }
-        .padding(6)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .frame(minHeight: 52, alignment: .center)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isEditing {
+                if isSelected { selectedContractIDs.remove(c.id) } else { selectedContractIDs.insert(c.id) }
+            } else {
+                selected = nil
+                let token = SelectionToken(id: UUID(), contractID: c.id)
+                DispatchQueue.main.async { selected = token }
+            }
+        }
+#if os(iOS)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            swipeActions(for: c)
+        }
+#endif
+        .contextMenu { contextMenu(for: c) }
+        .transaction { $0.animation = nil }
+        .animation(nil, value: selectedContractIDs)
+#if os(iOS)
+        .animation(nil, value: editMode)
+#else
+        .animation(nil, value: macEditing)
+#endif
     }
 
     private func lessonName(for c: WorkContract) -> String {
@@ -284,22 +412,41 @@ struct WorkInboxView: View {
         c.status = .complete
         c.completedAt = Date()
         c.scheduledDate = nil
-        try? modelContext.save()
+        _ = saveCoordinator.save(modelContext, reason: "Mark contract complete")
+    }
+
+    private func markSelectedComplete() {
+        let ids = selectedContractIDs
+        guard !ids.isEmpty else { return }
+        let now = Date()
+        let targets = contracts.filter { ids.contains($0.id) }
+        for c in targets {
+            c.status = .complete
+            c.completedAt = now
+            c.scheduledDate = nil
+        }
+        _ = saveCoordinator.save(modelContext, reason: "Bulk complete selected contracts")
+        selectedContractIDs.removeAll()
+#if os(iOS)
+        withAnimation { editMode = .inactive }
+#else
+        withAnimation { macEditing = false }
+#endif
     }
 
     private func setForToday(_ c: WorkContract) {
         c.scheduledDate = AppCalendar.startOfDay(Date())
-        try? modelContext.save()
+        _ = saveCoordinator.save(modelContext, reason: "Schedule for today")
     }
 
     private func clearSchedule(_ c: WorkContract) {
         c.scheduledDate = nil
-        try? modelContext.save()
+        _ = saveCoordinator.save(modelContext, reason: "Clear schedule")
     }
 
     private func moveToReview(_ c: WorkContract) {
         c.status = .review
-        try? modelContext.save()
+        _ = saveCoordinator.save(modelContext, reason: "Move to review")
     }
 
     private func iconName(for status: WorkStatus) -> String {
@@ -343,4 +490,6 @@ struct WorkInboxView: View {
 
     return WorkInboxView()
         .previewEnvironment(using: container)
+        .environmentObject(SaveCoordinator.preview)
 }
+

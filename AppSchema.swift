@@ -23,6 +23,7 @@ struct AppSchema {
         MeetingNote.self,
         CommunityAttachment.self,
         Presentation.self,
-        WorkContract.self
+        WorkContract.self,
+        WorkPlanItem.self
     ])
 }

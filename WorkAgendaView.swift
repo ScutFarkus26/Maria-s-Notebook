@@ -17,11 +17,6 @@ struct WorkAgendaView: View {
     @State private var startDate: Date = Date()
     @State private var activeContract: WorkContract? = nil
 
-    // DEBUG timing
-    #if DEBUG
-    @State private var debugLoadStart: Date = Date()
-    #endif
-
     // MARK: Caches
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
@@ -88,19 +83,12 @@ struct WorkAgendaView: View {
             WorkContractDetailSheet(contract: c) { activeContract = nil }
         }
         .onAppear {
-            #if DEBUG
-            debugLoadStart = Date()
-            #endif
             if startDateRaw == 0 {
                 startDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: { isNonSchoolDay($0) })
                 startDateRaw = startDate.timeIntervalSinceReferenceDate
             } else {
                 startDate = Date(timeIntervalSinceReferenceDate: startDateRaw)
             }
-            #if DEBUG
-            let elapsed = Date().timeIntervalSince(debugLoadStart)
-            print(String(format: "[WorkAgenda(Beta)] Initial load: %d open contracts in %.2f ms", contracts.count, elapsed * 1000))
-            #endif
         }
         .onChange(of: startDate) { _, new in
             startDateRaw = new.timeIntervalSinceReferenceDate
@@ -294,14 +282,9 @@ private struct WorkContractDayDropDelegate: DropDelegate {
             let raw = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
             guard let id = UUID(uuidString: raw) else { return }
             Task { @MainActor in
-                let start = Date()
                 if let c = fetchContract(id, using: modelContext) {
                     c.scheduledDate = AppCalendar.startOfDay(day)
                     try? modelContext.save()
-                    #if DEBUG
-                    let elapsed = Date().timeIntervalSince(start)
-                    print(String(format: "[WorkAgenda(Beta)] Drop to day: %@ in %.2f ms", id.uuidString, elapsed * 1000))
-                    #endif
                 }
             }
         }
@@ -322,14 +305,9 @@ private struct WorkContractInboxDropDelegate: DropDelegate {
             let raw = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
             guard let id = UUID(uuidString: raw) else { return }
             Task { @MainActor in
-                let start = Date()
                 if let c = fetchContract(id, using: modelContext) {
                     c.scheduledDate = nil
                     try? modelContext.save()
-                    #if DEBUG
-                    let elapsed = Date().timeIntervalSince(start)
-                    print(String(format: "[WorkAgenda(Beta)] Drop to inbox: %@ in %.2f ms", id.uuidString, elapsed * 1000))
-                    #endif
                 }
             }
         }

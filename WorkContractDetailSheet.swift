@@ -218,18 +218,6 @@ struct WorkContractDetailSheet: View {
                     }
                     .padding(.top, 4)
                 }
-
-                #if DEBUG
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("DEBUG: presentationID = \(resolvedPresentationID?.uuidString ?? "nil")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("DEBUG: presentationNotes = \(presentationNotes.count)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.top, 4)
-                #endif
             }
 
             HStack {
@@ -408,23 +396,13 @@ private struct NextLessonResolver {
     static func resolveNextLessonID(from contract: WorkContract, lessons: [Lesson]) -> UUID? {
         guard let currentID = UUID(uuidString: contract.lessonID),
               let current = lessons.first(where: { $0.id == currentID }) else {
-            #if DEBUG
-            print("[NextLessonResolver] Could not locate current lesson for contract: \(contract.lessonID)")
-            #endif
             return nil
         }
-
-        #if DEBUG
-        print("[NextLessonResolver] Current lesson: \(current.id) – \(current.name)")
-        #endif
 
         // Attempt explicit link (not present in this model). Fallback to collection ordering.
         let currentSubject = current.subject.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentGroup = current.group.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !currentSubject.isEmpty, !currentGroup.isEmpty else {
-            #if DEBUG
-            print("[NextLessonResolver] Missing subject/group; cannot resolve next lesson.")
-            #endif
             return nil
         }
 
@@ -436,14 +414,8 @@ private struct NextLessonResolver {
 
         if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
             let next = candidates[idx + 1]
-            #if DEBUG
-            print("[NextLessonResolver] Next lesson resolved: \(next.id) – \(next.name)")
-            #endif
             return next.id
         } else {
-            #if DEBUG
-            print("[NextLessonResolver] No next lesson found in sequence.")
-            #endif
             return nil
         }
     }

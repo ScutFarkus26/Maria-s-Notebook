@@ -43,6 +43,10 @@ struct SettingsView: View {
     @State private var showLifecycleNotesBackfillConfirm: Bool = false
     @State private var isRunningLifecycleBackfill: Bool = false
 
+    // New state properties for Advanced / Debug section
+    @State private var showDannyResetConfirm = false
+    @State private var dannyResetSummary: String? = nil
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -325,6 +329,19 @@ struct SettingsView: View {
                             #endif
                         }
                     }
+                    
+                    // MARK: - Advanced / Debug Section (added)
+                    SettingsCategoryHeader(title: "Advanced / Debug")
+                    
+                    SettingsGroup(title: "Danger Zone", systemImage: "exclamationmark.triangle.fill") {
+                        Button(role: .destructive) {
+                            showDannyResetConfirm = true
+                        } label: {
+                            Label("Delete Lesson & Work History for Danny + Lil Dan D", systemImage: "trash")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                    }
                 }
                 .frame(maxWidth: 900)
                 .padding(.horizontal, 24)
@@ -411,6 +428,29 @@ struct SettingsView: View {
                 showingImporter = true
                 pendingImporterPresentation = false
             }
+        }
+        // New alert for confirmation of delete Danny & Lil Dan D history
+        .alert("Delete History?", isPresented: $showDannyResetConfirm) {
+            Button("Delete", role: .destructive) {
+                Task { @MainActor in
+                    do {
+                        let summary = try StudentDataWiper.wipeDannyAndLilDanD(using: modelContext)
+                        dannyResetSummary = summary
+                        _ = SaveCoordinator().save(modelContext, reason: "Admin wipe Danny + Lil Dan D history")
+                    } catch {
+                        dannyResetSummary = "Failed to delete history: \(error.localizedDescription)"
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action will permanently delete all lesson and work history for the students named “Danny de Berry” and “Lil Dan D”. This cannot be undone.")
+        }
+        // New alert showing completion summary
+        .alert("History Deleted", isPresented: Binding(get: { dannyResetSummary != nil }, set: { if !$0 { dannyResetSummary = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(dannyResetSummary ?? "")
         }
         .alert("Engagement Lifecycle Backfill", isPresented: Binding(get: { lifecycleBackfillSummary != nil }, set: { if !$0 { lifecycleBackfillSummary = nil } })) {
             Button("OK", role: .cancel) { lifecycleBackfillSummary = nil }

@@ -10,9 +10,6 @@ struct CommunityMeetingsView: View {
 
     @State private var showingAdd = false
     @State private var selectedTopicID: UUID? = nil
-    #if DEBUG
-    @State private var lastTapStart: Date? = nil
-    #endif
 
     enum DateFilter { case today, thisWeek, thisMonth, last30, thisYear }
     @State private var filterDate: DateFilter? = nil
@@ -157,11 +154,6 @@ struct CommunityMeetingsView: View {
                 // Clear the search text so the newly added appears and UI resets
                 searchText = ""
                 // Optionally open the detail editor for the new topic
-                #if DEBUG
-                lastTapStart = Date()
-                DebugTiming.lastTopicTapAt = lastTapStart
-                print("[DEBUG] Tap->open (quick add) start at: \(lastTapStart!)")
-                #endif
                 selectedTopicID = t.id
             }
         )
@@ -180,11 +172,6 @@ struct CommunityMeetingsView: View {
                     VStack(spacing: 10) {
                         ForEach(open) { t in
                             TopicRowView(topic: t) {
-                                #if DEBUG
-                                lastTapStart = Date()
-                                DebugTiming.lastTopicTapAt = lastTapStart
-                                if let start = lastTapStart { print("[DEBUG] Tap on topic \(t.id) at: \(start)") }
-                                #endif
                                 selectedTopicID = t.id
                             }
                         }
@@ -198,11 +185,6 @@ struct CommunityMeetingsView: View {
                     VStack(spacing: 10) {
                         ForEach(resolved) { t in
                             TopicRowView(topic: t) {
-                                #if DEBUG
-                                lastTapStart = Date()
-                                DebugTiming.lastTopicTapAt = lastTapStart
-                                if let start = lastTapStart { print("[DEBUG] Tap on topic \(t.id) at: \(start)") }
-                                #endif
                                 selectedTopicID = t.id
                             }
                         }

@@ -95,10 +95,6 @@ final class TopicDetailViewModel: ObservableObject {
     }
 
     func load(context: ModelContext, topicID: UUID) async {
-        #if DEBUG
-        DebugTiming.lastDetailLoadStart = Date()
-        print("[DEBUG] Detail load start for topicID=\(topicID) at: \(DebugTiming.lastDetailLoadStart!)")
-        #endif
         isLoading = true
         defer { isLoading = false }
 
@@ -106,9 +102,6 @@ final class TopicDetailViewModel: ObservableObject {
             // Fetch the topic by ID
             let topics = try context.fetch(Self.descriptorForTopic(id: topicID))
             guard let topic = topics.first else {
-                #if DEBUG
-                print("[DEBUG] Topic not found for id \(topicID)")
-                #endif
                 self.topic = nil
                 return
             }
@@ -130,17 +123,7 @@ final class TopicDetailViewModel: ObservableObject {
             self.notes = try await notes
             self.attachments = try await attachments
         } catch {
-            #if DEBUG
-            print("[DEBUG] Error loading topic detail: \(error)")
-            #endif
         }
-        #if DEBUG
-        DebugTiming.lastDetailLoadEnd = Date()
-        if let start = DebugTiming.lastTopicTapAt, let end = DebugTiming.lastDetailLoadEnd {
-            let ms = end.timeIntervalSince(start) * 1000.0
-            print("[DEBUG] Tap->detail data loaded in: \(String(format: "%.1f", ms)) ms")
-        }
-        #endif
     }
 
     func persistChanges(context: ModelContext) {
