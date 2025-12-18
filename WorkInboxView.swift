@@ -23,6 +23,10 @@ struct WorkInboxView: View {
     @State private var macEditing: Bool = false
 #endif
 
+    @State private var completionTarget: WorkContract? = nil
+    @State private var completionOutcome: CompletionOutcome? = nil
+    @State private var completionNote: String = ""
+
     private var isEditing: Bool {
 #if os(iOS)
         return editMode == .active
@@ -204,6 +208,41 @@ struct WorkInboxView: View {
             } else {
                 ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
             }
+        }
+        .sheet(isPresented: Binding(get: { completionTarget != nil }, set: { if !$0 { completionTarget = nil } })) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Mark Complete")
+                    .font(.headline)
+                Picker("Outcome", selection: Binding(get: { completionOutcome }, set: { completionOutcome = $0 })) {
+                    Text("—").tag(Optional<CompletionOutcome>(nil))
+                    ForEach(CompletionOutcome.allCases, id: \.self) { o in
+                        Text(labelForOutcome(o)).tag(Optional(o))
+                    }
+                }
+                .pickerStyle(.menu)
+                TextField("Completion note (optional)", text: $completionNote, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Spacer()
+                    Button("Cancel") { completionTarget = nil }
+                    Button("Done") {
+                        if let c = completionTarget {
+                            c.status = .complete
+                            c.completedAt = Date()
+                            c.scheduledDate = nil
+                            c.completionOutcome = completionOutcome
+                            let trimmed = completionNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                            c.completionNote = trimmed.isEmpty ? nil : trimmed
+                            _ = saveCoordinator.save(modelContext, reason: "Mark contract complete with outcome")
+                        }
+                        completionTarget = nil
+                        completionOutcome = nil
+                        completionNote = ""
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(16)
         }
         .onAppear {
             if let m = GroupMode(rawValue: groupModeRaw) { groupMode = m }
@@ -409,10 +448,9 @@ struct WorkInboxView: View {
     }
 
     private func markComplete(_ c: WorkContract) {
-        c.status = .complete
-        c.completedAt = Date()
-        c.scheduledDate = nil
-        _ = saveCoordinator.save(modelContext, reason: "Mark contract complete")
+        completionTarget = c
+        completionOutcome = c.completionOutcome
+        completionNote = c.completionNote ?? ""
     }
 
     private func markSelectedComplete() {
@@ -470,6 +508,16 @@ struct WorkInboxView: View {
         case .active: return "Active"
         case .review: return "Review"
         case .complete: return "Complete"
+        }
+    }
+
+    private func labelForOutcome(_ o: CompletionOutcome) -> String {
+        switch o {
+        case .mastered: return "Mastered"
+        case .submitted: return "Submitted"
+        case .needsMorePractice: return "Needs More Practice"
+        case .paused: return "Paused"
+        case .notRequired: return "Not Required"
         }
     }
 }

@@ -108,6 +108,7 @@ struct LifecycleService {
                     completedAt: nil,
                     legacyStudentLessonID: legacyID
                 )
+                wc.kind = .practiceLesson
                 modelContext.insert(wc)
                 workForPresentation.append(wc)
                 createdCount += 1

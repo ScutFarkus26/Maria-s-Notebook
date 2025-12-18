@@ -41,6 +41,7 @@
 		5174C9DC2EEDC94300BBB03D /* PreviewEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */; };
 		5174C9DE2EEDCB6F00BBB03D /* AppSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */; };
 		51956F602EEE12230064A2E4 /* WorkDetailVM.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51956F5F2EEE12230064A2E4 /* WorkDetailVM.swift */; };
+		51D091E22EF33D870010E980 /* WorkScheduleDateLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -79,6 +80,7 @@
 		5174C9DB2EEDC94300BBB03D /* PreviewEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewEnvironment.swift; sourceTree = "<group>"; };
 		5174C9DD2EEDCB6F00BBB03D /* AppSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchema.swift; sourceTree = "<group>"; };
 		51956F5F2EEE12230064A2E4 /* WorkDetailVM.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkDetailVM.swift; sourceTree = "<group>"; };
+		51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkScheduleDateLogic.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -152,6 +154,7 @@
 				5172DDE22EF3034C00018BE1 /* OpenWorkGrid.swift */,
 				5172DDE42EF3035700018BE1 /* WorkAgendaCalendarPane.swift */,
 				5172DDE62EF3035F00018BE1 /* WorksAgendaView.swift */,
+				51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -245,6 +248,7 @@
 				511A5DF52EEE5C3A0048434D /* CommunityMeetingsView.swift in Sources */,
 				511A5DFF2EEE61F50048434D /* TopicDetailView.swift in Sources */,
 				511A5DF32EEE5C260048434D /* CommunityModels.swift in Sources */,
+				51D091E22EF33D870010E980 /* WorkScheduleDateLogic.swift in Sources */,
 				511A5DFD2EEE61EC0048434D /* MarkdownExporter.swift in Sources */,
 				5172DDBF2EF0F7AC00018BE1 /* TopicDetailViewModel.swift in Sources */,
 				5172DDE72EF3035F00018BE1 /* WorksAgendaView.swift in Sources */,

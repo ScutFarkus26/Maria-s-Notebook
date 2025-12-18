@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+// Uses WorkScheduleDateLogic for consistent labeling
 
 struct WorkAgendaCalendarPane: View {
     @Environment(\.modelContext) private var modelContext
@@ -57,11 +58,14 @@ struct WorkAgendaCalendarPane: View {
 
     private func computeDays() -> [Date] {
         var arr: [Date] = []
-        let start = AppCalendar.startOfDay(startDate)
-        for i in 0..<daysCount {
-            if let d = AppCalendar.shared.date(byAdding: .day, value: i, to: start) {
-                arr.append(d)
+        var cursor = AppCalendar.startOfDay(startDate)
+        var safety = 0
+        while arr.count < daysCount && safety < 1000 {
+            if !SchoolCalendar.isNonSchoolDay(cursor, using: modelContext) {
+                arr.append(cursor)
             }
+            cursor = AppCalendar.addingDays(1, to: cursor)
+            safety += 1
         }
         return arr
     }
@@ -111,6 +115,17 @@ struct WorkAgendaCalendarPane: View {
         return "Work"
     }
 
+    private func reasonLabel(_ reason: WorkPlanItem.Reason) -> String {
+        switch reason {
+        case .progressCheck:
+            return WorkScheduleDateLogic.label(for: .checkIn)
+        case .dueDate:
+            return WorkScheduleDateLogic.label(for: .due)
+        default:
+            return reason.label
+        }
+    }
+
     private func pill(_ item: WorkPlanItem) -> some View {
         let title = workTitle(for: item.workID)
         return HStack(spacing: 6) {
@@ -118,7 +133,7 @@ struct WorkAgendaCalendarPane: View {
             Text(title)
                 .font(.callout)
                 .foregroundStyle(.primary)
-            if let r = item.reason { Text(r.label).font(.caption2).foregroundStyle(.secondary) }
+            if let r = item.reason { Text(reasonLabel(r)).font(.caption2).foregroundStyle(.secondary) }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
@@ -149,8 +164,24 @@ struct WorkAgendaCalendarPane: View {
                 switch payload {
                 case .work(let id):
                     prompt = PlanPrompt(workID: id, date: AppCalendar.startOfDay(day))
+                    // Tentatively sync the contract's scheduledDate; final save happens on prompt Save
+                    let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
+                    if let c = try? modelContext.fetch(fetch).first {
+                        c.scheduledDate = AppCalendar.startOfDay(day)
+                        _ = saveCoordinator.save(modelContext, reason: "Sync contract scheduledDate on drop (prompt pending)")
+                    }
                 case .checkIn(let id):
                     reschedulePlanItem(id: id, to: AppCalendar.startOfDay(day))
+                    // Also update the linked contract's scheduledDate to match the moved plan item
+                    let fetchPI = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
+                    if let item = try? modelContext.fetch(fetchPI).first {
+                        let wid: UUID = item.workID
+                        let fetchWC = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == wid })
+                        if let c = try? modelContext.fetch(fetchWC).first {
+                            c.scheduledDate = AppCalendar.startOfDay(day)
+                            _ = saveCoordinator.save(modelContext, reason: "Sync contract scheduledDate on calendar move")
+                        }
+                    }
                 }
             }
         }
@@ -162,13 +193,22 @@ struct WorkAgendaCalendarPane: View {
         let normalized = AppCalendar.startOfDay(date)
         let item = WorkPlanItem(workID: workID, scheduledDate: normalized, reason: reason, note: note.isEmpty ? nil : note)
         modelContext.insert(item)
+        let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == workID })
+        if let c = try? modelContext.fetch(fetch).first {
+            c.scheduledDate = normalized
+        }
         _ = saveCoordinator.save(modelContext, reason: "Create WorkPlanItem")
     }
 
     private func reschedulePlanItem(id: UUID, to day: Date) {
-        let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate { $0.id == id })
+        let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
         if let item = try? modelContext.fetch(fetch).first {
             item.scheduledDate = AppCalendar.startOfDay(day)
+            let wid: UUID = item.workID
+            let fetchWC = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == wid })
+            if let c = try? modelContext.fetch(fetchWC).first {
+                c.scheduledDate = AppCalendar.startOfDay(day)
+            }
             _ = saveCoordinator.save(modelContext, reason: "Reschedule WorkPlanItem")
         }
     }

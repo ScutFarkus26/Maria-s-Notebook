@@ -14,32 +14,28 @@ struct OpenWorkGrid: View {
     // MARK: - Layout
     // Choose 1 or 2 columns based on available width; never create 3+
     private func columns(for width: CGFloat) -> [GridItem] {
-        let oneColumnThreshold: CGFloat = 420 // narrow widths collapse to single column
-        if width < oneColumnThreshold {
-            return [GridItem(.flexible(minimum: 150, maximum: .infinity), spacing: 12)]
-        } else {
-            return [
-                GridItem(.flexible(minimum: 150, maximum: .infinity), spacing: 12),
-                GridItem(.flexible(minimum: 150, maximum: .infinity), spacing: 12)
-            ]
-        }
+        return Array(repeating: GridItem(.flexible(minimum: 180, maximum: .infinity), spacing: 12), count: 4)
     }
 
     var body: some View {
         GeometryReader { proxy in
             ScrollView {
-                LazyVGrid(columns: columns(for: proxy.size.width), alignment: .leading, spacing: 8) {
-                    ForEach(sortedWorks, id: \._id) { item in
-                        WorkCardView(
-                            contract: item.contract,
-                            lessonTitle: item.title,
-                            studentDisplay: item.student,
-                            needsAttention: item.needsAttention,
-                            metadata: item.metadata,
-                            onOpen: onOpen,
-                            onMarkCompleted: onMarkCompleted,
-                            onScheduleToday: onScheduleToday
-                        )
+                LazyVGrid(columns: columns(for: proxy.size.width), alignment: .leading, spacing: 8, pinnedViews: [.sectionHeaders]) {
+                    ForEach(groupedSections, id: \.key) { section in
+                        Section(header: groupHeader(title: section.key, count: section.items.count)) {
+                            ForEach(section.items, id: \.id) { item in
+                                WorkCardView(
+                                    contract: item.contract,
+                                    lessonTitle: item.title,
+                                    studentDisplay: item.student,
+                                    needsAttention: item.needsAttention,
+                                    metadata: item.metadata,
+                                    onOpen: onOpen,
+                                    onMarkCompleted: onMarkCompleted,
+                                    onScheduleToday: onScheduleToday
+                                )
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -48,8 +44,64 @@ struct OpenWorkGrid: View {
         }
     }
 
+    private func groupHeader(title: String, count: Int) -> some View {
+        HStack(spacing: 10) {
+            Text(title)
+                .font(.headline.weight(.semibold))
+            Spacer()
+            Text("\(count)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(0.2))
+                )
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
+        .background(.bar)
+    }
+
     // MARK: - Derived items
     private struct Item: Identifiable { let id = UUID(); let _id: UUID; let contract: WorkContract; let title: String; let student: String; let needsAttention: Bool; let metadata: String }
+
+    // Group items by current sort mode; preserve overall order by grouping in the order items first appear
+    private var groupedSections: [(key: String, items: [Item])] {
+        let items = sortedWorks
+        var order: [String] = []
+        var buckets: [String: [Item]] = [:]
+        for it in items {
+            let key = groupKey(for: it)
+            if buckets[key] == nil { order.append(key); buckets[key] = [] }
+            buckets[key]?.append(it)
+        }
+        return order.map { key in (key: key, items: buckets[key] ?? []) }
+    }
+
+    private func groupKey(for item: Item) -> String {
+        switch sortMode {
+        case .lesson:
+            return item.title
+        case .student:
+            return item.student
+        case .age:
+            let days = ageDays(for: item.contract)
+            return ageBucketLabel(forDays: days)
+        case .needsAttention:
+            return item.needsAttention ? "Needs Attention" : "Other"
+        }
+    }
+
+    private func ageBucketLabel(forDays days: Int) -> String {
+        if days <= 0 { return "Today" }
+        else if days <= 3 { return "1–3 days" }
+        else if days <= 7 { return "4–7 days" }
+        else if days <= 14 { return "8–14 days" }
+        else if days <= 30 { return "15–30 days" }
+        else { return "30+ days" }
+    }
 
     private var sortedWorks: [Item] {
         let mapped: [Item] = works.map { c in

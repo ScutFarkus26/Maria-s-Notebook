@@ -144,8 +144,17 @@ struct WorksAgendaView: View {
 
     private func scheduleToday(_ c: WorkContract) {
         let today = AppCalendar.startOfDay(Date())
-        let item = WorkPlanItem(workID: c.id, scheduledDate: today, reason: .progressCheck, note: nil)
-        modelContext.insert(item)
+        // Update or create a single plan item for this contract
+        let workID: UUID = c.id
+        let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.workID == workID })
+        let existing = (try? modelContext.fetch(fetch)) ?? []
+        if let first = existing.sorted(by: { $0.scheduledDate < $1.scheduledDate }).first {
+            first.scheduledDate = today
+        } else {
+            let item = WorkPlanItem(workID: c.id, scheduledDate: today, reason: .progressCheck, note: nil)
+            modelContext.insert(item)
+        }
+        c.scheduledDate = today
         _ = saveCoordinator.save(modelContext, reason: "Quick schedule today")
     }
 }
@@ -166,3 +175,4 @@ struct WorksAgendaView: View {
         .previewEnvironment(using: container)
         .environmentObject(SaveCoordinator.preview)
 }
+
