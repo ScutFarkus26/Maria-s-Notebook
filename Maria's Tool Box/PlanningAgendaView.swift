@@ -316,6 +316,19 @@ struct PlanningAgendaView: View {
                     }
                 }
             }
+
+            // Unplanned students strip (students without any lesson on this day)
+            let normalized = AppCalendar.startOfDay(day)
+            let unplanned = unplannedStudents(on: normalized)
+            if !unplanned.isEmpty {
+                UnplannedStudentsStrip(date: normalized, unplanned: unplanned) { student in
+                    NotificationCenter.default.post(name: .PlanLessonForStudentOnDate, object: nil, userInfo: [
+                        "studentID": student.id,
+                        "date": normalized
+                    ])
+                }
+                .padding(.top, 8)
+            }
         }
     }
 
@@ -348,6 +361,50 @@ struct PlanningAgendaView: View {
 
     private func dayShortLabel(for day: Date) -> String {
         day.formatted(Self.dayNameStyle)
+    }
+
+    // MARK: - Unplanned students computation (parity with Lessons Board)
+    private func plannedStudentIDs(on day: Date) -> Set<UUID> {
+        let (start, end) = AppCalendar.dayRange(for: day)
+        var acc: [UUID] = []
+        for sl in studentLessons {
+            guard !sl.isGiven else { continue }
+            // Prefer denormalized day if available; fall back to exact scheduled time.
+            if sl.scheduledForDay >= start && sl.scheduledForDay < end {
+                acc.append(contentsOf: sl.resolvedStudentIDs)
+                continue
+            }
+            if let scheduled = sl.scheduledFor, scheduled >= start && scheduled < end {
+                acc.append(contentsOf: sl.resolvedStudentIDs)
+            }
+        }
+        return Set(acc)
+    }
+
+    private func unplannedStudents(on day: Date) -> [Student] {
+        let planned = plannedStudentIDs(on: day)
+        // Filter active students (mirror optional isActive if present)
+        let active: [Student] = students.filter { s in
+            if let mirror = Mirror(reflecting: s).children.first(where: { $0.label == "isActive" }), let isActive = mirror.value as? Bool {
+                return isActive
+            }
+            return true
+        }
+        // Respect single-student filter when applied
+        if let id = selectedStudentID {
+            if let s = active.first(where: { $0.id == id }), !planned.contains(id) {
+                return [s]
+            } else {
+                return []
+            }
+        }
+        return active.filter { !planned.contains($0.id) }
+            .sorted { lhs, rhs in
+                let ln = lhs.lastName.lowercased()
+                let rn = rhs.lastName.lowercased()
+                if ln == rn { return lhs.firstName.lowercased() < rhs.firstName.lowercased() }
+                return ln < rn
+            }
     }
 }
 

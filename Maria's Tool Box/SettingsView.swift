@@ -37,6 +37,8 @@ struct SettingsView: View {
     
     @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
     @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
+    @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
+    @AppStorage("hideLessonsBoardTab") private var hideLessonsBoardTab: Bool = false
     
     @State private var lifecycleBackfillSummary: String? = nil
     @State private var showLifecycleNotesBackfillConfirm: Bool = false
@@ -241,6 +243,28 @@ struct SettingsView: View {
                     SettingsGroup(title: "Lesson Age Indicator", systemImage: "clock.badge.exclamationmark") {
                         LessonAgeSettingsView()
                             .frame(maxWidth: .infinity)
+                    }
+                    
+                    SettingsGroup(title: "Lessons Board", systemImage: "square.grid.3x3") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Hide Lessons Board", isOn: $hideLessonsBoardTab)
+                                .font(.body)
+                            Text("Hides the Lessons Board in Planning. You can re-enable it here at any time.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 4)
+                        }
+                    }
+                    
+                    SettingsGroup(title: "Works Agenda", systemImage: "tray.full") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Hide Works Agenda", isOn: $hideWorksAgendaTab)
+                                .font(.body)
+                            Text("Hides the regular Works Agenda in Planning. Use the beta toggle below to show Works Agenda (Beta).")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 4)
+                        }
                     }
                     
                     // MARK: - Beta Features Section

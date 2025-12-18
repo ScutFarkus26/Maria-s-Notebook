@@ -42,6 +42,7 @@
 		51956F602EEE12230064A2E4 /* WorkDetailVM.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51956F5F2EEE12230064A2E4 /* WorkDetailVM.swift */; };
 		51D091E22EF33D870010E980 /* WorkScheduleDateLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */; };
 		51D091E42EF38CB00010E980 /* WorkAging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D091E32EF38CB00010E980 /* WorkAging.swift */; };
+		51D091E82EF397F10010E980 /* UnplannedStudentsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D091E72EF397F10010E980 /* UnplannedStudentsStrip.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -81,6 +82,7 @@
 		51956F5F2EEE12230064A2E4 /* WorkDetailVM.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkDetailVM.swift; sourceTree = "<group>"; };
 		51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkScheduleDateLogic.swift; sourceTree = "<group>"; };
 		51D091E32EF38CB00010E980 /* WorkAging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAging.swift; sourceTree = "<group>"; };
+		51D091E72EF397F10010E980 /* UnplannedStudentsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnplannedStudentsStrip.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -155,6 +157,7 @@
 				5172DDE62EF3035F00018BE1 /* WorksAgendaView.swift */,
 				51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */,
 				51D091E32EF38CB00010E980 /* WorkAging.swift */,
+				51D091E72EF397F10010E980 /* UnplannedStudentsStrip.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -250,6 +253,7 @@
 				511A5DF32EEE5C260048434D /* CommunityModels.swift in Sources */,
 				51D091E22EF33D870010E980 /* WorkScheduleDateLogic.swift in Sources */,
 				51D091E42EF38CB00010E980 /* WorkAging.swift in Sources */,
+				51D091E82EF397F10010E980 /* UnplannedStudentsStrip.swift in Sources */,
 				511A5DFD2EEE61EC0048434D /* MarkdownExporter.swift in Sources */,
 				5172DDBF2EF0F7AC00018BE1 /* TopicDetailViewModel.swift in Sources */,
 				5172DDE72EF3035F00018BE1 /* WorksAgendaView.swift in Sources */,

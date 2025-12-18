@@ -328,9 +328,11 @@ struct PlanningRootView: View {
         var id: String { rawValue }
     }
 
-    @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
-    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
     @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
+    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
+    @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
+    @AppStorage("hideLessonsBoardTab") private var hideLessonsBoardTab: Bool = false
+    @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -346,8 +348,12 @@ struct PlanningRootView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                            PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
-                            PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            if !hideLessonsBoardTab {
+                                PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
+                            }
+                            if !hideWorksAgendaTab {
+                                PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            }
                             if useEngagementLifecycle && showWorkAgendaBeta {
                                 PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
                             }
@@ -362,8 +368,12 @@ struct PlanningRootView: View {
                         Spacer()
                         HStack(spacing: 12) {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                            PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
-                            PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            if !hideLessonsBoardTab {
+                                PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
+                            }
+                            if !hideWorksAgendaTab {
+                                PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            }
                             if useEngagementLifecycle && showWorkAgendaBeta {
                                 PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
                             }
@@ -379,8 +389,12 @@ struct PlanningRootView: View {
                 Spacer()
                 HStack(spacing: 12) {
                     PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                    PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
-                    PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                    if !hideLessonsBoardTab {
+                        PillNavButton(title: Mode.board.rawValue, isSelected: mode == .board) { modeRaw = Mode.board.rawValue }
+                    }
+                    if !hideWorksAgendaTab {
+                        PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                    }
                     if useEngagementLifecycle && showWorkAgendaBeta {
                         PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
                     }
@@ -400,7 +414,7 @@ struct PlanningRootView: View {
                     PlanningWeekView()
                 } else if mode == .works {
                     WorksPlanningView()
-                } else {
+                } else if mode == .workAgendaBeta {
                     WorkAgendaBetaView()
                 }
             }
@@ -413,6 +427,27 @@ struct PlanningRootView: View {
                 if modeRaw == "Board" {
                     modeRaw = Mode.board.rawValue
                 }
+                if hideWorksAgendaTab && (Mode(rawValue: modeRaw) == .works) {
+                    modeRaw = Mode.agenda.rawValue
+                }
+                if Mode(rawValue: modeRaw) == .workAgendaBeta && (!useEngagementLifecycle || !showWorkAgendaBeta) {
+                    modeRaw = Mode.agenda.rawValue
+                }
+                if hideLessonsBoardTab && Mode(rawValue: modeRaw) == .board {
+                    modeRaw = Mode.agenda.rawValue
+                }
+            }
+            .onChange(of: hideWorksAgendaTab) { _, newValue in
+                if newValue && mode == .works { modeRaw = Mode.agenda.rawValue }
+            }
+            .onChange(of: showWorkAgendaBeta) { _, newValue in
+                if !newValue && mode == .workAgendaBeta { modeRaw = Mode.agenda.rawValue }
+            }
+            .onChange(of: useEngagementLifecycle) { _, newValue in
+                if !newValue && mode == .workAgendaBeta { modeRaw = Mode.agenda.rawValue }
+            }
+            .onChange(of: hideLessonsBoardTab) { _, newValue in
+                if newValue && mode == .board { modeRaw = Mode.agenda.rawValue }
             }
         }
     }
