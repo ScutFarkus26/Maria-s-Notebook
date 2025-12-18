@@ -43,6 +43,7 @@
 		51D091E22EF33D870010E980 /* WorkScheduleDateLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */; };
 		51D091E42EF38CB00010E980 /* WorkAging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D091E32EF38CB00010E980 /* WorkAging.swift */; };
 		51D091E82EF397F10010E980 /* UnplannedStudentsStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D091E72EF397F10010E980 /* UnplannedStudentsStrip.swift */; };
+		51D091EC2EF3A8CD0010E980 /* LessonsAgendaBetaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D091EB2EF3A8CD0010E980 /* LessonsAgendaBetaView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -83,6 +84,7 @@
 		51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkScheduleDateLogic.swift; sourceTree = "<group>"; };
 		51D091E32EF38CB00010E980 /* WorkAging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAging.swift; sourceTree = "<group>"; };
 		51D091E72EF397F10010E980 /* UnplannedStudentsStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnplannedStudentsStrip.swift; sourceTree = "<group>"; };
+		51D091EB2EF3A8CD0010E980 /* LessonsAgendaBetaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonsAgendaBetaView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -158,6 +160,7 @@
 				51D091E12EF33D870010E980 /* WorkScheduleDateLogic.swift */,
 				51D091E32EF38CB00010E980 /* WorkAging.swift */,
 				51D091E72EF397F10010E980 /* UnplannedStudentsStrip.swift */,
+				51D091EB2EF3A8CD0010E980 /* LessonsAgendaBetaView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -251,6 +254,7 @@
 				511A5DF52EEE5C3A0048434D /* CommunityMeetingsView.swift in Sources */,
 				511A5DFF2EEE61F50048434D /* TopicDetailView.swift in Sources */,
 				511A5DF32EEE5C260048434D /* CommunityModels.swift in Sources */,
+				51D091EC2EF3A8CD0010E980 /* LessonsAgendaBetaView.swift in Sources */,
 				51D091E22EF33D870010E980 /* WorkScheduleDateLogic.swift in Sources */,
 				51D091E42EF38CB00010E980 /* WorkAging.swift in Sources */,
 				51D091E82EF397F10010E980 /* UnplannedStudentsStrip.swift in Sources */,

@@ -19,6 +19,7 @@ struct StudentLessonPill: View {
     var day: Date? = nil
     var sourceStudentLessonID: UUID? = nil
     var targetStudentLessonID: UUID? = nil
+    var showTimeBadge: Bool = true
 
     @State private var showTimeEditor: Bool = false
     @State private var isValidDragTarget: Bool = false
@@ -167,29 +168,31 @@ struct StudentLessonPill: View {
             .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
             .overlay(Capsule().stroke(Color.accentColor.opacity(isValidDragTarget ? 0.45 : 0.0), lineWidth: 2))
             .overlay(alignment: .trailing) {
-                HStack(spacing: 6) {
-                    if let scheduled = scheduledDate {
-                        CanonicalPillButton(
-                            isSelected: false,
-                            contentFont: .system(.caption2, design: .rounded),
-                            horizontalPadding: 6,
-                            verticalPadding: 3
-                        ) {
-                            showTimeEditor = true
-                        } content: {
-                            Text(Self.timeOnlyFormatter.string(from: scheduled))
+                if showTimeBadge {
+                    HStack(spacing: 6) {
+                        if let scheduled = scheduledDate {
+                            CanonicalPillButton(
+                                isSelected: false,
+                                contentFont: .system(.caption2, design: .rounded),
+                                horizontalPadding: 6,
+                                verticalPadding: 3
+                            ) {
+                                showTimeEditor = true
+                            } content: {
+                                Text(Self.timeOnlyFormatter.string(from: scheduled))
+                            }
+                            #if os(macOS)
+                            .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
+                                DatePicker("Time", selection: Binding(get: {
+                                    scheduledDate ?? Date()
+                                }, set: { newValue in
+                                    setTime(newValue)
+                                }), displayedComponents: [.hourAndMinute])
+                                .datePickerStyle(.field)
+                                .padding()
+                            }
+                            #endif
                         }
-                        #if os(macOS)
-                        .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
-                            DatePicker("Time", selection: Binding(get: {
-                                scheduledDate ?? Date()
-                            }, set: { newValue in
-                                setTime(newValue)
-                            }), displayedComponents: [.hourAndMinute])
-                            .datePickerStyle(.field)
-                            .padding()
-                        }
-                        #endif
                     }
                 }
             }

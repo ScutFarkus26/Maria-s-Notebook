@@ -322,6 +322,7 @@ struct PlanningRootView: View {
     // MARK: - Mode
     enum Mode: String, CaseIterable, Identifiable {
         case agenda = "Lessons Agenda"
+        case agendaBeta = "Lessons Agenda (Beta)"
         case board = "Lessons Board"
         case works = "Works Agenda"
         case workAgendaBeta = "Work Agenda (Beta)"
@@ -332,6 +333,7 @@ struct PlanningRootView: View {
     @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
     @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
     @AppStorage("hideLessonsBoardTab") private var hideLessonsBoardTab: Bool = false
+    @AppStorage("useLessonsAgendaBeta") private var useLessonsAgendaBeta: Bool = false
     @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -409,7 +411,11 @@ struct PlanningRootView: View {
 
             Group {
                 if mode == .agenda {
-                    PlanningAgendaView()
+                    if useLessonsAgendaBeta {
+                        LessonsAgendaBetaView()
+                    } else {
+                        PlanningAgendaView()
+                    }
                 } else if mode == .board {
                     PlanningWeekView()
                 } else if mode == .works {
@@ -426,6 +432,9 @@ struct PlanningRootView: View {
                 }
                 if modeRaw == "Board" {
                     modeRaw = Mode.board.rawValue
+                }
+                if modeRaw == Mode.agendaBeta.rawValue {
+                    modeRaw = Mode.agenda.rawValue
                 }
                 if hideWorksAgendaTab && (Mode(rawValue: modeRaw) == .works) {
                     modeRaw = Mode.agenda.rawValue

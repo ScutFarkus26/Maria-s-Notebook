@@ -191,25 +191,27 @@ struct OpenWorkGrid: View {
     ctx.insert(s); ctx.insert(l)
     let c1 = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .active)
     let c2 = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .review)
-    return OpenWorkGrid(
-        works: [c1, c2],
-        lessonsByID: [l.id: l],
-        studentsByID: [s.id: s],
-        sortMode: .lesson,
-        onOpen: { _ in },
-        onMarkCompleted: { _ in },
-        onScheduleToday: { _ in }
-    )
-    .previewEnvironment(using: container)
-    WorkCardView(
-        contract: WorkContract(studentID: UUID().uuidString, lessonID: UUID().uuidString, presentationID: nil, status: .active),
-        lessonTitle: "Long Division",
-        studentDisplay: "Ada Lovelace",
-        needsAttention: true,
-        metadata: "7d • Practice",
-        ageSchoolDays: 7,
-        onOpen: { _ in },
-        onMarkCompleted: { _ in },
-        onScheduleToday: { _ in }
-    )
+    return Group {
+        OpenWorkGrid(
+            works: [c1, c2],
+            lessonsByID: [l.id: l],
+            studentsByID: [s.id: s],
+            sortMode: .lesson,
+            onOpen: { _ in },
+            onMarkCompleted: { _ in },
+            onScheduleToday: { _ in }
+        )
+        .previewEnvironment(using: container)
+        WorkCardView(
+            contract: WorkContract(studentID: UUID().uuidString, lessonID: UUID().uuidString, presentationID: nil, status: .active),
+            lessonTitle: "Long Division",
+            studentDisplay: "Ada Lovelace",
+            needsAttention: true,
+            metadata: "7d • Practice",
+            ageSchoolDays: 7,
+            onOpen: { _ in },
+            onMarkCompleted: { _ in },
+            onScheduleToday: { _ in }
+        )
+    }
 }
