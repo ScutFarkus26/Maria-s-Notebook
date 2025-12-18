@@ -3,6 +3,8 @@
 
 import SwiftUI
 import SwiftData
+import Combine
+// Uses StudentChecklistViewModel
 
 /// Detail sheet for a single student, with Overview, Checklist, History, Meetings, and Notes tabs.
 /// This refactor adds comments, MARKs, and tiny local naming cleanups without altering behavior.
@@ -18,6 +20,7 @@ struct StudentDetailView: View {
 
     // MARK: - State
     @StateObject private var vm: StudentDetailViewModel
+    @StateObject private var checklistVM: StudentChecklistViewModel
 
     @State private var isEditing = false
     @State private var draftFirstName = ""
@@ -28,6 +31,8 @@ struct StudentDetailView: View {
     @State private var showDeleteAlert = false
     private enum StudentDetailTab { case overview, checklist, history, meetings, notes }
     @State private var selectedTab: StudentDetailTab = .overview
+
+    @State private var selectedContract: WorkContract? = nil
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -572,20 +577,41 @@ struct StudentDetailView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
+        .sheet(item: $selectedContract) { contract in
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Work Contract")
+                    .font(.headline)
+                Text("Lesson: \(lessonsByID[UUID(uuidString: contract.lessonID) ?? UUID()]?.name ?? "Lesson")")
+                Text("Status: \(contract.status.rawValue.capitalized)")
+                if let date = contract.completedAt { Text("Completed: \(date, style: .date)") }
+                HStack {
+                    Spacer()
+                    Button("Close") { selectedContract = nil }
+                }
+            }
+            .padding()
+        #if os(macOS)
+            .frame(minWidth: 420)
+        #endif
+        }
         .onAppear {
             WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
         }
         .onChange(of: lessonIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
         }
         .onChange(of: studentLessonIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            checklistVM.recompute(for: lessons, using: modelContext)
         }
         .onChange(of: workModelIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            checklistVM.recompute(for: lessons, using: modelContext)
         }
     }
 
@@ -615,6 +641,7 @@ struct StudentDetailView: View {
         self.student = student
         self.onDone = onDone
         _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
+        _checklistVM = StateObject(wrappedValue: StudentChecklistViewModel(studentID: student.id))
     }
 
     // MARK: - Reintroduced helpers (Phase 5 safety)
@@ -729,20 +756,48 @@ struct StudentDetailView: View {
             subject: subject,
             orderedGroups: groups,
             lessons: lessons,
-            masteredLessonIDs: masteredLessonIDs,
-            pendingWorkLessonIDs: pendingWorkLessonIDs,
-            plannedLessonIDs: plannedLessonIDs,
-            practiceLessonIDs: practiceLessonIDs,
-            pendingPracticeLessonIDs: pendingPracticeLessonIDs,
-            followUpLessonIDs: followUpLessonIDs,
-            pendingFollowUpLessonIDs: pendingFollowUpLessonIDs,
-            onTogglePresented: { vm.togglePresented(for: $0, modelContext: modelContext) },
-            onOpenMastered: { vm.openMastered(for: $0, modelContext: modelContext) },
-            onOpenPlan: { vm.openPlan(for: $0, modelContext: modelContext) },
-            onTogglePractice: { vm.toggleWork(for: $0, type: .practice, modelContext: modelContext) },
-            onOpenPractice: { vm.openWork(for: $0, type: .practice, modelContext: modelContext) },
-            onToggleFollowUp: { vm.toggleWork(for: $0, type: .followUp, modelContext: modelContext) },
-            onOpenFollowUp: { vm.openWork(for: $0, type: .followUp, modelContext: modelContext) }
+            rowStatesByLesson: checklistVM.rowStatesByLesson,
+            onTapScheduled: { lesson, row in
+                if let pid = row?.plannedItemID, let sl = studentLessonsRaw.first(where: { $0.id == pid }) {
+                    vm.selectedStudentLessonForDetail = sl
+                } else {
+                    let draft = createOrReuseNonGivenStudentLesson(for: lesson)
+                    vm.selectedStudentLessonForDetail = draft
+                    checklistVM.recompute(for: lessons, using: modelContext)
+                }
+            },
+            onTapPresented: { lesson, row in
+                if let presID = row?.presentationLogID, let sl = studentLessonsRaw.first(where: { $0.id == presID }) {
+                    vm.selectedStudentLessonForDetail = sl
+                } else {
+                    let sl = logPresentation(for: lesson)
+                    _ = ensureContract(for: lesson, presentationStudentLesson: sl)
+                }
+            },
+            onTapActive: { lesson, row in
+                if let cid = row?.contractID, let c = fetchContract(by: cid) {
+                    selectedContract = c
+                } else if (row?.isPresented ?? false) {
+                    if let c = ensureContract(for: lesson, presentationStudentLesson: nil) {
+                        selectedContract = c
+                    }
+                }
+            },
+            onTapComplete: { lesson, row in
+                if let cid = row?.contractID, let c = fetchContract(by: cid), c.status != .complete {
+                    c.status = .complete
+                    c.completedAt = AppCalendar.startOfDay(Date())
+                    _ = saveCoordinator.save(modelContext, reason: "Complete contract from checklist")
+                    checklistVM.recompute(for: lessons, using: modelContext)
+                } else if (row?.isPresented ?? false) && row?.contractID == nil {
+                    if let c = ensureContract(for: lesson, presentationStudentLesson: nil) {
+                        c.status = .complete
+                        c.completedAt = AppCalendar.startOfDay(Date())
+                        _ = saveCoordinator.save(modelContext, reason: "Create-and-complete contract from checklist")
+                        checklistVM.recompute(for: lessons, using: modelContext)
+                    }
+                }
+            }
         )
     }
 
@@ -770,6 +825,86 @@ struct StudentDetailView: View {
         modelContext.insert(newSL)
         _ = saveCoordinator.save(modelContext, reason: "Create draft student lesson")
         return newSL
+    }
+
+    private func createOrReuseNonGivenStudentLesson(for lesson: Lesson) -> StudentLesson {
+        if let existing = studentLessonsRaw.first(where: { $0.resolvedLessonID == lesson.id && !$0.isGiven && Set($0.resolvedStudentIDs) == Set([student.id]) }) {
+            return existing
+        }
+        let newSL = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: [student.id],
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: nil,
+            isPresented: false,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newSL.students = [student]
+        newSL.lesson = lesson
+        modelContext.insert(newSL)
+        _ = saveCoordinator.save(modelContext, reason: "Create or reuse non-given student lesson")
+        return newSL
+    }
+
+    private func logPresentation(for lesson: Lesson) -> StudentLesson {
+        let newSL = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: [student.id],
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: Date(),
+            isPresented: true,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newSL.students = [student]
+        newSL.lesson = lesson
+        modelContext.insert(newSL)
+        _ = saveCoordinator.save(modelContext, reason: "Log presentation student lesson")
+        return newSL
+    }
+
+    private func ensureContract(for lesson: Lesson, presentationStudentLesson: StudentLesson?) -> WorkContract? {
+        let sid = student.id.uuidString
+        let lid = lesson.id.uuidString
+        let activeRaw = WorkStatus.active.rawValue
+        let reviewRaw = WorkStatus.review.rawValue
+        let predicate = #Predicate<WorkContract> { contract in
+            contract.studentID == sid &&
+            contract.lessonID == lid &&
+            (contract.statusRaw == activeRaw || contract.statusRaw == reviewRaw)
+        }
+        let descriptor = FetchDescriptor<WorkContract>(predicate: predicate)
+        if let existing = (try? modelContext.fetch(descriptor))?.first {
+            return existing
+        }
+        let newContract = WorkContract(
+            id: UUID(),
+            createdAt: Date(),
+            studentID: student.id.uuidString,
+            lessonID: lesson.id.uuidString,
+            presentationID: presentationStudentLesson?.id.uuidString,
+            status: .active,
+            scheduledDate: nil,
+            completedAt: nil,
+            legacyStudentLessonID: nil
+        )
+        modelContext.insert(newContract)
+        _ = saveCoordinator.save(modelContext, reason: "Create new work contract")
+        return newContract
+    }
+
+    private func fetchContract(by id: UUID) -> WorkContract? {
+        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == id })
+        return (try? modelContext.fetch(descriptor))?.first
     }
 
     private static let birthdayFormatter: DateFormatter = {

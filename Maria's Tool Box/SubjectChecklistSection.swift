@@ -5,23 +5,12 @@ struct SubjectChecklistSection: View {
     let orderedGroups: [String]
     let lessons: [Lesson]
 
-    // Derived state
-    let masteredLessonIDs: Set<UUID>
-    let pendingWorkLessonIDs: Set<UUID>
-    let plannedLessonIDs: Set<UUID>
-    let practiceLessonIDs: Set<UUID>
-    let pendingPracticeLessonIDs: Set<UUID>
-    let followUpLessonIDs: Set<UUID>
-    let pendingFollowUpLessonIDs: Set<UUID>
+    let rowStatesByLesson: [UUID: StudentChecklistRowState]
 
-    // Actions
-    let onTogglePresented: (Lesson) -> Void
-    let onOpenMastered: (Lesson) -> Void
-    let onOpenPlan: (Lesson) -> Void
-    let onTogglePractice: (Lesson) -> Void
-    let onOpenPractice: (Lesson) -> Void
-    let onToggleFollowUp: (Lesson) -> Void
-    let onOpenFollowUp: (Lesson) -> Void
+    let onTapScheduled: (Lesson, StudentChecklistRowState?) -> Void
+    let onTapPresented: (Lesson, StudentChecklistRowState?) -> Void
+    let onTapActive: (Lesson, StudentChecklistRowState?) -> Void
+    let onTapComplete: (Lesson, StudentChecklistRowState?) -> Void
 
     private func lessonsIn(group: String) -> [Lesson] {
         let sub = subject.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -70,13 +59,20 @@ struct SubjectChecklistSection: View {
                                 }
                                 VStack(spacing: 8) {
                                     ForEach(items, id: \.id) { lesson in
-                                        let wasPresented = masteredLessonIDs.contains(lesson.id)
-                                        let hasPending = pendingWorkLessonIDs.contains(lesson.id)
-                                        let isPlanned = plannedLessonIDs.contains(lesson.id)
+                                        let row = rowStatesByLesson[lesson.id]
+                                        let isScheduled = row?.isScheduled ?? false
+                                        let isPresented = row?.isPresented ?? false
+                                        let isActive = row?.isActive ?? false
+                                        let isComplete = row?.isComplete ?? false
+                                        let isStale = (row?.isStale ?? false) && !isComplete
 
                                         HStack(spacing: 12) {
-                                            LifecycleIndicatorView(wasPresented: wasPresented, hasPending: hasPending, isPlanned: isPlanned)
-                                                .frame(width: 22, height: 22)
+                                            LifecycleIndicatorView(
+                                                wasPresented: isPresented,
+                                                hasPending: (isActive && !isComplete),
+                                                isPlanned: isScheduled
+                                            )
+                                            .frame(width: 22, height: 22)
 
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(lesson.name)
@@ -91,71 +87,59 @@ struct SubjectChecklistSection: View {
                                             Spacer(minLength: 0)
 
                                             HStack(spacing: 10) {
-                                                Button { onOpenPlan(lesson) } label: {
+                                                Button {
+                                                    onTapScheduled(lesson, row)
+                                                } label: {
                                                     Image(systemName: "calendar.badge.plus")
-                                                        .foregroundStyle(isPlanned ? Color.green : Color.secondary)
+                                                        .foregroundStyle(isScheduled ? Color.green : Color.secondary)
                                                         .frame(width: 22, height: 22)
                                                 }
                                                 .buttonStyle(.plain)
-                                                .help(isPlanned ? "Planned — open Student Lesson to adjust schedule" : "Plan/Schedule this lesson")
+                                                .help(isScheduled ? "Planned — open Student Lesson to adjust schedule" : "Plan/Schedule this lesson")
 
-                                                Button { onTogglePresented(lesson) } label: {
+                                                Button {
+                                                    onTapPresented(lesson, row)
+                                                } label: {
                                                     ZStack {
-                                                        if !wasPresented && isPlanned {
+                                                        if !isPresented && isScheduled {
                                                             Circle()
                                                                 .stroke(Color.green, lineWidth: 1)
                                                         }
                                                         Image(systemName: "checkmark")
-                                                            .foregroundStyle(wasPresented ? Color.green : Color.secondary)
+                                                            .foregroundStyle(isPresented ? Color.green : Color.secondary)
                                                     }
                                                     .frame(width: 22, height: 22)
                                                 }
                                                 .buttonStyle(.plain)
-                                                .contextMenu {
-                                                    Button("Open Presentation Details…") { onOpenMastered(lesson) }
-                                                    Button("Plan Presentation…") { onOpenPlan(lesson) }
-                                                }
-                                                .help(isPlanned ? "Planned — tap to mark presented or open details" : (wasPresented ? "Presented — tap to review or unmark" : "Mark as presented"))
+                                                .help(isScheduled ? "Planned — tap to mark presented or open details" : (isPresented ? "Presented — tap to review or unmark" : "Mark as presented"))
 
-                                                Button { onTogglePractice(lesson) } label: {
-                                                    let hasPractice = practiceLessonIDs.contains(lesson.id)
-                                                    let isPendingPractice = pendingPracticeLessonIDs.contains(lesson.id)
-                                                    ZStack {
-                                                        if hasPractice && isPendingPractice {
-                                                            Circle()
-                                                                .stroke(Color.purple, lineWidth: 2)
-                                                                .frame(width: 18, height: 18)
+                                                Button {
+                                                    onTapActive(lesson, row)
+                                                } label: {
+                                                    Image(systemName: "hammer")
+                                                        .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+                                                        .frame(width: 22, height: 22)
+                                                        .overlay {
+                                                            if isActive && isStale {
+                                                                Circle()
+                                                                    .fill(Color.orange)
+                                                                    .frame(width: 6, height: 6)
+                                                                    .offset(x: 8, y: -8)
+                                                            }
                                                         }
-                                                        Image(systemName: "arrow.triangle.2.circlepath")
-                                                            .foregroundStyle(hasPractice && !isPendingPractice ? Color.purple : Color.secondary)
-                                                    }
-                                                    .frame(width: 22, height: 22)
                                                 }
                                                 .buttonStyle(.plain)
-                                                .contextMenu {
-                                                    Button("Open Practice Work…") { onOpenPractice(lesson) }
-                                                }
-                                                .help(!practiceLessonIDs.contains(lesson.id) ? "Add practice work" : (pendingPracticeLessonIDs.contains(lesson.id) ? "Practice pending — tap to mark complete or open work" : "Practice completed — tap to toggle or open work"))
+                                                .help(!isActive ? "No active work" : (isStale ? "Active but stale — tap to update" : "Active work"))
 
-                                                Button { onToggleFollowUp(lesson) } label: {
-                                                    let hasFollowUp = followUpLessonIDs.contains(lesson.id)
-                                                    let isPendingFollowUp = pendingFollowUpLessonIDs.contains(lesson.id)
-                                                    ZStack {
-                                                        if hasFollowUp && isPendingFollowUp {
-                                                            Circle()
-                                                                .stroke(Color.orange, lineWidth: 2)
-                                                                .frame(width: 18, height: 18)
-                                                        }
-                                                        Image(systemName: "bolt.fill")
-                                                            .foregroundStyle(hasFollowUp && !isPendingFollowUp ? Color.orange : Color.secondary)
-                                                    }
-                                                    .frame(width: 22, height: 22)
+                                                Button {
+                                                    onTapComplete(lesson, row)
+                                                } label: {
+                                                    Image(systemName: "checkmark.circle")
+                                                        .foregroundStyle(isComplete ? Color.green : Color.secondary)
+                                                        .frame(width: 22, height: 22)
                                                 }
                                                 .buttonStyle(.plain)
-                                                .contextMenu {
-                                                    Button("Open Follow Up Work…") { onOpenFollowUp(lesson) }
-                                                }
-                                                .help(!followUpLessonIDs.contains(lesson.id) ? "Add follow-up work" : (pendingFollowUpLessonIDs.contains(lesson.id) ? "Follow-up pending — tap to mark complete or open work" : "Follow-up completed — tap to toggle or open work"))
+                                                .help(isComplete ? "Completed — tap to toggle" : "Mark as complete")
                                             }
                                             .frame(minWidth: 0)
                                         }
