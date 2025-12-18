@@ -11,6 +11,10 @@ struct OpenWorkGrid: View {
     let onMarkCompleted: (WorkContract) -> Void
     let onScheduleToday: (WorkContract) -> Void
 
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendar) private var calendar
+    @Query private var planItems: [WorkPlanItem]
+
     // MARK: - Layout
     // Choose 1 or 2 columns based on available width; never create 3+
     private func columns(for width: CGFloat) -> [GridItem] {
@@ -24,12 +28,15 @@ struct OpenWorkGrid: View {
                     ForEach(groupedSections, id: \.key) { section in
                         Section(header: groupHeader(title: section.key, count: section.items.count)) {
                             ForEach(section.items, id: \.id) { item in
+                                let lastTouch = WorkContractAging.lastMeaningfulTouchDate(for: item.contract, planItems: planItems, notes: nil, presentation: nil)
+                                let ageSchoolDays = LessonAgeHelper.schoolDaysSinceCreation(createdAt: lastTouch, asOf: Date(), using: modelContext, calendar: calendar)
                                 WorkCardView(
                                     contract: item.contract,
                                     lessonTitle: item.title,
                                     studentDisplay: item.student,
                                     needsAttention: item.needsAttention,
                                     metadata: item.metadata,
+                                    ageSchoolDays: ageSchoolDays,
                                     onOpen: onOpen,
                                     onMarkCompleted: onMarkCompleted,
                                     onScheduleToday: onScheduleToday
@@ -194,4 +201,15 @@ struct OpenWorkGrid: View {
         onScheduleToday: { _ in }
     )
     .previewEnvironment(using: container)
+    WorkCardView(
+        contract: WorkContract(studentID: UUID().uuidString, lessonID: UUID().uuidString, presentationID: nil, status: .active),
+        lessonTitle: "Long Division",
+        studentDisplay: "Ada Lovelace",
+        needsAttention: true,
+        metadata: "7d • Practice",
+        ageSchoolDays: 7,
+        onOpen: { _ in },
+        onMarkCompleted: { _ in },
+        onScheduleToday: { _ in }
+    )
 }
