@@ -115,6 +115,17 @@ struct WorkAgendaCalendarPane: View {
         return "Work"
     }
 
+    private func studentName(for id: UUID) -> String {
+        let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
+        if let c = try? modelContext.fetch(fetch).first, let sid = UUID(uuidString: c.studentID) {
+            let sFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == sid })
+            if let s = try? modelContext.fetch(sFetch).first {
+                return StudentFormatter.displayName(for: s)
+            }
+        }
+        return ""
+    }
+
     private func reasonLabel(_ reason: WorkPlanItem.Reason) -> String {
         switch reason {
         case .progressCheck:
@@ -128,17 +139,37 @@ struct WorkAgendaCalendarPane: View {
 
     private func pill(_ item: WorkPlanItem) -> some View {
         let title = workTitle(for: item.workID)
-        return HStack(spacing: 6) {
-            if let r = item.reason { Image(systemName: r.icon).foregroundStyle(.secondary) }
-            Text(title)
-                .font(.callout)
-                .foregroundStyle(.primary)
-            if let r = item.reason { Text(reasonLabel(r)).font(.caption2).foregroundStyle(.secondary) }
-            Spacer(minLength: 0)
+        let name = studentName(for: item.workID)
+        let reasonText = item.reason.map { reasonLabel($0) } ?? nil
+        return VStack(alignment: .leading, spacing: 4) {
+            // Top row: Name first, then lesson title
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(name)
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+                Text(title)
+                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            // Second row: kind/reason (e.g., Check-In, Due)
+            if let rt = reasonText {
+                HStack(spacing: 6) {
+                    if let r = item.reason { Image(systemName: r.icon).foregroundStyle(.secondary) }
+                    Text(rt)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture { openDetail(workID: item.workID) }
         .contextMenu {

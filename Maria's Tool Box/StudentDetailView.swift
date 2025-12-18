@@ -860,7 +860,7 @@ struct StudentDetailView: View {
             studentIDs: [student.id],
             createdAt: Date(),
             scheduledFor: nil,
-            givenAt: Date(),
+            givenAt: nil,
             isPresented: true,
             notes: "",
             needsPractice: false,

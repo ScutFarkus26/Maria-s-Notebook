@@ -104,7 +104,7 @@ struct WorkDetailView: View {
 
     private var sourceLessonPresentedDate: Date? {
         if let sl = linkedStudentLesson {
-            return sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+            return sl.givenAt
         }
         return nil
     }

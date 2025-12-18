@@ -31,6 +31,14 @@ struct WorkCardView: View {
         }
     }
 
+    private var kindText: String {
+        switch contract.status {
+        case .active: return "Practice"
+        case .review: return "Follow-Up"
+        case .complete: return "Completed"
+        }
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             Rectangle()
@@ -56,13 +64,24 @@ struct WorkCardView: View {
                                 .accessibilityLabel("Needs Attention")
                         }
                     }
-                    Text(studentDisplay)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Text(metadata)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Text(studentDisplay)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(kindText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("\(ageSchoolDays)d")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
             }
@@ -105,3 +124,4 @@ struct WorkCardView: View {
     )
     .padding()
 }
+

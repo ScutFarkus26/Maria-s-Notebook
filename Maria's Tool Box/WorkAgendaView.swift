@@ -238,14 +238,22 @@ private struct WorkContractPill: View {
                     .frame(width: 6, height: 6)
                     .padding(.top, 3)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(lessonTitle)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .lineLimit(nil)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(studentName)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(lessonTitle)
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(studentName)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.primary.opacity(0.06)))
+                            .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                            .lineLimit(1)
+                    }
                 }
 
                 Spacer(minLength: 0)
