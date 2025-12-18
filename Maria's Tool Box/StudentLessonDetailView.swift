@@ -39,22 +39,12 @@ struct StudentLessonDetailView: View {
     @State private var showingStudentPickerPopover = false
     @State private var showDeleteAlert: Bool = false
 
-    @State private var didPlanNext: Bool = false
-    @State private var showPlannedBanner: Bool = false
     @State private var showingMoveStudentsSheet = false
     @State private var studentsToMove: Set<UUID> = []
     @State private var showMovedBanner: Bool = false
     @State private var movedStudentNames: [String] = []
 
-    @State private var showPresentedPopover: Bool = false
-    @State private var presentedDate: Date = Date()
-    @State private var showRePresentPopover: Bool = false
-    @State private var rePresentDate: Date = Date()
-    @State private var showQuickBanner: Bool = false
-    @State private var quickBannerText: String = ""
-    @State private var quickBannerColor: Color = .green
     @State private var showLessonPicker: Bool = false
-
     @StateObject private var vm = StudentLessonDetailActions()
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
@@ -98,7 +88,7 @@ struct StudentLessonDetailView: View {
         guard let current = lessonObject else { return nil }
         return vm.nextLessonInGroup(from: current, lessons: lessons)
     }
-    
+
     private func resolveLessonPagesURL() -> URL? {
         guard let lesson = lessonObject else { return nil }
         // Prefer relative path inside managed container
@@ -137,283 +127,10 @@ struct StudentLessonDetailView: View {
 #endif
     }
 
-    private func planNextLessonInGroup() {
-        guard let next = nextLessonInGroup else { return }
-        let didCreate = vm.planNextLessonInGroup(
-            next: next,
-            selectedStudentIDs: selectedStudentIDs,
-            studentsAll: studentsAll,
-            lessons: lessons,
-            studentLessonsAll: studentLessonsAll,
-            context: modelContext
-        )
-        if didCreate {
-            didPlanNext = true
-            showPlannedBanner = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { showPlannedBanner = false }
-        }
-    }
-    
-    private func moveStudentsToInbox() {
-        guard !studentsToMove.isEmpty, let currentLesson = lessonObject else { return }
-        movedStudentNames = vm.moveStudentsToInbox(
-            currentLesson: currentLesson,
-            studentsToMove: studentsToMove,
-            studentsAll: studentsAll,
-            studentLessonsAll: studentLessonsAll,
-            context: modelContext
-        )
-        selectedStudentIDs.subtract(studentsToMove)
-        studentsToMove.removeAll()
-        showMovedBanner = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { showMovedBanner = false }
-    }
-
     private var selectedStudentsList: [Student] {
         studentsAll
             .filter { selectedStudentIDs.contains($0.id) }
             .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
-    }
-    
-    // Added as per instruction 1
-    private var openLinkedWorks: [WorkModel] {
-        workModels.filter { w in
-            w.studentLessonID == studentLesson.id &&
-            (w.workType == .practice || w.workType == .followUp) &&
-            w.isOpen
-        }
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // 1. Lesson Title & Tags Header
-                    lessonHeaderSection
-                        .padding(.horizontal, 32)
-                        .padding(.top, 32)
-                    
-                    // 2. Conditional Lesson Picker (only when not selected or user wants to change)
-                    if lessonObject == nil || showLessonPicker {
-                        lessonPickerSection
-                            .padding(.horizontal, 32)
-                            .padding(.top, 16)
-                    } else {
-                        // Use ChangeLessonControl instead of manual "Change Lesson" button
-                        ChangeLessonControl(showLessonPicker: $showLessonPicker)
-                            .padding(.horizontal, 32)
-                            .padding(.top, 8)
-                    }
-                    
-                    // 3. Student Pills Block
-                    studentPillsSection
-                        .padding(.horizontal, 32)
-                        .padding(.top, 20)
-                    
-                    Divider()
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 20)
-                    
-                    // 4. Inbox/Scheduling Status Row
-                    inboxStatusSection
-                        .padding(.horizontal, 32)
-                    
-                    Divider()
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 20)
-                    
-                    // 5. Lesson Progress Section
-                    lessonProgressSection
-                        .padding(.horizontal, 32)
-
-                    // 6. Linked Work Section
-                    linkedWorkSection
-                        .padding(.horizontal, 32)
-                        .padding(.top, 24)
-
-                    // 7. Notes Section
-                    notesSection
-                        .padding(.horizontal, 32)
-                        .padding(.top, 24)
-                        .padding(.bottom, 32)
-                }
-            }
-        }
-        .frame(minWidth: 720, minHeight: 640)
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
-                Divider()
-                HStack {
-                    Button(role: .destructive) {
-                        showDeleteAlert = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-
-                    Spacer()
-
-                    Button("Cancel") {
-                        if let onDone {
-                            onDone()
-                        } else {
-                            dismiss()
-                        }
-                    }
-
-                    Button("Save") {
-                        save()
-                    }
-                    .bold()
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.bar)
-            }
-        }
-        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
-            Button("Delete", role: .destructive) {
-                delete()
-            }
-            Button("Cancel", role: .cancel) {}
-        }
-        .sheet(isPresented: $showingAddStudentSheet) {
-            AddStudentView()
-        }
-        .overlay(alignment: .top) {
-            Group {
-                if showPlannedBanner {
-                    PlannedLessonBanner()
-                } else if showMovedBanner {
-                    MovedStudentsBanner(studentNames: movedStudentNames)
-                } else if showQuickBanner {
-                    QuickBannerView(text: quickBannerText, color: quickBannerColor)
-                }
-            }
-            .allowsHitTesting(false)
-        }
-        .sheet(isPresented: $showingMoveStudentsSheet) {
-            MoveStudentsSheet(
-                lessonName: lessonName,
-                students: selectedStudentsList,
-                studentsToMove: $studentsToMove,
-                selectedStudentIDs: selectedStudentIDs,
-                onMove: {
-                    moveStudentsToInbox()
-                    showingMoveStudentsSheet = false
-                },
-                onCancel: {
-                    studentsToMove = []
-                    showingMoveStudentsSheet = false
-                }
-            )
-            #if os(macOS)
-            .frame(minWidth: 420, minHeight: 520)
-            .presentationSizing(.fitted)
-            #endif
-        }
-        .sheet(isPresented: $showFollowUpSheet) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("New Follow-Up")
-                    .font(.headline)
-                TextField("Describe follow-up work…", text: $followUpDraft, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...4)
-                HStack {
-                    Spacer()
-                    Button("Cancel") { showFollowUpSheet = false }
-                    Button("Add") {
-                        let trimmed = followUpDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !trimmed.isEmpty {
-                            // Create follow-up work linked to this student lesson
-                            let work = WorkModel(
-                                id: UUID(),
-                                title: "Follow Up: \(lessonObject?.name ?? "Lesson")",
-                                workType: .followUp,
-                                studentLessonID: studentLesson.id,
-                                notes: trimmed,
-                                createdAt: Date()
-                            )
-                            work.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: work) }
-                            modelContext.insert(work)
-                            try? modelContext.save()
-                        }
-                        showFollowUpSheet = false
-                        showBanner(text: "Follow-up added", color: .yellow)
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-            .padding(16)
-            #if os(macOS)
-            .frame(minWidth: 420)
-            .presentationSizing(.fitted)
-            #endif
-        }
-        .onAppear {
-            presentedDate = calendar.startOfDay(for: givenAt ?? Date())
-            rePresentDate = defaultRePresentDate()
-            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
-            lessonPickerVM.selectLesson(studentLesson.lessonID)
-            if autoFocusLessonPicker { lessonPickerFocused = true }
-        }
-        .onChange(of: lessons.map { $0.id }) { _, _ in
-            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
-        }
-        .onChange(of: lessonPickerVM.selectedLessonID) { _, newValue in
-            if let newID = newValue {
-                // Just update local state, don't save to model
-                editingLessonID = newID
-                
-                // Hide the lesson picker after selection
-                showLessonPicker = false
-            }
-        }
-        .onChange(of: showingStudentPickerPopover) { _, isShowing in
-            // Don't let student picker affect lesson picker state
-            if !isShowing && lessonPickerFocused {
-                lessonPickerFocused = false
-            }
-        }
-        .onChange(of: needsAnotherPresentation) { _, newValue in
-            // If toggled on and user doesn't schedule, create an unscheduled re-present entry if it doesn't exist
-            if newValue {
-                let sameStudents = Set(selectedStudentIDs)
-                let exists = studentLessonsAll.contains { sl in
-                    sl.resolvedLessonID == editingLessonID && sl.scheduledFor == nil && !sl.isGiven && Set(sl.resolvedStudentIDs) == sameStudents
-                }
-                if !exists {
-                    let newStudentLesson = StudentLesson(
-                        id: UUID(),
-                        lessonID: editingLessonID,
-                        studentIDs: Array(sameStudents),
-                        createdAt: Date(),
-                        scheduledFor: nil,
-                        givenAt: nil,
-                        notes: "",
-                        needsPractice: false,
-                        needsAnotherPresentation: false,
-                        followUpWork: ""
-                    )
-                    newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-                    newStudentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
-                    modelContext.insert(newStudentLesson)
-                    try? modelContext.save()
-                    StudentLessonDetailUtilities.notifyInboxRefresh()
-                }
-            }
-        }
-    }
-
-    private var lessonPickerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LessonPickerSection(
-                viewModel: lessonPickerVM,
-                resolvedLesson: resolvedPickerLesson,
-                isFocused: $lessonPickerFocused
-            )
-        }
     }
     
     // MARK: - New Redesigned Sections
@@ -465,59 +182,222 @@ struct StudentLessonDetailView: View {
         InboxStatusSection(scheduledFor: $scheduledFor)
     }
     
-    /// 5. Lesson Progress Section (replaced with extracted view)
-    private var lessonProgressSection: some View {
-        LessonProgressSection(
-            subjectColor: subjectColor,
-            isPresented: $isPresented,
-            givenAt: $givenAt,
-            needsAnotherPresentation: $needsAnotherPresentation,
-            selectedStudentIDs: $selectedStudentIDs,
-            lesson: lessonObject,
-            nextLessonInGroup: nextLessonInGroup,
-            studentLessonID: studentLesson.id,
-            studentsAll: studentsAll,
-            lessonsAll: lessons,
-            studentLessonsAll: studentLessonsAll,
-            didPlanNext: $didPlanNext,
-            showPlannedBanner: $showPlannedBanner,
-            showFollowUpSheet: $showFollowUpSheet,
-            followUpDraft: $followUpDraft,
-            showQuickBanner: $showQuickBanner,
-            quickBannerText: $quickBannerText,
-            quickBannerColor: $quickBannerColor
-        )
-    }
-    
-    /// 6. Linked Work Section (replaced with extracted view)
-    private var linkedWorkSection: some View {
-        LinkedWorkSection(
-            works: openLinkedWorks,
-            studentsAll: studentsAll,
-            displayName: displayName(for:),
-            iconAndColor: workIconAndColor(_:),
-            onToggle: { work, studentID in toggleWorkCompletion(work, studentID: studentID) }
-        )
-    }
-
     /// 7. Notes Section with subtle ruled-paper aesthetic (replaced with extracted view)
     private var notesSection: some View { NotesSectionView(notes: $notes) }
     
-    // MARK: - Helper Views (kept for compatibility)
-    
-    // Added as per instruction 2
-    private func workIconAndColor(_ type: WorkModel.WorkType) -> (String, Color) {
-        switch type {
-        case .research: return ("magnifyingglass", .teal)
-        case .followUp: return ("bolt.fill", .orange)
-        case .practice: return ("arrow.triangle.2.circlepath", .purple)
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    // 1. Lesson Title & Tags Header
+                    lessonHeaderSection
+                        .padding(.horizontal, 32)
+                        .padding(.top, 32)
+                    
+                    // 2. Conditional Lesson Picker (only when not selected or user wants to change)
+                    if lessonObject == nil || showLessonPicker {
+                        lessonPickerSection
+                            .padding(.horizontal, 32)
+                            .padding(.top, 16)
+                    } else {
+                        // Use ChangeLessonControl instead of manual "Change Lesson" button
+                        ChangeLessonControl(showLessonPicker: $showLessonPicker)
+                            .padding(.horizontal, 32)
+                            .padding(.top, 8)
+                    }
+                    
+                    // 3. Student Pills Block
+                    studentPillsSection
+                        .padding(.horizontal, 32)
+                        .padding(.top, 20)
+                    
+                    Divider()
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 20)
+                    
+                    // 4. Inbox/Scheduling Status Row
+                    inboxStatusSection
+                        .padding(.horizontal, 32)
+                    
+                    Divider()
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 20)
+                    
+                    // 7. Notes Section
+                    notesSection
+                        .padding(.horizontal, 32)
+                        .padding(.top, 24)
+                        .padding(.bottom, 32)
+                    
+                    // Progress buttons row below Notes
+                    HStack(spacing: 12) {
+                        Button { selectJustPresented() } label: {
+                            StatePill(
+                                title: "Just Presented",
+                                systemImage: "checkmark.circle.fill",
+                                tint: .green,
+                                active: isJustPresentedActive
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity)
+
+                        Button { selectPreviouslyPresented() } label: {
+                            StatePill(
+                                title: "Previously Presented",
+                                systemImage: "clock.badge.checkmark",
+                                tint: .green,
+                                active: isPreviouslyPresentedActive
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity)
+
+                        Button { selectNeedsAnother() } label: {
+                            StatePill(
+                                title: "Needs Another Presentation",
+                                systemImage: "arrow.clockwise.circle.fill",
+                                tint: .orange,
+                                active: isNeedsAnotherActive
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.top, 16)
+                }
+            }
+        }
+        .frame(minWidth: 720, minHeight: 640)
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 0) {
+                Divider()
+                HStack {
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+
+                    Spacer()
+
+                    Button("Cancel") {
+                        if let onDone {
+                            onDone()
+                        } else {
+                            dismiss()
+                        }
+                    }
+
+                    Button("Save") {
+                        save()
+                    }
+                    .bold()
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.bar)
+            }
+        }
+        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                delete()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showingAddStudentSheet) {
+            AddStudentView()
+        }
+        .overlay(alignment: .top) {
+            if showMovedBanner {
+                MovedStudentsBanner(studentNames: movedStudentNames)
+            }
+        }
+        .sheet(isPresented: $showingMoveStudentsSheet) {
+            MoveStudentsSheet(
+                lessonName: lessonName,
+                students: selectedStudentsList,
+                studentsToMove: $studentsToMove,
+                selectedStudentIDs: selectedStudentIDs,
+                onMove: {
+                    moveStudentsToInbox()
+                    showingMoveStudentsSheet = false
+                },
+                onCancel: {
+                    studentsToMove = []
+                    showingMoveStudentsSheet = false
+                }
+            )
+            #if os(macOS)
+            .frame(minWidth: 420, minHeight: 520)
+            .presentationSizing(.fitted)
+            #endif
+        }
+        .onAppear {
+            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
+            lessonPickerVM.selectLesson(studentLesson.lessonID)
+            if autoFocusLessonPicker { lessonPickerFocused = true }
+        }
+        .onChange(of: lessons.map { $0.id }) { _, _ in
+            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
+        }
+        .onChange(of: lessonPickerVM.selectedLessonID) { _, newValue in
+            if let newID = newValue {
+                // Just update local state, don't save to model
+                editingLessonID = newID
+                
+                // Hide the lesson picker after selection
+                showLessonPicker = false
+            }
+        }
+        .onChange(of: showingStudentPickerPopover) { _, isShowing in
+            // Don't let student picker affect lesson picker state
+            if !isShowing && lessonPickerFocused {
+                lessonPickerFocused = false
+            }
+        }
+        .onChange(of: needsAnotherPresentation) { _, newValue in
+            // If toggled on and user doesn't schedule, create an unscheduled re-present entry if it doesn't exist
+            if newValue {
+                let sameStudents = Set(selectedStudentIDs)
+                let exists = studentLessonsAll.contains { sl in
+                    sl.resolvedLessonID == editingLessonID && sl.scheduledFor == nil && !sl.isGiven && Set(sl.resolvedStudentIDs) == sameStudents
+                }
+                if !exists {
+                    let newStudentLesson = StudentLesson(
+                        id: UUID(),
+                        lessonID: editingLessonID,
+                        studentIDs: Array(sameStudents),
+                        createdAt: Date(),
+                        scheduledFor: nil,
+                        givenAt: nil,
+                        notes: "",
+                        needsPractice: false,
+                        needsAnotherPresentation: false,
+                        followUpWork: ""
+                    )
+                    newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+                    newStudentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
+                    modelContext.insert(newStudentLesson)
+                    try? modelContext.save()
+                }
+            }
         }
     }
 
-    private func toggleWorkCompletion(_ work: WorkModel, studentID: UUID) {
-        vm.toggleWorkCompletion(work, studentID: studentID, context: modelContext)
+    private var lessonPickerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            LessonPickerSection(
+                viewModel: lessonPickerVM,
+                resolvedLesson: resolvedPickerLesson,
+                isFocused: $lessonPickerFocused
+            )
+        }
     }
-
+    
     private func studentChip(for student: Student) -> some View {
         HStack(spacing: 6) {
             Text(displayName(for: student))
@@ -541,8 +421,6 @@ struct StudentLessonDetailView: View {
         )
     }
     
-// Removed the private var quickBanner: some View {...} as per instructions
-    
     private var scheduleStatusText: String {
         guard let date = scheduledFor else { return "Not Scheduled Yet" }
         let datePart = StudentLessonDetailUtilities.Formatters.scheduleDay.string(from: date)
@@ -555,11 +433,8 @@ struct StudentLessonDetailView: View {
         return StudentFormatter.displayName(for: student)
     }
 
-    private func notifyInboxRefresh() {
-        StudentLessonDetailUtilities.notifyInboxRefresh()
-    }
-
     private func applyEditsToModel() {
+        let vm = StudentLessonDetailActions()
         vm.applyEditsToModel(
             studentLesson: studentLesson,
             editingLessonID: editingLessonID,
@@ -602,10 +477,11 @@ struct StudentLessonDetailView: View {
             }
         }
 
+        let vm = StudentLessonDetailActions()
         vm.autoCreateNextIfNeeded(
             wasGiven: wasGiven,
             nowGiven: nowGiven,
-            nextLesson: nextLessonInGroup,
+            nextLesson: nil,
             selectedStudentIDs: selectedStudentIDs,
             studentsAll: studentsAll,
             lessons: lessons,
@@ -654,70 +530,76 @@ struct StudentLessonDetailView: View {
         }
     }
 
-    private func addPracticeIfNeeded() {
-        let hasPracticeWork = workModels.contains { work in
-            work.studentLessonID == studentLesson.id && work.workType == .practice
-        }
-        if !hasPracticeWork {
-            let practiceWork = WorkModel(
-                id: UUID(),
-                title: "Practice: \(lessonObject?.name ?? "Lesson")",
-                workType: .practice,
-                studentLessonID: studentLesson.id,
-                notes: "",
-                createdAt: Date()
-            )
-            practiceWork.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork) }
-            modelContext.insert(practiceWork)
-            try? modelContext.save()
-        }
-        showBanner(text: "Practice added", color: .purple)
-    }
-
-    private func scheduleRePresent(on date: Date) {
-        // Schedule at 9 AM of the chosen date for consistency
-        let startOfDay = calendar.startOfDay(for: date)
-        let scheduled = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
-
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
-            lessonID: editingLessonID,
-            studentIDs: Array(selectedStudentIDs),
-            createdAt: Date(),
-            scheduledFor: scheduled,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+    private func moveStudentsToInbox() {
+        guard !studentsToMove.isEmpty, let currentLesson = lessonObject else { return }
+        let vm = StudentLessonDetailActions()
+        movedStudentNames = vm.moveStudentsToInbox(
+            currentLesson: currentLesson,
+            studentsToMove: studentsToMove,
+            studentsAll: studentsAll,
+            studentLessonsAll: studentLessonsAll,
+            context: modelContext
         )
-        newStudentLesson.students = selectedStudentsList
-        newStudentLesson.lesson = lessonObject
-        modelContext.insert(newStudentLesson)
-
-        do { try modelContext.save() } catch {}
-
-        let fmt = DateFormatter()
-        fmt.dateStyle = .medium
-        showBanner(text: "Re-present scheduled for \(fmt.string(from: scheduled))", color: .blue)
+        selectedStudentIDs.subtract(studentsToMove)
+        studentsToMove.removeAll()
+        showMovedBanner = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { showMovedBanner = false }
     }
 
-    private func defaultRePresentDate() -> Date {
-        // Default to tomorrow (or next calendar day) at 9 AM
-        let base = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-        return calendar.startOfDay(for: base)
+    // MARK: - Progress Buttons Helpers
+    private var isJustPresentedActive: Bool {
+        if !isPresented { return false }
+        guard let date = givenAt else { return false }
+        return calendar.isDateInToday(date)
     }
-
-    // MARK: - Banner Views
-    
-    private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
-        quickBannerText = text
-        quickBannerColor = color
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-            showQuickBanner = true
+    private var isPreviouslyPresentedActive: Bool {
+        isPresented && !isJustPresentedActive
+    }
+    private var isNeedsAnotherActive: Bool {
+        needsAnotherPresentation && !isPresented
+    }
+    private func selectJustPresented() {
+        isPresented = true
+        givenAt = calendar.startOfDay(for: Date())
+        needsAnotherPresentation = false
+    }
+    private func selectPreviouslyPresented() {
+        isPresented = true
+        // Leave givenAt unchanged (user can set elsewhere); ensure exclusivity
+        needsAnotherPresentation = false
+        if let date = givenAt, calendar.isDateInToday(date) {
+            givenAt = nil
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
-            withAnimation(.easeInOut(duration: 0.2)) { showQuickBanner = false }
+    }
+    private func selectNeedsAnother() {
+        isPresented = false
+        givenAt = nil
+        needsAnotherPresentation = true
+    }
+
+    // Equal-width pill used by progress buttons
+    private struct StatePill: View {
+        let title: String
+        let systemImage: String
+        let tint: Color
+        var active: Bool = false
+        var body: some View {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                Text(title)
+            }
+            .font(.callout.weight(.semibold))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .foregroundStyle(tint)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(tint.opacity(active ? 0.20 : 0.10))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(tint.opacity(0.35), lineWidth: 1)
+            )
         }
     }
 }

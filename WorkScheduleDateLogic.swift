@@ -39,7 +39,7 @@ enum WorkScheduleDateLogic {
         let normalized: [(kind: WorkScheduleDateKind, date: Date)] = items.compactMap { item in
             guard let reason = item.reason else { return nil }
             switch reason {
-            case .progressCheck:
+            case .progressCheck, .assessment:
                 return (.checkIn, AppCalendar.startOfDay(item.scheduledDate))
             case .dueDate:
                 return (.due, AppCalendar.startOfDay(item.scheduledDate))
@@ -78,7 +78,7 @@ enum WorkScheduleDateLogic {
     /// Human-readable label for a given kind.
     @MainActor static func reasonDisplayLabel(for reason: WorkPlanItem.Reason) -> String {
         switch reason {
-        case .progressCheck:
+        case .progressCheck, .assessment:
             return label(for: .checkIn)
         case .dueDate:
             return label(for: .due)

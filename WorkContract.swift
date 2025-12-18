@@ -107,6 +107,33 @@ final class WorkContract: Identifiable {
     var isOpen: Bool { status != .complete }
 }
 
+extension WorkContract {
+    /// Most recent meaningful touch date using provided plan items and notes.
+    func lastMeaningfulTouchDate(planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Date {
+        WorkContractAging.lastMeaningfulTouchDate(for: self, planItems: planItems, notes: notes, presentation: presentation)
+    }
+
+    /// Day count since last meaningful touch (school-day aware).
+    func daysSinceLastTouch(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Int {
+        WorkContractAging.daysSinceLastTouch(for: self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
+    }
+
+    /// Aging bucket classification (school-day aware).
+    func agingBucket(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> AgingBucket {
+        WorkContractAging.agingBucket(for: self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
+    }
+
+    /// Convenience for stale status (school-day aware).
+    func isStale(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Bool {
+        WorkContractAging.isStale(self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
+    }
+
+    /// Intent-aware overdue: uses only plan items (progress/assessment) and an optional override for last touch.
+    func isOverdue(planItems: [WorkPlanItem], lastTouch: Date? = nil) -> Bool {
+        WorkContractAging.isOverdue(self, planItems: planItems, lastTouch: lastTouch)
+    }
+}
+
 #if DEBUG
 extension WorkContract {
     var debugDescription: String {

@@ -248,6 +248,17 @@ struct WorkContractDetailSheet: View {
                     }
                 }
 
+                // Subtle aging cue
+                let relevantPlanItems = planItems.filter { $0.workID == contract.id }
+                let daysSince = contract.daysSinceLastTouch(modelContext: modelContext, planItems: relevantPlanItems, notes: workNotes)
+                let bucket = contract.agingBucket(modelContext: modelContext, planItems: relevantPlanItems, notes: workNotes)
+                if bucket != .fresh {
+                    Text("Last touched \(daysSince)d ago")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+                }
+
                 // Composer
                 DatePicker("Date", selection: $newPlanDate, displayedComponents: .date)
 
