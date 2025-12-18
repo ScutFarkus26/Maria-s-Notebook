@@ -487,13 +487,15 @@ struct StudentDetailView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     } else {
-                        Button("Edit") {
-                            draftFirstName = student.firstName
-                            draftLastName = student.lastName
-                            draftBirthday = student.birthday
-                            draftLevel = student.level
-                            draftStartDate = student.dateStarted ?? Date()
-                            isEditing = true
+                        if selectedTab != .checklist {
+                            Button("Edit") {
+                                draftFirstName = student.firstName
+                                draftLastName = student.lastName
+                                draftBirthday = student.birthday
+                                draftLevel = student.level
+                                draftStartDate = student.dateStarted ?? Date()
+                                isEditing = true
+                            }
                         }
                         Button("Delete", role: .destructive) {
                             showDeleteAlert = true

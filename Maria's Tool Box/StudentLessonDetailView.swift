@@ -263,6 +263,14 @@ struct StudentLessonDetailView: View {
                         }
                         .buttonStyle(.plain)
                         .frame(maxWidth: .infinity)
+                        
+                        Spacer()
+
+                        Button { scheduleNextLessonToInbox() } label: {
+                            Label("Schedule Next Lesson", systemImage: "calendar.badge.plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(nextLessonInGroup == nil || selectedStudentIDs.isEmpty)
                     }
                     .padding(.horizontal, 32)
                     .padding(.top, 16)
@@ -575,6 +583,35 @@ struct StudentLessonDetailView: View {
         isPresented = false
         givenAt = nil
         needsAnotherPresentation = true
+    }
+    
+    private func scheduleNextLessonToInbox() {
+        guard let next = nextLessonInGroup else { return }
+        let sameStudents = Set(selectedStudentIDs)
+        // Avoid duplicates: if a not-given item already exists for the same next lesson and students, do nothing
+        let exists = studentLessonsAll.contains { sl in
+            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
+        }
+        if exists { return }
+
+        let newStudentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: next.id,
+            studentIDs: Array(sameStudents),
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: nil,
+            isPresented: false,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+        newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+        modelContext.insert(newStudentLesson)
+        try? modelContext.save()
+        StudentLessonDetailUtilities.notifyInboxRefresh()
     }
 
     // Equal-width pill used by progress buttons
