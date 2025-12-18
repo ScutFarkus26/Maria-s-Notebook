@@ -30,7 +30,6 @@ struct RootView: View {
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
     @AppStorage("Backfill.scheduledForDay.v1") private var didBackfillScheduledForDay: Bool = false
     @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
-    @AppStorage("showWorkInboxBeta") private var showWorkInboxBeta: Bool = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -155,20 +154,6 @@ struct RootView: View {
 
             Divider()
 
-            if useEngagementLifecycle && showWorkInboxBeta {
-                HStack {
-                    Spacer()
-                    Button {
-                        showWorkInboxSheet = true
-                    } label: {
-                        Label("Work Inbox (Beta)", systemImage: "tray.full")
-                    }
-                    .buttonStyle(.bordered)
-                    Spacer()
-                }
-                .padding(.vertical, 6)
-            }
-
             // Active view
             Group {
                 switch selectedTab {
@@ -226,16 +211,6 @@ struct RootView: View {
 #if os(macOS)
         .background(EnsureResizableWindow(minSize: NSSize(width: 900, height: 600)))
 #endif
-        .sheet(isPresented: $showWorkInboxSheet) {
-            WorkInboxView()
-#if os(macOS)
-                .frame(minWidth: 720, minHeight: 600)
-                .presentationSizing(.fitted)
-#else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-#endif
-        }
     }
 
     // MARK: - Styling
@@ -340,7 +315,6 @@ struct RootView: View {
     }
     
     // MARK: - State
-    @State private var showWorkInboxSheet: Bool = false
 }
 
 /// Container for Planning modes (Agenda, Board, Works). Uses pill navigation and stores last mode in AppStorage.

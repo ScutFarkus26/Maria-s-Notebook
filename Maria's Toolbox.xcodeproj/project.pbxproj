@@ -21,7 +21,6 @@
 		5172DDC32EF19FB100018BE1 /* WorkContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDC22EF19FB100018BE1 /* WorkContract.swift */; };
 		5172DDC52EF19FB700018BE1 /* LifecycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDC42EF19FB700018BE1 /* LifecycleService.swift */; };
 		5172DDC72EF19FE000018BE1 /* WorkContractDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDC62EF19FE000018BE1 /* WorkContractDetailSheet.swift */; };
-		5172DDC92EF19FE100018BE1 /* WorkInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDC82EF19FE100018BE1 /* WorkInboxView.swift */; };
 		5172DDCB2EF19FF800018BE1 /* AppSchema 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDCA2EF19FF800018BE1 /* AppSchema 2.swift */; };
 		5172DDCD2EF20BDF00018BE1 /* WorkAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDCC2EF20BDF00018BE1 /* WorkAgendaView.swift */; };
 		5172DDCF2EF218AC00018BE1 /* NotesBackfillService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5172DDCE2EF218AC00018BE1 /* NotesBackfillService.swift */; };
@@ -61,7 +60,6 @@
 		5172DDC22EF19FB100018BE1 /* WorkContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkContract.swift; sourceTree = "<group>"; };
 		5172DDC42EF19FB700018BE1 /* LifecycleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleService.swift; sourceTree = "<group>"; };
 		5172DDC62EF19FE000018BE1 /* WorkContractDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkContractDetailSheet.swift; sourceTree = "<group>"; };
-		5172DDC82EF19FE100018BE1 /* WorkInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkInboxView.swift; sourceTree = "<group>"; };
 		5172DDCA2EF19FF800018BE1 /* AppSchema 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppSchema 2.swift"; sourceTree = "<group>"; };
 		5172DDCC2EF20BDF00018BE1 /* WorkAgendaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAgendaView.swift; sourceTree = "<group>"; };
 		5172DDCE2EF218AC00018BE1 /* NotesBackfillService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesBackfillService.swift; sourceTree = "<group>"; };
@@ -140,7 +138,6 @@
 				5172DDC22EF19FB100018BE1 /* WorkContract.swift */,
 				5172DDC42EF19FB700018BE1 /* LifecycleService.swift */,
 				5172DDC62EF19FE000018BE1 /* WorkContractDetailSheet.swift */,
-				5172DDC82EF19FE100018BE1 /* WorkInboxView.swift */,
 				5172DDCA2EF19FF800018BE1 /* AppSchema 2.swift */,
 				5172DDCC2EF20BDF00018BE1 /* WorkAgendaView.swift */,
 				5172DDCE2EF218AC00018BE1 /* NotesBackfillService.swift */,
@@ -273,7 +270,6 @@
 				5172DDDB2EF255C700018BE1 /* WorkAgendaBetaView.swift in Sources */,
 				5172DDC72EF19FE000018BE1 /* WorkContractDetailSheet.swift in Sources */,
 				5172DDD32EF223E300018BE1 /* PresentationDetailSheet.swift in Sources */,
-				5172DDC92EF19FE100018BE1 /* WorkInboxView.swift in Sources */,
 				5172DDD72EF2559A00018BE1 /* WorkPlanItem.swift in Sources */,
 				5172DDDD2EF3033300018BE1 /* WorkAgendaSortMode.swift in Sources */,
 				511A5DF92EEE61E40048434D /* TopicRowView.swift in Sources */,

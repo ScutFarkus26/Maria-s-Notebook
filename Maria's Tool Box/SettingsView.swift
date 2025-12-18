@@ -36,7 +36,6 @@ struct SettingsView: View {
     @AppStorage("lastBackupTimeInterval") private var lastBackupTimeInterval: Double?
     
     @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
-    @AppStorage("showWorkInboxBeta") private var showWorkInboxBeta: Bool = false
     @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
     
     @State private var lifecycleBackfillSummary: String? = nil
@@ -256,10 +255,6 @@ struct SettingsView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .padding(.leading, 4)
-                            
-                            Toggle("Show Work Inbox (Beta)", isOn: $showWorkInboxBeta)
-                                .font(.body)
-                                .disabled(!useEngagementLifecycle)
                             
                             Toggle("Show Work Agenda (Beta)", isOn: $showWorkAgendaBeta)
                                 .font(.body)
