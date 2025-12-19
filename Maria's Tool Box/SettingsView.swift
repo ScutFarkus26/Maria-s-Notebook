@@ -39,8 +39,7 @@ struct SettingsView: View {
     @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
     @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
 //    @AppStorage("hideLessonsBoardTab") private var hideLessonsBoardTab: Bool = false  // REMOVED as per instructions
-    @AppStorage("useLessonsAgendaBeta") private var useLessonsAgendaBeta: Bool = false
-    
+
     @State private var lifecycleBackfillSummary: String? = nil
     @State private var showLifecycleNotesBackfillConfirm: Bool = false
     @State private var isRunningLifecycleBackfill: Bool = false
@@ -240,27 +239,6 @@ struct SettingsView: View {
                     
                     // MARK: - Planning Section
                     SettingsCategoryHeader(title: "Planning")
-                    
-                    SettingsGroup(title: "Lesson Age Indicator", systemImage: "clock.badge.exclamationmark") {
-                        LessonAgeSettingsView()
-                            .frame(maxWidth: .infinity)
-                    }
-                    
-                    SettingsGroup(title: "Work Age Indicator", systemImage: "clock.badge.exclamationmark") {
-                        WorkAgeSettingsView()
-                            .frame(maxWidth: .infinity)
-                    }
-                    
-                    SettingsGroup(title: "Lessons Agenda", systemImage: "text.book.closed") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Toggle("Use Lessons Agenda Beta (Inbox + Calendar)", isOn: $useLessonsAgendaBeta)
-                                .font(.body)
-                            Text("When enabled, Planning → Lessons Agenda will show the new Inbox + Calendar layout. You can switch back at any time.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 4)
-                        }
-                    }
                     
 //                    SettingsGroup(title: "Lessons Board", systemImage: "square.grid.3x3") {
 //                        VStack(alignment: .leading, spacing: 8) {
