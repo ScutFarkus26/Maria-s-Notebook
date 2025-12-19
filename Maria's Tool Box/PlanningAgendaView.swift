@@ -363,7 +363,7 @@ struct PlanningAgendaView: View {
         day.formatted(Self.dayNameStyle)
     }
 
-    // MARK: - Unplanned students computation (parity with Lessons Board)
+    // MARK: - Unplanned students computation (parity with previous Board view)
     private func plannedStudentIDs(on day: Date) -> Set<UUID> {
         let (start, end) = AppCalendar.dayRange(for: day)
         var acc: [UUID] = []
