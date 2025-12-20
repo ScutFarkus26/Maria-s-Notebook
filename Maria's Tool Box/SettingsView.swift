@@ -37,7 +37,7 @@ struct SettingsView: View {
     
     @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
 //    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
-    @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
+//    @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
 //    @AppStorage("hideLessonsBoardTab") private var hideLessonsBoardTab: Bool = false  // REMOVED as per instructions
 
     @State private var lifecycleBackfillSummary: String? = nil
@@ -235,31 +235,6 @@ struct SettingsView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .frame(maxWidth: .infinity)
-                    }
-                    
-                    // MARK: - Planning Section
-                    SettingsCategoryHeader(title: "Planning")
-                    
-//                    SettingsGroup(title: "Lessons Board", systemImage: "square.grid.3x3") {
-//                        VStack(alignment: .leading, spacing: 8) {
-//                            Toggle("Hide Lessons Board", isOn: $hideLessonsBoardTab)
-//                                .font(.body)
-//                            Text("Hides the Lessons Board in Planning. You can re-enable it here at any time.")
-//                                .font(.footnote)
-//                                .foregroundStyle(.secondary)
-//                                .padding(.leading, 4)
-//                        }
-//                    } // REMOVED as per instructions
-                    
-                    SettingsGroup(title: "Work Agenda", systemImage: "tray.full") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Toggle("Hide Works Agenda", isOn: $hideWorksAgendaTab)
-                                .font(.body)
-                            Text("Hides the Work Agenda in Planning. You can re‑enable it here at any time.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 4)
-                        }
                     }
                     
                     // MARK: - Beta Features Section

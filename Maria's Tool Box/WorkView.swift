@@ -37,7 +37,7 @@ struct WorkView: View {
     @State private var selectedWorkID: UUID? = nil
     @State private var isShowingStudentFilterPopover = false
 
-    @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
+    // Removed @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
 
     // Scene storage for persistence
     @SceneStorage("WorkView.selectedSubject") private var selectedSubjectStorage: String = ""
@@ -390,15 +390,7 @@ struct WorkView: View {
 #if !os(macOS)
     private var compactLayout: some View {
         VStack(spacing: 0) {
-            if !hideWorksAgendaTab {
-                WorksAgendaView()
-            } else {
-                ContentUnavailableView(
-                    "Works Agenda Hidden",
-                    systemImage: "eye.slash",
-                    description: Text("Enable it in Settings to show the Works Agenda tab.")
-                )
-            }
+            WorksAgendaView()
         }
     }
 #endif
@@ -427,17 +419,7 @@ struct WorkView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 8)
                 
-                Group {
-                    if !hideWorksAgendaTab {
-                        WorksAgendaView()
-                    } else {
-                        ContentUnavailableView(
-                            "Works Agenda Hidden",
-                            systemImage: "eye.slash",
-                            description: Text("Enable it in Settings to show the Works Agenda tab.")
-                        )
-                    }
-                }
+                WorksAgendaView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topTrailing) {
                     HStack(spacing: 12) {
