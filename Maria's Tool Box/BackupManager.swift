@@ -38,12 +38,14 @@ struct BackupPayload: Codable {
     var selectedChecklistSubject: String?
     var lastBackupTimeInterval: Double?
     var attendanceLockedDays: [String]
+    var studentMeetings: [StudentMeetingDTO]
 
     private enum CodingKeys: String, CodingKey {
         case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns, notes, standardNotes
         case nonSchoolDays, schoolDayOverrides, presentNowExcludedNames, planningInboxOrder
         case attendanceEmailEnabled, attendanceEmailTo, attendanceEmailFrom, lessonAgeWarningDays, lessonAgeOverdueDays, lessonAgeFreshColorHex, lessonAgeWarningColorHex, lessonAgeOverdueColorHex, selectedChecklistSubject, lastBackupTimeInterval
         case attendanceLockedDays
+        case studentMeetings
     }
 
     init(
@@ -75,7 +77,8 @@ struct BackupPayload: Codable {
         lessonAgeOverdueColorHex: String? = nil,
         selectedChecklistSubject: String? = nil,
         lastBackupTimeInterval: Double? = nil,
-        attendanceLockedDays: [String] = []
+        attendanceLockedDays: [String] = [],
+        studentMeetings: [StudentMeetingDTO] = []
     ) {
         self.version = version
         self.createdAt = createdAt
@@ -106,6 +109,7 @@ struct BackupPayload: Codable {
         self.selectedChecklistSubject = selectedChecklistSubject
         self.lastBackupTimeInterval = lastBackupTimeInterval
         self.attendanceLockedDays = attendanceLockedDays
+        self.studentMeetings = studentMeetings
     }
 
     init(from decoder: Decoder) throws {
@@ -139,6 +143,7 @@ struct BackupPayload: Codable {
         self.selectedChecklistSubject = try container.decodeIfPresent(String.self, forKey: .selectedChecklistSubject)
         self.lastBackupTimeInterval = try container.decodeIfPresent(Double.self, forKey: .lastBackupTimeInterval)
         self.attendanceLockedDays = try container.decodeIfPresent([String].self, forKey: .attendanceLockedDays) ?? []
+        self.studentMeetings = try container.decodeIfPresent([StudentMeetingDTO].self, forKey: .studentMeetings) ?? []
     }
 }
 
@@ -364,11 +369,22 @@ struct SchoolDayOverrideDTO: Codable {
     var note: String?
 }
 
+struct StudentMeetingDTO: Codable {
+    var id: UUID
+    var studentID: UUID
+    var date: Date
+    var completed: Bool
+    var reflection: String
+    var focus: String
+    var requests: String
+    var guideNotes: String
+}
+
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 19
+    static let currentVersion: Int = 20
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -537,6 +553,22 @@ enum BackupManager {
             SchoolDayOverrideDTO(id: o.id, date: o.date, note: o.note)
         }
 
+        // Fetch all StudentMeetings
+        let meetingsFetch = FetchDescriptor<StudentMeeting>()
+        let meetings = try context.fetch(meetingsFetch)
+        let meetingsDTO: [StudentMeetingDTO] = meetings.map { m in
+            StudentMeetingDTO(
+                id: m.id,
+                studentID: m.studentID,
+                date: m.date,
+                completed: m.completed,
+                reflection: m.reflection,
+                focus: m.focus,
+                requests: m.requests,
+                guideNotes: m.guideNotes
+            )
+        }
+
         // Read small user preferences that affect planning/filters
         let presentNowExcludedNames = UserDefaults.standard.string(forKey: "StudentsView.presentNow.excludedNames")
         let planningInboxOrder = UserDefaults.standard.string(forKey: "PlanningInbox.order")
@@ -609,7 +641,8 @@ enum BackupManager {
             lessonAgeOverdueColorHex: lessonAgeOverdueColorHex,
             selectedChecklistSubject: selectedChecklistSubject,
             lastBackupTimeInterval: lastBackupTimeInterval,
-            attendanceLockedDays: attendanceLockedDays
+            attendanceLockedDays: attendanceLockedDays,
+            studentMeetings: meetingsDTO
         )
         let encoder = JSONEncoder()
         // Use compact encoding for smaller backups and faster encode
@@ -667,6 +700,23 @@ enum BackupManager {
                 manualOrder: dto.manualOrder
             )
             context.insert(student)
+        }
+
+        // Insert StudentMeetings (preserving IDs)
+        if !payload.studentMeetings.isEmpty {
+            for dto in payload.studentMeetings {
+                let m = StudentMeeting(
+                    id: dto.id,
+                    studentID: dto.studentID,
+                    date: dto.date,
+                    completed: dto.completed,
+                    reflection: dto.reflection,
+                    focus: dto.focus,
+                    requests: dto.requests,
+                    guideNotes: dto.guideNotes
+                )
+                context.insert(m)
+            }
         }
 
         // Insert StudentLessons (preserving IDs)
@@ -996,6 +1046,11 @@ enum BackupManager {
         do {
             let overrides = try context.fetch(FetchDescriptor<SchoolDayOverride>())
             for obj in overrides { context.delete(obj) }
+        }
+        // Delete StudentMeetings
+        do {
+            let meetings = try context.fetch(FetchDescriptor<StudentMeeting>())
+            for obj in meetings { context.delete(obj) }
         }
         try context.save()
     }
