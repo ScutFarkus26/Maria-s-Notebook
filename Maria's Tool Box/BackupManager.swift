@@ -37,11 +37,13 @@ struct BackupPayload: Codable {
     var lessonAgeOverdueColorHex: String?
     var selectedChecklistSubject: String?
     var lastBackupTimeInterval: Double?
+    var attendanceLockedDays: [String]
 
     private enum CodingKeys: String, CodingKey {
         case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns, notes, standardNotes
         case nonSchoolDays, schoolDayOverrides, presentNowExcludedNames, planningInboxOrder
         case attendanceEmailEnabled, attendanceEmailTo, attendanceEmailFrom, lessonAgeWarningDays, lessonAgeOverdueDays, lessonAgeFreshColorHex, lessonAgeWarningColorHex, lessonAgeOverdueColorHex, selectedChecklistSubject, lastBackupTimeInterval
+        case attendanceLockedDays
     }
 
     init(
@@ -72,7 +74,8 @@ struct BackupPayload: Codable {
         lessonAgeWarningColorHex: String? = nil,
         lessonAgeOverdueColorHex: String? = nil,
         selectedChecklistSubject: String? = nil,
-        lastBackupTimeInterval: Double? = nil
+        lastBackupTimeInterval: Double? = nil,
+        attendanceLockedDays: [String] = []
     ) {
         self.version = version
         self.createdAt = createdAt
@@ -102,6 +105,7 @@ struct BackupPayload: Codable {
         self.lessonAgeOverdueColorHex = lessonAgeOverdueColorHex
         self.selectedChecklistSubject = selectedChecklistSubject
         self.lastBackupTimeInterval = lastBackupTimeInterval
+        self.attendanceLockedDays = attendanceLockedDays
     }
 
     init(from decoder: Decoder) throws {
@@ -134,6 +138,7 @@ struct BackupPayload: Codable {
         self.lessonAgeOverdueColorHex = try container.decodeIfPresent(String.self, forKey: .lessonAgeOverdueColorHex)
         self.selectedChecklistSubject = try container.decodeIfPresent(String.self, forKey: .selectedChecklistSubject)
         self.lastBackupTimeInterval = try container.decodeIfPresent(Double.self, forKey: .lastBackupTimeInterval)
+        self.attendanceLockedDays = try container.decodeIfPresent([String].self, forKey: .attendanceLockedDays) ?? []
     }
 }
 
@@ -363,7 +368,7 @@ struct SchoolDayOverrideDTO: Codable {
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 18
+    static let currentVersion: Int = 19
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -548,6 +553,14 @@ enum BackupManager {
         let selectedChecklistSubject = UserDefaults.standard.string(forKey: "StudentDetailView.selectedChecklistSubject")
         let lastBackupTimeInterval = UserDefaults.standard.object(forKey: "lastBackupTimeInterval") as? Double
 
+        // Collect per-day attendance lock states from UserDefaults
+        let lockPrefix = "Attendance.locked."
+        let defaultsDict = UserDefaults.standard.dictionaryRepresentation()
+        let attendanceLockedDays: [String] = defaultsDict.compactMap { (key: String, value: Any) in
+            guard key.hasPrefix(lockPrefix), let b = value as? Bool, b == true else { return nil }
+            return String(key.dropFirst(lockPrefix.count))
+        }.sorted()
+
         // Compute subjects and per-subject group orders from current data and saved preferences
         let existingSubjects: [String] = Array(Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
         let subjectOrder: [String] = FilterOrderStore.loadSubjectOrder(existing: existingSubjects)
@@ -595,7 +608,8 @@ enum BackupManager {
             lessonAgeWarningColorHex: lessonAgeWarningColorHex,
             lessonAgeOverdueColorHex: lessonAgeOverdueColorHex,
             selectedChecklistSubject: selectedChecklistSubject,
-            lastBackupTimeInterval: lastBackupTimeInterval
+            lastBackupTimeInterval: lastBackupTimeInterval,
+            attendanceLockedDays: attendanceLockedDays
         )
         let encoder = JSONEncoder()
         // Use compact encoding for smaller backups and faster encode
@@ -904,6 +918,18 @@ enum BackupManager {
         }
         if let lastBackupTimeInterval = payload.lastBackupTimeInterval {
             UserDefaults.standard.set(lastBackupTimeInterval, forKey: "lastBackupTimeInterval")
+        }
+
+        // Restore per-day attendance lock states
+        do {
+            let lockPrefix = "Attendance.locked."
+            let defaults = UserDefaults.standard
+            // Clear existing lock keys
+            for (key, _) in defaults.dictionaryRepresentation() where key.hasPrefix(lockPrefix) {
+                defaults.removeObject(forKey: key)
+            }
+            // Apply from backup
+            for day in payload.attendanceLockedDays { defaults.set(true, forKey: lockPrefix + day) }
         }
 
         try context.save()

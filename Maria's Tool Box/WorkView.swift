@@ -391,7 +391,7 @@ struct WorkView: View {
     private var compactLayout: some View {
         VStack(spacing: 0) {
             if !hideWorksAgendaTab {
-                WorksPlanningView()
+                WorksAgendaView()
             } else {
                 ContentUnavailableView(
                     "Works Agenda Hidden",
@@ -420,7 +420,7 @@ struct WorkView: View {
                 HStack {
                     Spacer()
                     HStack(spacing: 12) {
-                        PillNavButton(title: "Works Agenda", isSelected: true) { }
+                        PillNavButton(title: "Work Agenda", isSelected: true) { }
                     }
                     Spacer()
                 }
@@ -429,7 +429,7 @@ struct WorkView: View {
                 
                 Group {
                     if !hideWorksAgendaTab {
-                        WorksPlanningView()
+                        WorksAgendaView()
                     } else {
                         ContentUnavailableView(
                             "Works Agenda Hidden",

@@ -36,7 +36,7 @@ struct SettingsView: View {
     @AppStorage("lastBackupTimeInterval") private var lastBackupTimeInterval: Double?
     
     @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
-    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
+//    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
     @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
 //    @AppStorage("hideLessonsBoardTab") private var hideLessonsBoardTab: Bool = false  // REMOVED as per instructions
 
@@ -251,11 +251,11 @@ struct SettingsView: View {
 //                        }
 //                    } // REMOVED as per instructions
                     
-                    SettingsGroup(title: "Works Agenda", systemImage: "tray.full") {
+                    SettingsGroup(title: "Work Agenda", systemImage: "tray.full") {
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("Hide Works Agenda", isOn: $hideWorksAgendaTab)
                                 .font(.body)
-                            Text("Hides the regular Works Agenda in Planning. Use the beta toggle below to show Works Agenda (Beta).")
+                            Text("Hides the Work Agenda in Planning. You can re‑enable it here at any time.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .padding(.leading, 4)
@@ -274,10 +274,6 @@ struct SettingsView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .padding(.leading, 4)
-                            
-                            Toggle("Show Work Agenda (Beta)", isOn: $showWorkAgendaBeta)
-                                .font(.body)
-                                .disabled(!useEngagementLifecycle)
                             
                             Button {
                                 showLifecycleNotesBackfillConfirm = true
@@ -926,7 +922,7 @@ struct WorkAgeSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Configure thresholds and colors for the work age indicator in Planning → Work Agenda (Beta).")
+            Text("Configure thresholds and colors for the work age indicator in Planning → Work Agenda.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 

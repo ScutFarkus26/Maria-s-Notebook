@@ -58,6 +58,7 @@ struct WorksAgendaView: View {
                 .frame(height: geo.size.height * calendarHeightRatio)
             }
         }
+        .navigationTitle("Work Agenda")
         .sheet(item: $selected, onDismiss: { selected = nil }) { token in
             let id = token.contractID
             let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })

@@ -27,7 +27,7 @@ struct AttendanceView: View {
 
     @State private var showMailSheet = false
     @State private var toastMessage: String? = nil
-    @State private var isEditing: Bool = false
+    @State private var isEditing: Bool = true
 
     private var filteredStudents: [Student] {
         let visible = viewModel.visibleStudents(from: allStudents)
@@ -47,6 +47,36 @@ struct AttendanceView: View {
         SchoolCalendar.isNonSchoolDay(viewModel.selectedDate, using: modelContext)
     }
 
+    // MARK: - Per-day Lock Persistence
+    private static let lockKeyPrefix = "Attendance.locked."
+    private static let lockDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.calendar = .current
+        df.locale = .current
+        df.timeZone = .current
+        df.dateFormat = "yyyy-MM-dd"
+        return df
+    }()
+
+    private func lockKey(for date: Date) -> String {
+        let day = date.normalizedDay()
+        let s = AttendanceView.lockDateFormatter.string(from: day)
+        return AttendanceView.lockKeyPrefix + s
+    }
+
+    private func isLocked(for date: Date) -> Bool {
+        UserDefaults.standard.bool(forKey: lockKey(for: date))
+    }
+
+    private func setLocked(_ locked: Bool, for date: Date) {
+        let key = lockKey(for: date)
+        if locked {
+            UserDefaults.standard.set(true, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -59,6 +89,7 @@ struct AttendanceView: View {
             if coerced != viewModel.selectedDate { viewModel.selectedDate = coerced }
             viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
             _ = saveCoordinator.save(modelContext, reason: "Ensure attendance records exist for selected day")
+            isEditing = !isLocked(for: viewModel.selectedDate)
         }
         .onChange(of: viewModel.selectedDate) { _, newValue in
             let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
@@ -68,6 +99,7 @@ struct AttendanceView: View {
             }
             viewModel.load(for: newValue, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
             _ = saveCoordinator.save(modelContext, reason: "Ensure attendance records exist for selected day")
+            isEditing = !isLocked(for: viewModel.selectedDate)
         }
         .onChange(of: allStudents.map { $0.id }) { _, _ in
             // If students change (added/removed), ensure records exist
@@ -209,6 +241,36 @@ struct AttendanceView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 180)
+
+                Button {
+                    isEditing.toggle()
+                    setLocked(!isEditing, for: viewModel.selectedDate)
+                } label: {
+                    ZStack {
+                        // Reserve width for the widest label to prevent layout shift
+                        Label("Unlock", systemImage: "lock.open").opacity(0)
+                        Label(isEditing ? "Lock" : "Unlock", systemImage: isEditing ? "lock.fill" : "lock.open")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut("e", modifiers: [.command])
+                .help(isEditing ? "Lock this day to prevent changes" : "Unlock this day to allow editing")
+
+                Button("Mark All Present") {
+                    viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Mark all present")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isNonSchoolDay || !isEditing)
+                .keyboardShortcut("p", modifiers: [.command, .shift])
+
+                Button("Reset Day") {
+                    viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Reset day")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isNonSchoolDay || !isEditing)
+                .keyboardShortcut("r", modifiers: [.command, .shift])
             }
 
             if isNonSchoolDay {
@@ -270,29 +332,6 @@ struct AttendanceView: View {
                 }
 
                 Spacer()
-
-                Button(isEditing ? "Done" : "Edit") {
-                    isEditing.toggle()
-                }
-                .buttonStyle(.bordered)
-                .keyboardShortcut("e", modifiers: [.command])
-                .help(isEditing ? "Finish editing" : "Enable editing")
-
-                Button("Mark All Present") {
-                    viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
-                    _ = saveCoordinator.save(modelContext, reason: "Mark all present")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isNonSchoolDay || !isEditing)
-                .keyboardShortcut("p", modifiers: [.command, .shift])
-
-                Button("Reset Day") {
-                    viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
-                    _ = saveCoordinator.save(modelContext, reason: "Reset day")
-                }
-                .buttonStyle(.bordered)
-                .disabled(isNonSchoolDay || !isEditing)
-                .keyboardShortcut("r", modifiers: [.command, .shift])
             }
         }
         .padding(.horizontal, 16)
@@ -336,11 +375,17 @@ struct AttendanceView: View {
                 }
                 .buttonStyle(.plain)
 
-                Button(isEditing ? "Done" : "Edit") {
+                Button {
                     isEditing.toggle()
+                    setLocked(!isEditing, for: viewModel.selectedDate)
+                } label: {
+                    ZStack {
+                        Label("Unlock", systemImage: "lock.open").opacity(0)
+                        Label(isEditing ? "Lock" : "Unlock", systemImage: isEditing ? "lock.fill" : "lock.open")
+                    }
                 }
                 .buttonStyle(.plain)
-                .help(isEditing ? "Finish editing" : "Enable editing")
+                .help(isEditing ? "Lock this day to prevent changes" : "Unlock this day to allow editing")
             }
 
             if isNonSchoolDay {

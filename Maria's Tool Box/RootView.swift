@@ -322,13 +322,10 @@ struct PlanningRootView: View {
     // MARK: - Mode
     enum Mode: String, CaseIterable, Identifiable {
         case agenda = "Lessons Agenda"
-        case works = "Works Agenda"
-        case workAgendaBeta = "Work Agenda (Beta)"
+        case works = "Work Agenda"
         var id: String { rawValue }
     }
 
-    @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
-    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
     @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
     @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
     #if os(iOS)
@@ -349,9 +346,6 @@ struct PlanningRootView: View {
                             if !hideWorksAgendaTab {
                                 PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                             }
-                            if useEngagementLifecycle && showWorkAgendaBeta {
-                                PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
-                            }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -365,9 +359,6 @@ struct PlanningRootView: View {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             if !hideWorksAgendaTab {
                                 PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            }
-                            if useEngagementLifecycle && showWorkAgendaBeta {
-                                PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
                             }
                         }
                         Spacer()
@@ -384,9 +375,6 @@ struct PlanningRootView: View {
                     if !hideWorksAgendaTab {
                         PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                     }
-                    if useEngagementLifecycle && showWorkAgendaBeta {
-                        PillNavButton(title: Mode.workAgendaBeta.rawValue, isSelected: mode == .workAgendaBeta) { modeRaw = Mode.workAgendaBeta.rawValue }
-                    }
                 }
                 Spacer()
             }
@@ -400,9 +388,7 @@ struct PlanningRootView: View {
                 if mode == .agenda {
                     LessonsAgendaBetaView()
                 } else if mode == .works {
-                    WorksPlanningView()
-                } else if mode == .workAgendaBeta {
-                    WorkAgendaBetaView()
+                    WorksAgendaView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -423,18 +409,10 @@ struct PlanningRootView: View {
                 if hideWorksAgendaTab && (Mode(rawValue: modeRaw) == .works) {
                     modeRaw = Mode.agenda.rawValue
                 }
-                if Mode(rawValue: modeRaw) == .workAgendaBeta && (!useEngagementLifecycle || !showWorkAgendaBeta) {
-                    modeRaw = Mode.agenda.rawValue
-                }
+                if modeRaw == "Work Agenda (Beta)" { modeRaw = Mode.works.rawValue }
             }
             .onChange(of: hideWorksAgendaTab) { _, newValue in
                 if newValue && mode == .works { modeRaw = Mode.agenda.rawValue }
-            }
-            .onChange(of: showWorkAgendaBeta) { _, newValue in
-                if !newValue && mode == .workAgendaBeta { modeRaw = Mode.agenda.rawValue }
-            }
-            .onChange(of: useEngagementLifecycle) { _, newValue in
-                if !newValue && mode == .workAgendaBeta { modeRaw = Mode.agenda.rawValue }
             }
         }
     }
