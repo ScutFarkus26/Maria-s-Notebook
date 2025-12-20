@@ -118,6 +118,8 @@ struct MariasToolboxApp: App {
             NSApplication.shared.applicationIconImage = icon
         }
         #endif
+        // Cleanup: remove legacy Beta flag now that Engagement Lifecycle is always on
+        UserDefaults.standard.removeObject(forKey: "useEngagementLifecycle")
     }
 
     var body: some Scene {
@@ -278,3 +280,4 @@ struct MariasToolboxApp: App {
         #endif
     }
 }
+

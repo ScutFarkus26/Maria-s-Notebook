@@ -29,7 +29,6 @@ struct RootView: View {
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
     @AppStorage("Backfill.scheduledForDay.v1") private var didBackfillScheduledForDay: Bool = false
-    @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif

@@ -35,14 +35,15 @@ struct SettingsView: View {
     // Persist last backup time
     @AppStorage("lastBackupTimeInterval") private var lastBackupTimeInterval: Double?
     
-    @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
 //    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
 //    @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
 //    @AppStorage("hideLessonsBoardTab") private var hideLessonsBoardTab: Bool = false  // REMOVED as per instructions
 
-    @State private var lifecycleBackfillSummary: String? = nil
-    @State private var showLifecycleNotesBackfillConfirm: Bool = false
-    @State private var isRunningLifecycleBackfill: Bool = false
+    // Removed engagement lifecycle state properties
+    // @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
+    // @State private var lifecycleBackfillSummary: String? = nil
+    // @State private var showLifecycleNotesBackfillConfirm: Bool = false
+    // @State private var isRunningLifecycleBackfill: Bool = false
 
     // New state properties for Advanced / Debug section
     @State private var showDannyResetConfirm = false
@@ -237,84 +238,6 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                     }
                     
-                    // MARK: - Beta Features Section
-                    
-                    SettingsCategoryHeader(title: "Beta Features")
-                    
-                    SettingsGroup(title: "Engagement Lifecycle", systemImage: "bolt.badge.a") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Toggle("Enable Engagement Lifecycle (Option A)", isOn: $useEngagementLifecycle)
-                                .font(.body)
-                            Text("A progressive rollout of new lifecycle features to enhance engagement tracking.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 4)
-                            
-                            Button {
-                                showLifecycleNotesBackfillConfirm = true
-                            } label: {
-                                Label("Backfill Notes to Engagement Lifecycle", systemImage: "doc.on.doc")
-                            }
-                            .buttonStyle(.bordered)
-                            .confirmationDialog(
-                                "Backfill Notes?",
-                                isPresented: $showLifecycleNotesBackfillConfirm,
-                                titleVisibility: .visible
-                            ) {
-                                Button("Run Backfill") {
-                                    isRunningLifecycleBackfill = true
-                                    Task {
-                                        do {
-                                            let report = try NotesBackfillService.run(modelContext: modelContext)
-                                            // Compose summary string
-                                            var summaryLines = [
-                                                "Presentations touched: \(report.presentationsTouched)",
-                                                "WorkContracts touched: \(report.workContractsTouched)",
-                                                "Notes created: \(report.notesCreated)",
-                                                "Notes skipped as duplicates: \(report.notesSkippedAsDuplicates)",
-                                                "Unmatched legacy notes: \(report.unmatched)"
-                                            ]
-                                            if report.errorCount > 0 {
-                                                summaryLines.append("Errors: \(report.errorCount)")
-                                            }
-                                            lifecycleBackfillSummary = summaryLines.joined(separator: "\n")
-                                            _ = SaveCoordinator().save(modelContext, reason: "Backfill notes")
-                                        } catch {
-                                            lifecycleBackfillSummary = "Backfill failed: \(error.localizedDescription)"
-                                        }
-                                        isRunningLifecycleBackfill = false
-                                    }
-                                }
-                                Button("Cancel", role: .cancel) {}
-                            }
-                            
-                            if isRunningLifecycleBackfill {
-                                VStack(spacing: 8) {
-                                    ProgressView()
-                                    Text("Backfilling notes…")
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(.top, 8)
-                            }
-                            
-                            #if DEBUG
-                            Button {
-                                backfillLifecycle(using: modelContext)
-                            } label: {
-                                Label("Backfill Presentations + Work…", systemImage: "arrow.triangle.2.circlepath")
-                            }
-                            .buttonStyle(.bordered)
-                            .padding(.top, 8)
-                            
-                            Text("Manually backfill data for presentations and work inbox. This operation is idempotent and safe to run multiple times.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 4)
-                            #endif
-                        }
-                    }
-                    
                     // MARK: - Advanced / Debug Section (added)
                     SettingsCategoryHeader(title: "Advanced / Debug")
                     
@@ -437,11 +360,6 @@ struct SettingsView: View {
         } message: {
             Text(dannyResetSummary ?? "")
         }
-        .alert("Engagement Lifecycle Backfill", isPresented: Binding(get: { lifecycleBackfillSummary != nil }, set: { if !$0 { lifecycleBackfillSummary = nil } })) {
-            Button("OK", role: .cancel) { lifecycleBackfillSummary = nil }
-        } message: {
-            Text(lifecycleBackfillSummary ?? "")
-        }
         .onAppear {
             // If we are no longer in an ephemeral session (i.e., persistent container opened), clear any stale message.
             // We infer this by the absence of the in-memory flag being set by App startup code.
@@ -482,46 +400,6 @@ struct SettingsView: View {
         }
     }
 }
-
-#if DEBUG
-private func backfillLifecycle(using context: ModelContext) {
-    let start = Date()
-    var createdPresentations = 0
-    var createdContracts = 0
-    var skipped = 0
-    do {
-        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.isPresented == true || $0.givenAt != nil })
-        let lessons = try context.fetch(fetch)
-        for sl in lessons {
-            let presentedAt = sl.givenAt ?? sl.createdAt
-            do {
-                let result = try LifecycleService.recordPresentationAndExplodeWork(from: sl, presentedAt: presentedAt, modelContext: context)
-                // Count work contracts created by comparing fetch count for this presentation
-                // We approximate by counting connected WorkContracts after call
-                let pid = result.presentation.id.uuidString
-                let wFetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.presentationID == pid })
-                let all = (try? context.fetch(wFetch)) ?? []
-                createdPresentations += 1 // may overcount if existing; adjust below
-                createdContracts += max(0, all.count)
-            } catch {
-                skipped += 1
-            }
-        }
-        try context.save()
-    } catch {
-        DispatchQueue.main.async {
-            // If called from non-main, ensure update on main thread
-            NotificationCenter.default.post(name: Notification.Name("LifecycleBackfillFailed"), object: error.localizedDescription)
-        }
-        return
-    }
-    let elapsed = Date().timeIntervalSince(start)
-    let summary = String(format: "Backfill complete in %.2fs. Presentations: %d, Work: %d, Skipped: %d", elapsed, createdPresentations, createdContracts, skipped)
-    DispatchQueue.main.async {
-        NotificationCenter.default.post(name: Notification.Name("LifecycleBackfillComplete"), object: summary)
-    }
-}
-#endif
 
 // MARK: - FileDocument wrapper for exporting JSON
 struct BackupDocument: FileDocument {
