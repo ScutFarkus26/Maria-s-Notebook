@@ -24,6 +24,7 @@ struct AppSchema {
         CommunityAttachment.self,
         Presentation.self,
         WorkContract.self,
-        WorkPlanItem.self
+        WorkPlanItem.self,
+        StudentMeeting.self
     ])
 }

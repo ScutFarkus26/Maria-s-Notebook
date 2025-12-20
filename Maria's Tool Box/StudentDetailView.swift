@@ -444,7 +444,7 @@ struct StudentDetailView: View {
                         historyPlaceholder
                             .padding(.top, 36)
                     } else if selectedTab == .meetings {
-                        meetingsPlaceholder
+                        StudentMeetingsTab(student: student)
                             .padding(.top, 36)
                     } else if selectedTab == .notes {
                         studentNotesTab

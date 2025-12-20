@@ -7,11 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		515DB34A2EF71F5600F7EAAB /* FollowUpInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515DB3492EF71F5600F7EAAB /* FollowUpInboxView.swift */; };
+		515DB34C2EF7201300F7EAAB /* FollowUpInboxEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515DB34B2EF7201300F7EAAB /* FollowUpInboxEngine.swift */; };
+		515DB34E2EF7204A00F7EAAB /* Color+AccentCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515DB34D2EF7204A00F7EAAB /* Color+AccentCompat.swift */; };
+		515DB3502EF7248700F7EAAB /* StudentMeetingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515DB34F2EF7248700F7EAAB /* StudentMeetingsTab.swift */; };
+		515DB3522EF7267F00F7EAAB /* StudentMeeting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515DB3512EF7267F00F7EAAB /* StudentMeeting.swift */; };
 		51D0939E2EF4834A0010E980 /* StudentChecklistState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D0939D2EF4834A0010E980 /* StudentChecklistState.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		515DB3492EF71F5600F7EAAB /* FollowUpInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpInboxView.swift; sourceTree = "<group>"; };
+		515DB34B2EF7201300F7EAAB /* FollowUpInboxEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpInboxEngine.swift; sourceTree = "<group>"; };
+		515DB34D2EF7204A00F7EAAB /* Color+AccentCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+AccentCompat.swift"; sourceTree = "<group>"; };
+		515DB34F2EF7248700F7EAAB /* StudentMeetingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentMeetingsTab.swift; sourceTree = "<group>"; };
+		515DB3512EF7267F00F7EAAB /* StudentMeeting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentMeeting.swift; sourceTree = "<group>"; };
 		51D0939D2EF4834A0010E980 /* StudentChecklistState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentChecklistState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -53,6 +63,11 @@
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
 				51D0939D2EF4834A0010E980 /* StudentChecklistState.swift */,
+				515DB3492EF71F5600F7EAAB /* FollowUpInboxView.swift */,
+				515DB34B2EF7201300F7EAAB /* FollowUpInboxEngine.swift */,
+				515DB34D2EF7204A00F7EAAB /* Color+AccentCompat.swift */,
+				515DB34F2EF7248700F7EAAB /* StudentMeetingsTab.swift */,
+				515DB3512EF7267F00F7EAAB /* StudentMeeting.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -139,6 +154,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				51D0939E2EF4834A0010E980 /* StudentChecklistState.swift in Sources */,
+				515DB3522EF7267F00F7EAAB /* StudentMeeting.swift in Sources */,
+				515DB34A2EF71F5600F7EAAB /* FollowUpInboxView.swift in Sources */,
+				515DB3502EF7248700F7EAAB /* StudentMeetingsTab.swift in Sources */,
+				515DB34C2EF7201300F7EAAB /* FollowUpInboxEngine.swift in Sources */,
+				515DB34E2EF7204A00F7EAAB /* Color+AccentCompat.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

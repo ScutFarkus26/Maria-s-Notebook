@@ -322,6 +322,7 @@ struct PlanningRootView: View {
     enum Mode: String, CaseIterable, Identifiable {
         case agenda = "Lessons Agenda"
         case works = "Work Agenda"
+        case followUpInbox = "Follow-Up Inbox"
         var id: String { rawValue }
     }
 
@@ -342,6 +343,7 @@ struct PlanningRootView: View {
                         HStack(spacing: 12) {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -354,6 +356,7 @@ struct PlanningRootView: View {
                         HStack(spacing: 12) {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                         }
                         Spacer()
                     }
@@ -367,6 +370,7 @@ struct PlanningRootView: View {
                 HStack(spacing: 12) {
                     PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                     PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                    PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                 }
                 Spacer()
             }
@@ -381,6 +385,8 @@ struct PlanningRootView: View {
                     LessonsAgendaBetaView()
                 } else if mode == .works {
                     WorksAgendaView()
+                } else if mode == .followUpInbox {
+                    FollowUpInboxView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
