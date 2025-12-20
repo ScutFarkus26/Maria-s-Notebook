@@ -21,6 +21,8 @@ struct BackupPayload: Codable {
     var attendance: [AttendanceRecordDTO]
     var workCompletions: [WorkCompletionRecordDTO]
     var workCheckIns: [WorkCheckInDTO]
+    var workContracts: [WorkContractDTO]
+    var workPlanItems: [WorkPlanItemDTO]
     var notes: [ScopedNoteDTO]
     var standardNotes: [NoteDTO]
     var nonSchoolDays: [NonSchoolDayDTO]
@@ -35,17 +37,31 @@ struct BackupPayload: Codable {
     var lessonAgeFreshColorHex: String?
     var lessonAgeWarningColorHex: String?
     var lessonAgeOverdueColorHex: String?
+    var workAgeWarningDays: Int?
+    var workAgeOverdueDays: Int?
+    var workAgeFreshColorHex: String?
+    var workAgeWarningColorHex: String?
+    var workAgeOverdueColorHex: String?
     var selectedChecklistSubject: String?
     var lastBackupTimeInterval: Double?
     var attendanceLockedDays: [String]
     var studentMeetings: [StudentMeetingDTO]
 
+    var presentations: [PresentationDTO]
+    var communityTopics: [CommunityTopicDTO]
+    var proposedSolutions: [ProposedSolutionDTO]
+    var meetingNotes: [MeetingNoteDTO]
+    var communityAttachments: [CommunityAttachmentDTO]
+
     private enum CodingKeys: String, CodingKey {
-        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns, notes, standardNotes
+        case version, createdAt, items, students, lessons, studentLessons, works, subjectOrder, groupOrders, attendance, workCompletions, workCheckIns, workContracts, workPlanItems, notes, standardNotes
         case nonSchoolDays, schoolDayOverrides, presentNowExcludedNames, planningInboxOrder
-        case attendanceEmailEnabled, attendanceEmailTo, attendanceEmailFrom, lessonAgeWarningDays, lessonAgeOverdueDays, lessonAgeFreshColorHex, lessonAgeWarningColorHex, lessonAgeOverdueColorHex, selectedChecklistSubject, lastBackupTimeInterval
+        case attendanceEmailEnabled, attendanceEmailTo, attendanceEmailFrom, lessonAgeWarningDays, lessonAgeOverdueDays, lessonAgeFreshColorHex, lessonAgeWarningColorHex, lessonAgeOverdueColorHex
+        case workAgeWarningDays, workAgeOverdueDays, workAgeFreshColorHex, workAgeWarningColorHex, workAgeOverdueColorHex
+        case selectedChecklistSubject, lastBackupTimeInterval
         case attendanceLockedDays
         case studentMeetings
+        case presentations, communityTopics, proposedSolutions, meetingNotes, communityAttachments
     }
 
     init(
@@ -61,6 +77,8 @@ struct BackupPayload: Codable {
         attendance: [AttendanceRecordDTO],
         workCompletions: [WorkCompletionRecordDTO],
         workCheckIns: [WorkCheckInDTO],
+        workContracts: [WorkContractDTO],
+        workPlanItems: [WorkPlanItemDTO],
         notes: [ScopedNoteDTO],
         standardNotes: [NoteDTO],
         nonSchoolDays: [NonSchoolDayDTO],
@@ -75,10 +93,20 @@ struct BackupPayload: Codable {
         lessonAgeFreshColorHex: String? = nil,
         lessonAgeWarningColorHex: String? = nil,
         lessonAgeOverdueColorHex: String? = nil,
+        workAgeWarningDays: Int? = nil,
+        workAgeOverdueDays: Int? = nil,
+        workAgeFreshColorHex: String? = nil,
+        workAgeWarningColorHex: String? = nil,
+        workAgeOverdueColorHex: String? = nil,
         selectedChecklistSubject: String? = nil,
         lastBackupTimeInterval: Double? = nil,
         attendanceLockedDays: [String] = [],
-        studentMeetings: [StudentMeetingDTO] = []
+        studentMeetings: [StudentMeetingDTO] = [],
+        presentations: [PresentationDTO] = [],
+        communityTopics: [CommunityTopicDTO] = [],
+        proposedSolutions: [ProposedSolutionDTO] = [],
+        meetingNotes: [MeetingNoteDTO] = [],
+        communityAttachments: [CommunityAttachmentDTO] = []
     ) {
         self.version = version
         self.createdAt = createdAt
@@ -92,6 +120,8 @@ struct BackupPayload: Codable {
         self.attendance = attendance
         self.workCompletions = workCompletions
         self.workCheckIns = workCheckIns
+        self.workContracts = workContracts
+        self.workPlanItems = workPlanItems
         self.notes = notes
         self.standardNotes = standardNotes
         self.nonSchoolDays = nonSchoolDays
@@ -106,10 +136,20 @@ struct BackupPayload: Codable {
         self.lessonAgeFreshColorHex = lessonAgeFreshColorHex
         self.lessonAgeWarningColorHex = lessonAgeWarningColorHex
         self.lessonAgeOverdueColorHex = lessonAgeOverdueColorHex
+        self.workAgeWarningDays = workAgeWarningDays
+        self.workAgeOverdueDays = workAgeOverdueDays
+        self.workAgeFreshColorHex = workAgeFreshColorHex
+        self.workAgeWarningColorHex = workAgeWarningColorHex
+        self.workAgeOverdueColorHex = workAgeOverdueColorHex
         self.selectedChecklistSubject = selectedChecklistSubject
         self.lastBackupTimeInterval = lastBackupTimeInterval
         self.attendanceLockedDays = attendanceLockedDays
         self.studentMeetings = studentMeetings
+        self.presentations = presentations
+        self.communityTopics = communityTopics
+        self.proposedSolutions = proposedSolutions
+        self.meetingNotes = meetingNotes
+        self.communityAttachments = communityAttachments
     }
 
     init(from decoder: Decoder) throws {
@@ -126,6 +166,8 @@ struct BackupPayload: Codable {
         self.attendance = try container.decodeIfPresent([AttendanceRecordDTO].self, forKey: .attendance) ?? []
         self.workCompletions = try container.decodeIfPresent([WorkCompletionRecordDTO].self, forKey: .workCompletions) ?? []
         self.workCheckIns = try container.decodeIfPresent([WorkCheckInDTO].self, forKey: .workCheckIns) ?? []
+        self.workContracts = try container.decodeIfPresent([WorkContractDTO].self, forKey: .workContracts) ?? []
+        self.workPlanItems = try container.decodeIfPresent([WorkPlanItemDTO].self, forKey: .workPlanItems) ?? []
         self.notes = (try? container.decode([ScopedNoteDTO].self, forKey: .notes)) ?? []
         self.standardNotes = try container.decodeIfPresent([NoteDTO].self, forKey: .standardNotes) ?? []
         self.nonSchoolDays = try container.decodeIfPresent([NonSchoolDayDTO].self, forKey: .nonSchoolDays) ?? []
@@ -140,10 +182,21 @@ struct BackupPayload: Codable {
         self.lessonAgeFreshColorHex = try container.decodeIfPresent(String.self, forKey: .lessonAgeFreshColorHex)
         self.lessonAgeWarningColorHex = try container.decodeIfPresent(String.self, forKey: .lessonAgeWarningColorHex)
         self.lessonAgeOverdueColorHex = try container.decodeIfPresent(String.self, forKey: .lessonAgeOverdueColorHex)
+        self.workAgeWarningDays = try container.decodeIfPresent(Int.self, forKey: .workAgeWarningDays)
+        self.workAgeOverdueDays = try container.decodeIfPresent(Int.self, forKey: .workAgeOverdueDays)
+        self.workAgeFreshColorHex = try container.decodeIfPresent(String.self, forKey: .workAgeFreshColorHex)
+        self.workAgeWarningColorHex = try container.decodeIfPresent(String.self, forKey: .workAgeWarningColorHex)
+        self.workAgeOverdueColorHex = try container.decodeIfPresent(String.self, forKey: .workAgeOverdueColorHex)
         self.selectedChecklistSubject = try container.decodeIfPresent(String.self, forKey: .selectedChecklistSubject)
         self.lastBackupTimeInterval = try container.decodeIfPresent(Double.self, forKey: .lastBackupTimeInterval)
         self.attendanceLockedDays = try container.decodeIfPresent([String].self, forKey: .attendanceLockedDays) ?? []
         self.studentMeetings = try container.decodeIfPresent([StudentMeetingDTO].self, forKey: .studentMeetings) ?? []
+
+        self.presentations = try container.decodeIfPresent([PresentationDTO].self, forKey: .presentations) ?? []
+        self.communityTopics = try container.decodeIfPresent([CommunityTopicDTO].self, forKey: .communityTopics) ?? []
+        self.proposedSolutions = try container.decodeIfPresent([ProposedSolutionDTO].self, forKey: .proposedSolutions) ?? []
+        self.meetingNotes = try container.decodeIfPresent([MeetingNoteDTO].self, forKey: .meetingNotes) ?? []
+        self.communityAttachments = try container.decodeIfPresent([CommunityAttachmentDTO].self, forKey: .communityAttachments) ?? []
     }
 }
 
@@ -335,6 +388,31 @@ struct WorkCheckInDTO: Codable {
     var note: String
 }
 
+struct WorkContractDTO: Codable {
+    var id: UUID
+    var studentID: String
+    var lessonID: String
+    var presentationID: String?
+    var status: String
+    var scheduledDate: Date?
+    var createdAt: Date?
+    var completedAt: Date?
+    var kind: String?
+    var scheduledReason: String?
+    var scheduledNote: String?
+    var completionOutcome: String?
+    var completionNote: String?
+    var legacyStudentLessonID: String?
+}
+
+struct WorkPlanItemDTO: Codable {
+    var id: UUID
+    var workID: UUID
+    var scheduledDate: Date
+    var reason: String
+    var note: String?
+}
+
 struct ScopedNoteDTO: Codable {
     var id: UUID
     var createdAt: Date
@@ -344,6 +422,8 @@ struct ScopedNoteDTO: Codable {
     var legacyFingerprint: String?
     var studentLessonID: UUID?
     var workID: UUID?
+    var presentationID: UUID?
+    var workContractID: UUID?
 }
 
 struct NoteDTO: Codable {
@@ -380,11 +460,60 @@ struct StudentMeetingDTO: Codable {
     var guideNotes: String
 }
 
+struct PresentationDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var presentedAt: Date
+    var lessonID: String
+    var studentIDs: [String]
+    var legacyStudentLessonID: String?
+    var lessonTitleSnapshot: String?
+    var lessonSubtitleSnapshot: String?
+}
+
+struct CommunityTopicDTO: Codable {
+    var id: UUID
+    var title: String
+    var issueDescription: String
+    var createdAt: Date
+    var addressedDate: Date?
+    var resolution: String
+    var raisedBy: String
+    var tags: [String]
+}
+
+struct ProposedSolutionDTO: Codable {
+    var id: UUID
+    var topicID: UUID?
+    var title: String
+    var details: String
+    var proposedBy: String
+    var createdAt: Date
+    var isAdopted: Bool
+}
+
+struct MeetingNoteDTO: Codable {
+    var id: UUID
+    var topicID: UUID?
+    var speaker: String
+    var content: String
+    var createdAt: Date
+}
+
+struct CommunityAttachmentDTO: Codable {
+    var id: UUID
+    var topicID: UUID?
+    var filename: String
+    var kind: String
+    var data: Data?
+    var createdAt: Date
+}
+
 // MARK: - Backup Manager
 
 enum BackupManager {
     /// Current backup format version. Bump if you change the payload shape.
-    static let currentVersion: Int = 20
+    static let currentVersion: Int = 21
 
     /// Create JSON data representing the current database state.
     static func makeBackupData(using context: ModelContext) throws -> Data {
@@ -508,6 +637,41 @@ enum BackupManager {
             )
         }
 
+        // Fetch all WorkContracts
+        let contractsFetch = FetchDescriptor<WorkContract>()
+        let contracts = try context.fetch(contractsFetch)
+        let workContractsDTO: [WorkContractDTO] = contracts.map { c in
+            WorkContractDTO(
+                id: c.id,
+                studentID: c.studentID,
+                lessonID: c.lessonID,
+                presentationID: c.presentationID,
+                status: c.status.rawValue,
+                scheduledDate: c.scheduledDate,
+                createdAt: (c as AnyObject).value(forKey: "createdAt") as? Date,
+                completedAt: c.completedAt,
+                kind: c.kind?.rawValue,
+                scheduledReason: c.scheduledReason?.rawValue,
+                scheduledNote: c.scheduledNote,
+                completionOutcome: c.completionOutcome?.rawValue,
+                completionNote: c.completionNote,
+                legacyStudentLessonID: (c as AnyObject).value(forKey: "legacyStudentLessonID") as? String
+            )
+        }
+
+        // Fetch all WorkPlanItems
+        let planFetch = FetchDescriptor<WorkPlanItem>()
+        let planItems = try context.fetch(planFetch)
+        let workPlanItemsDTO: [WorkPlanItemDTO] = planItems.map { p in
+            WorkPlanItemDTO(
+                id: p.id,
+                workID: p.workID,
+                scheduledDate: p.scheduledDate,
+                reason: p.reason?.rawValue ?? WorkPlanItem.Reason.progressCheck.rawValue,
+                note: p.note
+            )
+        }
+
         // Fetch all ScopedNotes
         let notesFetch = FetchDescriptor<ScopedNote>()
         let notes = try context.fetch(notesFetch)
@@ -520,7 +684,9 @@ enum BackupManager {
                 scope: n.scope,
                 legacyFingerprint: n.legacyFingerprint,
                 studentLessonID: n.studentLesson?.id,
-                workID: n.work?.id
+                workID: n.work?.id,
+                presentationID: n.presentation?.id,
+                workContractID: n.workContract?.id
             )
         }
         
@@ -569,6 +735,77 @@ enum BackupManager {
             )
         }
 
+        // Fetch all Presentations
+        let presFetch = FetchDescriptor<Presentation>()
+        let presentationsAll = try context.fetch(presFetch)
+        let presentationsDTO: [PresentationDTO] = presentationsAll.map { p in
+            PresentationDTO(
+                id: p.id,
+                createdAt: p.createdAt,
+                presentedAt: p.presentedAt,
+                lessonID: p.lessonID,
+                studentIDs: p.studentIDs,
+                legacyStudentLessonID: p.legacyStudentLessonID,
+                lessonTitleSnapshot: p.lessonTitleSnapshot,
+                lessonSubtitleSnapshot: p.lessonSubtitleSnapshot
+            )
+        }
+
+        // Community / Meeting models
+        let topicsFetch = FetchDescriptor<CommunityTopic>()
+        let topics = try context.fetch(topicsFetch)
+        let communityTopicsDTO: [CommunityTopicDTO] = topics.map { t in
+            CommunityTopicDTO(
+                id: t.id,
+                title: t.title,
+                issueDescription: t.issueDescription,
+                createdAt: t.createdAt,
+                addressedDate: t.addressedDate,
+                resolution: t.resolution,
+                raisedBy: t.raisedBy,
+                tags: t.tags
+            )
+        }
+
+        let solutionsFetch = FetchDescriptor<ProposedSolution>()
+        let solutions = try context.fetch(solutionsFetch)
+        let proposedSolutionsDTO: [ProposedSolutionDTO] = solutions.map { s in
+            ProposedSolutionDTO(
+                id: s.id,
+                topicID: s.topic?.id,
+                title: s.title,
+                details: s.details,
+                proposedBy: s.proposedBy,
+                createdAt: s.createdAt,
+                isAdopted: s.isAdopted
+            )
+        }
+
+        let notesFetch2 = FetchDescriptor<MeetingNote>()
+        let meetingNotesAll = try context.fetch(notesFetch2)
+        let meetingNotesDTO: [MeetingNoteDTO] = meetingNotesAll.map { n in
+            MeetingNoteDTO(
+                id: n.id,
+                topicID: n.topic?.id,
+                speaker: n.speaker,
+                content: n.content,
+                createdAt: n.createdAt
+            )
+        }
+
+        let attachmentsFetch = FetchDescriptor<CommunityAttachment>()
+        let attachments = try context.fetch(attachmentsFetch)
+        let communityAttachmentsDTO: [CommunityAttachmentDTO] = attachments.map { a in
+            CommunityAttachmentDTO(
+                id: a.id,
+                topicID: a.topic?.id,
+                filename: a.filename,
+                kind: a.kind.rawValue,
+                data: a.data,
+                createdAt: a.createdAt
+            )
+        }
+
         // Read small user preferences that affect planning/filters
         let presentNowExcludedNames = UserDefaults.standard.string(forKey: "StudentsView.presentNow.excludedNames")
         let planningInboxOrder = UserDefaults.standard.string(forKey: "PlanningInbox.order")
@@ -582,6 +819,11 @@ enum BackupManager {
         let lessonAgeFreshColorHex = UserDefaults.standard.string(forKey: "LessonAge.freshColorHex")
         let lessonAgeWarningColorHex = UserDefaults.standard.string(forKey: "LessonAge.warningColorHex")
         let lessonAgeOverdueColorHex = UserDefaults.standard.string(forKey: "LessonAge.overdueColorHex")
+        let workAgeWarningDays = UserDefaults.standard.object(forKey: "WorkAge.warningDays") as? Int
+        let workAgeOverdueDays = UserDefaults.standard.object(forKey: "WorkAge.overdueDays") as? Int
+        let workAgeFreshColorHex = UserDefaults.standard.string(forKey: "WorkAge.freshColorHex")
+        let workAgeWarningColorHex = UserDefaults.standard.string(forKey: "WorkAge.warningColorHex")
+        let workAgeOverdueColorHex = UserDefaults.standard.string(forKey: "WorkAge.overdueColorHex")
         let selectedChecklistSubject = UserDefaults.standard.string(forKey: "StudentDetailView.selectedChecklistSubject")
         let lastBackupTimeInterval = UserDefaults.standard.object(forKey: "lastBackupTimeInterval") as? Double
 
@@ -625,6 +867,8 @@ enum BackupManager {
             attendance: attendanceDTO,
             workCompletions: workCompletionsDTO,
             workCheckIns: workCheckInsDTO,
+            workContracts: workContractsDTO,
+            workPlanItems: workPlanItemsDTO,
             notes: notesDTO,
             standardNotes: standardNotesDTO,
             nonSchoolDays: nonSchoolDaysDTO,
@@ -639,10 +883,20 @@ enum BackupManager {
             lessonAgeFreshColorHex: lessonAgeFreshColorHex,
             lessonAgeWarningColorHex: lessonAgeWarningColorHex,
             lessonAgeOverdueColorHex: lessonAgeOverdueColorHex,
+            workAgeWarningDays: workAgeWarningDays,
+            workAgeOverdueDays: workAgeOverdueDays,
+            workAgeFreshColorHex: workAgeFreshColorHex,
+            workAgeWarningColorHex: workAgeWarningColorHex,
+            workAgeOverdueColorHex: workAgeOverdueColorHex,
             selectedChecklistSubject: selectedChecklistSubject,
             lastBackupTimeInterval: lastBackupTimeInterval,
             attendanceLockedDays: attendanceLockedDays,
-            studentMeetings: meetingsDTO
+            studentMeetings: meetingsDTO,
+            presentations: presentationsDTO,
+            communityTopics: communityTopicsDTO,
+            proposedSolutions: proposedSolutionsDTO,
+            meetingNotes: meetingNotesDTO,
+            communityAttachments: communityAttachmentsDTO
         )
         let encoder = JSONEncoder()
         // Use compact encoding for smaller backups and faster encode
@@ -657,6 +911,8 @@ enum BackupManager {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let payload = try decoder.decode(BackupPayload.self, from: data)
+
+        let restoredContractIDMap: [UUID: UUID] = [:]
 
         // Optionally validate version
         guard payload.version <= currentVersion else {
@@ -770,6 +1026,118 @@ enum BackupManager {
             }
         }
 
+        // Insert WorkContracts (preserving IDs) if present
+        if !payload.workContracts.isEmpty {
+            for dto in payload.workContracts {
+                let statusEnum = WorkStatus(rawValue: dto.status) ?? .active
+                let c = WorkContract(studentID: dto.studentID, lessonID: dto.lessonID, presentationID: dto.presentationID, status: statusEnum)
+                // Preserve ID if the model allows mutation
+                c.id = dto.id
+                // Optional fields
+                if let d = dto.scheduledDate { c.scheduledDate = d }
+                if let d = dto.createdAt { (c as AnyObject).setValue(d, forKey: "createdAt") }
+                if let d = dto.completedAt { c.completedAt = d }
+                if let k = dto.kind { (c as AnyObject).setValue(k, forKey: "kindRawValue") }
+                if let r = dto.scheduledReason { (c as AnyObject).setValue(r, forKey: "scheduledReasonRawValue") }
+                if let n = dto.scheduledNote { c.scheduledNote = n }
+                if let o = dto.completionOutcome { (c as AnyObject).setValue(o, forKey: "completionOutcomeRawValue") }
+                if let n = dto.completionNote { c.completionNote = n }
+                if let legacy = dto.legacyStudentLessonID { (c as AnyObject).setValue(legacy, forKey: "legacyStudentLessonID") }
+                context.insert(c)
+            }
+        }
+
+        // Insert WorkPlanItems (preserving IDs) if present
+        if !payload.workPlanItems.isEmpty {
+            for dto in payload.workPlanItems {
+                let reasonEnum = WorkPlanItem.Reason(rawValue: dto.reason) ?? .progressCheck
+                let p = WorkPlanItem(workID: dto.workID, scheduledDate: dto.scheduledDate, reason: reasonEnum, note: dto.note)
+                p.id = dto.id
+                context.insert(p)
+            }
+        }
+
+        // Insert Presentations
+        if !payload.presentations.isEmpty {
+            for dto in payload.presentations {
+                let p = Presentation(
+                    id: dto.id,
+                    createdAt: dto.createdAt,
+                    presentedAt: dto.presentedAt,
+                    lessonID: dto.lessonID,
+                    studentIDs: dto.studentIDs,
+                    legacyStudentLessonID: dto.legacyStudentLessonID,
+                    lessonTitleSnapshot: dto.lessonTitleSnapshot,
+                    lessonSubtitleSnapshot: dto.lessonSubtitleSnapshot
+                )
+                context.insert(p)
+            }
+        }
+
+        // Insert Community Topics
+        if !payload.communityTopics.isEmpty {
+            for dto in payload.communityTopics {
+                let t = CommunityTopic(
+                    id: dto.id,
+                    title: dto.title,
+                    issueDescription: dto.issueDescription,
+                    createdAt: dto.createdAt,
+                    addressedDate: dto.addressedDate,
+                    resolution: dto.resolution
+                )
+                t.raisedBy = dto.raisedBy
+                t.tags = dto.tags
+                context.insert(t)
+            }
+        }
+        // Build topics map
+        let topicsNow = try context.fetch(FetchDescriptor<CommunityTopic>())
+        let topicsByID = Dictionary(uniqueKeysWithValues: topicsNow.map { ($0.id, $0) })
+
+        // Insert Proposed Solutions
+        if !payload.proposedSolutions.isEmpty {
+            for dto in payload.proposedSolutions {
+                let s = ProposedSolution(
+                    id: dto.id,
+                    title: dto.title,
+                    details: dto.details,
+                    proposedBy: dto.proposedBy,
+                    createdAt: dto.createdAt,
+                    isAdopted: dto.isAdopted,
+                    topic: dto.topicID.flatMap { topicsByID[$0] }
+                )
+                context.insert(s)
+            }
+        }
+        // Insert Meeting Notes
+        if !payload.meetingNotes.isEmpty {
+            for dto in payload.meetingNotes {
+                let n = MeetingNote(
+                    id: dto.id,
+                    speaker: dto.speaker,
+                    content: dto.content,
+                    createdAt: dto.createdAt,
+                    topic: dto.topicID.flatMap { topicsByID[$0] }
+                )
+                context.insert(n)
+            }
+        }
+        // Insert Community Attachments
+        if !payload.communityAttachments.isEmpty {
+            for dto in payload.communityAttachments {
+                let kind = CommunityAttachment.Kind(rawValue: dto.kind) ?? .file
+                let a = CommunityAttachment(
+                    id: dto.id,
+                    filename: dto.filename,
+                    kind: kind,
+                    data: dto.data,
+                    createdAt: dto.createdAt,
+                    topic: dto.topicID.flatMap { topicsByID[$0] }
+                )
+                context.insert(a)
+            }
+        }
+
         // Insert AttendanceRecords (preserving IDs)
         if !payload.attendance.isEmpty {
             for dto in payload.attendance {
@@ -846,6 +1214,12 @@ enum BackupManager {
             let slByID = Dictionary(uniqueKeysWithValues: slsNow.map { ($0.id, $0) })
             let worksNow = try context.fetch(FetchDescriptor<WorkModel>())
             let workByID = Dictionary(uniqueKeysWithValues: worksNow.map { ($0.id, $0) })
+
+            let contractsNow = try context.fetch(FetchDescriptor<WorkContract>())
+            let contractsByID = Dictionary(uniqueKeysWithValues: contractsNow.map { ($0.id, $0) })
+            let presentationsNow = try context.fetch(FetchDescriptor<Presentation>())
+            let presentationsByID = Dictionary(uniqueKeysWithValues: presentationsNow.map { ($0.id, $0) })
+
             for dto in payload.notes {
                 let note = ScopedNote(
                     id: dto.id,
@@ -855,7 +1229,12 @@ enum BackupManager {
                     scope: dto.scope,
                     legacyFingerprint: dto.legacyFingerprint,
                     studentLesson: dto.studentLessonID.flatMap { slByID[$0] },
-                    work: dto.workID.flatMap { workByID[$0] }
+                    work: dto.workID.flatMap { workByID[$0] },
+                    presentation: dto.presentationID.flatMap { presentationsByID[$0] },
+                    workContract: dto.workContractID.flatMap { id in
+                        let mapped = restoredContractIDMap[id] ?? id
+                        return contractsByID[mapped]
+                    }
                 )
                 context.insert(note)
             }
@@ -963,6 +1342,21 @@ enum BackupManager {
         if let lessonAgeOverdueColorHex = payload.lessonAgeOverdueColorHex {
             UserDefaults.standard.set(lessonAgeOverdueColorHex, forKey: "LessonAge.overdueColorHex")
         }
+        if let workAgeWarningDays = payload.workAgeWarningDays {
+            UserDefaults.standard.set(workAgeWarningDays, forKey: "WorkAge.warningDays")
+        }
+        if let workAgeOverdueDays = payload.workAgeOverdueDays {
+            UserDefaults.standard.set(workAgeOverdueDays, forKey: "WorkAge.overdueDays")
+        }
+        if let workAgeFreshColorHex = payload.workAgeFreshColorHex {
+            UserDefaults.standard.set(workAgeFreshColorHex, forKey: "WorkAge.freshColorHex")
+        }
+        if let workAgeWarningColorHex = payload.workAgeWarningColorHex {
+            UserDefaults.standard.set(workAgeWarningColorHex, forKey: "WorkAge.warningColorHex")
+        }
+        if let workAgeOverdueColorHex = payload.workAgeOverdueColorHex {
+            UserDefaults.standard.set(workAgeOverdueColorHex, forKey: "WorkAge.overdueColorHex")
+        }
         if let selectedChecklistSubject = payload.selectedChecklistSubject {
             UserDefaults.standard.set(selectedChecklistSubject, forKey: "StudentDetailView.selectedChecklistSubject")
         }
@@ -1012,6 +1406,16 @@ enum BackupManager {
             let works = try context.fetch(FetchDescriptor<WorkModel>())
             for obj in works { context.delete(obj) }
         }
+        // Delete WorkContracts
+        do {
+            let contracts = try context.fetch(FetchDescriptor<WorkContract>())
+            for obj in contracts { context.delete(obj) }
+        }
+        // Delete WorkPlanItems
+        do {
+            let items = try context.fetch(FetchDescriptor<WorkPlanItem>())
+            for obj in items { context.delete(obj) }
+        }
         // Delete WorkCheckIns
         do {
             let cis = try context.fetch(FetchDescriptor<WorkCheckIn>())
@@ -1051,6 +1455,31 @@ enum BackupManager {
         do {
             let meetings = try context.fetch(FetchDescriptor<StudentMeeting>())
             for obj in meetings { context.delete(obj) }
+        }
+        // Delete Presentations
+        do {
+            let pres = try context.fetch(FetchDescriptor<Presentation>())
+            for obj in pres { context.delete(obj) }
+        }
+        // Delete ProposedSolution
+        do {
+            let sols = try context.fetch(FetchDescriptor<ProposedSolution>())
+            for obj in sols { context.delete(obj) }
+        }
+        // Delete MeetingNote
+        do {
+            let notes = try context.fetch(FetchDescriptor<MeetingNote>())
+            for obj in notes { context.delete(obj) }
+        }
+        // Delete CommunityAttachment
+        do {
+            let atts = try context.fetch(FetchDescriptor<CommunityAttachment>())
+            for obj in atts { context.delete(obj) }
+        }
+        // Delete CommunityTopic
+        do {
+            let topics = try context.fetch(FetchDescriptor<CommunityTopic>())
+            for obj in topics { context.delete(obj) }
         }
         try context.save()
     }
