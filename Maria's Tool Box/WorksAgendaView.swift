@@ -5,6 +5,7 @@ struct WorksAgendaView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @EnvironmentObject private var restoreCoordinator: RestoreCoordinator
 
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
@@ -23,50 +24,61 @@ struct WorksAgendaView: View {
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
 
     var body: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                // Top ~68%: Open Work grid
-                VStack(alignment: .leading, spacing: 8) {
-                    header
-                    Divider()
-                    OpenWorkGrid(
-                        works: openWorksFiltered(),
-                        lessonsByID: lessonsByID,
-                        studentsByID: studentsByID,
-                        sortMode: sortMode,
-                        onOpen: openDetail,
-                        onMarkCompleted: markCompleted,
-                        onScheduleToday: scheduleToday
-                    )
+        Group {
+            if restoreCoordinator.isRestoring {
+                VStack(spacing: 16) {
+                    ProgressView().controlSize(.large)
+                    Text("Restoring data…")
+                        .foregroundStyle(.secondary)
                 }
-                .frame(height: geo.size.height * (1 - calendarHeightRatio))
-
-                Divider()
-
-                // Bottom ~32%: Calendar pane
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Planning Calendar").font(.title3.weight(.semibold))
-                        Spacer()
-                        Button("Today") { /* optional hook if needed */ }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    WorkAgendaCalendarPane(startDate: Date(), daysCount: 10)
-                        .frame(maxHeight: .infinity)
-                }
-                .frame(height: geo.size.height * calendarHeightRatio)
-            }
-        }
-        .navigationTitle("Work Agenda")
-        .sheet(item: $selected, onDismiss: { selected = nil }) { token in
-            let id = token.contractID
-            let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-            if let c = try? modelContext.fetch(fetch).first {
-                WorkContractDetailSheet(contract: c) { selected = nil }
-                    .id(token.id)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+                GeometryReader { geo in
+                    VStack(spacing: 0) {
+                        // Top ~68%: Open Work grid
+                        VStack(alignment: .leading, spacing: 8) {
+                            header
+                            Divider()
+                            OpenWorkGrid(
+                                works: openWorksFiltered(),
+                                lessonsByID: lessonsByID,
+                                studentsByID: studentsByID,
+                                sortMode: sortMode,
+                                onOpen: openDetail,
+                                onMarkCompleted: markCompleted,
+                                onScheduleToday: scheduleToday
+                            )
+                        }
+                        .frame(height: geo.size.height * (1 - calendarHeightRatio))
+
+                        Divider()
+
+                        // Bottom ~32%: Calendar pane
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Planning Calendar").font(.title3.weight(.semibold))
+                                Spacer()
+                                Button("Today") { /* optional hook if needed */ }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                            WorkAgendaCalendarPane(startDate: Date(), daysCount: 10)
+                                .frame(maxHeight: .infinity)
+                        }
+                        .frame(height: geo.size.height * calendarHeightRatio)
+                    }
+                }
+                .navigationTitle("Work Agenda")
+                .sheet(item: $selected, onDismiss: { selected = nil }) { token in
+                    let id = token.contractID
+                    let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
+                    if let c = try? modelContext.fetch(fetch).first {
+                        WorkContractDetailSheet(contract: c) { selected = nil }
+                            .id(token.id)
+                    } else {
+                        ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+                    }
+                }
             }
         }
     }

@@ -23,6 +23,7 @@ struct MariasToolboxApp: App {
 
     @StateObject private var saveCoordinator = SaveCoordinator()
     @StateObject private var bootstrapper = AppBootstrapper.shared
+    @StateObject private var restoreCoordinator = RestoreCoordinator()
 
     static func resetPersistentStore() throws {
         let url = storeFileURL()
@@ -174,9 +175,22 @@ struct MariasToolboxApp: App {
                 } else {
                     // NORMAL APP FLOW
                     if bootstrapper.state == .ready {
-                        RootView()
-                            .environment(\.calendar, AppCalendar.shared)
-                            .environmentObject(saveCoordinator)
+                        Group {
+                            if restoreCoordinator.isRestoring {
+                                VStack(spacing: 20) {
+                                    ProgressView().controlSize(.large)
+                                    Text("Restoring data…")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color.clear)
+                            } else {
+                                RootView()
+                                    .environment(\.calendar, AppCalendar.shared)
+                                    .environmentObject(saveCoordinator)
+                                    .environmentObject(restoreCoordinator)
+                            }
+                        }
                     } else {
                         // Loading / Splash Screen
                         VStack(spacing: 20) {
@@ -265,9 +279,21 @@ struct MariasToolboxApp: App {
         #if os(macOS)
         WindowGroup("", id: "WorkDetailWindow", for: UUID.self) { $workID in
             if let id = workID {
-                WorkDetailWindowContainer(workID: id)
-                    .environment(\.calendar, AppCalendar.shared)
-                    .environmentObject(saveCoordinator)
+                Group {
+                    if restoreCoordinator.isRestoring {
+                        VStack(spacing: 20) {
+                            ProgressView().controlSize(.large)
+                            Text("Restoring data…")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minWidth: 400, minHeight: 300)
+                    } else {
+                        WorkDetailWindowContainer(workID: id)
+                            .environment(\.calendar, AppCalendar.shared)
+                            .environmentObject(saveCoordinator)
+                            .environmentObject(restoreCoordinator)
+                    }
+                }
             } else {
                 Text("No work selected")
                     .frame(minWidth: 400, minHeight: 300)

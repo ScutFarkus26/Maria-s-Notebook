@@ -119,13 +119,37 @@ struct FollowUpInboxEngine {
         // Rule 1: Lesson follow-up overdue/upcoming
         do {
             let presented = studentLessons.filter { $0.isPresented || $0.givenAt != nil }
-            let contractByPresentationID: Set<String> = Set(contracts.compactMap { $0.presentationID?.lowercased() })
+
+            // Build lookup sets from contracts to exclude lessons with any follow-up work
+            let contractsByLegacyStudentLessonID: Set<String> = Set(
+                contracts.compactMap { $0.legacyStudentLessonID?.lowercased() }
+            )
+
+            // Fallback: childID + lessonID composite (covers manually-created contracts without legacy IDs)
+            let contractsByChildLessonKey: Set<String> = Set(
+                contracts.compactMap { c in
+                    let sid = c.studentID.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let lid = c.lessonID.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !sid.isEmpty, !lid.isEmpty else { return nil }
+                    return "\(sid.lowercased())|\(lid.lowercased())"
+                }
+            )
 
             for sl in presented {
                 let presentedDate = sl.givenAt ?? sl.createdAt
                 let days = schoolDaysSince(presentedDate)
-                let key = sl.id.uuidString.lowercased()
-                guard !contractByPresentationID.contains(key) else { continue }
+
+                let lessonKey = sl.id.uuidString.lowercased()
+                let childLessonKeys: [String] = sl.resolvedStudentIDs.map { sid in
+                    "\(sid.uuidString.lowercased())|\(sl.lessonID.uuidString.lowercased())"
+                }
+
+                // Exclude if there is any follow-up work linked by legacy ID or by child+lesson fallback.
+                let hasFollowUpWork =
+                    contractsByLegacyStudentLessonID.contains(lessonKey) ||
+                    childLessonKeys.contains(where: { contractsByChildLessonKey.contains($0) })
+
+                guard !hasFollowUpWork else { continue }
 
                 let threshold = constants.lessonFollowUpOverdueDays
                 let bucket: FollowUpInboxItem.Bucket

@@ -45,6 +45,8 @@ struct WorkContractDetailSheet: View {
     @State private var newPlanDate: Date = Date()
     @State private var newPlanReason: WorkPlanItem.Reason = .progressCheck
     @State private var newPlanNote: String = ""
+    
+    @State private var isRestoringData: Bool = false
 
     private var scheduleDates: WorkScheduleDates {
         WorkScheduleDateLogic.compute(for: contract, allPlanItems: planItems)
@@ -137,227 +139,238 @@ struct WorkContractDetailSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(lessonTitle())
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(studentName())
-                        .font(.subheadline)
+        Group {
+            if isRestoringData {
+                VStack(spacing: 16) {
+                    ProgressView().controlSize(.large)
+                    Text("Restoring data…")
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Button {
-                    showCompletionSheet = true
-                } label: {
-                    Label("Mark Complete", systemImage: "checkmark.circle")
-                }
-                .buttonStyle(.borderedProminent)
-            }
-
-            Picker("Status", selection: $status) {
-                ForEach(WorkStatus.allCases, id: \.self) { s in
-                    Text(label(for: s)).tag(s)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            // Work Kind picker (aligned under Status)
-            VStack(alignment: .leading, spacing: 6) {
-                Picker("Kind", selection: Binding(get: { kind ?? contract.kind }, set: { kind = $0 })) {
-                    Text("Practice").tag(Optional(WorkKind.practiceLesson))
-                    Text("Follow-up").tag(Optional(WorkKind.followUpAssignment))
-                    Text("Research").tag(Optional(WorkKind.research))
-                }
-                .pickerStyle(.segmented)
-            }
-
-            Divider().padding(.vertical, 4)
-
-            // Scheduling section
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Calendar")
-                    .font(.headline)
-
-                // Summary of current dates (prominent card)
-                Group {
-                    if scheduleDates.hasPrimary {
-                        VStack(alignment: .leading, spacing: 8) {
-                            // Primary date row (prominent)
-                            HStack(spacing: 10) {
-                                if let k = scheduleDates.primaryKind { Image(systemName: WorkScheduleDateLogic.iconName(for: k)).foregroundStyle(.tint) }
-                                if let d = scheduleDates.primaryDate, let k = scheduleDates.primaryKind {
-                                    Text(WorkScheduleDateLogic.formattedDate(d))
-                                        .font(.title3.weight(.semibold))
-                                        .foregroundStyle(.primary)
-                                    Text(WorkScheduleDateLogic.label(for: k))
-                                        .font(.caption.weight(.semibold))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Capsule().fill(Color.accentColor.opacity(0.15)))
-                                }
-                                Spacer(minLength: 0)
-                                Text(WorkScheduleDateLogic.primaryLabel)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            // Secondary date row (if present)
-                            if let sd = scheduleDates.secondaryDate, let sk = scheduleDates.secondaryKind {
-                                HStack(spacing: 8) {
-                                    Image(systemName: WorkScheduleDateLogic.iconName(for: sk))
-                                        .foregroundStyle(.secondary)
-                                    Text(WorkScheduleDateLogic.label(for: sk))
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                    Spacer(minLength: 0)
-                                    Text(WorkScheduleDateLogic.formattedDate(sd))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.06)))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.primary.opacity(0.08)))
-                    } else if let fb = WorkScheduleDateLogic.nextAnyDate(forPlanItems: planItems) {
-                        // Fallback card when there is a plan item but not a check-in/due
-                        HStack(spacing: 10) {
-                            Image(systemName: "calendar")
-                                .foregroundStyle(.tint)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(WorkScheduleDateLogic.formattedDate(fb.date))
-                                    .font(.headline.weight(.semibold))
-                                Text(fb.label)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                            Text(WorkScheduleDateLogic.primaryLabel)
-                                .font(.caption)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Header
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(lessonTitle())
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text(studentName())
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.06)))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.primary.opacity(0.08)))
-                    } else {
-                        Text("No dates scheduled")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            showCompletionSheet = true
+                        } label: {
+                            Label("Mark Complete", systemImage: "checkmark.circle")
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                }
 
-                // Subtle aging cue
-                let relevantPlanItems = planItems.filter { $0.workID == contract.id }
-                let daysSince = contract.daysSinceLastTouch(modelContext: modelContext, planItems: relevantPlanItems, notes: workNotes)
-                let bucket = contract.agingBucket(modelContext: modelContext, planItems: relevantPlanItems, notes: workNotes)
-                if bucket != .fresh {
-                    Text("Last touched \(daysSince)d ago")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
-                }
-
-                // Composer
-                DatePicker("Date", selection: $newPlanDate, displayedComponents: .date)
-
-                Picker("Why is this scheduled?", selection: $newPlanReason) {
-                    ForEach(WorkPlanItem.Reason.allCases) { r in
-                        Text(r.label).tag(r)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                TextField("Note (optional)", text: $newPlanNote)
-                    .textFieldStyle(.roundedBorder)
-
-                HStack {
-                    Spacer()
-                    Button {
-                        addPlan()
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-
-            Divider().padding(.top, 4)
-
-            // Schedule Next Lesson action
-            Button {
-                showScheduleSheet = true
-            } label: {
-                Label("Schedule Next Lesson…", systemImage: "calendar.badge.plus")
-            }
-            .buttonStyle(.bordered)
-            
-            Divider().padding(.top, 8)
-
-            // Notes Section
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Image(systemName: "note.text")
-                        .foregroundStyle(.secondary)
-                    Text("Notes")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Button {
-                        showAddNoteSheet = true
-                    } label: {
-                        Label("Add Note", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                if workNotes.isEmpty {
-                    Text("No notes yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(workNotes, id: \.id) { note in
-                            noteRow(note)
+                    Picker("Status", selection: $status) {
+                        ForEach(WorkStatus.allCases, id: \.self) { s in
+                            Text(label(for: s)).tag(s)
                         }
                     }
-                }
+                    .pickerStyle(.segmented)
 
-                if resolvedPresentationID != nil {
+                    // Work Kind picker (aligned under Status)
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 8) {
-                            Text("Presentation Notes (Group)")
-                                .font(.subheadline.weight(.semibold))
-                            Spacer()
-                            Button(showPresentationNotes ? "Hide" : "Show") {
-                                withAnimation(.easeInOut) { showPresentationNotes.toggle() }
-                            }
-                            .buttonStyle(.borderless)
+                        Picker("Kind", selection: Binding(get: { kind ?? contract.kind }, set: { kind = $0 })) {
+                            Text("Practice").tag(Optional(WorkKind.practiceLesson))
+                            Text("Follow-up").tag(Optional(WorkKind.followUpAssignment))
+                            Text("Research").tag(Optional(WorkKind.research))
                         }
-                        if showPresentationNotes {
-                            if presentationNotes.isEmpty {
-                                Text("No presentation notes")
+                        .pickerStyle(.segmented)
+                    }
+
+                    Divider().padding(.vertical, 4)
+
+                    // Scheduling section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Calendar")
+                            .font(.headline)
+
+                        // Summary of current dates (prominent card)
+                        Group {
+                            if scheduleDates.hasPrimary {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    // Primary date row (prominent)
+                                    HStack(spacing: 10) {
+                                        if let k = scheduleDates.primaryKind { Image(systemName: WorkScheduleDateLogic.iconName(for: k)).foregroundStyle(.tint) }
+                                        if let d = scheduleDates.primaryDate, let k = scheduleDates.primaryKind {
+                                            Text(WorkScheduleDateLogic.formattedDate(d))
+                                                .font(.title3.weight(.semibold))
+                                                .foregroundStyle(.primary)
+                                            Text(WorkScheduleDateLogic.label(for: k))
+                                                .font(.caption.weight(.semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+                                        }
+                                        Spacer(minLength: 0)
+                                        Text(WorkScheduleDateLogic.primaryLabel)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    // Secondary date row (if present)
+                                    if let sd = scheduleDates.secondaryDate, let sk = scheduleDates.secondaryKind {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: WorkScheduleDateLogic.iconName(for: sk))
+                                                .foregroundStyle(.secondary)
+                                            Text(WorkScheduleDateLogic.label(for: sk))
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(.secondary)
+                                            Spacer(minLength: 0)
+                                            Text(WorkScheduleDateLogic.formattedDate(sd))
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                                .padding(12)
+                                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.06)))
+                                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.primary.opacity(0.08)))
+                            } else if let fb = WorkScheduleDateLogic.nextAnyDate(forPlanItems: planItems) {
+                                // Fallback card when there is a plan item but not a check-in/due
+                                HStack(spacing: 10) {
+                                    Image(systemName: "calendar")
+                                        .foregroundStyle(.tint)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(WorkScheduleDateLogic.formattedDate(fb.date))
+                                            .font(.headline.weight(.semibold))
+                                        Text(fb.label)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer(minLength: 0)
+                                    Text(WorkScheduleDateLogic.primaryLabel)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(12)
+                                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.06)))
+                                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.primary.opacity(0.08)))
+                            } else {
+                                Text("No dates scheduled")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
-                            } else {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    ForEach(presentationNotes, id: \.id) { note in
-                                        noteRow(note)
+                            }
+                        }
+
+                        // Subtle aging cue
+                        let relevantPlanItems = planItems.filter { $0.workID == contract.id }
+                        let daysSince = contract.daysSinceLastTouch(modelContext: modelContext, planItems: relevantPlanItems, notes: workNotes)
+                        let bucket = contract.agingBucket(modelContext: modelContext, planItems: relevantPlanItems, notes: workNotes)
+                        if bucket != .fresh {
+                            Text("Last touched \(daysSince)d ago")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 2)
+                        }
+
+                        // Composer
+                        DatePicker("Date", selection: $newPlanDate, displayedComponents: .date)
+
+                        Picker("Why is this scheduled?", selection: $newPlanReason) {
+                            ForEach(WorkPlanItem.Reason.allCases) { r in
+                                Text(r.label).tag(r)
+                            }
+                        }
+                        .pickerStyle(.menu)
+
+                        TextField("Note (optional)", text: $newPlanNote)
+                            .textFieldStyle(.roundedBorder)
+
+                        HStack {
+                            Spacer()
+                            Button {
+                                addPlan()
+                            } label: {
+                                Label("Add", systemImage: "plus")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+
+                    Divider().padding(.top, 4)
+
+                    // Schedule Next Lesson action
+                    Button {
+                        showScheduleSheet = true
+                    } label: {
+                        Label("Schedule Next Lesson…", systemImage: "calendar.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Divider().padding(.top, 8)
+
+                    // Notes Section
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "note.text")
+                                .foregroundStyle(.secondary)
+                            Text("Notes")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Button {
+                                showAddNoteSheet = true
+                            } label: {
+                                Label("Add Note", systemImage: "plus")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        if workNotes.isEmpty {
+                            Text("No notes yet")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(workNotes, id: \.id) { note in
+                                    noteRow(note)
+                                }
+                            }
+                        }
+
+                        if resolvedPresentationID != nil {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 8) {
+                                    Text("Presentation Notes (Group)")
+                                        .font(.subheadline.weight(.semibold))
+                                    Spacer()
+                                    Button(showPresentationNotes ? "Hide" : "Show") {
+                                        withAnimation(.easeInOut) { showPresentationNotes.toggle() }
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                                if showPresentationNotes {
+                                    if presentationNotes.isEmpty {
+                                        Text("No presentation notes")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            ForEach(presentationNotes, id: \.id) { note in
+                                                noteRow(note)
+                                            }
+                                        }
                                     }
                                 }
                             }
+                            .padding(.top, 4)
                         }
                     }
-                    .padding(.top, 4)
-                }
-            }
 
-            HStack {
-                Spacer()
-                Button("Cancel") { close() }
-                Button("Save") { save() }
-                    .buttonStyle(.borderedProminent)
+                    HStack {
+                        Spacer()
+                        Button("Cancel") { close() }
+                        Button("Save") { save() }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
             }
         }
         .padding(16)
@@ -473,6 +486,12 @@ struct WorkContractDetailSheet: View {
             } else {
                 hasSchedule = false
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .AppDataWillBeReplaced)) { _ in
+            isRestoringData = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .AppDataDidRestore)) { _ in
+            isRestoringData = false
         }
     }
 

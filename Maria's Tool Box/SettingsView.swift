@@ -9,6 +9,7 @@ import AppKit
 // MARK: - SettingsView styled like the reference app, adapted to this app's data
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    private let backupService = BackupService()
 
     // Live data for stats
     @Query private var students: [Student]
@@ -31,9 +32,18 @@ struct SettingsView: View {
     @State private var showingDuplicatesPreview = false
     @State private var maintenanceAlert: (title: String, message: String)? = nil
     @State private var pendingImporterPresentation = false
+    @AppStorage("LastBackupTimeInterval") private var lastBackupTimeInterval: Double = 0
 
-    // Persist last backup time
-    @AppStorage("lastBackupTimeInterval") private var lastBackupTimeInterval: Double?
+    @AppStorage("Backup.encrypt") private var encryptBackups: Bool = false
+    @State private var restoreMode: BackupService.RestoreMode = .merge
+    @State private var backupProgress: Double = 0
+    @State private var backupMessage: String = ""
+    @State private var exportURL: URL? = nil
+    @State private var importProgress: Double = 0
+    @State private var importMessage: String = ""
+    @State private var resultSummary: String? = nil
+    
+    @State private var operationSummary: BackupOperationSummary? = nil
     
 //    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
 //    @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
@@ -49,38 +59,26 @@ struct SettingsView: View {
     @State private var showDannyResetConfirm = false
     @State private var dannyResetSummary: String? = nil
 
+    private let overviewColumns: [GridItem] = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
+    ]
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // MARK: - Overview Section
                     SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 16),
-                            GridItem(.flexible(), spacing: 16),
-                            GridItem(.flexible(), spacing: 16),
-                            GridItem(.flexible(), spacing: 16)
-                        ], spacing: 16) {
-                            StatCard(title: "Students",
-                                     value: "\(students.count)",
-                                     subtitle: nil,
-                                     systemImage: "person.3.fill")
-
-                            StatCard(title: "Lessons",
-                                     value: "\(lessons.count)",
-                                     subtitle: nil,
-                                     systemImage: "text.book.closed.fill")
-
-                            StatCard(title: "Lessons Planned",
-                                     value: "\(plannedLessons.count)",
-                                     subtitle: nil,
-                                     systemImage: "books.vertical.fill")
-
-                            StatCard(title: "Lessons Given",
-                                     value: "\(givenLessons.count)",
-                                     subtitle: nil,
-                                     systemImage: "checkmark.circle.fill")
-                        }
+                        OverviewStatsGrid(
+                            studentsCount: studentsTotal,
+                            lessonsCount: lessonsTotal,
+                            plannedCount: plannedTotal,
+                            givenCount: givenTotal,
+                            columns: overviewColumns
+                        )
                     }
                     
                     // MARK: - Data Management Section
@@ -90,88 +88,39 @@ struct SettingsView: View {
                         // Backup & Restore
                         SettingsGroup(title: "Backup & Restore", systemImage: "arrow.triangle.2.circlepath") {
                             VStack(alignment: .leading, spacing: 12) {
+                                Toggle("Encrypt Backups", isOn: $encryptBackups)
+                                Picker("Restore Mode", selection: $restoreMode) {
+                                    Text("Merge").tag(BackupService.RestoreMode.merge)
+                                    Text("Replace").tag(BackupService.RestoreMode.replace)
+                                }
+                                .pickerStyle(.segmented)
                                 HStack(spacing: 12) {
                                     Button {
-                                        do {
-                                            let data = try BackupManager.makeBackupData(using: modelContext)
-                                            exportData = data
-                                            showingExporter = true
-                                        } catch {
-                                            importError = "Failed to create backup: \(error.localizedDescription)"
-                                        }
+                                        Task { await performExport() }
                                     } label: {
-                                        Label("Create Backup", systemImage: "externaldrive.badge.plus")
+                                        Label("Export Backup (Data Only)", systemImage: "externaldrive.badge.plus")
                                     }
                                     .buttonStyle(.borderedProminent)
                                     .controlSize(.large)
 
-                                    Button(role: .destructive) {
-                                        showRestoreConfirm = true
+                                    Button {
+                                        showingImporter = true
                                     } label: {
-                                        Label("Restore from Backup", systemImage: "arrow.down.doc")
+                                        Label("Import Backup…", systemImage: "arrow.down.doc")
                                     }
                                     .buttonStyle(.bordered)
                                     .controlSize(.large)
-                                    .tint(.red)
-                                    .confirmationDialog(
-                                        "Restore from Backup?",
-                                        isPresented: $showRestoreConfirm,
-                                        titleVisibility: .visible
-                                    ) {
-                                        Button("Choose Backup File…", role: .destructive) {
-                                            pendingImporterPresentation = true
-                                            showRestoreConfirm = false
-                                        }
-                                        Button("Cancel", role: .cancel) {}
-                                    } message: {
-                                        Text("This will replace your current data with the backup file.")
-                                    }
                                 }
-
-                                if UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
-                                    let reason = UserDefaults.standard.string(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey) ?? "The persistent store could not be opened. Data will not persist this session."
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Label {
-                                            Text("Warning: Data won't persist this session")
-                                                .font(.headline)
-                                        } icon: {
-                                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
-                                        }
-                                        Text(reason)
-                                            .font(.footnote)
-                                            .foregroundStyle(.secondary)
-                                        Button {
-                                            NotificationCenter.default.post(name: Notification.Name("CreateBackupRequested"), object: nil)
-                                        } label: {
-                                            Label("Create Backup Now", systemImage: "externaldrive.badge.plus")
-                                        }
-                                        .buttonStyle(.bordered)
-                                        .controlSize(.small)
-                                    }
-                                    .padding(8)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                if backupProgress > 0 && backupProgress < 1.0 {
+                                    ProgressView(value: backupProgress) { Text(backupMessage) }
                                 }
-
-                                if let lastBackupDate = lastBackupDate {
-                                    Label {
-                                        Text("Last backup: \(lastBackupDate, style: .relative)")
-                                    } icon: {
-                                        Image(systemName: "clock")
-                                    }
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.top, 4)
-                                } else {
-                                    Label("Last backup: Never", systemImage: "clock")
+                                if importProgress > 0 && importProgress < 1.0 {
+                                    ProgressView(value: importProgress) { Text(importMessage) }
+                                }
+                                if let summary = resultSummary {
+                                    Text(summary)
                                         .font(.footnote)
                                         .foregroundStyle(.secondary)
-                                        .padding(.top, 4)
-                                }
-
-                                if let importError {
-                                    Text(importError)
-                                        .foregroundStyle(.red)
                                 }
                             }
                         }
@@ -263,43 +212,28 @@ struct SettingsView: View {
         }
         .fileExporter(
             isPresented: $showingExporter,
-            document: exportDocument,
-            contentType: .json,
+            document: exportPackageDocument,
+            contentType: UTType(filenameExtension: BackupFile.fileExtension) ?? .data,
             defaultFilename: defaultBackupFilename()
         ) { result in
             switch result {
             case .success:
                 lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
+                resultSummary = "Exported backup successfully."
             case .failure(let error):
                 importError = "Failed to write backup: \(error.localizedDescription)"
             }
             exportData = nil
+            backupProgress = 0; backupMessage = ""
         }
         .fileImporter(
             isPresented: $showingImporter,
-            allowedContentTypes: [.json]
+            allowedContentTypes: [UTType(filenameExtension: BackupFile.fileExtension) ?? .data]
         ) { result in
-            do {
-                let url = try result.get()
-
-                Task.detached(priority: .userInitiated) {
-                    let needsAccess = url.startAccessingSecurityScopedResource()
-                    defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-                    do {
-                        let data = try Data(contentsOf: url)
-                        try await MainActor.run {
-                            try BackupManager.restore(from: data, using: modelContext)
-                            importError = nil
-                            lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
-                            NotificationCenter.default.post(name: Notification.Name("BackfillIsPresentedRequested"), object: nil)
-                        }
-                    } catch {
-                        await MainActor.run {
-                            importError = "Failed to restore: \(error.localizedDescription)"
-                        }
-                    }
-                }
-            } catch {
+            switch result {
+            case .success(let url):
+                Task { await handleImportedURL(url) }
+            case .failure(let error):
                 importError = "Failed to restore: \(error.localizedDescription)"
             }
         }
@@ -320,13 +254,7 @@ struct SettingsView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("CreateBackupRequested"))) { _ in
-            do {
-                let data = try BackupManager.makeBackupData(using: modelContext)
-                exportData = data
-                showingExporter = true
-            } catch {
-                importError = "Failed to create backup: \(error.localizedDescription)"
-            }
+            Task { await performExport() }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RestoreBackupRequested"))) { _ in
             showRestoreConfirm = true
@@ -360,6 +288,10 @@ struct SettingsView: View {
         } message: {
             Text(dannyResetSummary ?? "")
         }
+        // Sheet presenting the operation summary from import/export
+        .sheet(item: $operationSummary) { summary in
+            BackupSummaryView(summary: summary)
+        }
         .onAppear {
             // If we are no longer in an ephemeral session (i.e., persistent container opened), clear any stale message.
             // We infer this by the absence of the in-memory flag being set by App startup code.
@@ -368,6 +300,11 @@ struct SettingsView: View {
             }
         }
     }
+    
+    private var studentsTotal: Int { students.count }
+    private var lessonsTotal: Int { lessons.count }
+    private var plannedTotal: Int { plannedLessons.count }
+    private var givenTotal: Int { givenLessons.count }
 
     // MARK: - Helpers
 
@@ -379,12 +316,17 @@ struct SettingsView: View {
 
     private func defaultBackupFilename() -> String {
         let formatter = SettingsView.backupFilenameFormatter
-        return "MariasToolbox_Backup_\(formatter.string(from: Date())).json"
+        return "MariasToolbox_DataBackup_\(formatter.string(from: Date()))"
     }
 
     private var exportDocument: BackupDocument? {
         guard let exportData else { return nil }
         return BackupDocument(data: exportData)
+    }
+    
+    private var exportPackageDocument: BackupPackageDocument? {
+        guard let exportData else { return nil }
+        return BackupPackageDocument(data: exportData)
     }
 
     private var totalNextLessonsCount: Int {
@@ -393,10 +335,87 @@ struct SettingsView: View {
     }
 
     private var lastBackupDate: Date? {
-        if let lastBackupTimeInterval {
+        if lastBackupTimeInterval > 0 {
             return Date(timeIntervalSinceReferenceDate: lastBackupTimeInterval)
         } else {
             return nil
+        }
+    }
+    
+    @MainActor
+    private func performExport() async {
+        do {
+            backupProgress = 0; backupMessage = "Preparing…"; resultSummary = nil
+            let tmpName = defaultBackupFilename()
+            let tmp = FileManager.default.temporaryDirectory
+                .appendingPathComponent(tmpName)
+                .appendingPathExtension(BackupFile.fileExtension)
+            exportURL = tmp
+            try? FileManager.default.removeItem(at: tmp)
+            let summary = try await backupService.exportBackup(
+                modelContext: modelContext,
+                to: tmp,
+                encrypt: encryptBackups
+            ) { progress, message in
+                DispatchQueue.main.async {
+                    self.backupProgress = progress
+                    self.backupMessage = message
+                }
+            }
+            operationSummary = BackupOperationSummary(
+                kind: .export,
+                fileName: summary.fileName,
+                formatVersion: summary.formatVersion,
+                encryptUsed: summary.encryptUsed,
+                createdAt: summary.createdAt,
+                entityCounts: summary.entityCounts,
+                warnings: summary.warnings
+            )
+            exportData = try Data(contentsOf: tmp)
+            showingExporter = true
+        } catch {
+            importError = "Failed to export: \(error.localizedDescription)"
+        }
+    }
+
+    private func handleImportedURL(_ url: URL) async {
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        do {
+            await MainActor.run {
+                importProgress = 0
+                importMessage = "Starting…"
+                resultSummary = nil
+            }
+            let summary = try await backupService.importBackup(
+                modelContext: modelContext,
+                from: url,
+                mode: restoreMode
+            ) { p, m in
+                DispatchQueue.main.async {
+                    self.importProgress = p
+                    self.importMessage = m
+                }
+            }
+            await MainActor.run {
+                importError = nil
+                lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
+                resultSummary = "Import complete. Restored data successfully."
+                operationSummary = BackupOperationSummary(
+                    kind: .import,
+                    fileName: summary.fileName,
+                    formatVersion: summary.formatVersion,
+                    encryptUsed: summary.encryptUsed,
+                    createdAt: summary.createdAt,
+                    entityCounts: summary.entityCounts,
+                    warnings: summary.warnings
+                )
+                NotificationCenter.default.post(name: Notification.Name("BackfillIsPresentedRequested"), object: nil)
+            }
+        } catch {
+            await MainActor.run {
+                importError = "Failed to restore: \(error.localizedDescription)"
+            }
         }
     }
 }
@@ -422,6 +441,15 @@ struct BackupDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         return FileWrapper(regularFileWithContents: data)
     }
+}
+
+struct BackupPackageDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [UTType(filenameExtension: BackupFile.fileExtension) ?? .data] }
+    static var writableContentTypes: [UTType] { [UTType(filenameExtension: BackupFile.fileExtension) ?? .data] }
+    var data: Data
+    init(data: Data) { self.data = data }
+    init(configuration: ReadConfiguration) throws { guard let file = configuration.file.regularFileContents else { throw CocoaError(.fileReadCorruptFile) }; self.data = file }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
 // MARK: - Visual components replicated from the reference style
@@ -531,6 +559,23 @@ struct SettingsGroup<Content: View>: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Color.primary.opacity(0.06))
         )
+    }
+}
+
+private struct OverviewStatsGrid: View {
+    let studentsCount: Int
+    let lessonsCount: Int
+    let plannedCount: Int
+    let givenCount: Int
+    let columns: [GridItem]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 16) {
+            StatCard(title: "Students", value: String(studentsCount), subtitle: nil, systemImage: "person.3.fill")
+            StatCard(title: "Lessons", value: String(lessonsCount), subtitle: nil, systemImage: "text.book.closed.fill")
+            StatCard(title: "Lessons Planned", value: String(plannedCount), subtitle: nil, systemImage: "books.vertical.fill")
+            StatCard(title: "Lessons Given", value: String(givenCount), subtitle: nil, systemImage: "checkmark.circle.fill")
+        }
     }
 }
 

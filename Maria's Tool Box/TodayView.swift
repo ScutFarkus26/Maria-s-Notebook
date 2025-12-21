@@ -9,6 +9,7 @@ import SwiftData
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
+    @EnvironmentObject private var restoreCoordinator: RestoreCoordinator
 
     @StateObject private var viewModel: TodayViewModel
 
@@ -80,20 +81,31 @@ struct TodayView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                header
-                Divider()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        attendanceStrip
-                        lessonsSection
-                        checkInsSection
-                        inProgressSection
-                        completedSection
+        Group {
+            if restoreCoordinator.isRestoring {
+                VStack(spacing: 16) {
+                    ProgressView().controlSize(.large)
+                    Text("Restoring data…")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                NavigationStack {
+                    VStack(spacing: 0) {
+                        header
+                        Divider()
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 20) {
+                                attendanceStrip
+                                lessonsSection
+                                checkInsSection
+                                inProgressSection
+                                completedSection
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                        }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
                 }
             }
         }
@@ -531,3 +543,4 @@ private struct CompletionRow: View {
     let container = try! ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     return TodayView(context: container.mainContext)
 }
+
