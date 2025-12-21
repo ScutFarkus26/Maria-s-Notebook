@@ -31,7 +31,8 @@ struct StudentDetailView: View {
     @State private var showDeleteAlert = false
     private enum StudentDetailTab { case overview, checklist, history, meetings, notes, progress }
     @State private var selectedTab: StudentDetailTab = .overview
-
+    @State private var progressReport: StudentProgressReport? = nil
+    @State private var hasLoadedProgressReport = false
     @State private var selectedContract: WorkContract? = nil
 
     #if os(iOS)
@@ -453,8 +454,12 @@ struct StudentDetailView: View {
                         studentNotesTab
                             .padding(.top, 36)
                     } else if selectedTab == .progress {
-                        StudentProgressReportView(student: student)
-                            .padding(.top, 36)
+                        StudentProgressReportView(
+                            student: student,
+                            report: $progressReport,
+                            hasLoaded: $hasLoadedProgressReport
+                        )
+                        .padding(.top, 36)
                     }
                 }
                 .padding(.horizontal, 32)
@@ -730,7 +735,7 @@ struct StudentDetailView: View {
                             Spacer()
                         }
                         VStack(alignment: .leading, spacing: 10) {
-                            ForEach(lessonNotesVisible, id: \ .id) { note in
+                            ForEach(lessonNotesVisible, id: \.id) { note in
                                 noteRow(note)
                             }
                         }
@@ -747,7 +752,7 @@ struct StudentDetailView: View {
                             Spacer()
                         }
                         VStack(alignment: .leading, spacing: 10) {
-                            ForEach(workNotesVisible, id: \ .id) { note in
+                            ForEach(workNotesVisible, id: \.id) { note in
                                 noteRow(note)
                             }
                         }

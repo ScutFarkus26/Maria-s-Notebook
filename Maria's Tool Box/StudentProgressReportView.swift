@@ -13,15 +13,15 @@ struct StudentProgressReportView: View {
 
     let student: Student
 
-    @State private var report: StudentProgressReport? = nil
+    @Binding private var report: StudentProgressReport?
     @State private var editingTerm: ReportTerm = .midYear
+    @Binding private var hasLoaded: Bool  // ⭐️ Track if we've loaded already
 
     // Collapsed/expanded state per domain
     @State private var expandedDomains: Set<String> = []
 
     // Debounced saving coordinator
     @StateObject private var saver = DebouncedSaver()
-    @State private var headerAutosaveTask: Task<Void, Never>? = nil
 
     // Local header fields bound to report
     @State private var schoolYear: String = "2024-2025"
@@ -31,8 +31,11 @@ struct StudentProgressReportView: View {
     @FocusState private var headerFocus: HeaderField?
 
     // MARK: - Init
-    init(student: Student) {
+    init(student: Student, report: Binding<StudentProgressReport?>, hasLoaded: Binding<Bool>) {
         self.student = student
+        self._report = report
+        self._hasLoaded = hasLoaded
+        print("🆕🆕🆕 INIT CALLED - Creating NEW view instance for \(student.fullName)")
     }
 
     // MARK: - Body
@@ -51,18 +54,21 @@ struct StudentProgressReportView: View {
                 .padding(16)
             }
         }
-        .onAppear { loadOrCreateReport() }
+        .onAppear {
+            // ⭐️ Only load once - don't refetch on subsequent appears
+            if !hasLoaded {
+                loadOrCreateReport()
+                hasLoaded = true
+            }
+        }
         .onChange(of: schoolYear) { _, _ in
             updateHeaderFieldsAndSave()
-            saver.flushSave(context: modelContext)
         }
         .onChange(of: teacher) { _, _ in
             updateHeaderFieldsAndSave()
-            saver.flushSave(context: modelContext)
         }
         .onChange(of: grade) { _, _ in
             updateHeaderFieldsAndSave()
-            saver.flushSave(context: modelContext)
         }
         .onChange(of: headerFocus) { _, newFocus in
             if newFocus == nil {
@@ -72,21 +78,10 @@ struct StudentProgressReportView: View {
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .background || newPhase == .inactive {
-                updateHeaderFieldsAndSave()
                 saver.flushSave(context: modelContext)
             }
         }
         .onDisappear {
-            updateHeaderFieldsAndSave()
-            saver.flushSave(context: modelContext)
-            headerAutosaveTask?.cancel()
-        }
-    }
-
-    private func scheduleHeaderAutosaveFlush() {
-        headerAutosaveTask?.cancel()
-        headerAutosaveTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 600_000_000)
             saver.flushSave(context: modelContext)
         }
     }
@@ -112,48 +107,36 @@ struct StudentProgressReportView: View {
                         schoolYear = newValue
                         if let r = report { r.schoolYear = newValue }
                         saver.scheduleSave(context: modelContext)
-                        saver.flushSave(context: modelContext)
                     }
                 ))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 180)
                     .focused($headerFocus, equals: .schoolYear)
-                    .onSubmit {
-                        if let r = report { r.schoolYear = schoolYear }
-                        saver.flushSave(context: modelContext)
-                    }
+
                 TextField("Teacher", text: Binding(
                     get: { report?.teacher ?? teacher },
                     set: { newValue in
                         teacher = newValue
                         if let r = report { r.teacher = newValue }
                         saver.scheduleSave(context: modelContext)
-                        saver.flushSave(context: modelContext)
                     }
                 ))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 240)
                     .focused($headerFocus, equals: .teacher)
-                    .onSubmit {
-                        if let r = report { r.teacher = teacher }
-                        saver.flushSave(context: modelContext)
-                    }
+
                 TextField("Grade", text: Binding(
                     get: { report?.grade ?? grade },
                     set: { newValue in
                         grade = newValue
                         if let r = report { r.grade = newValue }
                         saver.scheduleSave(context: modelContext)
-                        saver.flushSave(context: modelContext)
                     }
                 ))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 120)
                     .focused($headerFocus, equals: .grade)
-                    .onSubmit {
-                        if let r = report { r.grade = grade }
-                        saver.flushSave(context: modelContext)
-                    }
+                    
                 Spacer()
             }
         }
@@ -200,7 +183,6 @@ struct StudentProgressReportView: View {
             Text(entry.skillLabel)
                 .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
             Spacer()
-            // Segmented picker: blank / 4 / 3 / 2 / 1 / X
             Picker("", selection: Binding<String?>(
                 get: {
                     let v = (editingTerm == .midYear) ? entry.midYear?.rawValue : entry.endYear?.rawValue
@@ -218,37 +200,41 @@ struct StudentProgressReportView: View {
                 Text("X").tag(Optional("X"))
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 320)
+            .frame(maxWidth: 240)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Comments Editor
     private var commentsEditor: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Comments")
                 .font(.headline)
-            if let report = report {
-                // Section comments
+
+            if report != nil {
                 ForEach(ProgressReportSchema.commentSections, id: \.self) { section in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(section)
-                            .font(.subheadline.weight(.semibold))
-                        HStack(alignment: .top, spacing: 12) {
+                        Text(section).font(.subheadline.weight(.semibold))
+                        HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Mid-Year Comments").font(.caption).foregroundStyle(.secondary)
+                                Text("Mid-Year").font(.caption).foregroundStyle(.secondary)
                                 TextEditor(text: Binding<String>(
-                                    get: { report.comments.midYearBySection[section] ?? "" },
-                                    set: { newText in updateSectionComment(section: section, term: .midYear, value: newText) }
+                                    get: { report?.comments.midYearBySection[section] ?? "" },
+                                    set: { newValue in
+                                        updateSectionComment(section: section, term: .midYear, value: newValue)
+                                    }
                                 ))
                                 .frame(minHeight: 80)
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
                             }
+
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("End-of-Year Comments").font(.caption).foregroundStyle(.secondary)
+                                Text("End-of-Year").font(.caption).foregroundStyle(.secondary)
                                 TextEditor(text: Binding<String>(
-                                    get: { report.comments.endYearBySection[section] ?? "" },
-                                    set: { newText in updateSectionComment(section: section, term: .endYear, value: newText) }
+                                    get: { report?.comments.endYearBySection[section] ?? "" },
+                                    set: { newValue in
+                                        updateSectionComment(section: section, term: .endYear, value: newValue)
+                                    }
                                 ))
                                 .frame(minHeight: 80)
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
@@ -290,11 +276,10 @@ struct StudentProgressReportView: View {
             TextEditor(text: Binding<String>(
                 get: { report?.comments[keyPath: keyPath] ?? "" },
                 set: { newValue in
-                    guard var r = report else { return }
+                    guard let r = report else { return }
                     var c = r.comments
                     c[keyPath: keyPath] = newValue
                     r.comments = c
-                    report = r
                     saver.scheduleSave(context: modelContext)
                 }
             ))
@@ -338,16 +323,15 @@ struct StudentProgressReportView: View {
     }
 
     private func updateHeaderFieldsAndSave() {
-        guard var r = report else { return }
+        guard let r = report else { return }
         r.schoolYear = schoolYear
         r.teacher = teacher
         r.grade = grade
-        report = r
         saver.scheduleSave(context: modelContext)
     }
 
     private func setRating(for id: String, valueRaw: String?) {
-        guard var r = report else { return }
+        guard let r = report else { return }
         var entries = r.ratings
         if let idx = entries.firstIndex(where: { $0.id == id }) {
             var e = entries[idx]
@@ -358,13 +342,12 @@ struct StudentProgressReportView: View {
             }
             entries[idx] = e
             r.ratings = entries
-            report = r
             saver.scheduleSave(context: modelContext)
         }
     }
 
     private func updateSectionComment(section: String, term: ReportTerm, value: String) {
-        guard var r = report else { return }
+        guard let r = report else { return }
         var c = r.comments
         switch term {
         case .midYear:
@@ -373,7 +356,6 @@ struct StudentProgressReportView: View {
             c.endYearBySection[section] = value
         }
         r.comments = c
-        report = r
         saver.scheduleSave(context: modelContext)
     }
 
@@ -393,7 +375,7 @@ struct StudentProgressReportView: View {
         #if os(macOS)
         Task { @MainActor in
             do {
-                try await ProgressReportExporter.exportDOCXViaSavePanel(report: r, student: student)
+                try ProgressReportExporter.exportDOCXViaSavePanel(report: r, student: student)
             } catch {
                 presentAlert(title: "Export Failed", message: error.localizedDescription)
             }
@@ -461,8 +443,21 @@ final class DebouncedSaver: ObservableObject {
 
 // MARK: - Preview
 #Preview {
+    let container = ModelContainer.preview
+    let context = container.mainContext
     let student = Student(firstName: "Yosef", lastName: "Cohen", birthday: Date(), level: .lower)
-    StudentProgressReportView(student: student)
-        .modelContainer(for: [Student.self, StudentProgressReport.self], inMemory: true)
+    context.insert(student)
+    // Create a report for preview and pass as a constant binding
+    let report = StudentProgressReport(
+        studentPersistentID: student.id.uuidString,
+        ratings: ProgressReportSchema.defaultEntries(),
+        comments: ReportComments()
+    )
+    context.insert(report)
+    return StudentProgressReportView(
+        student: student,
+        report: .constant(report),
+        hasLoaded: .constant(true)
+    )
+    .previewEnvironment(using: container)
 }
-

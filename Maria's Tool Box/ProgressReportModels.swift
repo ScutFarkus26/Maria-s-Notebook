@@ -1,5 +1,5 @@
 // ProgressReportModels.swift
-// Data model for per-student progress reports with ratings and comments.
+// SIMPLIFIED VERSION - Store arrays directly in SwiftData
 
 import Foundation
 import SwiftData
@@ -17,9 +17,9 @@ public enum ReportRatingValue: String, Codable, CaseIterable {
 
 // MARK: - Codable structures
 public struct ReportRatingEntry: Codable, Identifiable, Hashable {
-    public var id: String              // stable slug: "kriah_fluency", "ela_reads_fluently_expression", etc.
-    public var domain: String          // "Kriah", "ELA", "Math", etc.
-    public var skillLabel: String      // the exact label shown in UI
+    public var id: String
+    public var domain: String
+    public var skillLabel: String
     public var midYear: ReportRatingValue?
     public var endYear: ReportRatingValue?
 
@@ -33,17 +33,13 @@ public struct ReportRatingEntry: Codable, Identifiable, Hashable {
 }
 
 public struct ReportComments: Codable, Hashable {
-    public var midYearBySection: [String:String] // e.g. "Kriah" -> comment
+    public var midYearBySection: [String:String]
     public var endYearBySection: [String:String]
-
-    // Mid-Year summary fields from the template
     public var midYearOverview: String
     public var midYearStrengths: String
     public var midYearAreasForGrowth: String
     public var midYearGoals: String
     public var midYearOutlook: String
-
-    // End-of-year narrative block fields (keep as separate fields)
     public var endYearOverview: String
     public var endYearStrengths: String
     public var endYearChallenges: String
@@ -85,26 +81,51 @@ public struct ReportComments: Codable, Hashable {
 // MARK: - SwiftData model
 @Model public final class StudentProgressReport {
     public var id: UUID
-    public var studentPersistentID: String     // UUID string of Student.id
-    public var templateName: String            // e.g., "Yeshivas Yakir Li Progress Report"
-    public var ratingsData: Data               // Codable [ReportRatingEntry]
-    public var commentsData: Data              // Codable ReportComments
+    public var studentPersistentID: String
+    public var templateName: String
+    
+    // ⭐️ KEY CHANGE: Store Data directly without computed properties
+    // SwiftData will track changes to these properties
+    private var _ratingsData: Data
+    private var _commentsData: Data
+    
     public var updatedAt: Date
-
-    // Header fields for export (persisted)
     public var schoolYear: String
     public var teacher: String
     public var grade: String
 
-    // Computed projections
+    // Public interface uses computed properties but we force a new Data object every time
     public var ratings: [ReportRatingEntry] {
-        get { (try? JSONDecoder().decode([ReportRatingEntry].self, from: ratingsData)) ?? [] }
-        set { ratingsData = (try? JSONEncoder().encode(newValue)) ?? Data() ; touch() }
+        get { (try? JSONDecoder().decode([ReportRatingEntry].self, from: _ratingsData)) ?? [] }
+        set {
+            // Force creation of new Data to trigger SwiftData change tracking
+            if let encoded = try? JSONEncoder().encode(newValue) {
+                _ratingsData = encoded
+                updatedAt = Date()
+            }
+        }
     }
 
     public var comments: ReportComments {
-        get { (try? JSONDecoder().decode(ReportComments.self, from: commentsData)) ?? ReportComments() }
-        set { commentsData = (try? JSONEncoder().encode(newValue)) ?? Data() ; touch() }
+        get { (try? JSONDecoder().decode(ReportComments.self, from: _commentsData)) ?? ReportComments() }
+        set {
+            // Force creation of new Data to trigger SwiftData change tracking
+            if let encoded = try? JSONEncoder().encode(newValue) {
+                _commentsData = encoded
+                updatedAt = Date()
+            }
+        }
+    }
+    
+    // Compatibility properties for export (deprecated but keeping for now)
+    public var ratingsData: Data {
+        get { _ratingsData }
+        set { _ratingsData = newValue }
+    }
+    
+    public var commentsData: Data {
+        get { _commentsData }
+        set { _commentsData = newValue }
     }
 
     public init(
@@ -120,15 +141,13 @@ public struct ReportComments: Codable, Hashable {
         self.id = id
         self.studentPersistentID = studentPersistentID
         self.templateName = templateName
-        self.ratingsData = (try? JSONEncoder().encode(ratings)) ?? Data()
-        self.commentsData = (try? JSONEncoder().encode(comments)) ?? Data()
+        self._ratingsData = (try? JSONEncoder().encode(ratings)) ?? Data()
+        self._commentsData = (try? JSONEncoder().encode(comments)) ?? Data()
         self.updatedAt = Date()
         self.schoolYear = schoolYear
         self.teacher = teacher
         self.grade = grade
     }
-
-    private func touch() { updatedAt = Date() }
 }
 
 // MARK: - Convenience helpers
