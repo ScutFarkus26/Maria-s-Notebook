@@ -91,7 +91,9 @@ struct StudentProgressReportView: View {
                 .font(.headline)
             if let r = report?.ratings {
                 let grouped = groupedByDomainPreservingOrder(r)
-                ForEach(grouped, id: \.domain) { group in
+                let filtered = grouped.filter { !["Kriah","Chumash","Kesivah","Taryag Mitzvos","Navi/Yamim Tovim"].contains($0.domain) }
+                let filteredNoStoryline = filtered.map { (domain: $0.domain, entries: $0.entries.filter { $0.skillLabel.range(of: "Storyline", options: .caseInsensitive) == nil }) }
+                ForEach(filteredNoStoryline, id: \.domain) { group in
                     DisclosureGroup(isExpanded: Binding(
                         get: { expandedDomains.contains(group.domain) },
                         set: { newValue in
@@ -254,7 +256,7 @@ struct StudentProgressReportView: View {
         teacher = r.teacher
         grade = r.grade
         // Expand common domains by default
-        let defaults: [String] = ["Kriah", "Chumash", "ELA", "Math", "Behavior/Work Habits"]
+        let defaults: [String] = ["ELA", "Math", "Behavior/Work Habits", "Navi/Yamim Tovim"]
         expandedDomains = Set(defaults)
     }
 

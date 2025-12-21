@@ -29,7 +29,7 @@ struct StudentDetailView: View {
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
-    private enum StudentDetailTab { case overview, checklist, history, meetings, notes }
+    private enum StudentDetailTab { case overview, checklist, history, meetings, notes, progress }
     @State private var selectedTab: StudentDetailTab = .overview
 
     @State private var selectedContract: WorkContract? = nil
@@ -354,6 +354,7 @@ struct StudentDetailView: View {
                             PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
                             PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
                             PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                            PillNavButton(title: "Progress", isSelected: selectedTab == .progress) { selectedTab = .progress }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -369,6 +370,7 @@ struct StudentDetailView: View {
                             PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
                             PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
                             PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                            PillNavButton(title: "Progress", isSelected: selectedTab == .progress) { selectedTab = .progress }
                         }
                         Spacer()
                     }
@@ -385,6 +387,7 @@ struct StudentDetailView: View {
                     PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
                     PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
                     PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                    PillNavButton(title: "Progress", isSelected: selectedTab == .progress) { selectedTab = .progress }
                 }
                 Spacer()
             }
@@ -449,6 +452,9 @@ struct StudentDetailView: View {
                     } else if selectedTab == .notes {
                         studentNotesTab
                             .padding(.top, 36)
+                    } else if selectedTab == .progress {
+                        StudentProgressReportView(student: student)
+                            .padding(.top, 36)
                     }
                 }
                 .padding(.horizontal, 32)
@@ -487,7 +493,7 @@ struct StudentDetailView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     } else {
-                        if selectedTab != .checklist {
+                        if selectedTab != .checklist && selectedTab != .progress {
                             Button("Edit") {
                                 draftFirstName = student.firstName
                                 draftLastName = student.lastName

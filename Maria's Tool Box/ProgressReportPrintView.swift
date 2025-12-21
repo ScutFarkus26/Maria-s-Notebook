@@ -12,7 +12,10 @@ struct ProgressReportPrintView: View {
             if buckets[e.domain] == nil { order.append(e.domain); buckets[e.domain] = [] }
             buckets[e.domain]?.append(e)
         }
-        return order.map { (domain: $0, entries: buckets[$0] ?? []) }
+        let grouped = order.map { (domain: $0, entries: buckets[$0] ?? []) }
+        let filteredDomains = grouped.filter { !["Kriah","Chumash","Kesivah","Taryag Mitzvos","Navi/Yamim Tovim"].contains($0.domain) }
+        let filteredNoStoryline = filteredDomains.map { (domain: $0.domain, entries: $0.entries.filter { $0.skillLabel.range(of: "Storyline", options: .caseInsensitive) == nil }) }
+        return filteredNoStoryline
     }
 
     var body: some View {

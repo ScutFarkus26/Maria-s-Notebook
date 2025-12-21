@@ -10,26 +10,14 @@ public enum ProgressReportSchema {
 
         // Judaics / Hebrew
         // Kriah
-        add("kriah_fluency", "Kriah", "Fluency")
-        add("kriah_speed", "Kriah", "Speed")
-        add("kriah_effort", "Kriah", "Effort")
 
         // Chumash
-        add("chumash_har_sinai_milim", "Chumash", "Har Sinai Milim")
-        add("chumash_dikduk_banners", "Chumash", "Dikduk Banners")
-        add("chumash_storyline", "Chumash", "Storyline")
-        add("chumash_effort", "Chumash", "Effort")
 
         // Kesivah
-        add("kesivah_letter_formation", "Kesivah", "Letter Formation")
-        add("kesivah_quality", "Kesivah", "Quality")
 
         // Taryag Mitzvos
-        add("taryag_effort", "Taryag Mitzvos", "Effort")
 
         // Navi / Yamim Tovim
-        add("navi_storyline", "Navi/Yamim Tovim", "Storyline")
-        add("navi_effort", "Navi/Yamim Tovim", "Effort")
 
         // General Studies
         // ELA (subset representative; extend with exact list as template requires)
@@ -76,11 +64,7 @@ public enum ProgressReportSchema {
     }
 
     public static let commentSections: [String] = [
-        // Judaics/Hebrew
-        "Kriah", "Chumash", "Navi/Yamim Tovim",
-        // General Studies
         "ELA", "Math", "Behavior/Work Habits",
-        // Single comment sections (Mid/End or single as per template guidance)
-        "History/Geography/Biomes", "Science", "Kesivah", "Taryag Mitzvos"
+        "History/Geography/Biomes", "Science"
     ]
 }
