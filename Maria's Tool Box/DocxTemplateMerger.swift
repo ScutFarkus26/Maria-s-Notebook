@@ -57,7 +57,6 @@ enum DocxTemplateMerger {
     }
 
     private static func zipDocx(from sourceDir: URL, to zipURL: URL) throws {
-        let fm = FileManager.default
         // Build zip from contents of sourceDir
         let cwd = sourceDir
         let process = Process()

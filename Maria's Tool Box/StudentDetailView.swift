@@ -29,10 +29,8 @@ struct StudentDetailView: View {
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
-    private enum StudentDetailTab { case overview, checklist, history, meetings, notes, progress }
+    private enum StudentDetailTab { case overview, checklist, history, meetings, notes }
     @State private var selectedTab: StudentDetailTab = .overview
-    @State private var progressReport: StudentProgressReport? = nil
-    @State private var hasLoadedProgressReport = false
     @State private var selectedContract: WorkContract? = nil
 
     #if os(iOS)
@@ -332,434 +330,72 @@ struct StudentDetailView: View {
         }
     }
 
-    // MARK: - Body
-    var body: some View {
+    // MARK: - Tab content builders
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .overview:
+            overviewTab
+        case .checklist:
+            checklistTab
+        case .history:
+            historyPlaceholder
+                .padding(.top, 36)
+        case .meetings:
+            StudentMeetingsTab(student: student)
+                .padding(.top, 36)
+        case .notes:
+            studentNotesTab
+                .padding(.top, 36)
+        }
+    }
+
+    private var overviewTab: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Student Info")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
+            StudentDetailHeaderView(student: student)
+                .padding(.top, 36)
+            if isEditing {
+                editForm
+            } else {
+                infoRows
 
-            // Top pill navigation (Overview / Checklist)
-            #if os(iOS)
-            Group {
-                if horizontalSizeClass == .compact {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
-                            PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
-                            PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
-                            PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
-                            PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
-                            PillNavButton(title: "Progress", isSelected: selectedTab == .progress) { selectedTab = .progress }
-                        }
-                        .padding(.horizontal, 12)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                } else {
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 12) {
-                            PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
-                            PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
-                            PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
-                            PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
-                            PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
-                            PillNavButton(title: "Progress", isSelected: selectedTab == .progress) { selectedTab = .progress }
-                        }
-                        Spacer()
-                    }
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                }
-            }
-            #else
-            HStack {
-                Spacer()
-                HStack(spacing: 12) {
-                    PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
-                    PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
-                    PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
-                    PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
-                    PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
-                    PillNavButton(title: "Progress", isSelected: selectedTab == .progress) { selectedTab = .progress }
-                }
-                Spacer()
-            }
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-            #endif
-
-            Divider()
-                .padding(.top, 8)
-
-            ScrollView {
-                VStack(spacing: 28) {
-                    if selectedTab == .overview {
-                        StudentDetailHeaderView(student: student)
-                            .padding(.top, 36)
-
-                        if isEditing {
-                            editForm
-                        } else {
-                            infoRows
-
-                            Divider()
-                                .padding(.top, 8)
-
-                            WorkListSection(
-                                works: worksForStudent,
-                                workTitle: { work in workTitle(for: work) },
-                                workSubtitle: { work in workSubtitle(for: work) },
-                                iconAndColor: { type in iconAndColor(for: type) }
-                            )
-
-                            Divider()
-                                .padding(.top, 8)
-
-                            NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
-                        }
-                    } else if selectedTab == .checklist {
-                        VStack(alignment: .leading, spacing: 16) {
-                            SubjectPillsView(subjects: subjectsForChecklist, selected: selectedChecklistSubject) { subject in
-                                setSelectedChecklistSubject(subject)
-                            }
-
-                            if let subject = selectedChecklistSubject ?? subjectsForChecklist.first {
-                                makeChecklistSection(for: subject)
-                            } else {
-                                ContentUnavailableView(
-                                    "No Subjects",
-                                    systemImage: "text.book.closed",
-                                    description: Text("Add lessons in Albums to see subjects here.")
-                                )
-                                .frame(maxWidth: .infinity, alignment: .center)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 36)
-                    } else if selectedTab == .history {
-                        historyPlaceholder
-                            .padding(.top, 36)
-                    } else if selectedTab == .meetings {
-                        StudentMeetingsTab(student: student)
-                            .padding(.top, 36)
-                    } else if selectedTab == .notes {
-                        studentNotesTab
-                            .padding(.top, 36)
-                    } else if selectedTab == .progress {
-                        StudentProgressReportView(
-                            student: student,
-                            report: $progressReport,
-                            hasLoaded: $hasLoadedProgressReport
-                        )
-                        .padding(.top, 36)
-                    }
-                }
-                .padding(.horizontal, 32)
-                .padding(.bottom, 24)
-            }
-        }
-#if os(macOS)
-        .frame(minWidth: 860, minHeight: 640)
-        .presentationSizing(.fitted)
-#else
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-#endif
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
                 Divider()
-                HStack {
-                    Spacer()
-                    if isEditing {
-                        Button("Cancel") {
-                            isEditing = false
-                        }
-                        Button("Save") {
-                            let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !fn.isEmpty, !ln.isEmpty else { return }
-                            student.firstName = fn
-                            student.lastName = ln
-                            student.birthday = draftBirthday
-                            student.level = draftLevel
-                            student.dateStarted = draftStartDate
-                            _ = saveCoordinator.save(modelContext, reason: "Edit student details")
-                            isEditing = false
-                        }
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    } else {
-                        if selectedTab != .checklist && selectedTab != .progress {
-                            Button("Edit") {
-                                draftFirstName = student.firstName
-                                draftLastName = student.lastName
-                                draftBirthday = student.birthday
-                                draftLevel = student.level
-                                draftStartDate = student.dateStarted ?? Date()
-                                isEditing = true
-                            }
-                        }
-                        Button("Delete", role: .destructive) {
-                            showDeleteAlert = true
-                        }
-                        Button("Done") {
-                            if let onDone { onDone() } else { dismiss() }
-                        }
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.bar)
-            }
-        }
-        .overlay(alignment: .top) {
-            Group {
-                if let message = vm.toastMessage {
-                    Text(message)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.black.opacity(0.85))
-                        )
-                        .foregroundColor(.white)
-                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .padding(.top, 8)
-                }
-            }
-        }
-        .alert("Delete Student?", isPresented: $showDeleteAlert) {
-            Button("Delete", role: .destructive) {
-                modelContext.delete(student)
-                _ = saveCoordinator.save(modelContext, reason: "Delete student")
-                if let onDone { onDone() } else { dismiss() }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This action cannot be undone.")
-        }
-        .sheet(item: $vm.selectedLessonForGive) { lesson in
-            // Create a draft StudentLesson for this student and selected lesson
-            let newSL = createDraftStudentLesson(for: lesson)
+                    .padding(.top, 8)
 
-            StudentLessonDetailView(studentLesson: newSL) {
-                vm.selectedLessonForGive = nil
-            }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
-        }
-        .sheet(item: $vm.selectedWorkForDetail) { w in
-            WorkDetailContainerView(workID: w.id) {
-                vm.selectedWorkForDetail = nil
-            }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
-        }
-        .sheet(item: $vm.selectedStudentLessonForDetail) { sl in
-            StudentLessonDetailView(studentLesson: sl) {
-                vm.selectedStudentLessonForDetail = nil
-            }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
-        }
-        .sheet(item: $selectedContract) { contract in
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Work Contract")
-                    .font(.headline)
-                Text("Lesson: \(lessonsByID[UUID(uuidString: contract.lessonID) ?? UUID()]?.name ?? "Lesson")")
-                Text("Status: \(contract.status.rawValue.capitalized)")
-                if let date = contract.completedAt { Text("Completed: \(date, style: .date)") }
-                HStack {
-                    Spacer()
-                    Button("Close") { selectedContract = nil }
-                }
-            }
-            .padding()
-        #if os(macOS)
-            .frame(minWidth: 420)
-        #endif
-        }
-        .onAppear {
-            WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
-            checklistVM.recompute(for: lessons, using: modelContext)
-            ensureChecklistSubjectSelection()
-        }
-        .onChange(of: lessonIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
-            checklistVM.recompute(for: lessons, using: modelContext)
-            ensureChecklistSubjectSelection()
-        }
-        .onChange(of: studentLessonIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
-            checklistVM.recompute(for: lessons, using: modelContext)
-        }
-        .onChange(of: workModelIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
-            checklistVM.recompute(for: lessons, using: modelContext)
-        }
-    }
+                WorkListSection(
+                    works: worksForStudent,
+                    workTitle: { work in workTitle(for: work) },
+                    workSubtitle: { work in workSubtitle(for: work) },
+                    iconAndColor: { type in iconAndColor(for: type) }
+                )
 
-    private func ensureChecklistSubjectSelection() {
-        let subjects = subjectsForChecklist
-        guard !subjects.isEmpty else {
-            setSelectedChecklistSubject(nil)
-            return
-        }
-        if let selected = selectedChecklistSubject,
-           subjects.contains(where: { $0.caseInsensitiveCompare(selected) == .orderedSame }) {
-            if let exact = subjects.first(where: { $0.caseInsensitiveCompare(selected) == .orderedSame }) {
-                setSelectedChecklistSubject(exact)
-            }
-        } else {
-            // Prefer Geometry if present, otherwise first
-            if let geo = subjects.first(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare("Geometry") == .orderedSame }) {
-                setSelectedChecklistSubject(geo)
-            } else {
-                setSelectedChecklistSubject(subjects.first)
+                Divider()
+                    .padding(.top, 8)
+
+                NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
             }
         }
     }
 
-    /// Creates the detail view for a student. Keeps StateObject identity stable across sheet presentations.
-    init(student: Student, onDone: (() -> Void)? = nil) {
-        self.student = student
-        self.onDone = onDone
-        _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
-        _checklistVM = StateObject(wrappedValue: StudentChecklistViewModel(studentID: student.id))
-    }
-
-    // MARK: - Reintroduced helpers (Phase 5 safety)
-
-    private var infoRows: some View {
-        VStack(spacing: 14) {
-            InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
-            if let ds = student.dateStarted {
-                InfoRowView(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))
-            }
-            InfoRowView(icon: "gift", title: "Age", value: ageDescription)
-            InfoRowView(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
-            DaysSinceLastLessonView(student: student)
-            attendanceInfoRow
-        }
-        .padding(.horizontal, 8)
-    }
-
-    private var editForm: some View {
-        VStack(spacing: 14) {
-            HStack {
-                TextField("First Name", text: $draftFirstName)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Last Name", text: $draftLastName)
-                    .textFieldStyle(.roundedBorder)
-            }
-            DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
-            DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
-            Picker("Level", selection: $draftLevel) {
-                Text(Student.Level.lower.rawValue).tag(Student.Level.lower)
-                Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
-            }
-            .pickerStyle(.segmented)
-        }
-        .padding(.horizontal, 8)
-    }
-
-    private var historyPlaceholder: some View {
-        ContentUnavailableView(
-            "History",
-            systemImage: "clock.arrow.circlepath",
-            description: Text("This will show the student's history.")
-        )
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var meetingsPlaceholder: some View {
-        ContentUnavailableView(
-            "Meetings",
-            systemImage: "person.2",
-            description: Text("This will show the student's meetings.")
-        )
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var notesPlaceholder: some View {
-        ContentUnavailableView(
-            "Notes",
-            systemImage: "note.text",
-            description: Text("This will show the student's notes.")
-        )
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var studentNotesTab: some View {
+    private var checklistTab: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if lessonNotesVisible.isEmpty && workNotesVisible.isEmpty {
-                notesPlaceholder
+            SubjectPillsView(subjects: subjectsForChecklist, selected: selectedChecklistSubject) { subject in
+                setSelectedChecklistSubject(subject)
+            }
+
+            if let subject = selectedChecklistSubject ?? subjectsForChecklist.first {
+                makeChecklistSection(for: subject)
             } else {
-                if !lessonNotesVisible.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "text.book.closed")
-                                .foregroundColor(.secondary)
-                            Text("Lesson Notes")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Spacer()
-                        }
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(lessonNotesVisible, id: \.id) { note in
-                                noteRow(note)
-                            }
-                        }
-                    }
+                ContentUnavailableView {
+                    Label("No Subjects", systemImage: "text.book.closed")
+                } description: {
+                    Text("Add lessons in Albums to see subjects here.")
                 }
-                if !workNotesVisible.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "note.text")
-                                .foregroundColor(.secondary)
-                            Text("Work Notes")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Spacer()
-                        }
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(workNotesVisible, id: \.id) { note in
-                                noteRow(note)
-                            }
-                        }
-                    }
-                }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 36)
     }
 
     // MARK: - Extracted builders to help the type-checker
@@ -920,12 +556,387 @@ struct StudentDetailView: View {
         return (try? modelContext.fetch(descriptor))?.first
     }
 
+    private func lessonName(for contract: WorkContract) -> String {
+        if let id = UUID(uuidString: contract.lessonID), let lesson = lessonsByID[id] {
+            return lesson.name
+        }
+        return "Lesson"
+    }
+
     private static let birthdayFormatter: DateFormatter = {
         let df = DateFormatter()
         df.dateStyle = .long
         df.timeStyle = .none
         return df
     }()
+
+    // MARK: - Body
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Student Info")
+                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 18)
+
+            // Top pill navigation (Overview / Checklist)
+            #if os(iOS)
+            Group {
+                if horizontalSizeClass == .compact {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                            PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                            PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                            PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                            PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                        }
+                        .padding(.horizontal, 12)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                } else {
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                            PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                            PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                            PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                            PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                }
+            }
+            #else
+            HStack {
+                Spacer()
+                HStack(spacing: 12) {
+                    PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                    PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                    PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                    PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                    PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                }
+                Spacer()
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+            #endif
+
+            Divider()
+                .padding(.top, 8)
+
+            ScrollView {
+                VStack(spacing: 28) {
+                    tabContent
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 24)
+            }
+        }
+#if os(macOS)
+        .frame(minWidth: 860, minHeight: 640)
+        .presentationSizing(.fitted)
+#else
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+#endif
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 0) {
+                Divider()
+                HStack {
+                    Spacer()
+                    if isEditing {
+                        Button("Cancel") {
+                            isEditing = false
+                        }
+                        Button("Save") {
+                            let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !fn.isEmpty, !ln.isEmpty else { return }
+                            student.firstName = fn
+                            student.lastName = ln
+                            student.birthday = draftBirthday
+                            student.level = draftLevel
+                            student.dateStarted = draftStartDate
+                            _ = saveCoordinator.save(modelContext, reason: "Edit student details")
+                            isEditing = false
+                        }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    } else {
+                        if selectedTab != .checklist {
+                            Button("Edit") {
+                                draftFirstName = student.firstName
+                                draftLastName = student.lastName
+                                draftBirthday = student.birthday
+                                draftLevel = student.level
+                                draftStartDate = student.dateStarted ?? Date()
+                                isEditing = true
+                            }
+                        }
+                        Button("Delete", role: .destructive) {
+                            showDeleteAlert = true
+                        }
+                        Button("Done") {
+                            if let onDone { onDone() } else { dismiss() }
+                        }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.bar)
+            }
+        }
+        .overlay(alignment: .top) {
+            Group {
+                if let message = vm.toastMessage {
+                    Text(message)
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.black.opacity(0.85))
+                        )
+                        .foregroundColor(.white)
+                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 8)
+                }
+            }
+        }
+        .alert("Delete Student?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                modelContext.delete(student)
+                _ = saveCoordinator.save(modelContext, reason: "Delete student")
+                if let onDone { onDone() } else { dismiss() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action cannot be undone.")
+        }
+        .sheet(item: $vm.selectedLessonForGive) { lesson in
+            // Create a draft StudentLesson for this student and selected lesson
+            let newSL = createDraftStudentLesson(for: lesson)
+
+            StudentLessonDetailView(studentLesson: newSL) {
+                vm.selectedLessonForGive = nil
+            }
+            #if os(macOS)
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+        }
+        .sheet(item: $vm.selectedWorkForDetail) { w in
+            WorkDetailContainerView(workID: w.id) {
+                vm.selectedWorkForDetail = nil
+            }
+            #if os(macOS)
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+        }
+        .sheet(item: $vm.selectedStudentLessonForDetail) { sl in
+            StudentLessonDetailView(studentLesson: sl) {
+                vm.selectedStudentLessonForDetail = nil
+            }
+            #if os(macOS)
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+        }
+        .sheet(item: $selectedContract) { contract in
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Work Contract")
+                    .font(.headline)
+                Text("Lesson: \(lessonName(for: contract))")
+                Text("Status: \(contract.status.rawValue.capitalized)")
+                if let date = contract.completedAt { Text("Completed: \(date, style: .date)") }
+                HStack {
+                    Spacer()
+                    Button("Close") { selectedContract = nil }
+                }
+            }
+            .padding()
+        #if os(macOS)
+            .frame(minWidth: 420)
+        #endif
+        }
+        .onAppear {
+            WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            checklistVM.recompute(for: lessons, using: modelContext)
+            ensureChecklistSubjectSelection()
+        }
+        .onChange(of: lessonIDs) { _, _ in
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            checklistVM.recompute(for: lessons, using: modelContext)
+            ensureChecklistSubjectSelection()
+        }
+        .onChange(of: studentLessonIDs) { _, _ in
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            checklistVM.recompute(for: lessons, using: modelContext)
+        }
+        .onChange(of: workModelIDs) { _, _ in
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            checklistVM.recompute(for: lessons, using: modelContext)
+        }
+    }
+
+    private func ensureChecklistSubjectSelection() {
+        let subjects = subjectsForChecklist
+        guard !subjects.isEmpty else {
+            setSelectedChecklistSubject(nil)
+            return
+        }
+        if let selected = selectedChecklistSubject,
+           subjects.contains(where: { $0.caseInsensitiveCompare(selected) == .orderedSame }) {
+            if let exact = subjects.first(where: { $0.caseInsensitiveCompare(selected) == .orderedSame }) {
+                setSelectedChecklistSubject(exact)
+            }
+        } else {
+            // Prefer Geometry if present, otherwise first
+            if let geo = subjects.first(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare("Geometry") == .orderedSame }) {
+                setSelectedChecklistSubject(geo)
+            } else {
+                setSelectedChecklistSubject(subjects.first)
+            }
+        }
+    }
+
+    /// Creates the detail view for a student. Keeps StateObject identity stable across sheet presentations.
+    init(student: Student, onDone: (() -> Void)? = nil) {
+        self.student = student
+        self.onDone = onDone
+        _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
+        _checklistVM = StateObject(wrappedValue: StudentChecklistViewModel(studentID: student.id))
+    }
+
+    // MARK: - Reintroduced helpers (Phase 5 safety)
+
+    private var infoRows: some View {
+        VStack(spacing: 14) {
+            InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
+            if let ds = student.dateStarted {
+                InfoRowView(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))
+            }
+            InfoRowView(icon: "gift", title: "Age", value: ageDescription)
+            InfoRowView(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
+            DaysSinceLastLessonView(student: student)
+            attendanceInfoRow
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private var editForm: some View {
+        VStack(spacing: 14) {
+            HStack {
+                TextField("First Name", text: $draftFirstName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Last Name", text: $draftLastName)
+                    .textFieldStyle(.roundedBorder)
+            }
+            DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
+            DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
+            Picker("Level", selection: $draftLevel) {
+                Text(Student.Level.lower.rawValue).tag(Student.Level.lower)
+                Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private var historyPlaceholder: some View {
+        ContentUnavailableView {
+            Label("History", systemImage: "clock.arrow.circlepath")
+        } description: {
+            Text("This will show the student's history.")
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var meetingsPlaceholder: some View {
+        ContentUnavailableView {
+            Label("Meetings", systemImage: "person.2")
+        } description: {
+            Text("This will show the student's meetings.")
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var notesPlaceholder: some View {
+        ContentUnavailableView {
+            Label("Notes", systemImage: "note.text")
+        } description: {
+            Text("This will show the student's notes.")
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var studentNotesTab: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if lessonNotesVisible.isEmpty && workNotesVisible.isEmpty {
+                notesPlaceholder
+            } else {
+                if !lessonNotesVisible.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "text.book.closed")
+                                .foregroundColor(.secondary)
+                            Text("Lesson Notes")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(lessonNotesVisible, id: \.id) { note in
+                                noteRow(note)
+                            }
+                        }
+                    }
+                }
+                if !workNotesVisible.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "note.text")
+                                .foregroundColor(.secondary)
+                            Text("Work Notes")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(workNotesVisible, id: \.id) { note in
+                                noteRow(note)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 #Preview {
     let container = ModelContainer.preview
@@ -937,4 +948,5 @@ struct StudentDetailView: View {
     return StudentDetailView(student: student)
         .previewEnvironment(using: container)
 }
+
 

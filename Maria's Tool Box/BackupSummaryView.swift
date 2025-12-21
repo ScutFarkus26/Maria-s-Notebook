@@ -24,7 +24,7 @@ struct BackupSummaryView: View {
     }
 
     private var filteredCounts: [(String, Int)] {
-        var filtered = summary.entityCounts.filter { key, count in
+        let filtered = summary.entityCounts.filter { key, count in
             (searchText.isEmpty || key.localizedCaseInsensitiveContains(searchText))
                 && (showZeros || count != 0)
         }
