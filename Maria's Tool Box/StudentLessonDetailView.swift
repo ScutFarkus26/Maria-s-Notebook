@@ -45,6 +45,9 @@ struct StudentLessonDetailView: View {
 
     @State private var showLessonPicker: Bool = false
     @StateObject private var vm = StudentLessonDetailActions()
+    @State private var notesAutosaveTask: Task<Void, Never>? = nil
+    @State private var notesDirty: Bool = false
+    @State private var originalNotes: String
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
         self.studentLesson = studentLesson
@@ -57,12 +60,59 @@ struct StudentLessonDetailView: View {
         _givenAt = State(initialValue: studentLesson.givenAt)
         _isPresented = State(initialValue: studentLesson.isPresented)
         _notes = State(initialValue: studentLesson.notes)
+        _originalNotes = State(initialValue: studentLesson.notes)
         _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
         _selectedStudentIDs = State(initialValue: Set(studentLesson.studentIDs))
         
         _lessonPickerVM = StateObject(wrappedValue: LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: studentLesson.lessonID))
         // Show picker initially if auto-focus is requested
         _showLessonPicker = State(initialValue: autoFocusLessonPicker)
+    }
+
+    private func scheduleNotesAutosave() {
+        // Don’t autosave if user has returned to original value
+        notesDirty = (notes != originalNotes)
+
+        notesAutosaveTask?.cancel()
+        guard notesDirty else { return }
+
+        notesAutosaveTask = Task {
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                // Persist only notes through existing safe path
+                saveImmediate()
+                originalNotes = notes
+                notesDirty = false
+                StudentLessonDetailUtilities.notifyInboxRefresh()
+            }
+        }
+    }
+    
+    private func flushNotesAutosaveIfNeeded() {
+        notesAutosaveTask?.cancel()
+        guard notesDirty else { return }
+        saveImmediate()
+        originalNotes = notes
+        notesDirty = false
+        StudentLessonDetailUtilities.notifyInboxRefresh()
+    }
+
+    private func applyEditsToModel() {
+        let vm = StudentLessonDetailActions()
+        vm.applyEditsToModel(
+            studentLesson: studentLesson,
+            editingLessonID: editingLessonID,
+            scheduledFor: scheduledFor,
+            givenAt: givenAt,
+            isPresented: isPresented,
+            notes: notes,
+            needsAnotherPresentation: needsAnotherPresentation,
+            selectedStudentIDs: selectedStudentIDs,
+            studentsAll: studentsAll,
+            lessons: lessons,
+            calendar: calendar
+        )
     }
 
     private var resolvedPickerLesson: Lesson? { lessons.first(where: { $0.id == lessonPickerVM.selectedLessonID }) ?? lessonObject }
@@ -393,6 +443,12 @@ struct StudentLessonDetailView: View {
                 }
             }
         }
+        .onChange(of: notes) { _, _ in
+            scheduleNotesAutosave()
+        }
+        .onDisappear {
+            flushNotesAutosaveIfNeeded()
+        }
     }
 
     private var lessonPickerSection: some View {
@@ -440,23 +496,6 @@ struct StudentLessonDetailView: View {
         return StudentFormatter.displayName(for: student)
     }
 
-    private func applyEditsToModel() {
-        let vm = StudentLessonDetailActions()
-        vm.applyEditsToModel(
-            studentLesson: studentLesson,
-            editingLessonID: editingLessonID,
-            scheduledFor: scheduledFor,
-            givenAt: givenAt,
-            isPresented: isPresented,
-            notes: notes,
-            needsAnotherPresentation: needsAnotherPresentation,
-            selectedStudentIDs: selectedStudentIDs,
-            studentsAll: studentsAll,
-            lessons: lessons,
-            calendar: calendar
-        )
-    }
-
     private func saveImmediate() {
         applyEditsToModel()
         try? modelContext.save()
@@ -498,6 +537,9 @@ struct StudentLessonDetailView: View {
 
         do {
             try modelContext.save()
+            notesAutosaveTask?.cancel()
+            originalNotes = notes
+            notesDirty = false
             // Notify agenda/inbox to refresh immediately after save
             StudentLessonDetailUtilities.notifyInboxRefresh()
 

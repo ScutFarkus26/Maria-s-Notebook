@@ -9,6 +9,7 @@ import AppKit
 // MARK: - Student Progress Report Editor
 struct StudentProgressReportView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
 
     let student: Student
 
@@ -20,11 +21,14 @@ struct StudentProgressReportView: View {
 
     // Debounced saving coordinator
     @StateObject private var saver = DebouncedSaver()
+    @State private var headerAutosaveTask: Task<Void, Never>? = nil
 
     // Local header fields bound to report
     @State private var schoolYear: String = "2024-2025"
     @State private var teacher: String = ""
     @State private var grade: String = ""
+    enum HeaderField: Hashable { case schoolYear, teacher, grade }
+    @FocusState private var headerFocus: HeaderField?
 
     // MARK: - Init
     init(student: Student) {
@@ -48,9 +52,43 @@ struct StudentProgressReportView: View {
             }
         }
         .onAppear { loadOrCreateReport() }
-        .onChange(of: schoolYear) { _, _ in updateHeaderFieldsAndSave() }
-        .onChange(of: teacher) { _, _ in updateHeaderFieldsAndSave() }
-        .onChange(of: grade) { _, _ in updateHeaderFieldsAndSave() }
+        .onChange(of: schoolYear) { _, _ in
+            updateHeaderFieldsAndSave()
+            saver.flushSave(context: modelContext)
+        }
+        .onChange(of: teacher) { _, _ in
+            updateHeaderFieldsAndSave()
+            saver.flushSave(context: modelContext)
+        }
+        .onChange(of: grade) { _, _ in
+            updateHeaderFieldsAndSave()
+            saver.flushSave(context: modelContext)
+        }
+        .onChange(of: headerFocus) { _, newFocus in
+            if newFocus == nil {
+                updateHeaderFieldsAndSave()
+                saver.flushSave(context: modelContext)
+            }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .background || newPhase == .inactive {
+                updateHeaderFieldsAndSave()
+                saver.flushSave(context: modelContext)
+            }
+        }
+        .onDisappear {
+            updateHeaderFieldsAndSave()
+            saver.flushSave(context: modelContext)
+            headerAutosaveTask?.cancel()
+        }
+    }
+
+    private func scheduleHeaderAutosaveFlush() {
+        headerAutosaveTask?.cancel()
+        headerAutosaveTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            saver.flushSave(context: modelContext)
+        }
     }
 
     // MARK: - Header
@@ -68,15 +106,54 @@ struct StudentProgressReportView: View {
                 .frame(maxWidth: 260)
             }
             HStack(spacing: 12) {
-                TextField("School Year", text: $schoolYear)
+                TextField("School Year", text: Binding(
+                    get: { report?.schoolYear ?? schoolYear },
+                    set: { newValue in
+                        schoolYear = newValue
+                        if let r = report { r.schoolYear = newValue }
+                        saver.scheduleSave(context: modelContext)
+                        saver.flushSave(context: modelContext)
+                    }
+                ))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 180)
-                TextField("Teacher", text: $teacher)
+                    .focused($headerFocus, equals: .schoolYear)
+                    .onSubmit {
+                        if let r = report { r.schoolYear = schoolYear }
+                        saver.flushSave(context: modelContext)
+                    }
+                TextField("Teacher", text: Binding(
+                    get: { report?.teacher ?? teacher },
+                    set: { newValue in
+                        teacher = newValue
+                        if let r = report { r.teacher = newValue }
+                        saver.scheduleSave(context: modelContext)
+                        saver.flushSave(context: modelContext)
+                    }
+                ))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 240)
-                TextField("Grade", text: $grade)
+                    .focused($headerFocus, equals: .teacher)
+                    .onSubmit {
+                        if let r = report { r.teacher = teacher }
+                        saver.flushSave(context: modelContext)
+                    }
+                TextField("Grade", text: Binding(
+                    get: { report?.grade ?? grade },
+                    set: { newValue in
+                        grade = newValue
+                        if let r = report { r.grade = newValue }
+                        saver.scheduleSave(context: modelContext)
+                        saver.flushSave(context: modelContext)
+                    }
+                ))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 120)
+                    .focused($headerFocus, equals: .grade)
+                    .onSubmit {
+                        if let r = report { r.grade = grade }
+                        saver.flushSave(context: modelContext)
+                    }
                 Spacer()
             }
         }
@@ -261,10 +338,11 @@ struct StudentProgressReportView: View {
     }
 
     private func updateHeaderFieldsAndSave() {
-        guard let r = report else { return }
+        guard var r = report else { return }
         r.schoolYear = schoolYear
         r.teacher = teacher
         r.grade = grade
+        report = r
         saver.scheduleSave(context: modelContext)
     }
 
@@ -311,6 +389,7 @@ struct StudentProgressReportView: View {
 
     private func exportDOCX() {
         guard let r = report else { return }
+        saver.flushSave(context: modelContext)
         #if os(macOS)
         Task { @MainActor in
             do {
@@ -326,6 +405,7 @@ struct StudentProgressReportView: View {
 
     private func exportPDF() {
         guard let r = report else { return }
+        saver.flushSave(context: modelContext)
         #if os(macOS)
         let view = ProgressReportPrintView(student: student, report: r)
         do {
@@ -367,6 +447,16 @@ final class DebouncedSaver: ObservableObject {
             try? context.save()
         }
     }
+
+    func flushSave(context: ModelContext) {
+        task?.cancel()
+        task = nil
+        do {
+            try context.save()
+        } catch {
+            print("[ProgressReport] Save failed: \(error)")
+        }
+    }
 }
 
 // MARK: - Preview
@@ -375,3 +465,4 @@ final class DebouncedSaver: ObservableObject {
     StudentProgressReportView(student: student)
         .modelContainer(for: [Student.self, StudentProgressReport.self], inMemory: true)
 }
+
