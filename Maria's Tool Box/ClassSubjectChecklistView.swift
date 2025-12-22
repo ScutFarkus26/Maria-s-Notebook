@@ -88,7 +88,6 @@ struct ClassSubjectChecklistView: View {
                             studentColumnWidth: studentColumnWidth,
                             rowHeight: rowHeight
                         )
-                        .equatable()
                     }
                 }
             }
@@ -117,18 +116,12 @@ struct ClassSubjectChecklistView: View {
 }
 
 // MARK: - Equatable Grid Subview
-struct ClassChecklistGrid: View, Equatable {
+struct ClassChecklistGrid: View {
     @ObservedObject var viewModel: ClassSubjectChecklistViewModel
     let studentColumnWidth: CGFloat
     let rowHeight: CGFloat
     
     @Environment(\.modelContext) private var modelContext
-    
-    static func == (lhs: ClassChecklistGrid, rhs: ClassChecklistGrid) -> Bool {
-        return lhs.viewModel === rhs.viewModel &&
-               lhs.studentColumnWidth == rhs.studentColumnWidth &&
-               lhs.rowHeight == rhs.rowHeight
-    }
     
     var body: some View {
         ScrollView(.horizontal) {
@@ -191,6 +184,8 @@ struct ClassChecklistGrid: View, Equatable {
 
 // MARK: - THE SMART CELL
 struct ClassChecklistSmartCell: View {
+    @Environment(\.modelContext) private var modelContext
+
     let state: StudentChecklistRowState?
     
     // Actions
@@ -204,6 +199,13 @@ struct ClassChecklistSmartCell: View {
         let isComplete = state?.isComplete ?? false
         let isPresented = state?.isPresented ?? false
         let isScheduled = state?.isScheduled ?? false
+        
+        let isInboxPlan: Bool = {
+            guard isScheduled, let pid = state?.plannedItemID else { return false }
+            let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == pid })
+            let sl = (try? modelContext.fetch(fetch))?.first
+            return sl?.scheduledFor == nil
+        }()
         
         // Single Icon Logic
         ZStack {
@@ -219,9 +221,15 @@ struct ClassChecklistSmartCell: View {
                     .foregroundStyle(Color.blue)
                     .font(.title3.weight(.bold))
             } else if isScheduled {
-                Image(systemName: "calendar")
-                    .foregroundStyle(Color.accentColor)
-                    .font(.title3)
+                if isInboxPlan {
+                    Image(systemName: "tray")
+                        .foregroundStyle(Color.accentColor)
+                        .font(.title3)
+                } else {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(Color.accentColor)
+                        .font(.title3)
+                }
             } else {
                 // Empty State
                 Circle()
@@ -234,7 +242,7 @@ struct ClassChecklistSmartCell: View {
         }
         .contextMenu {
             Button { onTap() } label: {
-                Label(isScheduled ? "Unschedule" : "Plan for Today", systemImage: "calendar")
+                Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "calendar")
             }
             
             Button { onMarkPresented() } label: {
@@ -323,10 +331,18 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             
             for lesson in lessons {
                 let slsForLesson = studentSLs.filter { $0.lessonID == lesson.id }
-                let contractsForLesson = studentContracts.filter { $0.lessonID == lesson.id.uuidString }
+                
+                let nonGivenThisStudentThisLesson = slsForLesson.filter { !$0.isGiven && $0.studentIDs.contains(student.id) }
+                let plannedCandidate = nonGivenThisStudentThisLesson.sorted { lhs, rhs in
+                    let lKey = lhs.scheduledFor ?? lhs.createdAt
+                    let rKey = rhs.scheduledFor ?? rhs.createdAt
+                    return lKey < rKey
+                }.first
+                let isScheduled = !nonGivenThisStudentThisLesson.isEmpty
                 
                 let isPresented = slsForLesson.contains { $0.isGiven }
-                let isScheduled = slsForLesson.contains { !$0.isGiven && $0.scheduledFor != nil }
+                
+                let contractsForLesson = studentContracts.filter { $0.lessonID == lesson.id.uuidString }
                 
                 let openContract = contractsForLesson.first { $0.status == .active || $0.status == .review }
                 let completeContract = contractsForLesson.first { $0.status == .complete }
@@ -334,7 +350,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
                 let isComplete = (openContract == nil && completeContract != nil)
                 
                 let state = StudentChecklistRowState(
-                    lessonID: lesson.id, plannedItemID: nil, presentationLogID: nil, contractID: (openContract ?? completeContract)?.id,
+                    lessonID: lesson.id, plannedItemID: plannedCandidate?.id, presentationLogID: nil, contractID: (openContract ?? completeContract)?.id,
                     isScheduled: isScheduled, isPresented: isPresented, isActive: isActive, isComplete: isComplete, lastActivityDate: nil, isStale: false
                 )
                 studentRow[lesson.id] = state
@@ -348,63 +364,48 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     
     // PRIMARY ACTION: Toggle Plan with Grouping
     func toggleScheduled(student: Student, lesson: Lesson, context: ModelContext) {
-        // 1. Check if this specific student is already scheduled
+        // Toggle a plan that lives in the Inbox (unscheduled). If the student
+        // already has an active, not-given plan for this lesson (scheduled or not),
+        // remove them from that plan. Otherwise, add them to an unscheduled group
+        // for this lesson (creating one if needed).
         let studentID = student.id
         let lessonID = lesson.id
-        
-        // Fetch ALL SLs for this lesson (to find group candidates)
-        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { sl in
-            sl.lessonID == lessonID
-        })
+
+        // Fetch ALL StudentLessons for this lesson to find candidates
+        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID })
         let allSLsForLesson = (try? context.fetch(fetch)) ?? []
-        
-        // Find if *this specific student* is scheduled
-        let existingForStudent = allSLsForLesson.first { sl in
-            !sl.isGiven && sl.scheduledFor != nil && sl.studentIDs.contains(studentID)
-        }
-        
-        if let existing = existingForStudent {
-            // UNSCHEDULE: Remove student from this group
+
+        // If the student is already planned (not given), remove them from that plan
+        if let existing = allSLsForLesson.first(where: { !$0.isGiven && $0.studentIDs.contains(studentID) }) {
             var ids = existing.studentIDs
             ids.removeAll { $0 == studentID }
-            
             if ids.isEmpty {
-                // If they were the only one, delete the whole SL
                 context.delete(existing)
             } else {
-                // Otherwise just update the list
                 existing.studentIDs = ids
             }
-        } else {
-            // SCHEDULE: Try to join an existing group for TODAY
-            let todayStart = AppCalendar.startOfDay(Date())
-            
-            // Look for an SL that is:
-            // 1. Not given
-            // 2. Scheduled for TODAY
-            // 3. For this lesson
-            let candidateGroup = allSLsForLesson.first { sl in
-                !sl.isGiven && sl.scheduledForDay == todayStart
-            }
-            
-            if let group = candidateGroup {
-                // Add student to this existing group
-                if !group.studentIDs.contains(studentID) {
-                    group.studentIDs.append(studentID)
-                }
-            } else {
-                // Create NEW SL
-                let newSL = StudentLesson(
-                    lessonID: lesson.id,
-                    studentIDs: [student.id],
-                    createdAt: Date(),
-                    scheduledFor: Date() // Sets scheduledForDay automatically
-                )
-                newSL.lesson = lesson
-                context.insert(newSL)
-            }
+            try? context.save()
+            recomputeMatrix(context: context)
+            return
         }
-        
+
+        // Otherwise, add to Inbox (unscheduled) by joining an existing unscheduled group
+        if let group = allSLsForLesson.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
+            if !group.studentIDs.contains(studentID) {
+                group.studentIDs.append(studentID)
+            }
+        } else {
+            // Create a new unscheduled StudentLesson for this single student
+            let newSL = StudentLesson(
+                lessonID: lesson.id,
+                studentIDs: [student.id],
+                createdAt: Date(),
+                scheduledFor: nil
+            )
+            newSL.lesson = lesson
+            context.insert(newSL)
+        }
+
         try? context.save()
         recomputeMatrix(context: context)
     }
@@ -533,3 +534,4 @@ extension View {
         #endif
     }
 }
+
