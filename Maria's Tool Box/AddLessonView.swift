@@ -16,6 +16,9 @@ struct AddLessonView: View {
     @State private var writeUp: String = ""
     @State private var showingBulkEntry: Bool = false
 
+    @State private var source: LessonSource = .album
+    @State private var personalKind: PersonalLessonKind = .personal
+
     init(defaultSubject: String? = nil, defaultGroup: String? = nil) {
         self.defaultSubject = defaultSubject?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.defaultGroup = defaultGroup?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -42,6 +45,18 @@ struct AddLessonView: View {
                     TextField("Subject", text: $subject)
                     TextField("Group", text: $group)
                     TextField("Subheading", text: $subheading)
+                    Picker("Source", selection: $source) {
+                        ForEach(LessonSource.allCases) { s in
+                            Text(s.label).tag(s)
+                        }
+                    }
+                    if source == .personal {
+                        Picker("Personal Type", selection: $personalKind) {
+                            ForEach(PersonalLessonKind.allCases) { k in
+                                Text(k.label).tag(k)
+                            }
+                        }
+                    }
                 }
 
                 Section("Write Up") {
@@ -66,6 +81,12 @@ struct AddLessonView: View {
                         subheading: subheading.trimmingCharacters(in: .whitespacesAndNewlines),
                         writeUp: writeUp
                     )
+                    newLesson.source = source
+                    if source == .personal {
+                        newLesson.personalKind = personalKind
+                    } else {
+                        newLesson.personalKind = nil
+                    }
                     modelContext.insert(newLesson)
                     dismiss()
                 }

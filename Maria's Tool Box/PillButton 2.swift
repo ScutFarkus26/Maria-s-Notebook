@@ -17,13 +17,14 @@ struct PillNavButton: View {
 
         // Use the same selection language as agenda pills (accent outline) to keep
         // pill appearance consistent across the app.
-        return AppPillButton(title,
-                             isSelected: isSelected,
-                             selectionStyle: .accentOutline,
-                             metrics: metrics,
-                             action: action)
-            .accessibilityLabel(Text(title))
-            .accessibilityAddTraits(isSelected ? .isSelected : [])
+        let base = AppPillButton(title,
+                                 isSelected: isSelected,
+                                 selectionStyle: .accentOutline,
+                                 metrics: metrics,
+                                 action: action)
+        let labeled = base.accessibilityLabel(Text(title))
+        let final = labeled.accessibilityAddTraits(isSelected ? .isSelected : [])
+        return final
     }
 }
 

@@ -53,11 +53,21 @@ struct LessonsViewModel {
     // MARK: - Sorting Pipelines
 
     // Main filter/sort pipeline extracted from LessonsRootView
-    func filteredLessons(lessons: [Lesson], searchText: String, selectedSubject: String?, selectedGroup: String?) -> [Lesson] {
+    func filteredLessons(lessons: [Lesson], sourceFilter: LessonSource?, personalKindFilter: PersonalLessonKind?, searchText: String, selectedSubject: String?, selectedGroup: String?) -> [Lesson] {
+        var scoped = lessons
+        if let sourceFilter {
+            scoped = scoped.filter { $0.source == sourceFilter }
+        }
+        if (sourceFilter == .personal) || (sourceFilter == nil) {
+            if let kind = personalKindFilter {
+                scoped = scoped.filter { $0.source == .personal && $0.personalKind == kind }
+            }
+        }
+
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var base: [Lesson]
         if !query.isEmpty {
-            base = lessons.filter { l in
+            base = scoped.filter { l in
                 l.name.localizedCaseInsensitiveContains(query)
                 || l.subject.localizedCaseInsensitiveContains(query)
                 || l.group.localizedCaseInsensitiveContains(query)
@@ -65,7 +75,7 @@ struct LessonsViewModel {
                 || l.writeUp.localizedCaseInsensitiveContains(query)
             }
         } else {
-            base = lessons
+            base = scoped
             if let subject = selectedSubject {
                 base = base.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
             }
@@ -74,7 +84,7 @@ struct LessonsViewModel {
             }
         }
 
-        let subjectIndex = subjectIndexMap(from: lessons)
+        let subjectIndex = subjectIndexMap(from: scoped)
         var groupIndexCache: [String: [String: Int]] = [:]
 
         if !query.isEmpty {
@@ -82,8 +92,8 @@ struct LessonsViewModel {
                 let ls = subjectIndex[norm(lhs.subject)] ?? Int.max
                 let rs = subjectIndex[norm(rhs.subject)] ?? Int.max
                 if ls == rs {
-                    let lg = indexForGroup(lhs.group, inSubject: lhs.subject, cache: &groupIndexCache, lessons: lessons)
-                    let rg = indexForGroup(rhs.group, inSubject: rhs.subject, cache: &groupIndexCache, lessons: lessons)
+                    let lg = indexForGroup(lhs.group, inSubject: lhs.subject, cache: &groupIndexCache, lessons: scoped)
+                    let rg = indexForGroup(rhs.group, inSubject: rhs.subject, cache: &groupIndexCache, lessons: scoped)
                     if lg == rg {
                         if lhs.orderInGroup == rhs.orderInGroup {
                             let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
@@ -107,8 +117,8 @@ struct LessonsViewModel {
             }
         } else if let subject = selectedSubject {
             return base.sorted { lhs, rhs in
-                let lg = indexForGroup(lhs.group, inSubject: subject, cache: &groupIndexCache, lessons: lessons)
-                let rg = indexForGroup(rhs.group, inSubject: subject, cache: &groupIndexCache, lessons: lessons)
+                let lg = indexForGroup(lhs.group, inSubject: subject, cache: &groupIndexCache, lessons: scoped)
+                let rg = indexForGroup(rhs.group, inSubject: subject, cache: &groupIndexCache, lessons: scoped)
                 if lg == rg {
                     if lhs.orderInGroup == rhs.orderInGroup {
                         let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
@@ -124,8 +134,8 @@ struct LessonsViewModel {
                 let ls = subjectIndex[norm(lhs.subject)] ?? Int.max
                 let rs = subjectIndex[norm(rhs.subject)] ?? Int.max
                 if ls == rs {
-                    let lg = indexForGroup(lhs.group, inSubject: lhs.subject, cache: &groupIndexCache, lessons: lessons)
-                    let rg = indexForGroup(rhs.group, inSubject: rhs.subject, cache: &groupIndexCache, lessons: lessons)
+                    let lg = indexForGroup(lhs.group, inSubject: lhs.subject, cache: &groupIndexCache, lessons: scoped)
+                    let rg = indexForGroup(rhs.group, inSubject: rhs.subject, cache: &groupIndexCache, lessons: scoped)
                     if lg == rg {
                         if lhs.orderInGroup == rhs.orderInGroup {
                             let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)

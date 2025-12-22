@@ -22,6 +22,8 @@ public struct BulkLessonsEntryView: View {
     @State private var selectedRowIDs: Set<UUID> = []
     @State private var quickSubject: String = ""
     @State private var quickGroup: String = ""
+    @State private var batchSource: LessonSource = .album
+    @State private var batchPersonalKind: PersonalLessonKind = .personal
 
     public init(defaultSubject: String? = nil, defaultGroup: String? = nil, onDone: (() -> Void)? = nil) {
         self.defaultSubject = defaultSubject?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -97,6 +99,27 @@ public struct BulkLessonsEntryView: View {
                 Text("Type directly into the grid below. Each non-empty Name creates a lesson.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    Text("Source:")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Picker("Source", selection: $batchSource) {
+                        ForEach(LessonSource.allCases) { s in
+                            Text(s.label).tag(s)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    if batchSource == .personal {
+                        Picker("Personal Type", selection: $batchPersonalKind) {
+                            ForEach(PersonalLessonKind.allCases) { k in
+                                Text(k.label).tag(k)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    Spacer()
+                }
 
                 // Quick Fill bar
                 HStack(spacing: 8) {
@@ -275,6 +298,12 @@ public struct BulkLessonsEntryView: View {
                 subheading: r.subheading,
                 writeUp: r.writeUp
             )
+            lesson.source = batchSource
+            if batchSource == .personal {
+                lesson.personalKind = batchPersonalKind
+            } else {
+                lesson.personalKind = nil
+            }
             modelContext.insert(lesson)
         }
         do {

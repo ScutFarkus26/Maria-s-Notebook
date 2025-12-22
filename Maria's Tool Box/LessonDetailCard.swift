@@ -28,6 +28,9 @@ struct LessonDetailCard: View {
     @State private var draftWriteUp: String = ""
     @State private var showDeleteAlert = false
 
+    @State private var draftSource: LessonSource = .album
+    @State private var draftPersonalKind: PersonalLessonKind = .personal
+
     @State private var showingPagesImporter = false
     @State private var resolvedPagesURL: URL? = nil
     @State private var importError: String? = nil
@@ -86,6 +89,13 @@ struct LessonDetailCard: View {
                             .padding(.vertical, 6)
                             .background(Capsule().fill(Color.accentColor.opacity(0.12)))
                     }
+                    if lesson.source == .personal {
+                        Text(lesson.personalKind?.badgeLabel ?? "Personal")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Color.primary.opacity(0.08)))
+                    }
                 }
             }
             .padding(.top, 4)
@@ -128,6 +138,13 @@ struct LessonDetailCard: View {
                         updated.group = draftGroup.trimmingCharacters(in: .whitespacesAndNewlines)
                         updated.subheading = draftSubheading.trimmingCharacters(in: .whitespacesAndNewlines)
                         updated.writeUp = draftWriteUp
+                        updated.source = draftSource
+                        if draftSource == .personal {
+                            updated.personalKind = draftPersonalKind
+                        } else {
+                            // Choosing to clear when switching to Album
+                            updated.personalKind = nil
+                        }
                         onSave(updated)
                         isEditing = false
                     } label: {
@@ -285,6 +302,19 @@ struct LessonDetailCard: View {
             TextField("Subheading", text: $draftSubheading)
                 .textFieldStyle(.roundedBorder)
 
+            Picker("Source", selection: $draftSource) {
+                ForEach(LessonSource.allCases) { s in
+                    Text(s.label).tag(s)
+                }
+            }
+            if draftSource == .personal {
+                Picker("Personal Type", selection: $draftPersonalKind) {
+                    ForEach(PersonalLessonKind.allCases) { k in
+                        Text(k.label).tag(k)
+                    }
+                }
+            }
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Imported Pages File")
                     .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
@@ -336,6 +366,8 @@ struct LessonDetailCard: View {
         draftGroup = lesson.group
         draftSubheading = lesson.subheading
         draftWriteUp = lesson.writeUp
+        draftSource = lesson.source
+        draftPersonalKind = lesson.personalKind ?? .personal
     }
 
     private func resolvePagesURL() -> URL? {

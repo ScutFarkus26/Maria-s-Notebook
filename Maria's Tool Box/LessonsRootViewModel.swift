@@ -12,6 +12,8 @@ final class LessonsRootViewModel: ObservableObject {
     func recomputeFilteredLessons(all lessons: [Lesson], filterState: LessonsFilterState, using filterer: LessonsViewModel) {
         self.filteredLessons = filterer.filteredLessons(
             lessons: lessons,
+            sourceFilter: filterState.sourceFilter,
+            personalKindFilter: filterState.personalKindFilter,
             searchText: filterState.searchText,
             selectedSubject: filterState.selectedSubject,
             selectedGroup: filterState.selectedGroup

@@ -278,6 +278,14 @@ private struct LessonCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
                 Spacer(minLength: 0)
+                if lesson.source == .personal {
+                    Text(lesson.personalKind?.badgeLabel ?? "Personal")
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.primary.opacity(0.08)))
+                        .foregroundStyle(.secondary)
+                }
             }
 
             if !lesson.group.isEmpty || !lesson.subject.isEmpty {
