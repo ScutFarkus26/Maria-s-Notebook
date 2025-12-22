@@ -36,6 +36,56 @@ struct BookClubSessionDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            GroupBox {
+                VStack(alignment: .leading, spacing: 12) {
+                    TextField("Chapter/Pages", text: Binding(
+                        get: { session.chapterOrPages ?? "" },
+                        set: { session.chapterOrPages = $0.isEmpty ? nil : $0 }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Agenda Items")
+                            .font(.headline)
+                        ForEach(Array(session.agendaItems.enumerated()), id: \.offset) { index, item in
+                            HStack {
+                                TextField("Agenda item", text: Binding(
+                                    get: { session.agendaItems.indices.contains(index) ? session.agendaItems[index] : "" },
+                                    set: {
+                                        if session.agendaItems.indices.contains(index) {
+                                            session.agendaItems[index] = $0
+                                        }
+                                    }
+                                ))
+                                .textFieldStyle(.roundedBorder)
+                                Button(role: .destructive) {
+                                    if session.agendaItems.indices.contains(index) {
+                                        session.agendaItems.remove(at: index)
+                                        try? modelContext.save()
+                                    }
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundColor(.red)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        Button {
+                            session.agendaItems.append("")
+                            try? modelContext.save()
+                        } label: {
+                            Label("Add Item", systemImage: "plus.circle.fill")
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+            .padding(.horizontal)
+            .onDisappear {
+                try? modelContext.save()
+            }
+
             List {
                 ForEach(groupedByStudent, id: \.id) { bucket in
                     Section(header: Text(studentName(for: bucket.id)).font(.headline)) {

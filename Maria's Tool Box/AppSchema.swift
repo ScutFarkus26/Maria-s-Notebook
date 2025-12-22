@@ -29,6 +29,11 @@ struct AppSchema {
         BookClub.self,
         BookClubAssignmentTemplate.self,
         BookClubSession.self,
-        BookClubDeliverable.self
+        BookClubDeliverable.self,
+        BookClubRole.self,
+        BookClubTemplateWeek.self,
+        BookClubWeekRoleAssignment.self,
+        BookClubChoiceSet.self,
+        BookClubChoiceItem.self,
     ])
 }

@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-struct LessonsAgendaBetaView: View {
+struct LessonsAgendaView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -11,7 +11,7 @@ struct LessonsAgendaBetaView: View {
     @Query private var students: [Student]
 
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
-    @AppStorage("LessonsAgendaBeta.startDate") private var startDateRaw: Double = 0
+    @AppStorage("LessonsAgenda.startDate") private var startDateRaw: Double = 0
 
     @State private var startDate: Date = Date()
     @State private var selectedStudentLessonForDetail: StudentLesson? = nil

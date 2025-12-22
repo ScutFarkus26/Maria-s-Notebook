@@ -1,6 +1,23 @@
 import Foundation
 import SwiftData
 
+// Local JSON helper to avoid cross-file dependency
+struct LocalJSONStringList {
+    static func encode(_ arr: [String]) -> String {
+        guard !arr.isEmpty else { return "" }
+        if let data = try? JSONEncoder().encode(arr), let s = String(data: data, encoding: .utf8) {
+            return s
+        }
+        return ""
+    }
+    static func decode(_ s: String) -> [String] {
+        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return [] }
+        if let arr = try? JSONDecoder().decode([String].self, from: data) { return arr }
+        return []
+    }
+}
+
 // MARK: - Deliverable Status
 
 enum BookClubDeliverableStatus: String, Codable, CaseIterable {
@@ -92,6 +109,12 @@ final class BookClubSession: Identifiable {
     var chapterOrPages: String?
     var notes: String?
 
+    // Agenda from template or edited per-session (JSON encoded)
+    var agendaItemsJSON: String
+
+    // Optional link back to a template week
+    var templateWeekID: UUID?
+
     // Relationships
     var deliverables: [BookClubDeliverable]
 
@@ -102,7 +125,9 @@ final class BookClubSession: Identifiable {
         meetingDate: Date = Date(),
         chapterOrPages: String? = nil,
         notes: String? = nil,
-        deliverables: [BookClubDeliverable] = []
+        deliverables: [BookClubDeliverable] = [],
+        agendaItemsJSON: String = "",
+        templateWeekID: UUID? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -111,6 +136,13 @@ final class BookClubSession: Identifiable {
         self.chapterOrPages = chapterOrPages
         self.notes = notes
         self.deliverables = deliverables
+        self.agendaItemsJSON = agendaItemsJSON
+        self.templateWeekID = templateWeekID
+    }
+
+    var agendaItems: [String] {
+        get { LocalJSONStringList.decode(agendaItemsJSON) }
+        set { agendaItemsJSON = LocalJSONStringList.encode(newValue) }
     }
 }
 
@@ -141,6 +173,13 @@ final class BookClubDeliverable: Identifiable {
     // If a WorkContract was generated from this deliverable, store its ID
     var generatedWorkID: UUID?
 
+    // Context linkage (optional)
+    var sourceContextID: UUID?
+    var templateWeekID: UUID?
+
+    // For Weekly Questions: link to a choice set
+    var choiceSetID: UUID?
+
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
@@ -152,7 +191,10 @@ final class BookClubDeliverable: Identifiable {
         dueDate: Date? = nil,
         status: BookClubDeliverableStatus = .assigned,
         linkedLessonID: String? = nil,
-        generatedWorkID: UUID? = nil
+        generatedWorkID: UUID? = nil,
+        sourceContextID: UUID? = nil,
+        templateWeekID: UUID? = nil,
+        choiceSetID: UUID? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -165,6 +207,9 @@ final class BookClubDeliverable: Identifiable {
         self.statusRaw = status.rawValue
         self.linkedLessonID = linkedLessonID
         self.generatedWorkID = generatedWorkID
+        self.sourceContextID = sourceContextID
+        self.templateWeekID = templateWeekID
+        self.choiceSetID = choiceSetID
     }
 
     var status: BookClubDeliverableStatus {
@@ -172,3 +217,4 @@ final class BookClubDeliverable: Identifiable {
         set { statusRaw = newValue.rawValue }
     }
 }
+

@@ -386,7 +386,7 @@ struct PlanningRootView: View {
 
             Group {
                 if mode == .agenda {
-                    LessonsAgendaBetaView()
+                    LessonsAgendaView()
                 } else if mode == .works {
                     WorksAgendaView()
                 } else if mode == .followUpInbox {
@@ -411,6 +411,17 @@ struct PlanningRootView: View {
                     modeRaw = Mode.agenda.rawValue
                 }
                 if modeRaw == "Work Agenda (Beta)" { modeRaw = Mode.works.rawValue }
+                // Migrate LessonsAgendaBeta.startDate -> LessonsAgenda.startDate (one-time)
+                let oldKey = "LessonsAgendaBeta.startDate"
+                let newKey = "LessonsAgenda.startDate"
+                if UserDefaults.standard.double(forKey: newKey) == 0 {
+                    let old = UserDefaults.standard.double(forKey: oldKey)
+                    if old != 0 {
+                        UserDefaults.standard.set(old, forKey: newKey)
+                        // Optionally clear old key
+                        // UserDefaults.standard.removeObject(forKey: oldKey)
+                    }
+                }
             }
         }
     }
