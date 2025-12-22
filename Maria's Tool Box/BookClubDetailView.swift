@@ -7,154 +7,193 @@ struct BookClubDetailView: View {
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
+    @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
+    private var roles: [BookClubRole] { allRoles.filter { $0.bookClubID == club.id } }
 
     @State private var showNewSession: Bool = false
     @State private var showEditClub: Bool = false
+    @State private var showManageRoles: Bool = false
 
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
     
-    private enum Tab {
-        case overview, template, sessions
-    }
-    
-    @State private var selectedTab: Tab = .overview
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            
-            // Pill row tabs
-            HStack(spacing: 12) {
-                TabButton(title: "Overview", isSelected: selectedTab == .overview) {
-                    selectedTab = .overview
-                }
-                TabButton(title: "Template", isSelected: selectedTab == .template) {
-                    selectedTab = .template
-                }
-                TabButton(title: "Sessions", isSelected: selectedTab == .sessions) {
-                    selectedTab = .sessions
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    switch selectedTab {
-                    case .overview:
-                        // Members
-                        GroupBox("Members") {
-                            if club.memberStudentIDs.isEmpty {
-                                Text("No members selected")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                VStack(alignment: .leading, spacing: 6) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Overview
+                SectionCard(title: "Overview", systemImage: "person.3") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Header with Book Title and Edit (if available)
+                        if let bt = club.bookTitle, !bt.isEmpty {
+                            HStack(alignment: .firstTextBaseline) {
+                                Label(bt, systemImage: "book.closed")
+                                    .font(.title3).fontWeight(.semibold)
+                                Spacer()
+                                Button {
+                                    showEditClub = true
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            // Members subheader (compact)
+                            HStack(alignment: .firstTextBaseline) {
+                                Label("Members", systemImage: "person.2")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                        } else {
+                            // Fallback: Members header with Edit when no book title
+                            HStack(alignment: .firstTextBaseline) {
+                                Label("Members", systemImage: "person.2")
+                                    .font(.headline)
+                                Spacer()
+                                Button {
+                                    showEditClub = true
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+
+                        // Members as a single row (horizontal chips)
+                        if club.memberStudentIDs.isEmpty {
+                            Text("No members selected")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
                                     ForEach(club.memberStudentIDs, id: \.self) { sid in
                                         if let uuid = UUID(uuidString: sid), let s = studentsByID[uuid] {
-                                            Text(StudentFormatter.displayName(for: s))
+                                            Chip(text: StudentFormatter.displayName(for: s))
                                         } else {
-                                            Text("Unknown student")
+                                            Chip(text: "Unknown")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Shared Assignments (only show if present)
+                        let shared = club.sharedTemplates.filter { $0.isShared }
+                        if !shared.isEmpty {
+                            Divider().opacity(0.2)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Shared Assignments", systemImage: "square.and.pencil")
+                                    .font(.headline)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(shared) { tpl in
+                                            Chip(text: tpl.title.isEmpty ? "Untitled" : tpl.title)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Template
+                SectionCard(title: "Template", systemImage: "square.grid.2x2") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Roles: one-row chips with Manage button (not collapsible)
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .center) {
+                                Label("Roles", systemImage: "person.badge.key")
+                                    .font(.headline)
+                                Spacer()
+                                Button {
+                                    showManageRoles = true
+                                } label: {
+                                    Label("Manage", systemImage: "slider.horizontal.3")
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            if roles.isEmpty {
+                                Text("No roles yet")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(roles, id: \.id) { role in
+                                            Chip(text: role.title.isEmpty ? "Role" : role.title)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Weeks (remain collapsible to save space)
+                        DisclosureGroup {
+                            BookClubWeeksEditorView(club: club, showHeader: false)
+                                .padding(.top, 4)
+                        } label: {
+                            Label("Weeks", systemImage: "calendar")
+                                .font(.headline)
+                        }
+                    }
+                }
+
+                // Sessions
+                SectionCard(title: "Sessions", systemImage: "calendar") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Upcoming & Past Sessions")
+                                .font(.headline)
+                            Spacer()
+                            Button {
+                                showNewSession = true
+                            } label: {
+                                Label("New Session", systemImage: "calendar.badge.plus")
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+
+                        if club.sessions.isEmpty {
+                            Text("No sessions yet")
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 4)
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(club.sessions.sorted(by: { $0.meetingDate > $1.meetingDate })) { session in
+                                    NavigationLink(destination: BookClubSessionDetailView(session: session)) {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(Self.df.string(from: session.meetingDate))
+                                                    .font(.headline)
+                                                if let ch = session.chapterOrPages, !ch.isEmpty {
+                                                    Text(ch).font(.subheadline).foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            Spacer()
+                                            Text("\(session.deliverables.count) deliverables")
+                                                .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
                                     }
-                                }
-                            }
-                        }
-                        
-                        // Shared templates
-                        GroupBox("Shared Assignments") {
-                            if club.sharedTemplates.isEmpty {
-                                Text("No shared templates")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    ForEach(club.sharedTemplates.filter { $0.isShared }) { tpl in
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(tpl.title.isEmpty ? "Untitled" : tpl.title)
-                                                .font(.headline)
-                                            if !tpl.instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                                Text(tpl.instructions)
-                                                    .font(.subheadline)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        .padding(.vertical, 4)
-                                    }
-                                }
-                            }
-                        }
-                        
-                    case .template:
-                        GroupBox("Roles") {
-                            BookClubRolesEditorView(club: club)
-                                .padding(.vertical, 4)
-                        }
-                        GroupBox("Weeks") {
-                            BookClubWeeksEditorView(club: club)
-                                .padding(.vertical, 4)
-                        }
-                        
-                    case .sessions:
-                        GroupBox("Sessions") {
-                            if club.sessions.isEmpty {
-                                Text("No sessions yet")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    ForEach(club.sessions.sorted(by: { $0.meetingDate > $1.meetingDate })) { session in
-                                        NavigationLink(destination: BookClubSessionDetailView(session: session)) {
-                                            HStack {
-                                                VStack(alignment: .leading, spacing: 2) {
-                                                    Text(Self.df.string(from: session.meetingDate))
-                                                        .font(.headline)
-                                                    if let ch = session.chapterOrPages, !ch.isEmpty {
-                                                        Text(ch).font(.subheadline).foregroundStyle(.secondary)
-                                                    }
-                                                }
-                                                Spacer()
-                                                Text("\(session.deliverables.count) deliverables")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .padding(.vertical, 4)
-                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.vertical, 4)
+                                    Divider().opacity(0.15)
                                 }
                             }
                         }
                     }
                 }
-                .padding(16)
             }
+            .padding(16)
         }
         .navigationTitle(club.title)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                switch selectedTab {
-                case .overview:
-                    Button {
-                        showEditClub = true
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                    }
-                case .sessions:
-                    Button {
-                        showNewSession = true
-                    } label: {
-                        Label("New Session", systemImage: "calendar.badge.plus")
-                    }
-                case .template:
-                    EmptyView()
-                }
-            }
-        }
         .sheet(isPresented: $showNewSession) {
             NewBookClubSessionSheet(club: club)
         }
         .sheet(isPresented: $showEditClub) {
             BookClubEditorSheet(club: club)
+        }
+        .sheet(isPresented: $showManageRoles) {
+            NavigationStack { BookClubRolesEditorView(club: club) }
+            #if os(macOS)
+            .frame(minWidth: 520, minHeight: 360)
+            #endif
         }
     }
 
@@ -162,25 +201,51 @@ struct BookClubDetailView: View {
         let df = DateFormatter(); df.dateStyle = .medium; return df
     }()
 }
-private struct TabButton: View {
+
+private struct SectionCard<Content: View>: View {
     let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
+    let systemImage: String
+    @ViewBuilder var content: Content
+
+    init(title: String, systemImage: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.systemImage = systemImage
+        self.content = content()
+    }
+
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 14)
-                .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
-                .foregroundColor(isSelected ? Color.accentColor : Color.primary)
-                .clipShape(Capsule())
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(.secondary)
+                Text(title)
+                    .font(.title3).fontWeight(.semibold)
+                Spacer()
+            }
+            .padding(.bottom, 2)
+
+            content
         }
-        .buttonStyle(.plain)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
     }
 }
 
+private struct Chip: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.subheadline)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .background(
+                Capsule().fill(Color.primary.opacity(0.06))
+            )
+    }
+}
 
 #if DEBUG
 struct BookClubRolesEditorView_Placeholder: View {

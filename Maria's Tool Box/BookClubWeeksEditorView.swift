@@ -3,6 +3,7 @@ import SwiftData
 
 struct BookClubWeeksEditorView: View {
     let club: BookClub
+    let showHeader: Bool
 
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
@@ -14,8 +15,9 @@ struct BookClubWeeksEditorView: View {
 
     @State private var editingWeek: BookClubTemplateWeek? = nil
 
-    init(club: BookClub) {
+    init(club: BookClub, showHeader: Bool = true) {
         self.club = club
+        self.showHeader = showHeader
     }
 
     private var weeks: [BookClubTemplateWeek] {
@@ -24,11 +26,18 @@ struct BookClubWeeksEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Weeks")
-                    .font(.headline)
-                Spacer()
-                Button(action: addWeek) { Label("Add Week", systemImage: "plus") }
+            if showHeader {
+                HStack {
+                    Text("Weeks")
+                        .font(.headline)
+                    Spacer()
+                    Button(action: addWeek) { Label("Add Week", systemImage: "plus") }
+                }
+            } else {
+                HStack {
+                    Spacer()
+                    Button(action: addWeek) { Label("Add Week", systemImage: "plus") }
+                }
             }
             if weeks.isEmpty {
                 ContentUnavailableView("No Weeks", systemImage: "calendar", description: Text("Add Week to start building your template."))
@@ -36,25 +45,17 @@ struct BookClubWeeksEditorView: View {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(weeks, id: \.id) { week in
                         Button { editingWeek = week } label: {
-                            HStack(alignment: .firstTextBaseline) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Week \(week.weekIndex)")
-                                        .font(.headline)
-                                    if !week.readingRange.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                        Text(week.readingRange)
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text("Week \(week.weekIndex)")
+                                    .font(.body.weight(.semibold))
+                                if !week.readingRange.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Text("— \(week.readingRange)")
+                                        .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                HStack(spacing: 8) {
-                                    Text("\(choicePromptCountText(for: week))")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text("\(week.roleAssignments.count) roles assigned")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote)
+                                    .foregroundStyle(.tertiary)
                             }
                         }
                         .buttonStyle(.plain)
@@ -66,16 +67,6 @@ struct BookClubWeeksEditorView: View {
         }
         .sheet(item: $editingWeek) { week in
             BookClubWeekEditorView(club: club, week: week) { editingWeek = nil }
-        }
-    }
-
-    private func choicePromptCountText(for week: BookClubTemplateWeek) -> String {
-        if let setID = week.questionChoiceSetID {
-            let items = allChoiceItems.filter { $0.setID == setID }
-            let count = items.count
-            return "\(count) prompts, pick 2"
-        } else {
-            return "0 prompts, pick 2"
         }
     }
 

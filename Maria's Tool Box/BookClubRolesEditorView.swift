@@ -6,6 +6,7 @@ struct BookClubRolesEditorView: View {
 
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(\.dismiss) private var dismiss
 
     // FIX: Use explicit generic SortDescriptor so SwiftData compiles reliably.
     @Query(sort: [SortDescriptor<BookClubRole>(\.createdAt, order: .forward)])
@@ -19,27 +20,24 @@ struct BookClubRolesEditorView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Roles")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    editingRole = nil
-                    showEditor = true
-                } label: {
-                    Label("Add Role", systemImage: "plus")
-                }
-            }
-
+        Group {
             if roles.isEmpty {
-                // FIX: Proper ContentUnavailableView call (your file had a truncated/invalid call).
-                ContentUnavailableView(
-                    "No Roles",
-                    systemImage: "person.2",
-                    description: Text("Create roles like Director, Illustrator, etc.")
-                )
-                .frame(maxWidth: .infinity, minHeight: 140)
+                VStack(spacing: 12) {
+                    ContentUnavailableView(
+                        "No Roles",
+                        systemImage: "person.2",
+                        description: Text("Create roles like Director, Illustrator, etc.")
+                    )
+                    Button {
+                        editingRole = nil
+                        showEditor = true
+                    } label: {
+                        Label("Add Role", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding()
             } else {
                 List {
                     ForEach(roles, id: \.id) { role in
@@ -47,30 +45,51 @@ struct BookClubRolesEditorView: View {
                             editingRole = role
                             showEditor = true
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(role.title.isEmpty ? "Untitled" : role.title)
-                                    .font(.headline)
-
-                                let firstLine = role.summary.split(separator: "\n").first.map(String.init) ?? role.summary
-                                if !firstLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Text(firstLine)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(role.title.isEmpty ? "Untitled" : role.title)
+                                        .font(.body.weight(.semibold))
+                                    let firstLine = role.summary.split(separator: "\n").first.map(String.init) ?? role.summary
+                                    if !firstLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        Text(firstLine)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote)
+                                    .foregroundStyle(.tertiary)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("Delete", role: .destructive) { delete(role) }
-                        }
+                        .contextMenu { Button("Delete", role: .destructive) { delete(role) } }
                     }
+                    .onDelete(perform: deleteAtOffsets)
                 }
-                .frame(maxWidth: .infinity, minHeight: 180)
+                #if os(iOS)
+                .listStyle(.insetGrouped)
+                #else
+                .listStyle(.inset)
+                #endif
+            }
+        }
+        .navigationTitle("Roles")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Done") { dismiss() }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    editingRole = nil
+                    showEditor = true
+                } label: {
+                    Label("Add Role", systemImage: "plus")
+                }
             }
         }
         .sheet(isPresented: $showEditor) {
-            // FIX: Always show Save/Cancel without resizing on macOS.
             NavigationStack {
                 BookClubRoleEditorSheet(club: club, role: editingRole) {
                     showEditor = false
@@ -83,6 +102,15 @@ struct BookClubRolesEditorView: View {
     private func delete(_ role: BookClubRole) {
         modelContext.delete(role)
         _ = saveCoordinator.save(modelContext, reason: "Delete book club role")
+    }
+
+    private func deleteAtOffsets(_ offsets: IndexSet) {
+        for i in offsets {
+            if roles.indices.contains(i) {
+                let role = roles[i]
+                delete(role)
+            }
+        }
     }
 }
 
