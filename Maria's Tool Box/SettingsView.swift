@@ -212,6 +212,26 @@ struct SettingsView: View {
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 4)
+                                Divider().padding(.vertical, 4)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Button {
+                                        do {
+                                            let summary = try StudentLessonCleaner.removeZeroStudentLessons(using: modelContext)
+                                            let msg = "Zero-student lessons found: \(summary.totalFound)\nDeleted: \(summary.deleted)\nWork links cleared: \(summary.worksCleared)"
+                                            maintenanceAlert = (title: "Remove Zero-Student Lessons", message: msg)
+                                        } catch {
+                                            maintenanceAlert = (title: "Cleanup Failed", message: error.localizedDescription)
+                                        }
+                                    } label: {
+                                        Label("Remove Zero-Student Lessons", systemImage: "person.crop.circle.badge.xmark")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.large)
+
+                                    Text("Deletes any Student Lesson records that have no students, and clears stale work links.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                         .frame(maxWidth: .infinity)

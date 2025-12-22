@@ -97,12 +97,17 @@ public struct InboxSheetView: View {
       for sl in group { union.formUnion(sl.resolvedStudentIDs) }
       let remainingIDs = Array(union)
 
-      // Update target's students
-      target.studentIDs = remainingIDs
-      let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
-      let fetched = (try? modelContext.fetch(fetch)) ?? []
-      target.students = fetched
-      // Removed target.syncSnapshotsFromRelationships()
+      if remainingIDs.isEmpty {
+        // If consolidation results in zero students, delete the target entirely
+        deletedIDs.append(targetID)
+        modelContext.delete(target)
+      } else {
+        // Update target's students
+        target.studentIDs = remainingIDs
+        let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
+        let fetched = (try? modelContext.fetch(fetch)) ?? []
+        target.students = fetched
+      }
 
       // Delete the others in the group
       for sl in group where sl.id != targetID {

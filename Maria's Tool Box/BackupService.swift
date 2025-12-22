@@ -505,6 +505,17 @@ actor BackupService {
         let workIDs = Set(payload.works.map { $0.id })
         let communityTopicIDs = Set(payload.communityTopics.map { $0.id })
 
+        // StudentLesson must include at least one student
+        for sl in payload.studentLessons {
+            if sl.studentIDs.isEmpty {
+                if mode == .replace {
+                    result.errors.append("StudentLesson \(sl.id) has zero students")
+                } else {
+                    result.warnings.append("StudentLesson \(sl.id) has zero students; will be skipped during merge")
+                }
+            }
+        }
+
         // Validate relationships and references
         // StudentLesson.lessonID must exist
         for sl in payload.studentLessons {
@@ -842,6 +853,8 @@ actor BackupService {
         let existing = try ctx.fetch(FetchDescriptor<StudentLesson>())
         let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
         for d in dtos {
+            // Skip invalid zero-student lessons
+            if d.studentIDs.isEmpty { continue }
             if let obj = map[d.id] {
                 obj.lessonID = d.lessonID; obj.studentIDs = d.studentIDs; obj.createdAt = d.createdAt; obj.scheduledFor = d.scheduledFor; obj.givenAt = d.givenAt; obj.isPresented = d.isPresented; obj.notes = d.notes; obj.needsPractice = d.needsPractice; obj.needsAnotherPresentation = d.needsAnotherPresentation; obj.followUpWork = d.followUpWork; if let g = d.studentGroupKey { obj.studentGroupKeyPersisted = g }
             } else {

@@ -101,6 +101,8 @@ struct StudentLessonQuickActionsView: View {
                     }
                     Button("Plan Next Lesson in Group") {
                         guard let next = nextLessonInGroup else { return }
+                        // Do not create or plan lessons for zero students
+                        guard !studentLesson.resolvedStudentIDs.isEmpty else { return }
                         let sameStudents = Set(studentLesson.resolvedStudentIDs)
                         let exists = studentLessonsAll.contains { sl in
                             sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && !sl.isGiven
@@ -130,7 +132,7 @@ struct StudentLessonQuickActionsView: View {
                             showPlannedBanner = false
                         }
                     }
-                    .disabled(nextLessonInGroup == nil || didPlanNext)
+                    .disabled(nextLessonInGroup == nil || didPlanNext || studentLesson.resolvedStudentIDs.isEmpty)
                 }
             }
             .frame(minWidth: 360)
@@ -211,6 +213,8 @@ struct StudentLessonQuickActionsView: View {
                 if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
                     let next = candidates[idx + 1]
                     let sameStudents = Set(studentLesson.resolvedStudentIDs)
+                    // Skip if there are no students attached
+                    guard !sameStudents.isEmpty else { return }
                     let exists = studentLessonsAll.contains { sl in
                         sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
                     }
@@ -247,6 +251,8 @@ struct StudentLessonQuickActionsView: View {
         studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
 
         if needsAnotherPresentation {
+            // Skip creating follow-up if zero students
+            guard !studentLesson.resolvedStudentIDs.isEmpty else { return }
             let sameStudents = Set(studentLesson.resolvedStudentIDs)
             let exists = studentLessonsAll.contains { sl in
                 sl.resolvedLessonID == studentLesson.lessonID && Set(sl.resolvedStudentIDs) == sameStudents && !sl.isGiven
@@ -319,3 +325,4 @@ struct StudentLessonQuickActionsView: View {
         .frame(minWidth: 360, minHeight: 240)
         .padding()
 }
+

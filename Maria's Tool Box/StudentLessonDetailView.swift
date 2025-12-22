@@ -340,6 +340,11 @@ struct StudentLessonDetailView: View {
                     Spacer()
 
                     Button("Cancel") {
+                        // If this is an empty draft (no students), delete it on cancel
+                        if studentLesson.studentIDs.isEmpty {
+                            modelContext.delete(studentLesson)
+                            try? modelContext.save()
+                        }
                         if let onDone {
                             onDone()
                         } else {
@@ -353,6 +358,7 @@ struct StudentLessonDetailView: View {
                     .bold()
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
+                    .disabled(selectedStudentIDs.isEmpty)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -419,6 +425,9 @@ struct StudentLessonDetailView: View {
         .onChange(of: needsAnotherPresentation) { _, newValue in
             // If toggled on and user doesn't schedule, create an unscheduled re-present entry if it doesn't exist
             if newValue {
+                // Prevent creating follow-up entries with zero students
+                guard !selectedStudentIDs.isEmpty else { return }
+                
                 let sameStudents = Set(selectedStudentIDs)
                 let exists = studentLessonsAll.contains { sl in
                     sl.resolvedLessonID == editingLessonID && sl.scheduledFor == nil && !sl.isGiven && Set(sl.resolvedStudentIDs) == sameStudents
@@ -448,6 +457,11 @@ struct StudentLessonDetailView: View {
         }
         .onDisappear {
             flushNotesAutosaveIfNeeded()
+            // Cleanup: ensure zero-student lessons don't linger
+            if studentLesson.studentIDs.isEmpty {
+                modelContext.delete(studentLesson)
+                try? modelContext.save()
+            }
         }
     }
 
@@ -628,6 +642,7 @@ struct StudentLessonDetailView: View {
     
     private func scheduleNextLessonToInbox() {
         guard let next = nextLessonInGroup else { return }
+        guard !selectedStudentIDs.isEmpty else { return }
         let sameStudents = Set(selectedStudentIDs)
         // Avoid duplicates: if a not-given item already exists for the same next lesson and students, do nothing
         let exists = studentLessonsAll.contains { sl in
