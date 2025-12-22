@@ -1,5 +1,8 @@
 import SwiftUI
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 struct MarkdownExporter {
     static func markdown(for t: CommunityTopic) -> String {
@@ -64,7 +67,15 @@ struct MarkdownExporter {
     #if os(iOS)
     static func presentShare(_ text: String) {
         let av = UIActivityViewController(activityItems: [text], applicationActivities: nil)
-        UIApplication.shared.windows.first?.rootViewController?.present(av, animated: true)
+        guard
+            let scene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first(where: { $0.activationState == .foregroundActive }),
+            let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first,
+            var top = window.rootViewController
+        else { return }
+        while let presented = top.presentedViewController { top = presented }
+        top.present(av, animated: true)
     }
     #else
     static func presentShare(_ text: String) { }

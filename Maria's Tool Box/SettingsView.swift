@@ -469,7 +469,11 @@ struct SettingsView: View {
             panel.title = "Save Backup"
             panel.canCreateDirectories = true
             panel.isExtensionHidden = false
-            panel.allowedFileTypes = [BackupFile.fileExtension]
+            if #available(macOS 12.0, *) {
+                panel.allowedContentTypes = [UTType(filenameExtension: BackupFile.fileExtension) ?? .data]
+            } else {
+                panel.allowedFileTypes = [BackupFile.fileExtension]
+            }
             // Suggest a filename with extension
             let suggested = tmpName.hasSuffix("." + BackupFile.fileExtension) ? tmpName : (tmpName + "." + BackupFile.fileExtension)
             panel.nameFieldStringValue = suggested
