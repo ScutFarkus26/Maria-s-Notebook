@@ -14,6 +14,7 @@ struct LessonsAgendaBetaView: View {
     @AppStorage("LessonsAgendaBeta.startDate") private var startDateRaw: Double = 0
 
     @State private var startDate: Date = Date()
+    @State private var selectedStudentLessonForDetail: StudentLesson? = nil
 
     // Age settings
     @AppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
@@ -74,6 +75,18 @@ struct LessonsAgendaBetaView: View {
         .onChange(of: studentLessons.map { $0.id }) { _, _ in
             syncInboxOrderWithCurrentBase()
         }
+        .sheet(item: $selectedStudentLessonForDetail) { sl in
+            StudentLessonDetailView(studentLesson: sl) {
+                selectedStudentLessonForDetail = nil
+            }
+        #if os(macOS)
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizing(.fitted)
+        #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        #endif
+        }
     }
 
     // MARK: - Inbox
@@ -117,6 +130,7 @@ struct LessonsAgendaBetaView: View {
     private func inboxRow(_ sl: StudentLesson) -> some View {
         HStack(spacing: 0) {
             StudentLessonPill(snapshot: sl.snapshot(), day: Date(), targetStudentLessonID: sl.id)
+                .onTapGesture { selectedStudentLessonForDetail = sl }
                 .onDrag {
                     let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
                     provider.suggestedName = sl.lesson?.name ?? "Lesson"
@@ -153,6 +167,8 @@ struct LessonsAgendaBetaView: View {
                         BetaDayColumn(day: day, allStudentLessons: studentLessons, onClear: { sl in
                             sl.scheduledFor = nil
                             try? modelContext.save()
+                        }, onSelect: { sl in
+                            selectedStudentLessonForDetail = sl
                         })
                     }
                 }
@@ -219,6 +235,7 @@ struct LessonsAgendaBetaView: View {
         let day: Date
         let allStudentLessons: [StudentLesson]
         let onClear: (StudentLesson) -> Void
+        let onSelect: (StudentLesson) -> Void
 
         @State private var itemFrames: [UUID: CGRect] = [:]
         @State private var zoneSpaceID = UUID()
@@ -263,6 +280,7 @@ struct LessonsAgendaBetaView: View {
                             } else {
                                 ForEach(scheduledLessonsForDay, id: \.id) { sl in
                                     StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false)
+                                        .onTapGesture { onSelect(sl) }
                                         .draggable(sl.id.uuidString) {
                                             StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false).opacity(0.85)
                                         }

@@ -18,6 +18,9 @@ final class StudentLessonDetailActions: ObservableObject {
         lessons: [Lesson],
         calendar: Calendar
     ) {
+        // Do not allow zero-student lessons; skip applying edits if empty selection
+        guard !selectedStudentIDs.isEmpty else { return }
+
         studentLesson.lessonID = editingLessonID
         studentLesson.setScheduledFor(scheduledFor, using: calendar)
         print("[Detail] tz=\(calendar.timeZone.identifier) set scheduledFor=\(String(describing: scheduledFor)) for sl=\(studentLesson.id)")
@@ -42,6 +45,8 @@ final class StudentLessonDetailActions: ObservableObject {
     ) {
         guard !wasGiven, nowGiven, let next = nextLesson else { return }
         let sameStudents = Set(selectedStudentIDs)
+        // Do not create next lesson entries for zero students
+        guard !sameStudents.isEmpty else { return }
         let exists = studentLessonsAll.contains { sl in
             sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
         }
@@ -73,6 +78,8 @@ final class StudentLessonDetailActions: ObservableObject {
         context: ModelContext
     ) -> Bool {
         let sameStudents = Set(selectedStudentIDs)
+        // Do not plan next lesson entries for zero students
+        guard !sameStudents.isEmpty else { return false }
         let exists = studentLessonsAll.contains { sl in
             sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
         }
