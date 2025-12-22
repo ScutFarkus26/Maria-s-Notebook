@@ -324,6 +324,7 @@ struct PlanningRootView: View {
         case works = "Work Agenda"
         case followUpInbox = "Follow-Up Inbox"
         case bookClubs = "Book Clubs"
+        case checklist = "Class Checklist"
         var id: String { rawValue }
     }
 
@@ -346,6 +347,7 @@ struct PlanningRootView: View {
                             PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                             PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                             PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                            PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -360,6 +362,7 @@ struct PlanningRootView: View {
                             PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                             PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                             PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                            PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                         }
                         Spacer()
                     }
@@ -375,6 +378,7 @@ struct PlanningRootView: View {
                     PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                     PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                     PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                    PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                 }
                 Spacer()
             }
@@ -395,6 +399,9 @@ struct PlanningRootView: View {
                     NavigationStack {
                         BookClubsRootView()
                     }
+                }
+                else if mode == .checklist {
+                    ClassSubjectChecklistView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
