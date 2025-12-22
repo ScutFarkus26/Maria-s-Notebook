@@ -55,9 +55,9 @@ struct StudentsRootView: View {
                         HStack {
                             Spacer(minLength: 0)
                             HStack(spacing: 12) {
-                                PillNavButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
-                                PillNavButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
-                                PillNavButton(title: Mode.workOverview.rawValue, isSelected: mode == .workOverview) { modeRaw = Mode.workOverview.rawValue }
+                                PillButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
+                                PillButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
+                                PillButton(title: Mode.workOverview.rawValue, isSelected: mode == .workOverview) { modeRaw = Mode.workOverview.rawValue }
                             }
                             Spacer(minLength: 0)
                         }
@@ -71,9 +71,9 @@ struct StudentsRootView: View {
                     HStack {
                         Spacer()
                         HStack(spacing: 12) {
-                            PillNavButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
-                            PillNavButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
-                            PillNavButton(title: Mode.workOverview.rawValue, isSelected: mode == .workOverview) { modeRaw = Mode.workOverview.rawValue }
+                            PillButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
+                            PillButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
+                            PillButton(title: Mode.workOverview.rawValue, isSelected: mode == .workOverview) { modeRaw = Mode.workOverview.rawValue }
                         }
                         Spacer()
                     }
@@ -85,9 +85,9 @@ struct StudentsRootView: View {
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
-                    PillNavButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
-                    PillNavButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
-                    PillNavButton(title: Mode.workOverview.rawValue, isSelected: mode == .workOverview) { modeRaw = Mode.workOverview.rawValue }
+                    PillButton(title: Mode.attendance.rawValue, isSelected: mode == .attendance) { modeRaw = Mode.attendance.rawValue }
+                    PillButton(title: Mode.roster.rawValue, isSelected: mode == .roster) { modeRaw = Mode.roster.rawValue }
+                    PillButton(title: Mode.workOverview.rawValue, isSelected: mode == .workOverview) { modeRaw = Mode.workOverview.rawValue }
                 }
                 Spacer()
             }
@@ -285,3 +285,4 @@ struct StudentsRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+

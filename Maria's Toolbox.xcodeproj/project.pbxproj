@@ -6,25 +6,8 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		51C01C762EF8F952001EDE26 /* StudentLessonCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C01C752EF8F952001EDE26 /* StudentLessonCleaner.swift */; };
-		51C01C782EF8FA28001EDE26 /* BookClubModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C01C772EF8FA28001EDE26 /* BookClubModels.swift */; };
-		51C01C7A2EF8FA2E001EDE26 /* BookClubsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C01C792EF8FA2E001EDE26 /* BookClubsRootView.swift */; };
-		51C01C7C2EF8FA33001EDE26 /* BookClubDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C01C7B2EF8FA33001EDE26 /* BookClubDetailView.swift */; };
-		51C01C7E2EF8FA36001EDE26 /* BookClubEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C01C7D2EF8FA36001EDE26 /* BookClubEditorSheet.swift */; };
-		51C01C802EF8FA37001EDE26 /* NewBookClubSessionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C01C7F2EF8FA37001EDE26 /* NewBookClubSessionSheet.swift */; };
-		51C01C822EF8FA3E001EDE26 /* BookClubSessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C01C812EF8FA3E001EDE26 /* BookClubSessionDetailView.swift */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		51C01C752EF8F952001EDE26 /* StudentLessonCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentLessonCleaner.swift; sourceTree = "<group>"; };
-		51C01C772EF8FA28001EDE26 /* BookClubModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookClubModels.swift; sourceTree = "<group>"; };
-		51C01C792EF8FA2E001EDE26 /* BookClubsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookClubsRootView.swift; sourceTree = "<group>"; };
-		51C01C7B2EF8FA33001EDE26 /* BookClubDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookClubDetailView.swift; sourceTree = "<group>"; };
-		51C01C7D2EF8FA36001EDE26 /* BookClubEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookClubEditorSheet.swift; sourceTree = "<group>"; };
-		51C01C7F2EF8FA37001EDE26 /* NewBookClubSessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewBookClubSessionSheet.swift; sourceTree = "<group>"; };
-		51C01C812EF8FA3E001EDE26 /* BookClubSessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookClubSessionDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -64,13 +47,6 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
-				51C01C752EF8F952001EDE26 /* StudentLessonCleaner.swift */,
-				51C01C772EF8FA28001EDE26 /* BookClubModels.swift */,
-				51C01C792EF8FA2E001EDE26 /* BookClubsRootView.swift */,
-				51C01C7B2EF8FA33001EDE26 /* BookClubDetailView.swift */,
-				51C01C7D2EF8FA36001EDE26 /* BookClubEditorSheet.swift */,
-				51C01C7F2EF8FA37001EDE26 /* NewBookClubSessionSheet.swift */,
-				51C01C812EF8FA3E001EDE26 /* BookClubSessionDetailView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -156,13 +132,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				51C01C782EF8FA28001EDE26 /* BookClubModels.swift in Sources */,
-				51C01C7C2EF8FA33001EDE26 /* BookClubDetailView.swift in Sources */,
-				51C01C802EF8FA37001EDE26 /* NewBookClubSessionSheet.swift in Sources */,
-				51C01C822EF8FA3E001EDE26 /* BookClubSessionDetailView.swift in Sources */,
-				51C01C762EF8F952001EDE26 /* StudentLessonCleaner.swift in Sources */,
-				51C01C7E2EF8FA36001EDE26 /* BookClubEditorSheet.swift in Sources */,
-				51C01C7A2EF8FA2E001EDE26 /* BookClubsRootView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
