@@ -2,6 +2,15 @@ import Foundation
 import SwiftData
 import CryptoKit
 
+#if os(macOS)
+private enum ObjCHost {
+    static func currentLocalizedName() throws -> String? {
+        // Use Foundation's Host via Objective-C runtime indirectly to avoid direct reference if unavailable on other platforms
+        return Host.current().localizedName
+    }
+}
+#endif
+
 actor BackupService {
     enum RestoreMode { case replace, merge }
 
@@ -214,7 +223,11 @@ actor BackupService {
     @MainActor
     private static func buildPayload(using ctx: ModelContext) async throws -> BackupPayload {
         // Fetch all entities and map to DTOs. Only include fields that are data-only.
-        func fetch<T: PersistentModel>(_ type: T.Type) throws -> [T] { try ctx.fetch(FetchDescriptor<T>()) }
+        func fetch<T: PersistentModel>(_ type: T.Type) throws -> [T] {
+            var fd = FetchDescriptor<T>()
+            fd.includePendingChanges = false
+            return try ctx.fetch(fd)
+        }
 
         // Items
         let items: [ItemDTO] = (try? fetch(Item.self))?.map { ItemDTO(id: UUID(), timestamp: $0.timestamp) } ?? []
@@ -335,7 +348,16 @@ actor BackupService {
         // ScopedNotes
         let scopedNotes: [ScopedNoteDTO] = (try? fetch(ScopedNote.self))?.map { n in
             ScopedNoteDTO(
-                id: n.id, createdAt: n.createdAt, updatedAt: n.updatedAt, body: n.body, scope: ((try? Self.encodeToJSONString(n.scope)) ?? (try? Self.encodeToJSONString(ScopedNote.Scope.all)) ?? "{}"), legacyFingerprint: n.legacyFingerprint, studentLessonID: n.studentLesson?.id, workID: n.work?.id, presentationID: n.presentation?.id, workContractID: n.workContract?.id
+                id: n.id,
+                createdAt: n.createdAt,
+                updatedAt: n.updatedAt,
+                body: n.body,
+                scope: ((try? Self.encodeToJSONString(n.scope)) ?? (try? Self.encodeToJSONString(ScopedNote.Scope.all)) ?? "{}"),
+                legacyFingerprint: n.legacyFingerprint,
+                studentLessonID: n.studentLesson?.id,
+                workID: n.work?.id,
+                presentationID: nil,
+                workContractID: nil
             )
         } ?? []
 
@@ -944,16 +966,13 @@ actor BackupService {
         let slByID = Dictionary(uniqueKeysWithValues: sls.map { ($0.id, $0) })
         let works = try ctx.fetch(FetchDescriptor<WorkModel>())
         let workByID = Dictionary(uniqueKeysWithValues: works.map { ($0.id, $0) })
-        let contracts = try ctx.fetch(FetchDescriptor<WorkContract>())
-        let contractsByID = Dictionary(uniqueKeysWithValues: contracts.map { ($0.id, $0) })
-        let presentations = try ctx.fetch(FetchDescriptor<Presentation>())
-        let presByID = Dictionary(uniqueKeysWithValues: presentations.map { ($0.id, $0) })
+        // Removed fetching contracts and presentations per instructions
         for d in dtos {
             let scopeValue = Self.decodeFromJSONString(d.scope, as: ScopedNote.Scope.self) ?? .all
             if let n = map[d.id] {
-                n.createdAt = d.createdAt; n.updatedAt = d.updatedAt; n.body = d.body; n.scope = scopeValue; n.legacyFingerprint = d.legacyFingerprint; n.studentLesson = d.studentLessonID.flatMap { slByID[$0] }; n.work = d.workID.flatMap { workByID[$0] }; n.presentation = d.presentationID.flatMap { presByID[$0] }; n.workContract = d.workContractID.flatMap { contractsByID[$0] }
+                n.createdAt = d.createdAt; n.updatedAt = d.updatedAt; n.body = d.body; n.scope = scopeValue; n.legacyFingerprint = d.legacyFingerprint; n.studentLesson = d.studentLessonID.flatMap { slByID[$0] }; n.work = d.workID.flatMap { workByID[$0] }; n.presentation = nil; n.workContract = nil
             } else {
-                let n = ScopedNote(id: d.id, createdAt: d.createdAt, updatedAt: d.updatedAt, body: d.body, scope: scopeValue, legacyFingerprint: d.legacyFingerprint, studentLesson: d.studentLessonID.flatMap { slByID[$0] }, work: d.workID.flatMap { workByID[$0] }, presentation: d.presentationID.flatMap { presByID[$0] }, workContract: d.workContractID.flatMap { contractsByID[$0] }); ctx.insert(n)
+                let n = ScopedNote(id: d.id, createdAt: d.createdAt, updatedAt: d.updatedAt, body: d.body, scope: scopeValue, legacyFingerprint: d.legacyFingerprint, studentLesson: d.studentLessonID.flatMap { slByID[$0] }, work: d.workID.flatMap { workByID[$0] }, presentation: nil, workContract: nil); ctx.insert(n)
             }
         }
     }
@@ -1073,7 +1092,15 @@ actor BackupService {
 
     private static func appVersion() -> String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
     private static func appBuild() -> String { Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "" }
-    private static func deviceString() -> String { Host.current().localizedName ?? "Unknown Mac" }
+    @MainActor
+    private static func deviceString() -> String {
+        #if os(macOS)
+        // Prefer localizedName when available on macOS
+        if let name = (try? ObjCHost.currentLocalizedName()) { return name }
+        #endif
+        let host = ProcessInfo.processInfo.hostName
+        return host.isEmpty ? "Unknown Device" : host
+    }
 
     private static func sha256Hex(of data: Data) -> String {
         let digest = SHA256.hash(data: data)

@@ -59,6 +59,9 @@ struct SettingsView: View {
     @State private var showDannyResetConfirm = false
     @State private var dannyResetSummary: String? = nil
 
+    @State private var showingFolderImporter = false
+    @State private var defaultFolderName: String = ""
+
     private let overviewColumns: [GridItem] = [
         GridItem(.flexible(), spacing: 16),
         GridItem(.flexible(), spacing: 16),
@@ -121,6 +124,58 @@ struct SettingsView: View {
                                     Text(summary)
                                         .font(.footnote)
                                         .foregroundStyle(.secondary)
+                                }
+                                Divider().padding(.vertical, 4)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "externaldrive")
+                                            .foregroundStyle(.secondary)
+                                        Text(defaultFolderName.isEmpty ? "No default folder selected" : "Default folder: \(defaultFolderName)")
+                                            .foregroundStyle(defaultFolderName.isEmpty ? .secondary : .primary)
+                                    }
+                                    HStack(spacing: 8) {
+                                        Button {
+#if os(macOS)
+                                            let panel = NSOpenPanel()
+                                            panel.canChooseFiles = false
+                                            panel.canChooseDirectories = true
+                                            panel.canCreateDirectories = true
+                                            if panel.runModal() == .OK, let url = panel.url {
+                                                try? BackupDestination.setDefaultFolder(url)
+                                                loadDefaultFolderName()
+                                            }
+#else
+                                            showingFolderImporter = true
+#endif
+                                        } label: {
+                                            Label("Choose Default Folder…", systemImage: "folder.badge.plus")
+                                        }
+
+#if os(macOS)
+                                        Button {
+                                            if let url = BackupDestination.resolveDefaultFolder() {
+                                                NSWorkspace.shared.activateFileViewerSelecting([url])
+                                            }
+                                        } label: {
+                                            Label("Reveal in Finder", systemImage: "folder")
+                                        }
+#else
+                                        Button {
+                                            if let url = BackupDestination.resolveDefaultFolder() {
+                                                UIApplication.shared.open(url)
+                                            }
+                                        } label: {
+                                            Label("Open in Files", systemImage: "folder")
+                                        }
+#endif
+
+                                        Button(role: .destructive) {
+                                            BackupDestination.clearDefaultFolder()
+                                            loadDefaultFolderName()
+                                        } label: {
+                                            Label("Clear", systemImage: "xmark.circle")
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -237,6 +292,20 @@ struct SettingsView: View {
                 importError = "Failed to restore: \(error.localizedDescription)"
             }
         }
+        .fileImporter(
+            isPresented: $showingFolderImporter,
+            allowedContentTypes: [.folder]
+        ) { result in
+            switch result {
+            case .success(let url):
+                let needsAccess = url.startAccessingSecurityScopedResource()
+                defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+                try? BackupDestination.setDefaultFolder(url)
+                loadDefaultFolderName()
+            case .failure:
+                break
+            }
+        }
         .alert(isPresented: Binding<Bool>(
             get: { maintenanceAlert != nil },
             set: { if !$0 { maintenanceAlert = nil } }
@@ -298,6 +367,7 @@ struct SettingsView: View {
             if !UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
                 UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
             }
+            loadDefaultFolderName()
         }
     }
     
@@ -342,6 +412,20 @@ struct SettingsView: View {
         }
     }
     
+    private func loadDefaultFolderName() {
+        defaultFolderName = BackupDestination.resolveDefaultFolder()?.lastPathComponent ?? ""
+    }
+
+    private func uniquedURL(in folder: URL, base: String, ext: String) -> URL {
+        var candidate = folder.appendingPathComponent(base).appendingPathExtension(ext)
+        var i = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = folder.appendingPathComponent("\(base) (\(i))").appendingPathExtension(ext)
+            i += 1
+        }
+        return candidate
+    }
+    
     @MainActor
     private func performExport() async {
         do {
@@ -352,7 +436,7 @@ struct SettingsView: View {
                 .appendingPathExtension(BackupFile.fileExtension)
             exportURL = tmp
             try? FileManager.default.removeItem(at: tmp)
-            let summary = try await backupService.exportBackup(
+            _ = try await backupService.exportBackup(
                 modelContext: modelContext,
                 to: tmp,
                 encrypt: encryptBackups
@@ -362,17 +446,61 @@ struct SettingsView: View {
                     self.backupMessage = message
                 }
             }
-            operationSummary = BackupOperationSummary(
-                kind: .export,
-                fileName: summary.fileName,
-                formatVersion: summary.formatVersion,
-                encryptUsed: summary.encryptUsed,
-                createdAt: summary.createdAt,
-                entityCounts: summary.entityCounts,
-                warnings: summary.warnings
-            )
+            // Attempt seamless save to default folder if configured
+            if let folder = BackupDestination.resolveDefaultFolder() {
+                let needsAccess = folder.startAccessingSecurityScopedResource()
+                defer { if needsAccess { folder.stopAccessingSecurityScopedResource() } }
+                let base = tmpName
+                let dest = uniquedURL(in: folder, base: base, ext: BackupFile.fileExtension)
+                do {
+                    // Prefer copy to keep temp intact until success
+                    try FileManager.default.copyItem(at: tmp, to: dest)
+                    lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
+                    resultSummary = "Exported backup to \(dest.lastPathComponent)."
+                    try? FileManager.default.removeItem(at: tmp)
+                    return
+                } catch {
+                    // Fall back to interactive save below
+                }
+            }
+#if os(macOS)
+            // Present a Save dialog on macOS and write the backup to the chosen location
+            let panel = NSSavePanel()
+            panel.title = "Save Backup"
+            panel.canCreateDirectories = true
+            panel.isExtensionHidden = false
+            panel.allowedFileTypes = [BackupFile.fileExtension]
+            // Suggest a filename with extension
+            let suggested = tmpName.hasSuffix("." + BackupFile.fileExtension) ? tmpName : (tmpName + "." + BackupFile.fileExtension)
+            panel.nameFieldStringValue = suggested
+
+            let response = panel.runModal()
+            if response == .OK, let destURL = panel.url {
+                var finalURL = destURL
+                if finalURL.pathExtension.isEmpty {
+                    finalURL = destURL.appendingPathExtension(BackupFile.fileExtension)
+                }
+                // Overwrite if an existing file is there
+                if FileManager.default.fileExists(atPath: finalURL.path) {
+                    try? FileManager.default.removeItem(at: finalURL)
+                }
+                do {
+                    try FileManager.default.copyItem(at: tmp, to: finalURL)
+                    lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
+                    resultSummary = "Exported backup to \(finalURL.lastPathComponent)."
+                } catch {
+                    importError = "Failed to write backup: \(error.localizedDescription)"
+                }
+            } else {
+                resultSummary = "Export canceled."
+            }
+            // Clean up the temporary file
+            try? FileManager.default.removeItem(at: tmp)
+#else
+            // iOS/iPadOS: use the SwiftUI file exporter so the user can pick a Files location
             exportData = try Data(contentsOf: tmp)
             showingExporter = true
+#endif
         } catch {
             importError = "Failed to export: \(error.localizedDescription)"
         }

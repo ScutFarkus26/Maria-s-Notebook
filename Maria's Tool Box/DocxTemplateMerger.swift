@@ -47,6 +47,7 @@ enum DocxTemplateMerger {
     }
 
     // Use /usr/bin/zip and /usr/bin/unzip to avoid third-party deps; available on macOS.
+    #if os(macOS)
     private static func unzipDocx(at zipURL: URL, to destDir: URL) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
@@ -55,7 +56,13 @@ enum DocxTemplateMerger {
         process.waitUntilExit()
         if process.terminationStatus != 0 { throw MergerError.unzipFailed }
     }
+    #else
+    private static func unzipDocx(at zipURL: URL, to destDir: URL) throws {
+        throw MergerError.ioFailed("DOCX merge is only supported on macOS.")
+    }
+    #endif
 
+    #if os(macOS)
     private static func zipDocx(from sourceDir: URL, to zipURL: URL) throws {
         // Build zip from contents of sourceDir
         let cwd = sourceDir
@@ -68,4 +75,10 @@ enum DocxTemplateMerger {
         process.waitUntilExit()
         if process.terminationStatus != 0 { throw MergerError.ioFailed("zip failed") }
     }
+    #else
+    private static func zipDocx(from sourceDir: URL, to zipURL: URL) throws {
+        throw MergerError.ioFailed("DOCX merge is only supported on macOS.")
+    }
+    #endif
 }
+
