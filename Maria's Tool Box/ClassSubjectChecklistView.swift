@@ -17,9 +17,9 @@ struct ClassSubjectChecklistView: View {
     @StateObject private var viewModel = ClassSubjectChecklistViewModel()
     
     // Grid Configuration
-    private let studentColumnWidth: CGFloat = 140
+    private let studentColumnWidth: CGFloat = 120
     private let lessonColumnWidth: CGFloat = 200
-    private let rowHeight: CGFloat = 50 // Fixed height to ensure alignment
+    private let rowHeight: CGFloat = 44
     
     var body: some View {
         VStack(spacing: 0) {
@@ -48,29 +48,21 @@ struct ClassSubjectChecklistView: View {
             Divider()
             
             // MARK: - Main Content
-            // We use a Vertical ScrollView for the whole page.
-            // Inside, we split: Left (Lesson Names) and Right (Student Grid).
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: 0) {
                     
-                    // 1. LEFT COLUMN (Sticky Horizontally)
+                    // 1. LEFT COLUMN (Sticky Horizontally) - Lesson Names
                     VStack(alignment: .leading, spacing: 0) {
-                        // Empty Top-Left Corner (matches Student Header height)
+                        // Empty Corner
                         Color.clear
                             .frame(width: lessonColumnWidth, height: rowHeight)
-                            #if os(macOS)
-                            .border(Color(nsColor: .separatorColor).opacity(0.5), width: 0.5)
-                            #else
-                            .border(Color.gray.opacity(0.5), width: 0.5)
-                            #endif
+                            .borderSeparated()
 
-                        // Rows of Lesson Names
+                        // Rows
                         ForEach(viewModel.orderedGroups, id: \.self) { group in
-                            // Group Header
                             groupHeaderView(group)
                                 .frame(width: lessonColumnWidth)
                             
-                            // Lessons
                             let lessons = viewModel.lessonsIn(group: group)
                             ForEach(lessons) { lesson in
                                 VStack(alignment: .leading) {
@@ -78,71 +70,43 @@ struct ClassSubjectChecklistView: View {
                                         .font(.system(.body, design: .rounded).weight(.medium))
                                         .lineLimit(2)
                                         .minimumScaleFactor(0.9)
-                                    if !lesson.subheading.isEmpty {
-                                        Text(lesson.subheading)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
-                                    }
                                 }
                                 .padding(.horizontal, 8)
                                 .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
-                                #if os(macOS)
-                                .border(Color(nsColor: .separatorColor).opacity(0.5), width: 0.5)
-                                #else
-                                .border(Color.gray.opacity(0.5), width: 0.5)
-                                #endif
+                                .borderSeparated()
                             }
                         }
                     }
-                    #if os(macOS)
-                    .background(Color(nsColor: .controlBackgroundColor)) // Distinct background for sticky column
-                    #else
-                    .background(Color(uiColor: .secondarySystemBackground))
-                    #endif
-                    .zIndex(1) // Keep above if there's any overlap
+                    .backgroundPlatform()
+                    .zIndex(1)
                     
-                    // 2. RIGHT PANE (Scrolls Horizontally)
+                    // 2. RIGHT PANE (Scrolls Horizontally) - The Grid
                     ScrollView(.horizontal) {
                         VStack(alignment: .leading, spacing: 0) {
                             
-                            // Student Header Row
+                            // Student Names Header
                             HStack(spacing: 0) {
                                 ForEach(viewModel.students) { student in
                                     VStack(spacing: 2) {
                                         Text(student.firstName)
                                             .font(.headline)
-                                        // FIXED: Used conciseAgeString instead of missing ageString
                                         Text(AgeUtils.conciseAgeString(for: student.birthday))
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
                                     .frame(width: studentColumnWidth, height: rowHeight, alignment: .center)
-                                    #if os(macOS)
-                                    .border(Color(nsColor: .separatorColor).opacity(0.5), width: 0.5)
-                                    #else
-                                    .border(Color.gray.opacity(0.5), width: 0.5)
-                                    #endif
+                                    .borderSeparated()
                                 }
                             }
-                            #if os(macOS)
-                            .background(Color(nsColor: .controlBackgroundColor))
-                            #else
-                            .background(Color(uiColor: .secondarySystemBackground))
-                            #endif
+                            .backgroundPlatform()
                             
                             // Data Rows
                             ForEach(viewModel.orderedGroups, id: \.self) { group in
-                                // Group Header Spacer (extends right)
-                                #if os(macOS)
-                                Color(nsColor: .underPageBackgroundColor)
-                                    .frame(height: 35) // Match groupHeaderView height
-                                    .border(Color(nsColor: .separatorColor).opacity(0.5), width: 0.5)
-                                #else
-                                Color(uiColor: .tertiarySystemBackground)
-                                    .frame(height: 35)
-                                    .border(Color.gray.opacity(0.5), width: 0.5)
-                                #endif
+                                // Group Header Spacer
+                                Color.clear
+                                    .frame(height: 30)
+                                    .borderSeparated()
+                                    .background(Color.secondary.opacity(0.05))
                                 
                                 let lessons = viewModel.lessonsIn(group: group)
                                 ForEach(lessons) { lesson in
@@ -150,19 +114,25 @@ struct ClassSubjectChecklistView: View {
                                         ForEach(viewModel.students) { student in
                                             let state = viewModel.state(for: student, lesson: lesson)
                                             
-                                            ClassChecklistCell(
+                                            // THE NEW SMART CELL
+                                            ClassChecklistSmartCell(
                                                 state: state,
-                                                onTapScheduled: { viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext) },
-                                                onTapPresented: { viewModel.togglePresented(student: student, lesson: lesson, context: modelContext) },
-                                                onTapActive: { viewModel.toggleActive(student: student, lesson: lesson, context: modelContext) },
-                                                onTapComplete: { viewModel.toggleComplete(student: student, lesson: lesson, context: modelContext) }
+                                                onTap: {
+                                                    // Primary Action: Toggle Plan
+                                                    viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext)
+                                                },
+                                                onMarkComplete: {
+                                                    viewModel.markComplete(student: student, lesson: lesson, context: modelContext)
+                                                },
+                                                onMarkPresented: {
+                                                    viewModel.togglePresented(student: student, lesson: lesson, context: modelContext)
+                                                },
+                                                onClear: {
+                                                    viewModel.clearStatus(student: student, lesson: lesson, context: modelContext)
+                                                }
                                             )
                                             .frame(width: studentColumnWidth, height: rowHeight)
-                                            #if os(macOS)
-                                            .border(Color(nsColor: .separatorColor).opacity(0.2), width: 0.5)
-                                            #else
-                                            .border(Color.gray.opacity(0.2), width: 0.5)
-                                            #endif
+                                            .borderSeparated()
                                         }
                                     }
                                 }
@@ -183,79 +153,82 @@ struct ClassSubjectChecklistView: View {
     private func groupHeaderView(_ group: String) -> some View {
         HStack {
             Text(group)
-                .font(.system(.title3, design: .rounded).weight(.bold))
+                .font(.system(.caption, design: .rounded).weight(.bold))
                 .foregroundStyle(.secondary)
                 .padding(.leading)
             Spacer()
         }
-        .frame(height: 35)
-        #if os(macOS)
-        .background(Color(nsColor: .underPageBackgroundColor))
-        .border(Color(nsColor: .separatorColor).opacity(0.5), width: 0.5)
-        #else
-        .background(Color(uiColor: .tertiarySystemBackground))
-        .border(Color.gray.opacity(0.5), width: 0.5)
-        #endif
+        .frame(height: 30)
+        .background(Color.secondary.opacity(0.05))
+        .borderSeparated()
     }
 }
 
-// MARK: - Cell View
-struct ClassChecklistCell: View {
+// MARK: - THE SMART CELL
+struct ClassChecklistSmartCell: View {
     let state: StudentChecklistRowState?
-    var onTapScheduled: () -> Void
-    var onTapPresented: () -> Void
-    var onTapActive: () -> Void
-    var onTapComplete: () -> Void
+    
+    // Actions
+    var onTap: () -> Void
+    var onMarkComplete: () -> Void
+    var onMarkPresented: () -> Void
+    var onClear: () -> Void
     
     var body: some View {
-        let isScheduled = state?.isScheduled ?? false
-        let isPresented = state?.isPresented ?? false
-        let isActive = state?.isActive ?? false
+        // Determine Status
         let isComplete = state?.isComplete ?? false
-        let isStale = (state?.isStale ?? false) && !isComplete
+        let isPresented = state?.isPresented ?? false
+        let isScheduled = state?.isScheduled ?? false
         
-        HStack(spacing: 8) {
-            // Plan
-            Button(action: onTapScheduled) {
-                Image(systemName: "calendar.badge.plus")
-                    .foregroundStyle(isScheduled ? Color.green : Color.secondary.opacity(0.2))
-            }
-            .buttonStyle(.plain)
+        // Single Icon Logic
+        ZStack {
+            // Hit area for tap
+            Color.clear.contentShape(Rectangle())
             
-            // Present
-            Button(action: onTapPresented) {
-                ZStack {
-                    if !isPresented && isScheduled {
-                        Circle().stroke(Color.green, lineWidth: 1)
-                    }
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(isPresented ? Color.green : Color.secondary.opacity(0.2))
-                }
+            if isComplete {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.green)
+                    .font(.title2)
+            } else if isPresented {
+                Image(systemName: "checkmark")
+                    .foregroundStyle(Color.blue)
+                    .font(.title3.weight(.bold))
+            } else if isScheduled {
+                Image(systemName: "calendar")
+                    .foregroundStyle(Color.accentColor)
+                    .font(.title3)
+            } else {
+                // Empty State
+                Circle()
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
+                    .frame(width: 16, height: 16)
             }
-            .buttonStyle(.plain)
-            
-            // Work
-            Button(action: onTapActive) {
-                Image(systemName: "hammer")
-                    .foregroundStyle(isActive ? Color.accentColor : Color.secondary.opacity(0.2))
-                    .overlay {
-                        if isActive && isStale {
-                            Circle().fill(Color.orange).frame(width: 5, height: 5).offset(x: 6, y: -6)
-                        }
-                    }
-            }
-            .buttonStyle(.plain)
-            
-            // Complete
-            Button(action: onTapComplete) {
-                Image(systemName: "checkmark.circle")
-                    .foregroundStyle(isComplete ? Color.green : Color.secondary.opacity(0.2))
-            }
-            .buttonStyle(.plain)
         }
-        .font(.system(size: 18))
+        .onTapGesture {
+            onTap() // Primary: Toggle Plan
+        }
+        .contextMenu {
+            Button { onTap() } label: {
+                Label(isScheduled ? "Unschedule" : "Plan for Today", systemImage: "calendar")
+            }
+            
+            Button { onMarkPresented() } label: {
+                Label("Mark Presented", systemImage: "checkmark")
+            }
+            
+            Button { onMarkComplete() } label: {
+                Label("Mark Mastered", systemImage: "checkmark.circle.fill")
+            }
+            
+            Divider()
+            
+            Button(role: .destructive) { onClear() } label: {
+                Label("Clear All Status", systemImage: "xmark.circle")
+            }
+        }
     }
 }
+
 
 // MARK: - ViewModel
 @MainActor
@@ -264,87 +237,52 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     @Published var lessons: [Lesson] = []
     @Published var orderedGroups: [String] = []
     @Published var availableSubjects: [String] = []
-    @Published var selectedSubject: String = "" // Initialize empty
+    @Published var selectedSubject: String = ""
     
-    // Cache: [StudentID: [LessonID: State]]
     @Published var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
-    
-    // Re-use logic from your existing logic helper
     private let lessonsLogic = LessonsViewModel()
     
-    // MARK: - Data Loading
     func loadData(context: ModelContext) {
-        // 1. Fetch Students (Sorted by Birthday)
-        // Sort ascending (Oldest first) or descending (Youngest first).
-        // Defaulting to Ascending (Oldest -> Youngest)
         let studentFetch = FetchDescriptor<Student>(sortBy: [SortDescriptor(\.birthday)])
         self.students = (try? context.fetch(studentFetch)) ?? []
         
-        // 2. Fetch All Lessons to determine Subjects
         let allLessonsFetch = FetchDescriptor<Lesson>()
         let allLessons = (try? context.fetch(allLessonsFetch)) ?? []
-        
-        // 3. Compute Subjects
         self.availableSubjects = lessonsLogic.subjects(from: allLessons)
         
-        // Set default subject if needed
         if selectedSubject.isEmpty, let first = availableSubjects.first {
             selectedSubject = first
         }
-        
-        // 4. Load Matrix
         refreshMatrix(context: context)
     }
     
     func refreshMatrix(context: ModelContext) {
         guard !selectedSubject.isEmpty else { return }
-        
-        // Fetch Lessons for CURRENT subject
         let sub = selectedSubject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let allLessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? [] // Fetch all to filter safely case-insensitive
-        
-        self.lessons = allLessons.filter {
-            $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame
-        }
-        
-        // Extract Groups using Logic
+        let allLessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
+        self.lessons = allLessons.filter { $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame }
         self.orderedGroups = lessonsLogic.groups(for: sub, lessons: self.lessons)
-        
         recomputeMatrix(context: context)
     }
     
     func lessonsIn(group: String) -> [Lesson] {
         let groupTrimmed = group.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Filter from our already filtered `self.lessons`
         return lessons.filter {
             $0.group.trimmingCharacters(in: .whitespacesAndNewlines).localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
-        }.sorted { lhs, rhs in
-            if lhs.orderInGroup == rhs.orderInGroup {
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-            return lhs.orderInGroup < rhs.orderInGroup
-        }
+        }.sorted { $0.orderInGroup < $1.orderInGroup }
     }
     
     func state(for student: Student, lesson: Lesson) -> StudentChecklistRowState? {
         return matrixStates[student.id]?[lesson.id]
     }
     
-    // MARK: - Logic / Recompute
     func recomputeMatrix(context: ModelContext) {
         let lessonIDs = Set(lessons.map { $0.id })
-        guard !lessonIDs.isEmpty else {
-             matrixStates = [:]
-             return
-        }
+        guard !lessonIDs.isEmpty else { matrixStates = [:]; return }
         
-        // Fetch ALL StudentLessons for these lessons
-        let slDescriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { lessonIDs.contains($0.lessonID) }
-        )
+        let slDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { lessonIDs.contains($0.lessonID) })
         let allSLs = (try? context.fetch(slDescriptor)) ?? []
         
-        // Fetch ALL WorkContracts for these lessons
         let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
         let relevantContracts = allContracts.filter {
             guard let lid = UUID(uuidString: $0.lessonID) else { return false }
@@ -355,159 +293,218 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
-            
-            // Filter data for this student
             let studentSLs = allSLs.filter { $0.studentIDs.contains(student.id) }
             let studentContracts = relevantContracts.filter { $0.studentID == student.id.uuidString }
             
             for lesson in lessons {
-                // Determine State
                 let slsForLesson = studentSLs.filter { $0.lessonID == lesson.id }
                 let contractsForLesson = studentContracts.filter { $0.lessonID == lesson.id.uuidString }
                 
-                // Presented?
                 let isPresented = slsForLesson.contains { $0.isGiven }
-                
-                // Scheduled? (Not given, but has date)
                 let isScheduled = slsForLesson.contains { !$0.isGiven && $0.scheduledFor != nil }
                 
-                // Active / Complete from Contracts
-                // Prioritize 'open' contracts
                 let openContract = contractsForLesson.first { $0.status == .active || $0.status == .review }
                 let completeContract = contractsForLesson.first { $0.status == .complete }
-                
                 let isActive = (openContract != nil)
                 let isComplete = (openContract == nil && completeContract != nil)
                 
-                let isStale = false
-                
                 let state = StudentChecklistRowState(
-                    lessonID: lesson.id,
-                    plannedItemID: nil,
-                    presentationLogID: nil,
-                    contractID: (openContract ?? completeContract)?.id,
-                    isScheduled: isScheduled,
-                    isPresented: isPresented,
-                    isActive: isActive,
-                    isComplete: isComplete,
-                    lastActivityDate: nil,
-                    isStale: isStale
+                    lessonID: lesson.id, plannedItemID: nil, presentationLogID: nil, contractID: (openContract ?? completeContract)?.id,
+                    isScheduled: isScheduled, isPresented: isPresented, isActive: isActive, isComplete: isComplete, lastActivityDate: nil, isStale: false
                 )
                 studentRow[lesson.id] = state
             }
             newMatrix[student.id] = studentRow
         }
-        
         self.matrixStates = newMatrix
     }
     
-    // MARK: - User Actions
+    // MARK: - SMART ACTIONS
     
+    // PRIMARY ACTION: Toggle Plan with Grouping
     func toggleScheduled(student: Student, lesson: Lesson, context: ModelContext) {
-        let currentState = state(for: student, lesson: lesson)
-        let wasScheduled = currentState?.isScheduled ?? false
+        // 1. Check if this specific student is already scheduled
+        let studentID = student.id
+        let lessonID = lesson.id
         
-        if wasScheduled {
-            if let sl = findMutableSL(for: student, lesson: lesson, context: context) {
-                sl.scheduledFor = nil
-                sl.scheduledForDay = Date.distantPast
-            }
-        } else {
-            let sl = findOrCreateSL(for: student, lesson: lesson, context: context)
-            sl.scheduledFor = Date()
-            sl.scheduledForDay = AppCalendar.startOfDay(Date())
+        // Fetch ALL SLs for this lesson (to find group candidates)
+        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { sl in
+            sl.lessonID == lessonID
+        })
+        let allSLsForLesson = (try? context.fetch(fetch)) ?? []
+        
+        // Find if *this specific student* is scheduled
+        let existingForStudent = allSLsForLesson.first { sl in
+            !sl.isGiven && sl.scheduledFor != nil && sl.studentIDs.contains(studentID)
         }
         
+        if let existing = existingForStudent {
+            // UNSCHEDULE: Remove student from this group
+            var ids = existing.studentIDs
+            ids.removeAll { $0 == studentID }
+            
+            if ids.isEmpty {
+                // If they were the only one, delete the whole SL
+                context.delete(existing)
+            } else {
+                // Otherwise just update the list
+                existing.studentIDs = ids
+            }
+        } else {
+            // SCHEDULE: Try to join an existing group for TODAY
+            let todayStart = AppCalendar.startOfDay(Date())
+            
+            // Look for an SL that is:
+            // 1. Not given
+            // 2. Scheduled for TODAY
+            // 3. For this lesson
+            let candidateGroup = allSLsForLesson.first { sl in
+                !sl.isGiven && sl.scheduledForDay == todayStart
+            }
+            
+            if let group = candidateGroup {
+                // Add student to this existing group
+                if !group.studentIDs.contains(studentID) {
+                    group.studentIDs.append(studentID)
+                }
+            } else {
+                // Create NEW SL
+                let newSL = StudentLesson(
+                    lessonID: lesson.id,
+                    studentIDs: [student.id],
+                    createdAt: Date(),
+                    scheduledFor: Date() // Sets scheduledForDay automatically
+                )
+                newSL.lesson = lesson
+                context.insert(newSL)
+            }
+        }
+        
+        try? context.save()
+        recomputeMatrix(context: context)
+    }
+    
+    func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
+        // Work Contracts are per-student, so no grouping logic needed here
+        let contract = findOrCreateContract(student: student, lesson: lesson, context: context)
+        contract.status = .complete
+        contract.completedAt = Date()
         try? context.save()
         recomputeMatrix(context: context)
     }
     
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
-        let currentState = state(for: student, lesson: lesson)
-        let wasPresented = currentState?.isPresented ?? false
-        
-        if wasPresented {
-             if let sl = findMutableSL(for: student, lesson: lesson, context: context) {
-                 sl.isPresented = false
-                 sl.givenAt = nil
-             }
-        } else {
-            let sl = findOrCreateSL(for: student, lesson: lesson, context: context)
-            sl.isPresented = true
-            sl.givenAt = Date()
-        }
-        
-        try? context.save()
-        recomputeMatrix(context: context)
-    }
-    
-    func toggleActive(student: Student, lesson: Lesson, context: ModelContext) {
-        let currentState = state(for: student, lesson: lesson)
-        if currentState?.isActive == true {
-            print("Already active")
-        } else {
-            let contract = WorkContract(
-                studentID: student.id.uuidString,
-                lessonID: lesson.id.uuidString,
-                status: .active
-            )
-            context.insert(contract)
-        }
-        try? context.save()
-        recomputeMatrix(context: context)
-    }
-    
-    func toggleComplete(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentIDString = student.id.uuidString
-        let lessonIDString = lesson.id.uuidString
-        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate { contract in
-            contract.studentID == studentIDString && contract.lessonID == lessonIDString
-        })
-        let allContracts = (try? context.fetch(descriptor)) ?? []
-        
-        if let existing = allContracts.first {
-            if existing.status == .complete {
-                existing.status = .active
-                existing.completedAt = nil
-            } else {
-                existing.status = .complete
-                existing.completedAt = Date()
-            }
-        } else {
-            let contract = WorkContract(
-                studentID: student.id.uuidString,
-                lessonID: lesson.id.uuidString,
-                status: .complete,
-                completedAt: Date()
-            )
-            context.insert(contract)
-        }
-        try? context.save()
-        recomputeMatrix(context: context)
-    }
-    
-    // MARK: - Helpers
-    private func findMutableSL(for student: Student, lesson: Lesson, context: ModelContext) -> StudentLesson? {
+        // Similar "Group Merge" logic for Presentations
+        let studentID = student.id
         let lessonID = lesson.id
+        
         let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { sl in
             sl.lessonID == lessonID
         })
-        let candidates = (try? context.fetch(fetch)) ?? []
-        return candidates.first { $0.studentIDs.contains(student.id) }
+        let allSLsForLesson = (try? context.fetch(fetch)) ?? []
+        
+        // Is this student already presented?
+        let existingPresented = allSLsForLesson.first { sl in
+            sl.isGiven && sl.studentIDs.contains(studentID)
+        }
+        
+        if let existing = existingPresented {
+            // UN-PRESENT
+            var ids = existing.studentIDs
+            ids.removeAll { $0 == studentID }
+            
+            if ids.isEmpty {
+                context.delete(existing)
+            } else {
+                existing.studentIDs = ids
+            }
+        } else {
+            // MARK PRESENTED: Try to join an existing "Presented Today" group
+            let todayStart = AppCalendar.startOfDay(Date())
+            
+            let candidateGroup = allSLsForLesson.first { sl in
+                sl.isGiven && AppCalendar.startOfDay(sl.givenAt ?? Date.distantPast) == todayStart
+            }
+            
+            if let group = candidateGroup {
+                if !group.studentIDs.contains(studentID) {
+                    group.studentIDs.append(studentID)
+                }
+            } else {
+                let newSL = StudentLesson(
+                    lessonID: lesson.id,
+                    studentIDs: [student.id],
+                    createdAt: Date(),
+                    givenAt: Date(),
+                    isPresented: true
+                )
+                newSL.lesson = lesson
+                context.insert(newSL)
+            }
+        }
+        
+        try? context.save()
+        recomputeMatrix(context: context)
     }
     
-    private func findOrCreateSL(for student: Student, lesson: Lesson, context: ModelContext) -> StudentLesson {
-        if let existing = findMutableSL(for: student, lesson: lesson, context: context) {
-            return existing
+    func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
+        // 1. Remove from any StudentLesson (Scheduled or Presented)
+        let lid = lesson.id
+        let sid = student.id
+        let sls = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lid }))) ?? []
+        
+        for sl in sls {
+            if sl.studentIDs.contains(sid) {
+                var newIDs = sl.studentIDs
+                newIDs.removeAll { $0 == sid }
+                if newIDs.isEmpty {
+                    context.delete(sl)
+                } else {
+                    sl.studentIDs = newIDs
+                }
+            }
         }
-        let newSL = StudentLesson(
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            createdAt: Date()
-        )
-        newSL.lesson = lesson
-        newSL.students = [student]
-        context.insert(newSL)
-        return newSL
+        
+        // 2. Remove Contract
+        let contracts = fetchContracts(student: student, lesson: lesson, context: context)
+        for contract in contracts {
+            context.delete(contract)
+        }
+        
+        try? context.save()
+        recomputeMatrix(context: context)
+    }
+    
+    // Helpers
+    private func fetchContracts(student: Student, lesson: Lesson, context: ModelContext) -> [WorkContract] {
+        let sid = student.id.uuidString; let lid = lesson.id.uuidString
+        let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.studentID == sid && $0.lessonID == lid })
+        return (try? context.fetch(fetch)) ?? []
+    }
+    
+    private func findOrCreateContract(student: Student, lesson: Lesson, context: ModelContext) -> WorkContract {
+        if let existing = fetchContracts(student: student, lesson: lesson, context: context).first { return existing }
+        let c = WorkContract(studentID: student.id.uuidString, lessonID: lesson.id.uuidString)
+        context.insert(c)
+        return c
+    }
+}
+
+// Visual Helpers
+extension View {
+    func borderSeparated() -> some View {
+        #if os(macOS)
+        self.border(Color(nsColor: .separatorColor).opacity(0.5), width: 0.5)
+        #else
+        self.border(Color.gray.opacity(0.3), width: 0.5)
+        #endif
+    }
+    
+    func backgroundPlatform() -> some View {
+        #if os(macOS)
+        self.background(Color(nsColor: .controlBackgroundColor))
+        #else
+        self.background(Color(uiColor: .secondarySystemBackground))
+        #endif
     }
 }
