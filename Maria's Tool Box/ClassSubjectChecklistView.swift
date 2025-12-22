@@ -16,6 +16,9 @@ struct ClassSubjectChecklistView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = ClassSubjectChecklistViewModel()
     
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    
     // Grid Configuration
     private let studentColumnWidth: CGFloat = 120
     private let lessonColumnWidth: CGFloat = 200
@@ -111,9 +114,16 @@ struct ClassSubjectChecklistView: View {
         }
         .onAppear {
             viewModel.loadData(context: modelContext)
+            viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
         }
         .onChange(of: viewModel.selectedSubject) { _, _ in
             viewModel.refreshMatrix(context: modelContext)
+        }
+        .onChange(of: showTestStudents) { _, _ in
+            viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        }
+        .onChange(of: testStudentNamesRaw) { _, _ in
+            viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
         }
     }
     
@@ -136,8 +146,7 @@ struct ClassSubjectChecklistView: View {
             // Student Names (Scrolls Horizontally)
             ForEach(viewModel.students) { student in
                 VStack(spacing: 2) {
-                    Text(student.firstName)
-                        .font(.headline)
+                    Text(viewModel.displayName(for: student))
                     Text(AgeUtils.conciseAgeString(for: student.birthday))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -229,6 +238,7 @@ struct ClassChecklistSmartCell: View {
 @MainActor
 class ClassSubjectChecklistViewModel: ObservableObject {
     @Published var students: [Student] = []
+    private var allStudents: [Student] = []
     @Published var lessons: [Lesson] = []
     @Published var orderedGroups: [String] = []
     @Published var availableSubjects: [String] = []
@@ -237,9 +247,37 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     @Published var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
     private let lessonsLogic = LessonsViewModel()
     
+    // MARK: - Name Display Helpers
+    private func normalizedFirstName(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var duplicateFirstNameKeys: Set<String> {
+        var counts: [String: Int] = [:]
+        for s in students {
+            let key = normalizedFirstName(s.firstName)
+            counts[key, default: 0] += 1
+        }
+        return Set(counts.filter { $0.value >= 2 }.map { $0.key })
+    }
+
+    func displayName(for student: Student) -> String {
+        let firstTrimmed = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = normalizedFirstName(student.firstName)
+        if duplicateFirstNameKeys.contains(key) {
+            let lastInitial = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines).first.map { String($0) } ?? ""
+            if lastInitial.isEmpty { return firstTrimmed }
+            return "\(firstTrimmed) \(lastInitial)."
+        } else {
+            return firstTrimmed
+        }
+    }
+    
     func loadData(context: ModelContext) {
         let studentFetch = FetchDescriptor<Student>(sortBy: [SortDescriptor(\.birthday)])
-        self.students = (try? context.fetch(studentFetch)) ?? []
+        let fetched = (try? context.fetch(studentFetch)) ?? []
+        self.allStudents = fetched
+        self.students = fetched
         
         let allLessonsFetch = FetchDescriptor<Lesson>()
         let allLessons = (try? context.fetch(allLessonsFetch)) ?? []
@@ -249,6 +287,11 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             selectedSubject = first
         }
         refreshMatrix(context: context)
+    }
+    
+    func applyVisibilityFilter(context: ModelContext, show: Bool, namesRaw: String) {
+        self.students = TestStudentsFilter.filterVisible(allStudents, show: show, namesRaw: namesRaw)
+        recomputeMatrix(context: context)
     }
     
     func refreshMatrix(context: ModelContext) {
@@ -398,3 +441,4 @@ extension View {
         #endif
     }
 }
+
