@@ -7,7 +7,7 @@ struct BookClubWeeksEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
-    @Query(sort: [SortDescriptor(\BookClubTemplateWeek.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
+    @Query(sort: [SortDescriptor<BookClubTemplateWeek>(\.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
     @Query(sort: [SortDescriptor(\BookClubChoiceItem.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
     @Query(sort: [SortDescriptor(\BookClubChoiceSet.createdAt, order: .forward)]) private var allChoiceSets: [BookClubChoiceSet]
     @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
@@ -33,7 +33,7 @@ struct BookClubWeeksEditorView: View {
             if weeks.isEmpty {
                 ContentUnavailableView("No Weeks", systemImage: "calendar", description: Text("Add Week to start building your template."))
             } else {
-                List {
+                LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(weeks, id: \.id) { week in
                         Button { editingWeek = week } label: {
                             HStack(alignment: .firstTextBaseline) {
@@ -59,6 +59,7 @@ struct BookClubWeeksEditorView: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu { Button("Delete", role: .destructive) { delete(week) } }
+                        Divider()
                     }
                 }
             }
@@ -152,78 +153,117 @@ struct BookClubWeekEditorView: View, Identifiable {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Week \(week.weekIndex)")
-                .font(.title3).fontWeight(.semibold)
+        VStack(alignment: .leading, spacing: 0) {
+            // Title
+            HStack(alignment: .firstTextBaseline) {
+                Text("Week \(week.weekIndex)")
+                    .font(.title3).fontWeight(.semibold)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
 
-            Form {
-                Section("Reading") {
-                    TextField("Reading range (e.g., Chapters 8–14)", text: $readingRange)
-                        .textFieldStyle(.roundedBorder)
-                }
+            // Content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    sectionCard("Reading", systemImage: "book") {
+                        TextField("Reading range (e.g., Chapters 8–14)", text: $readingRange)
+                            .textFieldStyle(.roundedBorder)
+                    }
 
-                Section("Agenda") {
-                    editableStringList($agenda, placeholder: "Agenda item")
-                }
+                    sectionCard("Agenda", systemImage: "list.bullet") {
+                        editableStringList($agenda, placeholder: "Agenda item")
+                    }
 
-                Section("Vocabulary suggestions") {
-                    editableStringList($vocab, placeholder: "Word")
-                    Stepper("Vocabulary requirement count: \(vocabCount)", value: $vocabCount, in: 0...20)
-                }
+                    sectionCard("Vocabulary", systemImage: "text.book.closed") {
+                        editableStringList($vocab, placeholder: "Word")
+                        Stepper("Vocabulary requirement count: \(vocabCount)", value: $vocabCount, in: 0...20)
+                            .padding(.top, 4)
+                    }
 
-                Section("Weekly Questions (Pick 2 of 3)") {
-                    questionsEditor
-                }
+                    sectionCard("Weekly Questions (Pick 2 of 3)", systemImage: "questionmark.bubble") {
+                        questionsEditor
+                    }
 
-                Section("Weekly Role Schedule") {
-                    if clubMembers.isEmpty {
-                        Text("No members in this club.")
-                            .foregroundStyle(.secondary)
-                    } else if roles.isEmpty {
-                        Text("No roles defined. Add roles first.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(clubMembers, id: \.id) { student in
-                            HStack {
-                                Text(StudentFormatter.displayName(for: student))
-                                Spacer()
-                                Picker("Role", selection: Binding(
-                                    get: { currentRoleID(for: student.id) },
-                                    set: { setRoleID($0, for: student.id) }
-                                )) {
-                                    Text("—").tag(Optional<UUID>(nil))
-                                    ForEach(roles, id: \.id) { role in
-                                        Text(role.title).tag(Optional(role.id))
+                    sectionCard("Weekly Role Schedule", systemImage: "person.2") {
+                        if clubMembers.isEmpty {
+                            Text("No members in this club.")
+                                .foregroundStyle(.secondary)
+                        } else if roles.isEmpty {
+                            Text("No roles defined. Add roles first.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(clubMembers, id: \.id) { student in
+                                    HStack(alignment: .firstTextBaseline) {
+                                        Text(StudentFormatter.displayName(for: student))
+                                        Spacer(minLength: 12)
+                                        Picker("Role", selection: Binding(
+                                            get: { currentRoleID(for: student.id) },
+                                            set: { setRoleID($0, for: student.id) }
+                                        )) {
+                                            Text("—").tag(Optional<UUID>(nil))
+                                            ForEach(roles, id: \.id) { role in
+                                                Text(role.title).tag(Optional(role.id))
+                                            }
+                                        }
+                                        .pickerStyle(.menu)
                                     }
+                                    .padding(.vertical, 4)
+                                    Divider()
+                                        .opacity(0.15)
                                 }
-                                .pickerStyle(.menu)
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
 
+            Divider()
+                .padding(.top, 4)
+            // Bottom actions
             HStack {
                 Spacer()
                 Button("Cancel") { onDone(); dismiss() }
                 Button("Save") { save() }
                     .buttonStyle(.borderedProminent)
             }
+            .padding(16)
         }
-        .padding(16)
-        .onAppear { loadChoiceItems() }
     #if os(macOS)
-        .frame(minWidth: 640)
+        .frame(minWidth: 720)
         .presentationSizing(.fitted)
     #else
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     #endif
+        .onAppear { loadChoiceItems() }
+    }
+
+    @ViewBuilder
+    private func sectionCard<Content: View>(_ title: String, systemImage: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(.secondary)
+                Text(title)
+                    .font(.headline)
+                Spacer()
+            }
+            content()
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
     }
 
     // MARK: - Subviews
     private var questionsEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Required selections: 2")
                     .font(.subheadline)
@@ -233,17 +273,21 @@ struct BookClubWeekEditorView: View, Identifiable {
                     .disabled(choiceItems.count >= 3)
             }
             ForEach(choiceItems, id: \.id) { item in
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     TextField("Title", text: Binding(get: { item.title }, set: { item.title = $0 }))
                         .textFieldStyle(.roundedBorder)
-                    TextField("Instructions", text: Binding(get: { item.instructions }, set: { item.instructions = $0 }), axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
+                    TextEditor(text: Binding(get: { item.instructions }, set: { item.instructions = $0 }))
+                        .frame(minHeight: 96)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.secondary.opacity(0.25))
+                        )
                     TextField("Linked Lesson ID (optional)", text: Binding(get: { item.linkedLessonID ?? "" }, set: { item.linkedLessonID = $0.isEmpty ? nil : $0 }))
                         .textFieldStyle(.roundedBorder)
                     HStack { Spacer(); Button("Delete", role: .destructive) { deleteChoiceItem(item) } }
                 }
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.03)))
             }
             if choiceItems.count != 3 {
                 Text("Guidance: Aim for exactly 3 prompts.")
@@ -263,9 +307,11 @@ struct BookClubWeekEditorView: View, Identifiable {
                     ))
                     .textFieldStyle(.roundedBorder)
                     Button(role: .destructive) { binding.wrappedValue.remove(at: idx) } label: { Image(systemName: "trash") }
+                        .buttonStyle(.borderless)
                 }
             }
             Button { binding.wrappedValue.append("") } label: { Label("Add", systemImage: "plus") }
+                .buttonStyle(.bordered)
         }
     }
 
@@ -322,3 +368,4 @@ struct BookClubWeekEditorView: View, Identifiable {
         onDone(); dismiss()
     }
 }
+

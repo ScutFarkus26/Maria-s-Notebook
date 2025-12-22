@@ -16,58 +16,58 @@ struct BookClubsRootView: View {
     }()
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if clubs.isEmpty {
-                    ContentUnavailableView("No Book Clubs", systemImage: "book", description: Text("Create your first book club to get started."))
-                } else {
-                    List {
-                        ForEach(clubs) { club in
-                            NavigationLink(value: club.id) {
-                                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(club.title)
-                                            .font(.headline)
-                                        HStack(spacing: 8) {
-                                            let members = club.memberStudentIDs.count
-                                            Text("\(members) member\(members == 1 ? "" : "s")")
+        Group {
+            if clubs.isEmpty {
+                ContentUnavailableView("No Book Clubs", systemImage: "book", description: Text("Create your first book club to get started."))
+            } else {
+                List {
+                    ForEach(clubs) { club in
+                        NavigationLink {
+                            BookClubDetailView(club: club)
+                        } label: {
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(club.title)
+                                        .font(.headline)
+                                    HStack(spacing: 8) {
+                                        let members = club.memberStudentIDs.count
+                                        Text("\(members) member\(members == 1 ? "" : "s")")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        if let last = lastSessionDate(for: club) {
+                                            Text("•")
+                                                .foregroundStyle(.secondary)
+                                            Text("Last: \(Self.df.string(from: last))")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
-                                            if let last = lastSessionDate(for: club) {
-                                                Text("•")
-                                                    .foregroundStyle(.secondary)
-                                                Text("Last: \(Self.df.string(from: last))")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
                                         }
                                     }
-                                    Spacer()
                                 }
+                                Spacer()
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("Book Clubs")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showNewSheet = true
-                    } label: {
-                        Label("New Book Club", systemImage: "plus")
-                    }
+        }
+        .navigationTitle("Book Clubs")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showNewSheet = true
+                } label: {
+                    Label("New Book Club", systemImage: "plus")
                 }
             }
-            .sheet(isPresented: $showNewSheet) {
-                BookClubEditorSheet(club: nil)
-            }
-            .navigationDestination(for: UUID.self) { id in
-                if let club = clubs.first(where: { $0.id == id }) {
-                    BookClubDetailView(club: club)
-                } else {
-                    ContentUnavailableView("Club not found", systemImage: "exclamationmark.triangle")
-                }
+        }
+        .sheet(isPresented: $showNewSheet) {
+            BookClubEditorSheet(club: nil)
+        }
+        .navigationDestination(for: UUID.self) { id in
+            if let club = clubs.first(where: { $0.id == id }) {
+                BookClubDetailView(club: club)
+            } else {
+                ContentUnavailableView("Club not found", systemImage: "exclamationmark.triangle")
             }
         }
     }

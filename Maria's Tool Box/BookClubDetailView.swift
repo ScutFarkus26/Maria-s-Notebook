@@ -9,6 +9,7 @@ struct BookClubDetailView: View {
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
 
     @State private var showNewSession: Bool = false
+    @State private var showEditClub: Bool = false
 
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
     
@@ -131,17 +132,29 @@ struct BookClubDetailView: View {
         .navigationTitle(club.title)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                if selectedTab == .sessions {
+                switch selectedTab {
+                case .overview:
+                    Button {
+                        showEditClub = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                case .sessions:
                     Button {
                         showNewSession = true
                     } label: {
                         Label("New Session", systemImage: "calendar.badge.plus")
                     }
+                case .template:
+                    EmptyView()
                 }
             }
         }
         .sheet(isPresented: $showNewSession) {
             NewBookClubSessionSheet(club: club)
+        }
+        .sheet(isPresented: $showEditClub) {
+            BookClubEditorSheet(club: club)
         }
     }
 

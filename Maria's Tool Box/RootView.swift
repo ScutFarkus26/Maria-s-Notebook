@@ -392,7 +392,9 @@ struct PlanningRootView: View {
                 } else if mode == .followUpInbox {
                     FollowUpInboxView()
                 } else if mode == .bookClubs {
-                    BookClubsRootView()
+                    NavigationStack {
+                        BookClubsRootView()
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

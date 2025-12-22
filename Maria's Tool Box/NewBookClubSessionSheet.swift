@@ -91,6 +91,37 @@ struct NewBookClubSessionSheet: View {
         return allRoles.first { $0.id == id }
     }
 
+    private func mapStatus(_ s: BookClubDeliverableStatus) -> WorkStatus {
+        switch s {
+        case .assigned, .inProgress:
+            return .active
+        case .readyForReview:
+            return .review
+        case .completed:
+            return .complete
+        }
+    }
+
+    private func lessonIDForDeliverableTitle(_ title: String, instructions: String) -> UUID {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lessonName = trimmed.isEmpty ? "Book Club Work" : "Book Club: \(trimmed)"
+        // Try to find an existing lesson with this name in the Book Clubs subject/group
+        let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.name == lessonName && $0.subject == "Book Clubs" && $0.group == "Book Club" })
+        if let existing = try? modelContext.fetch(fetch), let first = existing.first {
+            return first.id
+        }
+        // Create a new generic lesson
+        let lesson = Lesson(
+            name: lessonName,
+            subject: "Book Clubs",
+            group: "Book Club",
+            subheading: "",
+            writeUp: instructions
+        )
+        modelContext.insert(lesson)
+        return lesson.id
+    }
+
     private func create() {
         let session = BookClubSession(
             bookClubID: club.id,
@@ -179,6 +210,46 @@ struct NewBookClubSessionSheet: View {
                 )
                 session.deliverables.append(individual)
             }
+        }
+
+        // Auto-generate WorkContracts for all deliverables and schedule them for the session date
+        let scheduledDay = AppCalendar.startOfDay(meetingDate)
+        for d in session.deliverables {
+            // Resolve or create a lesson ID for this deliverable
+            var lessonUUID: UUID?
+            if let lid = d.linkedLessonID, let uuid = UUID(uuidString: lid) {
+                lessonUUID = uuid
+            } else {
+                let newID = lessonIDForDeliverableTitle(d.title, instructions: d.instructions)
+                lessonUUID = newID
+                d.linkedLessonID = newID.uuidString
+            }
+            guard let lessonUUID else { continue }
+
+            // Map deliverable status to WorkStatus
+            let initialStatus = mapStatus(d.status)
+
+            // Create the WorkContract
+            let contract = WorkContract(
+                studentID: d.studentID,
+                lessonID: lessonUUID.uuidString,
+                presentationID: nil,
+                status: initialStatus,
+                scheduledDate: scheduledDay,
+                completedAt: nil,
+                legacyStudentLessonID: nil
+            )
+            // Tag as Book Club source and set kind to follow-up
+            contract.sourceContextType = .bookClubSession
+            contract.sourceContextID = session.id.uuidString
+            contract.kind = .followUpAssignment
+
+            modelContext.insert(contract)
+            d.generatedWorkID = contract.id
+
+            // Create a WorkPlanItem scheduled for the session date (mark as Due)
+            let planItem = WorkPlanItem(workID: contract.id, scheduledDate: scheduledDay, reason: .dueDate, note: nil)
+            modelContext.insert(planItem)
         }
 
         // Attach to club
