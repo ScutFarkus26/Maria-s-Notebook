@@ -73,7 +73,7 @@ struct NewBookClubSessionSheet: View {
         }
 
         // Attach to club
-        var updatedClub = club
+        let updatedClub = club
         updatedClub.sessions.append(session)
 
         modelContext.insert(session)
@@ -83,3 +83,4 @@ struct NewBookClubSessionSheet: View {
         dismiss()
     }
 }
+

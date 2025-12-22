@@ -6,6 +6,39 @@ struct StudentHeaderView: View {
     let levelColor: Color
     let initials: String
 
+    // Keep the primitive initializer for callers that already provide pre-computed values.
+    init(fullName: String, levelDisplay: String, levelColor: Color, initials: String) {
+        self.fullName = fullName
+        self.levelDisplay = levelDisplay
+        self.levelColor = levelColor
+        self.initials = initials
+    }
+
+    // Convenience initializer that derives display values from a Student model.
+    init(student: Student) {
+        let fullName = student.fullName
+        let levelDisplay = student.level.rawValue
+        let levelColor: Color = {
+            switch student.level {
+            case .upper: return .pink
+            case .lower: return .blue
+            }
+        }()
+        let initials: String = {
+            let parts = student.fullName.split(separator: " ")
+            if parts.count >= 2 {
+                let first = parts.first?.first.map(String.init) ?? ""
+                let last = parts.last?.first.map(String.init) ?? ""
+                return (first + last).uppercased()
+            } else if let first = student.fullName.first {
+                return String(first).uppercased()
+            } else {
+                return "?"
+            }
+        }()
+        self.init(fullName: fullName, levelDisplay: levelDisplay, levelColor: levelColor, initials: initials)
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             ZStack {

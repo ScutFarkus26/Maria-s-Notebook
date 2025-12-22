@@ -342,10 +342,10 @@ struct PlanningRootView: View {
                 if horizontalSizeClass == .compact {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                            PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
-                            PillNavButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                            PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
+                            PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
+                            PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -356,10 +356,10 @@ struct PlanningRootView: View {
                     HStack {
                         Spacer()
                         HStack(spacing: 12) {
-                            PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                            PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
-                            PillNavButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                            PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
+                            PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
+                            PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                         }
                         Spacer()
                     }
@@ -371,10 +371,10 @@ struct PlanningRootView: View {
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
-                    PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                    PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                    PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
-                    PillNavButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                    PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
+                    PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                    PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
+                    PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                 }
                 Spacer()
             }

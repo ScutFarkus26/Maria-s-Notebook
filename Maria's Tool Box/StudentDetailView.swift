@@ -352,7 +352,7 @@ struct StudentDetailView: View {
 
     private var overviewTab: some View {
         VStack(spacing: 0) {
-            StudentDetailHeaderView(student: student)
+            StudentHeaderView(student: student)
                 .padding(.top, 36)
             if isEditing {
                 editForm
@@ -588,11 +588,11 @@ struct StudentDetailView: View {
                 if horizontalSizeClass == .compact {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
-                            PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
-                            PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
-                            PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
-                            PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                            PillButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                            PillButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                            PillButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                            PillButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                            PillButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -603,11 +603,11 @@ struct StudentDetailView: View {
                     HStack {
                         Spacer()
                         HStack(spacing: 12) {
-                            PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
-                            PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
-                            PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
-                            PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
-                            PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                            PillButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                            PillButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                            PillButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                            PillButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                            PillButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
                         }
                         Spacer()
                     }
@@ -619,11 +619,11 @@ struct StudentDetailView: View {
             HStack {
                 Spacer()
                 HStack(spacing: 12) {
-                    PillNavButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
-                    PillNavButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
-                    PillNavButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
-                    PillNavButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
-                    PillNavButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
+                    PillButton(title: "Overview", isSelected: selectedTab == .overview) { selectedTab = .overview }
+                    PillButton(title: "Checklist", isSelected: selectedTab == .checklist) { selectedTab = .checklist }
+                    PillButton(title: "History", isSelected: selectedTab == .history) { selectedTab = .history }
+                    PillButton(title: "Meetings", isSelected: selectedTab == .meetings) { selectedTab = .meetings }
+                    PillButton(title: "Notes", isSelected: selectedTab == .notes) { selectedTab = .notes }
                 }
                 Spacer()
             }
@@ -948,5 +948,4 @@ struct StudentDetailView: View {
     return StudentDetailView(student: student)
         .previewEnvironment(using: container)
 }
-
 
