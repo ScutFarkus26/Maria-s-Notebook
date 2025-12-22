@@ -20,6 +20,8 @@ struct LessonDetailView: View {
     @State private var draftGroup: String = ""
     @State private var draftSubheading: String = ""
     @State private var draftWriteUp: String = ""
+    @State private var draftSource: LessonSource = .album
+    @State private var draftPersonalKind: PersonalLessonKind = .personal
     @State private var showDeleteAlert = false
 
     @State private var showingPagesImporter = false
@@ -144,6 +146,20 @@ struct LessonDetailView: View {
                         .padding(.vertical, 6)
                         .background(Capsule().fill(Color.accentColor.opacity(0.12)))
                 }
+                if lesson.source == .personal {
+                    Text(lesson.personalKind?.badgeLabel ?? "Personal")
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color.primary.opacity(0.08)))
+                }
+                if lesson.source == .album {
+                    Text("Album")
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color.blue.opacity(0.12)))
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -155,6 +171,10 @@ struct LessonDetailView: View {
             infoRow(icon: "graduationcap", title: "Subject", value: lesson.subject.isEmpty ? "—" : lesson.subject)
             infoRow(icon: "square.grid.2x2", title: "Group", value: lesson.group.isEmpty ? "—" : lesson.group)
             infoRow(icon: "text.bubble", title: "Subheading", value: lesson.subheading.isEmpty ? "—" : lesson.subheading)
+            infoRow(icon: "square.stack.3d.up", title: "Source", value: lesson.source.label)
+            if lesson.source == .personal {
+                infoRow(icon: "person", title: "Personal Type", value: lesson.personalKind?.label ?? "Personal")
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
@@ -198,6 +218,19 @@ struct LessonDetailView: View {
             }
             TextField("Subheading", text: $draftSubheading)
                 .textFieldStyle(.roundedBorder)
+
+            Picker("Source", selection: $draftSource) {
+                ForEach(LessonSource.allCases) { s in
+                    Text(s.label).tag(s)
+                }
+            }
+            if draftSource == .personal {
+                Picker("Personal Type", selection: $draftPersonalKind) {
+                    ForEach(PersonalLessonKind.allCases) { k in
+                        Text(k.label).tag(k)
+                    }
+                }
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Imported Pages File")
@@ -271,6 +304,12 @@ struct LessonDetailView: View {
                         updated.group = draftGroup.trimmingCharacters(in: .whitespacesAndNewlines)
                         updated.subheading = draftSubheading.trimmingCharacters(in: .whitespacesAndNewlines)
                         updated.writeUp = draftWriteUp
+                        updated.source = draftSource
+                        if draftSource == .personal {
+                            updated.personalKind = draftPersonalKind
+                        } else {
+                            updated.personalKind = nil
+                        }
                         onSave(updated)
                         isEditing = false
                     }
@@ -304,6 +343,8 @@ struct LessonDetailView: View {
         draftGroup = lesson.group
         draftSubheading = lesson.subheading
         draftWriteUp = lesson.writeUp
+        draftSource = lesson.source
+        draftPersonalKind = lesson.personalKind ?? .personal
     }
 
     private func resolvePagesURL() -> URL? {
