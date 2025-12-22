@@ -27,6 +27,10 @@ enum WorkStatus: String, Codable, CaseIterable {
     case active, review, complete
 }
 
+enum WorkSourceContextType: String, Codable {
+    case bookClubSession
+}
+
 /// Per-student work contract generated from a Presentation.
 @Model
 final class WorkContract: Identifiable {
@@ -51,6 +55,10 @@ final class WorkContract: Identifiable {
     var dueDate: Date?
     var completionOutcomeRaw: String?
     var completionNote: String?
+
+    // Source context (additive; optional)
+    var sourceContextTypeRaw: String?
+    var sourceContextID: String?
 
     // Legacy linkage
     var legacyStudentLessonID: String?
@@ -102,6 +110,11 @@ final class WorkContract: Identifiable {
     var completionOutcome: CompletionOutcome? {
         get { completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) } }
         set { completionOutcomeRaw = newValue?.rawValue }
+    }
+
+    var sourceContextType: WorkSourceContextType? {
+        get { sourceContextTypeRaw.flatMap { WorkSourceContextType(rawValue: $0) } }
+        set { sourceContextTypeRaw = newValue?.rawValue }
     }
 
     var isOpen: Bool { status != .complete }

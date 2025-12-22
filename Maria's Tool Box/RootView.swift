@@ -323,6 +323,7 @@ struct PlanningRootView: View {
         case agenda = "Lessons Agenda"
         case works = "Work Agenda"
         case followUpInbox = "Follow-Up Inbox"
+        case bookClubs = "Book Clubs"
         var id: String { rawValue }
     }
 
@@ -344,6 +345,7 @@ struct PlanningRootView: View {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                             PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
+                            PillNavButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -357,6 +359,7 @@ struct PlanningRootView: View {
                             PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                             PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
+                            PillNavButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                         }
                         Spacer()
                     }
@@ -371,6 +374,7 @@ struct PlanningRootView: View {
                     PillNavButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                     PillNavButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
                     PillNavButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
+                    PillNavButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                 }
                 Spacer()
             }
@@ -387,6 +391,8 @@ struct PlanningRootView: View {
                     WorksAgendaView()
                 } else if mode == .followUpInbox {
                     FollowUpInboxView()
+                } else if mode == .bookClubs {
+                    BookClubsRootView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

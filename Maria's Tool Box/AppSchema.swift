@@ -25,6 +25,10 @@ struct AppSchema {
         Presentation.self,
         WorkContract.self,
         WorkPlanItem.self,
-        StudentMeeting.self
+        StudentMeeting.self,
+        BookClub.self,
+        BookClubAssignmentTemplate.self,
+        BookClubSession.self,
+        BookClubDeliverable.self
     ])
 }
