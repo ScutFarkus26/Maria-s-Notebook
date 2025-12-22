@@ -11,6 +11,13 @@ struct WorksAgendaView: View {
     @Query private var students: [Student]
     @Query private var allContracts: [WorkContract]
 
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
+    private var visibleStudents: [Student] {
+        TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
+
     @State private var sortMode: WorkAgendaSortMode = .lesson
     @State private var searchText: String = ""
     @State private var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
@@ -21,7 +28,7 @@ struct WorksAgendaView: View {
     @State private var selected: SelectionToken? = nil
 
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
-    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
+    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) }) }
 
     var body: some View {
         Group {
@@ -117,6 +124,10 @@ struct WorksAgendaView: View {
     private func openWorksFiltered() -> [WorkContract] {
         // Filter to open
         var works = allContracts.filter(isOpen(_:))
+        works = works.filter { c in
+            if let sid = UUID(uuidString: c.studentID) { return studentsByID[sid] != nil }
+            return false
+        }
         // Optional search
         if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let query = searchText.lowercased()

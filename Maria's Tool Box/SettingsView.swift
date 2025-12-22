@@ -274,6 +274,11 @@ struct SettingsView: View {
                         .buttonStyle(.bordered)
                         .tint(.red)
                     }
+                    
+                    SettingsGroup(title: "Test Students", systemImage: "person.crop.circle.badge.questionmark") {
+                        TestStudentsSettingsView()
+                            .frame(maxWidth: .infinity)
+                    }
                 }
                 .frame(maxWidth: 900)
                 .padding(.horizontal, 24)

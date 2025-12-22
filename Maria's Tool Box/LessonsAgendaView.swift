@@ -13,6 +13,9 @@ struct LessonsAgendaView: View {
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @AppStorage("LessonsAgenda.startDate") private var startDateRaw: Double = 0
 
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     @State private var startDate: Date = Date()
     @State private var selectedStudentLessonForDetail: StudentLesson? = nil
 
@@ -26,6 +29,10 @@ struct LessonsAgendaView: View {
     private var orderedUnscheduledLessons: [StudentLesson] {
         let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
         return InboxOrderStore.orderedUnscheduled(from: base, orderRaw: inboxOrderRaw)
+    }
+
+    private var visibleStudents: [Student] {
+        TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
     private func isNonSchool(_ day: Date) -> Bool {
@@ -129,7 +136,7 @@ struct LessonsAgendaView: View {
     @ViewBuilder
     private func inboxRow(_ sl: StudentLesson) -> some View {
         HStack(spacing: 0) {
-            StudentLessonPill(snapshot: sl.snapshot(), day: Date(), targetStudentLessonID: sl.id)
+            StudentLessonPill(snapshot: filteredSnapshot(sl), day: Date(), targetStudentLessonID: sl.id)
                 .onTapGesture { selectedStudentLessonForDetail = sl }
                 .onDrag {
                     let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
@@ -225,6 +232,26 @@ struct LessonsAgendaView: View {
             d = calendar.date(byAdding: .day, value: 1, to: d) ?? d
         }
         return count
+    }
+
+    private func filteredSnapshot(_ sl: StudentLesson) -> StudentLessonSnapshot {
+        let snap = sl.snapshot()
+        // Filter out hidden students from the snapshot's student list if available
+        let hiddenIDs = TestStudentsFilter.hiddenIDs(from: students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        let visibleIDs = snap.studentIDs.filter { !hiddenIDs.contains($0) }
+        return StudentLessonSnapshot(
+            id: snap.id,
+            lessonID: snap.lessonID,
+            studentIDs: visibleIDs,
+            createdAt: snap.createdAt,
+            scheduledFor: snap.scheduledFor,
+            givenAt: snap.givenAt,
+            isPresented: snap.isPresented,
+            notes: snap.notes,
+            needsPractice: snap.needsPractice,
+            needsAnotherPresentation: snap.needsAnotherPresentation,
+            followUpWork: snap.followUpWork
+        )
     }
 
     // MARK: - Nested Day Column

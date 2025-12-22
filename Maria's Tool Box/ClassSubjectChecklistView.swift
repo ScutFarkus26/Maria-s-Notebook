@@ -47,100 +47,52 @@ struct ClassSubjectChecklistView: View {
             
             Divider()
             
-            // MARK: - Main Content
-            ScrollView(.vertical) {
-                HStack(alignment: .top, spacing: 0) {
-                    
-                    // 1. LEFT COLUMN (Sticky Horizontally) - Lesson Names
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Empty Corner
-                        Color.clear
-                            .frame(width: lessonColumnWidth, height: rowHeight)
-                            .borderSeparated()
-
-                        // Rows
-                        ForEach(viewModel.orderedGroups, id: \.self) { group in
-                            groupHeaderView(group)
-                                .frame(width: lessonColumnWidth)
-                            
-                            let lessons = viewModel.lessonsIn(group: group)
-                            ForEach(lessons) { lesson in
-                                VStack(alignment: .leading) {
-                                    Text(lesson.name)
-                                        .font(.system(.body, design: .rounded).weight(.medium))
-                                        .lineLimit(2)
-                                        .minimumScaleFactor(0.9)
-                                }
-                                .padding(.horizontal, 8)
-                                .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
-                                .borderSeparated()
-                            }
-                        }
-                    }
-                    .backgroundPlatform()
-                    .zIndex(1)
-                    
-                    // 2. RIGHT PANE (Scrolls Horizontally) - The Grid
-                    ScrollView(.horizontal) {
+            ZStack(alignment: .topLeading) {
+                // Main vertical scrolling content (left column + right grid)
+                ScrollView(.vertical) {
+                    HStack(alignment: .top, spacing: 0) {
+                        
+                        // 1. LEFT COLUMN (Sticky Horizontally) - Lesson Names
                         VStack(alignment: .leading, spacing: 0) {
+                            // Header row (non-sticky) placeholder for left corner
+                            Color.clear
+                                .frame(width: lessonColumnWidth, height: rowHeight)
+                                .borderSeparated()
                             
-                            // Student Names Header
-                            HStack(spacing: 0) {
-                                ForEach(viewModel.students) { student in
-                                    VStack(spacing: 2) {
-                                        Text(student.firstName)
-                                            .font(.headline)
-                                        Text(AgeUtils.conciseAgeString(for: student.birthday))
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(width: studentColumnWidth, height: rowHeight, alignment: .center)
-                                    .borderSeparated()
-                                }
-                            }
-                            .backgroundPlatform()
-                            
-                            // Data Rows
-                            ForEach(viewModel.orderedGroups, id: \.self) { group in
-                                // Group Header Spacer
-                                Color.clear
-                                    .frame(height: 30)
-                                    .borderSeparated()
-                                    .background(Color.secondary.opacity(0.05))
+                            let groups = viewModel.orderedGroups
+                            ForEach(groups, id: \.self) { group in
+                                groupHeaderView(group)
+                                    .frame(width: lessonColumnWidth)
                                 
                                 let lessons = viewModel.lessonsIn(group: group)
                                 ForEach(lessons) { lesson in
-                                    HStack(spacing: 0) {
-                                        ForEach(viewModel.students) { student in
-                                            let state = viewModel.state(for: student, lesson: lesson)
-                                            
-                                            // THE NEW SMART CELL
-                                            ClassChecklistSmartCell(
-                                                state: state,
-                                                onTap: {
-                                                    // Primary Action: Toggle Plan
-                                                    viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext)
-                                                },
-                                                onMarkComplete: {
-                                                    viewModel.markComplete(student: student, lesson: lesson, context: modelContext)
-                                                },
-                                                onMarkPresented: {
-                                                    viewModel.togglePresented(student: student, lesson: lesson, context: modelContext)
-                                                },
-                                                onClear: {
-                                                    viewModel.clearStatus(student: student, lesson: lesson, context: modelContext)
-                                                }
-                                            )
-                                            .frame(width: studentColumnWidth, height: rowHeight)
-                                            .borderSeparated()
-                                        }
+                                    VStack(alignment: .leading) {
+                                        Text(lesson.name)
+                                            .font(.system(.body, design: .rounded).weight(.medium))
+                                            .lineLimit(2)
+                                            .minimumScaleFactor(0.9)
                                     }
+                                    .padding(.horizontal, 8)
+                                    .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
+                                    .borderSeparated()
                                 }
                             }
                         }
+                        .backgroundPlatform()
+                        .zIndex(1)
+                        
+                        // 2. RIGHT PANE (Scrolls Horizontally) - The Grid
+                        // Equatable subview prevents bounce-back on state change
+                        ClassChecklistGrid(
+                            viewModel: viewModel,
+                            studentColumnWidth: studentColumnWidth,
+                            rowHeight: rowHeight
+                        )
+                        .equatable()
                     }
                 }
             }
+            
         }
         .onAppear {
             viewModel.loadData(context: modelContext)
@@ -161,6 +113,79 @@ struct ClassSubjectChecklistView: View {
         .frame(height: 30)
         .background(Color.secondary.opacity(0.05))
         .borderSeparated()
+    }
+}
+
+// MARK: - Equatable Grid Subview
+struct ClassChecklistGrid: View, Equatable {
+    @ObservedObject var viewModel: ClassSubjectChecklistViewModel
+    let studentColumnWidth: CGFloat
+    let rowHeight: CGFloat
+    
+    @Environment(\.modelContext) private var modelContext
+    
+    static func == (lhs: ClassChecklistGrid, rhs: ClassChecklistGrid) -> Bool {
+        return lhs.viewModel === rhs.viewModel &&
+               lhs.studentColumnWidth == rhs.studentColumnWidth &&
+               lhs.rowHeight == rhs.rowHeight
+    }
+    
+    var body: some View {
+        ScrollView(.horizontal) {
+            VStack(alignment: .leading, spacing: 0) {
+                
+                // Header row (non-sticky)
+                HStack(spacing: 0) {
+                    ForEach(viewModel.students) { student in
+                        VStack(spacing: 2) {
+                            Text(student.firstName)
+                                .font(.headline)
+                            Text(AgeUtils.conciseAgeString(for: student.birthday))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(width: studentColumnWidth, height: rowHeight, alignment: .center)
+                        .borderSeparated()
+                    }
+                }
+                
+                // Data Rows
+                ForEach(viewModel.orderedGroups, id: \.self) { group in
+                    // Group Header Spacer
+                    Color.clear
+                        .frame(height: 30)
+                        .borderSeparated()
+                        .background(Color.secondary.opacity(0.05))
+                    
+                    let lessons = viewModel.lessonsIn(group: group)
+                    ForEach(lessons) { lesson in
+                        HStack(spacing: 0) {
+                            ForEach(viewModel.students) { student in
+                                let state = viewModel.state(for: student, lesson: lesson)
+                                
+                                ClassChecklistSmartCell(
+                                    state: state,
+                                    onTap: {
+                                        viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext)
+                                    },
+                                    onMarkComplete: {
+                                        viewModel.markComplete(student: student, lesson: lesson, context: modelContext)
+                                    },
+                                    onMarkPresented: {
+                                        viewModel.togglePresented(student: student, lesson: lesson, context: modelContext)
+                                    },
+                                    onClear: {
+                                        viewModel.clearStatus(student: student, lesson: lesson, context: modelContext)
+                                    }
+                                )
+                                .frame(width: studentColumnWidth, height: rowHeight)
+                                .borderSeparated()
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

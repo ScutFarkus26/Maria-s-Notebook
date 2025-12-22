@@ -17,6 +17,13 @@ struct FollowUpInboxView: View {
     @Query private var planItems: [WorkPlanItem]
     @Query private var notes: [ScopedNote]
 
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
+    private var visibleStudents: [Student] {
+        TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
+
     // Simple filter control
     private enum Filter: String, CaseIterable, Identifiable { case all = "All", overdue = "Overdue", today = "Due Today"; var id: String { rawValue } }
     @State private var filter: Filter = .all
@@ -35,7 +42,7 @@ struct FollowUpInboxView: View {
         )
         return FollowUpInboxEngine.computeItems(
             lessons: lessons,
-            students: students,
+            students: visibleStudents,
             studentLessons: studentLessons,
             contracts: contracts,
             planItems: planItems,

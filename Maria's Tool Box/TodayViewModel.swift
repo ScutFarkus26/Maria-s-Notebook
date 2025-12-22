@@ -106,8 +106,10 @@ final class TodayViewModel: ObservableObject {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
 
         // Build lookup caches first
-        let students = (try? context.fetch(FetchDescriptor<Student>())) ?? []
-        studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        let allStudents = (try? context.fetch(FetchDescriptor<Student>())) ?? []
+        let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
+        studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+
         let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
         lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
         let allWorks = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
@@ -238,7 +240,8 @@ final class TodayViewModel: ObservableObject {
             var absentIDs: Set<UUID> = []
             var leftEarlyIDs: Set<UUID> = []
             for rec in records {
-                if let s = self.studentsByID[rec.studentID], !levelFilter.matches(s.level) { continue }
+                guard let s = self.studentsByID[rec.studentID] else { continue }
+                if !levelFilter.matches(s.level) { continue }
                 switch rec.status {
                 case .present, .tardy:
                     present += 1
@@ -264,21 +267,26 @@ final class TodayViewModel: ObservableObject {
 
     // MARK: - Helpers
     private func filterByLevelIfNeeded(_ lessons: [StudentLesson], studentsByID: [UUID: Student]) -> [StudentLesson] {
-        guard levelFilter != .all else { return lessons }
+        guard levelFilter != .all else {
+            return lessons.filter { sl in
+                let ids = sl.resolvedStudentIDs
+                if ids.isEmpty { return true }
+                // Keep only if at least one visible student remains
+                return ids.contains { studentsByID[$0] != nil }
+            }
+        }
         return lessons.filter { sl in
             let ids = sl.resolvedStudentIDs
-            // If no students are attached, keep it visible under any filter
             if ids.isEmpty { return true }
-
-            var anyKnownStudent = false
+            var anyVisible = false
+            var anyVisibleMatching = false
             for sid in ids {
                 if let s = studentsByID[sid] {
-                    anyKnownStudent = true
-                    if levelFilter.matches(s.level) { return true }
+                    anyVisible = true
+                    if levelFilter.matches(s.level) { anyVisibleMatching = true }
                 }
             }
-            // If none of the students could be resolved from cache, do not drop the lesson
-            return !anyKnownStudent
+            return anyVisible && anyVisibleMatching
         }
     }
 

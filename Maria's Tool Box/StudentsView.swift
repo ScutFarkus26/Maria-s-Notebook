@@ -17,6 +17,9 @@ struct StudentsView: View {
     @AppStorage("StudentsView.selectedFilter") private var studentsFilterRaw: String = "all"
     @AppStorage("StudentsView.presentNow.excludedNames") private var presentNowExcludedNamesRaw: String = "danny de berry,lil dan d"
 
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     private var sortOrder: SortOrder {
         switch studentsSortOrderRaw {
         case "manual": return .manual
@@ -59,6 +62,19 @@ struct StudentsView: View {
         return Set(ids)
     }
 
+    private var hiddenTestStudentIDs: Set<UUID> {
+        guard showTestStudents == false else { return [] }
+        let lower = testStudentNamesRaw.lowercased()
+        let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
+        let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        let hiddenNames = Set(tokens)
+        let ids = students.compactMap { s -> UUID? in
+            let name = s.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return hiddenNames.contains(name) ? s.id : nil
+        }
+        return Set(ids)
+    }
+
     private var presentNowIDs: Set<UUID> {
         let cal = Calendar.current
         let now = Date()
@@ -67,6 +83,7 @@ struct StudentsView: View {
             cal.isDate(rec.date, inSameDayAs: today) && (rec.status == .present || rec.status == .tardy)
         }
         var ids = Set(todays.map { $0.studentID })
+        ids.subtract(hiddenTestStudentIDs)
         ids.subtract(excludedPresentNowIDs)
         return ids
     }
@@ -177,7 +194,14 @@ struct StudentsView: View {
     private var filteredStudents: [Student] {
         if sortOrder == .lastLesson {
             // Start from filtered base using alphabetical to keep deterministic base ordering
-            let base = viewModel.filteredStudents(students: students, filter: selectedFilter, sortOrder: .alphabetical, presentNowIDs: presentNowIDs)
+            let base = viewModel.filteredStudents(
+                students: students,
+                filter: selectedFilter,
+                sortOrder: .alphabetical,
+                presentNowIDs: presentNowIDs,
+                showTestStudents: showTestStudents,
+                testStudentNames: testStudentNamesRaw
+            )
             // Build a map of studentID -> days since last lesson (school days), defaulting to 0 when none
             let daysMap = daysSinceLastLessonByStudent
             return base.sorted { lhs, rhs in
@@ -198,7 +222,14 @@ struct StudentsView: View {
                 return nameOrder == .orderedAscending
             }
         } else {
-            return viewModel.filteredStudents(students: students, filter: selectedFilter, sortOrder: sortOrder, presentNowIDs: presentNowIDs)
+            return viewModel.filteredStudents(
+                students: students,
+                filter: selectedFilter,
+                sortOrder: sortOrder,
+                presentNowIDs: presentNowIDs,
+                showTestStudents: showTestStudents,
+                testStudentNames: testStudentNamesRaw
+            )
         }
     }
 

@@ -26,6 +26,9 @@ struct WorkView: View {
     @Query(sort: \Lesson.name, order: .forward) private var lessons: [Lesson]
     @Query(sort: \WorkModel.createdAt, order: .reverse) private var workItems: [WorkModel]
 
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     // UI state
     @State private var filters = WorkFilters()
     @State private var isPresentingAddWork = false
@@ -68,7 +71,13 @@ struct WorkView: View {
         return window.bounds.width
     }
 #endif
+
+    private var visibleStudents: [Student] {
+        TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
     
+    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) }) }
+
     private var filteredWorks: [WorkModel] {
         let base = filters.filterWorks(
             workItems,
@@ -80,7 +89,7 @@ struct WorkView: View {
             return base
         case .lower, .upper:
             return base.filter { work in
-                let map = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+                let map = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
                 return work.participants.contains { p in
                     guard let s = map[p.studentID] else { return false }
                     return (filters.level == .lower && s.level == .lower) || (filters.level == .upper && s.level == .upper)
@@ -89,9 +98,8 @@ struct WorkView: View {
         }
     }
     
-    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
-
     private func isStudentVisible(_ s: Student) -> Bool {
+        if TestStudentsFilter.isHidden(s, show: showTestStudents, namesRaw: testStudentNamesRaw) { return false }
         let matchesLevel: Bool = {
             switch filters.level {
             case .all: return true
@@ -104,11 +112,13 @@ struct WorkView: View {
     }
 
     private func isParticipantVisible(_ studentID: UUID) -> Bool {
+        guard let s = studentsByID[studentID] else { return false }
+        if TestStudentsFilter.isHidden(s, show: showTestStudents, namesRaw: testStudentNamesRaw) { return false }
         if !filters.selectedStudentIDs.isEmpty && !filters.selectedStudentIDs.contains(studentID) { return false }
         switch filters.level {
         case .all: return true
-        case .lower: return studentsByID[studentID]?.level == .lower
-        case .upper: return studentsByID[studentID]?.level == .upper
+        case .lower: return s.level == .lower
+        case .upper: return s.level == .upper
         }
     }
 
@@ -217,7 +227,7 @@ struct WorkView: View {
                 }
             }
         }
-        let visible = students.filter { isStudentVisible($0) }
+        let visible = visibleStudents.filter { isStudentVisible($0) }
         return visible.map { s in
             let c = counts[s.id, default: (0,0,0)]
             return StudentWorkSummary(id: s.id, student: s, practiceOpen: c.practice, followUpOpen: c.follow, researchOpen: c.research)
@@ -402,7 +412,7 @@ struct WorkView: View {
                 filters: $filters,
                 isShowingStudentFilterPopover: $isShowingStudentFilterPopover,
                 subjects: lookupService.subjects,
-                students: students,
+                students: visibleStudents,
                 displayName: lookupService.displayName
             )
 

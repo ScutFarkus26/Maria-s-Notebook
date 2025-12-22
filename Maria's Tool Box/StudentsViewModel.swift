@@ -1,18 +1,43 @@
 import Foundation
 
 struct StudentsViewModel {
-    func filteredStudents(students: [Student], filter: StudentsFilter, sortOrder: SortOrder, today: Date = Date(), presentNowIDs: Set<UUID>? = nil) -> [Student] {
+    func filteredStudents(
+        students: [Student],
+        filter: StudentsFilter,
+        sortOrder: SortOrder,
+        today: Date = Date(),
+        presentNowIDs: Set<UUID>? = nil,
+        showTestStudents: Bool = true,
+        testStudentNames: String = ""
+    ) -> [Student] {
+        // Pre-filter: hide test students by name if requested
+        let normalizedHiddenNames: Set<String> = {
+            guard showTestStudents == false else { return [] }
+            let lower = testStudentNames.lowercased()
+            let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
+            let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            return Set(tokens)
+        }()
+
+        let visibleStudents: [Student] = {
+            guard !normalizedHiddenNames.isEmpty else { return students }
+            return students.filter { s in
+                let name = s.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return !normalizedHiddenNames.contains(name)
+            }
+        }()
+
         let base: [Student]
         switch filter {
         case .all:
-            base = students
+            base = visibleStudents
         case .upper:
-            base = students.filter { $0.level == .upper }
+            base = visibleStudents.filter { $0.level == .upper }
         case .lower:
-            base = students.filter { $0.level == .lower }
+            base = visibleStudents.filter { $0.level == .lower }
         case .presentNow:
             let ids = presentNowIDs ?? []
-            base = students.filter { ids.contains($0.id) }
+            base = visibleStudents.filter { ids.contains($0.id) }
         }
 
         switch sortOrder {

@@ -36,13 +36,16 @@ public enum PreferenceRegistry {
         PreferenceDefinition(key: "WorkAge.overdueColorHex", type: .string),
         PreferenceDefinition(key: "StudentDetailView.selectedChecklistSubject", type: .string),
         PreferenceDefinition(key: "lastBackupTimeInterval", type: .double),
-        PreferenceDefinition(key: "Backup.encrypt", type: .bool)
+        PreferenceDefinition(key: "Backup.encrypt", type: .bool),
+        PreferenceDefinition(key: "General.showTestStudents", type: .bool, defaultValue: .bool(false)),
+        PreferenceDefinition(key: "General.testStudentNames", type: .string, defaultValue: .string("Danny De Berry,Lil Dan D"))
         // Attendance locks handled dynamically: keys "Attendance.locked.<yyyy-MM-dd>"
     ]
 
     public static let byKey: [String: PreferenceDefinition] = Dictionary(uniqueKeysWithValues: definitions.map { ($0.key, $0) })
 
     public static let knownPrefixes: [String] = [
+        "General.",
         "StudentsView.presentNow.",
         "PlanningInbox.",
         "AttendanceEmail.",
@@ -53,3 +56,4 @@ public enum PreferenceRegistry {
         "Attendance.locked."
     ]
 }
+

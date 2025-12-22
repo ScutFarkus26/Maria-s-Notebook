@@ -6,8 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5196D38A2EF9E91F001A9AF8 /* TestStudentsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5196D3892EF9E91F001A9AF8 /* TestStudentsSettingsView.swift */; };
+		5196D38C2EF9EA31001A9AF8 /* TestStudentsFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5196D38B2EF9EA31001A9AF8 /* TestStudentsFilter.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5196D3892EF9E91F001A9AF8 /* TestStudentsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestStudentsSettingsView.swift; sourceTree = "<group>"; };
+		5196D38B2EF9EA31001A9AF8 /* TestStudentsFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestStudentsFilter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -47,6 +54,8 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
+				5196D3892EF9E91F001A9AF8 /* TestStudentsSettingsView.swift */,
+				5196D38B2EF9EA31001A9AF8 /* TestStudentsFilter.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -132,6 +141,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5196D38C2EF9EA31001A9AF8 /* TestStudentsFilter.swift in Sources */,
+				5196D38A2EF9E91F001A9AF8 /* TestStudentsSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

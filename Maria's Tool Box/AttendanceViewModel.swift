@@ -19,15 +19,9 @@ final class AttendanceViewModel: ObservableObject {
     }
 
     // MARK: - Filtering
-    private var excludedStudentNames: Set<String> { ["lil d", "danny de berry", "lil dan d"] }
-
-    private func isExcluded(_ student: Student) -> Bool {
-        let name = student.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return excludedStudentNames.contains(name)
-    }
 
     func visibleStudents(from all: [Student]) -> [Student] {
-        all.filter { !isExcluded($0) }
+        TestStudentsFilter.filterVisible(all)
     }
 
     func sortedAndFiltered(students: [Student]) -> [Student] {
