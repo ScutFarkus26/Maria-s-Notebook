@@ -10,6 +10,7 @@ struct AppSchema {
         Lesson.self,
         StudentLesson.self,
         WorkModel.self,
+        WorkNote.self,
         WorkParticipantEntity.self,
         WorkCompletionRecord.self,
         AttendanceRecord.self,

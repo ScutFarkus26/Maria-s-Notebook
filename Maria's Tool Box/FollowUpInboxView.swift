@@ -17,6 +17,10 @@ struct FollowUpInboxView: View {
     @Query private var planItems: [WorkPlanItem]
     @Query private var notes: [ScopedNote]
 
+    @Query(filter: #Predicate<WorkNote> { $0.isLessonToGive == true }, sort: [
+        SortDescriptor(\WorkNote.createdAt, order: .reverse)
+    ]) private var lessonReminderNotes: [WorkNote]
+
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
@@ -31,8 +35,10 @@ struct FollowUpInboxView: View {
     // Sheet selections
     private struct SLToken: Identifiable { let id: UUID }
     private struct ContractToken: Identifiable { let id: UUID }
+    private struct WorkToken: Identifiable { let id: UUID }
     @State private var selectedSL: SLToken? = nil
     @State private var selectedContract: ContractToken? = nil
+    @State private var selectedWork: WorkToken? = nil
 
     private var items: [FollowUpInboxItem] {
         let constants = FollowUpInboxEngine.Constants(
@@ -67,11 +73,18 @@ struct FollowUpInboxView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-            if overdue.isEmpty && dueToday.isEmpty && upcoming.isEmpty {
+            if overdue.isEmpty && dueToday.isEmpty && upcoming.isEmpty && lessonReminderNotes.isEmpty {
                 ContentUnavailableView("Nothing due", systemImage: "tray", description: Text("You're all caught up."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
+                    if !lessonReminderNotes.isEmpty {
+                        Section("Lessons to Give") {
+                            ForEach(lessonReminderNotes, id: \.id) { note in
+                                lessonReminderRow(note)
+                            }
+                        }
+                    }
                     if !overdue.isEmpty {
                         Section("Overdue") {
                             ForEach(overdue, id: \.id) { item in
@@ -116,6 +129,11 @@ struct FollowUpInboxView: View {
                 ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
             }
         }
+        .sheet(item: $selectedWork) { token in
+            WorkDetailContainerView(workID: token.id) {
+                selectedWork = nil
+            }
+        }
     }
 
     private var header: some View {
@@ -137,6 +155,68 @@ struct FollowUpInboxView: View {
             .frame(maxWidth: 320)
         }
         .padding(.horizontal, 4)
+    }
+
+    private func studentName(for note: WorkNote) -> String {
+        if let s = note.student { return StudentFormatter.displayName(for: s) }
+        if let sid = note.work?.participants.first?.studentID,
+           let s = students.first(where: { $0.id == sid }) {
+            return StudentFormatter.displayName(for: s)
+        }
+        return "Unknown student"
+    }
+
+    private func workTitle(for note: WorkNote) -> String? {
+        guard let w = note.work else { return nil }
+        let trimmed = w.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+        // Fallback to lesson name if available through StudentLesson
+        if let slID = w.studentLessonID,
+           let sl = studentLessons.first(where: { $0.id == slID }),
+           let lesson = lessons.first(where: { $0.id == sl.lessonID }) {
+            return lesson.name
+        }
+        return nil
+    }
+
+    @ViewBuilder
+    private func lessonReminderRow(_ note: WorkNote) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(studentName(for: note))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    if let wt = workTitle(for: note) {
+                        Text("from: \(wt)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Text(note.text)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+            Text(note.createdAt, style: .date)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let w = note.work {
+                selectedWork = WorkToken(id: w.id)
+            } else if let s = note.student {
+                NotificationCenter.default.post(name: Notification.Name("OpenStudentDetailRequested"), object: s.id)
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button("Clear") {
+                note.isLessonToGive = false
+                try? modelContext.save()
+            }.tint(.blue)
+        }
     }
 
     @ViewBuilder
@@ -188,3 +268,11 @@ struct FollowUpInboxView: View {
 #Preview {
     FollowUpInboxView()
 }
+/*
+Sanity checklist:
+ • Add note works
+ • Lesson to give appears in Planning
+ • Clear removes from Planning but keeps note attached to work
+ • Delete note works and cascades appropriately
+*/
+

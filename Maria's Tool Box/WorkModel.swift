@@ -22,6 +22,7 @@ import SwiftUI
     @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn] = []
     @Relationship(deleteRule: .cascade, inverse: \Note.work) var noteItems: [Note] = []
     @Relationship(deleteRule: .cascade, inverse: \ScopedNote.work) var scopedNotes: [ScopedNote] = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkNote.work) var checkNotes: [WorkNote] = []
 
     init(
         id: UUID = UUID(),
@@ -83,3 +84,10 @@ import SwiftUI
     }
 }
 
+/*
+Sanity checklist:
+ • Add note works
+ • Lesson to give appears in Planning
+ • Clear removes from Planning but keeps note attached to work
+ • Delete note works and cascades appropriately
+*/

@@ -40,6 +40,10 @@ struct WorkDetailView: View {
     @State private var isDeleting = false
     @State private var selectedNotesStudentID: UUID? = nil
 
+    // Check Notes (WorkNote) inline composer state
+    @State private var newCheckNoteText: String = ""
+    @State private var newCheckNoteIsLessonToGive: Bool = false
+
     private enum PresentedSheet: Identifiable {
         case linkedLessonDetails
         case baseLessonDetails
@@ -197,6 +201,10 @@ struct WorkDetailView: View {
         return actions.nextLessonInGroup(from: currentLesson, lessons: lessons)
     }
 
+    private var workCheckNotesSorted: [WorkNote] {
+        (work.checkNotes).sorted { $0.createdAt > $1.createdAt }
+    }
+
     private var separatorStrokeColor: Color {
         #if os(macOS)
         return Color.primary.opacity(0.12)
@@ -221,6 +229,7 @@ struct WorkDetailView: View {
                             completionSection
                             splitCompletedButton
                             notesCollapsibleSection
+                            checkNotesSection
                             scopedNotesSection
                             fromLessonNotesSection
                             checkInsTimelineSection
@@ -529,6 +538,73 @@ struct WorkDetailView: View {
         }
     }
     
+    private var checkNotesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "note.text")
+                    .foregroundColor(.secondary)
+                Text("Check Notes")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+            }
+
+            // Inline composer
+            VStack(alignment: .leading, spacing: 8) {
+                #if os(iOS)
+                TextField("Add check note…", text: $newCheckNoteText, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...4)
+                #else
+                TextField("Add check note…", text: $newCheckNoteText)
+                    .textFieldStyle(.roundedBorder)
+                #endif
+                Toggle("Lesson to give", isOn: $newCheckNoteIsLessonToGive)
+                HStack {
+                    Spacer()
+                    Button("Cancel") {
+                        newCheckNoteText = ""
+                        newCheckNoteIsLessonToGive = false
+                    }
+                    Button("Add") {
+                        let body = newCheckNoteText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !body.isEmpty else { return }
+                        let note = WorkNote(text: body, isLessonToGive: newCheckNoteIsLessonToGive, work: work)
+                        // Optional denormalized student: if exactly one student, attach for convenience
+                        if work.participants.count == 1, let sid = work.participants.first?.studentID {
+                            if let s = studentsAll.first(where: { $0.id == sid }) { note.student = s }
+                        }
+                        modelContext.insert(note)
+                        _ = saveCoordinator.save(modelContext, reason: "Add work check note")
+                        newCheckNoteText = ""
+                        newCheckNoteIsLessonToGive = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(newCheckNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(12)
+            .background(Color.secondary.opacity(0.06))
+            .cornerRadius(8)
+
+            // Existing notes list
+            if workCheckNotesSorted.isEmpty {
+                Text("No notes yet")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(workCheckNotesSorted, id: \.id) { note in
+                        checkNoteRow(note)
+                            .contextMenu {
+                                Button("Delete", role: .destructive) { deleteWorkNote(note) }
+                            }
+                    }
+                }
+            }
+        }
+    }
+    
     private var scopedNotesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -817,7 +893,6 @@ struct WorkDetailView: View {
         }
     }
 
-    // MARK: - Sheet Views
     @ViewBuilder
     private var linkedLessonSheet: some View {
         if let slID = vm.selectedStudentLessonID,
@@ -857,6 +932,43 @@ struct WorkDetailView: View {
         }
     }
     
+    @ViewBuilder
+    private func checkNoteRow(_ note: WorkNote) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(note.createdAt, style: .date)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(note.createdAt, style: .time)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if note.isLessonToGive {
+                        Text("Lesson to give")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.orange.opacity(0.15)))
+                            .foregroundStyle(.orange)
+                    }
+                }
+                Text(note.text)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            #if os(iOS)
+            // Swipe to delete (wrapped in hidden button via overlay list is not available here since it's not a List)
+            #endif
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+    }
+
     // MARK: - Helpers
     private func defaultScheduleDate() -> Date {
         let base = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
@@ -870,6 +982,11 @@ struct WorkDetailView: View {
         modelContext.insert(note)
         work.noteItems.append(note)
         _ = saveCoordinator.save(modelContext, reason: "Add scoped note")
+    }
+
+    private func deleteWorkNote(_ note: WorkNote) {
+        modelContext.delete(note)
+        _ = saveCoordinator.save(modelContext, reason: "Delete work note")
     }
 
     // MARK: - Actions
@@ -993,3 +1110,11 @@ struct WorkDetailView: View {
     return WorkDetailView(work: work)
         .previewEnvironment(using: container)
 }
+/*
+Sanity checklist:
+ • Add note works
+ • Lesson to give appears in Planning
+ • Clear removes from Planning but keeps note attached to work
+ • Delete note works and cascades appropriately
+*/
+
