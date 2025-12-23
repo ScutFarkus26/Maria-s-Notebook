@@ -5,14 +5,24 @@ struct BookClubDetailView: View {
     let club: BookClub
 
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(\.dismiss) private var dismiss
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
     @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
+    @Query(sort: [SortDescriptor<BookClubTemplateWeek>(\.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
+    @Query(sort: [SortDescriptor<BookClubChoiceItem>(\.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
+    @Query(sort: [SortDescriptor(\BookClubChoiceSet.createdAt, order: .forward)]) private var allChoiceSets: [BookClubChoiceSet]
+    @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
+    @Query(sort: [SortDescriptor(\BookClubSession.createdAt, order: .forward)]) private var allSessions: [BookClubSession]
+    @Query(sort: [SortDescriptor(\BookClubAssignmentTemplate.createdAt, order: .forward)]) private var allTemplates: [BookClubAssignmentTemplate]
+
     private var roles: [BookClubRole] { allRoles.filter { $0.bookClubID == club.id } }
 
     @State private var showNewSession: Bool = false
     @State private var showEditClub: Bool = false
     @State private var showManageRoles: Bool = false
+    @State private var showDeleteConfirm: Bool = false
 
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
     
@@ -183,6 +193,15 @@ struct BookClubDetailView: View {
             .padding(16)
         }
         .navigationTitle(club.title)
+        .toolbar {
+            ToolbarItem(placement: .destructiveAction) {
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Label("Delete Club", systemImage: "trash")
+                }
+            }
+        }
         .sheet(isPresented: $showNewSession) {
             NewBookClubSessionSheet(club: club)
         }
@@ -195,6 +214,55 @@ struct BookClubDetailView: View {
             .frame(minWidth: 520, minHeight: 360)
             #endif
         }
+        .alert("Delete this book club?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) { deleteClub() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will remove all sessions, deliverables, roles, template weeks, and shared assignments for this club. This action cannot be undone.")
+        }
+    }
+
+    private func deleteClub() {
+        // Delete sessions and their deliverables
+        let sessions = allSessions.filter { $0.bookClubID == club.id }
+        for s in sessions {
+            for d in s.deliverables { modelContext.delete(d) }
+            modelContext.delete(s)
+        }
+
+        // Delete templates associated with this club
+        let templates = allTemplates.filter { $0.bookClubID == club.id }
+        for t in templates { modelContext.delete(t) }
+
+        // Delete roles for this club
+        let rolesToDelete = allRoles.filter { $0.bookClubID == club.id }
+        for r in rolesToDelete { modelContext.delete(r) }
+
+        // Delete template weeks and their related data
+        let weeks = allWeeks.filter { $0.bookClubID == club.id }
+        for w in weeks {
+            let assigns = allRoleAssignments.filter { $0.weekID == w.id }
+            for a in assigns { modelContext.delete(a) }
+            if let setID = w.questionChoiceSetID {
+                let items = allChoiceItems.filter { $0.setID == setID }
+                for item in items { modelContext.delete(item) }
+                if let set = allChoiceSets.first(where: { $0.id == setID }) { modelContext.delete(set) }
+            }
+            modelContext.delete(w)
+        }
+
+        // Safety: delete any remaining choice sets/items for this club
+        let sets = allChoiceSets.filter { $0.bookClubID == club.id }
+        for set in sets {
+            let items = allChoiceItems.filter { $0.setID == set.id }
+            for item in items { modelContext.delete(item) }
+            modelContext.delete(set)
+        }
+
+        // Finally, delete the club itself
+        modelContext.delete(club)
+        _ = saveCoordinator.save(modelContext, reason: "Delete Book Club from detail view")
+        dismiss()
     }
 
     private static let df: DateFormatter = {
