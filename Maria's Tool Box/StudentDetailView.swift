@@ -33,6 +33,9 @@ struct StudentDetailView: View {
     @State private var selectedTab: StudentDetailTab = .overview
     @State private var selectedContract: WorkContract? = nil
 
+    // NEW: Cache contracts for student in state
+    @State private var contractsCache: [WorkContract] = []
+
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -362,12 +365,31 @@ struct StudentDetailView: View {
                 Divider()
                     .padding(.top, 8)
 
-                WorkListSection(
-                    works: worksForStudent,
-                    workTitle: { work in workTitle(for: work) },
-                    workSubtitle: { work in workSubtitle(for: work) },
-                    iconAndColor: { type in iconAndColor(for: type) }
-                )
+                // REPLACED WorkListSection with WorkContract list for this student
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Working on")
+                        .font(.headline)
+                        .padding(.horizontal, 4)
+                    if contractsCache.isEmpty {
+                        Text("No active work contracts.")
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 12)
+                    } else {
+                        ForEach(contractsCache, id: \.id) { contract in
+                            Button(action: {
+                                selectedContract = contract
+                            }) {
+                                ContractRow(contract: contract, lessonName: lessonName(for: contract))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 4)
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
 
                 Divider()
                     .padding(.top, 8)
@@ -376,6 +398,66 @@ struct StudentDetailView: View {
             }
         }
     }
+
+    // MARK: - New computed property and helper for contracts
+
+    private var contractsForStudent: [WorkContract] {
+        fetchContractsForStudent()
+    }
+
+    private func fetchContractsForStudent() -> [WorkContract] {
+        let sid = student.id.uuidString
+        let activeStatusRaw = WorkStatus.active.rawValue
+        let reviewStatusRaw = WorkStatus.review.rawValue
+        let completeStatusRaw = WorkStatus.complete.rawValue
+
+        let predicate = #Predicate<WorkContract> { contract in
+            contract.studentID == sid && contract.statusRaw != completeStatusRaw
+        }
+        let descriptor = FetchDescriptor<WorkContract>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\WorkContract.createdAt, order: .reverse)]
+        )
+        let contracts = (try? modelContext.fetch(descriptor)) ?? []
+        return contracts
+    }
+
+    // MARK: - New ContractRow view inside StudentDetailView
+
+    private struct ContractRow: View {
+        let contract: WorkContract
+        let lessonName: String
+
+        var body: some View {
+            HStack(spacing: 12) {
+                Text(lessonName)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                Spacer()
+                Text(contract.status.rawValue.capitalized)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(statusColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule().fill(statusColor.opacity(0.2))
+                    )
+            }
+        }
+
+        private var statusColor: Color {
+            switch contract.status {
+            case .active:
+                return .blue
+            case .review:
+                return .orange
+            case .complete:
+                return .green
+            }
+        }
+    }
+
+    // MARK: - Restored checklistTab property
 
     private var checklistTab: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -767,20 +849,15 @@ struct StudentDetailView: View {
             #endif
         }
         .sheet(item: $selectedContract) { contract in
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Work Contract")
-                    .font(.headline)
-                Text("Lesson: \(lessonName(for: contract))")
-                Text("Status: \(contract.status.rawValue.capitalized)")
-                if let date = contract.completedAt { Text("Completed: \(date, style: .date)") }
-                HStack {
-                    Spacer()
-                    Button("Close") { selectedContract = nil }
-                }
+            WorkContractDetailSheet(contract: contract) {
+                selectedContract = nil
             }
-            .padding()
         #if os(macOS)
-            .frame(minWidth: 420)
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizing(.fitted)
+        #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         #endif
         }
         .onAppear {
@@ -788,19 +865,23 @@ struct StudentDetailView: View {
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
+            contractsCache = fetchContractsForStudent()
         }
         .onChange(of: lessonIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
+            contractsCache = fetchContractsForStudent()
         }
         .onChange(of: studentLessonIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
+            contractsCache = fetchContractsForStudent()
         }
         .onChange(of: workModelIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
+            contractsCache = fetchContractsForStudent()
         }
     }
 
