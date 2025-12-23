@@ -36,7 +36,8 @@ struct FollowUpInboxItem: Identifiable, Equatable {
     enum Bucket: Int, Comparable, CaseIterable {
         case overdue = 0
         case dueToday = 1
-        case upcoming = 2
+        case inbox = 2
+        case upcoming = 3
 
         static func < (lhs: Bucket, rhs: Bucket) -> Bool { lhs.rawValue < rhs.rawValue }
 
@@ -44,6 +45,7 @@ struct FollowUpInboxItem: Identifiable, Equatable {
             switch self {
             case .overdue: return "Overdue"
             case .dueToday: return "Due Today"
+            case .inbox: return "Needs Scheduling"
             case .upcoming: return "Upcoming"
             }
         }
@@ -175,6 +177,8 @@ struct FollowUpInboxEngine {
                     case .upcoming:
                         let until = max(0, threshold - days)
                         return "Due in \(until)d • \(days)d since presented"
+                    case .inbox:
+                        return "Needs scheduling • \(days)d since presented"
                     }
                 }()
                 let item = FollowUpInboxItem(
@@ -198,6 +202,8 @@ struct FollowUpInboxEngine {
             if let raw = note.workContractID, let id = UUID(uuidString: raw) { return id }
             return UUID() // unmatched bucket
         })
+
+        var addedContractIDs: Set<UUID> = []
 
         // Rule 2/3: Work check-in stale and review stale (with Upcoming)
         for c in contracts {
@@ -248,6 +254,8 @@ struct FollowUpInboxEngine {
                 case .upcoming:
                     let until = max(0, threshold - days)
                     return "Due in \(until)d • \(days)d since touched"
+                case .inbox:
+                    return "Needs scheduling • \(days)d since touched"
                 }
             }()
 
@@ -261,6 +269,57 @@ struct FollowUpInboxEngine {
                 statusText: statusText,
                 ageDays: days,
                 bucket: bucket
+            )
+            results.append(item)
+            addedContractIDs.insert(c.id)
+        }
+
+        // Rule 4: Unscheduled open work (needs scheduling inbox)
+        for c in contracts {
+            let status = c.status
+            let isActive = status == .active
+            let isReview = status == .review
+            guard isActive || isReview else { continue }
+            // Skip if already added by Rule 2/3
+            guard !addedContractIDs.contains(c.id) else { continue }
+            // Only include when there are no plan items and no scheduledDate
+            let workItems = itemsByWorkID[c.id] ?? []
+            guard workItems.isEmpty && c.scheduledDate == nil else { continue }
+
+            // Display fields
+            let studentName: String = {
+                if let sid = UUID(uuidString: c.studentID), let s = studentsByID[sid] {
+                    return StudentFormatter.displayName(for: s)
+                }
+                return "Student"
+            }()
+            let lessonTitle: String = {
+                if let lid = UUID(uuidString: c.lessonID), let l = lessonsByID[lid] {
+                    let t = l.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return t.isEmpty ? "Lesson" : t
+                }
+                return "Lesson"
+            }()
+            let (cid, cname): (UUID?, String) = {
+                if let sid = UUID(uuidString: c.studentID) { return (sid, studentName) }
+                return (nil, studentName)
+            }()
+
+            // Age for secondary text
+            let days = WorkContractAging.daysSinceLastTouch(for: c, modelContext: modelContext, planItems: workItems, notes: [])
+            let statusText = "Needs scheduling • \(days)d since touched"
+
+            let kind: FollowUpInboxItem.Kind = isActive ? .workCheckIn : .workReview
+            let item = FollowUpInboxItem(
+                id: "inbox:\(c.id.uuidString)",
+                underlyingID: c.id,
+                childID: cid,
+                childName: cname,
+                title: lessonTitle,
+                kind: kind,
+                statusText: statusText,
+                ageDays: days,
+                bucket: .inbox
             )
             results.append(item)
         }

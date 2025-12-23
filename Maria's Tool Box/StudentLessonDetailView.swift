@@ -470,6 +470,8 @@ struct StudentLessonDetailView: View {
                     try? modelContext.save()
                     StudentLessonDetailUtilities.notifyInboxRefresh()
                     showAssignmentComposer = false
+                    // Persist the 'presented' state and close the lesson
+                    save()
                 },
                 onCancel: {
                     showAssignmentComposer = false
