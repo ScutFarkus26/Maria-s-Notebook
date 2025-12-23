@@ -170,16 +170,27 @@ struct StudentLessonQuickActionsView: View {
                     Button("Add") {
                         let trimmed = followUpDraft.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !trimmed.isEmpty {
-                            let followUp = WorkModel(
-                                id: UUID(),
-                                title: "Follow Up: \(lesson?.name ?? "Lesson")",
-                                workType: .followUp,
-                                studentLessonID: studentLesson.id,
-                                notes: trimmed,
-                                createdAt: Date()
-                            )
-                            followUp.participants = studentLesson.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: followUp) }
-                            modelContext.insert(followUp)
+                            let sidStrings = studentLesson.studentIDs.map { $0.uuidString }
+                            let lidString = studentLesson.lessonID.uuidString
+                            for sid in sidStrings {
+                                // De-dupe by (student, lesson, kind=followUp) in active/review
+                                let activeRaw = WorkStatus.active.rawValue
+                                let reviewRaw = WorkStatus.review.rawValue
+                                let followRaw = WorkKind.followUpAssignment.rawValue
+                                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
+                                    $0.studentID == sid &&
+                                    $0.lessonID == lidString &&
+                                    ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
+                                    ($0.kindRaw ?? "") == followRaw
+                                })
+                                let exists = ((try? modelContext.fetch(fetch)) ?? []).first != nil
+                                if !exists {
+                                    let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
+                                    c.kind = .followUpAssignment
+                                    c.scheduledNote = trimmed
+                                    modelContext.insert(c)
+                                }
+                            }
                             try? modelContext.save()
                         }
                         showFollowUpSheet = false
@@ -198,6 +209,16 @@ struct StudentLessonQuickActionsView: View {
     private func saveChanges() {
         if presentedNow {
             studentLesson.isPresented = true
+            do {
+                let presentedDate = AppCalendar.startOfDay(Date())
+                _ = try LifecycleService.recordPresentationAndExplodeWork(
+                    from: studentLesson,
+                    presentedAt: presentedDate,
+                    modelContext: modelContext
+                )
+            } catch {
+                // ignore
+            }
         }
 
         // Phase 3: Auto-create next lesson in group when marking presented now
@@ -287,22 +308,29 @@ struct StudentLessonQuickActionsView: View {
     }
 
     private func addPracticeIfNeeded() {
-        let hasPracticeWork = workModels.contains { w in
-            w.studentLessonID == studentLesson.id && w.workType == .practice
+        // Create practice contracts if none exist for these students/lesson
+        let sidStrings = studentLesson.studentIDs.map { $0.uuidString }
+        let lidString = studentLesson.lessonID.uuidString
+        var createdAny = false
+        for sid in sidStrings {
+            let activeRaw = WorkStatus.active.rawValue
+            let reviewRaw = WorkStatus.review.rawValue
+            let practiceRaw = WorkKind.practiceLesson.rawValue
+            let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
+                $0.studentID == sid &&
+                $0.lessonID == lidString &&
+                ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
+                ($0.kindRaw ?? "") == practiceRaw
+            })
+            let exists = ((try? modelContext.fetch(fetch)) ?? []).first != nil
+            if !exists {
+                let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
+                c.kind = .practiceLesson
+                modelContext.insert(c)
+                createdAny = true
+            }
         }
-        if !hasPracticeWork {
-            let practice = WorkModel(
-                id: UUID(),
-                title: "Practice: \(lesson?.name ?? "Lesson")",
-                workType: .practice,
-                studentLessonID: studentLesson.id,
-                notes: "",
-                createdAt: Date()
-            )
-            practice.participants = studentLesson.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practice) }
-            modelContext.insert(practice)
-            try? modelContext.save()
-        }
+        if createdAny { try? modelContext.save() }
     }
 
     private var plannedBanner: some View {

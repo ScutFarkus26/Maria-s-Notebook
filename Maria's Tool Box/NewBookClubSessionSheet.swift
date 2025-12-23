@@ -87,6 +87,18 @@ struct NewBookClubSessionSheet: View {
         return titles.isEmpty ? "" : titles.joined(separator: "; ")
     }
 
+    private func linkedLessonIDForWeeklyQuestions(of week: BookClubTemplateWeek) -> String? {
+        guard let setID = week.questionChoiceSetID else { return nil }
+        // Collect linked lesson IDs from the choice items in this set
+        let linkedIDs: [String] = allChoiceItems
+            .filter { $0.setID == setID }
+            .compactMap { $0.linkedLessonID?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        // If there is exactly one unique linked lesson, use it; otherwise leave nil (ambiguous or none)
+        let unique = Array(Set(linkedIDs))
+        return unique.count == 1 ? unique.first : nil
+    }
+
     private func fetchRole(_ id: UUID) -> BookClubRole? {
         return allRoles.first { $0.id == id }
     }
@@ -147,6 +159,7 @@ struct NewBookClubSessionSheet: View {
                     title: "Weekly Questions",
                     instructions: questionsInstructions,
                     status: .assigned,
+                    linkedLessonID: linkedLessonIDForWeeklyQuestions(of: week),
                     sourceContextID: session.id,
                     templateWeekID: week.id,
                     choiceSetID: week.questionChoiceSetID

@@ -262,38 +262,69 @@ final class LessonPickerViewModel: ObservableObject {
             context.insert(studentLesson)
         }
         
-        // Create practice work if needed
-        if needsPractice {
-            let existingWorks = try? context.fetch(FetchDescriptor<WorkModel>())
-            let hasPractice = (existingWorks ?? []).contains { work in
-                work.studentLessonID == studentLesson.id && work.workType == .practice
-            }
-            if !hasPractice {
-                let practiceWork = WorkModel(
-                    id: UUID(),
-                    workType: .practice,
-                    studentLessonID: studentLesson.id,
-                    notes: "",
-                    createdAt: Date()
+        // WorkContract flow
+        // If marking as given and practice is requested, explode per-student practice contracts via LifecycleService
+        if mode == .given && needsPractice {
+            let presentedDate = AppCalendar.startOfDay(givenAt ?? Date())
+            do {
+                _ = try LifecycleService.recordPresentationAndExplodeWork(
+                    from: studentLesson,
+                    presentedAt: presentedDate,
+                    modelContext: context
                 )
-                practiceWork.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork) }
-                context.insert(practiceWork)
+            } catch {
+                // Ignore errors for now; caller handles thrown save errors later
             }
         }
-        
-        // Create follow-up work if specified
+
+        // If planning (not given) and practice is requested, create active practice contracts per student (no presentation link)
+        if mode == .plan && needsPractice {
+            let sidStrings = selectedIDs.map { $0.uuidString }
+            let lidString = finalLesson.id.uuidString
+            for sid in sidStrings {
+                // De-dupe by (student, lesson, kind=practice) in active/review
+                let activeRaw = WorkStatus.active.rawValue
+                let reviewRaw = WorkStatus.review.rawValue
+                let practiceRaw = WorkKind.practiceLesson.rawValue
+                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
+                    $0.studentID == sid &&
+                    $0.lessonID == lidString &&
+                    ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
+                    ($0.kindRaw ?? "") == practiceRaw
+                })
+                let exists = ((try? context.fetch(fetch)) ?? []).first != nil
+                if !exists {
+                    let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
+                    c.kind = .practiceLesson
+                    context.insert(c)
+                }
+            }
+        }
+
+        // Create follow-up contracts if specified (both plan and given)
         let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedFollowUp.isEmpty {
-            let followUp = WorkModel(
-                id: UUID(),
-                title: "Follow Up: \(finalLesson.name)",
-                workType: .followUp,
-                studentLessonID: studentLesson.id,
-                notes: trimmedFollowUp,
-                createdAt: Date()
-            )
-            followUp.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: followUp) }
-            context.insert(followUp)
+            let sidStrings = selectedIDs.map { $0.uuidString }
+            let lidString = finalLesson.id.uuidString
+            for sid in sidStrings {
+                // De-dupe by (student, lesson, kind=followUp) in active/review
+                let activeRaw = WorkStatus.active.rawValue
+                let reviewRaw = WorkStatus.review.rawValue
+                let followRaw = WorkKind.followUpAssignment.rawValue
+                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
+                    $0.studentID == sid &&
+                    $0.lessonID == lidString &&
+                    ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
+                    ($0.kindRaw ?? "") == followRaw
+                })
+                let exists = ((try? context.fetch(fetch)) ?? []).first != nil
+                if !exists {
+                    let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
+                    c.kind = .followUpAssignment
+                    c.scheduledNote = trimmedFollowUp
+                    context.insert(c)
+                }
+            }
         }
         
         do {

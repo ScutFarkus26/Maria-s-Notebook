@@ -108,6 +108,7 @@ struct BookClubWeekEditorView: View, Identifiable {
     @Query(sort: [SortDescriptor(\BookClubChoiceItem.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
     @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
     @Query(sort: [SortDescriptor(\BookClubChoiceSet.createdAt, order: .forward)]) private var allChoiceSets: [BookClubChoiceSet]
+    @Query(sort: [SortDescriptor(\Lesson.name, order: .forward)]) private var allLessons: [Lesson]
 
     @State private var readingRange: String
     @State private var agenda: [String]
@@ -115,6 +116,8 @@ struct BookClubWeekEditorView: View, Identifiable {
     @State private var vocabCount: Int
 
     @State private var choiceItems: [BookClubChoiceItem] = []
+    @State private var pickingLessonForItem: BookClubChoiceItem? = nil
+    @State private var lessonSearchTextByItem: [UUID: String] = [:]
 
     init(club: BookClub, week: BookClubTemplateWeek, onDone: @escaping () -> Void) {
         self.club = club
@@ -134,6 +137,8 @@ struct BookClubWeekEditorView: View, Identifiable {
         let ids = Set(club.memberStudentIDs.compactMap(UUID.init))
         return students.filter { ids.contains($0.id) }.sorted { StudentFormatter.displayName(for: $0) < StudentFormatter.displayName(for: $1) }
     }
+
+    private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) }) }
 
     private func loadChoiceItems() {
         if let setID = week.questionChoiceSetID {
@@ -231,6 +236,12 @@ struct BookClubWeekEditorView: View, Identifiable {
         .presentationDragIndicator(.visible)
     #endif
         .onAppear { loadChoiceItems() }
+        .sheet(item: $pickingLessonForItem) { choiceItem in
+            InlineLessonPickerSheet(initialSearch: lessonSearchTextByItem[choiceItem.id] ?? "") { chosenID in
+                if let chosenID { choiceItem.linkedLessonID = chosenID.uuidString } else { choiceItem.linkedLessonID = nil }
+                _ = saveCoordinator.save(modelContext, reason: "Link weekly question to lesson")
+            }
+        }
     }
 
     @ViewBuilder
@@ -273,8 +284,38 @@ struct BookClubWeekEditorView: View, Identifiable {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color.secondary.opacity(0.25))
                         )
-                    TextField("Linked Lesson ID (optional)", text: Binding(get: { item.linkedLessonID ?? "" }, set: { item.linkedLessonID = $0.isEmpty ? nil : $0 }))
+                    HStack(spacing: 8) {
+                        if let lid = item.linkedLessonID, let uuid = UUID(uuidString: lid), let lesson = lessonsByID[uuid] {
+                            Text("Linked: \(lesson.name)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("No lesson linked")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        TextField("Search lessons…", text: Binding(
+                            get: { lessonSearchTextByItem[item.id] ?? "" },
+                            set: { lessonSearchTextByItem[item.id] = $0 }
+                        ))
                         .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 240)
+                        .onChange(of: lessonSearchTextByItem[item.id] ?? "") { _, newValue in
+                            if pickingLessonForItem == nil && !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                pickingLessonForItem = item
+                            }
+                        }
+                        Spacer()
+                        Button {
+                            pickingLessonForItem = item
+                        } label: {
+                            Label("Choose Lesson", systemImage: "book")
+                        }
+                        if item.linkedLessonID != nil {
+                            Button("Clear") { item.linkedLessonID = nil }
+                                .buttonStyle(.borderless)
+                        }
+                    }
                     HStack { Spacer(); Button("Delete", role: .destructive) { deleteChoiceItem(item) } }
                 }
                 .padding(10)
@@ -357,6 +398,77 @@ struct BookClubWeekEditorView: View, Identifiable {
         }
         _ = saveCoordinator.save(modelContext, reason: "Save book club template week")
         onDone(); dismiss()
+    }
+}
+
+private struct InlineLessonPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var search: String = ""
+    @Query(sort: [SortDescriptor(\Lesson.name, order: .forward)]) private var lessons: [Lesson]
+    var initialSearch: String = ""
+    var onChosen: (UUID?) -> Void
+
+    init(initialSearch: String = "", onChosen: @escaping (UUID?) -> Void) {
+        self.initialSearch = initialSearch
+        self.onChosen = onChosen
+        _search = State(initialValue: initialSearch)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Choose Lesson")
+                .font(.title3).fontWeight(.semibold)
+            TextField("Search…", text: $search)
+                .textFieldStyle(.roundedBorder)
+            List {
+                ForEach(filteredLessons) { lesson in
+                    Button {
+                        onChosen(lesson.id)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                                let subtitle: String = {
+                                    switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
+                                    case (false, false): return "\(lesson.subject) • \(lesson.group)"
+                                    case (false, true): return lesson.subject
+                                    case (true, false): return lesson.group
+                                    default: return ""
+                                    }
+                                }()
+                                if !subtitle.isEmpty {
+                                    Text(subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+            }
+        }
+        .padding(16)
+    #if os(iOS)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    #endif
+    }
+
+    private var filteredLessons: [Lesson] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.isEmpty { return lessons }
+        return lessons.filter { l in
+            l.name.localizedCaseInsensitiveContains(q) ||
+            l.subject.localizedCaseInsensitiveContains(q) ||
+            l.group.localizedCaseInsensitiveContains(q)
+        }
     }
 }
 

@@ -44,6 +44,7 @@ struct StudentLessonDetailView: View {
     @State private var movedStudentNames: [String] = []
 
     @State private var showLessonPicker: Bool = false
+    @State private var showAssignmentComposer: Bool = false
     @StateObject private var vm = StudentLessonDetailActions()
     @State private var notesAutosaveTask: Task<Void, Never>? = nil
     @State private var notesDirty: Bool = false
@@ -213,7 +214,11 @@ struct StudentLessonDetailView: View {
                 studentsToMove = []
                 showingMoveStudentsSheet = true
             },
-            canMoveStudents: selectedStudentsList.count > 1 && !isPresented
+            canMoveStudents: selectedStudentsList.count > 1 && !isPresented,
+            onOpenMoveAbsent: {
+                openMoveAbsentStudents()
+            },
+            canMoveAbsentStudents: canMoveAbsentStudents
         )
         .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .top) {
             StudentPickerPopover(
@@ -398,6 +403,78 @@ struct StudentLessonDetailView: View {
             .frame(minWidth: 420, minHeight: 520)
             .presentationSizing(.fitted)
             #endif
+        }
+        .sheet(isPresented: $showAssignmentComposer) {
+            let selected = studentsAll.filter { selectedStudentIDs.contains($0.id) }
+            let lessonTitle = lessonObject?.name ?? "Lesson"
+            PostPresentationAssignmentsSheet(
+                students: selected,
+                lessonName: lessonTitle,
+                onCreate: { assignments in
+                    // Create follow-up WorkContracts and optional schedule per student
+                    let lessonID = (lessonObject?.id ?? editingLessonID)
+                    let lidString = lessonID.uuidString
+
+                    let activeRaw = WorkStatus.active.rawValue
+                    let reviewRaw = WorkStatus.review.rawValue
+                    let followRaw = WorkKind.followUpAssignment.rawValue
+
+                    for entry in assignments {
+                        let sid = entry.studentID.uuidString
+
+                        // Fetch existing contracts for this student+lesson
+                        let fetchExisting = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
+                            $0.studentID == sid && $0.lessonID == lidString
+                        })
+                        let existingContracts = (try? modelContext.fetch(fetchExisting)) ?? []
+
+                        // Find an existing follow-up contract with active/review status
+                        let existing = existingContracts.first(where: { ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) && (($0.kindRaw ?? "") == followRaw) })
+
+                        let contract: WorkContract
+                        if let e = existing {
+                            contract = e
+                        } else {
+                            let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
+                            c.kind = .followUpAssignment
+                            modelContext.insert(c)
+                            contract = c
+                        }
+
+                        let trimmed = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            contract.scheduledNote = trimmed
+                        }
+
+                        // Optional scheduling via WorkPlanItem (calendar is source of truth)
+                        if let sched = entry.schedule {
+                            let normalized = AppCalendar.startOfDay(sched.date)
+                            let reason: WorkPlanItem.Reason = (sched.kind == .checkIn) ? .progressCheck : .dueDate
+
+                            // Fetch existing plan items for this contract
+                            let workID = contract.id
+                            let planFetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> {
+                                $0.workID == workID
+                            })
+                            let existingPlans = (try? modelContext.fetch(planFetch)) ?? []
+
+                            let hasPlan = existingPlans.contains(where: { $0.scheduledDate == normalized })
+                            if !hasPlan {
+                                let item = WorkPlanItem(workID: contract.id, scheduledDate: normalized, reason: reason)
+                                modelContext.insert(item)
+                            }
+                        }
+                    }
+
+                    // Save changes and refresh
+                    try? modelContext.save()
+                    StudentLessonDetailUtilities.notifyInboxRefresh()
+                    showAssignmentComposer = false
+                },
+                onCancel: {
+                    showAssignmentComposer = false
+                }
+            )
         }
         .onAppear {
             lessonPickerVM.configure(lessons: lessons, students: studentsAll)
@@ -603,12 +680,40 @@ struct StudentLessonDetailView: View {
             studentLessonsAll: studentLessonsAll,
             context: modelContext
         )
+        // Also remove these students from the current lesson entry
+        let remaining = Set(studentLesson.studentIDs).subtracting(studentsToMove)
+        studentLesson.studentIDs = Array(remaining)
+        studentLesson.students = studentsAll.filter { remaining.contains($0.id) }
+        try? modelContext.save()
+        StudentLessonDetailUtilities.notifyInboxRefresh()
+
         selectedStudentIDs.subtract(studentsToMove)
         studentsToMove.removeAll()
         showMovedBanner = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { showMovedBanner = false }
     }
 
+    // MARK: - Absent students quick move
+    private var scheduledAttendanceDay: Date { AppCalendar.startOfDay(Date()) }
+
+    private var absentStudentIDs: Set<UUID> {
+        let statuses = modelContext.attendanceStatuses(for: Array(selectedStudentIDs), on: scheduledAttendanceDay)
+        return Set(statuses.compactMap { (key: UUID, value: AttendanceStatus) in
+            value == .absent ? key : nil
+        })
+    }
+
+    private var canMoveAbsentStudents: Bool {
+        return selectedStudentsList.count > 1 && !isPresented && !absentStudentIDs.isEmpty
+    }
+
+    private func openMoveAbsentStudents() {
+        let ids = absentStudentIDs
+        guard !ids.isEmpty else { return }
+        studentsToMove = ids
+        showingMoveStudentsSheet = true
+    }
+    
     // MARK: - Progress Buttons Helpers
     private var isJustPresentedActive: Bool {
         if !isPresented { return false }
@@ -625,6 +730,7 @@ struct StudentLessonDetailView: View {
         isPresented = true
         givenAt = calendar.startOfDay(for: Date())
         needsAnotherPresentation = false
+        showAssignmentComposer = true
     }
     private func selectPreviouslyPresented() {
         isPresented = true

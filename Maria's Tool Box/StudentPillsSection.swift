@@ -7,6 +7,8 @@ struct StudentPillsSection: View {
     var onOpenPicker: () -> Void
     var onOpenMove: () -> Void
     let canMoveStudents: Bool
+    var onOpenMoveAbsent: () -> Void
+    let canMoveAbsentStudents: Bool
 
     var body: some View {
         VStack(spacing: 12) {
@@ -26,6 +28,14 @@ struct StudentPillsSection: View {
                 if canMoveStudents {
                     Button(action: onOpenMove) {
                         Label("Move Students", systemImage: "arrow.right.square")
+                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if canMoveAbsentStudents {
+                    Button(action: onOpenMoveAbsent) {
+                        Label("Move Absent Students", systemImage: "person.fill.xmark")
                             .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
                     }
                     .buttonStyle(.bordered)
