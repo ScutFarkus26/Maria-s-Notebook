@@ -824,18 +824,6 @@ struct StudentDetailView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
-        .sheet(item: $vm.selectedWorkForDetail) { w in
-            WorkDetailContainerView(workID: w.id) {
-                vm.selectedWorkForDetail = nil
-            }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
-        }
         .sheet(item: $vm.selectedStudentLessonForDetail) { sl in
             StudentLessonDetailView(studentLesson: sl) {
                 vm.selectedStudentLessonForDetail = nil
