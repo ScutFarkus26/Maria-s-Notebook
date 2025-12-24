@@ -15,11 +15,15 @@ struct StudentLessonPill: View {
     @AppStorage("LessonAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
     @AppStorage("LessonAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
 
+    @AppStorage("Planning.recentWindowDays") private var recentWindowDays: Int = 1
+    @AppStorage("LessonsAgenda.missWindow") private var missWindowRaw: String = "all"
+
     let snapshot: StudentLessonSnapshot
     var day: Date? = nil
     var sourceStudentLessonID: UUID? = nil
     var targetStudentLessonID: UUID? = nil
     var showTimeBadge: Bool = true
+    var enableMissHighlight: Bool = false
 
     @State private var showTimeEditor: Bool = false
     @State private var isValidDragTarget: Bool = false
@@ -47,6 +51,12 @@ struct StudentLessonPill: View {
         return modelContext.attendanceStatuses(for: snapshot.studentIDs, on: day)
     }
 
+    private var isAllSelected: Bool {
+        let allIDs = Set(students.map { $0.id })
+        let groupIDs = Set(snapshot.studentIDs)
+        return !allIDs.isEmpty && groupIDs == allIDs
+    }
+
     private var accessibilityLabel: String {
         let studentsText = studentLine
         if studentsText.isEmpty { return lessonName }
@@ -62,14 +72,62 @@ struct StudentLessonPill: View {
         return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
     }
     
-    private struct StudentChip { let id: UUID; let label: String; let isMissing: Bool; let status: AttendanceStatus? }
+    private func recentSchoolDayStarts(anchor: Date, count: Int) -> [Date] {
+        var result: [Date] = []
+        var cursor = AppCalendar.startOfDay(anchor)
+        let needed = max(1, count)
+        while result.count < needed {
+            if !SchoolCalendar.isNonSchoolDay(cursor, using: modelContext) {
+                result.append(cursor)
+            }
+            guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = prev
+        }
+        return result.reversed()
+    }
+
+    private var recentlyPresentedStudentIDs: Set<UUID> {
+        // Determine the window of recent school days to consider
+        let anchor = day ?? Date()
+        let days = recentSchoolDayStarts(anchor: anchor, count: max(1, recentWindowDays))
+        guard let start = days.first,
+              let endExclusive = calendar.date(byAdding: .day, value: 1, to: (days.last ?? start)) else { return [] }
+
+        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        let excludedLessonIDs: Set<UUID> = {
+            let ids = lessons.filter { l in
+                let s = norm(l.subject)
+                let g = norm(l.group)
+                return s == "parsha" || g == "parsha"
+            }.map { $0.id }
+            return Set(ids)
+        }()
+
+        // Fetch any presented StudentLesson within the window, regardless of lesson
+        let predicate = #Predicate<StudentLesson> {
+            $0.isPresented == true &&
+            $0.givenAt != nil &&
+            $0.givenAt! >= start &&
+            $0.givenAt! < endExclusive
+        }
+        let presented = (try? modelContext.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))) ?? []
+        let filtered = presented.filter { !excludedLessonIDs.contains($0.resolvedLessonID) }
+        return Set(filtered.flatMap { $0.studentIDs })
+    }
+
+    private var suppressHighlighting: Bool {
+        // When not explicitly enabled, or when the agenda filter is All/0 days, do not highlight any chips
+        return !enableMissHighlight || missWindowRaw == "all" || recentWindowDays == 0
+    }
+
+    private struct StudentChip { let id: UUID; let label: String; let isMissing: Bool; let status: AttendanceStatus?; let hasHad: Bool }
     private var studentChips: [StudentChip] {
         var chips: [StudentChip] = []
         for id in snapshot.studentIDs {
             if let s = students.first(where: { $0.id == id }) {
-                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false, status: statusesByStudent[id]))
+                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false, status: statusesByStudent[id], hasHad: recentlyPresentedStudentIDs.contains(id)))
             } else {
-                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil))
+                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil, hasHad: true))
             }
         }
         return chips
@@ -103,6 +161,9 @@ struct StudentLessonPill: View {
         let isMissing: Bool
         let isAbsent: Bool
         let subjectColor: Color
+        let hasHad: Bool
+        let suppressIndicator: Bool
+        let highlight: Bool
 
         var body: some View {
             Text(label)
@@ -115,7 +176,10 @@ struct StudentLessonPill: View {
                         .fill(isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(isAbsent ? 0.06 : 0.15))
                 )
                 .overlay(
-                    Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1)
+                    Capsule().stroke(
+                        isAbsent ? Color.red : (highlight ? Color.orange : Color.clear),
+                        lineWidth: 1
+                    )
                 )
         }
     }
@@ -147,11 +211,16 @@ struct StudentLessonPill: View {
                             HStack(spacing: 6) {
                                 ForEach(studentChips, id: \.id) { chip in
                                     let isAbsent = (chip.status == .absent)
+                                    // Removed !isAllSelected check here so that individuals are highlighted even if the whole group is in the lesson.
+                                    let highlight = (!chip.hasHad && !suppressHighlighting)
                                     ChipView(
                                         label: chip.label,
                                         isMissing: chip.isMissing,
                                         isAbsent: isAbsent,
-                                        subjectColor: subjectColor
+                                        subjectColor: subjectColor,
+                                        hasHad: chip.hasHad,
+                                        suppressIndicator: isAllSelected,
+                                        highlight: highlight
                                     )
                                 }
                             }
@@ -314,4 +383,3 @@ struct StudentLessonPill: View {
         }
     }
 }
-

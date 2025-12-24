@@ -13,6 +13,40 @@ struct LessonsAgendaView: View {
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @AppStorage("LessonsAgenda.startDate") private var startDateRaw: Double = 0
 
+    @AppStorage("LessonsAgenda.missWindow") private var missWindowRaw: String = MissWindow.all.rawValue
+    @AppStorage("Planning.recentWindowDays") private var recentWindowDays: Int = 1
+
+    private enum MissWindow: String, CaseIterable {
+        case all, d1, d2, d3
+        var threshold: Int? {
+            switch self {
+            case .all: return nil
+            case .d1: return 1
+            case .d2: return 2
+            case .d3: return 3
+            }
+        }
+        var label: String {
+            switch self {
+            case .all: return "All"
+            case .d1: return "Today"
+            case .d2: return "2d"
+            case .d3: return "3d"
+            }
+        }
+    }
+
+    private var missWindow: MissWindow { MissWindow(rawValue: missWindowRaw) ?? .all }
+
+    private func syncRecentWindowWithMissWindow() {
+        switch missWindow {
+        case .all: recentWindowDays = 0
+        case .d1: recentWindowDays = 1
+        case .d2: recentWindowDays = 2
+        case .d3: recentWindowDays = 3
+        }
+    }
+
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
@@ -29,6 +63,19 @@ struct LessonsAgendaView: View {
     private var orderedUnscheduledLessons: [StudentLesson] {
         let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
         return InboxOrderStore.orderedUnscheduled(from: base, orderRaw: inboxOrderRaw)
+    }
+
+    private func anyStudentMeetsMissWindow(_ sl: StudentLesson) -> Bool {
+        guard let threshold = missWindow.threshold else { return true }
+        for sid in sl.resolvedStudentIDs {
+            let days = daysSinceLastLessonByStudent[sid] ?? Int.max
+            if days >= threshold { return true }
+        }
+        return false
+    }
+
+    private var filteredOrderedUnscheduledLessons: [StudentLesson] {
+        orderedUnscheduledLessons.filter { anyStudentMeetsMissWindow($0) }
     }
 
     private var visibleStudents: [Student] {
@@ -48,6 +95,49 @@ struct LessonsAgendaView: View {
             if !isNonSchool(cursor) { result.append(cursor) }
             cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
             safety += 1
+        }
+        return result
+    }
+
+    private var daysSinceLastLessonByStudent: [UUID: Int] {
+        var result: [UUID: Int] = [:]
+
+        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        let excludedLessonIDs: Set<UUID> = {
+            let ids = lessons.filter { l in
+                let s = norm(l.subject)
+                let g = norm(l.group)
+                return s == "parsha" || g == "parsha"
+            }.map { $0.id }
+            return Set(ids)
+        }()
+
+        let given = studentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
+
+        var lastDateByStudent: [UUID: Date] = [:]
+        for sl in given {
+            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+            for sid in sl.resolvedStudentIDs {
+                if let existing = lastDateByStudent[sid] {
+                    if when > existing { lastDateByStudent[sid] = when }
+                } else {
+                    lastDateByStudent[sid] = when
+                }
+            }
+        }
+
+        for s in students {
+            if let last = lastDateByStudent[s.id] {
+                let days = LessonAgeHelper.schoolDaysSinceCreation(
+                    createdAt: last,
+                    asOf: Date(),
+                    using: modelContext,
+                    calendar: calendar
+                )
+                result[s.id] = days
+            } else {
+                result[s.id] = Int.max
+            }
         }
         return result
     }
@@ -75,12 +165,16 @@ struct LessonsAgendaView: View {
                 startDateRaw = startDate.timeIntervalSinceReferenceDate
             }
             syncInboxOrderWithCurrentBase()
+            syncRecentWindowWithMissWindow()
         }
         .onChange(of: startDate) { _, new in
             startDateRaw = new.timeIntervalSinceReferenceDate
         }
         .onChange(of: studentLessons.map { $0.id }) { _, _ in
             syncInboxOrderWithCurrentBase()
+        }
+        .onChange(of: missWindowRaw) { _, _ in
+            syncRecentWindowWithMissWindow()
         }
         .sheet(item: $selectedStudentLessonForDetail) { sl in
             StudentLessonDetailView(studentLesson: sl) {
@@ -106,14 +200,25 @@ struct LessonsAgendaView: View {
                 Text("Lessons Inbox")
                     .font(.headline)
                 Spacer()
-                Text("\(orderedUnscheduledLessons.count)")
+                Picker("Missed", selection: Binding(
+                    get: { missWindow },
+                    set: { missWindowRaw = $0.rawValue }
+                )) {
+                    ForEach(MissWindow.allCases, id: \.self) { opt in
+                        Text(opt.label).tag(opt)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 260)
+
+                Text("\(filteredOrderedUnscheduledLessons.count)")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
             .padding(.top, 8)
 
-            if orderedUnscheduledLessons.isEmpty {
+            if filteredOrderedUnscheduledLessons.isEmpty {
                 VStack { Spacer(); Text("No unscheduled lessons").foregroundStyle(.secondary); Spacer() }
             } else {
                 ScrollView {
@@ -122,7 +227,7 @@ struct LessonsAgendaView: View {
                         GridItem(.flexible(), spacing: 8),
                         GridItem(.flexible(), spacing: 8)
                     ], alignment: .leading, spacing: 8) {
-                        ForEach(orderedUnscheduledLessons, id: \.id) { sl in
+                        ForEach(filteredOrderedUnscheduledLessons, id: \.id) { sl in
                             inboxRow(sl)
                         }
                     }
@@ -136,13 +241,18 @@ struct LessonsAgendaView: View {
     @ViewBuilder
     private func inboxRow(_ sl: StudentLesson) -> some View {
         HStack(spacing: 0) {
-            StudentLessonPill(snapshot: filteredSnapshot(sl), day: Date(), targetStudentLessonID: sl.id)
-                .onTapGesture { selectedStudentLessonForDetail = sl }
-                .onDrag {
-                    let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
-                    provider.suggestedName = sl.lesson?.name ?? "Lesson"
-                    return provider
-                }
+            StudentLessonPill(
+                snapshot: filteredSnapshot(sl),
+                day: Date(),
+                targetStudentLessonID: sl.id,
+                enableMissHighlight: true
+            )
+            .onTapGesture { selectedStudentLessonForDetail = sl }
+            .onDrag {
+                let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
+                provider.suggestedName = sl.lesson?.name ?? "Lesson"
+                return provider
+            }
         }
         .padding(6)
         .background(
@@ -454,4 +564,3 @@ private struct DayColumnDropDelegate: DropDelegate {
         return calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
     }
 }
-
