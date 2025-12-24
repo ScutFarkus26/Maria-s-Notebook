@@ -198,7 +198,7 @@ struct BookClubDetailView: View {
                 Button(role: .destructive) {
                     showDeleteConfirm = true
                 } label: {
-                    Label("Delete Club", systemImage: "trash")
+                    Label("Delete Project", systemImage: "trash")
                 }
             }
         }
@@ -214,11 +214,11 @@ struct BookClubDetailView: View {
             .frame(minWidth: 520, minHeight: 360)
             #endif
         }
-        .alert("Delete this book club?", isPresented: $showDeleteConfirm) {
+        .alert("Delete this project?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) { deleteClub() }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("This will remove all sessions, deliverables, roles, template weeks, and shared assignments for this club. This action cannot be undone.")
+            Text("This will remove all sessions, deliverables, roles, template weeks, and shared assignments for this project. This action cannot be undone.")
         }
     }
 
@@ -326,4 +326,3 @@ struct BookClubWeeksEditorView_Placeholder: View {
     var body: some View { EmptyView() }
 }
 #endif
-

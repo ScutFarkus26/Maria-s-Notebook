@@ -17,6 +17,7 @@ struct NewBookClubSessionSheet: View {
     @Query(sort: [SortDescriptor(\BookClubTemplateWeek.weekIndex, order: .forward)]) private var allTemplateWeeks: [BookClubTemplateWeek]
     @Query(sort: [SortDescriptor(\BookClubChoiceItem.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
     @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
+    @Query private var allStudentLessons: [StudentLesson]
 
     private var templateWeeks: [BookClubTemplateWeek] {
         allTemplateWeeks.filter { $0.bookClubID == club.id }
@@ -149,6 +150,32 @@ struct NewBookClubSessionSheet: View {
             session.agendaItems = week.agendaItems
             session.templateWeekID = week.id
 
+            // If the week has a linked lesson, schedule it for all members
+            if let lessonIDStr = week.linkedLessonID, let lessonID = UUID(uuidString: lessonIDStr) {
+                for sidStr in club.memberStudentIDs {
+                    guard let studentID = UUID(uuidString: sidStr) else { continue }
+                    // Check if already assigned
+                    let existing = allStudentLessons.first { sl in
+                        sl.studentIDs.contains(studentID) && sl.lessonID == lessonID
+                    }
+                    if let existing {
+                        // Reschedule if not given
+                        if !existing.isGiven {
+                            existing.scheduledFor = AppCalendar.startOfDay(meetingDate)
+                            existing.scheduledForDay = AppCalendar.startOfDay(meetingDate)
+                        }
+                    } else {
+                        // Create new
+                        let newSL = StudentLesson(
+                            lessonID: lessonID,
+                            studentIDs: [studentID],
+                            scheduledFor: AppCalendar.startOfDay(meetingDate)
+                        )
+                        modelContext.insert(newSL)
+                    }
+                }
+            }
+
             for sid in club.memberStudentIDs {
                 // Weekly Questions deliverable
                 let questionsInstructions = questionsSummary(for: week)
@@ -276,4 +303,3 @@ struct NewBookClubSessionSheet: View {
         dismiss()
     }
 }
-

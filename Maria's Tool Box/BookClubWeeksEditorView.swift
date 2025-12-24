@@ -114,9 +114,11 @@ struct BookClubWeekEditorView: View, Identifiable {
     @State private var agenda: [String]
     @State private var vocab: [String]
     @State private var vocabCount: Int
+    @State private var linkedLessonID: String?
 
     @State private var choiceItems: [BookClubChoiceItem] = []
     @State private var pickingLessonForItem: BookClubChoiceItem? = nil
+    @State private var pickingLessonForWeek: Bool = false
     @State private var lessonSearchTextByItem: [UUID: String] = [:]
 
     init(club: BookClub, week: BookClubTemplateWeek, onDone: @escaping () -> Void) {
@@ -127,6 +129,7 @@ struct BookClubWeekEditorView: View, Identifiable {
         _agenda = State(initialValue: week.agendaItems)
         _vocab = State(initialValue: week.vocabSuggestionWords)
         _vocabCount = State(initialValue: week.vocabRequirementCount)
+        _linkedLessonID = State(initialValue: week.linkedLessonID)
     }
 
     private var roles: [BookClubRole] {
@@ -162,9 +165,30 @@ struct BookClubWeekEditorView: View, Identifiable {
             // Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    sectionCard("Reading", systemImage: "book") {
+                    sectionCard("Reading & Lesson", systemImage: "book") {
                         TextField("Reading range (e.g., Chapters 8–14)", text: $readingRange)
                             .textFieldStyle(.roundedBorder)
+                        
+                        Divider().padding(.vertical, 4)
+                        
+                        HStack {
+                            if let lid = linkedLessonID, let uuid = UUID(uuidString: lid), let l = lessonsByID[uuid] {
+                                VStack(alignment: .leading) {
+                                    Text("Linked Lesson").font(.caption).foregroundStyle(.secondary)
+                                    Text(l.name).font(.headline)
+                                }
+                            } else {
+                                Text("No lesson linked for this week")
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if linkedLessonID != nil {
+                                Button("Clear") { linkedLessonID = nil }
+                                    .buttonStyle(.borderless)
+                            }
+                            Button("Choose Lesson") { pickingLessonForWeek = true }
+                                .buttonStyle(.bordered)
+                        }
                     }
 
                     sectionCard("Agenda", systemImage: "list.bullet") {
@@ -240,6 +264,11 @@ struct BookClubWeekEditorView: View, Identifiable {
             InlineLessonPickerSheet(initialSearch: lessonSearchTextByItem[choiceItem.id] ?? "") { chosenID in
                 if let chosenID { choiceItem.linkedLessonID = chosenID.uuidString } else { choiceItem.linkedLessonID = nil }
                 _ = saveCoordinator.save(modelContext, reason: "Link weekly question to lesson")
+            }
+        }
+        .sheet(isPresented: $pickingLessonForWeek) {
+            InlineLessonPickerSheet(initialSearch: "") { chosenID in
+                linkedLessonID = chosenID?.uuidString
             }
         }
     }
@@ -392,6 +421,7 @@ struct BookClubWeekEditorView: View, Identifiable {
         week.agendaItems = agenda
         week.vocabSuggestionWords = vocab
         week.vocabRequirementCount = vocabCount
+        week.linkedLessonID = linkedLessonID
         // Persist choice set required count = 2 (fixed)
         if let setID = week.questionChoiceSetID, let set = allChoiceSets.first(where: { $0.id == setID }) {
             set.requiredSelectionCount = 2
@@ -471,4 +501,3 @@ private struct InlineLessonPickerSheet: View {
         }
     }
 }
-

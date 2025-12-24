@@ -323,7 +323,7 @@ struct PlanningRootView: View {
         case agenda = "Lessons Agenda"
         case works = "Work Agenda"
         case followUpInbox = "Follow-Up Inbox"
-        case bookClubs = "Book Clubs"
+        case bookClubs = "Projects"
         case checklist = "Class Checklist"
         var id: String { rawValue }
     }
@@ -420,6 +420,8 @@ struct PlanningRootView: View {
                     modeRaw = Mode.agenda.rawValue
                 }
                 if modeRaw == "Work Agenda (Beta)" { modeRaw = Mode.works.rawValue }
+                if modeRaw == "Book Clubs" { modeRaw = Mode.bookClubs.rawValue }
+                
                 // Migrate LessonsAgendaBeta.startDate -> LessonsAgenda.startDate (one-time)
                 let oldKey = "LessonsAgendaBeta.startDate"
                 let newKey = "LessonsAgenda.startDate"
@@ -448,4 +450,3 @@ struct LessonsMenuRootView: View {
     RootView()
         .previewEnvironment()
 }
-

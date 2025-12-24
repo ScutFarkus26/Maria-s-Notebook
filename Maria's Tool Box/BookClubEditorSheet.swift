@@ -32,13 +32,13 @@ struct BookClubEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(club == nil ? "New Book Club" : "Edit Book Club")
+            Text(club == nil ? "New Project" : "Edit Project")
                 .font(.title2).fontWeight(.semibold)
 
             Group {
                 TextField("Title", text: $title)
                     .textFieldStyle(.roundedBorder)
-                TextField("Book title (optional)", text: $bookTitle)
+                TextField("Book/Subject (optional)", text: $bookTitle)
                     .textFieldStyle(.roundedBorder)
             }
 

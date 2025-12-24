@@ -25,7 +25,7 @@ struct BookClubsRootView: View {
     var body: some View {
         Group {
             if clubs.isEmpty {
-                ContentUnavailableView("No Book Clubs", systemImage: "book", description: Text("Create your first book club to get started."))
+                ContentUnavailableView("No Projects", systemImage: "book", description: Text("Create your first project to get started."))
             } else {
                 List {
                     ForEach(clubs) { club in
@@ -61,13 +61,13 @@ struct BookClubsRootView: View {
                 }
             }
         }
-        .navigationTitle("Book Clubs")
+        .navigationTitle("Projects")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showNewSheet = true
                 } label: {
-                    Label("New Book Club", systemImage: "plus")
+                    Label("New Project", systemImage: "plus")
                 }
             }
         }
@@ -78,7 +78,7 @@ struct BookClubsRootView: View {
             if let club = clubs.first(where: { $0.id == id }) {
                 BookClubDetailView(club: club)
             } else {
-                ContentUnavailableView("Club not found", systemImage: "exclamationmark.triangle")
+                ContentUnavailableView("Project not found", systemImage: "exclamationmark.triangle")
             }
         }
     }
@@ -156,4 +156,3 @@ struct BookClubsRootView: View {
         .previewEnvironment(using: container)
         .environmentObject(SaveCoordinator.preview)
 }
-

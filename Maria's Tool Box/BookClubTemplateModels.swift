@@ -125,6 +125,9 @@ final class BookClubTemplateWeek: Identifiable {
     // Optional requirement count for vocab deliverable (default 5)
     var vocabRequirementCount: Int
 
+    // Optional lesson to give during this week (e.g. "Venn Diagrams")
+    var linkedLessonID: String?
+
     // Relationship to assignments
     var roleAssignments: [BookClubWeekRoleAssignment]
 
@@ -138,6 +141,7 @@ final class BookClubTemplateWeek: Identifiable {
         vocabSuggestionWordsJSON: String = "",
         questionChoiceSetID: UUID? = nil,
         vocabRequirementCount: Int = 5,
+        linkedLessonID: String? = nil,
         roleAssignments: [BookClubWeekRoleAssignment] = []
     ) {
         self.id = id
@@ -149,6 +153,7 @@ final class BookClubTemplateWeek: Identifiable {
         self.vocabSuggestionWordsJSON = vocabSuggestionWordsJSON
         self.questionChoiceSetID = questionChoiceSetID
         self.vocabRequirementCount = vocabRequirementCount
+        self.linkedLessonID = linkedLessonID
         self.roleAssignments = roleAssignments
     }
 
