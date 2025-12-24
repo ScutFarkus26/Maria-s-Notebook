@@ -407,8 +407,6 @@ struct StudentDetailView: View {
 
     private func fetchContractsForStudent() -> [WorkContract] {
         let sid = student.id.uuidString
-        let activeStatusRaw = WorkStatus.active.rawValue
-        let reviewStatusRaw = WorkStatus.review.rawValue
         let completeStatusRaw = WorkStatus.complete.rawValue
 
         let predicate = #Predicate<WorkContract> { contract in
