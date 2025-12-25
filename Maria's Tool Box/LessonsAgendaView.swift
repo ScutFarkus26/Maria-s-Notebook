@@ -395,34 +395,56 @@ struct LessonsAgendaView: View {
 
     // MARK: - Calendar Strip
     private var calendarStrip: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 8) {
-                Button { moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) } label: { Image(systemName: "chevron.left") }
-                    .buttonStyle(.plain)
-                Spacer()
-                Button("Today") {
-                    startDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: { isNonSchool($0) })
-                }
-                .buttonStyle(.plain)
-                Spacer()
-                Button { moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) } label: { Image(systemName: "chevron.right") }
-                    .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 12)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 12) {
-                    ForEach(days, id: \.self) { day in
-                        BetaDayColumn(day: day, allStudentLessons: studentLessons, onClear: { sl in
-                            sl.scheduledFor = nil
-                            try? modelContext.save()
-                        }, onSelect: { sl in
-                            selectedStudentLessonForDetail = sl
-                        })
+        ScrollViewReader { proxy in
+            VStack(spacing: 6) {
+                HStack(spacing: 8) {
+                    Button { moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) } label: { Image(systemName: "chevron.left") }
+                        .buttonStyle(.plain)
+                    Spacer()
+                    Button("Today") {
+                        let targetDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: { isNonSchool($0) })
+                        
+                        // If we are already grounded on the correct start date, just scroll to it.
+                        // Otherwise, update startDate, which will trigger the onChange below.
+                        if calendar.isDate(targetDate, inSameDayAs: startDate) {
+                            if let first = days.first {
+                                withAnimation {
+                                    proxy.scrollTo(first, anchor: .leading)
+                                }
+                            }
+                        } else {
+                            startDate = targetDate
+                        }
                     }
+                    .buttonStyle(.plain)
+                    Spacer()
+                    Button { moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) } label: { Image(systemName: "chevron.right") }
+                        .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 12) {
+                        ForEach(days, id: \.self) { day in
+                            BetaDayColumn(day: day, allStudentLessons: studentLessons, onClear: { sl in
+                                sl.scheduledFor = nil
+                                try? modelContext.save()
+                            }, onSelect: { sl in
+                                selectedStudentLessonForDetail = sl
+                            })
+                            .id(day)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+            }
+            .onChange(of: startDate) { _, _ in
+                if let first = days.first {
+                    withAnimation {
+                        proxy.scrollTo(first, anchor: .leading)
+                    }
+                }
             }
         }
     }

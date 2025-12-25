@@ -80,151 +80,75 @@ struct SettingsView: View {
                     
                     HStack(alignment: .top, spacing: 24) {
                         // Backup & Restore
-                        SettingsGroup(title: "Backup & Restore", systemImage: "arrow.triangle.2.circlepath") {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Toggle("Encrypt Backups", isOn: $encryptBackups)
-                                Picker("Restore Mode", selection: $restoreMode) {
-                                    Text("Merge").tag(BackupService.RestoreMode.merge)
-                                    Text("Replace").tag(BackupService.RestoreMode.replace)
+                        BackupRestoreSettingsView(
+                            encryptBackups: $encryptBackups,
+                            restoreMode: $restoreMode,
+                            backupProgress: $backupProgress,
+                            backupMessage: $backupMessage,
+                            importProgress: $importProgress,
+                            importMessage: $importMessage,
+                            resultSummary: $resultSummary,
+                            defaultFolderName: $defaultFolderName,
+                            lastBackupDate: lastBackupDate, // Pass date here
+                            performExport: { Task { await performExport() } },
+                            presentImporter: { showingImporter = true },
+                            chooseDefaultFolder: {
+    #if os(macOS)
+                                let panel = NSOpenPanel()
+                                panel.canChooseFiles = false
+                                panel.canChooseDirectories = true
+                                panel.canCreateDirectories = true
+                                if panel.runModal() == .OK, let url = panel.url {
+                                    try? BackupDestination.setDefaultFolder(url)
+                                    loadDefaultFolderName()
                                 }
-                                .pickerStyle(.segmented)
-                                HStack(spacing: 12) {
-                                    Button {
-                                        Task { await performExport() }
-                                    } label: {
-                                        Label("Export Backup (Data Only)", systemImage: "externaldrive.badge.plus")
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.large)
-
-                                    Button {
-                                        showingImporter = true
-                                    } label: {
-                                        Label("Import Backup…", systemImage: "arrow.down.doc")
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.large)
+    #else
+                                showingFolderImporter = true
+    #endif
+                            },
+                            openDefaultFolder: {
+    #if os(macOS)
+                                if let url = BackupDestination.resolveDefaultFolder() {
+                                    NSWorkspace.shared.activateFileViewerSelecting([url])
                                 }
-                                if backupProgress > 0 && backupProgress < 1.0 {
-                                    ProgressView(value: backupProgress) { Text(backupMessage) }
+    #else
+                                if let url = BackupDestination.resolveDefaultFolder() {
+                                    UIApplication.shared.open(url)
                                 }
-                                if importProgress > 0 && importProgress < 1.0 {
-                                    ProgressView(value: importProgress) { Text(importMessage) }
-                                }
-                                if let summary = resultSummary {
-                                    Text(summary)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Divider().padding(.vertical, 4)
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "externaldrive")
-                                            .foregroundStyle(.secondary)
-                                        Text(defaultFolderName.isEmpty ? "No default folder selected" : "Default folder: \(defaultFolderName)")
-                                            .foregroundStyle(defaultFolderName.isEmpty ? .secondary : .primary)
-                                    }
-                                    HStack(spacing: 8) {
-                                        Button {
-#if os(macOS)
-                                            let panel = NSOpenPanel()
-                                            panel.canChooseFiles = false
-                                            panel.canChooseDirectories = true
-                                            panel.canCreateDirectories = true
-                                            if panel.runModal() == .OK, let url = panel.url {
-                                                try? BackupDestination.setDefaultFolder(url)
-                                                loadDefaultFolderName()
-                                            }
-#else
-                                            showingFolderImporter = true
-#endif
-                                        } label: {
-                                            Label("Choose Default Folder…", systemImage: "folder.badge.plus")
-                                        }
-
-#if os(macOS)
-                                        Button {
-                                            if let url = BackupDestination.resolveDefaultFolder() {
-                                                NSWorkspace.shared.activateFileViewerSelecting([url])
-                                            }
-                                        } label: {
-                                            Label("Reveal in Finder", systemImage: "folder")
-                                        }
-#else
-                                        Button {
-                                            if let url = BackupDestination.resolveDefaultFolder() {
-                                                UIApplication.shared.open(url)
-                                            }
-                                        } label: {
-                                            Label("Open in Files", systemImage: "folder")
-                                        }
-#endif
-
-                                        Button(role: .destructive) {
-                                            BackupDestination.clearDefaultFolder()
-                                            loadDefaultFolderName()
-                                        } label: {
-                                            Label("Clear", systemImage: "xmark.circle")
-                                        }
-                                    }
-                                }
+    #endif
+                            },
+                            clearDefaultFolder: {
+                                BackupDestination.clearDefaultFolder()
+                                loadDefaultFolderName()
                             }
-                        }
+                        )
                         .frame(maxWidth: .infinity)
 
                         // Maintenance
-                        SettingsGroup(title: "Maintenance", systemImage: "wrench.and.screwdriver") {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(spacing: 12) {
-                                    Button {
-                                        do {
-                                            let summary = try StudentDuplicatesCleaner.mergeDuplicates(using: modelContext)
-                                            let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
-                                            maintenanceAlert = (title: "Merge Duplicate Students", message: message)
-                                        } catch {
-                                            maintenanceAlert = (title: "Merge Failed", message: error.localizedDescription)
-                                        }
-                                    } label: {
-                                        Label("Merge Duplicate Students", systemImage: "person.2.crop.square.stack")
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.large)
-
-                                    Button {
-                                        showingDuplicatesPreview = true
-                                    } label: {
-                                        Label("Preview Duplicates…", systemImage: "list.bullet.rectangle.portrait")
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.large)
+                        MaintenanceSettingsView(
+                            maintenanceAlert: $maintenanceAlert,
+                            onMergeDuplicates: {
+                                do {
+                                    let summary = try StudentDuplicatesCleaner.mergeDuplicates(using: modelContext)
+                                    let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
+                                    maintenanceAlert = (title: "Merge Duplicate Students", message: message)
+                                } catch {
+                                    maintenanceAlert = (title: "Merge Failed", message: error.localizedDescription)
                                 }
-
-                                Text("Housekeeping tools to keep your data tidy.")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.top, 4)
-                                Divider().padding(.vertical, 4)
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Button {
-                                        do {
-                                            let summary = try StudentLessonCleaner.removeZeroStudentLessons(using: modelContext)
-                                            let msg = "Zero-student lessons found: \(summary.totalFound)\nDeleted: \(summary.deleted)\nWork links cleared: \(summary.worksCleared)"
-                                            maintenanceAlert = (title: "Remove Zero-Student Lessons", message: msg)
-                                        } catch {
-                                            maintenanceAlert = (title: "Cleanup Failed", message: error.localizedDescription)
-                                        }
-                                    } label: {
-                                        Label("Remove Zero-Student Lessons", systemImage: "person.crop.circle.badge.xmark")
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.large)
-
-                                    Text("Deletes any Student Lesson records that have no students, and clears stale work links.")
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
+                            },
+                            onPreviewDuplicates: {
+                                showingDuplicatesPreview = true
+                            },
+                            onCleanupZeroStudentLessons: {
+                                do {
+                                    let summary = try StudentLessonCleaner.removeZeroStudentLessons(using: modelContext)
+                                    let msg = "Zero-student lessons found: \(summary.totalFound)\nDeleted: \(summary.deleted)\nWork links cleared: \(summary.worksCleared)"
+                                    maintenanceAlert = (title: "Remove Zero-Student Lessons", message: msg)
+                                } catch {
+                                    maintenanceAlert = (title: "Cleanup Failed", message: error.localizedDescription)
                                 }
                             }
-                        }
+                        )
                         .frame(maxWidth: .infinity)
                     }
                     
@@ -256,70 +180,29 @@ struct SettingsView: View {
                     // MARK: - Advanced / Debug Section
                     SettingsCategoryHeader(title: "Advanced / Debug")
                     
-                    SettingsGroup(title: "Danger Zone", systemImage: "exclamationmark.triangle.fill") {
-                        Button(role: .destructive) {
-                            showDannyResetConfirm = true
-                        } label: {
-                            Label("Delete Lesson & Work History for Danny + Lil Dan D", systemImage: "trash")
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
-                    }
-                    
-                    // Smart Planning (Backfill / Catch Up)
-                    SettingsGroup(title: "Smart Planning", systemImage: "lightbulb.max") {
-                        HStack(alignment: .top, spacing: 16) {
-                            // 1. Scan & Queue (Updated)
-                            VStack(alignment: .leading, spacing: 8) {
-                                Button {
-                                    Task { @MainActor in
-                                        do {
-                                            // Runs the updated GROUPED scan
-                                            let result = try scanAndBackfillBlockedLessonsGrouped(modelContext: modelContext)
-                                            seedSummary = result
-                                        } catch {
-                                            seedSummary = "Error: \(error.localizedDescription)"
-                                        }
-                                    }
-                                } label: {
-                                    Label("Scan & Queue 'On Deck' Lessons", systemImage: "wand.and.stars")
+                    DebugToolsView(
+                        showDannyResetConfirm: $showDannyResetConfirm,
+                        onScanAndQueue: {
+                            Task { @MainActor in
+                                do {
+                                    let result = try scanAndBackfillBlockedLessonsGrouped(modelContext: modelContext)
+                                    seedSummary = result
+                                } catch {
+                                    seedSummary = "Error: \(error.localizedDescription)"
                                 }
-                                .buttonStyle(.bordered)
-                                
-                                Text("Scans incomplete work and queues the *next* lesson. Automatically groups students needing the same lesson.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
-                            
-                            Divider()
-                            
-                            // 2. Consolidate (New)
-                            VStack(alignment: .leading, spacing: 8) {
-                                Button {
-                                    Task { @MainActor in
-                                        do {
-                                            let result = try consolidateOnDeckLessons(modelContext: modelContext)
-                                            seedSummary = result
-                                        } catch {
-                                            seedSummary = "Error: \(error.localizedDescription)"
-                                        }
-                                    }
-                                } label: {
-                                    Label("Consolidate 'On Deck' Items", systemImage: "square.on.square.dashed")
+                        },
+                        onConsolidate: {
+                            Task { @MainActor in
+                                do {
+                                    let result = try consolidateOnDeckLessons(modelContext: modelContext)
+                                    seedSummary = result
+                                } catch {
+                                    seedSummary = "Error: \(error.localizedDescription)"
                                 }
-                                .buttonStyle(.bordered)
-                                
-                                Text("Merges separate cards for the same lesson into one group card in the Inbox.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
                         }
-                    }
-                    
-                    SettingsGroup(title: "Test Students", systemImage: "person.crop.circle.badge.questionmark") {
-                        TestStudentsSettingsView()
-                            .frame(maxWidth: .infinity)
-                    }
+                    )
                 }
                 .frame(maxWidth: 900)
                 .padding(.horizontal, 24)
@@ -362,14 +245,20 @@ struct SettingsView: View {
             isPresented: $showingFolderImporter,
             allowedContentTypes: [.folder]
         ) { result in
-            switch result {
-            case .success(let url):
-                let needsAccess = url.startAccessingSecurityScopedResource()
-                defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-                try? BackupDestination.setDefaultFolder(url)
-                loadDefaultFolderName()
-            case .failure:
-                break
+            Task { @MainActor in
+                switch result {
+                case .success(let url):
+                    let needsAccess = url.startAccessingSecurityScopedResource()
+                    defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+                    do {
+                        try BackupDestination.setDefaultFolder(url)
+                        loadDefaultFolderName()
+                    } catch {
+                        print("Error setting default folder: \(error)")
+                    }
+                case .failure:
+                    break
+                }
             }
         }
         .alert(isPresented: Binding<Bool>(
@@ -622,38 +511,6 @@ struct SettingsView: View {
             }
         }
     }
-}
-
-// MARK: - FileDocument wrapper for exporting JSON
-struct BackupDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
-    static var writableContentTypes: [UTType] { [.json] }
-
-    var data: Data
-
-    init(data: Data) {
-        self.data = data
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        guard let file = configuration.file.regularFileContents else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        self.data = file
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        return FileWrapper(regularFileWithContents: data)
-    }
-}
-
-struct BackupPackageDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [UTType(filenameExtension: BackupFile.fileExtension) ?? .data] }
-    static var writableContentTypes: [UTType] { [UTType(filenameExtension: BackupFile.fileExtension) ?? .data] }
-    var data: Data
-    init(data: Data) { self.data = data }
-    init(configuration: ReadConfiguration) throws { guard let file = configuration.file.regularFileContents else { throw CocoaError(.fileReadCorruptFile) }; self.data = file }
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
 // MARK: - Visual components replicated from the reference style
