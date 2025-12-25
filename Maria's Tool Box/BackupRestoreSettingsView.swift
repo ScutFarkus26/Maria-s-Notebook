@@ -28,7 +28,7 @@ struct BackupRestoreSettingsView: View {
                     Text("Last Backup:")
                     Spacer()
                     if let date = lastBackupDate {
-                        Text(date, style: .relative) + Text(" ago")
+                        Text("\(date, style: .relative)")
                     } else {
                         Text("Never")
                     }
@@ -102,3 +102,4 @@ struct BackupRestoreSettingsView: View {
         }
     }
 }
+
