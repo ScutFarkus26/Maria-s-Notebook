@@ -1,7 +1,15 @@
-// WorkStudentsGrid.swift
-// Shows an overview grid of students with their open work, matching the app's card/grid styling.
-
 import SwiftUI
+import SwiftData
+
+// Moved from WorkOverviewList.swift
+struct StudentWorkSummary: Identifiable {
+    let id: UUID
+    let student: Student
+    let practiceOpen: Int
+    let followUpOpen: Int
+    let researchOpen: Int
+    var totalOpen: Int { practiceOpen + followUpOpen + researchOpen }
+}
 
 struct WorkStudentsGrid: View {
     let summaries: [StudentWorkSummary]
@@ -217,10 +225,3 @@ struct WorkTypeLegend: View {
         }
     }
 }
-
-#Preview {
-    Text("WorkStudentsGrid requires live data")
-        .foregroundColor(.secondary)
-        .italic()
-}
-

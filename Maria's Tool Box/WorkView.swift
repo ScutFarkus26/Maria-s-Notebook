@@ -40,8 +40,6 @@ struct WorkView: View {
     @State private var selectedWorkID: UUID? = nil
     @State private var isShowingStudentFilterPopover = false
 
-    // Removed @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
-
     // Scene storage for persistence
     @SceneStorage("WorkView.selectedSubject") private var selectedSubjectStorage: String = ""
     @SceneStorage("WorkView.selectedStudentIDs") private var selectedStudentIDsStorage: String = ""
@@ -191,7 +189,11 @@ struct WorkView: View {
         var rect = CGRect(origin: .zero, size: image.size)
         guard let cg = image.cgImage(forProposedRect: &rect, context: nil, hints: nil) else { return }
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Open Work Overview.pdf")
-        guard let consumer = CGDataConsumer(url: url as CFURL), let ctx = CGContext(consumer: consumer, mediaBox: nil, nil) else { return }
+        
+        // FIXED: Added 'as CFDictionary?' cast to nil to resolve ambiguity
+        guard let consumer = CGDataConsumer(url: url as CFURL),
+              let ctx = CGContext(consumer: consumer, mediaBox: nil, nil as CFDictionary?) else { return }
+        
         // Compute scale to fit width
         let scale = pageSize.width / CGFloat(cg.width)
         var y: CGFloat = 0
@@ -464,4 +466,3 @@ struct ActivityView: UIViewControllerRepresentable {
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }
 #endif
-
