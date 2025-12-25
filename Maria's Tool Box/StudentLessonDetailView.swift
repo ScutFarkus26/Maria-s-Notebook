@@ -66,7 +66,7 @@ struct StudentLessonDetailView: View {
         _selectedStudentIDs = State(initialValue: Set(studentLesson.studentIDs))
         
         _lessonPickerVM = StateObject(wrappedValue: LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: studentLesson.lessonID))
-        // Show picker initially if auto-focus is requested
+        // Show picker initially if autofocus is requested
         _showLessonPicker = State(initialValue: autoFocusLessonPicker)
     }
 
@@ -321,7 +321,7 @@ struct StudentLessonDetailView: View {
                         Spacer()
 
                         Button { scheduleNextLessonToInbox() } label: {
-                            Label("Schedule Next Lesson", systemImage: "calendar.badge.plus")
+                            Label("Schedule Next Presentation", systemImage: "calendar.badge.plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(nextLessonInGroup == nil || selectedStudentIDs.isEmpty)
@@ -370,7 +370,7 @@ struct StudentLessonDetailView: View {
                 .background(.bar)
             }
         }
-        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
+        .alert("Delete Presentation?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 delete()
             }

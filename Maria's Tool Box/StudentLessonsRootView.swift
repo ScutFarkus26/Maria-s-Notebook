@@ -315,9 +315,9 @@ struct StudentLessonsRootView: View {
                 if filter == .hiddenUndated {
                     if hiddenUndated.isEmpty {
                         VStack(spacing: 8) {
-                            Text("No hidden lessons")
+                            Text("No hidden presentations")
                                 .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
-                            Text("Lessons marked presented without a date will appear here.")
+                            Text("Presentations marked presented without a date will appear here.")
                                 .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
                                 .foregroundStyle(.secondary)
                         }
@@ -358,9 +358,9 @@ struct StudentLessonsRootView: View {
 
                     if (!showUpcoming || up.isEmpty) && (!showGiven || gv.isEmpty) {
                         VStack(spacing: 8) {
-                            Text("No student lessons")
+                            Text("No presentations")
                                 .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
-                            Text("Try adjusting your filters or add lessons from the Lessons library.")
+                            Text("Try adjusting your filters or add presentations from the Lessons library.")
                                 .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
                                 .foregroundStyle(.secondary)
                         }
@@ -425,9 +425,9 @@ struct StudentLessonsRootView: View {
             } else {
                 if filteredAndSorted.isEmpty {
                     VStack(spacing: 8) {
-                        Text("No student lessons")
+                        Text("No presentations")
                             .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
-                        Text("Try adjusting your filters or add lessons from the Lessons library.")
+                        Text("Try adjusting your filters or add presentations from the Lessons library.")
                             .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
                             .foregroundStyle(.secondary)
                     }

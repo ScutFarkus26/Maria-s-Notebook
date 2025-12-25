@@ -11,7 +11,7 @@ struct RootView: View {
     // MARK: - Tabs
     enum Tab: String, CaseIterable, Identifiable {
         case students = "Students"
-        case albums = "Albums" // Albums
+        case albums = "Lessons" // Renamed from "Albums" to "Lessons"
         case planning = "Planning"
         case today = "Today"
         case logs = "Logs"
@@ -132,15 +132,15 @@ struct RootView: View {
                             selectedTabRaw = tab.rawValue
                         } label: {
                             Text(tab.rawValue)
-                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
-                                .lineLimit(1)
-                                .fixedSize(horizontal: true, vertical: false)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 8)
-                                .frame(minHeight: 30)
-                                .background(pillBackground(for: tab))
-                                .foregroundStyle(pillForeground(for: tab))
-                                .clipShape(Capsule())
+                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 8)
+                                        .frame(minHeight: 30)
+                                        .background(pillBackground(for: tab))
+                                        .foregroundStyle(pillForeground(for: tab))
+                                        .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
                     }
@@ -187,7 +187,12 @@ struct RootView: View {
             }
             // Migrate legacy Lessons container to new top-level Albums tab
             if selectedTabRaw == "Lessons" {
-                selectedTabRaw = Tab.albums.rawValue
+                // If selectedTabRaw is "Lessons" (the old string), it might not match the new enum rawValue "Lessons".
+                // But actually, we changed the enum rawValue to "Lessons" in this file.
+                // However, if the stored value was "Albums" (old rawValue), we want to update it.
+                if selectedTabRaw == "Albums" {
+                    selectedTabRaw = Tab.albums.rawValue
+                }
             }
             // Migrate legacy tab labels Lesson Planning -> Planning
             if selectedTabRaw == "Lesson Planning" {
@@ -320,7 +325,7 @@ struct RootView: View {
 struct PlanningRootView: View {
     // MARK: - Mode
     enum Mode: String, CaseIterable, Identifiable {
-        case agenda = "Lessons Agenda"
+        case agenda = "Presentations Agenda" // Renamed from "Lessons Agenda"
         case works = "Work Agenda"
         case followUpInbox = "Follow-Up Inbox"
         case bookClubs = "Projects"
@@ -417,6 +422,9 @@ struct PlanningRootView: View {
                     modeRaw = Mode.agenda.rawValue
                 }
                 if modeRaw == "Lessons Agenda (Beta)" {
+                    modeRaw = Mode.agenda.rawValue
+                }
+                if modeRaw == "Lessons Agenda" {
                     modeRaw = Mode.agenda.rawValue
                 }
                 if modeRaw == "Work Agenda (Beta)" { modeRaw = Mode.works.rawValue }

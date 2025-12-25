@@ -652,7 +652,7 @@ struct LessonsRootView: View {
                 let newSL = vm.createStudentLesson(basedOn: baseLesson, in: modelContext)
                 presentedSheet = .studentLessonDraft(newSL.id)
             } label: {
-                Label("Add Student Lesson", systemImage: "person.crop.circle.badge.plus")
+                Label("Add Presentation", systemImage: "person.crop.circle.badge.plus") // Updated text
             }
             Button {
                 showingLessonCSVImporter = true
@@ -814,4 +814,3 @@ struct LessonsRootView: View {
         }
     }
 }
-

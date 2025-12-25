@@ -254,7 +254,7 @@ struct LessonsAgendaView: View {
                 Image(systemName: "tray")
                     .imageScale(.large)
                     .foregroundStyle(Color.accentColor)
-                Text("Lessons Inbox")
+                Text("Presentations Inbox")
                     .font(.headline)
                 Spacer()
                 
@@ -313,10 +313,10 @@ struct LessonsAgendaView: View {
                     // 2. READY SECTION
                     if readyLessons.isEmpty {
                         if blockedLessons.isEmpty {
-                            ContentUnavailableView("All Caught Up", systemImage: "checkmark.circle", description: Text("No unscheduled lessons."))
+                            ContentUnavailableView("All Caught Up", systemImage: "checkmark.circle", description: Text("No unscheduled presentations."))
                                 .padding(.top, 40)
                         } else {
-                            Text("All planned lessons are waiting on work.")
+                            Text("All planned presentations are waiting on work.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .center)
