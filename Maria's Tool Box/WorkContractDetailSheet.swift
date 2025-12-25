@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Foundation
+
 // Uses shared schedule logic
 
 struct WorkContractDetailSheet: View {
@@ -12,15 +13,19 @@ struct WorkContractDetailSheet: View {
 
     @Environment(\.calendar) private var calendar
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
-    
     @Query private var workNotes: [ScopedNote]
     @Query private var presentations: [Presentation]
     @Query private var planItems: [WorkPlanItem]
+    
+    // NEW: Fetch peer contracts to show waiting status
+    @Query private var peerContracts: [WorkContract]
+    
     @State private var resolvedPresentationID: UUID? = nil
     @State private var presentationNotes: [ScopedNote] = []
-    @State private var showPresentationNotes: Bool = false
+    @State private var showPresentationNotes: Bool = true
 
     // Notes UI state
     @State private var showAddNoteSheet: Bool = false
@@ -47,6 +52,7 @@ struct WorkContractDetailSheet: View {
     @State private var newPlanNote: String = ""
     
     @State private var isRestoringData: Bool = false
+    @State private var showDeleteAlert: Bool = false
 
     private var scheduleDates: WorkScheduleDates {
         WorkScheduleDateLogic.compute(for: contract, allPlanItems: planItems)
@@ -83,6 +89,10 @@ struct WorkContractDetailSheet: View {
         let workID = contractID.uuidString
         _workNotes = Query(filter: #Predicate<ScopedNote> { $0.workContractID == workID }, sort: noteSort)
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == contractID })
+        
+        // Initialize peer contracts query
+        let lessonID = contract.lessonID
+        _peerContracts = Query(filter: #Predicate<WorkContract> { $0.lessonID == lessonID })
     }
     
     private static let noteDateFormatter: DateFormatter = {
@@ -114,14 +124,63 @@ struct WorkContractDetailSheet: View {
         return "Student"
     }
     
+    // MARK: - Group Logic
+    private var presentationGroupStudents: [Student] {
+        guard let pid = resolvedPresentationID,
+              let presentation = presentations.first(where: { $0.id == pid }) else {
+            return []
+        }
+        let selfID = UUID(uuidString: contract.studentID)
+        let peers = presentation.studentUUIDs.filter { $0 != selfID }
+        return peers.compactMap { studentsByID[$0] }.sorted { $0.firstName < $1.firstName }
+    }
+    
+    private var allPresentationStudentIDs: [UUID] {
+         guard let pid = resolvedPresentationID,
+              let presentation = presentations.first(where: { $0.id == pid }) else {
+            return []
+        }
+        return presentation.studentUUIDs
+    }
+    
+    private struct GroupStatus {
+        let waiting: [Student]
+        let completed: [Student]
+    }
+
+    private var groupProgress: GroupStatus {
+        let peers = presentationGroupStudents
+        var waiting: [Student] = []
+        var completed: [Student] = []
+
+        for student in peers {
+            let sid = student.id.uuidString
+            // Find contract for this peer + this lesson
+            if let peerContract = peerContracts.first(where: { $0.studentID == sid }) {
+                if peerContract.status == .complete {
+                    completed.append(student)
+                } else {
+                    waiting.append(student)
+                }
+            } else {
+                // No contract means waiting (or hasn't started)
+                waiting.append(student)
+            }
+        }
+        return GroupStatus(waiting: waiting, completed: completed)
+    }
+    
+    // MARK: - Next Lesson Logic
+    private var likelyNextLesson: Lesson? {
+        guard let currentLessonID = UUID(uuidString: contract.lessonID) else { return nil }
+        return NextLessonResolver.resolveNextLesson(from: currentLessonID, lessons: lessons)
+    }
+
     private func resolvePresentationID() -> UUID? {
-        // 1) Prefer explicit presentationID on the contract
         if let raw = contract.presentationID, let id = UUID(uuidString: raw) {
             return id
         }
-        // 2) Fallback: map via legacyStudentLessonID
         if let legacy = contract.legacyStudentLessonID, !legacy.isEmpty {
-            // Presentations expose legacyStudentLessonID as a String? that should match
             if let match = presentations.first(where: { ($0.legacyStudentLessonID ?? "") == legacy }) {
                 return match.id
             }
@@ -160,6 +219,113 @@ struct WorkContractDetailSheet: View {
 
     private var presentationIDsForChange: [UUID] { presentations.map { $0.id } }
     private var planChangeMarkers: [PlanItemMarker] { planItems.map { PlanItemMarker(id: $0.id, date: $0.scheduledDate) } }
+
+    // MARK: - UI Components
+    
+    @ViewBuilder
+    private func headerSection() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 1. Student Name
+            Text(studentName())
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+
+            // 2. Lesson Source
+            HStack(spacing: 6) {
+                Image(systemName: "book.closed.fill")
+                    .foregroundStyle(Color.accentColor)
+                Text(lessonTitle())
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+            .padding(.bottom, 4)
+            
+            // 3. Work Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(kind?.rawValue.capitalized ?? contract.kind?.rawValue.capitalized ?? "Work")
+                     .font(.headline)
+                     .foregroundStyle(.secondary)
+                
+                if let note = contract.scheduledNote, !note.isEmpty {
+                    Text(note)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            
+            // 4. Group Progress Status
+            if !presentationGroupStudents.isEmpty {
+                let status = groupProgress
+                VStack(alignment: .leading, spacing: 8) {
+                    // Waiting
+                    if !status.waiting.isEmpty {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "hourglass")
+                                .foregroundStyle(.orange)
+                                .font(.caption)
+                                .padding(.top, 3)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Waiting for:")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                    .textCase(.uppercase)
+                                
+                                Text(status.waiting.map(\.firstName).joined(separator: ", "))
+                                    .font(.callout)
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                    }
+                    
+                    // Completed
+                    if !status.completed.isEmpty {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "checkmark.circle")
+                                .foregroundStyle(.green.opacity(0.8))
+                                .font(.caption)
+                                .padding(.top, 3)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Completed:")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                    .textCase(.uppercase)
+                                
+                                Text(status.completed.map(\.firstName).joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    
+                    if status.waiting.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "star.fill")
+                                .foregroundStyle(.yellow)
+                            Text("Group ready for next lesson")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 2)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.primary.opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(status.waiting.isEmpty ? Color.green.opacity(0.3) : Color.clear, lineWidth: 1)
+                )
+                .padding(.top, 4)
+            }
+        }
+        .padding(.bottom, 8)
+    }
 
     @ViewBuilder
     private func scheduleSummaryCard(sd: WorkScheduleDates) -> some View {
@@ -268,18 +434,20 @@ struct WorkContractDetailSheet: View {
     private func presentationNotesSection() -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                Text("Presentation Notes (Group)")
+                Text("Presentation Notes")
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Button(showPresentationNotes ? "Hide" : "Show") {
                     withAnimation(.easeInOut) { showPresentationNotes.toggle() }
                 }
                 .buttonStyle(.borderless)
+                .font(.caption)
             }
             if showPresentationNotes {
                 if presentationNotes.isEmpty {
                     Text("No presentation notes")
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
@@ -310,8 +478,13 @@ struct WorkContractDetailSheet: View {
                 .buttonStyle(.bordered)
             }
 
+            if resolvedPresentationID != nil {
+                presentationNotesSection()
+                    .padding(.bottom, 4)
+            }
+
             if workNotes.isEmpty {
-                Text("No notes yet")
+                Text("No additional notes")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -321,32 +494,6 @@ struct WorkContractDetailSheet: View {
                     }
                 }
             }
-
-            if resolvedPresentationID != nil {
-                presentationNotesSection()
-                    .padding(.top, 4)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func headerSection() -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(lessonTitle())
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text(studentName())
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button {
-                showCompletionSheet = true
-            } label: {
-                Label("Mark Complete", systemImage: "checkmark.circle")
-            }
-            .buttonStyle(.borderedProminent)
         }
     }
 
@@ -364,19 +511,28 @@ struct WorkContractDetailSheet: View {
             .pickerStyle(.menu)
             TextField("Completion note (optional)", text: $completionNote, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
+            
             HStack {
-                Spacer()
                 Button("Cancel") { showCompletionSheet = false }
-                Button("Done") {
-                    contract.status = .complete
-                    contract.completedAt = Date()
-                    contract.scheduledDate = nil
-                    contract.completionOutcome = completionOutcome
-                    let trimmed = completionNote.trimmingCharacters(in: .whitespacesAndNewlines)
-                    contract.completionNote = trimmed.isEmpty ? nil : trimmed
-                    try? modelContext.save()
-                    showCompletionSheet = false
-                    close()
+                Spacer()
+                
+                // Done & Next Workflow
+                let next = likelyNextLesson
+                Button(next != nil ? "Done & Next" : "Done") {
+                    // 1. Mark Complete
+                    performCompletion()
+                    
+                    // 2. Chain workflow
+                    if next != nil {
+                        showCompletionSheet = false
+                        // Slight delay to allow sheet transition
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showScheduleSheet = true
+                        }
+                    } else {
+                        showCompletionSheet = false
+                        close()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -395,24 +551,28 @@ struct WorkContractDetailSheet: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Header
+                    // Revised Header
                     headerSection()
 
-                    Picker("Status", selection: $status) {
-                        ForEach(WorkStatus.allCases, id: \.self) { s in
-                            Text(label(for: s)).tag(s)
+                    // Quick Actions Row
+                    HStack(spacing: 12) {
+                        Picker("Status", selection: $status) {
+                            ForEach(WorkStatus.allCases, id: \.self) { s in
+                                Text(label(for: s)).tag(s)
+                            }
                         }
-                    }
-                    .pickerStyle(.segmented)
-
-                    // Work Kind picker (aligned under Status)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Picker("Kind", selection: kindBinding) {
-                            Text("Practice").tag(WorkKind.practiceLesson as WorkKind?)
-                            Text("Follow-up").tag(WorkKind.followUpAssignment as WorkKind?)
-                            Text("Research").tag(WorkKind.research as WorkKind?)
+                        .pickerStyle(.menu)
+                        .frame(width: 120)
+                        
+                        Spacer()
+                        
+                        Button {
+                            showCompletionSheet = true
+                        } label: {
+                            Label("Mark Complete", systemImage: "checkmark.circle")
                         }
-                        .pickerStyle(.segmented)
+                        .buttonStyle(.bordered)
+                        .tint(.green)
                     }
 
                     Divider().padding(.vertical, 4)
@@ -423,12 +583,18 @@ struct WorkContractDetailSheet: View {
                     Divider().padding(.top, 4)
 
                     // Schedule Next Lesson action
+                    let nextLessonName = likelyNextLesson?.name
                     Button {
                         showScheduleSheet = true
                     } label: {
-                        Label("Schedule Next Lesson…", systemImage: "calendar.badge.plus")
+                        HStack {
+                            Image(systemName: "calendar.badge.plus")
+                            Text(nextLessonName != nil ? "Schedule: \(nextLessonName!)" : "Schedule Next Lesson…")
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
+                    .tint(status == .complete ? Color.orange : Color.accentColor)
                     
                     Divider().padding(.top, 8)
 
@@ -436,7 +602,14 @@ struct WorkContractDetailSheet: View {
                     notesSection()
 
                     HStack {
+                        Button(role: .destructive) {
+                            showDeleteAlert = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+
                         Spacer()
+
                         Button("Cancel") { close() }
                         Button("Save") { save() }
                             .buttonStyle(.borderedProminent)
@@ -446,15 +619,17 @@ struct WorkContractDetailSheet: View {
         }
         .padding(16)
     #if os(macOS)
-        .frame(minWidth: 360)
+        .frame(minWidth: 400)
         .presentationSizing(.fitted)
     #else
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     #endif
         .sheet(isPresented: $showScheduleSheet) {
-            ScheduleNextLessonSheet(contract: contract) {
-                // On created: show a brief confirmation
+            ScheduleNextLessonSheet(
+                contract: contract,
+                initialGroupIDs: resolvedPresentationID == nil ? [] : allPresentationStudentIDs
+            ) {
                 showPlannedBanner = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                     showPlannedBanner = false
@@ -499,6 +674,14 @@ struct WorkContractDetailSheet: View {
                     .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
                     .padding(.top, 8)
             }
+        }
+        .alert("Delete Work?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                deleteContract()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This action cannot be undone.")
         }
         .onAppear {
             WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
@@ -574,16 +757,6 @@ struct WorkContractDetailSheet: View {
         }
     }
 
-    private func labelForScheduledReason(_ r: ScheduledReason) -> String {
-        switch r {
-        case .progressCheck: return "Progress Check"
-        case .dueDate: return "Due Date"
-        case .conference: return "Conference"
-        case .reminder: return "Reminder"
-        case .other: return "Other"
-        }
-    }
-
     private func labelForOutcome(_ o: CompletionOutcome) -> String {
         switch o {
         case .mastered: return "Mastered"
@@ -594,57 +767,50 @@ struct WorkContractDetailSheet: View {
         }
     }
 
-    // Map the sheet's ScheduledReason (contract-level) to WorkPlanItem.Reason (calendar item)
-    private func mapReason(_ r: ScheduledReason?) -> WorkPlanItem.Reason? {
-        guard let r else { return nil }
-        switch r {
-        case .progressCheck: return WorkPlanItem.Reason.progressCheck
-        case .dueDate: return WorkPlanItem.Reason.dueDate
-        case .conference: return WorkPlanItem.Reason.other // no direct equivalent in WorkPlanItem.Reason
-        case .reminder: return WorkPlanItem.Reason.other   // no direct equivalent in WorkPlanItem.Reason
-        case .other: return WorkPlanItem.Reason.other
-        }
-    }
-
     private func close() {
         if let onDone { onDone() } else { dismiss() }
+    }
+    
+    private func performCompletion() {
+        contract.status = .complete
+        contract.completedAt = Date()
+        contract.scheduledDate = nil
+        contract.completionOutcome = completionOutcome
+        let trimmed = completionNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        contract.completionNote = trimmed.isEmpty ? nil : trimmed
+        try? modelContext.save()
     }
 
     private func save() {
         contract.status = status
-
-        // Keep WorkPlanItem (calendar) as source of truth for scheduling
         let sd = scheduleDates
-        let earliest = sd.primaryDate
-
-        contract.scheduledDate = earliest
-
+        contract.scheduledDate = sd.primaryDate
         if status == .complete {
             contract.completedAt = Date()
         } else {
             contract.completedAt = nil
         }
-
-        // Persist new fields
         contract.kind = kind ?? contract.kind ?? ((contract.presentationID != nil) ? .practiceLesson : .followUpAssignment)
-
         try? modelContext.save()
         close()
     }
     
+    private func deleteContract() {
+        for item in planItems where item.workID == contract.id { modelContext.delete(item) }
+        for note in workNotes { modelContext.delete(note) }
+        modelContext.delete(contract)
+        _ = saveCoordinator.save(modelContext, reason: "Delete work contract")
+        close()
+    }
+
     private func addPlan() {
         let normalized = AppCalendar.startOfDay(newPlanDate)
         let note = newPlanNote.trimmingCharacters(in: .whitespacesAndNewlines)
         let item = WorkPlanItem(workID: contract.id, scheduledDate: normalized, reason: newPlanReason, note: note.isEmpty ? nil : note)
         modelContext.insert(item)
-        // Reset composer
         newPlanDate = Date()
         newPlanReason = .progressCheck
         newPlanNote = ""
-    }
-
-    private func deletePlanItem(_ item: WorkPlanItem) {
-        modelContext.delete(item)
     }
 
     private func addNote(body: String) {
@@ -652,22 +818,10 @@ struct WorkContractDetailSheet: View {
         guard !trimmed.isEmpty else { return }
         let now = Date()
         let scope: ScopedNote.Scope
-        if let sid = UUID(uuidString: contract.studentID) {
-            scope = .student(sid)
-        } else {
-            scope = .all
-        }
+        if let sid = UUID(uuidString: contract.studentID) { scope = .student(sid) } else { scope = .all }
         let note = ScopedNote(
-            createdAt: now,
-            updatedAt: now,
-            body: trimmed,
-            scope: scope,
-            legacyFingerprint: nil,
-            migrationKey: nil,
-            studentLesson: nil,
-            work: nil,
-            presentation: nil,
-            workContract: contract
+            createdAt: now, updatedAt: now, body: trimmed, scope: scope,
+            legacyFingerprint: nil, migrationKey: nil, studentLesson: nil, work: nil, presentation: nil, workContract: contract
         )
         modelContext.insert(note)
         try? modelContext.save()
@@ -680,43 +834,40 @@ private struct PlanItemMarker: Equatable {
 }
 
 private struct NextLessonResolver {
-    static func resolveNextLessonID(from contract: WorkContract, lessons: [Lesson]) -> UUID? {
-        guard let currentID = UUID(uuidString: contract.lessonID),
-              let current = lessons.first(where: { $0.id == currentID }) else {
-            return nil
-        }
-
-        // Attempt explicit link (not present in this model). Fallback to collection ordering.
+    static func resolveNextLesson(from currentID: UUID, lessons: [Lesson]) -> Lesson? {
+        guard let current = lessons.first(where: { $0.id == currentID }) else { return nil }
         let currentSubject = current.subject.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentGroup = current.group.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else {
-            return nil
-        }
-
         let candidates = lessons.filter { l in
             l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
             l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
         }
         .sorted { $0.orderInGroup < $1.orderInGroup }
-
+        
         if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
-            let next = candidates[idx + 1]
-            return next.id
-        } else {
-            return nil
+            return candidates[idx + 1]
         }
+        return nil
+    }
+    static func resolveNextLessonID(from contract: WorkContract, lessons: [Lesson]) -> UUID? {
+        guard let currentID = UUID(uuidString: contract.lessonID) else { return nil }
+        return resolveNextLesson(from: currentID, lessons: lessons)?.id
     }
 }
 
 struct ScheduleNextLessonSheet: View {
     let contract: WorkContract
+    let initialGroupIDs: [UUID]
     var onCreated: (() -> Void)? = nil
+    
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    //
+    @StateObject private var actions = StudentLessonDetailActions()
 
     @Query(sort: \Lesson.name) private var lessons: [Lesson]
     @Query(sort: \Student.firstName) private var studentsAll: [Student]
+    @Query private var studentLessonsAll: [StudentLesson]
 
     @State private var search: String = ""
     @State private var selectedLessonID: UUID? = nil
@@ -724,6 +875,7 @@ struct ScheduleNextLessonSheet: View {
     @State private var scheduleEnabled: Bool = false
     @State private var scheduleDate: Date = Date()
     @State private var notes: String = ""
+    @State private var selectedStudentIDs: Set<UUID> = []
 
     private var selectedLesson: Lesson? {
         guard let id = selectedLessonID else { return nil }
@@ -741,9 +893,20 @@ struct ScheduleNextLessonSheet: View {
         }
     }
 
-    init(contract: WorkContract, onCreated: (() -> Void)? = nil) {
+    private var groupStudents: [Student] {
+        studentsAll.filter { initialGroupIDs.contains($0.id) }
+    }
+
+    init(contract: WorkContract, initialGroupIDs: [UUID], onCreated: (() -> Void)? = nil) {
         self.contract = contract
+        self.initialGroupIDs = initialGroupIDs
         self.onCreated = onCreated
+        
+        var ids = Set(initialGroupIDs)
+        if let sid = UUID(uuidString: contract.studentID) {
+            ids.insert(sid)
+        }
+        _selectedStudentIDs = State(initialValue: ids)
     }
 
     var body: some View {
@@ -752,76 +915,82 @@ struct ScheduleNextLessonSheet: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            // Auto-selected lesson (if any)
             if let selected = selectedLesson {
                 HStack(alignment: .center, spacing: 12) {
-                    LessonRow(lesson: selected,
-                              subtitle: lessonSubtitle(selected),
-                              isSelected: true)
+                    LessonRow(lesson: selected, subtitle: lessonSubtitle(selected), isSelected: true)
                     Spacer()
                     Button("Change…") { withAnimation { showLessonPicker = true } }
                 }
             } else {
-                Text("Select a lesson")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                Text("Select a lesson").font(.headline).foregroundStyle(.secondary)
             }
 
-            // Lesson picker
             if showLessonPicker || selectedLesson == nil {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Choose Lesson")
-                        .font(.headline)
-                    TextField("Search lessons…", text: $search)
-                        .textFieldStyle(.roundedBorder)
+                    TextField("Search lessons…", text: $search).textFieldStyle(.roundedBorder)
                     List {
                         ForEach(filteredLessons) { lesson in
                             Button {
                                 selectedLessonID = lesson.id
                                 showLessonPicker = false
                             } label: {
-                                LessonRow(lesson: lesson,
-                                          subtitle: lessonSubtitle(lesson),
-                                          isSelected: selectedLessonID == lesson.id)
+                                LessonRow(lesson: lesson, subtitle: lessonSubtitle(lesson), isSelected: selectedLessonID == lesson.id)
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .frame(minHeight: 200)
+                    .frame(minHeight: 150)
+                }
+            }
+            Divider()
+            
+            if !groupStudents.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Students").font(.headline)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(groupStudents) { student in
+                                Button {
+                                    if selectedStudentIDs.contains(student.id) { selectedStudentIDs.remove(student.id) } else { selectedStudentIDs.insert(student.id) }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: selectedStudentIDs.contains(student.id) ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(selectedStudentIDs.contains(student.id) ? .blue : .secondary)
+                                        Text(student.firstName)
+                                    }
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .background(Color.primary.opacity(0.05)).cornerRadius(8)
+                                }.buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    Text("\(selectedStudentIDs.count) students selected").font(.caption).foregroundStyle(.secondary)
                 }
             }
 
-            // Optional schedule + notes
             Toggle("Schedule on a date", isOn: $scheduleEnabled)
-            if scheduleEnabled {
-                DatePicker("Date", selection: $scheduleDate, displayedComponents: .date)
-            }
-            TextField("Notes (optional)", text: $notes, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
+            if scheduleEnabled { DatePicker("Date", selection: $scheduleDate, displayedComponents: .date) }
+            TextField("Notes (optional)", text: $notes, axis: .vertical).textFieldStyle(.roundedBorder)
 
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
                 Button("Create") { create() }
                     .buttonStyle(.borderedProminent)
-                    .disabled(selectedLessonID == nil)
+                    .disabled(selectedLessonID == nil || selectedStudentIDs.isEmpty)
             }
         }
         .padding(16)
     #if os(macOS)
-        .frame(minWidth: 480)
-        .presentationSizing(.fitted)
+        .frame(minWidth: 480).presentationSizing(.fitted)
     #else
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
     #endif
         .onAppear { autoSelectNextLessonIfPossible() }
     }
 
     private func lessonSubtitle(_ lesson: Lesson) -> String? {
-        let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parts = [subject, group].filter { !$0.isEmpty }
+        let parts = [lesson.subject, lesson.group].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         return parts.isEmpty ? nil : parts.joined(separator: " • ")
     }
 
@@ -829,63 +998,49 @@ struct ScheduleNextLessonSheet: View {
         if let nextID = NextLessonResolver.resolveNextLessonID(from: contract, lessons: lessons) {
             selectedLessonID = nextID
             showLessonPicker = false
-        } else {
-            showLessonPicker = true
-        }
+        } else { showLessonPicker = true }
     }
 
     private func create() {
         guard let lessonID = selectedLessonID else { return }
-        guard let sid = UUID(uuidString: contract.studentID) else { return }
-
-        // Prevent duplicates: same lesson + same single student + not given
-        // Unscheduled de-dupes against unscheduled; scheduled de-dupes against the same scheduled day (startOfDay)
-        if scheduleEnabled {
-            let day = AppCalendar.startOfDay(scheduleDate)
-            let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID && $0.givenAt == nil && $0.scheduledFor == day })
-            let existing = (try? modelContext.fetch(fetch)) ?? []
-            if existing.contains(where: { Set($0.studentIDs) == Set([sid]) }) {
-                dismiss()
-                return
-            }
-        } else {
-            let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID && $0.givenAt == nil && $0.scheduledFor == nil })
-            let existing = (try? modelContext.fetch(fetch)) ?? []
-            if existing.contains(where: { Set($0.studentIDs) == Set([sid]) }) {
-                dismiss()
-                return
-            }
-        }
-
-        let newSL = StudentLesson(
-            id: UUID(),
-            lessonID: lessonID,
-            studentIDs: [sid],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            isPresented: false,
-            notes: notes,
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+        guard let lesson = lessons.first(where: { $0.id == lessonID }) else { return }
+        
+        let success = actions.planNextLessonInGroup(
+            next: lesson,
+            selectedStudentIDs: selectedStudentIDs,
+            studentsAll: studentsAll,
+            lessons: lessons,
+            studentLessonsAll: studentLessonsAll,
+            context: modelContext
         )
-
-        // Set relationships
-        let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-        let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == sid })
-        newSL.lesson = (try? modelContext.fetch(lessonFetch))?.first
-        if let s = (try? modelContext.fetch(studentFetch))?.first { newSL.students = [s] }
-
-        if scheduleEnabled {
-            let normalized = AppCalendar.startOfDay(scheduleDate)
-            newSL.setScheduledFor(normalized, using: AppCalendar.shared)
+        
+        if success {
+            if scheduleEnabled {
+                // If the user picked a date, we need to update the newly created item
+                // 'actions' creates it with nil schedule. We find it and update it.
+                // Since actions uses modelContext.insert, we can find it in the context.
+                let targetSet = selectedStudentIDs
+                let day = AppCalendar.startOfDay(scheduleDate)
+                
+                // Find the fresh item
+                let candidates = studentLessonsAll.filter {
+                    $0.lessonID == lessonID &&
+                    Set($0.studentIDs) == targetSet &&
+                    $0.scheduledFor == nil
+                }
+                
+                if let created = candidates.sorted(by: { $0.createdAt > $1.createdAt }).first {
+                    created.setScheduledFor(day, using: AppCalendar.shared)
+                    created.notes = notes
+                    try? modelContext.save()
+                }
+            }
+            onCreated?()
+            dismiss()
+        } else {
+            // Failed (likely duplicate existed), just dismiss
+            dismiss()
         }
-
-        modelContext.insert(newSL)
-        _ = saveCoordinator.save(modelContext, reason: "Schedule next lesson from WorkContract")
-        onCreated?()
-        dismiss()
     }
 }
 
@@ -896,20 +1051,11 @@ private struct LessonRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(lesson.name)
-                    .font(.body.weight(.medium))
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text(lesson.name).font(.body.weight(.medium))
+                if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary) }
             }
             Spacer()
-            if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.tint)
-            }
+            if isSelected { Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint) }
         }
     }
 }
-

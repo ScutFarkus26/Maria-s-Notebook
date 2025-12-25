@@ -617,10 +617,12 @@ struct StudentLessonDetailView: View {
         }
 
         let vm = StudentLessonDetailActions()
+        //
+        // UPDATED: Now passing nextLessonInGroup instead of nil
         vm.autoCreateNextIfNeeded(
             wasGiven: wasGiven,
             nowGiven: nowGiven,
-            nextLesson: nil,
+            nextLesson: nextLessonInGroup,
             selectedStudentIDs: selectedStudentIDs,
             studentsAll: studentsAll,
             lessons: lessons,
@@ -804,4 +806,3 @@ struct StudentLessonDetailView: View {
         }
     }
 }
-

@@ -9,6 +9,8 @@ struct LessonsAgendaView: View {
     @Query private var studentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
+    //
+    @Query private var contracts: [WorkContract]
 
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @AppStorage("LessonsAgenda.startDate") private var startDateRaw: Double = 0
@@ -52,6 +54,7 @@ struct LessonsAgendaView: View {
 
     @State private var startDate: Date = Date()
     @State private var selectedStudentLessonForDetail: StudentLesson? = nil
+    @State private var isInboxTargeted: Bool = false
 
     // Age settings
     @AppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
@@ -60,9 +63,66 @@ struct LessonsAgendaView: View {
     @AppStorage("LessonAge.warningColorHex") private var ageWarningHex: String = LessonAgeDefaults.warningColorHex
     @AppStorage("LessonAge.overdueColorHex") private var ageOverdueHex: String = LessonAgeDefaults.overdueColorHex
 
-    private var orderedUnscheduledLessons: [StudentLesson] {
-        let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+    // MARK: - Blocking Logic
+
+    /// Returns true if this lesson is "blocked" by incomplete work from the PREVIOUS lesson in the sequence
+    private func isBlocked(_ sl: StudentLesson) -> Bool {
+        // 1. Resolve current lesson details
+        guard let currentLesson = sl.lesson else { return false }
+        
+        // 2. Find the previous lesson in this group/sequence
+        let subject = currentLesson.subject
+        let group = currentLesson.group
+        
+        // Find all lessons in this group
+        let groupLessons = lessons.filter {
+            $0.subject == subject && $0.group == group
+        }.sorted { $0.orderInGroup < $1.orderInGroup }
+        
+        guard let currentIndex = groupLessons.firstIndex(where: { $0.id == currentLesson.id }),
+              currentIndex > 0 else {
+            // No previous lesson, so it can't be blocked
+            return false
+        }
+        
+        let previousLesson = groupLessons[currentIndex - 1]
+        
+        // 3. Check if ANY student in this StudentLesson has incomplete work (Active/Review contract) for the previous lesson
+        for studentID in sl.studentIDs {
+            let sidString = studentID.uuidString
+            let pidString = previousLesson.id.uuidString
+            
+            // Check for contracts that are NOT complete
+            // We look for .active or .review status
+            let hasIncompleteWork = contracts.contains { c in
+                c.studentID == sidString &&
+                c.lessonID == pidString &&
+                (c.status == .active || c.status == .review)
+            }
+            
+            if hasIncompleteWork {
+                return true
+            }
+        }
+        
+        return false
+    }
+
+    private var allUnscheduled: [StudentLesson] {
+        studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+    }
+    
+    // Lessons ready to be presented (not blocked)
+    private var readyLessons: [StudentLesson] {
+        let base = allUnscheduled.filter { !isBlocked($0) }
         return InboxOrderStore.orderedUnscheduled(from: base, orderRaw: inboxOrderRaw)
+            .filter { anyStudentMeetsMissWindow($0) }
+    }
+    
+    // Lessons blocked by previous work
+    private var blockedLessons: [StudentLesson] {
+        return allUnscheduled.filter { isBlocked($0) }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     private func anyStudentMeetsMissWindow(_ sl: StudentLesson) -> Bool {
@@ -72,10 +132,6 @@ struct LessonsAgendaView: View {
             if days >= threshold { return true }
         }
         return false
-    }
-
-    private var filteredOrderedUnscheduledLessons: [StudentLesson] {
-        orderedUnscheduledLessons.filter { anyStudentMeetsMissWindow($0) }
     }
 
     private var visibleStudents: [Student] {
@@ -192,7 +248,8 @@ struct LessonsAgendaView: View {
 
     // MARK: - Inbox
     private var inboxView: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
             HStack(spacing: 8) {
                 Image(systemName: "tray")
                     .imageScale(.large)
@@ -200,6 +257,7 @@ struct LessonsAgendaView: View {
                 Text("Lessons Inbox")
                     .font(.headline)
                 Spacer()
+                
                 Picker("Missed", selection: Binding(
                     get: { missWindow },
                     set: { missWindowRaw = $0.rawValue }
@@ -209,33 +267,103 @@ struct LessonsAgendaView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 260)
+                .frame(maxWidth: 200)
 
-                Text("\(filteredOrderedUnscheduledLessons.count)")
+                Text("\(readyLessons.count)")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
-            .padding(.top, 8)
+            .padding(.vertical, 8)
+            .background(.regularMaterial)
+            
+            Divider()
 
-            if filteredOrderedUnscheduledLessons.isEmpty {
-                VStack { Spacer(); Text("No unscheduled lessons").foregroundStyle(.secondary); Spacer() }
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 8),
-                        GridItem(.flexible(), spacing: 8),
-                        GridItem(.flexible(), spacing: 8)
-                    ], alignment: .leading, spacing: 8) {
-                        ForEach(filteredOrderedUnscheduledLessons, id: \.id) { sl in
-                            inboxRow(sl)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    
+                    // 1. BLOCKED / WAITING SECTION
+                    if !blockedLessons.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("On Deck (Waiting for Work)", systemImage: "hourglass")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 12)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(blockedLessons, id: \.id) { sl in
+                                        inboxRow(sl)
+                                            .opacity(0.6)
+                                            .saturation(0.5)
+                                            .overlay(alignment: .topTrailing) {
+                                                Image(systemName: "lock.fill")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                                    .padding(6)
+                                            }
+                                    }
+                                }
+                                .padding(.horizontal, 12)
+                            }
                         }
+                        .padding(.top, 12)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+
+                    // 2. READY SECTION
+                    if readyLessons.isEmpty {
+                        if blockedLessons.isEmpty {
+                            ContentUnavailableView("All Caught Up", systemImage: "checkmark.circle", description: Text("No unscheduled lessons."))
+                                .padding(.top, 40)
+                        } else {
+                            Text("All planned lessons are waiting on work.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.top, 20)
+                        }
+                    } else {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8)
+                        ], alignment: .leading, spacing: 8) {
+                            ForEach(readyLessons, id: \.id) { sl in
+                                inboxRow(sl)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                    }
                 }
+                .padding(.bottom, 20)
             }
         }
+        .overlay {
+            if isInboxTargeted {
+                Color.accentColor.opacity(0.15)
+                    .allowsHitTesting(false)
+                
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.accentColor, lineWidth: 3)
+                    .padding(2)
+                    .allowsHitTesting(false)
+                
+                VStack {
+                    Image(systemName: "arrow.down.doc.fill")
+                        .font(.system(size: 50))
+                        .foregroundStyle(Color.accentColor)
+                    Text("Drop to Unschedule")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .allowsHitTesting(false)
+            }
+        }
+        .onDrop(of: [.text], delegate: InboxDropDelegate(
+            modelContext: modelContext,
+            studentLessons: studentLessons,
+            isTargeted: $isInboxTargeted
+        ))
     }
 
     @ViewBuilder
@@ -321,7 +449,6 @@ struct LessonsAgendaView: View {
     }
 
     private func ageColor(for sl: StudentLesson) -> Color {
-        // Hide indicator for given lessons
         if sl.isGiven { return .clear }
         let fresh = ColorUtils.color(from: ageFreshHex)
         let warn = ColorUtils.color(from: ageWarningHex)
@@ -346,7 +473,6 @@ struct LessonsAgendaView: View {
 
     private func filteredSnapshot(_ sl: StudentLesson) -> StudentLessonSnapshot {
         let snap = sl.snapshot()
-        // Filter out hidden students from the snapshot's student list if available
         let hiddenIDs = TestStudentsFilter.hiddenIDs(from: students, show: showTestStudents, namesRaw: testStudentNamesRaw)
         let visibleIDs = snap.studentIDs.filter { !hiddenIDs.contains($0) }
         return StudentLessonSnapshot(
@@ -473,94 +599,134 @@ struct LessonsAgendaView: View {
             }
         }
     }
-}
-
-// MARK: - Drop Delegate for day column
-private struct DayColumnDropDelegate: DropDelegate {
-    let calendar: Calendar
-    let modelContext: ModelContext
-    let allStudentLessons: [StudentLesson]
-    let day: Date
-    let getCurrent: () -> [StudentLesson]
-    let itemFramesProvider: () -> [UUID: CGRect]
-    let onTargetChange: (Bool) -> Void
-    let onInsertionIndexChange: (Int?) -> Void
-
-    func dropEntered(info: DropInfo) {
-        onTargetChange(true)
-        onInsertionIndexChange(computeIndex(info))
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        onInsertionIndexChange(computeIndex(info))
-        return DropProposal(operation: .move)
-    }
-
-    func dropExited(info: DropInfo) {
-        onTargetChange(false)
-        onInsertionIndexChange(nil)
-    }
-
-    func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [UTType.text])
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        onTargetChange(false)
-        onInsertionIndexChange(nil)
-        let providers = info.itemProviders(for: [UTType.text])
-        return performDropFromProvidersAsync(providers: providers, location: info.location)
-    }
-
-    private func computeIndex(_ info: DropInfo) -> Int? {
-        let current = getCurrent()
-        let frames = itemFramesProvider()
-        let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-            if let rect = frames[item.id] { return (item.id, rect) }
-            return nil
-        })
-        return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
-    }
-
-    private func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
-        guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
-        provider.loadObject(ofClass: NSString.self) { reading, _ in
-            guard let ns = reading as? NSString else { return }
-            let payload = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
-            if let id = UUID(uuidString: payload) {
+    
+    // MARK: - Drop Delegate for Inbox
+    private struct InboxDropDelegate: DropDelegate {
+        let modelContext: ModelContext
+        let studentLessons: [StudentLesson]
+        @Binding var isTargeted: Bool
+        
+        func dropEntered(info: DropInfo) {
+            withAnimation { isTargeted = true }
+        }
+        
+        func dropExited(info: DropInfo) {
+            withAnimation { isTargeted = false }
+        }
+        
+        func validateDrop(info: DropInfo) -> Bool {
+            info.hasItemsConforming(to: [.text])
+        }
+        
+        func performDrop(info: DropInfo) -> Bool {
+            withAnimation { isTargeted = false }
+            let providers = info.itemProviders(for: [.text])
+            guard let provider = providers.first else { return false }
+            
+            provider.loadObject(ofClass: NSString.self) { reading, _ in
+                guard let str = reading as? String, let id = UUID(uuidString: str) else { return }
+                
                 Task { @MainActor in
-                    applyDrop(of: id, locationY: location.y)
+                    if let sl = studentLessons.first(where: { $0.id == id }) {
+                        // Only process if it actually has a schedule to clear
+                        if sl.scheduledFor != nil {
+                            sl.scheduledFor = nil
+                            try? modelContext.save()
+                        }
+                    }
                 }
             }
+            return true
         }
-        return true
     }
 
-    @MainActor
-    private func applyDrop(of id: UUID, locationY: CGFloat) {
-        let current = getCurrent()
-        var ids = current.map { $0.id }
-        if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
-        let frames = itemFramesProvider()
-        let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-            if let rect = frames[item.id] { return (item.id, rect) }
-            return nil
-        })
-        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: locationY, frames: dict)
-        let bounded = max(0, min(insertionIndex, ids.count))
-        ids.insert(id, at: bounded)
-        let baseDate = baseDateForDay(day: day, calendar: calendar)
-        let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
-        for id in ids {
-            if let item = allStudentLessons.first(where: { $0.id == id }) {
-                item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+    // MARK: - Drop Delegate for day column
+    private struct DayColumnDropDelegate: DropDelegate {
+        let calendar: Calendar
+        let modelContext: ModelContext
+        let allStudentLessons: [StudentLesson]
+        let day: Date
+        let getCurrent: () -> [StudentLesson]
+        let itemFramesProvider: () -> [UUID: CGRect]
+        let onTargetChange: (Bool) -> Void
+        let onInsertionIndexChange: (Int?) -> Void
+
+        func dropEntered(info: DropInfo) {
+            onTargetChange(true)
+            onInsertionIndexChange(computeIndex(info))
+        }
+
+        func dropUpdated(info: DropInfo) -> DropProposal? {
+            onInsertionIndexChange(computeIndex(info))
+            return DropProposal(operation: .move)
+        }
+
+        func dropExited(info: DropInfo) {
+            onTargetChange(false)
+            onInsertionIndexChange(nil)
+        }
+
+        func validateDrop(info: DropInfo) -> Bool {
+            info.hasItemsConforming(to: [UTType.text])
+        }
+
+        func performDrop(info: DropInfo) -> Bool {
+            onTargetChange(false)
+            onInsertionIndexChange(nil)
+            let providers = info.itemProviders(for: [UTType.text])
+            return performDropFromProvidersAsync(providers: providers, location: info.location)
+        }
+
+        private func computeIndex(_ info: DropInfo) -> Int? {
+            let current = getCurrent()
+            let frames = itemFramesProvider()
+            let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+                if let rect = frames[item.id] { return (item.id, rect) }
+                return nil
+            })
+            return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
+        }
+
+        private func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
+            guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
+            provider.loadObject(ofClass: NSString.self) { reading, _ in
+                guard let ns = reading as? NSString else { return }
+                let payload = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
+                if let id = UUID(uuidString: payload) {
+                    Task { @MainActor in
+                        applyDrop(of: id, locationY: location.y)
+                    }
+                }
             }
+            return true
         }
-        try? modelContext.save()
-    }
 
-    private func baseDateForDay(day: Date, calendar: Calendar) -> Date {
-        let startOfDay = calendar.startOfDay(for: day)
-        return calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+        @MainActor
+        private func applyDrop(of id: UUID, locationY: CGFloat) {
+            let current = getCurrent()
+            var ids = current.map { $0.id }
+            if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
+            let frames = itemFramesProvider()
+            let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+                if let rect = frames[item.id] { return (item.id, rect) }
+                return nil
+            })
+            let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: locationY, frames: dict)
+            let bounded = max(0, min(insertionIndex, ids.count))
+            ids.insert(id, at: bounded)
+            let baseDate = baseDateForDay(day: day, calendar: calendar)
+            let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+            for id in ids {
+                if let item = allStudentLessons.first(where: { $0.id == id }) {
+                    item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+                }
+            }
+            try? modelContext.save()
+        }
+
+        private func baseDateForDay(day: Date, calendar: Calendar) -> Date {
+            let startOfDay = calendar.startOfDay(for: day)
+            return calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+        }
     }
 }
