@@ -489,6 +489,10 @@ private struct InlineLessonPickerSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     #endif
+        .onAppear {
+            // Fix: ensure state matches passed-in search, in case View identity was recycled
+            search = initialSearch
+        }
     }
 
     private var filteredLessons: [Lesson] {

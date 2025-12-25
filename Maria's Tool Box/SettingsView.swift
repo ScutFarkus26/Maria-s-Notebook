@@ -419,6 +419,8 @@ struct SettingsView: View {
                     lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
                     resultSummary = "Exported backup to \(dest.lastPathComponent)."
                     try? FileManager.default.removeItem(at: tmp)
+                    // REFRESH the UI state just in case it was stale
+                    loadDefaultFolderName()
                     return
                 } catch {
                     // Fall back to interactive save below
@@ -453,6 +455,8 @@ struct SettingsView: View {
                     try FileManager.default.copyItem(at: tmp, to: finalURL)
                     lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
                     resultSummary = "Exported backup to \(finalURL.lastPathComponent)."
+                    // Refresh just in case
+                    loadDefaultFolderName()
                 } catch {
                     importError = "Failed to write backup: \(error.localizedDescription)"
                 }

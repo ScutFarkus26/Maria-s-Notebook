@@ -5,95 +5,156 @@ struct BookClubsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    // MARK: - Data
     @Query(sort: [SortDescriptor(\BookClub.createdAt, order: .reverse)]) private var clubs: [BookClub]
-    @Query(sort: [SortDescriptor<BookClubTemplateWeek>(\.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
-    @Query(sort: [SortDescriptor<BookClubChoiceItem>(\.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
-    @Query(sort: [SortDescriptor<BookClubChoiceSet>(\.createdAt, order: .forward)]) private var allChoiceSets: [BookClubChoiceSet]
-    @Query(sort: [SortDescriptor<BookClubWeekRoleAssignment>(\.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
-    @Query(sort: [SortDescriptor<BookClubRole>(\.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
-    @Query(sort: [SortDescriptor<BookClubSession>(\.createdAt, order: .forward)]) private var allSessions: [BookClubSession]
-    @Query(sort: [SortDescriptor<BookClubAssignmentTemplate>(\.createdAt, order: .forward)]) private var allTemplates: [BookClubAssignmentTemplate]
+    
+    // Queries needed for cascading deletes
+    @Query private var allWeeks: [BookClubTemplateWeek]
+    @Query private var allChoiceItems: [BookClubChoiceItem]
+    @Query private var allChoiceSets: [BookClubChoiceSet]
+    @Query private var allRoleAssignments: [BookClubWeekRoleAssignment]
+    @Query private var allRoles: [BookClubRole]
+    @Query private var allSessions: [BookClubSession]
+    @Query private var allTemplates: [BookClubAssignmentTemplate]
 
+    // MARK: - State
+    @SceneStorage("BookClubs.selectedClubID") private var selectedClubIDString: String = ""
     @State private var showNewSheet: Bool = false
+    @State private var searchText: String = ""
+    
+    // Deletion State
+    @State private var clubToDelete: BookClub?
+    @State private var showDeleteAlert: Bool = false
 
-    private static let df: DateFormatter = {
+    private var selectedClubID: UUID? {
+        get { UUID(uuidString: selectedClubIDString) }
+        nonmutating set { selectedClubIDString = newValue?.uuidString ?? "" }
+    }
+
+    private var selectedClub: BookClub? {
+        clubs.first { $0.id == selectedClubID }
+    }
+
+    private var filteredClubs: [BookClub] {
+        if searchText.isEmpty { return clubs }
+        return clubs.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    static let df: DateFormatter = {
         let df = DateFormatter()
         df.dateStyle = .medium
+        df.timeStyle = .none
         return df
     }()
 
+    // MARK: - Body
     var body: some View {
-        Group {
-            if clubs.isEmpty {
-                ContentUnavailableView("No Projects", systemImage: "book", description: Text("Create your first project to get started."))
-            } else {
-                List {
-                    ForEach(clubs) { club in
-                        NavigationLink {
-                            BookClubDetailView(club: club)
+        HStack(spacing: 0) {
+            // MARK: Sidebar
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Projects")
+                            .font(.system(.title3, design: .rounded, weight: .bold))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Button {
+                            showNewSheet = true
                         } label: {
-                            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(club.title)
-                                        .font(.headline)
-                                    HStack(spacing: 8) {
-                                        let members = club.memberStudentIDs.count
-                                        Text("\(members) member\(members == 1 ? "" : "s")")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        if let last = lastSessionDate(for: club) {
-                                            Text("•")
-                                                .foregroundStyle(.secondary)
-                                            Text("Last: \(Self.df.string(from: last))")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                }
-                                Spacer()
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    // Search
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search", text: $searchText)
+                            .textFieldStyle(.plain)
+                    }
+                    .padding(8)
+                    .background(Color.primary.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .padding(16)
+
+                // List with Swipe Actions
+                List {
+                    ForEach(filteredClubs) { club in
+                        ProjectSidebarRow(
+                            club: club,
+                            isSelected: club.id == selectedClubID,
+                            lastSessionDate: lastSessionDate(for: club)
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedClubIDString = club.id.uuidString
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                clubToDelete = club
+                                showDeleteAlert = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
                             }
                         }
-                        .contextMenu {
-                            Button("Delete", role: .destructive) { deleteClub(club) }
-                        }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                        .listRowBackground(Color.clear)
                     }
-                    .onDelete(perform: deleteAtOffsets)
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(Color.gray.opacity(0.05))
+            }
+            .frame(width: 260)
+            .background(Color.gray.opacity(0.05))
+            
+            Divider()
+            
+            // MARK: Detail Area
+            ZStack {
+                if let club = selectedClub {
+                    BookClubDetailView(club: club)
+                        .id(club.id) // Force recreation when selection changes
+                } else {
+                    ContentUnavailableView(
+                        "No Selection",
+                        systemImage: "book",
+                        description: Text("Select a project from the sidebar to view details.")
+                    )
                 }
             }
-        }
-        .navigationTitle("Projects")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showNewSheet = true
-                } label: {
-                    Label("New Project", systemImage: "plus")
-                }
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .sheet(isPresented: $showNewSheet) {
             BookClubEditorSheet(club: nil)
         }
-        .navigationDestination(for: UUID.self) { id in
-            if let club = clubs.first(where: { $0.id == id }) {
-                BookClubDetailView(club: club)
-            } else {
-                ContentUnavailableView("Project not found", systemImage: "exclamationmark.triangle")
+        .alert("Delete Project?", isPresented: $showDeleteAlert, presenting: clubToDelete) { club in
+            Button("Delete", role: .destructive) {
+                deleteClub(club)
+            }
+            Button("Cancel", role: .cancel) {
+                clubToDelete = nil
+            }
+        } message: { club in
+            Text("Are you sure you want to delete \"\(club.title)\"? This will permanently remove all sessions, deliverables, and assignments associated with this project.")
+        }
+        .onAppear {
+            if selectedClubIDString.isEmpty, let first = clubs.first {
+                selectedClubIDString = first.id.uuidString
             }
         }
     }
+
+    // MARK: - Helpers
 
     private func lastSessionDate(for club: BookClub) -> Date? {
         club.sessions.map { $0.meetingDate }.max()
-    }
-
-    private func deleteAtOffsets(_ offsets: IndexSet) {
-        for i in offsets {
-            if clubs.indices.contains(i) {
-                let club = clubs[i]
-                deleteClub(club)
-            }
-        }
     }
 
     private func deleteClub(_ club: BookClub) {
@@ -139,20 +200,52 @@ struct BookClubsRootView: View {
 
         // Finally, delete the club itself
         modelContext.delete(club)
+        
+        // Clear selection if needed
+        if selectedClubID == club.id {
+            selectedClubIDString = ""
+        }
+        
         _ = saveCoordinator.save(modelContext, reason: "Delete Book Club")
     }
 }
 
-#Preview {
-    let schema = AppSchema.schema
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: config)
-    let ctx = container.mainContext
+// MARK: - Sidebar Row
 
-    let club = BookClub(title: "Readers A")
-    ctx.insert(club)
+struct ProjectSidebarRow: View {
+    let club: BookClub
+    let isSelected: Bool
+    let lastSessionDate: Date?
 
-    return BookClubsRootView()
-        .previewEnvironment(using: container)
-        .environmentObject(SaveCoordinator.preview)
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "book.closed.fill")
+                .font(.title3)
+                .foregroundStyle(isSelected ? .white : AppColors.color(forSubject: "Reading"))
+                .frame(width: 32)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(club.title)
+                    .font(.system(.body, design: .rounded, weight: .semibold))
+                    .foregroundStyle(isSelected ? .white : .primary)
+                    .lineLimit(1)
+                
+                let memberCount = club.memberStudentIDs.count
+                let dateStr = lastSessionDate.map { BookClubsRootView.df.string(from: $0) }
+                
+                Text("\(memberCount) member\(memberCount == 1 ? "" : "s")\(dateStr != nil ? " • " + dateStr! : "")")
+                    .font(.caption)
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isSelected ? Color.accentColor : Color.clear)
+        )
+        // Note: contentShape is applied in the List to ensure the swipe area works correctly
+    }
 }
