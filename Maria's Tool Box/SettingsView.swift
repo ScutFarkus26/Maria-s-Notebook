@@ -45,19 +45,10 @@ struct SettingsView: View {
     
     @State private var operationSummary: BackupOperationSummary? = nil
     
-//    @AppStorage("showWorkAgendaBeta") private var showWorkAgendaBeta: Bool = false
-//    @AppStorage("hideWorksAgendaTab") private var hideWorksAgendaTab: Bool = false
-//    @AppStorage("hideLessonsBoardTab") private var hideLessonsBoardTab: Bool = false  // REMOVED as per instructions
-
-    // Removed engagement lifecycle state properties
-    // @AppStorage("useEngagementLifecycle") private var useEngagementLifecycle: Bool = false
-    // @State private var lifecycleBackfillSummary: String? = nil
-    // @State private var showLifecycleNotesBackfillConfirm: Bool = false
-    // @State private var isRunningLifecycleBackfill: Bool = false
-
     // New state properties for Advanced / Debug section
     @State private var showDannyResetConfirm = false
     @State private var dannyResetSummary: String? = nil
+    @State private var seedSummary: String? = nil
 
     @State private var showingFolderImporter = false
     @State private var defaultFolderName: String = ""
@@ -262,7 +253,7 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                     }
                     
-                    // MARK: - Advanced / Debug Section (added)
+                    // MARK: - Advanced / Debug Section
                     SettingsCategoryHeader(title: "Advanced / Debug")
                     
                     SettingsGroup(title: "Danger Zone", systemImage: "exclamationmark.triangle.fill") {
@@ -273,6 +264,56 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.bordered)
                         .tint(.red)
+                    }
+                    
+                    // Smart Planning (Backfill / Catch Up)
+                    SettingsGroup(title: "Smart Planning", systemImage: "lightbulb.max") {
+                        HStack(alignment: .top, spacing: 16) {
+                            // 1. Scan & Queue (Updated)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button {
+                                    Task { @MainActor in
+                                        do {
+                                            // Runs the updated GROUPED scan
+                                            let result = try scanAndBackfillBlockedLessonsGrouped(modelContext: modelContext)
+                                            seedSummary = result
+                                        } catch {
+                                            seedSummary = "Error: \(error.localizedDescription)"
+                                        }
+                                    }
+                                } label: {
+                                    Label("Scan & Queue 'On Deck' Lessons", systemImage: "wand.and.stars")
+                                }
+                                .buttonStyle(.bordered)
+                                
+                                Text("Scans incomplete work and queues the *next* lesson. Automatically groups students needing the same lesson.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Divider()
+                            
+                            // 2. Consolidate (New)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button {
+                                    Task { @MainActor in
+                                        do {
+                                            let result = try consolidateOnDeckLessons(modelContext: modelContext)
+                                            seedSummary = result
+                                        } catch {
+                                            seedSummary = "Error: \(error.localizedDescription)"
+                                        }
+                                    }
+                                } label: {
+                                    Label("Consolidate 'On Deck' Items", systemImage: "square.on.square.dashed")
+                                }
+                                .buttonStyle(.bordered)
+                                
+                                Text("Merges separate cards for the same lesson into one group card in the Inbox.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                     
                     SettingsGroup(title: "Test Students", systemImage: "person.crop.circle.badge.questionmark") {
@@ -381,6 +422,12 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(dannyResetSummary ?? "")
+        }
+        // Alert for seed/scan summary
+        .alert("Operation Complete", isPresented: Binding(get: { seedSummary != nil }, set: { if !$0 { seedSummary = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(seedSummary ?? "")
         }
         // Sheet presenting the operation summary from import/export
         .sheet(item: $operationSummary) { summary in
@@ -1032,7 +1079,157 @@ struct WorkAgeSettingsView: View {
     }
 }
 
+// MARK: - Debug Helpers
+
+// NEW: Updated "Scan and Backfill" logic that groups students together
+@MainActor
+func scanAndBackfillBlockedLessonsGrouped(modelContext: ModelContext) throws -> String {
+    // 1. Fetch all Incomplete Contracts (Active or Review)
+    let incompleteContracts = try modelContext.fetch(FetchDescriptor<WorkContract>(predicate: #Predicate {
+        $0.statusRaw == "active" || $0.statusRaw == "review"
+    }))
+    
+    if incompleteContracts.isEmpty { return "No active work found." }
+
+    // 2. Fetch Metadata (Lessons and existing Plans)
+    let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+    let lessonsByID = Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) })
+    
+    // Group lessons by Subject|Group and sort by order
+    let lessonsByGroup: [String: [Lesson]] = Dictionary(grouping: allLessons) { l in
+        "\(l.subject.trimmingCharacters(in: .whitespacesAndNewlines))|\(l.group.trimmingCharacters(in: .whitespacesAndNewlines))".lowercased()
+    }
+    let sortedLessonsByGroup = lessonsByGroup.mapValues { $0.sorted { $0.orderInGroup < $1.orderInGroup } }
+
+    // Track what is already planned to avoid duplicates
+    // Set of "StudentUUID|LessonUUID"
+    let allSLs = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+    var existingPlans = Set<String>()
+    for sl in allSLs {
+        for sid in sl.studentIDs {
+            existingPlans.insert("\(sid)|\(sl.lessonID)")
+        }
+    }
+    
+    // Cache students for object linking
+    let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
+    let studentsByID = Dictionary(uniqueKeysWithValues: allStudents.map { ($0.id.uuidString, $0) })
+
+    // 3. Accumulate students who need the NEXT lesson
+    // Map: [NextLessonID : Set<StudentIDString>]
+    var pendingNextLessons: [UUID : Set<String>] = [:]
+    
+    for contract in incompleteContracts {
+        // Find the lesson associated with this work
+        guard let currentLessonID = UUID(uuidString: contract.lessonID),
+              let currentLesson = lessonsByID[currentLessonID] else { continue }
+        
+        // Find the sequence for this lesson
+        let groupKey = "\(currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines))|\(currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines))".lowercased()
+        guard let sequence = sortedLessonsByGroup[groupKey] else { continue }
+        
+        // Find the index and check if there is a next lesson
+        guard let idx = sequence.firstIndex(where: { $0.id == currentLessonID }),
+              idx + 1 < sequence.count else { continue }
+        
+        let nextLesson = sequence[idx + 1]
+        let studentIDStr = contract.studentID
+        
+        // Check if this next lesson is already planned for this specific student
+        let planKey = "\(studentIDStr)|\(nextLesson.id)"
+        if !existingPlans.contains(planKey) {
+            // Queue this student for this lesson
+            if pendingNextLessons[nextLesson.id] == nil {
+                pendingNextLessons[nextLesson.id] = []
+            }
+            pendingNextLessons[nextLesson.id]?.insert(studentIDStr)
+        }
+    }
+    
+    // 4. Create Grouped StudentLessons
+    var addedGroups = 0
+    var addedStudents = 0
+    
+    for (lessonID, studentIDStrings) in pendingNextLessons {
+        guard let lesson = lessonsByID[lessonID] else { continue }
+        
+        let validStudents = studentIDStrings.compactMap { studentsByID[$0] }
+        if validStudents.isEmpty { continue }
+        
+        let newSL = StudentLesson(
+            id: UUID(),
+            lessonID: lessonID,
+            studentIDs: validStudents.map { $0.id },
+            createdAt: Date(),
+            scheduledFor: nil, // Inbox
+            givenAt: nil,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        // Set relationships
+        newSL.lesson = lesson
+        newSL.students = validStudents
+        
+        modelContext.insert(newSL)
+        addedGroups += 1
+        addedStudents += validStudents.count
+    }
+    
+    try modelContext.save()
+    
+    if addedGroups == 0 {
+        return "All caught up! No new lessons needed."
+    } else {
+        return "Added \(addedGroups) On Deck items for \(addedStudents) students."
+    }
+}
+
+// NEW: Consolidate Existing Splits
+@MainActor
+func consolidateOnDeckLessons(modelContext: ModelContext) throws -> String {
+    // 1. Fetch all On Deck items
+    let descriptor = FetchDescriptor<StudentLesson>(
+        predicate: #Predicate { $0.scheduledFor == nil && $0.givenAt == nil }
+    )
+    let allInbox = try modelContext.fetch(descriptor)
+    
+    // 2. Group by Lesson
+    let grouped = Dictionary(grouping: allInbox) { $0.lessonID }
+    
+    var consolidatedCount = 0
+    var deletedCount = 0
+    
+    for (_, items) in grouped {
+        if items.count > 1 {
+            // We found duplicates!
+            // 1. Keep the oldest one (or just the first one)
+            let sorted = items.sorted { $0.createdAt < $1.createdAt }
+            guard let target = sorted.first else { continue }
+            let others = sorted.dropFirst()
+            
+            // 2. Merge Students
+            var allStudents = Set(target.students)
+            for other in others {
+                for s in other.students {
+                    allStudents.insert(s)
+                }
+                // 3. Delete the duplicate
+                modelContext.delete(other)
+                deletedCount += 1
+            }
+            
+            target.students = Array(allStudents)
+            target.studentIDs = target.students.map { $0.id } // Sync IDs
+            consolidatedCount += 1
+        }
+    }
+    
+    try modelContext.save()
+    return "Consolidated \(consolidatedCount) groups. Removed \(deletedCount) duplicate items."
+}
+
 #Preview {
     SettingsView()
 }
-

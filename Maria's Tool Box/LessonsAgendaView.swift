@@ -9,7 +9,6 @@ struct LessonsAgendaView: View {
     @Query private var studentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
-    //
     @Query private var contracts: [WorkContract]
 
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
@@ -67,16 +66,21 @@ struct LessonsAgendaView: View {
 
     /// Returns true if this lesson is "blocked" by incomplete work from the PREVIOUS lesson in the sequence
     private func isBlocked(_ sl: StudentLesson) -> Bool {
-        // 1. Resolve current lesson details
-        guard let currentLesson = sl.lesson else { return false }
+        // 1. Resolve current lesson details (Robust fallback if relationship is nil)
+        guard let currentLesson = sl.lesson ?? lessons.first(where: { $0.id == sl.lessonID }) else {
+            return false
+        }
         
-        // 2. Find the previous lesson in this group/sequence
-        let subject = currentLesson.subject
-        let group = currentLesson.group
+        // Helper for fuzzy matching
+        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        
+        // 2. Find the previous lesson in this group/sequence using fuzzy matching
+        let subjectKey = norm(currentLesson.subject)
+        let groupKey = norm(currentLesson.group)
         
         // Find all lessons in this group
         let groupLessons = lessons.filter {
-            $0.subject == subject && $0.group == group
+            norm($0.subject) == subjectKey && norm($0.group) == groupKey
         }.sorted { $0.orderInGroup < $1.orderInGroup }
         
         guard let currentIndex = groupLessons.firstIndex(where: { $0.id == currentLesson.id }),
