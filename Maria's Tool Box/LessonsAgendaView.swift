@@ -64,11 +64,11 @@ struct LessonsAgendaView: View {
 
     // MARK: - Blocking Logic
 
-    /// Returns true if this lesson is "blocked" by incomplete work from the PREVIOUS lesson in the sequence
-    private func isBlocked(_ sl: StudentLesson) -> Bool {
+    /// Returns a map of StudentID -> Blocking WorkContract for the previous lesson
+    private func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkContract] {
         // 1. Resolve current lesson details (Robust fallback if relationship is nil)
         guard let currentLesson = sl.lesson ?? lessons.first(where: { $0.id == sl.lessonID }) else {
-            return false
+            return [:]
         }
         
         // Helper for fuzzy matching
@@ -86,30 +86,35 @@ struct LessonsAgendaView: View {
         guard let currentIndex = groupLessons.firstIndex(where: { $0.id == currentLesson.id }),
               currentIndex > 0 else {
             // No previous lesson, so it can't be blocked
-            return false
+            return [:]
         }
         
         let previousLesson = groupLessons[currentIndex - 1]
         
         // 3. Check if ANY student in this StudentLesson has incomplete work (Active/Review contract) for the previous lesson
+        var blocking: [UUID: WorkContract] = [:]
+        
         for studentID in sl.studentIDs {
             let sidString = studentID.uuidString
             let pidString = previousLesson.id.uuidString
             
             // Check for contracts that are NOT complete
             // We look for .active or .review status
-            let hasIncompleteWork = contracts.contains { c in
+            if let contract = contracts.first(where: { c in
                 c.studentID == sidString &&
                 c.lessonID == pidString &&
                 (c.status == .active || c.status == .review)
-            }
-            
-            if hasIncompleteWork {
-                return true
+            }) {
+                blocking[studentID] = contract
             }
         }
         
-        return false
+        return blocking
+    }
+
+    /// Returns true if this lesson is "blocked" by incomplete work from the PREVIOUS lesson in the sequence
+    private func isBlocked(_ sl: StudentLesson) -> Bool {
+        !getBlockingContracts(sl).isEmpty
     }
 
     private var allUnscheduled: [StudentLesson] {
@@ -297,15 +302,7 @@ struct LessonsAgendaView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
                                     ForEach(blockedLessons, id: \.id) { sl in
-                                        inboxRow(sl)
-                                            .opacity(0.6)
-                                            .saturation(0.5)
-                                            .overlay(alignment: .topTrailing) {
-                                                Image(systemName: "lock.fill")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.secondary)
-                                                    .padding(6)
-                                            }
+                                        inboxRow(sl, blockingContracts: getBlockingContracts(sl))
                                     }
                                 }
                                 .padding(.horizontal, 12)
@@ -371,13 +368,14 @@ struct LessonsAgendaView: View {
     }
 
     @ViewBuilder
-    private func inboxRow(_ sl: StudentLesson) -> some View {
+    private func inboxRow(_ sl: StudentLesson, blockingContracts: [UUID: WorkContract] = [:]) -> some View {
         HStack(spacing: 0) {
             StudentLessonPill(
                 snapshot: filteredSnapshot(sl),
                 day: Date(),
                 targetStudentLessonID: sl.id,
-                enableMissHighlight: true
+                enableMissHighlight: true,
+                blockingContracts: blockingContracts
             )
             .onTapGesture { selectedStudentLessonForDetail = sl }
             .onDrag {

@@ -24,9 +24,11 @@ struct StudentLessonPill: View {
     var targetStudentLessonID: UUID? = nil
     var showTimeBadge: Bool = true
     var enableMissHighlight: Bool = false
+    var blockingContracts: [UUID: WorkContract] = [:]
 
     @State private var showTimeEditor: Bool = false
     @State private var isValidDragTarget: Bool = false
+    @State private var selectedContractForDetail: WorkContract? = nil
 
     private static let timeOnlyFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -120,14 +122,29 @@ struct StudentLessonPill: View {
         return !enableMissHighlight || missWindowRaw == "all" || recentWindowDays == 0
     }
 
-    private struct StudentChip { let id: UUID; let label: String; let isMissing: Bool; let status: AttendanceStatus?; let hasHad: Bool }
+    private struct StudentChip {
+        let id: UUID
+        let label: String
+        let isMissing: Bool
+        let status: AttendanceStatus?
+        let hasHad: Bool
+        let blockingContract: WorkContract?
+    }
+    
     private var studentChips: [StudentChip] {
         var chips: [StudentChip] = []
         for id in snapshot.studentIDs {
             if let s = students.first(where: { $0.id == id }) {
-                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false, status: statusesByStudent[id], hasHad: recentlyPresentedStudentIDs.contains(id)))
+                chips.append(StudentChip(
+                    id: id,
+                    label: displayName(for: s),
+                    isMissing: false,
+                    status: statusesByStudent[id],
+                    hasHad: recentlyPresentedStudentIDs.contains(id),
+                    blockingContract: blockingContracts[id]
+                ))
             } else {
-                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil, hasHad: true))
+                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil, hasHad: true, blockingContract: nil))
             }
         }
         return chips
@@ -164,23 +181,51 @@ struct StudentLessonPill: View {
         let hasHad: Bool
         let suppressIndicator: Bool
         let highlight: Bool
+        let blockingContract: WorkContract?
+        
+        var onTap: (() -> Void)? = nil
 
         var body: some View {
-            Text(label)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                .foregroundStyle(isMissing ? .secondary : (isAbsent ? .secondary : .primary))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(isAbsent ? 0.06 : 0.15))
+            // If tappable (has blocking contract), wrap in button to capture touch
+            if let _ = blockingContract {
+                Button {
+                    onTap?()
+                } label: {
+                    content
+                }
+                .buttonStyle(.plain)
+            } else {
+                content
+            }
+        }
+        
+        @ViewBuilder
+        private var content: some View {
+            HStack(spacing: 4) {
+                if blockingContract != nil {
+                    // Minimalist "waiting" indicator
+                    Image(systemName: "hourglass")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.orange)
+                }
+                Text(label)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            }
+            // Standard text color for readability
+            .foregroundStyle(isMissing || isAbsent ? .secondary : .primary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(isMissing ? Color.primary.opacity(0.06) : subjectColor.opacity(isAbsent ? 0.06 : 0.15))
+            )
+            .overlay(
+                Capsule().stroke(
+                    // Only use red stroke for absence, orange for "missed lesson", clear for blocking (keeps it regular)
+                    isAbsent ? Color.red : (highlight ? Color.orange : Color.clear),
+                    lineWidth: 1
                 )
-                .overlay(
-                    Capsule().stroke(
-                        isAbsent ? Color.red : (highlight ? Color.orange : Color.clear),
-                        lineWidth: 1
-                    )
-                )
+            )
         }
     }
 
@@ -220,7 +265,13 @@ struct StudentLessonPill: View {
                                         subjectColor: subjectColor,
                                         hasHad: chip.hasHad,
                                         suppressIndicator: isAllSelected,
-                                        highlight: highlight
+                                        highlight: highlight,
+                                        blockingContract: chip.blockingContract,
+                                        onTap: {
+                                            if let c = chip.blockingContract {
+                                                selectedContractForDetail = c
+                                            }
+                                        }
                                     )
                                 }
                             }
@@ -275,6 +326,17 @@ struct StudentLessonPill: View {
                 canAccept: { isValidDragTarget },
                 onDidMutate: { reason in _ = saveCoordinator.save(modelContext, reason: reason) }
             ))
+        }
+        .sheet(item: $selectedContractForDetail) { contract in
+            WorkContractDetailSheet(contract: contract) {
+                selectedContractForDetail = nil
+            }
+            #if os(macOS)
+            .frame(minWidth: 400, minHeight: 500)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.medium, .large])
+            #endif
         }
     }
 
