@@ -541,6 +541,6 @@ private struct CompletionRow: View {
 #Preview {
     let schema = AppSchema.schema
     let container = try! ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    return TodayView(context: container.mainContext)
+    // Removed "return" here
+    TodayView(context: container.mainContext)
 }
-

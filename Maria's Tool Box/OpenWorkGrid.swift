@@ -182,16 +182,30 @@ struct OpenWorkGrid: View {
 }
 
 #Preview {
-    let schema = AppSchema.schema
-    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: configuration)
-    let ctx = container.mainContext
-    let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
-    let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
-    ctx.insert(s); ctx.insert(l)
-    let c1 = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .active)
-    let c2 = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .review)
-    return Group {
+    // Encapsulate data setup in a closure to avoid Void return statements in ViewBuilder
+    let previewData: (ModelContainer, Student, Lesson, WorkContract, WorkContract) = {
+        let schema = AppSchema.schema
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: schema, configurations: configuration)
+        let ctx = container.mainContext
+        let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
+        let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
+        ctx.insert(s)
+        ctx.insert(l)
+        let c1 = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .active)
+        let c2 = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .review)
+        ctx.insert(c1)
+        ctx.insert(c2)
+        return (container, s, l, c1, c2)
+    }()
+    
+    let container = previewData.0
+    let s = previewData.1
+    let l = previewData.2
+    let c1 = previewData.3
+    let c2 = previewData.4
+    
+    Group {
         OpenWorkGrid(
             works: [c1, c2],
             lessonsByID: [l.id: l],
@@ -202,6 +216,7 @@ struct OpenWorkGrid: View {
             onScheduleToday: { _ in }
         )
         .previewEnvironment(using: container)
+        
         WorkCardView(
             contract: WorkContract(studentID: UUID().uuidString, lessonID: UUID().uuidString, presentationID: nil, status: .active),
             lessonTitle: "Long Division",

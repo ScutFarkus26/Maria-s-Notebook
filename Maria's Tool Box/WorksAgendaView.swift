@@ -184,19 +184,23 @@ struct WorksAgendaView: View {
 }
 
 #Preview {
-    let schema = AppSchema.schema
-    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: configuration)
-    let ctx = container.mainContext
-    // Seed minimal data
-    let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
-    let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
-    ctx.insert(s); ctx.insert(l)
-    let c = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .active)
-    ctx.insert(c)
+    // Encapsulate data setup in a closure to avoid Void return statements in ViewBuilder
+    let container: ModelContainer = {
+        let schema = AppSchema.schema
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: schema, configurations: configuration)
+        let ctx = container.mainContext
+        
+        let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
+        let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
+        ctx.insert(s)
+        ctx.insert(l)
+        let c = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .active)
+        ctx.insert(c)
+        return container
+    }()
 
-    return WorksAgendaView()
+    WorksAgendaView()
         .previewEnvironment(using: container)
         .environmentObject(SaveCoordinator.preview)
 }
-

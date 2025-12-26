@@ -9,8 +9,6 @@ struct BookClubWeeksEditorView: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @Query(sort: [SortDescriptor<BookClubTemplateWeek>(\.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
-    @Query(sort: [SortDescriptor(\BookClubChoiceItem.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
-    @Query(sort: [SortDescriptor(\BookClubChoiceSet.createdAt, order: .forward)]) private var allChoiceSets: [BookClubChoiceSet]
     @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
 
     @State private var editingWeek: BookClubTemplateWeek? = nil
@@ -80,11 +78,6 @@ struct BookClubWeeksEditorView: View {
     }
 
     private func delete(_ week: BookClubTemplateWeek) {
-        if let setID = week.questionChoiceSetID {
-            let items = allChoiceItems.filter { $0.setID == setID }
-            for item in items { modelContext.delete(item) }
-            if let set = allChoiceSets.first(where: { $0.id == setID }) { modelContext.delete(set) }
-        }
         let assigns = allRoleAssignments.filter { $0.weekID == week.id }
         for a in assigns { modelContext.delete(a) }
         modelContext.delete(week)
@@ -104,22 +97,15 @@ struct BookClubWeekEditorView: View, Identifiable {
 
     @Query(sort: [SortDescriptor(\Student.firstName, order: .forward), SortDescriptor(\Student.lastName, order: .forward)]) private var students: [Student]
     @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
-    @Query(sort: [SortDescriptor(\BookClubChoiceItem.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
     @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
-    @Query(sort: [SortDescriptor(\BookClubChoiceSet.createdAt, order: .forward)]) private var allChoiceSets: [BookClubChoiceSet]
     @Query(sort: [SortDescriptor(\Lesson.name, order: .forward)]) private var allLessons: [Lesson]
 
     @State private var readingRange: String
     @State private var agenda: [String]
-    @State private var vocab: [String]
-    @State private var vocabCount: Int
-    @State private var linkedLessonID: String?
+    @State private var workInstructions: String
+    @State private var linkedLessonIDs: [String] = []
 
-    @State private var choiceItems: [BookClubChoiceItem] = []
-    @State private var pickingLessonForItem: BookClubChoiceItem? = nil
     @State private var pickingLessonForWeek: Bool = false
-    
-    // NEW: State to track which lesson we are viewing details for
     @State private var viewingLesson: Lesson? = nil
 
     init(club: BookClub, week: BookClubTemplateWeek, onDone: @escaping () -> Void) {
@@ -128,9 +114,8 @@ struct BookClubWeekEditorView: View, Identifiable {
         self.onDone = onDone
         _readingRange = State(initialValue: week.readingRange)
         _agenda = State(initialValue: week.agendaItems)
-        _vocab = State(initialValue: week.vocabSuggestionWords)
-        _vocabCount = State(initialValue: week.vocabRequirementCount)
-        _linkedLessonID = State(initialValue: week.linkedLessonID)
+        _workInstructions = State(initialValue: week.workInstructions)
+        _linkedLessonIDs = State(initialValue: week.linkedLessonIDs)
     }
 
     private var roles: [BookClubRole] {
@@ -144,12 +129,8 @@ struct BookClubWeekEditorView: View, Identifiable {
 
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) }) }
 
-    private func loadChoiceItems() {
-        if let setID = week.questionChoiceSetID {
-            choiceItems = allChoiceItems.filter { $0.setID == setID }
-        } else {
-            choiceItems = []
-        }
+    private var linkedLessons: [Lesson] {
+        linkedLessonIDs.compactMap { UUID(uuidString: $0) }.compactMap { lessonsByID[$0] }
     }
 
     var body: some View {
@@ -166,59 +147,73 @@ struct BookClubWeekEditorView: View, Identifiable {
             // Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    sectionCard("Reading & Lesson", systemImage: "book") {
+                    
+                    // 1. Reading
+                    sectionCard("Reading", systemImage: "book") {
                         TextField("Reading range (e.g., Chapters 8–14)", text: $readingRange)
                             .textFieldStyle(.roundedBorder)
-                        
-                        Divider().padding(.vertical, 4)
-                        
-                        HStack {
-                            if let lid = linkedLessonID, let uuid = UUID(uuidString: lid), let l = lessonsByID[uuid] {
-                                // CLICKABLE LESSON LINK (WEEK)
-                                Button {
-                                    viewingLesson = l
-                                } label: {
-                                    VStack(alignment: .leading) {
-                                        Text("Linked Lesson").font(.caption).foregroundStyle(.secondary)
-                                        HStack(spacing: 4) {
-                                            Text(l.name)
-                                                .font(.headline)
-                                                .foregroundStyle(.blue)
-                                            Image(systemName: "info.circle")
-                                                .font(.caption)
-                                                .foregroundStyle(.blue)
+                    }
+
+                    // 2. Presentations
+                    sectionCard("Presentations", systemImage: "easel") {
+                        if linkedLessonIDs.isEmpty {
+                            Text("No presentations linked.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(linkedLessons) { lesson in
+                                    HStack {
+                                        Button {
+                                            viewingLesson = lesson
+                                        } label: {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "info.circle").font(.caption)
+                                                Text(lesson.name).fontWeight(.medium)
+                                            }
                                         }
+                                        .buttonStyle(.plain)
+                                        .foregroundStyle(.blue)
+
+                                        Spacer()
+                                        
+                                        Button {
+                                            if let idx = linkedLessonIDs.firstIndex(of: lesson.id.uuidString) {
+                                                linkedLessonIDs.remove(at: idx)
+                                            }
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundStyle(.secondary.opacity(0.8))
+                                        }
+                                        .buttonStyle(.borderless)
                                     }
+                                    .padding(8)
+                                    .background(Color.primary.opacity(0.04))
+                                    .cornerRadius(8)
                                 }
-                                .buttonStyle(.plain)
-                            } else {
-                                Text("No lesson linked for this week")
-                                    .foregroundStyle(.secondary)
                             }
-                            Spacer()
-                            if linkedLessonID != nil {
-                                Button("Clear") { linkedLessonID = nil }
-                                    .buttonStyle(.borderless)
-                            }
-                            Button("Choose Lesson") { pickingLessonForWeek = true }
-                                .buttonStyle(.bordered)
                         }
-                    }
-
-                    sectionCard("Agenda", systemImage: "list.bullet") {
-                        editableStringList($agenda, placeholder: "Agenda item")
-                    }
-
-                    sectionCard("Vocabulary", systemImage: "text.book.closed") {
-                        editableStringList($vocab, placeholder: "Word")
-                        Stepper("Vocabulary requirement count: \(vocabCount)", value: $vocabCount, in: 0...20)
+                        
+                        Button("Add Presentation") { pickingLessonForWeek = true }
+                            .buttonStyle(.bordered)
                             .padding(.top, 4)
                     }
 
-                    sectionCard("Weekly Questions (Pick 2 of 3)", systemImage: "questionmark.bubble") {
-                        questionsEditor
+                    // 3. Work Packet
+                    sectionCard("Work Packet Instructions", systemImage: "doc.text") {
+                        Text("Enter instructions for the weekly student packet (e.g. 'Complete role sheet and find 5 vocab words').")
+                            .font(.caption).foregroundStyle(.secondary)
+                        
+                        TextEditor(text: $workInstructions)
+                            .frame(minHeight: 80)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.2)))
                     }
 
+                    // 4. Agenda
+                    sectionCard("Meeting Agenda", systemImage: "list.bullet") {
+                        editableStringList($agenda, placeholder: "Agenda item")
+                    }
+
+                    // 5. Roles
                     sectionCard("Weekly Role Schedule", systemImage: "person.2") {
                         if clubMembers.isEmpty {
                             Text("No members in this club.")
@@ -267,25 +262,18 @@ struct BookClubWeekEditorView: View, Identifiable {
             .padding(16)
         }
     #if os(macOS)
-        .frame(minWidth: 720)
-        .presentationSizing(.fitted)
+        .frame(minWidth: 500, minHeight: 600)
     #else
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     #endif
-        .onAppear { loadChoiceItems() }
-        .sheet(item: $pickingLessonForItem) { choiceItem in
-            InlineLessonPickerSheet(lessons: allLessons) { chosenID in
-                if let chosenID { choiceItem.linkedLessonID = chosenID.uuidString } else { choiceItem.linkedLessonID = nil }
-                _ = saveCoordinator.save(modelContext, reason: "Link weekly question to lesson")
-            }
-        }
         .sheet(isPresented: $pickingLessonForWeek) {
             InlineLessonPickerSheet(lessons: allLessons) { chosenID in
-                linkedLessonID = chosenID?.uuidString
+                if let uuid = chosenID {
+                    linkedLessonIDs.append(uuid.uuidString)
+                }
             }
         }
-        // NEW: Present Lesson Detail View
         .sheet(item: $viewingLesson) { lesson in
             LessonDetailView(lesson: lesson, onSave: { _ in
                 _ = saveCoordinator.save(modelContext, reason: "Update lesson details from book club editor")
@@ -312,86 +300,6 @@ struct BookClubWeekEditorView: View, Identifiable {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
         )
-    }
-
-    // MARK: - Subviews
-    private var questionsEditor: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Required selections: 2")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button { addChoiceItem() } label: { Label("Add", systemImage: "plus") }
-                    .disabled(choiceItems.count >= 3)
-            }
-            ForEach(choiceItems, id: \.id) { item in
-                VStack(alignment: .leading, spacing: 8) {
-                    TextField("Title", text: Binding(get: { item.title }, set: { item.title = $0 }))
-                        .textFieldStyle(.roundedBorder)
-                    TextEditor(text: Binding(get: { item.instructions }, set: { item.instructions = $0 }))
-                        .frame(minHeight: 96)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.secondary.opacity(0.25))
-                        )
-                    
-                    HStack(spacing: 8) {
-                        if let lid = item.linkedLessonID, let uuid = UUID(uuidString: lid), let lesson = lessonsByID[uuid] {
-                            // CLICKABLE LESSON LINK (QUESTION)
-                            Button {
-                                viewingLesson = lesson
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Text("Linked: \(lesson.name)")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundStyle(.blue)
-                                    Image(systemName: "info.circle")
-                                        .font(.caption)
-                                        .foregroundStyle(.blue)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        } else {
-                            Text("No lesson linked")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Button {
-                            pickingLessonForItem = item
-                        } label: {
-                            Label(item.linkedLessonID == nil ? "Choose Lesson" : "Change", systemImage: "book")
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        if item.linkedLessonID != nil {
-                            Button {
-                                item.linkedLessonID = nil
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Remove linked lesson")
-                        }
-                    }
-
-                    Divider()
-                    HStack { Spacer(); Button("Delete Question", role: .destructive) { deleteChoiceItem(item) } }
-                }
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.03)))
-            }
-            if choiceItems.count != 3 {
-                Text("Guidance: Aim for exactly 3 prompts.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 
     private func editableStringList(_ binding: Binding<[String]>, placeholder: String) -> some View {
@@ -428,39 +336,11 @@ struct BookClubWeekEditorView: View, Identifiable {
         }
     }
 
-    // MARK: - Choice set helpers
-    private func ensureChoiceSet() -> BookClubChoiceSet {
-        if let id = week.questionChoiceSetID, let set = allChoiceSets.first(where: { $0.id == id }) {
-            return set
-        }
-        let set = BookClubChoiceSet(bookClubID: club.id, requiredSelectionCount: 2)
-        week.questionChoiceSetID = set.id
-        modelContext.insert(set)
-        return set
-    }
-
-    private func addChoiceItem() {
-        let set = ensureChoiceSet()
-        guard choiceItems.count < 3 else { return }
-        let item = BookClubChoiceItem(setID: set.id)
-        modelContext.insert(item)
-        choiceItems.append(item)
-    }
-
-    private func deleteChoiceItem(_ item: BookClubChoiceItem) {
-        if let idx = choiceItems.firstIndex(where: { $0.id == item.id }) { choiceItems.remove(at: idx) }
-        modelContext.delete(item)
-    }
-
     private func save() {
         week.readingRange = readingRange
         week.agendaItems = agenda
-        week.vocabSuggestionWords = vocab
-        week.vocabRequirementCount = vocabCount
-        week.linkedLessonID = linkedLessonID
-        if let setID = week.questionChoiceSetID, let set = allChoiceSets.first(where: { $0.id == setID }) {
-            set.requiredSelectionCount = 2
-        }
+        week.workInstructions = workInstructions
+        week.linkedLessonIDs = linkedLessonIDs
         _ = saveCoordinator.save(modelContext, reason: "Save book club template week")
         onDone(); dismiss()
     }
@@ -470,17 +350,12 @@ private struct InlineLessonPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var search: String = ""
     
-    // Accept lessons array directly
     let lessons: [Lesson]
-    
-    var initialSearch: String = ""
     var onChosen: (UUID?) -> Void
 
-    init(lessons: [Lesson], initialSearch: String = "", onChosen: @escaping (UUID?) -> Void) {
+    init(lessons: [Lesson], onChosen: @escaping (UUID?) -> Void) {
         self.lessons = lessons
-        self.initialSearch = initialSearch
         self.onChosen = onChosen
-        _search = State(initialValue: initialSearch)
     }
 
     var body: some View {
@@ -531,9 +406,6 @@ private struct InlineLessonPickerSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     #endif
-        .onAppear {
-            search = initialSearch
-        }
     }
 
     private var filteredLessons: [Lesson] {

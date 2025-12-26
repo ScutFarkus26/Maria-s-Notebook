@@ -18,15 +18,6 @@ struct LocalJSONStringList {
     }
 }
 
-// MARK: - Deliverable Status
-
-enum BookClubDeliverableStatus: String, Codable, CaseIterable {
-    case assigned
-    case inProgress
-    case readyForReview
-    case completed
-}
-
 // MARK: - Models
 
 @Model
@@ -115,8 +106,7 @@ final class BookClubSession: Identifiable {
     // Optional link back to a template week
     var templateWeekID: UUID?
 
-    // Relationships
-    var deliverables: [BookClubDeliverable]
+    // NOTE: WorkContracts are now queried dynamically via sourceContextID matching this session ID.
 
     init(
         id: UUID = UUID(),
@@ -125,7 +115,6 @@ final class BookClubSession: Identifiable {
         meetingDate: Date = Date(),
         chapterOrPages: String? = nil,
         notes: String? = nil,
-        deliverables: [BookClubDeliverable] = [],
         agendaItemsJSON: String = "",
         templateWeekID: UUID? = nil
     ) {
@@ -135,7 +124,6 @@ final class BookClubSession: Identifiable {
         self.meetingDate = meetingDate
         self.chapterOrPages = chapterOrPages
         self.notes = notes
-        self.deliverables = deliverables
         self.agendaItemsJSON = agendaItemsJSON
         self.templateWeekID = templateWeekID
     }
@@ -145,76 +133,3 @@ final class BookClubSession: Identifiable {
         set { agendaItemsJSON = LocalJSONStringList.encode(newValue) }
     }
 }
-
-@Model
-final class BookClubDeliverable: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
-
-    // Foreign key to BookClubSession
-    var sessionID: UUID
-
-    // Student ID as String (UUID string)
-    var studentID: String
-
-    // Optional reference to a template
-    var templateID: UUID?
-
-    var title: String
-    var instructions: String
-    var dueDate: Date?
-
-    // Status stored as raw string
-    var statusRaw: String
-
-    // Optional link to a Lesson by UUID string
-    var linkedLessonID: String?
-
-    // If a WorkContract was generated from this deliverable, store its ID
-    var generatedWorkID: UUID?
-
-    // Context linkage (optional)
-    var sourceContextID: UUID?
-    var templateWeekID: UUID?
-
-    // For Weekly Questions: link to a choice set
-    var choiceSetID: UUID?
-
-    init(
-        id: UUID = UUID(),
-        createdAt: Date = Date(),
-        sessionID: UUID,
-        studentID: String,
-        templateID: UUID? = nil,
-        title: String,
-        instructions: String = "",
-        dueDate: Date? = nil,
-        status: BookClubDeliverableStatus = .assigned,
-        linkedLessonID: String? = nil,
-        generatedWorkID: UUID? = nil,
-        sourceContextID: UUID? = nil,
-        templateWeekID: UUID? = nil,
-        choiceSetID: UUID? = nil
-    ) {
-        self.id = id
-        self.createdAt = createdAt
-        self.sessionID = sessionID
-        self.studentID = studentID
-        self.templateID = templateID
-        self.title = title
-        self.instructions = instructions
-        self.dueDate = dueDate
-        self.statusRaw = status.rawValue
-        self.linkedLessonID = linkedLessonID
-        self.generatedWorkID = generatedWorkID
-        self.sourceContextID = sourceContextID
-        self.templateWeekID = templateWeekID
-        self.choiceSetID = choiceSetID
-    }
-
-    var status: BookClubDeliverableStatus {
-        get { BookClubDeliverableStatus(rawValue: statusRaw) ?? .assigned }
-        set { statusRaw = newValue.rawValue }
-    }
-}
-

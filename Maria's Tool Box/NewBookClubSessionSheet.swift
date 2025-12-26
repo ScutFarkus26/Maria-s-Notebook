@@ -15,7 +15,6 @@ struct NewBookClubSessionSheet: View {
     @State private var selectedTemplateWeekID: UUID? = nil
 
     @Query(sort: [SortDescriptor(\BookClubTemplateWeek.weekIndex, order: .forward)]) private var allTemplateWeeks: [BookClubTemplateWeek]
-    @Query(sort: [SortDescriptor(\BookClubChoiceItem.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
     @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
     @Query private var allStudentLessons: [StudentLesson]
 
@@ -78,61 +77,11 @@ struct NewBookClubSessionSheet: View {
     }
 
     private var isValid: Bool {
-        !club.memberStudentIDs.isEmpty && club.sharedTemplates.filter { $0.isShared }.count >= 2
+        !club.memberStudentIDs.isEmpty
     }
-
-    private func questionsSummary(for week: BookClubTemplateWeek) -> String {
-        guard let setID = week.questionChoiceSetID else { return "" }
-        let items = allChoiceItems.filter { $0.setID == setID }
-        let titles = items.map { $0.title.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        return titles.isEmpty ? "" : titles.joined(separator: "; ")
-    }
-
-    private func linkedLessonIDForWeeklyQuestions(of week: BookClubTemplateWeek) -> String? {
-        guard let setID = week.questionChoiceSetID else { return nil }
-        // Collect linked lesson IDs from the choice items in this set
-        let linkedIDs: [String] = allChoiceItems
-            .filter { $0.setID == setID }
-            .compactMap { $0.linkedLessonID?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        // If there is exactly one unique linked lesson, use it; otherwise leave nil (ambiguous or none)
-        let unique = Array(Set(linkedIDs))
-        return unique.count == 1 ? unique.first : nil
-    }
-
+    
     private func fetchRole(_ id: UUID) -> BookClubRole? {
         return allRoles.first { $0.id == id }
-    }
-
-    private func mapStatus(_ s: BookClubDeliverableStatus) -> WorkStatus {
-        switch s {
-        case .assigned, .inProgress:
-            return .active
-        case .readyForReview:
-            return .review
-        case .completed:
-            return .complete
-        }
-    }
-
-    private func lessonIDForDeliverableTitle(_ title: String, instructions: String) -> UUID {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lessonName = trimmed.isEmpty ? "Book Club Work" : "Book Club: \(trimmed)"
-        // Try to find an existing lesson with this name in the Book Clubs subject/group
-        let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.name == lessonName && $0.subject == "Book Clubs" && $0.group == "Book Club" })
-        if let existing = try? modelContext.fetch(fetch), let first = existing.first {
-            return first.id
-        }
-        // Create a new generic lesson
-        let lesson = Lesson(
-            name: lessonName,
-            subject: "Book Clubs",
-            group: "Book Club",
-            subheading: "",
-            writeUp: instructions
-        )
-        modelContext.insert(lesson)
-        return lesson.id
     }
 
     private func create() {
@@ -141,165 +90,149 @@ struct NewBookClubSessionSheet: View {
             meetingDate: AppCalendar.startOfDay(meetingDate),
             chapterOrPages: chapterOrPages.isEmpty ? nil : chapterOrPages
         )
-
+        
+        // Populate generic session info
         if useTemplateWeek,
            let selectedID = selectedTemplateWeekID,
            let week = templateWeeks.first(where: { $0.id == selectedID }) {
-            // Use template week data
             session.chapterOrPages = week.readingRange
             session.agendaItems = week.agendaItems
             session.templateWeekID = week.id
-
-            // If the week has a linked lesson, schedule it for all members
-            if let lessonIDStr = week.linkedLessonID, let lessonID = UUID(uuidString: lessonIDStr) {
-                for sidStr in club.memberStudentIDs {
-                    guard let studentID = UUID(uuidString: sidStr) else { continue }
-                    // Check if already assigned
-                    let existing = allStudentLessons.first { sl in
-                        sl.studentIDs.contains(studentID) && sl.lessonID == lessonID
-                    }
-                    if let existing {
-                        // Reschedule if not given
-                        if !existing.isGiven {
-                            existing.scheduledFor = AppCalendar.startOfDay(meetingDate)
-                            existing.scheduledForDay = AppCalendar.startOfDay(meetingDate)
-                        }
-                    } else {
-                        // Create new
-                        let newSL = StudentLesson(
-                            lessonID: lessonID,
-                            studentIDs: [studentID],
-                            scheduledFor: AppCalendar.startOfDay(meetingDate)
-                        )
-                        modelContext.insert(newSL)
-                    }
-                }
-            }
-
-            for sid in club.memberStudentIDs {
-                // Weekly Questions deliverable
-                let questionsInstructions = questionsSummary(for: week)
-                let weeklyQuestions = BookClubDeliverable(
-                    sessionID: session.id,
-                    studentID: sid,
-                    templateID: nil,
-                    title: "Weekly Questions",
-                    instructions: questionsInstructions,
-                    status: .assigned,
-                    linkedLessonID: linkedLessonIDForWeeklyQuestions(of: week),
-                    sourceContextID: session.id,
-                    templateWeekID: week.id,
-                    choiceSetID: week.questionChoiceSetID
-                )
-                session.deliverables.append(weeklyQuestions)
-
-                // Vocabulary deliverable
-                let vocabInstr = "Choose \(week.vocabRequirementCount) words from: \(week.vocabSuggestionWords.joined(separator: ", "))"
-                let vocabulary = BookClubDeliverable(
-                    sessionID: session.id,
-                    studentID: sid,
-                    templateID: nil,
-                    title: "Vocabulary (\(week.vocabRequirementCount))",
-                    instructions: vocabInstr,
-                    status: .assigned,
-                    sourceContextID: session.id,
-                    templateWeekID: week.id
-                )
-                session.deliverables.append(vocabulary)
-
-                // Weekly Job deliverable
-                if let roleAssignment = week.roleAssignments.first(where: { $0.studentID == sid }),
-                   let role = fetchRole(roleAssignment.roleID) {
-                    let weeklyJob = BookClubDeliverable(
-                        sessionID: session.id,
-                        studentID: sid,
-                        templateID: nil,
-                        title: role.title,
-                        instructions: role.instructions,
-                        status: .assigned,
-                        sourceContextID: session.id,
-                        templateWeekID: week.id
-                    )
-                    session.deliverables.append(weeklyJob)
-                }
-            }
-        } else {
-            // Existing creation logic
-            let shared = club.sharedTemplates.filter { $0.isShared }
-            for sid in club.memberStudentIDs {
-                for tpl in shared { // shared templates
-                    let d = BookClubDeliverable(
-                        sessionID: session.id,
-                        studentID: sid,
-                        templateID: tpl.id,
-                        title: tpl.title.isEmpty ? "Shared Assignment" : tpl.title,
-                        instructions: tpl.instructions,
-                        status: .assigned,
-                        linkedLessonID: tpl.defaultLinkedLessonID
-                    )
-                    session.deliverables.append(d)
-                }
-                // Individual assignment
-                let individual = BookClubDeliverable(
-                    sessionID: session.id,
-                    studentID: sid,
-                    templateID: nil,
-                    title: "Individual Assignment",
-                    instructions: "",
-                    status: .assigned
-                )
-                session.deliverables.append(individual)
-            }
         }
 
-        // Auto-generate WorkContracts for all deliverables and schedule them for the session date
-        let scheduledDay = AppCalendar.startOfDay(meetingDate)
-        for d in session.deliverables {
-            // Resolve or create a lesson ID for this deliverable
-            var lessonUUID: UUID?
-            if let lid = d.linkedLessonID, let uuid = UUID(uuidString: lid) {
-                lessonUUID = uuid
-            } else {
-                let newID = lessonIDForDeliverableTitle(d.title, instructions: d.instructions)
-                lessonUUID = newID
-                d.linkedLessonID = newID.uuidString
-            }
-            guard let lessonUUID else { continue }
-
-            // Map deliverable status to WorkStatus
-            let initialStatus = mapStatus(d.status)
-
-            // Create the WorkContract
-            let contract = WorkContract(
-                studentID: d.studentID,
-                lessonID: lessonUUID.uuidString,
-                presentationID: nil,
-                status: initialStatus,
-                scheduledDate: scheduledDay,
-                completedAt: nil,
-                legacyStudentLessonID: nil
-            )
-            // Tag as Book Club source and set kind to follow-up
-            contract.sourceContextType = .bookClubSession
-            contract.sourceContextID = session.id.uuidString
-            contract.kind = .followUpAssignment
-
-            modelContext.insert(contract)
-            d.generatedWorkID = contract.id
-
-            // Create a WorkPlanItem scheduled for the session date (mark as Due)
-            let planItem = WorkPlanItem(workID: contract.id, scheduledDate: scheduledDay, reason: .dueDate, note: nil)
-            modelContext.insert(planItem)
-        }
-
-        // Attach to club
-        let updatedClub = club
-        updatedClub.sessions.append(session)
-
+        // Attach to club immediately so ID is valid
+        club.sessions.append(session)
         modelContext.insert(session)
-        for d in session.deliverables { modelContext.insert(d) }
 
-        _ = saveCoordinator.save(modelContext, reason: "Create Book Club Session")
+        let scheduledDay = AppCalendar.startOfDay(meetingDate)
+        
+        // 1. Handle Presentations (Group Inbox) if using template
+        if useTemplateWeek,
+           let selectedID = selectedTemplateWeekID,
+           let week = templateWeeks.first(where: { $0.id == selectedID }) {
+            
+            for lessonIDStr in week.linkedLessonIDs {
+                guard let lessonID = UUID(uuidString: lessonIDStr) else { continue }
+                let memberUUIDs = club.memberStudentIDs.compactMap { UUID(uuidString: $0) }.sorted()
+                
+                let existing = allStudentLessons.first { sl in
+                    sl.lessonID == lessonID && sl.studentIDs.sorted() == memberUUIDs
+                }
+                
+                if let existing {
+                    if !existing.isGiven {
+                        existing.scheduledFor = scheduledDay
+                        existing.scheduledForDay = scheduledDay
+                    }
+                } else {
+                    let newSL = StudentLesson(
+                        lessonID: lessonID,
+                        studentIDs: memberUUIDs,
+                        scheduledFor: scheduledDay,
+                        isPresented: false
+                    )
+                    modelContext.insert(newSL)
+                }
+            }
+        }
+
+        // 2. Create Direct Work Contracts
+        // We resolve a generic "Book Club" lesson to attach these contracts to.
+        let lessonUUID = resolveGenericBookClubLessonID(context: modelContext)
+
+        // Prepare data for the contracts loop
+        let sharedTemplates = club.sharedTemplates.filter { $0.isShared }
+        let templateWeek: BookClubTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil) ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! }) : nil
+
+        for sid in club.memberStudentIDs {
+            // A. Determine Content based on Template or Generic
+            if let week = templateWeek {
+                // -- Template Mode --
+                var roleName = "Member"
+                if let assignment = week.roleAssignments.first(where: { $0.studentID == sid }),
+                   let role = fetchRole(assignment.roleID) {
+                    roleName = role.title
+                }
+                
+                let title = "\(club.title): Week \(week.weekIndex) (\(roleName))"
+                let range = week.readingRange.isEmpty ? "" : "Read: \(week.readingRange)"
+                let extras = week.workInstructions.isEmpty ? "" : week.workInstructions
+                // We'll put instructions in the completion note or just implied by the session
+                // For now, we mainly need the WorkContract to exist.
+                
+                createContract(
+                    studentID: sid,
+                    lessonID: lessonUUID,
+                    sessionID: session.id,
+                    scheduledDate: scheduledDay,
+                    title: title,
+                    instructions: [range, extras].filter { !$0.isEmpty }.joined(separator: "\n\n")
+                )
+                
+            } else {
+                // -- Generic Mode --
+                // 1. Create contracts for shared assignments
+                for tpl in sharedTemplates {
+                    createContract(
+                        studentID: sid,
+                        lessonID: lessonUUID, // Or tpl.defaultLinkedLessonID if you prefer specific lessons
+                        sessionID: session.id,
+                        scheduledDate: scheduledDay,
+                        title: tpl.title.isEmpty ? "Shared Assignment" : tpl.title,
+                        instructions: tpl.instructions
+                    )
+                }
+                
+                // 2. Create generic individual contract
+                createContract(
+                    studentID: sid,
+                    lessonID: lessonUUID,
+                    sessionID: session.id,
+                    scheduledDate: scheduledDay,
+                    title: "\(club.title): Individual Work",
+                    instructions: "See session notes."
+                )
+            }
+        }
+
+        _ = saveCoordinator.save(modelContext, reason: "Create Book Club Session (Direct Work)")
         dismiss()
+    }
+    
+    private func createContract(studentID: String, lessonID: UUID, sessionID: UUID, scheduledDate: Date, title: String, instructions: String) {
+        let contract = WorkContract(
+            studentID: studentID,
+            lessonID: lessonID.uuidString,
+            presentationID: nil,
+            status: .active,
+            scheduledDate: scheduledDate,
+            completedAt: nil
+        )
+        contract.sourceContextType = .bookClubSession
+        contract.sourceContextID = sessionID.uuidString
+        contract.kind = .followUpAssignment
+        
+        // Store the "Title" (Role info) in scheduledNote so it appears in lists
+        contract.scheduledNote = title
+        
+        // Note: 'instructions' could be added to a note if WorkContract supported a description field,
+        // or we can insert a ScopedNote if really needed. For now, we rely on the session context.
+        
+        modelContext.insert(contract)
+        
+        // Create a WorkPlanItem (Due Date)
+        let planItem = WorkPlanItem(workID: contract.id, scheduledDate: scheduledDate, reason: .dueDate, note: nil)
+        modelContext.insert(planItem)
+    }
+
+    private func resolveGenericBookClubLessonID(context: ModelContext) -> UUID {
+        let name = "Book Club Work"
+        let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.name == name })
+        if let existing = try? context.fetch(fetch), let first = existing.first {
+            return first.id
+        }
+        let l = Lesson(name: name, subject: "Book Clubs", group: "Book Club")
+        context.insert(l)
+        return l.id
     }
 }

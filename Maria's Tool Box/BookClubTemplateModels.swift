@@ -47,63 +47,6 @@ final class BookClubRole: Identifiable {
     }
 }
 
-// MARK: - Choice Set (for weekly questions)
-@Model
-final class BookClubChoiceSet: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
-
-    var bookClubID: UUID
-    var title: String
-    var requiredSelectionCount: Int
-
-    var items: [BookClubChoiceItem]
-
-    init(
-        id: UUID = UUID(),
-        createdAt: Date = Date(),
-        bookClubID: UUID,
-        title: String = "Weekly Questions",
-        requiredSelectionCount: Int = 2,
-        items: [BookClubChoiceItem] = []
-    ) {
-        self.id = id
-        self.createdAt = createdAt
-        self.bookClubID = bookClubID
-        self.title = title
-        self.requiredSelectionCount = requiredSelectionCount
-        self.items = items
-    }
-}
-
-@Model
-final class BookClubChoiceItem: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
-
-    var setID: UUID
-
-    var title: String
-    var instructions: String
-    var linkedLessonID: String?
-
-    init(
-        id: UUID = UUID(),
-        createdAt: Date = Date(),
-        setID: UUID,
-        title: String = "",
-        instructions: String = "",
-        linkedLessonID: String? = nil
-    ) {
-        self.id = id
-        self.createdAt = createdAt
-        self.setID = setID
-        self.title = title
-        self.instructions = instructions
-        self.linkedLessonID = linkedLessonID
-    }
-}
-
 // MARK: - Week Template
 @Model
 final class BookClubTemplateWeek: Identifiable {
@@ -116,20 +59,22 @@ final class BookClubTemplateWeek: Identifiable {
     var readingRange: String
 
     // Stored as JSON strings for portability
-    var agendaItemsJSON: String
-    var vocabSuggestionWordsJSON: String
+    // CRITICAL FIX: Default values added here ("") to prevent migration crashes
+    var agendaItemsJSON: String = ""
+    var linkedLessonIDsJSON: String = ""
 
-    // Optional link to a ChoiceSet
-    var questionChoiceSetID: UUID?
-
-    // Optional requirement count for vocab deliverable (default 5)
-    var vocabRequirementCount: Int
-
-    // Optional lesson to give during this week (e.g. "Venn Diagrams")
-    var linkedLessonID: String?
+    // Simplified Instructions (replaces vocab/questions)
+    // CRITICAL FIX: Default value added here ("")
+    var workInstructions: String = ""
 
     // Relationship to assignments
     var roleAssignments: [BookClubWeekRoleAssignment]
+    
+    // Deprecated fields (Optional to keep for migration safety)
+    var questionChoiceSetID: UUID?
+    var vocabSuggestionWordsJSON: String
+    var vocabRequirementCount: Int
+    var linkedLessonID: String? // Old single lesson link
 
     init(
         id: UUID = UUID(),
@@ -138,10 +83,8 @@ final class BookClubTemplateWeek: Identifiable {
         weekIndex: Int,
         readingRange: String = "",
         agendaItemsJSON: String = "",
-        vocabSuggestionWordsJSON: String = "",
-        questionChoiceSetID: UUID? = nil,
-        vocabRequirementCount: Int = 5,
-        linkedLessonID: String? = nil,
+        linkedLessonIDsJSON: String = "",
+        workInstructions: String = "",
         roleAssignments: [BookClubWeekRoleAssignment] = []
     ) {
         self.id = id
@@ -150,21 +93,25 @@ final class BookClubTemplateWeek: Identifiable {
         self.weekIndex = weekIndex
         self.readingRange = readingRange
         self.agendaItemsJSON = agendaItemsJSON
-        self.vocabSuggestionWordsJSON = vocabSuggestionWordsJSON
-        self.questionChoiceSetID = questionChoiceSetID
-        self.vocabRequirementCount = vocabRequirementCount
-        self.linkedLessonID = linkedLessonID
+        self.linkedLessonIDsJSON = linkedLessonIDsJSON
+        self.workInstructions = workInstructions
         self.roleAssignments = roleAssignments
+        
+        // Defaults for deprecated fields
+        self.questionChoiceSetID = nil
+        self.vocabSuggestionWordsJSON = ""
+        self.vocabRequirementCount = 0
+        self.linkedLessonID = nil
     }
 
     var agendaItems: [String] {
         get { JSONStringList.decode(agendaItemsJSON) }
         set { agendaItemsJSON = JSONStringList.encode(newValue) }
     }
-
-    var vocabSuggestionWords: [String] {
-        get { JSONStringList.decode(vocabSuggestionWordsJSON) }
-        set { vocabSuggestionWordsJSON = JSONStringList.encode(newValue) }
+    
+    var linkedLessonIDs: [String] {
+        get { JSONStringList.decode(linkedLessonIDsJSON) }
+        set { linkedLessonIDsJSON = JSONStringList.encode(newValue) }
     }
 }
 
@@ -190,5 +137,44 @@ final class BookClubWeekRoleAssignment: Identifiable {
         self.weekID = weekID
         self.studentID = studentID
         self.roleID = roleID
+    }
+}
+
+// MARK: - Legacy Choice Models (Kept to prevent database errors, but unused in new flow)
+@Model
+final class BookClubChoiceSet: Identifiable {
+    @Attribute(.unique) var id: UUID
+    var createdAt: Date
+    var bookClubID: UUID
+    var title: String
+    var requiredSelectionCount: Int
+    var items: [BookClubChoiceItem]
+
+    init(id: UUID = UUID(), createdAt: Date = Date(), bookClubID: UUID, title: String = "", requiredSelectionCount: Int = 0, items: [BookClubChoiceItem] = []) {
+        self.id = id
+        self.createdAt = createdAt
+        self.bookClubID = bookClubID
+        self.title = title
+        self.requiredSelectionCount = requiredSelectionCount
+        self.items = items
+    }
+}
+
+@Model
+final class BookClubChoiceItem: Identifiable {
+    @Attribute(.unique) var id: UUID
+    var createdAt: Date
+    var setID: UUID
+    var title: String
+    var instructions: String
+    var linkedLessonID: String?
+
+    init(id: UUID = UUID(), createdAt: Date = Date(), setID: UUID, title: String = "", instructions: String = "", linkedLessonID: String? = nil) {
+        self.id = id
+        self.createdAt = createdAt
+        self.setID = setID
+        self.title = title
+        self.instructions = instructions
+        self.linkedLessonID = linkedLessonID
     }
 }

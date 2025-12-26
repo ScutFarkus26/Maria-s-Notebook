@@ -10,12 +10,17 @@ struct BookClubsRootView: View {
     
     // Queries needed for cascading deletes
     @Query private var allWeeks: [BookClubTemplateWeek]
-    @Query private var allChoiceItems: [BookClubChoiceItem]
-    @Query private var allChoiceSets: [BookClubChoiceSet]
     @Query private var allRoleAssignments: [BookClubWeekRoleAssignment]
     @Query private var allRoles: [BookClubRole]
     @Query private var allSessions: [BookClubSession]
     @Query private var allTemplates: [BookClubAssignmentTemplate]
+    
+    // NEW: Query work contracts to delete orphaned items
+    @Query private var allWorkContracts: [WorkContract]
+    
+    // Legacy queries (optional, kept for safety)
+    @Query private var allChoiceItems: [BookClubChoiceItem]
+    @Query private var allChoiceSets: [BookClubChoiceSet]
 
     // MARK: - State
     @SceneStorage("BookClubs.selectedClubID") private var selectedClubIDString: String = ""
@@ -158,11 +163,16 @@ struct BookClubsRootView: View {
     }
 
     private func deleteClub(_ club: BookClub) {
-        // Delete sessions and their deliverables
+        // Delete sessions and their related work contracts
         let sessions = allSessions.filter { $0.bookClubID == club.id }
+        
         for s in sessions {
-            for d in s.deliverables {
-                modelContext.delete(d)
+            // Find contracts linked to this session
+            let sid = s.id.uuidString
+            let contracts = allWorkContracts.filter { $0.sourceContextType == .bookClubSession && $0.sourceContextID == sid }
+            
+            for c in contracts {
+                modelContext.delete(c)
             }
             modelContext.delete(s)
         }
@@ -181,16 +191,11 @@ struct BookClubsRootView: View {
             // Role assignments for the week
             let assigns = allRoleAssignments.filter { $0.weekID == w.id }
             for a in assigns { modelContext.delete(a) }
-            // Choice set and items referenced by the week
-            if let setID = w.questionChoiceSetID {
-                let items = allChoiceItems.filter { $0.setID == setID }
-                for item in items { modelContext.delete(item) }
-                if let set = allChoiceSets.first(where: { $0.id == setID }) { modelContext.delete(set) }
-            }
+            
             modelContext.delete(w)
         }
 
-        // Delete any standalone choice sets/items that belong to this club (safety cleanup)
+        // Legacy cleanup: Delete any choice sets that happened to belong to this club ID
         let sets = allChoiceSets.filter { $0.bookClubID == club.id }
         for set in sets {
             let items = allChoiceItems.filter { $0.setID == set.id }
@@ -246,6 +251,5 @@ struct ProjectSidebarRow: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(isSelected ? Color.accentColor : Color.clear)
         )
-        // Note: contentShape is applied in the List to ensure the swipe area works correctly
     }
 }

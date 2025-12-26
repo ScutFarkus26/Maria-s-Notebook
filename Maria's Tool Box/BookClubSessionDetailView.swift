@@ -9,12 +9,22 @@ struct BookClubSessionDetailView: View {
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
     @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
+    
+    // NEW: Query all work contracts to filter locally
+    @Query private var allWorkContracts: [WorkContract]
 
-    @State private var showLessonPickerForDeliverable: BookClubDeliverable? = nil
-    @State private var lessonPickerVM = LessonPickerViewModel()
-
+    @State private var showLessonPickerForContract: WorkContract? = nil
+    
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
+
+    // Filter contracts relevant to this session
+    private var sessionContracts: [WorkContract] {
+        let sid = session.id.uuidString
+        return allWorkContracts.filter {
+            $0.sourceContextType == .bookClubSession && $0.sourceContextID == sid
+        }
+    }
 
     private func studentName(for sid: String) -> String {
         if let uuid = UUID(uuidString: sid), let s = studentsByID[uuid] {
@@ -23,15 +33,28 @@ struct BookClubSessionDetailView: View {
         return "Student"
     }
 
-    private var groupedByStudent: [(id: String, items: [BookClubDeliverable])] {
-        let items = session.deliverables
-        var buckets: [String: [BookClubDeliverable]] = [:]
+    private var groupedByStudent: [(id: String, items: [WorkContract])] {
+        let items = sessionContracts
+        var buckets: [String: [WorkContract]] = [:]
         var order: [String] = []
-        for d in items {
-            if buckets[d.studentID] == nil { order.append(d.studentID); buckets[d.studentID] = [] }
-            buckets[d.studentID]?.append(d)
+        
+        // Use the session's contract list to determine order if possible,
+        // otherwise sort by student ID
+        for c in items {
+            let sid = c.studentID
+            if buckets[sid] == nil {
+                order.append(sid)
+                buckets[sid] = []
+            }
+            buckets[sid]?.append(c)
         }
-        return order.map { (id: $0, items: buckets[$0] ?? []) }
+        
+        // Sort bucket order by student name
+        let sortedOrder = order.sorted { id1, id2 in
+            studentName(for: id1) < studentName(for: id2)
+        }
+        
+        return sortedOrder.map { (id: $0, items: buckets[$0] ?? []) }
     }
 
     var body: some View {
@@ -87,61 +110,70 @@ struct BookClubSessionDetailView: View {
             }
 
             List {
-                ForEach(groupedByStudent, id: \.id) { bucket in
-                    Section(header: Text(studentName(for: bucket.id)).font(.headline)) {
-                        ForEach(bucket.items, id: \.id) { d in
-                            deliverableRow(d)
+                if groupedByStudent.isEmpty {
+                    ContentUnavailableView("No Work Contracts", systemImage: "doc.text", description: Text("No work contracts are linked to this session."))
+                } else {
+                    ForEach(groupedByStudent, id: \.id) { bucket in
+                        Section(header: Text(studentName(for: bucket.id)).font(.headline)) {
+                            ForEach(bucket.items, id: \.id) { contract in
+                                contractRow(contract)
+                            }
                         }
                     }
                 }
             }
         }
         .navigationTitle(Self.df.string(from: session.meetingDate))
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    generateWork()
-                } label: {
-                    Label("Generate Work", systemImage: "doc.badge.plus")
-                }
-            }
-        }
-        .sheet(item: $showLessonPickerForDeliverable) { target in
+        .sheet(item: $showLessonPickerForContract) { targetContract in
             BookClubLessonPickerSheet(
                 viewModel: {
-                    let initialIDs = Set([UUID(uuidString: target.studentID)].compactMap { $0 })
+                    let initialIDs = Set([UUID(uuidString: targetContract.studentID)].compactMap { $0 })
                     let vm = LessonPickerViewModel(selectedStudentIDs: initialIDs)
                     vm.configure(lessons: lessons, students: students)
                     return vm
                 }()
             ) { chosenID in
-                if let chosenID { target.linkedLessonID = chosenID.uuidString }
-                _ = saveCoordinator.save(modelContext, reason: "Link deliverable to lesson")
+                if let chosenID {
+                    targetContract.lessonID = chosenID.uuidString
+                    _ = saveCoordinator.save(modelContext, reason: "Link contract to lesson")
+                }
             }
         }
     }
 
     @ViewBuilder
-    private func deliverableRow(_ d: BookClubDeliverable) -> some View {
+    private func contractRow(_ contract: WorkContract) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                TextField("Title", text: Binding(get: { d.title }, set: { d.title = $0 }))
-                    .textFieldStyle(.roundedBorder)
+                // Title (Role)
+                TextField("Title", text: Binding(
+                    get: { contract.scheduledNote ?? "" },
+                    set: { contract.scheduledNote = $0 }
+                ))
+                .textFieldStyle(.roundedBorder)
+                
                 Spacer()
-                Picker("Status", selection: Binding(get: { d.status }, set: { d.status = $0 })) {
-                    ForEach(BookClubDeliverableStatus.allCases, id: \.self) { s in
-                        Text(label(for: s)).tag(s)
-                    }
+                
+                // Status Picker
+                Picker("Status", selection: Bindable(contract).status) {
+                    Text("Active").tag(WorkStatus.active)
+                    Text("Review").tag(WorkStatus.review)
+                    Text("Complete").tag(WorkStatus.complete)
                 }
                 .pickerStyle(.menu)
-                DatePicker("Due", selection: Binding(get: { d.dueDate ?? Date() }, set: { d.dueDate = $0 }), displayedComponents: .date)
-                    .labelsHidden()
+                .labelsHidden()
+                
+                // Due Date
+                DatePicker("Due", selection: Binding(
+                    get: { contract.scheduledDate ?? Date() },
+                    set: { contract.scheduledDate = $0 }
+                ), displayedComponents: .date)
+                .labelsHidden()
             }
-            TextField("Instructions", text: Binding(get: { d.instructions }, set: { d.instructions = $0 }), axis: .vertical)
-                .textFieldStyle(.roundedBorder)
 
+            // Linked Lesson display
             HStack(spacing: 8) {
-                if let lid = d.linkedLessonID, let uuid = UUID(uuidString: lid), let l = lessonsByID[uuid] {
+                if let uuid = UUID(uuidString: contract.lessonID), let l = lessonsByID[uuid] {
                     Text("Linked: \(l.name)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -152,39 +184,15 @@ struct BookClubSessionDetailView: View {
                 }
                 Spacer()
                 Button {
-                    showLessonPickerForDeliverable = d
+                    showLessonPickerForContract = contract
                 } label: {
-                    Label("Choose Lesson", systemImage: "book")
+                    Label("Change Lesson", systemImage: "book")
                 }
+                .buttonStyle(.borderless)
+                .font(.caption)
             }
         }
         .padding(.vertical, 6)
-    }
-
-    private func label(for s: BookClubDeliverableStatus) -> String {
-        switch s {
-        case .assigned: return "Assigned"
-        case .inProgress: return "In Progress"
-        case .readyForReview: return "Ready for Review"
-        case .completed: return "Completed"
-        }
-    }
-
-    private func generateWork() {
-        var created = 0
-        for d in session.deliverables {
-            guard d.generatedWorkID == nil else { continue }
-            guard let lid = d.linkedLessonID, !lid.isEmpty else { continue }
-            let contract = WorkContract(studentID: d.studentID, lessonID: lid, presentationID: nil, status: .active)
-            contract.sourceContextType = .bookClubSession
-            contract.sourceContextID = session.id.uuidString
-            modelContext.insert(contract)
-            d.generatedWorkID = contract.id
-            created += 1
-        }
-        if created > 0 {
-            _ = saveCoordinator.save(modelContext, reason: "Generate work from book club session")
-        }
     }
 
     private static let df: DateFormatter = {

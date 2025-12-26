@@ -166,19 +166,8 @@ struct BookClubDetailView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 ForEach(club.sessions.sorted(by: { $0.meetingDate > $1.meetingDate })) { session in
                                     NavigationLink(destination: BookClubSessionDetailView(session: session)) {
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(Self.df.string(from: session.meetingDate))
-                                                    .font(.headline)
-                                                if let ch = session.chapterOrPages, !ch.isEmpty {
-                                                    Text(ch).font(.subheadline).foregroundStyle(.secondary)
-                                                }
-                                            }
-                                            Spacer()
-                                            Text("\(session.deliverables.count) deliverables")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
+                                        // Use subview to correctly query work count
+                                        SessionRow(session: session)
                                     }
                                     .buttonStyle(.plain)
                                     .padding(.vertical, 4)
@@ -205,8 +194,36 @@ struct BookClubDetailView: View {
             #endif
         }
     }
+}
 
-    private static let df: DateFormatter = {
+// Helper view to show session details + work count
+private struct SessionRow: View {
+    let session: BookClubSession
+    @Query private var contracts: [WorkContract]
+    
+    init(session: BookClubSession) {
+        self.session = session
+        let sid = session.id.uuidString
+        _contracts = Query(filter: #Predicate<WorkContract> { $0.sourceContextID == sid })
+    }
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(df.string(from: session.meetingDate))
+                    .font(.headline)
+                if let ch = session.chapterOrPages, !ch.isEmpty {
+                    Text(ch).font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Text("\(contracts.count) work items")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    private let df: DateFormatter = {
         let df = DateFormatter(); df.dateStyle = .medium; return df
     }()
 }
