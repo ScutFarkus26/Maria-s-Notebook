@@ -80,7 +80,6 @@ struct BookClubWeeksEditorView: View {
     }
 
     private func delete(_ week: BookClubTemplateWeek) {
-        // Delete associated role assignments and choice set/items
         if let setID = week.questionChoiceSetID {
             let items = allChoiceItems.filter { $0.setID == setID }
             for item in items { modelContext.delete(item) }
@@ -119,7 +118,9 @@ struct BookClubWeekEditorView: View, Identifiable {
     @State private var choiceItems: [BookClubChoiceItem] = []
     @State private var pickingLessonForItem: BookClubChoiceItem? = nil
     @State private var pickingLessonForWeek: Bool = false
-    @State private var lessonSearchTextByItem: [UUID: String] = [:]
+    
+    // NEW: State to track which lesson we are viewing details for
+    @State private var viewingLesson: Lesson? = nil
 
     init(club: BookClub, week: BookClubTemplateWeek, onDone: @escaping () -> Void) {
         self.club = club
@@ -173,10 +174,23 @@ struct BookClubWeekEditorView: View, Identifiable {
                         
                         HStack {
                             if let lid = linkedLessonID, let uuid = UUID(uuidString: lid), let l = lessonsByID[uuid] {
-                                VStack(alignment: .leading) {
-                                    Text("Linked Lesson").font(.caption).foregroundStyle(.secondary)
-                                    Text(l.name).font(.headline)
+                                // CLICKABLE LESSON LINK (WEEK)
+                                Button {
+                                    viewingLesson = l
+                                } label: {
+                                    VStack(alignment: .leading) {
+                                        Text("Linked Lesson").font(.caption).foregroundStyle(.secondary)
+                                        HStack(spacing: 4) {
+                                            Text(l.name)
+                                                .font(.headline)
+                                                .foregroundStyle(.blue)
+                                            Image(systemName: "info.circle")
+                                                .font(.caption)
+                                                .foregroundStyle(.blue)
+                                        }
+                                    }
                                 }
+                                .buttonStyle(.plain)
                             } else {
                                 Text("No lesson linked for this week")
                                     .foregroundStyle(.secondary)
@@ -261,15 +275,23 @@ struct BookClubWeekEditorView: View, Identifiable {
     #endif
         .onAppear { loadChoiceItems() }
         .sheet(item: $pickingLessonForItem) { choiceItem in
-            InlineLessonPickerSheet(initialSearch: lessonSearchTextByItem[choiceItem.id] ?? "") { chosenID in
+            InlineLessonPickerSheet(lessons: allLessons) { chosenID in
                 if let chosenID { choiceItem.linkedLessonID = chosenID.uuidString } else { choiceItem.linkedLessonID = nil }
                 _ = saveCoordinator.save(modelContext, reason: "Link weekly question to lesson")
             }
         }
         .sheet(isPresented: $pickingLessonForWeek) {
-            InlineLessonPickerSheet(initialSearch: "") { chosenID in
+            InlineLessonPickerSheet(lessons: allLessons) { chosenID in
                 linkedLessonID = chosenID?.uuidString
             }
+        }
+        // NEW: Present Lesson Detail View
+        .sheet(item: $viewingLesson) { lesson in
+            LessonDetailView(lesson: lesson, onSave: { _ in
+                _ = saveCoordinator.save(modelContext, reason: "Update lesson details from book club editor")
+            }, onDone: {
+                viewingLesson = nil
+            })
         }
     }
 
@@ -313,39 +335,53 @@ struct BookClubWeekEditorView: View, Identifiable {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color.secondary.opacity(0.25))
                         )
+                    
                     HStack(spacing: 8) {
                         if let lid = item.linkedLessonID, let uuid = UUID(uuidString: lid), let lesson = lessonsByID[uuid] {
-                            Text("Linked: \(lesson.name)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            // CLICKABLE LESSON LINK (QUESTION)
+                            Button {
+                                viewingLesson = lesson
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text("Linked: \(lesson.name)")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(.blue)
+                                    Image(systemName: "info.circle")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                            .buttonStyle(.plain)
                         } else {
                             Text("No lesson linked")
-                                .font(.caption)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
-                        TextField("Search lessons…", text: Binding(
-                            get: { lessonSearchTextByItem[item.id] ?? "" },
-                            set: { lessonSearchTextByItem[item.id] = $0 }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 240)
-                        .onChange(of: lessonSearchTextByItem[item.id] ?? "") { _, newValue in
-                            if pickingLessonForItem == nil && !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                pickingLessonForItem = item
-                            }
-                        }
+                        
                         Spacer()
+                        
                         Button {
                             pickingLessonForItem = item
                         } label: {
-                            Label("Choose Lesson", systemImage: "book")
+                            Label(item.linkedLessonID == nil ? "Choose Lesson" : "Change", systemImage: "book")
                         }
+                        .buttonStyle(.bordered)
+                        
                         if item.linkedLessonID != nil {
-                            Button("Clear") { item.linkedLessonID = nil }
-                                .buttonStyle(.borderless)
+                            Button {
+                                item.linkedLessonID = nil
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Remove linked lesson")
                         }
                     }
-                    HStack { Spacer(); Button("Delete", role: .destructive) { deleteChoiceItem(item) } }
+
+                    Divider()
+                    HStack { Spacer(); Button("Delete Question", role: .destructive) { deleteChoiceItem(item) } }
                 }
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.03)))
@@ -422,7 +458,6 @@ struct BookClubWeekEditorView: View, Identifiable {
         week.vocabSuggestionWords = vocab
         week.vocabRequirementCount = vocabCount
         week.linkedLessonID = linkedLessonID
-        // Persist choice set required count = 2 (fixed)
         if let setID = week.questionChoiceSetID, let set = allChoiceSets.first(where: { $0.id == setID }) {
             set.requiredSelectionCount = 2
         }
@@ -434,11 +469,15 @@ struct BookClubWeekEditorView: View, Identifiable {
 private struct InlineLessonPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var search: String = ""
-    @Query(sort: [SortDescriptor(\Lesson.name, order: .forward)]) private var lessons: [Lesson]
+    
+    // Accept lessons array directly
+    let lessons: [Lesson]
+    
     var initialSearch: String = ""
     var onChosen: (UUID?) -> Void
 
-    init(initialSearch: String = "", onChosen: @escaping (UUID?) -> Void) {
+    init(lessons: [Lesson], initialSearch: String = "", onChosen: @escaping (UUID?) -> Void) {
+        self.lessons = lessons
         self.initialSearch = initialSearch
         self.onChosen = onChosen
         _search = State(initialValue: initialSearch)
@@ -485,12 +524,14 @@ private struct InlineLessonPickerSheet: View {
             }
         }
         .padding(16)
+    #if os(macOS)
+        .frame(minWidth: 400, minHeight: 500)
+    #endif
     #if os(iOS)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     #endif
         .onAppear {
-            // Fix: ensure state matches passed-in search, in case View identity was recycled
             search = initialSearch
         }
     }

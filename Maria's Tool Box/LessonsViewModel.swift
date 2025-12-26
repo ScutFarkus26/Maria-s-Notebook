@@ -54,17 +54,21 @@ struct LessonsViewModel {
 
     // Main filter/sort pipeline extracted from LessonsRootView
     func filteredLessons(lessons: [Lesson], sourceFilter: LessonSource?, personalKindFilter: PersonalLessonKind?, searchText: String, selectedSubject: String?, selectedGroup: String?) -> [Lesson] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var scoped = lessons
-        if let sourceFilter {
-            scoped = scoped.filter { $0.source == sourceFilter }
-        }
-        if (sourceFilter == .personal) || (sourceFilter == nil) {
-            if let kind = personalKindFilter {
-                scoped = scoped.filter { $0.source == .personal && $0.personalKind == kind }
+        
+        // Only apply scope filters if NOT searching. Search should be global ("Search all lessons").
+        if query.isEmpty {
+            if let sourceFilter {
+                scoped = scoped.filter { $0.source == sourceFilter }
+            }
+            if (sourceFilter == .personal) || (sourceFilter == nil) {
+                if let kind = personalKindFilter {
+                    scoped = scoped.filter { $0.source == .personal && $0.personalKind == kind }
+                }
             }
         }
 
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var base: [Lesson]
         if !query.isEmpty {
             base = scoped.filter { l in
@@ -196,4 +200,3 @@ struct LessonsViewModel {
         return changed
     }
 }
-
