@@ -46,9 +46,7 @@ struct LessonsCardsGridView: View {
     @State private var showDeleteAlert: Bool = false
 
     private var columns: [GridItem] {
-        isManualMode
-        ? [GridItem(.flexible(minimum: 260), spacing: 24)]
-        : [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)]
+        [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)]
     }
 
     private var idList: [UUID] { lessons.map { $0.id } }
