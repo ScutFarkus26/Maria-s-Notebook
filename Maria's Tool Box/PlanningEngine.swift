@@ -27,11 +27,6 @@ enum PlanningEngine {
         (0..<window).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
     }
 
-    static func dayID(_ day: Date, calendar: Calendar) -> String {
-        // Kept signature for backwards compatibility; calendar is not used.
-        AppCalendar.dayID(day)
-    }
-
     static func dayName(_ day: Date) -> String {
         day.formatted(Date.FormatStyle().weekday(.abbreviated))
     }

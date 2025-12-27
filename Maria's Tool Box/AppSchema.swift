@@ -30,7 +30,6 @@ struct AppSchema {
         BookClub.self,
         BookClubAssignmentTemplate.self,
         BookClubSession.self,
-        // BookClubDeliverable.self removed
         BookClubRole.self,
         BookClubTemplateWeek.self,
         BookClubWeekRoleAssignment.self,

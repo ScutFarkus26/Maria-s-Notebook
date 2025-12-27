@@ -11,7 +11,6 @@ import SwiftUI
 
     var id: UUID = UUID()
     var title: String = ""
-    // var studentIDs: [UUID]  // Removed as per instructions
     // Persisted raw value for the enum to keep storage simple and stable
     private var workTypeRaw: String = "Research"
     var studentLessonID: UUID? = nil
@@ -27,7 +26,6 @@ import SwiftUI
     init(
         id: UUID = UUID(),
         title: String = "",
-        // studentIDs: [UUID] = [],  // Removed parameter
         workType: WorkType = .research,
         studentLessonID: UUID? = nil,
         notes: String = "",
@@ -37,7 +35,6 @@ import SwiftUI
     ) {
         self.id = id
         self.title = title
-        // self.studentIDs = studentIDs  // Removed assignment
         self.workTypeRaw = workType.rawValue
         self.studentLessonID = studentLessonID
         self.notes = notes
@@ -73,6 +70,7 @@ import SwiftUI
         return participant(for: studentID)?.completedAt != nil
     }
 
+    // TODO: Consider moving this "action" logic to a Service or ViewModel to avoid Model-layer database insertion.
     func markStudent(_ studentID: UUID, completedAt date: Date?) {
         let cal = AppCalendar.shared
         let normalized = date.map { cal.startOfDay(for: $0) }
@@ -84,12 +82,3 @@ import SwiftUI
         }
     }
 }
-
-/*
-Sanity checklist:
- • Add note works
- • Lesson to give appears in Planning
- • Clear removes from Planning but keeps note attached to work
- • Delete note works and cascades appropriately
-*/
-

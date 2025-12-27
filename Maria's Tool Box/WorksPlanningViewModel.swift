@@ -61,7 +61,9 @@ final class WorksPlanningViewModel {
         PlanningEngine.unscheduledWorks(works)
     }
 
-    func dayID(_ day: Date) -> String { PlanningEngine.dayID(day, calendar: calendar) }
+    // Fixed: calling AppCalendar directly since PlanningEngine.dayID was removed
+    func dayID(_ day: Date) -> String { AppCalendar.dayID(day) }
+    
     func dayName(_ day: Date) -> String { PlanningEngine.dayName(day) }
     func dayNumber(_ day: Date) -> String { PlanningEngine.dayNumber(day) }
     func dayShortLabel(_ day: Date) -> String { PlanningEngine.dayShortLabel(day) }
