@@ -49,10 +49,6 @@ actor BackupService {
                 students: payloadSnapshot.students,
                 lessons: payloadSnapshot.lessons,
                 studentLessons: payloadSnapshot.studentLessons,
-                works: payloadSnapshot.works,
-                attendance: payloadSnapshot.attendance,
-                workCompletions: payloadSnapshot.workCompletions,
-                workCheckIns: payloadSnapshot.workCheckIns,
                 workContracts: payloadSnapshot.workContracts,
                 workPlanItems: payloadSnapshot.workPlanItems,
                 scopedNotes: payloadSnapshot.scopedNotes,
@@ -282,36 +278,6 @@ actor BackupService {
             )
         } ?? []
 
-        // Works
-        let works: [WorkDTO] = (try? fetch(WorkModel.self))?.map { w in
-            WorkDTO(
-                id: w.id,
-                title: w.title,
-                studentIDs: (w.participants ?? []).map { $0.studentID },
-                workType: w.workType.rawValue,
-                studentLessonID: w.studentLessonID,
-                notes: w.notes,
-                createdAt: w.createdAt,
-                completedAt: w.completedAt,
-                participants: (w.participants ?? []).map { WorkParticipantDTO(studentID: $0.studentID, completedAt: $0.completedAt) }
-            )
-        } ?? []
-
-        // Attendance
-        let attendance: [AttendanceRecordDTO] = (try? fetch(AttendanceRecord.self))?.map { a in
-            AttendanceRecordDTO(id: a.id, studentID: a.studentID, date: a.date, status: a.status.rawValue, note: a.note)
-        } ?? []
-
-        // WorkCompletion
-        let workCompletions: [WorkCompletionRecordDTO] = (try? fetch(WorkCompletionRecord.self))?.map { r in
-            WorkCompletionRecordDTO(id: r.id, workID: r.workID, studentID: r.studentID, completedAt: r.completedAt, note: r.note)
-        } ?? []
-
-        // WorkCheckIn
-        let workCheckIns: [WorkCheckInDTO] = (try? fetch(WorkCheckIn.self))?.map { r in
-            WorkCheckInDTO(id: r.id, workID: r.workID, date: r.date, status: r.status.rawValue, purpose: r.purpose, note: r.note)
-        } ?? []
-
         // WorkContracts
         let workContracts: [WorkContractDTO] = (try? fetch(WorkContract.self))?.map { c in
             WorkContractDTO(
@@ -342,7 +308,7 @@ actor BackupService {
         var notes: [NoteDTO] = []
         for n in notesModels {
             let scopeJSON: String = ((try? Self.encodeToJSONString(n.scope)) ?? (try? Self.encodeToJSONString(NoteScope.all)) ?? "{}")
-            notes.append(NoteDTO(id: n.id, createdAt: n.createdAt, updatedAt: n.updatedAt, body: n.body, isPinned: n.isPinned, scope: scopeJSON, lessonID: n.lesson?.id, workID: n.work?.id))
+            notes.append(NoteDTO(id: n.id, createdAt: n.createdAt, updatedAt: n.updatedAt, body: n.body, isPinned: n.isPinned, scope: scopeJSON, lessonID: n.lesson?.id, workID: nil))
         }
 
         // ScopedNotes
@@ -355,9 +321,9 @@ actor BackupService {
                 scope: ((try? Self.encodeToJSONString(n.scope)) ?? (try? Self.encodeToJSONString(ScopedNote.Scope.all)) ?? "{}"),
                 legacyFingerprint: n.legacyFingerprint,
                 studentLessonID: n.studentLesson?.id,
-                workID: n.work?.id,
-                presentationID: nil,
-                workContractID: nil
+                workID: nil,
+                presentationID: n.presentation?.id,
+                workContractID: n.workContract?.id
             )
         } ?? []
 
@@ -389,10 +355,6 @@ actor BackupService {
             students: students,
             lessons: lessons,
             studentLessons: studentLessons,
-            works: works,
-            attendance: attendance,
-            workCompletions: workCompletions,
-            workCheckIns: workCheckIns,
             workContracts: workContracts,
             workPlanItems: workPlanItems,
             scopedNotes: scopedNotes,
@@ -425,17 +387,11 @@ actor BackupService {
         // 2) StudentLessons
         try upsertStudentLessons(payload.studentLessons, in: ctx)
 
-        // 3) Works and related
-        try upsertWorks(payload.works, in: ctx)
+        // 3) WorkContracts and related
         try upsertWorkContracts(payload.workContracts, in: ctx)
         try upsertWorkPlanItems(payload.workPlanItems, in: ctx)
-        try upsertWorkCheckIns(payload.workCheckIns, in: ctx)
-        try upsertWorkCompletions(payload.workCompletions, in: ctx)
 
-        // 4) Attendance
-        try upsertAttendance(payload.attendance, in: ctx)
-
-        // 5) Meetings & community
+        // 4) Meetings & community
         try upsertStudentMeetings(payload.studentMeetings, in: ctx)
         try upsertPresentations(payload.presentations, in: ctx)
         try upsertCommunityTopics(payload.communityTopics, in: ctx)
@@ -443,15 +399,15 @@ actor BackupService {
         try upsertMeetingNotes(payload.meetingNotes, in: ctx)
         try upsertCommunityAttachments(payload.communityAttachments, in: ctx)
 
-        // 6) Notes
+        // 5) Notes
         try await upsertNotes(payload.notes, in: ctx)
         try upsertScopedNotes(payload.scopedNotes, in: ctx)
 
-        // 7) Calendar
+        // 6) Calendar
         try upsertNonSchoolDays(payload.nonSchoolDays, in: ctx)
         try upsertSchoolDayOverrides(payload.schoolDayOverrides, in: ctx)
 
-        // 8) Items (ephemeral)
+        // 7) Items (ephemeral)
         try upsertItems(payload.items, in: ctx)
 
         // Preferences applied separately
@@ -481,10 +437,6 @@ actor BackupService {
         checkDuplicates(payload.lessons, entityName: "Lesson", id: { $0.id })
         checkDuplicates(payload.students, entityName: "Student", id: { $0.id })
         checkDuplicates(payload.studentLessons, entityName: "StudentLesson", id: { $0.id })
-        checkDuplicates(payload.works, entityName: "Work", id: { $0.id })
-        checkDuplicates(payload.attendance, entityName: "Attendance", id: { $0.id })
-        checkDuplicates(payload.workCompletions, entityName: "WorkCompletionRecord", id: { $0.id })
-        checkDuplicates(payload.workCheckIns, entityName: "WorkCheckIn", id: { $0.id })
         checkDuplicates(payload.workContracts, entityName: "WorkContract", id: { $0.id })
         checkDuplicates(payload.workPlanItems, entityName: "WorkPlanItem", id: { $0.id })
         checkDuplicates(payload.scopedNotes, entityName: "ScopedNote", id: { $0.id })
@@ -502,7 +454,6 @@ actor BackupService {
         let lessonIDs = Set(payload.lessons.map { $0.id })
         let studentIDs = Set(payload.students.map { $0.id })
         let studentLessonIDs = Set(payload.studentLessons.map { $0.id })
-        let workIDs = Set(payload.works.map { $0.id })
         let communityTopicIDs = Set(payload.communityTopics.map { $0.id })
 
         // StudentLesson must include at least one student
@@ -528,52 +479,16 @@ actor BackupService {
             }
         }
 
-        // Work.studentLessonID must exist if not nil
-        for w in payload.works {
-            if let slID = w.studentLessonID, !studentLessonIDs.contains(slID) {
-                if mode == .replace {
-                    result.errors.append("Work references missing StudentLesson id \(slID)")
-                } else {
-                    result.warnings.append("Work \(w.id) references missing StudentLesson; left as-is")
-                }
-            }
-            // WorkParticipant.studentID must exist
-            for p in w.participants {
-                if !studentIDs.contains(p.studentID) {
-                    if mode == .replace {
-                        result.errors.append("WorkParticipant in Work \(w.id) references missing Student id \(p.studentID)")
-                    } else {
-                        result.warnings.append("WorkParticipant in Work \(w.id) references missing Student; left as-is")
-                    }
-                }
-            }
-        }
+        // WorkContract references
+        // (No validation required here as we removed legacy work validations)
 
-        // WorkCheckIn.workID must exist
-        for ci in payload.workCheckIns {
-            if !workIDs.contains(ci.workID) {
-                if mode == .replace {
-                    result.errors.append("WorkCheckIn references missing Work id \(ci.workID)")
-                } else {
-                    result.warnings.append("WorkCheckIn \(ci.id) references missing Work; left as-is")
-                }
-            }
-        }
-
-        // Notes.lessonID and Notes.workID if present must exist
+        // Notes.lessonID if present must exist
         for n in payload.notes {
             if let lessonID = n.lessonID, !lessonIDs.contains(lessonID) {
                 if mode == .replace {
                     result.errors.append("Note \(n.id) references missing Lesson id \(lessonID)")
                 } else {
                     result.warnings.append("Note \(n.id) references missing Lesson; left as-is")
-                }
-            }
-            if let workID = n.workID, !workIDs.contains(workID) {
-                if mode == .replace {
-                    result.errors.append("Note \(n.id) references missing Work id \(workID)")
-                } else {
-                    result.warnings.append("Note \(n.id) references missing Work; left as-is")
                 }
             }
         }
@@ -588,13 +503,6 @@ actor BackupService {
                     result.errors.append("ScopedNote \(sn.id) references missing StudentLesson id \(slID)")
                 } else {
                     result.warnings.append("ScopedNote \(sn.id) references missing StudentLesson; left as-is")
-                }
-            }
-            if let wID = sn.workID, !workIDs.contains(wID) {
-                if mode == .replace {
-                    result.errors.append("ScopedNote \(sn.id) references missing Work id \(wID)")
-                } else {
-                    result.warnings.append("ScopedNote \(sn.id) references missing Work; left as-is")
                 }
             }
             if let pID = sn.presentationID, !presentationIDs.contains(pID) {
@@ -867,25 +775,6 @@ actor BackupService {
     }
 
     @MainActor
-    private static func upsertWorks(_ dtos: [WorkDTO], in ctx: ModelContext) throws {
-        let existing = try ctx.fetch(FetchDescriptor<WorkModel>())
-        let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
-        for d in dtos {
-            if let w = map[d.id] {
-                w.title = d.title; w.workType = WorkModel.WorkType(rawValue: d.workType) ?? .practice; w.studentLessonID = d.studentLessonID; w.notes = d.notes; w.createdAt = d.createdAt; w.completedAt = d.completedAt
-                // Update participants
-                w.participants = d.participants.map { WorkParticipantEntity(studentID: $0.studentID, completedAt: $0.completedAt) }
-                for p in (w.participants ?? []) { p.work = w }
-            } else {
-                let participants = d.participants.map { WorkParticipantEntity(studentID: $0.studentID, completedAt: $0.completedAt) }
-                let w = WorkModel(id: d.id, title: d.title, workType: WorkModel.WorkType(rawValue: d.workType) ?? .practice, studentLessonID: d.studentLessonID, notes: d.notes, createdAt: d.createdAt, completedAt: d.completedAt, participants: participants)
-                for p in (w.participants ?? []) { p.work = w }
-                ctx.insert(w)
-            }
-        }
-    }
-
-    @MainActor
     private static func upsertWorkContracts(_ dtos: [WorkContractDTO], in ctx: ModelContext) throws {
         let existing = try ctx.fetch(FetchDescriptor<WorkContract>())
         let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
@@ -914,58 +803,20 @@ actor BackupService {
     }
 
     @MainActor
-    private static func upsertWorkCheckIns(_ dtos: [WorkCheckInDTO], in ctx: ModelContext) throws {
-        let existing = try ctx.fetch(FetchDescriptor<WorkCheckIn>())
-        let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
-        // Build works map for relationship wiring
-        let works = try ctx.fetch(FetchDescriptor<WorkModel>())
-        let worksByID = Dictionary(uniqueKeysWithValues: works.map { ($0.id, $0) })
-        for d in dtos {
-            if let ci = map[d.id] {
-                ci.workID = d.workID; ci.date = d.date; ci.status = WorkCheckInStatus(rawValue: d.status) ?? .scheduled; ci.purpose = d.purpose; ci.note = d.note; ci.work = worksByID[d.workID]
-            } else {
-                let ci = WorkCheckIn(id: d.id, workID: d.workID, date: d.date, status: WorkCheckInStatus(rawValue: d.status) ?? .scheduled, purpose: d.purpose, note: d.note, work: worksByID[d.workID]); ctx.insert(ci)
-            }
-        }
-    }
-
-    @MainActor
-    private static func upsertWorkCompletions(_ dtos: [WorkCompletionRecordDTO], in ctx: ModelContext) throws {
-        let existing = try ctx.fetch(FetchDescriptor<WorkCompletionRecord>())
-        let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
-        for d in dtos {
-            if let r = map[d.id] { r.workID = d.workID; r.studentID = d.studentID; r.completedAt = d.completedAt; r.note = d.note }
-            else { let r = WorkCompletionRecord(id: d.id, workID: d.workID, studentID: d.studentID, completedAt: d.completedAt, note: d.note); ctx.insert(r) }
-        }
-    }
-
-    @MainActor
-    private static func upsertAttendance(_ dtos: [AttendanceRecordDTO], in ctx: ModelContext) throws {
-        let existing = try ctx.fetch(FetchDescriptor<AttendanceRecord>())
-        let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
-        for d in dtos {
-            if let a = map[d.id] { a.studentID = d.studentID; a.date = d.date; a.status = AttendanceStatus(rawValue: d.status) ?? .unmarked; a.note = d.note }
-            else { let a = AttendanceRecord(id: d.id, studentID: d.studentID, date: d.date, status: AttendanceStatus(rawValue: d.status) ?? .unmarked, note: d.note); ctx.insert(a) }
-        }
-    }
-
-    @MainActor
     private static func upsertNotes(_ dtos: [NoteDTO], in ctx: ModelContext) async throws {
         let existing = try ctx.fetch(FetchDescriptor<Note>())
         let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
         let lessons = try ctx.fetch(FetchDescriptor<Lesson>())
         let lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-        let works = try ctx.fetch(FetchDescriptor<WorkModel>())
-        let worksByID = Dictionary(uniqueKeysWithValues: works.map { ($0.id, $0) })
         for d in dtos {
             let scopeValue = Self.decodeFromJSONString(d.scope, as: NoteScope.self) ?? .all
             if let n = map[d.id] {
                 n.createdAt = d.createdAt; n.updatedAt = d.updatedAt; n.body = d.body; n.isPinned = d.isPinned
                 n.scope = scopeValue
                 n.lesson = d.lessonID.flatMap { lessonsByID[$0] }
-                n.work = d.workID.flatMap { worksByID[$0] }
+                n.work = nil
             } else {
-                let newNote = Note(id: d.id, createdAt: d.createdAt, updatedAt: d.updatedAt, body: d.body, scope: scopeValue, isPinned: d.isPinned, lesson: d.lessonID.flatMap { lessonsByID[$0] }, work: d.workID.flatMap { worksByID[$0] })
+                let newNote = Note(id: d.id, createdAt: d.createdAt, updatedAt: d.updatedAt, body: d.body, scope: scopeValue, isPinned: d.isPinned, lesson: d.lessonID.flatMap { lessonsByID[$0] }, work: nil)
                 ctx.insert(newNote)
             }
         }
@@ -977,15 +828,36 @@ actor BackupService {
         let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
         let sls = try ctx.fetch(FetchDescriptor<StudentLesson>())
         let slByID = Dictionary(uniqueKeysWithValues: sls.map { ($0.id, $0) })
-        let works = try ctx.fetch(FetchDescriptor<WorkModel>())
-        let workByID = Dictionary(uniqueKeysWithValues: works.map { ($0.id, $0) })
-        // Removed fetching contracts and presentations per instructions
+        let presentations = try ctx.fetch(FetchDescriptor<Presentation>())
+        let presentationByID = Dictionary(uniqueKeysWithValues: presentations.map { ($0.id, $0) })
+        let contracts = try ctx.fetch(FetchDescriptor<WorkContract>())
+        let contractByID = Dictionary(uniqueKeysWithValues: contracts.map { ($0.id, $0) })
         for d in dtos {
             let scopeValue = Self.decodeFromJSONString(d.scope, as: ScopedNote.Scope.self) ?? .all
             if let n = map[d.id] {
-                n.createdAt = d.createdAt; n.updatedAt = d.updatedAt; n.body = d.body; n.scope = scopeValue; n.legacyFingerprint = d.legacyFingerprint; n.studentLesson = d.studentLessonID.flatMap { slByID[$0] }; n.work = d.workID.flatMap { workByID[$0] }; n.presentation = nil; n.workContract = nil
+                n.createdAt = d.createdAt
+                n.updatedAt = d.updatedAt
+                n.body = d.body
+                n.scope = scopeValue
+                n.legacyFingerprint = d.legacyFingerprint
+                n.studentLesson = d.studentLessonID.flatMap { slByID[$0] }
+                n.work = nil
+                n.presentation = d.presentationID.flatMap { presentationByID[$0] }
+                n.workContract = d.workContractID.flatMap { contractByID[$0] }
             } else {
-                let n = ScopedNote(id: d.id, createdAt: d.createdAt, updatedAt: d.updatedAt, body: d.body, scope: scopeValue, legacyFingerprint: d.legacyFingerprint, studentLesson: d.studentLessonID.flatMap { slByID[$0] }, work: d.workID.flatMap { workByID[$0] }, presentation: nil, workContract: nil); ctx.insert(n)
+                let n = ScopedNote(
+                    id: d.id,
+                    createdAt: d.createdAt,
+                    updatedAt: d.updatedAt,
+                    body: d.body,
+                    scope: scopeValue,
+                    legacyFingerprint: d.legacyFingerprint,
+                    studentLesson: d.studentLessonID.flatMap { slByID[$0] },
+                    work: nil,
+                    presentation: d.presentationID.flatMap { presentationByID[$0] },
+                    workContract: d.workContractID.flatMap { contractByID[$0] }
+                )
+                ctx.insert(n)
             }
         }
     }
@@ -1058,9 +930,8 @@ actor BackupService {
         let types: [any PersistentModel.Type] = [
             CommunityAttachment.self, MeetingNote.self, ProposedSolution.self, CommunityTopic.self,
             Presentation.self, StudentMeeting.self,
-            WorkCheckIn.self, WorkCompletionRecord.self, WorkPlanItem.self, WorkContract.self, WorkModel.self,
+            WorkPlanItem.self, WorkContract.self,
             ScopedNote.self, Note.self,
-            AttendanceRecord.self,
             StudentLesson.self,
             NonSchoolDay.self, SchoolDayOverride.self,
             Lesson.self, Student.self,
@@ -1084,10 +955,6 @@ actor BackupService {
             "students": payload.students.count,
             "lessons": payload.lessons.count,
             "studentLessons": payload.studentLessons.count,
-            "works": payload.works.count,
-            "attendance": payload.attendance.count,
-            "workCompletions": payload.workCompletions.count,
-            "workCheckIns": payload.workCheckIns.count,
             "workContracts": payload.workContracts.count,
             "workPlanItems": payload.workPlanItems.count,
             "scopedNotes": payload.scopedNotes.count,

@@ -86,31 +86,10 @@ enum LegacyNotesMigration {
         return inserted
     }
 
-    @discardableResult
     private static func migrateWorkNotes(context: ModelContext) throws -> Int {
-        let fetch = FetchDescriptor<WorkModel>()
-        let works = try context.fetch(fetch)
-        var inserted = 0
-        for w in works {
-            let body = normalize(w.notes)
-            if body.isEmpty { continue }
-            let fp = fingerprint(parts: ["WorkModel", w.id.uuidString, "notes", body])
-            if hasExistingScopedNote(parentNotes: w.scopedNotes, fingerprint: fp) { continue }
-            if existsNoteWithFingerprint(fp, context: context) { continue }
-            let note = ScopedNote(
-                body: body,
-                scope: .all,
-                legacyFingerprint: fp,
-                studentLesson: nil,
-                work: w
-            )
-            note.createdAt = w.createdAt
-            note.updatedAt = note.createdAt
-            w.scopedNotes.append(note)
-            inserted += 1
-            if inserted % 100 == 0 { try context.save() }
-        }
-        return inserted
+        // Second pass: Legacy WorkModel has been removed, so skip migrating WorkModel.notes → ScopedNote.
+        // This remains a no-op to preserve call sites and overall migration sequencing.
+        return 0
     }
 
     // MARK: - Helpers

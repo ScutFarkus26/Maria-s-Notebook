@@ -36,44 +36,7 @@ enum DataMigrations {
     static func normalizeWorkDatesToDateOnlyIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.workDatesDateOnly.v1"
         if UserDefaults.standard.bool(forKey: flagKey) { return }
-        let calendar = AppCalendar.shared
-        do {
-            var changed = 0
-            // WorkModel
-            let works = try context.fetch(FetchDescriptor<WorkModel>())
-            for w in works {
-                let createdNorm = calendar.startOfDay(for: w.createdAt)
-                if w.createdAt != createdNorm { w.createdAt = createdNorm; changed += 1 }
-                if let c = w.completedAt {
-                    let norm = calendar.startOfDay(for: c)
-                    if c != norm { w.completedAt = norm; changed += 1 }
-                }
-            }
-            // WorkParticipantEntity
-            let participants = try context.fetch(FetchDescriptor<WorkParticipantEntity>())
-            for p in participants {
-                if let c = p.completedAt {
-                    let norm = calendar.startOfDay(for: c)
-                    if c != norm { p.completedAt = norm; changed += 1 }
-                }
-            }
-            // WorkCompletionRecord
-            let completions = try context.fetch(FetchDescriptor<WorkCompletionRecord>())
-            for rc in completions {
-                let norm = calendar.startOfDay(for: rc.completedAt)
-                if rc.completedAt != norm { rc.completedAt = norm; changed += 1 }
-            }
-            // WorkCheckIn
-            let checkIns = try context.fetch(FetchDescriptor<WorkCheckIn>())
-            for ci in checkIns {
-                let norm = calendar.startOfDay(for: ci.date)
-                if ci.date != norm { ci.date = norm; changed += 1 }
-            }
-            if changed > 0 { try? context.save() }
-            UserDefaults.standard.set(true, forKey: flagKey)
-        } catch {
-            // If fetch fails, do not set the flag so we can retry later.
-        }
+        UserDefaults.standard.set(true, forKey: flagKey)
     }
 
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
@@ -130,33 +93,7 @@ enum DataMigrations {
     static func backfillParticipantsAndDeleteEmptyWorksIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.workParticipantsBackfillAndPrune.v1"
         if UserDefaults.standard.bool(forKey: flagKey) { return }
-        do {
-            let works = try context.fetch(FetchDescriptor<WorkModel>())
-            var changed = false
-            for w in works {
-                // If there are no participants but legacy studentIDs were used historically,
-                // reconstruct participants from any linked StudentLesson.
-                if (w.participants ?? []).isEmpty, let slID = w.studentLessonID {
-                    if let sl = try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == slID })).first {
-                        let parts = sl.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: w) }
-                        if !parts.isEmpty {
-                            w.participants = parts
-                            changed = true
-                        }
-                    }
-                }
-            }
-            // Delete any works that still have no participants and are not completed
-            // (legacy artifacts that would clutter the UI)
-            for w in works where (w.participants ?? []).isEmpty {
-                context.delete(w)
-                changed = true
-            }
-            if changed { try context.save() }
-            UserDefaults.standard.set(true, forKey: flagKey)
-        } catch {
-            // Best-effort; do not set the flag so we can retry later
-        }
+        UserDefaults.standard.set(true, forKey: flagKey)
     }
     
     /// Backfill nil WorkModel.title values to empty string once.

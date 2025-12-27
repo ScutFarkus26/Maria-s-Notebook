@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Constants
 public enum BackupFile {
     public static let fileExtension = "mtbbackup"
-    public static let formatVersion = 2
+    public static let formatVersion = 3
 }
 
 // MARK: - Envelope / Manifest / Payload
@@ -162,10 +162,6 @@ public struct BackupPayload: Codable {
     public var students: [StudentDTO]
     public var lessons: [LessonDTO]
     public var studentLessons: [StudentLessonDTO]
-    public var works: [WorkDTO]
-    public var attendance: [AttendanceRecordDTO]
-    public var workCompletions: [WorkCompletionRecordDTO]
-    public var workCheckIns: [WorkCheckInDTO]
     public var workContracts: [WorkContractDTO]
     public var workPlanItems: [WorkPlanItemDTO]
     public var scopedNotes: [ScopedNoteDTO]
@@ -187,10 +183,6 @@ public struct BackupPayload: Codable {
         case students
         case lessons
         case studentLessons
-        case works
-        case attendance
-        case workCompletions
-        case workCheckIns
         case workContracts
         case workPlanItems
         case scopedNotes
@@ -211,10 +203,6 @@ public struct BackupPayload: Codable {
         students: [StudentDTO],
         lessons: [LessonDTO],
         studentLessons: [StudentLessonDTO],
-        works: [WorkDTO],
-        attendance: [AttendanceRecordDTO],
-        workCompletions: [WorkCompletionRecordDTO],
-        workCheckIns: [WorkCheckInDTO],
         workContracts: [WorkContractDTO],
         workPlanItems: [WorkPlanItemDTO],
         scopedNotes: [ScopedNoteDTO],
@@ -233,10 +221,6 @@ public struct BackupPayload: Codable {
         self.students = students
         self.lessons = lessons
         self.studentLessons = studentLessons
-        self.works = works
-        self.attendance = attendance
-        self.workCompletions = workCompletions
-        self.workCheckIns = workCheckIns
         self.workContracts = workContracts
         self.workPlanItems = workPlanItems
         self.scopedNotes = scopedNotes
@@ -258,10 +242,6 @@ public struct BackupPayload: Codable {
         self.students = try container.decode([StudentDTO].self, forKey: .students)
         self.lessons = try container.decode([LessonDTO].self, forKey: .lessons)
         self.studentLessons = try container.decode([StudentLessonDTO].self, forKey: .studentLessons)
-        self.works = try container.decode([WorkDTO].self, forKey: .works)
-        self.attendance = try container.decode([AttendanceRecordDTO].self, forKey: .attendance)
-        self.workCompletions = try container.decode([WorkCompletionRecordDTO].self, forKey: .workCompletions)
-        self.workCheckIns = try container.decode([WorkCheckInDTO].self, forKey: .workCheckIns)
         self.workContracts = try container.decode([WorkContractDTO].self, forKey: .workContracts)
         self.workPlanItems = try container.decode([WorkPlanItemDTO].self, forKey: .workPlanItems)
         self.scopedNotes = try container.decode([ScopedNoteDTO].self, forKey: .scopedNotes)
@@ -290,10 +270,6 @@ public struct BackupPayload: Codable {
         try container.encode(students, forKey: .students)
         try container.encode(lessons, forKey: .lessons)
         try container.encode(studentLessons, forKey: .studentLessons)
-        try container.encode(works, forKey: .works)
-        try container.encode(attendance, forKey: .attendance)
-        try container.encode(workCompletions, forKey: .workCompletions)
-        try container.encode(workCheckIns, forKey: .workCheckIns)
         try container.encode(workContracts, forKey: .workContracts)
         try container.encode(workPlanItems, forKey: .workPlanItems)
         try container.encode(scopedNotes, forKey: .scopedNotes)
