@@ -41,8 +41,8 @@ public final class BackupService {
 
         // Map to DTOs (exclude any imported/binary file data)
         let studentDTOs: [StudentDTO] = students.map { s in
-            let levelRaw = (s as AnyObject).value(forKey: "levelRaw") as? String
-            let levelProp = (s as AnyObject).value(forKey: "level") as? String
+            let levelRaw: String? = kvValue(s, "levelRaw")
+            let levelProp: String? = kvValue(s, "level")
             let levelLower = levelRaw?.lowercased() ?? levelProp?.lowercased() ?? ""
             let level: StudentDTO.Level = (levelLower == "upper") ? .upper : .lower
             return StudentDTO(
@@ -50,12 +50,12 @@ public final class BackupService {
                 firstName: s.firstName,
                 lastName: s.lastName,
                 birthday: s.birthday,
-                dateStarted: (s as AnyObject).value(forKey: "dateStarted") as? Date,
+                dateStarted: kvValue(s, "dateStarted") as Date?,
                 level: level,
-                nextLessons: (s as AnyObject).value(forKey: "nextLessons") as? [UUID] ?? [],
-                manualOrder: (s as? Student)?.manualOrder ?? ((s as AnyObject).value(forKey: "manualOrder") as? Int ?? 0),
-                createdAt: (s as AnyObject).value(forKey: "createdAt") as? Date,
-                updatedAt: (s as AnyObject).value(forKey: "updatedAt") as? Date
+                nextLessons: kvValue(s, "nextLessons") ?? [],
+                manualOrder: kvValue(s, "manualOrder") ?? 0,
+                createdAt: kvValue(s, "createdAt") as Date?,
+                updatedAt: kvValue(s, "updatedAt") as Date?
             )
         }
 
@@ -68,9 +68,9 @@ public final class BackupService {
                 orderInGroup: l.orderInGroup,
                 subheading: l.subheading,
                 writeUp: l.writeUp,
-                createdAt: (l as AnyObject).value(forKey: "createdAt") as? Date,
-                updatedAt: (l as AnyObject).value(forKey: "updatedAt") as? Date,
-                pagesFileRelativePath: (l as AnyObject).value(forKey: "pagesFileRelativePath") as? String
+                createdAt: kvValue(l, "createdAt") as Date?,
+                updatedAt: kvValue(l, "updatedAt") as Date?,
+                pagesFileRelativePath: kvValue(l, "pagesFileRelativePath") as String?
             )
         }
 
@@ -82,12 +82,12 @@ public final class BackupService {
                 createdAt: sl.createdAt,
                 scheduledFor: sl.scheduledFor,
                 givenAt: sl.givenAt,
-                isPresented: ((sl as AnyObject).value(forKey: "isPresented") as? Bool) ?? (sl.givenAt != nil),
+                isPresented: (kvValue(sl, "isPresented") as Bool?) ?? (sl.givenAt != nil),
                 notes: sl.notes,
                 needsPractice: sl.needsPractice,
                 needsAnotherPresentation: sl.needsAnotherPresentation,
                 followUpWork: sl.followUpWork,
-                studentGroupKey: (sl as AnyObject).value(forKey: "studentGroupKey") as? String
+                studentGroupKey: kvValue(sl, "studentGroupKey") as String?
             )
         }
 
@@ -96,17 +96,17 @@ public final class BackupService {
                 id: c.id,
                 studentID: c.studentID,
                 lessonID: c.lessonID,
-                presentationID: (c as AnyObject).value(forKey: "presentationID") as? String,
-                status: (c as AnyObject).value(forKey: "statusRaw") as? String ?? "",
-                scheduledDate: (c as AnyObject).value(forKey: "scheduledDate") as? Date,
-                createdAt: (c as AnyObject).value(forKey: "createdAt") as? Date,
-                completedAt: (c as AnyObject).value(forKey: "completedAt") as? Date,
-                kind: (c as AnyObject).value(forKey: "kind") as? String,
-                scheduledReason: (c as AnyObject).value(forKey: "scheduledReason") as? String,
-                scheduledNote: (c as AnyObject).value(forKey: "scheduledNote") as? String,
-                completionOutcome: (c as AnyObject).value(forKey: "completionOutcome") as? String,
-                completionNote: (c as AnyObject).value(forKey: "completionNote") as? String,
-                legacyStudentLessonID: (c as AnyObject).value(forKey: "legacyStudentLessonID") as? String
+                presentationID: kvValue(c, "presentationID") as String?,
+                status: kvValue(c, "statusRaw") ?? "",
+                scheduledDate: kvValue(c, "scheduledDate") as Date?,
+                createdAt: kvValue(c, "createdAt") as Date?,
+                completedAt: kvValue(c, "completedAt") as Date?,
+                kind: kvValue(c, "kind") as String?,
+                scheduledReason: kvValue(c, "scheduledReason") as String?,
+                scheduledNote: kvValue(c, "scheduledNote") as String?,
+                completionOutcome: kvValue(c, "completionOutcome") as String?,
+                completionNote: kvValue(c, "completionNote") as String?,
+                legacyStudentLessonID: kvValue(c, "legacyStudentLessonID") as String?
             )
         }
 
@@ -115,7 +115,7 @@ public final class BackupService {
                 id: w.id,
                 workID: w.workID,
                 scheduledDate: w.scheduledDate,
-                reason: ((w as AnyObject).value(forKey: "reasonRaw") as? String) ?? ((w as AnyObject).value(forKey: "reason") as? String ?? ""),
+                reason: (kvValue(w, "reasonRaw") as String?) ?? (kvValue(w, "reason") as String?) ?? "",
                 note: w.note
             )
         }
@@ -126,12 +126,12 @@ public final class BackupService {
                 createdAt: n.createdAt,
                 updatedAt: n.updatedAt,
                 body: n.body,
-                scope: (n as AnyObject).value(forKey: "scopeRaw") as? String ?? ((n as AnyObject).value(forKey: "scope") as? String ?? ""),
-                legacyFingerprint: (n as AnyObject).value(forKey: "legacyFingerprint") as? String,
-                studentLessonID: (n as AnyObject).value(forKey: "studentLessonID") as? UUID,
-                workID: (n as AnyObject).value(forKey: "workID") as? UUID,
-                presentationID: (n as AnyObject).value(forKey: "presentationID") as? UUID,
-                workContractID: (n as AnyObject).value(forKey: "workContractID") as? UUID
+                scope: kvValue(n, "scopeRaw") as String? ?? (kvValue(n, "scope") as String? ?? ""),
+                legacyFingerprint: kvValue(n, "legacyFingerprint") as String?,
+                studentLessonID: kvValue(n, "studentLessonID") as UUID?,
+                workID: kvValue(n, "workID") as UUID?,
+                presentationID: kvValue(n, "presentationID") as UUID?,
+                workContractID: kvValue(n, "workContractID") as UUID?
             )
         }
 
@@ -141,31 +141,31 @@ public final class BackupService {
                 createdAt: n.createdAt,
                 updatedAt: n.updatedAt,
                 body: n.body,
-                isPinned: (n as AnyObject).value(forKey: "isPinned") as? Bool ?? false,
-                scope: (n as AnyObject).value(forKey: "scopeRaw") as? String ?? ((n as AnyObject).value(forKey: "scope") as? String ?? ""),
-                lessonID: (n as AnyObject).value(forKey: "lessonID") as? UUID,
-                workID: (n as AnyObject).value(forKey: "workID") as? UUID
+                isPinned: (kvValue(n, "isPinned") as Bool?) ?? false,
+                scope: kvValue(n, "scopeRaw") as String? ?? (kvValue(n, "scope") as String? ?? ""),
+                lessonID: kvValue(n, "lessonID") as UUID?,
+                workID: kvValue(n, "workID") as UUID?
             )
         }
 
         let nonSchoolDTOs: [NonSchoolDayDTO] = nonSchoolDays.map { d in
-            NonSchoolDayDTO(id: d.id, date: d.date, reason: (d as AnyObject).value(forKey: "reason") as? String)
+            NonSchoolDayDTO(id: d.id, date: d.date, reason: kvValue(d, "reason") as String?)
         }
 
         let schoolOverrideDTOs: [SchoolDayOverrideDTO] = schoolDayOverrides.map { o in
-            SchoolDayOverrideDTO(id: o.id, date: o.date, note: (o as AnyObject).value(forKey: "note") as? String)
+            SchoolDayOverrideDTO(id: o.id, date: o.date, note: kvValue(o, "note") as String?)
         }
 
         let studentMeetingDTOs: [StudentMeetingDTO] = studentMeetings.map { m in
             StudentMeetingDTO(
                 id: m.id,
-                studentID: (m as AnyObject).value(forKey: "studentID") as? UUID ?? UUID(),
+                studentID: (kvValue(m, "studentID") as UUID?) ?? UUID(),
                 date: m.date,
-                completed: (m as AnyObject).value(forKey: "completed") as? Bool ?? false,
-                reflection: (m as AnyObject).value(forKey: "reflection") as? String ?? "",
-                focus: (m as AnyObject).value(forKey: "focus") as? String ?? "",
-                requests: (m as AnyObject).value(forKey: "requests") as? String ?? "",
-                guideNotes: (m as AnyObject).value(forKey: "guideNotes") as? String ?? ""
+                completed: (kvValue(m, "completed") as Bool?) ?? false,
+                reflection: (kvValue(m, "reflection") as String?) ?? "",
+                focus: (kvValue(m, "focus") as String?) ?? "",
+                requests: (kvValue(m, "requests") as String?) ?? "",
+                guideNotes: (kvValue(m, "guideNotes") as String?) ?? ""
             )
         }
 
@@ -173,12 +173,12 @@ public final class BackupService {
             PresentationDTO(
                 id: p.id,
                 createdAt: p.createdAt,
-                presentedAt: (p as AnyObject).value(forKey: "presentedAt") as? Date ?? p.createdAt,
-                lessonID: (p as AnyObject).value(forKey: "lessonID") as? String ?? "",
-                studentIDs: (p as AnyObject).value(forKey: "studentIDs") as? [String] ?? [],
-                legacyStudentLessonID: (p as AnyObject).value(forKey: "legacyStudentLessonID") as? String,
-                lessonTitleSnapshot: (p as AnyObject).value(forKey: "lessonTitleSnapshot") as? String,
-                lessonSubtitleSnapshot: (p as AnyObject).value(forKey: "lessonSubtitleSnapshot") as? String
+                presentedAt: (kvValue(p, "presentedAt") as Date?) ?? p.createdAt,
+                lessonID: kvValue(p, "lessonID") ?? "",
+                studentIDs: kvValue(p, "studentIDs") ?? [],
+                legacyStudentLessonID: kvValue(p, "legacyStudentLessonID") as String?,
+                lessonTitleSnapshot: kvValue(p, "lessonTitleSnapshot") as String?,
+                lessonSubtitleSnapshot: kvValue(p, "lessonSubtitleSnapshot") as String?
             )
         }
 
@@ -591,11 +591,11 @@ public final class BackupService {
                 birthday: dto.birthday,
                 level: dto.level == .upper ? .upper : .lower
             )
-            if let ds = dto.dateStarted { (s as AnyObject).setValue(ds, forKey: "dateStarted") }
-            (s as AnyObject).setValue(dto.nextLessons, forKey: "nextLessons")
-            (s as AnyObject).setValue(dto.manualOrder, forKey: "manualOrder")
-            if let created = dto.createdAt { (s as AnyObject).setValue(created, forKey: "createdAt") }
-            if let updated = dto.updatedAt { (s as AnyObject).setValue(updated, forKey: "updatedAt") }
+            if let ds = dto.dateStarted { kvSet(s, "dateStarted", ds) }
+            kvSet(s, "nextLessons", dto.nextLessons)
+            kvSet(s, "manualOrder", dto.manualOrder)
+            if let created = dto.createdAt { kvSet(s, "createdAt", created) }
+            if let updated = dto.updatedAt { kvSet(s, "updatedAt", updated) }
             modelContext.insert(s)
             studentsByID[s.id] = s
         }
@@ -612,9 +612,9 @@ public final class BackupService {
                 subheading: dto.subheading,
                 writeUp: dto.writeUp
             )
-            if let created = dto.createdAt { (l as AnyObject).setValue(created, forKey: "createdAt") }
-            if let updated = dto.updatedAt { (l as AnyObject).setValue(updated, forKey: "updatedAt") }
-            if let pages = dto.pagesFileRelativePath { (l as AnyObject).setValue(pages, forKey: "pagesFileRelativePath") }
+            if let created = dto.createdAt { kvSet(l, "createdAt", created) }
+            if let updated = dto.updatedAt { kvSet(l, "updatedAt", updated) }
+            if let pages = dto.pagesFileRelativePath { kvSet(l, "pagesFileRelativePath", pages) }
             modelContext.insert(l)
             lessonsByID[l.id] = l
         }
@@ -640,17 +640,17 @@ public final class BackupService {
         for dto in payload.workContracts {
             if (try? fetchOne(WorkContract.self, id: dto.id, using: modelContext)) != nil { continue }
             let c = WorkContract(id: dto.id, studentID: dto.studentID, lessonID: dto.lessonID)
-            if let pid = dto.presentationID { (c as AnyObject).setValue(pid, forKey: "presentationID") }
-            (c as AnyObject).setValue(dto.status, forKey: "statusRaw")
-            if let d = dto.scheduledDate { (c as AnyObject).setValue(d, forKey: "scheduledDate") }
-            if let d = dto.createdAt { (c as AnyObject).setValue(d, forKey: "createdAt") }
-            if let d = dto.completedAt { (c as AnyObject).setValue(d, forKey: "completedAt") }
-            if let v = dto.kind { (c as AnyObject).setValue(v, forKey: "kind") }
-            if let v = dto.scheduledReason { (c as AnyObject).setValue(v, forKey: "scheduledReason") }
-            if let v = dto.scheduledNote { (c as AnyObject).setValue(v, forKey: "scheduledNote") }
-            if let v = dto.completionOutcome { (c as AnyObject).setValue(v, forKey: "completionOutcome") }
-            if let v = dto.completionNote { (c as AnyObject).setValue(v, forKey: "completionNote") }
-            if let v = dto.legacyStudentLessonID { (c as AnyObject).setValue(v, forKey: "legacyStudentLessonID") }
+            if let pid = dto.presentationID { kvSet(c, "presentationID", pid) }
+            kvSet(c, "statusRaw", dto.status)
+            if let d = dto.scheduledDate { kvSet(c, "scheduledDate", d) }
+            if let d = dto.createdAt { kvSet(c, "createdAt", d) }
+            if let d = dto.completedAt { kvSet(c, "completedAt", d) }
+            if let v = dto.kind { kvSet(c, "kind", v) }
+            if let v = dto.scheduledReason { kvSet(c, "scheduledReason", v) }
+            if let v = dto.scheduledNote { kvSet(c, "scheduledNote", v) }
+            if let v = dto.completionOutcome { kvSet(c, "completionOutcome", v) }
+            if let v = dto.completionNote { kvSet(c, "completionNote", v) }
+            if let v = dto.legacyStudentLessonID { kvSet(c, "legacyStudentLessonID", v) }
             modelContext.insert(c)
             workByID[c.id] = c
         }
@@ -659,11 +659,10 @@ public final class BackupService {
         for dto in payload.workPlanItems {
             if (try? fetchOne(WorkPlanItem.self, id: dto.id, using: modelContext)) != nil { continue }
             let item = WorkPlanItem(workID: dto.workID, scheduledDate: dto.scheduledDate, reason: nil, note: dto.note)
-            (item as AnyObject).setValue(dto.id, forKey: "id")
+            kvSet(item, "id", dto.id)
             let raw = dto.reason
             if !raw.isEmpty {
-                // Best-effort: try KVC set
-                (item as AnyObject).setValue(raw, forKey: "reasonRaw")
+                kvSet(item, "reasonRaw", raw)
             }
             modelContext.insert(item)
         }
@@ -709,12 +708,12 @@ public final class BackupService {
                 updatedAt: dto.updatedAt,
                 body: dto.body
             )
-            (n as AnyObject).setValue(dto.scope, forKey: "scopeRaw")
-            (n as AnyObject).setValue(dto.legacyFingerprint, forKey: "legacyFingerprint")
-            (n as AnyObject).setValue(dto.studentLessonID, forKey: "studentLessonID")
-            (n as AnyObject).setValue(dto.workID, forKey: "workID")
-            (n as AnyObject).setValue(dto.presentationID, forKey: "presentationID")
-            (n as AnyObject).setValue(dto.workContractID, forKey: "workContractID")
+            kvSet(n, "scopeRaw", dto.scope)
+            kvSet(n, "legacyFingerprint", dto.legacyFingerprint)
+            kvSet(n, "studentLessonID", dto.studentLessonID)
+            kvSet(n, "workID", dto.workID)
+            kvSet(n, "presentationID", dto.presentationID)
+            kvSet(n, "workContractID", dto.workContractID)
             modelContext.insert(n)
         }
 
@@ -726,24 +725,24 @@ public final class BackupService {
                 updatedAt: dto.updatedAt,
                 body: dto.body
             )
-            (n as AnyObject).setValue(dto.isPinned, forKey: "isPinned")
-            (n as AnyObject).setValue(dto.scope, forKey: "scopeRaw")
-            (n as AnyObject).setValue(dto.lessonID, forKey: "lessonID")
-            (n as AnyObject).setValue(dto.workID, forKey: "workID")
+            kvSet(n, "isPinned", dto.isPinned)
+            kvSet(n, "scopeRaw", dto.scope)
+            kvSet(n, "lessonID", dto.lessonID)
+            kvSet(n, "workID", dto.workID)
             modelContext.insert(n)
         }
 
         for dto in payload.nonSchoolDays {
             if (try? fetchOne(NonSchoolDay.self, id: dto.id, using: modelContext)) != nil { continue }
             let d = NonSchoolDay(id: dto.id, date: dto.date)
-            (d as AnyObject).setValue(dto.reason, forKey: "reason")
+            kvSet(d, "reason", dto.reason)
             modelContext.insert(d)
         }
 
         for dto in payload.schoolDayOverrides {
             if (try? fetchOne(SchoolDayOverride.self, id: dto.id, using: modelContext)) != nil { continue }
             let o = SchoolDayOverride(id: dto.id, date: dto.date)
-            (o as AnyObject).setValue(dto.note, forKey: "note")
+            kvSet(o, "note", dto.note)
             modelContext.insert(o)
         }
 
@@ -751,11 +750,11 @@ public final class BackupService {
         for dto in payload.studentMeetings {
             if (try? fetchOne(StudentMeeting.self, id: dto.id, using: modelContext)) != nil { continue }
             let m = StudentMeeting(id: dto.id, studentID: dto.studentID, date: dto.date)
-            (m as AnyObject).setValue(dto.completed, forKey: "completed")
-            (m as AnyObject).setValue(dto.reflection, forKey: "reflection")
-            (m as AnyObject).setValue(dto.focus, forKey: "focus")
-            (m as AnyObject).setValue(dto.requests, forKey: "requests")
-            (m as AnyObject).setValue(dto.guideNotes, forKey: "guideNotes")
+            kvSet(m, "completed", dto.completed)
+            kvSet(m, "reflection", dto.reflection)
+            kvSet(m, "focus", dto.focus)
+            kvSet(m, "requests", dto.requests)
+            kvSet(m, "guideNotes", dto.guideNotes)
             modelContext.insert(m)
         }
 
@@ -763,9 +762,9 @@ public final class BackupService {
         for dto in payload.presentations {
             if (try? fetchOne(Presentation.self, id: dto.id, using: modelContext)) != nil { continue }
             let p = Presentation(id: dto.id, createdAt: dto.createdAt, presentedAt: dto.presentedAt, lessonID: dto.lessonID, studentIDs: dto.studentIDs)
-            (p as AnyObject).setValue(dto.legacyStudentLessonID, forKey: "legacyStudentLessonID")
-            (p as AnyObject).setValue(dto.lessonTitleSnapshot, forKey: "lessonTitleSnapshot")
-            (p as AnyObject).setValue(dto.lessonSubtitleSnapshot, forKey: "lessonSubtitleSnapshot")
+            kvSet(p, "legacyStudentLessonID", dto.legacyStudentLessonID)
+            kvSet(p, "lessonTitleSnapshot", dto.lessonTitleSnapshot)
+            kvSet(p, "lessonSubtitleSnapshot", dto.lessonSubtitleSnapshot)
             modelContext.insert(p)
         }
 
@@ -833,13 +832,38 @@ public final class BackupService {
     private func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, using context: ModelContext) throws -> T? {
         let all = try context.fetch(FetchDescriptor<T>())
         return all.first { (obj: T) in
-            ((obj as AnyObject).value(forKey: "id") as? UUID) == id
+            if let value: UUID = kvValue(obj, "id") {
+                return value == id
+            }
+            return false
         }
     }
 
     private func sha256Hex(_ data: Data) -> String {
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func kvValue<T>(_ obj: Any, _ key: String) -> T? {
+        if let ns = obj as? NSObject {
+            return ns.value(forKey: key) as? T
+        }
+        func read(from mirror: Mirror?) -> T? {
+            guard let mirror = mirror else { return nil }
+            for child in mirror.children {
+                if child.label == key {
+                    return child.value as? T
+                }
+            }
+            return read(from: mirror.superclassMirror)
+        }
+        return read(from: Mirror(reflecting: obj))
+    }
+
+    private func kvSet(_ obj: Any, _ key: String, _ value: Any?) {
+        if let ns = obj as? NSObject {
+            ns.setValue(value, forKey: key)
+        }
     }
 
     private static let preferenceKeys: [String] = [
