@@ -12,8 +12,6 @@ struct OpenPracticeListView: View {
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
 
-    @State private var selectedWork: WorkModel? = nil
-
     private var lessonsByID: [UUID: Lesson] {
         Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
     }
@@ -61,49 +59,32 @@ struct OpenPracticeListView: View {
     var body: some View {
         NavigationStack {
             List(openPractice) { work in
-                Button {
-                    selectedWork = work
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .foregroundStyle(.purple)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(workTitle(work))
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                .lineLimit(1)
-                            Text(workSubtitle(work))
-                                .font(.system(size: 13, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        // Open participant count indicator
-                        let openCount = (work.participants ?? []).filter { $0.completedAt == nil }.count
-                        if openCount > 0 {
-                            Text("\(openCount)")
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Capsule().fill(Color.purple.opacity(0.15)))
-                                .foregroundStyle(Color.purple)
-                        }
+                HStack(spacing: 12) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(.purple)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(workTitle(work))
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .lineLimit(1)
+                        Text(workSubtitle(work))
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    // Open participant count indicator
+                    let openCount = (work.participants ?? []).filter { $0.completedAt == nil }.count
+                    if openCount > 0 {
+                        Text("\(openCount)")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.purple.opacity(0.15)))
+                            .foregroundStyle(Color.purple)
                     }
                 }
-                .buttonStyle(.plain)
             }
             .navigationTitle("Open Practice")
-        }
-        .sheet(item: $selectedWork) { work in
-            WorkDetailView(work: work) {
-                selectedWork = nil
-            }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
         }
     }
 }

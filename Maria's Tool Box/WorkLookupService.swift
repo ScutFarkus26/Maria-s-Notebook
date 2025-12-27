@@ -1,48 +1,34 @@
 import Foundation
+import SwiftData
 
-class WorkLookupService {
-    let students: [Student]
-    let lessons: [Lesson]
-    let studentLessons: [StudentLesson]
+/// A service that provides lookup dictionaries and convenience helpers
+/// to efficiently access and resolve related work, student, and lesson data.
+struct WorkLookupService {
+    let studentsByID: [UUID: Student]
+    let lessonsByID: [UUID: Lesson]
+    let studentLessonsByID: [UUID: StudentLesson]
     
+    /// Initializes the service with arrays of students, lessons, and student lessons,
+    /// organizing them into dictionaries keyed by their respective UUIDs.
     init(students: [Student], lessons: [Lesson], studentLessons: [StudentLesson]) {
-        self.students = students
-        self.lessons = lessons
-        self.studentLessons = studentLessons
+        self.studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        self.lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        self.studentLessonsByID = Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
     }
     
-    lazy var studentsByID: [UUID: Student] = {
-        Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
-    }()
-    
-    lazy var lessonsByID: [UUID: Lesson] = {
-        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-    }()
-    
-    lazy var studentLessonsByID: [UUID: StudentLesson] = {
-        Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
-    }()
-    
-    var subjects: [String] {
-        let existing = Array(Set(lessons
-            .map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        )).sorted()
-        return FilterOrderStore.loadSubjectOrder(existing: existing)
-    }
-    
-    func linkedDate(for work: WorkModel) -> Date {
-        if let slID = work.studentLessonID, let sl = studentLessonsByID[slID] {
-            if let given = sl.givenAt { return given }
-            if let sched = sl.scheduledFor { return sched }
+    /// Returns the title for a given work model.
+    /// If the work's title is non-empty, returns it.
+    /// Otherwise, if the studentLessonID resolves to a lesson, returns that lesson's name.
+    /// Otherwise, returns the raw value of the work's workType.
+    func title(for work: WorkModel) -> String {
+        if !work.title.isEmpty {
+            return work.title
         }
-        return work.createdAt
-    }
-    
-    func displayName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+        if let studentLessonID = work.studentLessonID,
+           let studentLesson = studentLessonsByID[studentLessonID],
+           let lesson = lessonsByID[studentLesson.lessonID] {
+            return lesson.name
+        }
+        return work.workType.rawValue
     }
 }

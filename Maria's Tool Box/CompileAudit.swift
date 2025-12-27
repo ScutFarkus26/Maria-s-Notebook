@@ -36,9 +36,6 @@ struct CompileAudit {
     // PillButton 2.swift
     typealias _Audit_PillNavButton_Body = PillNavButton.Body
 
-    // WorkView.swift
-    typealias _Audit_WorkView_Body = WorkView.Body
-
     // StudentLessonDetailView.swift
     typealias _Audit_StudentLessonDetailView_Body = StudentLessonDetailView.Body
 
@@ -50,9 +47,6 @@ struct CompileAudit {
 
     // AttendanceView.swift
     typealias _Audit_AttendanceView_Body = AttendanceView.Body
-
-    // WorkDetailView.swift
-    typealias _Audit_WorkDetailView_Body = WorkDetailView.Body
 
     // LessonsRootView.swift
     typealias _Audit_LessonsRootView_Body = LessonsRootView.Body
@@ -96,12 +90,6 @@ struct CompileAudit {
         // Note: Private nested card views are intentionally not referenced here.
     }
 
-    // MARK: - Work (WorkView.swift)
-    static func auditWorkView() {
-        touchType(WorkView.self)
-        touchBody(WorkView.self)
-    }
-
     // MARK: - Student Lesson Detail (StudentLessonDetailView.swift)
     static func auditStudentLessonDetail() {
         touchType(StudentLessonDetailView.self)
@@ -120,12 +108,6 @@ struct CompileAudit {
     static func auditAttendance() {
         touchType(AttendanceView.self)
         touchBody(AttendanceView.self)
-    }
-
-    // MARK: - Work Detail (WorkDetailView.swift)
-    static func auditWorkDetail() {
-        touchType(WorkDetailView.self)
-        touchBody(WorkDetailView.self)
     }
 
     // MARK: - Lessons Root (LessonsRootView.swift)

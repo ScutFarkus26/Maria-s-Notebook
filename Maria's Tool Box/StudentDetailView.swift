@@ -117,15 +117,14 @@ struct StudentDetailView: View {
 
     private var plannedLessonIDs: Set<UUID> { vm.plannedLessonIDs }
 
-    private var practiceLessonIDs: Set<UUID> { vm.workSummary.practiceLessonIDs }
+    // Updated per instructions:
+    private var practiceLessonIDs: Set<UUID> { vm.contractSummary.practiceLessonIDs }
+    private var followUpLessonIDs: Set<UUID> { vm.contractSummary.followUpLessonIDs }
+    private var pendingWorkLessonIDs: Set<UUID> { vm.contractSummary.pendingLessonIDs }
 
-    private var followUpLessonIDs: Set<UUID> { vm.workSummary.followUpLessonIDs }
-
-    private var pendingPracticeLessonIDs: Set<UUID> { vm.workSummary.pendingPracticeLessonIDs }
-
-    private var pendingFollowUpLessonIDs: Set<UUID> { vm.workSummary.pendingFollowUpLessonIDs }
-
-    private var pendingWorkLessonIDs: Set<UUID> { vm.workSummary.pendingWorkLessonIDs }
+    // Compatibility accessors (mapped to the same pending set)
+    private var pendingPracticeLessonIDs: Set<UUID> { vm.contractSummary.pendingLessonIDs }
+    private var pendingFollowUpLessonIDs: Set<UUID> { vm.contractSummary.pendingLessonIDs }
 
     private var masteredLessonIDs: Set<UUID> { vm.masteredLessonIDs }
 

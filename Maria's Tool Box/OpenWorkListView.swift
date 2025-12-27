@@ -106,7 +106,6 @@ struct OpenWorkListView: View {
             }
             #if os(macOS)
             .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
             #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)

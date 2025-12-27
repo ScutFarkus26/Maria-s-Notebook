@@ -7,9 +7,13 @@ struct StudentMeetingsTab: View {
     // MARK: - Environment & Data
     @Environment(\.modelContext) private var modelContext
 
-    // Query all work items; we'll filter by participant membership
-    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
-    private var workItems: [WorkModel]
+    // Query all contracts; we'll filter by studentID
+    @Query(sort: [SortDescriptor(\WorkContract.createdAt, order: .reverse)])
+    private var allContracts: [WorkContract]
+
+    // Query all lessons for lookup
+    @Query(sort: [SortDescriptor(\Lesson.name)])
+    private var lessons: [Lesson]
 
     // Query all meetings; we'll filter by studentID
     @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
@@ -41,6 +45,33 @@ struct StudentMeetingsTab: View {
     private var todayString: String {
         DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none)
     }
+
+    // MARK: - Computed helpers for contracts and lessons
+
+    private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
+
+    private var contractsForStudent: [WorkContract] {
+        let sid = student.id.uuidString
+        return allContracts.filter { $0.studentID == sid }
+    }
+
+    private var openContractsForStudent: [WorkContract] {
+        contractsForStudent.filter { $0.status != .complete }
+    }
+
+    private var overdueContractsForStudent: [WorkContract] {
+        let threshold = Calendar.current.date(byAdding: .day, value: -workOverdueDays, to: Date()) ?? Date.distantPast
+        return contractsForStudent.filter { $0.status != .complete && $0.createdAt < threshold }
+    }
+
+    private var recentCompletedContractsForStudent: [WorkContract] {
+        let threshold = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+        return contractsForStudent.filter { $0.status == .complete && ($0.completedAt ?? .distantPast) >= threshold }
+    }
+
+    private var openContractCountText: String { openContractsForStudent.isEmpty ? "—" : "\(openContractsForStudent.count)" }
+    private var overdueContractCountText: String { overdueContractsForStudent.isEmpty ? "—" : "\(overdueContractsForStudent.count)" }
+    private var recentlyCompletedContractCountText: String { recentCompletedContractsForStudent.isEmpty ? "—" : "\(recentCompletedContractsForStudent.count)" }
 
     // MARK: - Body
     var body: some View {
@@ -159,27 +190,27 @@ struct StudentMeetingsTab: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
                 VStack(alignment: .leading, spacing: 6) {
-                    rowLine(label: "Open work", value: openWorkCountText)
-                    if !openWorksForStudent.isEmpty {
+                    rowLine(label: "Open contracts", value: openContractCountText)
+                    if !openContractsForStudent.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
-                            ForEach(openWorksForStudent.prefix(3)) { work in
-                                workRowLine(work)
+                            ForEach(openContractsForStudent.prefix(3)) { contract in
+                                contractRowLine(contract)
                             }
                         }
                     }
-                    rowLine(label: "Overdue/stuck", value: overdueWorkCountText)
-                    if !overdueWorksForStudent.isEmpty {
+                    rowLine(label: "Overdue/stuck", value: overdueContractCountText)
+                    if !overdueContractsForStudent.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
-                            ForEach(overdueWorksForStudent.prefix(3)) { work in
-                                workRowLine(work)
+                            ForEach(overdueContractsForStudent.prefix(3)) { contract in
+                                contractRowLine(contract)
                             }
                         }
                     }
-                    rowLine(label: "Recently completed", value: recentlyCompletedCountText)
-                    if !recentCompletedWorksForStudent.isEmpty {
+                    rowLine(label: "Recently completed", value: recentlyCompletedContractCountText)
+                    if !recentCompletedContractsForStudent.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
-                            ForEach(recentCompletedWorksForStudent.prefix(3)) { work in
-                                workRowLine(work, showCompletedDate: true)
+                            ForEach(recentCompletedContractsForStudent.prefix(3)) { contract in
+                                contractRowLine(contract, showCompletedDate: true)
                             }
                         }
                     }
@@ -262,50 +293,17 @@ struct StudentMeetingsTab: View {
         }
     }
 
-    // MARK: - Work Snapshot Computations
+    // MARK: - Helpers for Contract display
 
-    private var worksForStudent: [WorkModel] {
-        workItems.filter { work in
-            (work.participants ?? []).contains { $0.studentID == student.id }
-        }
-    }
-
-    private var openWorksForStudent: [WorkModel] {
-        worksForStudent.filter { work in
-            (work.participants ?? []).contains { $0.studentID == student.id && $0.completedAt == nil }
-        }
-    }
-
-    private var overdueWorksForStudent: [WorkModel] {
-        let threshold = Calendar.current.date(byAdding: .day, value: -workOverdueDays, to: Date()) ?? Date.distantPast
-        return worksForStudent.filter { work in
-            let isOpenForStudent = (work.participants ?? []).contains { $0.studentID == student.id && $0.completedAt == nil }
-            let isOld = work.createdAt < threshold
-            return isOpenForStudent && isOld
-        }
-    }
-
-    private var recentCompletedWorksForStudent: [WorkModel] {
-        let threshold = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
-        return worksForStudent.filter { work in
-            (work.participants ?? []).contains { $0.studentID == student.id && ($0.completedAt ?? .distantPast) >= threshold }
-        }
-    }
-
-    private var openWorkCountText: String { openWorksForStudent.isEmpty ? "—" : "\(openWorksForStudent.count)" }
-    private var overdueWorkCountText: String { overdueWorksForStudent.isEmpty ? "—" : "\(overdueWorksForStudent.count)" }
-    private var recentlyCompletedCountText: String { recentCompletedWorksForStudent.isEmpty ? "—" : "\(recentCompletedWorksForStudent.count)" }
-
-    private func workRowLine(_ work: WorkModel, showCompletedDate: Bool = false) -> some View {
+    private func contractRowLine(_ contract: WorkContract, showCompletedDate: Bool = false) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "circle.fill").font(.system(size: 6)).foregroundStyle(.secondary)
-            Text(workDisplayTitle(work))
+            Text(contractDisplayTitle(contract))
                 .font(.footnote)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-            if showCompletedDate, let date = (work.participants ?? []).first(where: { $0.studentID == student.id })?.completedAt {
-                Text("•")
-                    .foregroundStyle(.secondary)
+            if showCompletedDate, let date = contract.completedAt {
+                Text("•").foregroundStyle(.secondary)
                 Text(Self.dateFormatter.string(from: date))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -313,10 +311,11 @@ struct StudentMeetingsTab: View {
         }
     }
 
-    private func workDisplayTitle(_ work: WorkModel) -> String {
-        let trimmed = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty { return trimmed }
-        return work.workType.rawValue
+    private func contractDisplayTitle(_ contract: WorkContract) -> String {
+        if let lid = UUID(uuidString: contract.lessonID), let l = lessonsByID[lid] {
+            return l.name
+        }
+        return "Lesson"
     }
 
     // MARK: - Persistence (UserDefaults for current, SwiftData for history)

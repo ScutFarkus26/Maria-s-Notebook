@@ -3,26 +3,31 @@ import SwiftData
 
 struct WorkDetailWindowContainer: View {
     let workID: UUID
-
-    @Environment(\.dismiss) private var dismiss
-    @Query private var works: [WorkModel]
-
-    init(workID: UUID) {
-        self.workID = workID
-        _works = Query(filter: #Predicate<WorkModel> { $0.id == workID })
-    }
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        if let work = works.first {
-            WorkDetailView(work: work) {
-                dismiss()
+        if let contract = try? modelContext.fetch(
+            FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == workID })
+        ).first {
+            WorkContractDetailSheet(contract: contract)
+                .frame(minWidth: 500, minHeight: 400)
+        } else if let legacyWork = try? modelContext.fetch(
+            FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
+        ).first {
+            ContentUnavailableView {
+                Label("Legacy Work UI Removed", systemImage: "exclamationmark.triangle")
+            } description: {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("This work was created with the legacy Work UI which has been removed. Please use Contracts.")
+                    if !legacyWork.title.isEmpty {
+                        Text("Work title: \(legacyWork.title)")
+                    }
+                }
             }
-            .frame(minWidth: 520, minHeight: 560)
+            .frame(minWidth: 400, minHeight: 200)
         } else {
-            // Auto-dismiss the window when the work is missing (e.g., deleted)
-            Color.clear
-                .frame(minWidth: 1, minHeight: 1)
-                .onAppear { dismiss() }
+            ContentUnavailableView("Work not found", systemImage: "doc.questionmark")
+                .frame(minWidth: 400, minHeight: 200)
         }
     }
 }
