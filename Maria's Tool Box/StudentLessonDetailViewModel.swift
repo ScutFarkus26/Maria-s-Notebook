@@ -1,305 +1,359 @@
-#if false
-import SwiftUI
+import Foundation
 import SwiftData
+import SwiftUI
+import Combine
 
 @Observable
 final class StudentLessonDetailViewModel {
     // MARK: - Dependencies
-    private let modelContext: ModelContext
-    let studentLesson: StudentLesson
+    var studentLesson: StudentLesson
+    var modelContext: ModelContext
     
-    // MARK: - State
+    // MARK: - Editable State
+    var editingLessonID: UUID
     var scheduledFor: Date?
     var givenAt: Date?
     var isPresented: Bool
-    var notes: String
-    var needsPractice: Bool
+    var notes: String {
+        didSet {
+            scheduleNotesAutosave()
+        }
+    }
     var needsAnotherPresentation: Bool
-    var followUpWork: String
     var selectedStudentIDs: Set<UUID>
     
-    // Student picker state
-    var studentSearchText: String = ""
-    var studentLevelFilter: LevelFilter = .all
+    // MARK: - UI State
+    var showLessonPicker: Bool = false
+    var showAssignmentComposer: Bool = false
+    var showingAddStudentSheet: Bool = false
+    var showingStudentPickerPopover: Bool = false
+    var showDeleteAlert: Bool = false
+    var showingMoveStudentsSheet: Bool = false
     
-    // Sheet and alert state
-    var showingAddStudentSheet = false
-    var showingStudentPickerPopover = false
-    var showDeleteAlert = false
-    var showingMoveStudentsSheet = false
-    
-    // Banner state
-    var showPlannedBanner = false
-    var showMovedBanner = false
-    var movedStudentNames: [String] = []
-    
-    // Move students state
+    // MARK: - Move Students UI State
     var studentsToMove: Set<UUID> = []
-    
-    // Internal state
-    private var didPlanNext: Bool = false
-    
-    // MARK: - Enums
-    enum LevelFilter: String, CaseIterable {
-        case all = "All"
-        case lower = "Lower"
-        case upper = "Upper"
-    }
-    
+    var showMovedBanner: Bool = false
+    var movedStudentNames: [String] = []
+
+    // MARK: - Autosave State
+    var notesDirty: Bool = false
+    var originalNotes: String
+    private var notesAutosaveTask: Task<Void, Never>? = nil
+
     // MARK: - Initialization
-    init(studentLesson: StudentLesson, modelContext: ModelContext) {
+    init(studentLesson: StudentLesson, modelContext: ModelContext, autoFocusLessonPicker: Bool = false) {
         self.studentLesson = studentLesson
         self.modelContext = modelContext
         
-        // Initialize state from model
+        // Initialize local state from the model
+        self.editingLessonID = studentLesson.lessonID
         self.scheduledFor = studentLesson.scheduledFor
         self.givenAt = studentLesson.givenAt
         self.isPresented = studentLesson.isPresented
         self.notes = studentLesson.notes
-        self.needsPractice = studentLesson.needsPractice
+        self.originalNotes = studentLesson.notes
         self.needsAnotherPresentation = studentLesson.needsAnotherPresentation
-        self.followUpWork = studentLesson.followUpWork
         self.selectedStudentIDs = Set(studentLesson.studentIDs)
+        
+        self.showLessonPicker = autoFocusLessonPicker
     }
     
-    // MARK: - Computed Properties
-    var scheduleStatusText: String {
-        guard let date = scheduledFor else {
-            return "Not Scheduled Yet"
-        }
-        let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
-        let datePart = formatter.string(from: date)
-        let hour = Calendar.current.component(.hour, from: date)
-        let period = hour < 12 ? "Morning" : "Afternoon"
-        return "\(datePart) in the \(period)"
+    // MARK: - Computed Helpers
+    
+    /// Resolves the currently selected Lesson object from the provided list
+    func lessonObject(from lessons: [Lesson]) -> Lesson? {
+        lessons.first(where: { $0.id == editingLessonID })
     }
     
-    // MARK: - Methods
-    func getNextLessonInGroup(from lessons: [Lesson]) -> Lesson? {
-        guard let lesson = studentLesson.lesson else { return nil }
-        
-        let currentSubject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentGroup = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return nil }
-        
-        let candidates = lessons
-            .filter { l in
-                l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
-                l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
-            }
-            .sorted { $0.orderInGroup < $1.orderInGroup }
-        
-        guard let idx = candidates.firstIndex(where: { $0.id == lesson.id }), 
-              idx + 1 < candidates.count else { return nil }
-        
-        return candidates[idx + 1]
+    /// Determines the next lesson in the group based on the current selection
+    func nextLessonInGroup(from lessons: [Lesson]) -> Lesson? {
+        guard let current = lessonObject(from: lessons) else { return nil }
+        let actions = StudentLessonDetailActions()
+        return actions.nextLessonInGroup(from: current, lessons: lessons)
     }
-    
-    func canPlanNextLesson(nextLesson: Lesson, existingStudentLessons: [StudentLesson]) -> Bool {
-        return !didPlanNext && !existingStudentLessons.contains { sl in
-            sl.lessonID == nextLesson.id && 
-            Set(sl.studentIDs) == selectedStudentIDs && 
-            sl.givenAt == nil
-        }
-    }
-    
-    func planNextLessonInGroup(
-        nextLesson: Lesson,
-        students: [Student],
-        lessons: [Lesson]
-    ) {
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
-            lessonID: nextLesson.id,
-            studentIDs: Array(selectedStudentIDs),
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+
+    // MARK: - Actions
+
+    /// Applies local state to the persistent model without saving (useful for immediate updates)
+    func applyEditsToModel(studentsAll: [Student], lessons: [Lesson], calendar: Calendar) {
+        let actions = StudentLessonDetailActions()
+        actions.applyEditsToModel(
+            studentLesson: studentLesson,
+            editingLessonID: editingLessonID,
+            scheduledFor: scheduledFor,
+            givenAt: givenAt,
+            isPresented: isPresented,
+            notes: notes,
+            needsAnotherPresentation: needsAnotherPresentation,
+            selectedStudentIDs: selectedStudentIDs,
+            studentsAll: studentsAll,
+            lessons: lessons,
+            calendar: calendar
         )
-        
-        newStudentLesson.students = students.filter { selectedStudentIDs.contains($0.id) }
-        newStudentLesson.lesson = lessons.first(where: { $0.id == nextLesson.id })
-        newStudentLesson.syncSnapshotsFromRelationships()
-        
-        modelContext.insert(newStudentLesson)
-        try? modelContext.save()
-        
-        didPlanNext = true
-        showBanner(.planned)
     }
     
-    func moveStudentsToNewLesson(
-        students: [Student],
-        lessons: [Lesson]
-    ) {
-        guard !studentsToMove.isEmpty, let lesson = studentLesson.lesson else { return }
-        
-        // Get names for banner
-        movedStudentNames = students
-            .filter { studentsToMove.contains($0.id) }
-            .map { StudentFormatter.displayName(for: $0) }
-        
-        // Create new lesson with moved students
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
-            lessonID: lesson.id,
-            studentIDs: Array(studentsToMove),
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
-        
-        newStudentLesson.students = students.filter { studentsToMove.contains($0.id) }
-        newStudentLesson.lesson = lesson
-        newStudentLesson.syncSnapshotsFromRelationships()
-        
-        modelContext.insert(newStudentLesson)
-        
-        // Remove students from current lesson
-        selectedStudentIDs.subtract(studentsToMove)
-        studentsToMove.removeAll()
-        
-        try? modelContext.save()
-        
-        showBanner(.moved)
-    }
-    
-    private enum BannerType {
-        case planned
-        case moved
-    }
-    
-    private func showBanner(_ type: BannerType) {
-        switch type {
-        case .planned:
-            showPlannedBanner = true
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(2))
-                showPlannedBanner = false
-            }
-        case .moved:
-            showMovedBanner = true
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(3))
-                showMovedBanner = false
-            }
-        }
-    }
-    
-    func filteredStudents(from allStudents: [Student]) -> [Student] {
-        let query = studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        
-        let searched: [Student]
-        if query.isEmpty {
-            searched = allStudents
-        } else {
-            searched = allStudents.filter { student in
-                let firstName = student.firstName.lowercased()
-                let lastName = student.lastName.lowercased()
-                let fullName = student.fullName.lowercased()
-                return firstName.contains(query) || lastName.contains(query) || fullName.contains(query)
-            }
-        }
-        
-        let leveled = searched.filter { student in
-            switch studentLevelFilter {
-            case .all: return true
-            case .lower: return student.level == .lower
-            case .upper: return student.level == .upper
-            }
-        }
-        
-        return leveled.sorted { lhs, rhs in
-            if lhs.firstName.caseInsensitiveCompare(rhs.firstName) == .orderedSame {
-                return lhs.lastName.caseInsensitiveCompare(rhs.lastName) == .orderedAscending
-            }
-            return lhs.firstName.caseInsensitiveCompare(rhs.firstName) == .orderedAscending
-        }
-    }
-    
+    /// Saves changes to the database, handles lifecycle events, and auto-creates next lessons
     func save(
-        students: [Student],
+        studentsAll: [Student],
         lessons: [Lesson],
-        workModels: [WorkModel]
-    ) throws {
-        // Update model with current state
-        studentLesson.scheduledFor = scheduledFor
-        studentLesson.givenAt = givenAt
-        studentLesson.isPresented = isPresented
-        studentLesson.notes = notes
-        studentLesson.needsPractice = needsPractice
-        studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.followUpWork = followUpWork
-        studentLesson.studentIDs = Array(selectedStudentIDs)
-        
-        studentLesson.students = students.filter { selectedStudentIDs.contains($0.id) }
-        studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
-        studentLesson.syncSnapshotsFromRelationships()
-        
-        // Auto-create practice work if needed
-        if needsPractice {
-            let hasPracticeWork = workModels.contains { work in
-                work.studentLessonID == studentLesson.id && work.workType == .practice
-            }
-            
-            if !hasPracticeWork {
-                let practiceWork = WorkModel(
-                    id: UUID(),
-                    title: "Practice: \(studentLesson.lesson?.name ?? "Lesson")",
-                    workType: .practice,
-                    studentLessonID: studentLesson.id,
-                    notes: "",
-                    createdAt: Date()
+        studentLessonsAll: [StudentLesson],
+        calendar: Calendar,
+        onDone: (() -> Void)? = nil
+    ) {
+        // Capture prior presented state
+        let wasGiven = studentLesson.isPresented || studentLesson.givenAt != nil
+
+        // 1. Apply local edits to the model
+        applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
+
+        // 2. Engagement Lifecycle (Explode Work)
+        let nowGiven = isPresented || (givenAt != nil)
+        if nowGiven {
+            do {
+                let _ = try LifecycleService.recordPresentationAndExplodeWork(
+                    from: studentLesson,
+                    presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
+                    modelContext: modelContext
                 )
-                practiceWork.participants = Array(selectedStudentIDs).map { sid in
-                    WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork)
-                }
-                modelContext.insert(practiceWork)
+            } catch {
+                print("LifecycleService error: \(error)")
             }
         }
+
+        // 3. Auto-create next lesson if needed
+        let actions = StudentLessonDetailActions()
+        let nextLesson = nextLessonInGroup(from: lessons)
         
-        // Auto-create follow-up work if needed
-        let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedFollowUp.isEmpty {
-            let hasDuplicateFollowUp = workModels.contains { work in
-                work.studentLessonID == studentLesson.id &&
-                work.workType == .followUp &&
-                work.notes.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(trimmedFollowUp) == .orderedSame
-            }
+        actions.autoCreateNextIfNeeded(
+            wasGiven: wasGiven,
+            nowGiven: nowGiven,
+            nextLesson: nextLesson,
+            selectedStudentIDs: selectedStudentIDs,
+            studentsAll: studentsAll,
+            lessons: lessons,
+            studentLessonsAll: studentLessonsAll,
+            context: modelContext
+        )
+
+        // 4. Persist
+        do {
+            try modelContext.save()
             
-            if !hasDuplicateFollowUp {
-                let followUp = WorkModel(
-                    id: UUID(),
-                    title: "Follow Up: \(studentLesson.lesson?.name ?? "Lesson")",
-                    workType: .followUp,
-                    studentLessonID: studentLesson.id,
-                    notes: trimmedFollowUp,
-                    createdAt: Date()
-                )
-                followUp.participants = Array(selectedStudentIDs).map { sid in
-                    WorkParticipantEntity(studentID: sid, completedAt: nil, work: followUp)
-                }
-                modelContext.insert(followUp)
-            }
+            // Reset autosave state
+            notesAutosaveTask?.cancel()
+            originalNotes = notes
+            notesDirty = false
+            
+            // Notify system
+            StudentLessonDetailUtilities.notifyInboxRefresh()
+
+            onDone?()
+        } catch {
+            print("Failed to save student lesson: \(error)")
         }
-        
-        try modelContext.save()
     }
     
-    func delete() throws {
-        modelContext.delete(studentLesson)
-        try modelContext.save()
+    /// A lightweight save for autosaving notes or minor updates
+    func saveImmediate(studentsAll: [Student], lessons: [Lesson], calendar: Calendar) {
+        applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
+        try? modelContext.save()
+    }
+
+    /// Deletes the student lesson
+    func delete(onDone: (() -> Void)? = nil) {
+        let id = studentLesson.id
+        let ctx = modelContext
+
+        // Execute callback immediately to dismiss UI
+        onDone?()
+
+        // Perform deletion asynchronously
+        DispatchQueue.main.async {
+            let desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+            if let toDelete = try? ctx.fetch(desc).first {
+                // Access relationship to avoid faults before deletion
+                _ = toDelete.studentIDs
+                ctx.delete(toDelete)
+                try? ctx.save()
+            }
+            StudentLessonDetailUtilities.notifyInboxRefresh()
+        }
+    }
+    
+    // MARK: - Special Logic
+    
+    /// Handles the "Move Students" action, creating a new lesson for them and removing them from this one
+    func moveStudentsToInbox(
+        studentsAll: [Student],
+        studentLessonsAll: [StudentLesson],
+        lessons: [Lesson]
+    ) {
+        guard !studentsToMove.isEmpty, let currentLesson = lessonObject(from: lessons) else { return }
+        
+        let actions = StudentLessonDetailActions()
+        
+        // Perform move using helper
+        self.movedStudentNames = actions.moveStudentsToInbox(
+            currentLesson: currentLesson,
+            studentsToMove: studentsToMove,
+            studentsAll: studentsAll,
+            studentLessonsAll: studentLessonsAll,
+            context: modelContext
+        )
+        
+        // Remove students from current VM state
+        selectedStudentIDs.subtract(studentsToMove)
+        
+        // Sync to model immediately so the view updates
+        let remaining = Set(studentLesson.studentIDs).subtracting(studentsToMove)
+        studentLesson.studentIDs = Array(remaining)
+        studentLesson.students = studentsAll.filter { remaining.contains($0.id) }
+        try? modelContext.save()
+        
+        StudentLessonDetailUtilities.notifyInboxRefresh()
+
+        // UI Updates
+        studentsToMove.removeAll()
+        showMovedBanner = true
+        
+        // Hide banner after delay
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            showMovedBanner = false
+        }
+    }
+    
+    /// Reacts to changes in "Needs Another Presentation" toggle
+    func handleNeedsAnotherChange(
+        newValue: Bool,
+        studentsAll: [Student],
+        studentLessonsAll: [StudentLesson],
+        lessons: [Lesson]
+    ) {
+        guard newValue else { return }
+        guard !selectedStudentIDs.isEmpty else { return }
+        
+        // If toggled ON, ensure we create a fresh "not given" entry if one doesn't exist
+        let sameStudents = Set(selectedStudentIDs)
+        let exists = studentLessonsAll.contains { sl in
+            sl.resolvedLessonID == editingLessonID &&
+            sl.scheduledFor == nil &&
+            !sl.isGiven &&
+            Set(sl.resolvedStudentIDs) == sameStudents
+        }
+        
+        if !exists {
+            let newStudentLesson = StudentLesson(
+                id: UUID(),
+                lessonID: editingLessonID,
+                studentIDs: Array(sameStudents),
+                createdAt: Date(),
+                scheduledFor: nil,
+                givenAt: nil,
+                notes: "",
+                needsPractice: false,
+                needsAnotherPresentation: false,
+                followUpWork: ""
+            )
+            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+            newStudentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
+            modelContext.insert(newStudentLesson)
+            try? modelContext.save()
+        }
+    }
+    
+    /// Schedules a new presentation for the next lesson in the group
+    func scheduleNextLessonToInbox(
+        studentsAll: [Student],
+        studentLessonsAll: [StudentLesson],
+        lessons: [Lesson]
+    ) {
+        guard let next = nextLessonInGroup(from: lessons) else { return }
+        guard !selectedStudentIDs.isEmpty else { return }
+        
+        let sameStudents = Set(selectedStudentIDs)
+        
+        // Avoid duplicates
+        let exists = studentLessonsAll.contains { sl in
+            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
+        }
+        if exists { return }
+
+        let newStudentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: next.id,
+            studentIDs: Array(sameStudents),
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: nil,
+            isPresented: false,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+        newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+        modelContext.insert(newStudentLesson)
+        try? modelContext.save()
+        StudentLessonDetailUtilities.notifyInboxRefresh()
+    }
+    
+    // MARK: - Notes Autosave
+    
+    private func scheduleNotesAutosave() {
+        notesDirty = (notes != originalNotes)
+        notesAutosaveTask?.cancel()
+        
+        guard notesDirty else { return }
+        
+        notesAutosaveTask = Task {
+            try? await Task.sleep(nanoseconds: 600_000_000) // 0.6s debounce
+            guard !Task.isCancelled else { return }
+            
+            await MainActor.run {
+                // We need to fetch current snapshot of dependencies from the model or
+                // ideally, we should just save the notes.
+                // However, saveImmediate requires the arrays.
+                // Since this runs in the VM context, we might not have the latest `studentsAll` if they changed.
+                // But for notes, we generally only update the `notes` field.
+                
+                // NOTE: In a strictly pure VM, we'd need the View to trigger this.
+                // For simplicity/safety in this refactor, we accept that 'applyEditsToModel'
+                // might use the 'studentLesson.students' if we don't pass new ones.
+                // But `applyEditsToModel` requires `studentsAll`.
+                
+                // To solve this properly in MVVM: The View should trigger the flush, or
+                // we rely on the fact that `applyEditsToModel` is mainly updating the `StudentLesson` object
+                // which is a class.
+                
+                // We will defer the actual persistent save to `flushNotesAutosaveIfNeeded`
+                // called by the View, OR we set a flag.
+                
+                // However, the requirement is to move logic to VM.
+                // We will signal the View or just let the `saveImmediate` happen via a closure provided by the View?
+                // No, that's too complex.
+                // We will update the `StudentLesson` object directly here.
+                
+                studentLesson.notes = notes
+                try? modelContext.save()
+                
+                originalNotes = notes
+                notesDirty = false
+                StudentLessonDetailUtilities.notifyInboxRefresh()
+            }
+        }
+    }
+    
+    func flushNotesAutosaveIfNeeded() {
+        notesAutosaveTask?.cancel()
+        guard notesDirty else { return }
+        
+        studentLesson.notes = notes
+        try? modelContext.save()
+        
+        originalNotes = notes
+        notesDirty = false
+        StudentLessonDetailUtilities.notifyInboxRefresh()
     }
 }
-
-#endif
