@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 enum PlanningEngine {
     static func firstSchoolDay(onOrAfter date: Date, calendar: Calendar, isNonSchoolDay: (Date) -> Bool) -> Date {
@@ -39,31 +38,18 @@ enum PlanningEngine {
         day.formatted(Date.FormatStyle().weekday(.abbreviated).day())
     }
 
-    static func unscheduledWorks(_ works: [WorkModel]) -> [WorkModel] {
-        works
-            .filter { $0.isOpen && !($0.checkIns ?? []).contains(where: { $0.status != .completed && $0.status != .skipped }) }
-            .sorted(by: { $0.createdAt < $1.createdAt })
-    }
-
     static func dateForSlot(day: Date, period: DayPeriod, calendar: Calendar) -> Date {
         let startOfDay = AppCalendar.startOfDay(day)
         return calendar.date(byAdding: .hour, value: period.baseHour, to: startOfDay) ?? startOfDay
     }
 
+    @available(*, deprecated, message: "Legacy WorkModel-based planning helpers have been retired. Returns empty.")
+    static func unscheduledWorks(_ works: [WorkModel]) -> [WorkModel] {
+        return []
+    }
+
+    @available(*, deprecated, message: "Legacy WorkModel-based planning helpers have been retired. Returns empty.")
     static func groupedItems(works: [WorkModel], calendar: Calendar) -> [DayKey: [ScheduledItem]] {
-        var result: [DayKey: [ScheduledItem]] = [:]
-        for work in works where work.isOpen {
-            for ci in (work.checkIns ?? []) where ci.status != .completed && ci.status != .skipped {
-                let dayStart = AppCalendar.startOfDay(ci.date)
-                let hour = calendar.component(.hour, from: ci.date)
-                let period: DayPeriod = hour < 12 ? .morning : .afternoon
-                let key = DayKey(dayStart: dayStart, period: period)
-                result[key, default: []].append(ScheduledItem(work: work, checkIn: ci))
-            }
-        }
-        for key in result.keys {
-            result[key]?.sort { $0.checkIn.date < $1.checkIn.date }
-        }
-        return result
+        return [:]
     }
 }

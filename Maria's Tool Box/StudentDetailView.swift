@@ -70,18 +70,14 @@ struct StudentDetailView: View {
 
     private var studentLessonsByID: [UUID: StudentLesson] { vm.studentLessonsByID }
 
-    // Removed: private var worksForStudent: [WorkModel] { vm.worksForStudent }
-
     private var nextLessonsForStudent: [StudentLessonSnapshot] { vm.nextLessonsForStudent }
 
     // Added filtered computed properties for student-specific data
     private var studentLessonsAll: [StudentLesson] { studentLessonsRaw.filter { $0.resolvedStudentIDs.contains(student.id) } }
-    // Removed: private var workModelsAll: [WorkModel] { workModelsRaw.filter { $0.resolvedStudentIDs.contains(student.id) } }
 
     // Lightweight ID arrays to aid type-checker in onChange
     private var lessonIDs: [UUID] { lessons.map(\.id) }
     private var studentLessonIDs: [UUID] { studentLessonsAll.map(\.id) }
-    // Removed: private var workModelIDs: [UUID] { workModelsAll.map(\.id) }
 
     // MARK: - Derived
     private var levelColor: Color {
@@ -114,7 +110,6 @@ struct StudentDetailView: View {
 
     private var plannedLessonIDs: Set<UUID> { vm.plannedLessonIDs }
 
-    // Updated per instructions:
     private var practiceLessonIDs: Set<UUID> { vm.contractSummary.practiceLessonIDs }
     private var followUpLessonIDs: Set<UUID> { vm.contractSummary.followUpLessonIDs }
     private var pendingWorkLessonIDs: Set<UUID> { vm.contractSummary.pendingLessonIDs }
@@ -124,14 +119,6 @@ struct StudentDetailView: View {
     private var pendingFollowUpLessonIDs: Set<UUID> { vm.contractSummary.pendingLessonIDs }
 
     private var masteredLessonIDs: Set<UUID> { vm.masteredLessonIDs }
-
-    // Removed helper func workLinkedStudentLesson(for work: WorkModel) -> StudentLesson?
-
-    // Removed helper func workLesson(for work: WorkModel) -> Lesson?
-
-    // Removed helper func workTitle(for work: WorkModel) -> String
-
-    // Removed helper func workSubtitle(for work: WorkModel) -> String?
 
     // MARK: - Notes projection (restored)
     @MainActor
@@ -194,7 +181,6 @@ struct StudentDetailView: View {
         }
     }
 
-    // Updated parentTitle(for note: Note) to remove WorkModel references
     @MainActor
     private func parentTitle(for note: Note) -> String {
         if let lesson = note.lesson {
@@ -274,7 +260,6 @@ struct StudentDetailView: View {
         )
     }
 
-    // TODO: This icon/color mapping is duplicated in multiple files. Consider unifying via a local helper or extension.
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
         switch type {
         case .research: return ("magnifyingglass", .teal)
@@ -870,26 +855,25 @@ struct StudentDetailView: View {
         .onAppear {
             WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
             WorkDataMaintenance.migrateWorksToContractsIfNeeded(using: modelContext)
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: [])
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
         .onChange(of: lessonIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: [])
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
         .onChange(of: studentLessonIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: [])
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
-        // Removed entire .onChange(of: workModelIDs) block
     }
 
     private func ensureChecklistSubjectSelection() {

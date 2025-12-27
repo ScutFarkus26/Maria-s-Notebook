@@ -26,13 +26,10 @@ final class StudentDetailViewModel: ObservableObject {
     @Published private(set) var contractsForStudent: [WorkContract] = []
     @Published private(set) var contractSummary: ContractSummary = .empty
 
-    @Published private(set) var worksForStudent: [WorkModel] = []
-
     // MARK: - UI State
     // UI selection and toast state moved from the view
     @Published var selectedLessonForGive: Lesson? = nil
     @Published var giveStartGiven: Bool = false
-    @Published var selectedWorkForDetail: WorkModel? = nil
     @Published var selectedStudentLessonForDetail: StudentLesson? = nil
     @Published var toastMessage: String? = nil
 
@@ -42,7 +39,7 @@ final class StudentDetailViewModel: ObservableObject {
     }
 
     // MARK: - Public API
-    func updateData(lessons: [Lesson], studentLessons: [StudentLesson], workModels: [WorkModel]) {
+    func updateData(lessons: [Lesson], studentLessons: [StudentLesson]) {
         // Build caches
         lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
         studentLessonsByID = Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
@@ -66,9 +63,6 @@ final class StudentDetailViewModel: ObservableObject {
         // Summaries
         masteredLessonIDs = Set(studentLessons.filter { $0.isPresented && $0.resolvedStudentIDs.contains(student.id) }.map { $0.resolvedLessonID })
         plannedLessonIDs = Set(nextLessonsForStudent.map { $0.lessonID })
-
-        // worksForStudent intentionally left empty as per instructions
-        worksForStudent = []
     }
 
     func updateContracts(_ contracts: [WorkContract]) {
@@ -187,30 +181,6 @@ final class StudentDetailViewModel: ObservableObject {
         }
     }
 
-    func openWork(for lesson: Lesson, type: WorkModel.WorkType, modelContext: ModelContext) {
-        if let existing = worksForStudent.first(where: { work in
-            guard work.workType == type, let slID = work.studentLessonID, let sl = studentLessonsByID[slID] else { return false }
-            return sl.resolvedLessonID == lesson.id
-        }) {
-            selectedWorkForDetail = existing
-            return
-        }
-        let sl = latestStudentLesson(for: lesson.id, studentID: student.id) ?? ensureStudentLesson(for: lesson, modelContext: modelContext)
-        let work = WorkModel(
-            id: UUID(),
-            title: "\(type.rawValue): \(lesson.name)",
-            workType: type,
-            studentLessonID: sl.id,
-            notes: "",
-            createdAt: Date()
-        )
-        work.participants = [WorkParticipantEntity(studentID: student.id, completedAt: nil, work: work)]
-        modelContext.insert(work)
-        try? modelContext.save()
-        selectedWorkForDetail = work
-        showToast("\(type.rawValue) work created")
-    }
-
     func togglePresented(for lesson: Lesson, modelContext: ModelContext) {
         if masteredLessonIDs.contains(lesson.id) {
             openMastered(for: lesson, modelContext: modelContext)
@@ -235,35 +205,6 @@ final class StudentDetailViewModel: ObservableObject {
             modelContext.insert(sl)
             try? modelContext.save()
             showToast("Presentation recorded")
-        }
-    }
-
-    func toggleWork(for lesson: Lesson, type: WorkModel.WorkType, modelContext: ModelContext) {
-        let sid = student.id
-        if let existing = worksForStudent.first(where: { work in
-            guard work.workType == type, let slID = work.studentLessonID, let sl = studentLessonsByID[slID] else { return false }
-            return sl.resolvedLessonID == lesson.id
-        }) {
-            if existing.isStudentCompleted(sid) {
-                existing.markStudent(sid, completedAt: nil)
-            } else {
-                existing.markStudent(sid, completedAt: Date())
-            }
-            try? modelContext.save()
-        } else {
-            let sl = ensureStudentLesson(for: lesson, modelContext: modelContext)
-            let work = WorkModel(
-                id: UUID(),
-                title: "\(type.rawValue): \(lesson.name)",
-                workType: type,
-                studentLessonID: sl.id,
-                notes: "",
-                createdAt: Date()
-            )
-            work.participants = [WorkParticipantEntity(studentID: sid, completedAt: nil, work: work)]
-            modelContext.insert(work)
-            try? modelContext.save()
-            showToast("\(type.rawValue) work created")
         }
     }
 }

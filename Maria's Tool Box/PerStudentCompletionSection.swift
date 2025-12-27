@@ -12,10 +12,7 @@ struct PerStudentCompletionSection: View {
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(vm.selectedStudentsList, id: \.id) { student in
-                        Toggle(isOn: Binding(
-                            get: { vm.isStudentCompletedDraft(student.id) },
-                            set: { vm.setStudentCompletedDraft(student.id, $0) }
-                        )) {
+                        Toggle(isOn: vm.bindingIsStudentCompleted(for: student.id)) {
                             Text(StudentFormatter.displayName(for: student))
                         }
                     }

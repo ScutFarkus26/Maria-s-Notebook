@@ -122,7 +122,7 @@ struct WorkContractDetailSheet: View {
                     statusBtn(.active, "Active"); statusBtn(.review, "Review"); statusBtn(.complete, "Complete")
                 }.background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
                 
-                if status != .complete, let next = likelyNextLesson {
+                if status != .complete, likelyNextLesson != nil {
                     Button { showScheduleSheet = true } label: {
                         Image(systemName: "lock.open.fill").padding(8).background(Color.accentColor.opacity(0.1)).cornerRadius(8)
                     }
