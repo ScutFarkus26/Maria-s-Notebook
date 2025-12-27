@@ -4,7 +4,7 @@ import SwiftData
 enum WorkKind: String, Codable, CaseIterable {
     case practiceLesson
     case followUpAssignment
-    case research
+    case research // UI Label: "Project"
 }
 
 enum ScheduledReason: String, Codable, CaseIterable {
@@ -31,39 +31,32 @@ enum WorkSourceContextType: String, Codable {
     case bookClubSession
 }
 
-/// Per-student work contract generated from a Presentation.
 @Model
 final class WorkContract: Identifiable {
     @Attribute(.unique) var id: UUID
     var createdAt: Date
-
-    // Foreign keys stored as strings for CloudKit compatibility
     var studentID: String
     var lessonID: String
     var presentationID: String?
-
-    // State
+    
+    var title: String?
     var statusRaw: String
     var scheduledDate: Date?
     var completedAt: Date?
-    
-    // NEW: specific title for this work (e.g. "Diorama")
-    var title: String?
 
-    // New lightweight fields
     var kindRaw: String?
-    var nextCheckInDate: Date?
-    var scheduledReasonRaw: String?
-    var scheduledNote: String?
-    var dueDate: Date?
     var completionOutcomeRaw: String?
     var completionNote: String?
-
-    // Source context
+    
+    // Metadata for specific contexts
     var sourceContextTypeRaw: String?
     var sourceContextID: String?
-
-    // Legacy linkage
+    var scheduledNote: String?
+    
+    // NEW: Storage for the reason (Fixes BackupService errors)
+    var scheduledReasonRaw: String?
+    
+    // Legacy support
     var legacyStudentLessonID: String?
 
     init(
@@ -76,7 +69,8 @@ final class WorkContract: Identifiable {
         status: WorkStatus = .active,
         scheduledDate: Date? = nil,
         completedAt: Date? = nil,
-        legacyStudentLessonID: String? = nil
+        legacyStudentLessonID: String? = nil,
+        kind: WorkKind? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -89,8 +83,9 @@ final class WorkContract: Identifiable {
         self.completedAt = completedAt
         self.legacyStudentLessonID = legacyStudentLessonID
 
-        // Default kind based on creation source
-        if let presentationID, !presentationID.isEmpty {
+        if let kind {
+            self.kindRaw = kind.rawValue
+        } else if let presentationID, !presentationID.isEmpty {
             self.kindRaw = WorkKind.practiceLesson.rawValue
         } else {
             self.kindRaw = WorkKind.followUpAssignment.rawValue
@@ -107,14 +102,15 @@ final class WorkContract: Identifiable {
         set { kindRaw = newValue?.rawValue }
     }
 
-    var scheduledReason: ScheduledReason? {
-        get { scheduledReasonRaw.flatMap { ScheduledReason(rawValue: $0) } }
-        set { scheduledReasonRaw = newValue?.rawValue }
-    }
-
     var completionOutcome: CompletionOutcome? {
         get { completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) } }
         set { completionOutcomeRaw = newValue?.rawValue }
+    }
+    
+    // NEW: Computed property for BackupService usage
+    var scheduledReason: ScheduledReason? {
+        get { scheduledReasonRaw.flatMap { ScheduledReason(rawValue: $0) } }
+        set { scheduledReasonRaw = newValue?.rawValue }
     }
 
     var sourceContextType: WorkSourceContextType? {
@@ -123,26 +119,4 @@ final class WorkContract: Identifiable {
     }
 
     var isOpen: Bool { status != .complete }
-}
-
-extension WorkContract {
-    func lastMeaningfulTouchDate(planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Date {
-        WorkContractAging.lastMeaningfulTouchDate(for: self, planItems: planItems, notes: notes, presentation: presentation)
-    }
-
-    func daysSinceLastTouch(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Int {
-        WorkContractAging.daysSinceLastTouch(for: self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
-    }
-
-    func agingBucket(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> AgingBucket {
-        WorkContractAging.agingBucket(for: self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
-    }
-
-    func isStale(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Bool {
-        WorkContractAging.isStale(self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
-    }
-
-    func isOverdue(planItems: [WorkPlanItem], lastTouch: Date? = nil) -> Bool {
-        WorkContractAging.isOverdue(self, planItems: planItems, lastTouch: lastTouch)
-    }
 }

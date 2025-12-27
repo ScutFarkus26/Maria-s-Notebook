@@ -23,13 +23,18 @@ final class Lesson: Identifiable {
     var sourceRaw: String = "album"
     /// Raw storage for optional personal kind when source is personal. Nil or empty means default .personal.
     var personalKindRaw: String? = nil
+    
+    // MARK: - Work Configuration
+    
+    /// Raw storage for the preferred work type produced by this lesson (e.g., Practice or Follow-Up).
+    var defaultWorkKindRaw: String? = nil
 
     /// Store large bookmark blobs as external storage so SwiftData/CloudKit can manage them as assets.
-    /// Note: The bookmark may contain device-specific security scope. Consider treating this as a hint only
-    /// and prefer `pagesFileRelativePath` to re-resolve files within the app-managed container on each device.
     @Attribute(.externalStorage) var pagesFileBookmark: Data? = nil
-    /// Relative path to an imported file inside the app's managed container (iCloud/Documents/Lesson Files or local fallback)
+    /// Relative path to an imported file inside the app's managed container.
     var pagesFileRelativePath: String? = nil
+
+    // MARK: - Computed Properties
 
     var source: LessonSource {
         get { LessonSource(rawValue: sourceRaw) ?? .album }
@@ -47,31 +52,42 @@ final class Lesson: Identifiable {
             personalKindRaw = (newValue ?? .personal).rawValue
         }
     }
+    
+    /// The preferred work kind for this lesson. Used to automatically categorize work spawned from presentations.
+    var defaultWorkKind: WorkKind? {
+        get { defaultWorkKindRaw.flatMap { WorkKind(rawValue: $0) } }
+        set { defaultWorkKindRaw = newValue?.rawValue }
+    }
 
     @Relationship var notes: [Note] = []
+
+    // MARK: - Initializer
 
     init(
         id: UUID = UUID(),
         name: String = "",
         subject: String = "",
         group: String = "",
+        orderInGroup: Int = 0,
         subheading: String = "",
         writeUp: String = "",
         pagesFileBookmark: Data? = nil,
         pagesFileRelativePath: String? = nil,
         sourceRaw: String = "album",
-        personalKindRaw: String? = nil
+        personalKindRaw: String? = nil,
+        defaultWorkKind: WorkKind? = nil
     ) {
         self.id = id
         self.name = name
         self.subject = subject
         self.group = group
+        self.orderInGroup = orderInGroup
         self.subheading = subheading
         self.writeUp = writeUp
         self.pagesFileBookmark = pagesFileBookmark
         self.pagesFileRelativePath = pagesFileRelativePath
         self.sourceRaw = sourceRaw
         self.personalKindRaw = personalKindRaw
+        self.defaultWorkKindRaw = defaultWorkKind?.rawValue
     }
 }
-

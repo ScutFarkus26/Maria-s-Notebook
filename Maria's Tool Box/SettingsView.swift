@@ -45,6 +45,9 @@ struct SettingsView: View {
     
     @State private var operationSummary: BackupOperationSummary? = nil
     
+    @State private var restorePreviewData: RestorePreview? = nil
+    @State private var pendingImportURL: URL? = nil
+
     // New state properties for Advanced / Debug section
     @State private var showDannyResetConfirm = false
     @State private var dannyResetSummary: String? = nil
@@ -236,7 +239,7 @@ struct SettingsView: View {
         ) { result in
             switch result {
             case .success(let url):
-                Task { await handleImportedURL(url) }
+                Task { await previewImportedURL(url) }
             case .failure(let error):
                 importError = "Failed to restore: \(error.localizedDescription)"
             }
@@ -321,6 +324,20 @@ struct SettingsView: View {
         // Sheet presenting the operation summary from import/export
         .sheet(item: $operationSummary) { summary in
             BackupSummaryView(summary: summary)
+        }
+        .sheet(isPresented: Binding(get: { restorePreviewData != nil }, set: { if !$0 { restorePreviewData = nil } })) {
+            if let preview = restorePreviewData {
+                RestorePreviewView(
+                    preview: preview,
+                    onCancel: {
+                        restorePreviewData = nil
+                        pendingImportURL = nil
+                    },
+                    onConfirm: {
+                        Task { await performImportConfirmed() }
+                    }
+                )
+            }
         }
         .onAppear {
             // If we are no longer in an ephemeral session (i.e., persistent container opened), clear any stale message.
@@ -476,6 +493,44 @@ struct SettingsView: View {
     }
 
     private func handleImportedURL(_ url: URL) async {
+        await previewImportedURL(url)
+    }
+    
+    private func previewImportedURL(_ url: URL) async {
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        do {
+            await MainActor.run {
+                importProgress = 0
+                importMessage = "Reading file…"
+                resultSummary = nil
+            }
+            let preview = try await backupService.previewImport(
+                modelContext: modelContext,
+                from: url,
+                mode: restoreMode
+            ) { p, m in
+                DispatchQueue.main.async {
+                    self.importProgress = p
+                    self.importMessage = m
+                }
+            }
+            await MainActor.run {
+                // Reset the progress bar after preview completes
+                self.importProgress = 0
+                self.importMessage = ""
+                self.restorePreviewData = preview
+                self.pendingImportURL = url
+            }
+        } catch {
+            await MainActor.run {
+                importError = "Failed to analyze backup: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func performImportConfirmed() async {
+        guard let url = pendingImportURL else { return }
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
         do {
@@ -495,6 +550,9 @@ struct SettingsView: View {
                 }
             }
             await MainActor.run {
+                // Dismiss preview
+                restorePreviewData = nil
+                pendingImportURL = nil
                 importError = nil
                 lastBackupTimeInterval = Date().timeIntervalSinceReferenceDate
                 resultSummary = "Import complete. Restored data successfully."
@@ -1094,3 +1152,4 @@ func consolidateOnDeckLessons(modelContext: ModelContext) throws -> String {
 #Preview {
     SettingsView()
 }
+

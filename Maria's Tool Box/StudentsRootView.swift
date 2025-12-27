@@ -7,7 +7,9 @@ struct StudentsRootView: View {
     @Query private var students: [Student]
     @Query(sort: \StudentLesson.createdAt, order: .forward) private var studentLessons: [StudentLesson]
     @Query(sort: \Lesson.name, order: .forward) private var lessons: [Lesson]
-    @Query(sort: \WorkModel.createdAt, order: .reverse) private var workItems: [WorkModel]
+    
+    // Querying WorkContract as per previous refactor
+    @Query(sort: \WorkContract.createdAt, order: .reverse) private var workContracts: [WorkContract]
 
     @State private var showingAddStudent: Bool = false
     @State private var showingStudentCSVImporter: Bool = false
@@ -23,7 +25,7 @@ struct StudentsRootView: View {
     @State private var parsingTask: Task<Void, Never>? = nil
 
     @State private var selectedStudentID: UUID? = nil
-    @State private var selectedWorkID: UUID? = nil
+    @State private var selectedContract: WorkContract? = nil
 
     private struct ImportAlert: Identifiable {
         let id = UUID()
@@ -31,10 +33,10 @@ struct StudentsRootView: View {
         let message: String
     }
 
-    private enum Mode: String, CaseIterable, Identifiable { 
+    private enum Mode: String, CaseIterable, Identifiable {
         case roster = "Roster"
         case attendance = "Attendance"
-        case workOverview = "Overview"
+        case workOverview = "Workload" // CHANGED: Renamed from "Overview" to "Workload"
         var id: String { rawValue }
     }
     
@@ -47,7 +49,7 @@ struct StudentsRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Top pill navigation (Roster / Attendance / Overview)
+            // Top pill navigation (Roster / Attendance / Workload)
             #if os(iOS)
             Group {
                 if horizontalSizeClass == .compact {
@@ -117,14 +119,16 @@ struct StudentsRootView: View {
                 EmptyView()
             }
         }
-        .sheet(isPresented: Binding(get: { selectedWorkID != nil }, set: { if !$0 { selectedWorkID = nil } })) {
-            if let id = selectedWorkID {
-                WorkDetailContainerView(workID: id) {
-                    selectedWorkID = nil
-                }
-            } else {
-                EmptyView()
+        .sheet(item: $selectedContract) { contract in
+            WorkContractDetailSheet(contract: contract) {
+                selectedContract = nil
             }
+            #if os(macOS)
+            .frame(minWidth: 500, minHeight: 720)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
         }
         // Allow external triggers to jump straight to Attendance mode
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenAttendanceRequested"))) { _ in
@@ -197,7 +201,6 @@ struct StudentsRootView: View {
                     showingMappingSheet = false
                     pendingFileURL = nil
                 }, onConfirm: { mapping in
-                    // Ensure we have a file URL before starting the background work
                     guard let fileURL = pendingFileURL else { return }
                     parsingTask?.cancel()
                     isParsing = true
@@ -241,29 +244,38 @@ struct StudentsRootView: View {
     }
 
     private var workOverviewContent: some View {
-        // Build lookup service and derived data to reuse WorkStudentsGrid
         let lookupService = WorkLookupService(
             students: students,
             lessons: lessons,
             studentLessons: studentLessons
         )
-        let openWorks: [WorkModel] = workItems.filter { $0.isOpen }
-        var openByStudent: [UUID: [WorkModel]] = [:]
-        for work in openWorks {
-            for p in (work.participants ?? []) {
-                openByStudent[p.studentID, default: []].append(work)
+        
+        let openContracts = workContracts.filter { $0.isOpen }
+        
+        var openByStudent: [UUID: [WorkContract]] = [:]
+        
+        for contract in openContracts {
+            if let sid = UUID(uuidString: contract.studentID) {
+                openByStudent[sid, default: []].append(contract)
             }
         }
+        
         var counts: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
-        for work in openWorks {
-            for p in (work.participants ?? []) {
-                switch work.workType {
-                case .practice: counts[p.studentID, default: (0,0,0)].practice += 1
-                case .followUp: counts[p.studentID, default: (0,0,0)].follow += 1
-                case .research: counts[p.studentID, default: (0,0,0)].research += 1
-                }
+        for contract in openContracts {
+            guard let sid = UUID(uuidString: contract.studentID) else { continue }
+            
+            switch contract.kind {
+            case .practiceLesson:
+                counts[sid, default: (0,0,0)].practice += 1
+            case .followUpAssignment:
+                counts[sid, default: (0,0,0)].follow += 1
+            case .research:
+                counts[sid, default: (0,0,0)].research += 1
+            case nil:
+                counts[sid, default: (0,0,0)].follow += 1
             }
         }
+        
         let summaries: [StudentWorkSummary] = students.map { s in
             let c = counts[s.id, default: (0,0,0)]
             return StudentWorkSummary(id: s.id, student: s, practiceOpen: c.practice, followUpOpen: c.follow, researchOpen: c.research)
@@ -277,12 +289,11 @@ struct StudentsRootView: View {
 
         return WorkStudentsGrid(
             summaries: summaries,
-            openWorksByStudentID: openByStudent,
+            openContractsByStudentID: openByStudent,
             lookupService: lookupService,
             onTapStudent: { student in selectedStudentID = student.id },
-            onTapWork: { work in selectedWorkID = work.id }
+            onTapContract: { contract in selectedContract = contract }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-

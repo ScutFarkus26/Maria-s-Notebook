@@ -520,3 +520,23 @@ public struct BackupOperationSummary: Identifiable, Sendable {
     public let warnings: [String]
 }
 
+// MARK: - RestorePreview (for Restore Preview UI)
+public struct RestorePreview: Codable, Sendable, Equatable {
+    public var mode: String
+    public var entityInserts: [String: Int]
+    public var entitySkips: [String: Int]
+    public var entityDeletes: [String: Int]
+    public var totalInserts: Int
+    public var totalDeletes: Int
+    public var warnings: [String]
+    public init(mode: String, entityInserts: [String: Int], entitySkips: [String: Int], entityDeletes: [String: Int], totalInserts: Int, totalDeletes: Int, warnings: [String]) {
+        self.mode = mode
+        self.entityInserts = entityInserts
+        self.entitySkips = entitySkips
+        self.entityDeletes = entityDeletes
+        self.totalInserts = totalInserts
+        self.totalDeletes = totalDeletes
+        self.warnings = warnings
+    }
+}
+

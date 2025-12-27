@@ -16,6 +16,7 @@ struct BackupRestoreSettingsView: View {
 
     let performExport: () -> Void
     let presentImporter: () -> Void
+    let presentRestorePreview: () -> Void = {}
     let chooseDefaultFolder: () -> Void
     let openDefaultFolder: () -> Void
     let clearDefaultFolder: () -> Void
@@ -60,6 +61,15 @@ struct BackupRestoreSettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
+
+                    Button {
+                        presentRestorePreview()
+                    } label: {
+                        Label("Preview restore…", systemImage: "eye")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Preview restore without selecting a file")
                 }
                 if backupProgress > 0 && backupProgress < 1.0 {
                     ProgressView(value: backupProgress) { Text(backupMessage) }
