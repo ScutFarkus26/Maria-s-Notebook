@@ -159,7 +159,7 @@ struct FollowUpInboxView: View {
 
     private func studentName(for note: WorkNote) -> String {
         if let s = note.student { return StudentFormatter.displayName(for: s) }
-        if let sid = note.work?.participants.first?.studentID,
+        if let sid = (note.work?.participants ?? []).first?.studentID,
            let s = students.first(where: { $0.id == sid }) {
             return StudentFormatter.displayName(for: s)
         }

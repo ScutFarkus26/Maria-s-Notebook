@@ -8,8 +8,9 @@ extension WorkModel {
     /// - total: Total number of participants attached to this work.
     /// - upcoming: Participants who have not yet completed (total - completed), clamped to >= 0.
     func checkInCounts() -> (completed: Int, total: Int, upcoming: Int) {
-        let total = participants.count
-        let completed = participants.reduce(0) { partial, p in
+        let list = participants ?? []
+        let total = list.count
+        let completed = list.reduce(0) { partial, p in
             partial + (p.completedAt != nil ? 1 : 0)
         }
         let upcoming = max(0, total - completed)

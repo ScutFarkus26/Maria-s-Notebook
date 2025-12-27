@@ -101,7 +101,7 @@ struct NewBookClubSessionSheet: View {
         }
 
         // Attach to club immediately so ID is valid
-        club.sessions.append(session)
+        club.sessions = (club.sessions ?? []) + [session]
         modelContext.insert(session)
 
         let scheduledDay = AppCalendar.startOfDay(meetingDate)
@@ -141,7 +141,7 @@ struct NewBookClubSessionSheet: View {
         let lessonUUID = resolveGenericBookClubLessonID(context: modelContext)
 
         // Prepare data for the contracts loop
-        let sharedTemplates = club.sharedTemplates.filter { $0.isShared }
+        let sharedTemplates = (club.sharedTemplates ?? []).filter { $0.isShared }
         let templateWeek: BookClubTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil) ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! }) : nil
 
         for sid in club.memberStudentIDs {
@@ -236,3 +236,4 @@ struct NewBookClubSessionSheet: View {
         return l.id
     }
 }
+

@@ -97,7 +97,7 @@ struct WorkGroupingService {
     }
     
     private static func nextIncompleteCheckIn(for work: WorkModel) -> WorkCheckIn? {
-        let incomplete = work.checkIns.filter { $0.status != .completed && $0.status != .skipped }
+        let incomplete = (work.checkIns ?? []).filter { $0.status != .completed && $0.status != .skipped }
         return incomplete.min(by: { $0.date < $1.date })
     }
     

@@ -8,12 +8,12 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
 }
 
 @Model final class WorkCheckIn: Identifiable {
-    var id: UUID
-    var workID: UUID
+    var id: UUID = UUID()
+    var workID: UUID = UUID()
     @Relationship var work: WorkModel?
-    var date: Date
-    private var statusRaw: String
-    var note: String
+    var date: Date = Date()
+    private var statusRaw: String = WorkCheckInStatus.scheduled.rawValue
+    var note: String = ""
     var purpose: String = ""
     
     var status: WorkCheckInStatus {
@@ -68,14 +68,16 @@ extension WorkModel {
     func addCheckIn(date: Date, status: WorkCheckInStatus = .scheduled, purpose: String = "", note: String = "", in context: ModelContext) {
         let ci = WorkCheckIn(workID: self.id, date: date, status: status, purpose: purpose, note: note, work: self)
         context.insert(ci)
-        self.checkIns.append(ci)
+        if self.checkIns == nil { self.checkIns = [] }
+        self.checkIns = (self.checkIns ?? []) + [ci]
     }
 
     @discardableResult
     func scheduleCheckIn(on date: Date, purpose: String = "", note: String = "", in context: ModelContext) -> WorkCheckIn {
         let ci = WorkCheckIn(workID: self.id, date: date, status: .scheduled, purpose: purpose, note: note, work: self)
         context.insert(ci)
-        self.checkIns.append(ci)
+        if self.checkIns == nil { self.checkIns = [] }
+        self.checkIns = (self.checkIns ?? []) + [ci]
         return ci
     }
 

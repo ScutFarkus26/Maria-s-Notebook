@@ -23,7 +23,7 @@ struct BookClubEditorSheet: View {
         _bookTitle = State(initialValue: club?.bookTitle ?? "")
         _selectedMemberIDs = State(initialValue: Set(club?.memberStudentIDs ?? []))
         if let club {
-            let drafts = club.sharedTemplates.filter { $0.isShared }.map { t in TemplateDraft(title: t.title, instructions: t.instructions, defaultLinkedLessonID: t.defaultLinkedLessonID) }
+            let drafts = (club.sharedTemplates ?? []).filter { $0.isShared }.map { t in TemplateDraft(title: t.title, instructions: t.instructions, defaultLinkedLessonID: t.defaultLinkedLessonID) }
             _sharedTemplates = State(initialValue: drafts.isEmpty ? [TemplateDraft(), TemplateDraft()] : drafts)
         } else {
             _sharedTemplates = State(initialValue: [TemplateDraft(), TemplateDraft()])
@@ -124,11 +124,11 @@ struct BookClubEditorSheet: View {
             club.memberStudentIDs = Array(selectedMemberIDs)
 
             // Replace shared templates (keep only isShared ones)
-            let existingNonShared = club.sharedTemplates.filter { !$0.isShared }
+            let existingNonShared = (club.sharedTemplates ?? []).filter { !$0.isShared }
             club.sharedTemplates = existingNonShared
             for draft in sharedTemplates.prefix(2) {
                 let tpl = BookClubAssignmentTemplate(bookClubID: club.id, title: draft.title, instructions: draft.instructions, isShared: true, defaultLinkedLessonID: draft.defaultLinkedLessonID)
-                club.sharedTemplates.append(tpl)
+                club.sharedTemplates = (club.sharedTemplates ?? []) + [tpl]
             }
         } else {
             // Create new

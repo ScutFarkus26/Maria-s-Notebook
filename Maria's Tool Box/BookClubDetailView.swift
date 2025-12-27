@@ -84,7 +84,7 @@ struct BookClubDetailView: View {
                         }
 
                         // Shared Assignments (only show if present)
-                        let shared = club.sharedTemplates.filter { $0.isShared }
+                        let shared = (club.sharedTemplates ?? []).filter { $0.isShared }
                         if !shared.isEmpty {
                             Divider().opacity(0.2)
                             VStack(alignment: .leading, spacing: 8) {
@@ -158,13 +158,13 @@ struct BookClubDetailView: View {
                             .buttonStyle(.borderedProminent)
                         }
 
-                        if club.sessions.isEmpty {
+                        if (club.sessions ?? []).isEmpty {
                             Text("No sessions yet")
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 4)
                         } else {
                             VStack(alignment: .leading, spacing: 8) {
-                                ForEach(club.sessions.sorted(by: { $0.meetingDate > $1.meetingDate })) { session in
+                                ForEach((club.sessions ?? []).sorted(by: { $0.meetingDate > $1.meetingDate })) { session in
                                     NavigationLink(destination: BookClubSessionDetailView(session: session)) {
                                         // Use subview to correctly query work count
                                         SessionRow(session: session)

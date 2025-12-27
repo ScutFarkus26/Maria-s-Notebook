@@ -84,10 +84,12 @@ struct StudentDataWiper {
         var worksUpdated = 0
         var worksDeleted = 0
         for w in allWorks {
-            let beforeCount = w.participants.count
+            let beforeCount = (w.participants ?? []).count
             if beforeCount == 0 { continue }
-            w.participants.removeAll { targetIDs.contains($0.studentID) }
-            let afterCount = w.participants.count
+            let current = w.participants ?? []
+            let remaining = current.filter { !targetIDs.contains($0.studentID) }
+            w.participants = remaining
+            let afterCount = (w.participants ?? []).count
             if afterCount == beforeCount { continue }
             if afterCount == 0 {
                 // Deleting the work will cascade to its check-ins and scoped notes per model delete rules
@@ -151,7 +153,7 @@ struct StudentDataWiper {
             }
             // Delete if attached WorkModel still includes any target student (participant)
             if let w = n.work {
-                let ids = Set(w.participants.map { $0.studentID })
+                let ids = Set((w.participants ?? []).map { $0.studentID })
                 if !ids.isDisjoint(with: targetIDs) {
                     context.delete(n)
                     scopedNotesDeleted += 1

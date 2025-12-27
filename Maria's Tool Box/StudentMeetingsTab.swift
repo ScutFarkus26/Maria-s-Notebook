@@ -266,20 +266,20 @@ struct StudentMeetingsTab: View {
 
     private var worksForStudent: [WorkModel] {
         workItems.filter { work in
-            work.participants.contains { $0.studentID == student.id }
+            (work.participants ?? []).contains { $0.studentID == student.id }
         }
     }
 
     private var openWorksForStudent: [WorkModel] {
         worksForStudent.filter { work in
-            work.participants.contains { $0.studentID == student.id && $0.completedAt == nil }
+            (work.participants ?? []).contains { $0.studentID == student.id && $0.completedAt == nil }
         }
     }
 
     private var overdueWorksForStudent: [WorkModel] {
         let threshold = Calendar.current.date(byAdding: .day, value: -workOverdueDays, to: Date()) ?? Date.distantPast
         return worksForStudent.filter { work in
-            let isOpenForStudent = work.participants.contains { $0.studentID == student.id && $0.completedAt == nil }
+            let isOpenForStudent = (work.participants ?? []).contains { $0.studentID == student.id && $0.completedAt == nil }
             let isOld = work.createdAt < threshold
             return isOpenForStudent && isOld
         }
@@ -288,7 +288,7 @@ struct StudentMeetingsTab: View {
     private var recentCompletedWorksForStudent: [WorkModel] {
         let threshold = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
         return worksForStudent.filter { work in
-            work.participants.contains { $0.studentID == student.id && ($0.completedAt ?? .distantPast) >= threshold }
+            (work.participants ?? []).contains { $0.studentID == student.id && ($0.completedAt ?? .distantPast) >= threshold }
         }
     }
 
@@ -303,7 +303,7 @@ struct StudentMeetingsTab: View {
                 .font(.footnote)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-            if showCompletedDate, let date = work.participants.first(where: { $0.studentID == student.id })?.completedAt {
+            if showCompletedDate, let date = (work.participants ?? []).first(where: { $0.studentID == student.id })?.completedAt {
                 Text("•")
                     .foregroundStyle(.secondary)
                 Text(Self.dateFormatter.string(from: date))

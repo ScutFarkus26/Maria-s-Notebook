@@ -46,7 +46,7 @@ final class StudentDetailViewModel: ObservableObject {
 
         // Works for this student
         worksForStudent = workModels
-            .filter { $0.participants.contains { $0.studentID == student.id } }
+            .filter { ($0.participants ?? []).contains { $0.studentID == student.id } }
             .sorted { $0.createdAt > $1.createdAt }
 
         // Next lessons for this student (not yet presented)

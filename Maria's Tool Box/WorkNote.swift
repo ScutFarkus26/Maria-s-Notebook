@@ -3,11 +3,11 @@ import SwiftData
 
 @Model final class WorkNote: Identifiable {
     // Core fields
-    var id: UUID
-    var createdAt: Date
-    var text: String
-    var isLessonToGive: Bool
-    var isPinned: Bool
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
+    var text: String = ""
+    var isLessonToGive: Bool = false
+    var isPinned: Bool = false
 
     // Relationships
     // Main attachment to Work. Inverse is WorkModel.checkNotes with cascade delete from Work side.
@@ -20,7 +20,7 @@ import SwiftData
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        text: String,
+        text: String = "",
         isLessonToGive: Bool = false,
         isPinned: Bool = false,
         work: WorkModel? = nil,

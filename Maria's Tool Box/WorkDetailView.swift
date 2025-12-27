@@ -202,7 +202,7 @@ struct WorkDetailView: View {
     }
 
     private var workCheckNotesSorted: [WorkNote] {
-        (work.checkNotes).sorted { $0.createdAt > $1.createdAt }
+        (work.checkNotes ?? []).sorted { $0.createdAt > $1.createdAt }
     }
 
     private var separatorStrokeColor: Color {
@@ -483,8 +483,8 @@ struct WorkDetailView: View {
     private var splitCompletedButton: some View {
         // Show only for practice work with mixed completion state
         if vm.workType == .practice {
-            let completedIDs = Set(work.participants.compactMap { $0.completedAt != nil ? $0.studentID : nil })
-            let remainingIDs = Set(work.participants.compactMap { $0.completedAt == nil ? $0.studentID : nil })
+            let completedIDs = Set((work.participants ?? []).compactMap { $0.completedAt != nil ? $0.studentID : nil })
+            let remainingIDs = Set((work.participants ?? []).compactMap { $0.completedAt == nil ? $0.studentID : nil })
             if !completedIDs.isEmpty && !remainingIDs.isEmpty {
                 Button {
                     WorkSplitService.splitPracticeWork(work, completedIDs: completedIDs, context: modelContext)
@@ -571,7 +571,7 @@ struct WorkDetailView: View {
                         guard !body.isEmpty else { return }
                         let note = WorkNote(text: body, isLessonToGive: newCheckNoteIsLessonToGive, work: work)
                         // Optional denormalized student: if exactly one student, attach for convenience
-                        if work.participants.count == 1, let sid = work.participants.first?.studentID {
+                        if (work.participants ?? []).count == 1, let sid = work.participants?.first?.studentID {
                             if let s = studentsAll.first(where: { $0.id == sid }) { note.student = s }
                         }
                         modelContext.insert(note)
@@ -1117,4 +1117,5 @@ Sanity checklist:
  • Clear removes from Planning but keeps note attached to work
  • Delete note works and cascades appropriately
 */
+
 

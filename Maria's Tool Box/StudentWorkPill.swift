@@ -19,7 +19,7 @@ struct StudentWorkPill: View {
 
     private var studentChips: [(UUID, String, Bool)] {
         let isToday = calendar.isDate(item.checkIn.date, inSameDayAs: Date())
-        return item.work.participants.map { p in
+        return (item.work.participants ?? []).map { p in
             let name = nameForStudentID(p.studentID).trimmingCharacters(in: .whitespacesAndNewlines)
             let absent = isToday && absentTodayIDs.contains(p.studentID)
             return (p.studentID, name, absent)

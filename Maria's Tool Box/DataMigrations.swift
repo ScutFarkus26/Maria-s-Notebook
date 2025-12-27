@@ -165,7 +165,7 @@ enum DataMigrations {
             for w in works {
                 // If there are no participants but legacy studentIDs were used historically,
                 // reconstruct participants from any linked StudentLesson.
-                if w.participants.isEmpty, let slID = w.studentLessonID {
+                if (w.participants ?? []).isEmpty, let slID = w.studentLessonID {
                     if let sl = try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == slID })).first {
                         let parts = sl.studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: w) }
                         if !parts.isEmpty {
@@ -177,7 +177,7 @@ enum DataMigrations {
             }
             // Delete any works that still have no participants and are not completed
             // (legacy artifacts that would clutter the UI)
-            for w in works where w.participants.isEmpty {
+            for w in works where (w.participants ?? []).isEmpty {
                 context.delete(w)
                 changed = true
             }

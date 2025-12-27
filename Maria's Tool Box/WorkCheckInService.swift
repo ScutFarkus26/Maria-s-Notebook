@@ -33,7 +33,8 @@ struct WorkCheckInService {
                              note: trimmedNote,
                              work: work)
         context.insert(ci)
-        work.checkIns.append(ci)
+        if work.checkIns == nil { work.checkIns = [] }
+        work.checkIns = (work.checkIns ?? []) + [ci]
         return ci
     }
 
@@ -73,8 +74,12 @@ struct WorkCheckInService {
     /// Delete a check-in from its context and persist immediately.
     func delete(_ checkIn: WorkCheckIn, from work: WorkModel? = nil) throws {
         if let work = work {
-            work.checkIns.removeAll { $0.id == checkIn.id }
+            if var list = work.checkIns {
+                list.removeAll { $0.id == checkIn.id }
+                work.checkIns = list
+            }
         }
         context.delete(checkIn)
     }
 }
+

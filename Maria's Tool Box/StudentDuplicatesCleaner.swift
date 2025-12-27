@@ -95,7 +95,7 @@ struct StudentDuplicatesCleaner {
                 var changed = false
 
                 // 1) Repoint any participant entries that reference a duplicate student ID
-                for p in w.participants {
+                for p in (w.participants ?? []) {
                     if plan.duplicateIDs.contains(p.studentID) {
                         p.studentID = primary.id
                         changed = true
@@ -104,20 +104,17 @@ struct StudentDuplicatesCleaner {
 
                 // 2) Deduplicate participants so there is at most one per student
                 var seen: [UUID: WorkParticipantEntity] = [:]
-                for p in w.participants {
+                for p in (w.participants ?? []) {
                     if let existing = seen[p.studentID] {
                         // Merge completion: prefer a non-nil date; if both non-nil, keep earliest
-                        switch (existing.completedAt, p.completedAt) {
-                        case (nil, let r?):
+                        let lhs = existing.completedAt
+                        let rhs = p.completedAt
+                        if lhs == nil, let r = rhs {
                             existing.completedAt = r
                             changed = true
-                        case (let l?, let r?):
-                            if r < l {
-                                existing.completedAt = r
-                                changed = true
-                            }
-                        default:
-                            break
+                        } else if let l = lhs, let r = rhs, r < l {
+                            existing.completedAt = r
+                            changed = true
                         }
                         // Remove the duplicate participant
                         context.delete(p)

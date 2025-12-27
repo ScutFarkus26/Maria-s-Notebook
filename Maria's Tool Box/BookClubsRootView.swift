@@ -159,7 +159,7 @@ struct BookClubsRootView: View {
     // MARK: - Helpers
 
     private func lastSessionDate(for club: BookClub) -> Date? {
-        club.sessions.map { $0.meetingDate }.max()
+        (club.sessions ?? []).map { $0.meetingDate }.max()
     }
 
     private func deleteClub(_ club: BookClub) {

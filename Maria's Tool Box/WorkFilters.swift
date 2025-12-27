@@ -63,7 +63,7 @@ final class WorkFilters {
         // Student filter (works that include ANY of the selected students)
         if !selectedStudentIDs.isEmpty {
             base = base.filter { work in
-                work.participants.contains { selectedStudentIDs.contains($0.studentID) }
+                (work.participants ?? []).contains { selectedStudentIDs.contains($0.studentID) }
             }
         }
         

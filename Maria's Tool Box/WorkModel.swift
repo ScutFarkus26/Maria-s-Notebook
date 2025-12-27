@@ -9,20 +9,20 @@ import SwiftUI
         case practice = "Practice"
     }
 
-    var id: UUID
-    var title: String
+    var id: UUID = UUID()
+    var title: String = ""
     // var studentIDs: [UUID]  // Removed as per instructions
     // Persisted raw value for the enum to keep storage simple and stable
-    private var workTypeRaw: String
-    var studentLessonID: UUID?
-    var notes: String
-    var createdAt: Date
-    var completedAt: Date?
-    @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity] = []
-    @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn] = []
+    private var workTypeRaw: String = "Research"
+    var studentLessonID: UUID? = nil
+    var notes: String = ""
+    var createdAt: Date = Date()
+    var completedAt: Date? = nil
+    @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity]? = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn]? = []
     @Relationship(deleteRule: .cascade, inverse: \Note.work) var noteItems: [Note] = []
     @Relationship(deleteRule: .cascade, inverse: \ScopedNote.work) var scopedNotes: [ScopedNote] = []
-    @Relationship(deleteRule: .cascade, inverse: \WorkNote.work) var checkNotes: [WorkNote] = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkNote.work) var checkNotes: [WorkNote]? = []
 
     init(
         id: UUID = UUID(),
@@ -45,7 +45,7 @@ import SwiftUI
         self.createdAt = cal.startOfDay(for: createdAt)
         self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.participants = participants
-        for p in self.participants { p.work = self }
+        for p in (self.participants ?? []) { p.work = self }
     }
 
     var workType: WorkType {
@@ -60,13 +60,13 @@ import SwiftUI
     /// If there are no participants, treat it as open so it appears in triage lists.
     var isOpen: Bool {
         // If no participants have been assigned, consider it open
-        if participants.isEmpty { return true }
+        if (participants ?? []).isEmpty { return true }
         // Otherwise open if any participant has not completed
-        return participants.contains { $0.completedAt == nil }
+        return (participants ?? []).contains { $0.completedAt == nil }
     }
 
     func participant(for studentID: UUID) -> WorkParticipantEntity? {
-        return participants.first { $0.studentID == studentID }
+        return (participants ?? []).first { $0.studentID == studentID }
     }
 
     func isStudentCompleted(_ studentID: UUID) -> Bool {
@@ -76,10 +76,11 @@ import SwiftUI
     func markStudent(_ studentID: UUID, completedAt date: Date?) {
         let cal = AppCalendar.shared
         let normalized = date.map { cal.startOfDay(for: $0) }
-        if let idx = participants.firstIndex(where: { $0.studentID == studentID }) {
-            participants[idx].completedAt = normalized
+        if participants == nil { participants = [] }
+        if let idx = participants?.firstIndex(where: { $0.studentID == studentID }) {
+            participants?[idx].completedAt = normalized
         } else {
-            participants.append(WorkParticipantEntity(studentID: studentID, completedAt: normalized, work: self))
+            participants = (participants ?? []) + [WorkParticipantEntity(studentID: studentID, completedAt: normalized, work: self)]
         }
     }
 }
@@ -91,3 +92,4 @@ Sanity checklist:
  • Clear removes from Planning but keeps note attached to work
  • Delete note works and cascades appropriately
 */
+

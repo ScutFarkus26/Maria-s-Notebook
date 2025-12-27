@@ -85,7 +85,7 @@ struct OpenWorkListView: View {
                                 .lineLimit(1)
                         }
                         Spacer()
-                        let openCount = work.participants.filter { $0.completedAt == nil }.count
+                        let openCount = (work.participants ?? []).filter { $0.completedAt == nil }.count
                         if openCount > 0 {
                             Text("\(openCount)")
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))

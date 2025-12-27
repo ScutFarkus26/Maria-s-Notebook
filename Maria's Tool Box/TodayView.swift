@@ -60,7 +60,7 @@ struct TodayView: View {
     private var studentNameForID: (UUID) -> String { { id in displayNameForID(id) } }
     private var studentNamesForWorkID: (UUID) -> String { { id in
         guard let w = viewModel.worksByID[id] else { return "" }
-        let names = w.participants.map { p in displayNameForID(p.studentID) }
+        let names = (w.participants ?? []).map { p in displayNameForID(p.studentID) }
         return names.joined(separator: ", ")
     } }
 
@@ -544,3 +544,4 @@ private struct CompletionRow: View {
     // Removed "return" here
     TodayView(context: container.mainContext)
 }
+

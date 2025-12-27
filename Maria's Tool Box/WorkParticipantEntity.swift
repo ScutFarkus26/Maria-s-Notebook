@@ -3,16 +3,16 @@ import SwiftData
 
 @Model final class WorkParticipantEntity: Identifiable {
     // Identity (optional but useful for list operations)
-    var id: UUID
+    var id: UUID = UUID()
 
     // The identifier of the student participating in the work
-    var studentID: UUID
+    var studentID: UUID = UUID()
 
     // The timestamp when the student completed the work (nil if not completed)
-    var completedAt: Date?
+    var completedAt: Date? = nil
 
     // Relationship back to the parent work item
-    var work: WorkModel?
+    var work: WorkModel? = nil
 
     init(
         id: UUID = UUID(),
@@ -27,3 +27,4 @@ import SwiftData
         self.work = work
     }
 }
+

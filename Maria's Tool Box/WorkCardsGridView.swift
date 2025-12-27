@@ -161,7 +161,7 @@ private struct WorkCard: View {
     }
 
     private var activeStudentNames: [String] {
-        work.participants.compactMap { p -> String? in
+        (work.participants ?? []).compactMap { p -> String? in
             guard let s = studentsByID[p.studentID] else { return nil }
             guard p.completedAt == nil else { return nil }
             let parts = s.fullName.split(separator: " ")
@@ -172,16 +172,16 @@ private struct WorkCard: View {
     }
 
     private var completedCount: Int {
-        work.participants.filter { $0.completedAt != nil }.count
+        (work.participants ?? []).filter { $0.completedAt != nil }.count
     }
     
     private var isFullyComplete: Bool {
-        let total = work.participants.count
+        let total = (work.participants ?? []).count
         return total > 0 && completedCount == total
     }
     
     private var progress: Double {
-        let total = max(work.participants.count, 1)
+        let total = max((work.participants ?? []).count, 1)
         return Double(completedCount) / Double(total)
     }
     
@@ -204,7 +204,7 @@ private struct WorkCard: View {
                         .stroke(Color.green, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                 }
-                .accessibilityLabel("\(completedCount) of \(work.participants.count) students complete")
+                .accessibilityLabel("\(completedCount) of \(work.participants?.count ?? 0) students complete")
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
@@ -314,7 +314,7 @@ private struct WorkRow: View {
     }
 
     private var activeStudentNames: [String] {
-        work.participants.compactMap { p -> String? in
+        (work.participants ?? []).compactMap { p -> String? in
             guard let s = studentsByID[p.studentID] else { return nil }
             guard p.completedAt == nil else { return nil }
             let parts = s.fullName.split(separator: " ")
@@ -325,16 +325,16 @@ private struct WorkRow: View {
     }
 
     private var completedCount: Int {
-        work.participants.filter { $0.completedAt != nil }.count
+        (work.participants ?? []).filter { $0.completedAt != nil }.count
     }
 
     private var isFullyComplete: Bool {
-        let total = work.participants.count
+        let total = (work.participants ?? []).count
         return total > 0 && completedCount == total
     }
 
     private var progress: Double {
-        let total = max(work.participants.count, 1)
+        let total = max((work.participants ?? []).count, 1)
         return Double(completedCount) / Double(total)
     }
 
@@ -357,7 +357,7 @@ private struct WorkRow: View {
                         .stroke(Color.green, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                 }
-                .accessibilityLabel("\(completedCount) of \(work.participants.count) students complete")
+                .accessibilityLabel("\(completedCount) of \(work.participants?.count ?? 0) students complete")
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
@@ -455,3 +455,4 @@ private struct WorkRow: View {
         studentLessonsByID: [sl.id: sl]
     )
 }
+

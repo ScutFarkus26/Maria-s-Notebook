@@ -1,14 +1,4 @@
-import Foundation
-import SwiftData
+// WorkParticipant.swift (legacy)
+// This file is intentionally left blank. The app uses WorkParticipantEntity.swift.
+// Keeping as placeholder to avoid file-not-found references during project cleanup.
 
-@Model final class WorkParticipant: Identifiable {
-    var id: UUID
-    var studentID: UUID
-    var completedAt: Date?
-
-    init(id: UUID = UUID(), studentID: UUID, completedAt: Date? = nil) {
-        self.id = id
-        self.studentID = studentID
-        self.completedAt = completedAt
-    }
-}

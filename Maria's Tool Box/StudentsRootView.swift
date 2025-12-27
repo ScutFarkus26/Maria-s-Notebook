@@ -250,13 +250,13 @@ struct StudentsRootView: View {
         let openWorks: [WorkModel] = workItems.filter { $0.isOpen }
         var openByStudent: [UUID: [WorkModel]] = [:]
         for work in openWorks {
-            for p in work.participants {
+            for p in (work.participants ?? []) {
                 openByStudent[p.studentID, default: []].append(work)
             }
         }
         var counts: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
         for work in openWorks {
-            for p in work.participants {
+            for p in (work.participants ?? []) {
                 switch work.workType {
                 case .practice: counts[p.studentID, default: (0,0,0)].practice += 1
                 case .followUp: counts[p.studentID, default: (0,0,0)].follow += 1

@@ -88,7 +88,7 @@ struct WorkView: View {
         case .lower, .upper:
             return base.filter { work in
                 let map = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
-                return work.participants.contains { p in
+                return (work.participants ?? []).contains { p in
                     guard let s = map[p.studentID] else { return false }
                     return (filters.level == .lower && s.level == .lower) || (filters.level == .upper && s.level == .upper)
                 }
@@ -125,7 +125,7 @@ struct WorkView: View {
     private var openWorksByStudentID: [UUID: [WorkModel]] {
         var map: [UUID: [WorkModel]] = [:]
         for work in openWorks {
-            for p in work.participants {
+            for p in (work.participants ?? []) {
                 guard isParticipantVisible(p.studentID) else { continue }
                 if p.completedAt == nil {
                     map[p.studentID, default: []].append(work)
@@ -217,7 +217,7 @@ struct WorkView: View {
     private var workSummaries: [StudentWorkSummary] {
         var counts: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
         for work in openWorks {
-            for p in work.participants {
+            for p in (work.participants ?? []) {
                 guard isParticipantVisible(p.studentID) else { continue }
                 switch work.workType {
                 case .practice:

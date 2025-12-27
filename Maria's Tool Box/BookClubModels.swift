@@ -22,23 +22,23 @@ struct LocalJSONStringList {
 
 @Model
 final class BookClub: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
 
-    var title: String
-    var bookTitle: String?
+    var title: String = ""
+    var bookTitle: String? = nil
 
     // Store Student IDs as strings for CloudKit compatibility
-    var memberStudentIDs: [String]
+    var memberStudentIDs: [String] = []
 
     // Relationships
-    var sharedTemplates: [BookClubAssignmentTemplate]
-    var sessions: [BookClubSession]
+    @Relationship(inverse: \BookClubAssignmentTemplate.bookClub) var sharedTemplates: [BookClubAssignmentTemplate]? = []
+    @Relationship(inverse: \BookClubSession.bookClub) var sessions: [BookClubSession]? = []
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        title: String,
+        title: String = "",
         bookTitle: String? = nil,
         memberStudentIDs: [String] = [],
         sharedTemplates: [BookClubAssignmentTemplate] = [],
@@ -56,24 +56,25 @@ final class BookClub: Identifiable {
 
 @Model
 final class BookClubAssignmentTemplate: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
 
     // Foreign key to BookClub
-    var bookClubID: UUID
+    var bookClubID: UUID = UUID()
+    var bookClub: BookClub? = nil
 
-    var title: String
-    var instructions: String
-    var isShared: Bool
+    var title: String = ""
+    var instructions: String = ""
+    var isShared: Bool = true
 
     // Optional default link to a Lesson by UUID string
-    var defaultLinkedLessonID: String?
+    var defaultLinkedLessonID: String? = nil
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID,
-        title: String,
+        bookClubID: UUID = UUID(),
+        title: String = "",
         instructions: String = "",
         isShared: Bool = true,
         defaultLinkedLessonID: String? = nil
@@ -90,28 +91,29 @@ final class BookClubAssignmentTemplate: Identifiable {
 
 @Model
 final class BookClubSession: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
 
     // Foreign key to BookClub
-    var bookClubID: UUID
+    var bookClubID: UUID = UUID()
+    var bookClub: BookClub? = nil
 
-    var meetingDate: Date
-    var chapterOrPages: String?
-    var notes: String?
+    var meetingDate: Date = Date()
+    var chapterOrPages: String? = nil
+    var notes: String? = nil
 
     // Agenda from template or edited per-session (JSON encoded)
-    var agendaItemsJSON: String
+    var agendaItemsJSON: String = ""
 
     // Optional link back to a template week
-    var templateWeekID: UUID?
+    var templateWeekID: UUID? = nil
 
     // NOTE: WorkContracts are now queried dynamically via sourceContextID matching this session ID.
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID,
+        bookClubID: UUID = UUID(),
         meetingDate: Date = Date(),
         chapterOrPages: String? = nil,
         notes: String? = nil,

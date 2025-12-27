@@ -190,7 +190,7 @@ final class TodayViewModel: ObservableObject {
             let followUps = allOpen.filter { $0.workType == .followUp }
             // Compute next scheduled check-in per work
             let dueFollowUps: [(work: WorkModel, nextDate: Date)] = followUps.compactMap { w in
-                let next = w.checkIns
+                let next = (w.checkIns ?? [])
                     .filter { $0.status == .scheduled }
                     .min(by: { $0.date < $1.date })
                 if let next, next.date < nextDay {
@@ -293,7 +293,7 @@ final class TodayViewModel: ObservableObject {
     private func filterCheckInsByLevelIfNeeded(_ items: [WorkCheckIn], studentsByID: [UUID: Student]) -> [WorkCheckIn] {
         guard levelFilter != .all else { return items }
         // Map WorkModel.id -> participants
-        let participantsByWorkID: [UUID: [UUID]] = Dictionary(uniqueKeysWithValues: worksByID.map { ($0.key, $0.value.participants.map { $0.studentID }) })
+        let participantsByWorkID: [UUID: [UUID]] = Dictionary(uniqueKeysWithValues: worksByID.map { ($0.key, ($0.value.participants ?? []).map { $0.studentID }) })
         return items.filter { ci in
             guard let p = participantsByWorkID[ci.workID] else { return false }
             for sid in p { if let s = studentsByID[sid], levelFilter.matches(s.level) { return true } }
@@ -304,7 +304,7 @@ final class TodayViewModel: ObservableObject {
     private func filterWorksByLevelIfNeeded(_ works: [WorkModel], studentsByID: [UUID: Student]) -> [WorkModel] {
         guard levelFilter != .all else { return works }
         return works.filter { w in
-            for p in w.participants { if let s = studentsByID[p.studentID], levelFilter.matches(s.level) { return true } }
+            for p in (w.participants ?? []) { if let s = studentsByID[p.studentID], levelFilter.matches(s.level) { return true } }
             return false
         }
     }

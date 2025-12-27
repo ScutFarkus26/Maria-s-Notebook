@@ -43,7 +43,7 @@ enum WorkMigrationService {
             // Build or reuse contracts per participant
             var contractsForThisWork: [WorkContract] = []
 
-            for participant in work.participants {
+            for participant in (work.participants ?? []) {
                 let studentID = participant.studentID
                 let studentIDString = studentID.uuidString
 
@@ -86,12 +86,12 @@ enum WorkMigrationService {
             if contractsForThisWork.isEmpty { continue }
 
             // Migrate WorkCheckIns → WorkPlanItem (scheduled only)
-            for checkIn in work.checkIns where checkIn.status == .scheduled {
+            for checkIn in (work.checkIns ?? []) where checkIn.status == .scheduled {
                 let day = AppCalendar.startOfDay(checkIn.date)
                 let note: String? = {
-                    let p = checkIn.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let p = checkIn.purpose.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                     if !p.isEmpty { return p }
-                    let n = checkIn.note.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let n = checkIn.note.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                     return n.isEmpty ? nil : n
                 }()
                 for contract in contractsForThisWork {
@@ -110,11 +110,12 @@ enum WorkMigrationService {
             }
 
             // Migrate WorkNotes → ScopedNote (contract-scoped)
-            for note in work.checkNotes {
+            for note in (work.checkNotes ?? []) {
                 // Compute scope
                 let scope: ScopedNote.Scope = {
                     if let s = note.student { return .student(s.id) }
-                    if work.participants.count == 1, let only = work.participants.first { return .student(only.studentID) }
+                    let parts = work.participants ?? []
+                    if parts.count == 1, let only = parts.first { return .student(only.studentID) }
                     return .all
                 }()
 

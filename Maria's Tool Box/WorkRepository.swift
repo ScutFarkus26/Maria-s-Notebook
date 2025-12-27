@@ -26,7 +26,7 @@ struct WorkRepository {
             notes: notes,
             createdAt: Date()
         )
-        work.participants = studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: work) }
+        work.participants = (work.participants ?? []) + studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: work) }
         context.insert(work)
 
         // Automatically schedule a default check-in according to WorkCheckInDefaults
@@ -49,7 +49,8 @@ struct WorkRepository {
                 work: work
             )
             context.insert(ci)
-            work.checkIns.append(ci)
+            if work.checkIns == nil { work.checkIns = [] }
+            work.checkIns = (work.checkIns ?? []) + [ci]
         }
 
         try context.save()
@@ -77,8 +78,8 @@ struct WorkRepository {
         _ = work.completedAt
         _ = work.workType
         _ = work.studentLessonID
-        for p in work.participants { _ = p.studentID; _ = p.completedAt }
-        for ci in work.checkIns { _ = ci.id; _ = ci.date; _ = ci.status; _ = ci.purpose; _ = ci.note }
+        for p in (work.participants ?? []) { _ = p.studentID; _ = p.completedAt }
+        for ci in (work.checkIns ?? []) { _ = ci.id; _ = ci.date; _ = ci.status; _ = ci.purpose; _ = ci.note }
 
         context.delete(work)
         try context.save()

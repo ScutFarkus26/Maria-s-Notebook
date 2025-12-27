@@ -287,13 +287,13 @@ actor BackupService {
             WorkDTO(
                 id: w.id,
                 title: w.title,
-                studentIDs: w.participants.map { $0.studentID },
+                studentIDs: (w.participants ?? []).map { $0.studentID },
                 workType: w.workType.rawValue,
                 studentLessonID: w.studentLessonID,
                 notes: w.notes,
                 createdAt: w.createdAt,
                 completedAt: w.completedAt,
-                participants: w.participants.map { WorkParticipantDTO(studentID: $0.studentID, completedAt: $0.completedAt) }
+                participants: (w.participants ?? []).map { WorkParticipantDTO(studentID: $0.studentID, completedAt: $0.completedAt) }
             )
         } ?? []
 
@@ -875,11 +875,11 @@ actor BackupService {
                 w.title = d.title; w.workType = WorkModel.WorkType(rawValue: d.workType) ?? .practice; w.studentLessonID = d.studentLessonID; w.notes = d.notes; w.createdAt = d.createdAt; w.completedAt = d.completedAt
                 // Update participants
                 w.participants = d.participants.map { WorkParticipantEntity(studentID: $0.studentID, completedAt: $0.completedAt) }
-                for p in w.participants { p.work = w }
+                for p in (w.participants ?? []) { p.work = w }
             } else {
                 let participants = d.participants.map { WorkParticipantEntity(studentID: $0.studentID, completedAt: $0.completedAt) }
                 let w = WorkModel(id: d.id, title: d.title, workType: WorkModel.WorkType(rawValue: d.workType) ?? .practice, studentLessonID: d.studentLessonID, notes: d.notes, createdAt: d.createdAt, completedAt: d.completedAt, participants: participants)
-                for p in w.participants { p.work = w }
+                for p in (w.participants ?? []) { p.work = w }
                 ctx.insert(w)
             }
         }

@@ -46,7 +46,7 @@ enum PlanningEngine {
 
     static func unscheduledWorks(_ works: [WorkModel]) -> [WorkModel] {
         works
-            .filter { $0.isOpen && !$0.checkIns.contains(where: { $0.status != .completed && $0.status != .skipped }) }
+            .filter { $0.isOpen && !($0.checkIns ?? []).contains(where: { $0.status != .completed && $0.status != .skipped }) }
             .sorted(by: { $0.createdAt < $1.createdAt })
     }
 
@@ -58,7 +58,7 @@ enum PlanningEngine {
     static func groupedItems(works: [WorkModel], calendar: Calendar) -> [DayKey: [ScheduledItem]] {
         var result: [DayKey: [ScheduledItem]] = [:]
         for work in works where work.isOpen {
-            for ci in work.checkIns where ci.status != .completed && ci.status != .skipped {
+            for ci in (work.checkIns ?? []) where ci.status != .completed && ci.status != .skipped {
                 let dayStart = AppCalendar.startOfDay(ci.date)
                 let hour = calendar.component(.hour, from: ci.date)
                 let period: DayPeriod = hour < 12 ? .morning : .afternoon

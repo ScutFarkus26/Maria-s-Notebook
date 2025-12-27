@@ -44,21 +44,19 @@ final class WorkDetailViewModel: ObservableObject {
         self.workType = work.workType
         
         // Load participants
-        let participantIDs = work.participants.map { $0.studentID }
+        let participantIDs = (work.participants ?? []).map { $0.studentID }
         self.selectedStudentIDs = Set(participantIDs)
         
         self.selectedStudentLessonID = work.studentLessonID
         self.completedAt = work.completedAt
 
         // Load completion state
-        let initiallyCompleted = work.participants
-            .filter { $0.completedAt != nil }
-            .map { $0.studentID }
+        let initiallyCompleted = (work.participants ?? []).filter { $0.completedAt != nil }.map { $0.studentID }
             
         self.initialCompletedStudentIDs = Set(initiallyCompleted)
         self.stagedCompletedStudentIDs = Set(initiallyCompleted)
 
-        self.checkIns = work.checkIns.map {
+        self.checkIns = (work.checkIns ?? []).map {
             CheckInDraft(
                 id: $0.id,
                 date: $0.date,
@@ -176,15 +174,15 @@ final class WorkDetailViewModel: ObservableObject {
         work.studentLessonID = selectedStudentLessonID
 
         // 1. Reconcile Participants (Remove unselected)
-        let currentParticipantIDs = Set(work.participants.map { $0.studentID })
+        let currentParticipantIDs = Set((work.participants ?? []).map { $0.studentID })
         let toRemove = currentParticipantIDs.subtracting(selectedStudentIDs)
         
         for studentID in toRemove {
             if let participant = work.participant(for: studentID) {
                 modelContext.delete(participant)
-                if let index = work.participants.firstIndex(of: participant) {
-                    work.participants.remove(at: index)
-                }
+                let current = work.participants ?? []
+                let updated = current.filter { $0.id != participant.id }
+                work.participants = updated
             }
         }
 
@@ -202,11 +200,10 @@ final class WorkDetailViewModel: ObservableObject {
 
         // Reconcile check-ins
         for deletedID in deletedCheckInIDs {
-            if let checkIn = work.checkIns.first(where: { $0.id == deletedID }) {
+            if let checkIn = (work.checkIns ?? []).first(where: { $0.id == deletedID }) {
                 modelContext.delete(checkIn)
-                if let idx = work.checkIns.firstIndex(of: checkIn) {
-                    work.checkIns.remove(at: idx)
-                }
+                let updated = (work.checkIns ?? []).filter { $0.id != checkIn.id }
+                work.checkIns = updated
             }
         }
         deletedCheckInIDs.removeAll()
@@ -215,9 +212,10 @@ final class WorkDetailViewModel: ObservableObject {
             if draft.isNew {
                 let newCheckIn = WorkCheckIn(workID: work.id, date: draft.date, status: draft.status, purpose: draft.purpose, note: draft.note, work: work)
                 modelContext.insert(newCheckIn)
-                work.checkIns.append(newCheckIn)
+                if work.checkIns == nil { work.checkIns = [] }
+                work.checkIns = (work.checkIns ?? []) + [newCheckIn]
             } else {
-                if let existingCheckIn = work.checkIns.first(where: { $0.id == draft.id }) {
+                if let existingCheckIn = (work.checkIns ?? []).first(where: { $0.id == draft.id }) {
                     existingCheckIn.date = draft.date
                     existingCheckIn.status = draft.status
                     existingCheckIn.purpose = draft.purpose
