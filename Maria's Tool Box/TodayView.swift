@@ -1,11 +1,11 @@
 // TodayView.swift
-// Today hub showing lessons, check-ins, follow-ups, and completions for a selected day.
-// Behavior-preserving cleanup: comments and MARKs only.
+// Today hub showing lessons, scheduled check-ins (WorkPlanItem), follow-ups (Stale Contracts), and completions.
+// Updated to use WorkContract and WorkPlanItem instead of legacy WorkCheckIn.
 
 import SwiftUI
 import SwiftData
 
-/// Today hub view. Binds to TodayViewModel and renders multiple sections without changing behavior.
+/// Today hub view. Binds to TodayViewModel and renders multiple sections.
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
@@ -13,16 +13,16 @@ struct TodayView: View {
 
     @StateObject private var viewModel: TodayViewModel
 
-    // Navigation state for details
-    @State private var selectedWorkID: UUID? = nil
+    // Navigation state
+    @State private var selectedContractID: UUID? = nil
     @State private var selectedStudentLesson: StudentLesson? = nil
 
     @Query private var studentLessonsAll: [StudentLesson]
-
-    // Lookup helpers from VM caches to avoid per-row fetches
+    @Query private var planItemsAll: [WorkPlanItem] // Watch for plan changes
+    
+    // Helpers
     private var nameForLesson: (UUID) -> String { { id in viewModel.lessonsByID[id]?.name ?? "Lesson" } }
     
-    // Compute first names that appear more than once (case-insensitive, trimmed)
     private var duplicateFirstNames: Set<String> {
         let firsts = viewModel.studentsByID.values.map { $0.firstName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
         var counts: [String: Int] = [:]
@@ -30,7 +30,6 @@ struct TodayView: View {
         return Set(counts.filter { $0.value > 1 }.map { $0.key })
     }
 
-    // Display name rule: First name; append last initial when the first name is not unique
     private var displayNameForID: (UUID) -> String { { id in
         guard let s = viewModel.studentsByID[id] else { return "Student" }
         let first = s.firstName
@@ -47,24 +46,7 @@ struct TodayView: View {
         let names = ids.map { displayNameForID($0) }
         return names.joined(separator: ", ")
     } }
-    // TODO: Unify work title formatting with other views to avoid duplication.
-    private var workTitleForID: (UUID) -> String { { id in
-        guard let w = viewModel.worksByID[id] else { return "Work" }
-        let t = w.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !t.isEmpty { return t }
-        if let slID = w.studentLessonID, let sl = viewModel.studentLessonsByID[slID] {
-            if let l = viewModel.lessonsByID[sl.lessonID] { return l.name }
-        }
-        return w.workType.rawValue
-    } }
-    private var studentNameForID: (UUID) -> String { { id in displayNameForID(id) } }
-    private var studentNamesForWorkID: (UUID) -> String { { id in
-        guard let w = viewModel.worksByID[id] else { return "" }
-        let names = (w.participants ?? []).map { p in displayNameForID(p.studentID) }
-        return names.joined(separator: ", ")
-    } }
 
-    // Compact student pill used next to attendance stats
     @ViewBuilder
     private func studentPill(_ name: String, color: Color) -> some View {
         Text(name)
@@ -117,28 +99,21 @@ struct TodayView: View {
             viewModel.setCalendar(newCal)
             AppCalendar.adopt(timeZoneFrom: newCal)
         }
-        .onChange(of: studentLessonsAll.map { $0.id }) { _, _ in
-            viewModel.reload()
-        }
+        .onChange(of: studentLessonsAll.map { $0.id }) { _, _ in viewModel.reload() }
+        .onChange(of: planItemsAll) { _, _ in viewModel.reload() }
         .onReceive(NotificationCenter.default.publisher(for: .PlanningInboxNeedsRefresh)) { _ in
             viewModel.reload()
         }
-        .onChange(of: studentLessonsAll.map { $0.scheduledForDay.timeIntervalSinceReferenceDate }) { _, _ in
-            viewModel.reload()
-        }
-        .onChange(of: studentLessonsAll.map { $0.scheduledFor?.timeIntervalSinceReferenceDate ?? -1 }) { _, _ in
-            viewModel.reload()
-        }
-        .onChange(of: studentLessonsAll.map { $0.isPresented }) { _, _ in
-            viewModel.reload()
-        }
-        .sheet(isPresented: Binding(get: { selectedWorkID != nil }, set: { if !$0 { selectedWorkID = nil } })) {
-            if let id = selectedWorkID {
+        // Sheet for Contract Details
+        .sheet(isPresented: Binding(get: { selectedContractID != nil }, set: { if !$0 { selectedContractID = nil } })) {
+            if let id = selectedContractID {
                 WorkDetailContainerView(workID: id) {
-                    selectedWorkID = nil
+                    selectedContractID = nil
+                    viewModel.reload()
                 }
             }
         }
+        // Sheet for Student Lesson Details
         .sheet(isPresented: Binding(get: { selectedStudentLesson != nil }, set: { if !$0 { selectedStudentLesson = nil } })) {
             if let sl = selectedStudentLesson {
                 StudentLessonDetailView(studentLesson: sl) {
@@ -151,8 +126,6 @@ struct TodayView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
 #endif
-            } else {
-                EmptyView()
             }
         }
     }
@@ -242,7 +215,7 @@ struct TodayView: View {
                             }
                         }
                     }
-                    .padding(.leading, 8) // Little padding between the info and the names
+                    .padding(.leading, 8)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -290,33 +263,35 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - Check-Ins
+    // MARK: - Check-Ins (Scheduled via WorkPlanItem)
     private var checkInsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(title: "Follow-Ups & Check-Ins", systemImage: "bell")
-            if viewModel.overdueCheckIns.isEmpty && viewModel.todaysCheckIns.isEmpty {
+            SectionHeader(title: "Scheduled Check-Ins", systemImage: "bell")
+            if viewModel.overdueSchedule.isEmpty && viewModel.todaysSchedule.isEmpty {
                 ContentUnavailableView("No check-ins due", systemImage: "checkmark.circle")
             } else {
                 VStack(alignment: .leading, spacing: 10) {
-                    if !viewModel.overdueCheckIns.isEmpty {
+                    if !viewModel.overdueSchedule.isEmpty {
                         Text("Overdue")
                             .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                             .foregroundStyle(.red)
-                        ForEach(viewModel.overdueCheckIns, id: \.id) { ci in
-                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID), studentNames: studentNamesForWorkID(ci.workID)) { selectedWorkID = ci.workID } onChanged: {
-                                selectedWorkID = nil
-                                viewModel.reload()
+                        ForEach(viewModel.overdueSchedule) { item in
+                            ContractScheduleRow(item: item,
+                                              studentName: resolveStudentName(for: item.contract),
+                                              lessonName: resolveLessonName(for: item.contract)) {
+                                selectedContractID = item.contract.id
                             }
                         }
                     }
-                    if !viewModel.todaysCheckIns.isEmpty {
+                    if !viewModel.todaysSchedule.isEmpty {
                         Text("Due Today")
                             .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                             .foregroundStyle(.secondary)
-                        ForEach(viewModel.todaysCheckIns, id: \.id) { ci in
-                            CheckInRow(ci: ci, workTitle: workTitleForID(ci.workID), studentNames: studentNamesForWorkID(ci.workID)) { selectedWorkID = ci.workID } onChanged: {
-                                selectedWorkID = nil
-                                viewModel.reload()
+                        ForEach(viewModel.todaysSchedule) { item in
+                            ContractScheduleRow(item: item,
+                                              studentName: resolveStudentName(for: item.contract),
+                                              lessonName: resolveLessonName(for: item.contract)) {
+                                selectedContractID = item.contract.id
                             }
                         }
                     }
@@ -325,16 +300,20 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - In Progress
+    // MARK: - In Progress / Follow-Ups (Stale Contracts)
     private var inProgressSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "Follow-Ups Due", systemImage: "bolt")
-            if viewModel.inProgressWork.isEmpty {
+            if viewModel.staleFollowUps.isEmpty {
                 ContentUnavailableView("No follow-ups due", systemImage: "checkmark.circle")
             } else {
                 VStack(spacing: 8) {
-                    ForEach(viewModel.inProgressWork, id: \.id) { work in
-                        WorkRow(work: work, studentNames: studentNamesForWorkID(work.id)) { selectedWorkID = work.id }
+                    ForEach(viewModel.staleFollowUps) { item in
+                        ContractFollowUpRow(item: item,
+                                          studentName: resolveStudentName(for: item.contract),
+                                          lessonName: resolveLessonName(for: item.contract)) {
+                            selectedContractID = item.contract.id
+                        }
                     }
                 }
             }
@@ -345,25 +324,111 @@ struct TodayView: View {
     private var completedSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "Completed Today", systemImage: "checkmark.circle")
-            if viewModel.completedToday.isEmpty {
+            if viewModel.completedContracts.isEmpty {
                 ContentUnavailableView("No completions yet", systemImage: "clock")
             } else {
                 VStack(spacing: 8) {
-                    ForEach(viewModel.completedToday, id: \.id) { rc in
+                    ForEach(viewModel.completedContracts) { contract in
                         CompletionRow(
-                            studentName: studentNameForID(rc.studentID),
-                            workName: workTitleForID(rc.workID),
-                            record: rc
+                            studentName: resolveStudentName(for: contract),
+                            lessonName: resolveLessonName(for: contract),
+                            contract: contract
                         )
                         .contentShape(RoundedRectangle(cornerRadius: 10))
+                        .onTapGesture {
+                            selectedContractID = contract.id
+                        }
                     }
                 }
             }
         }
     }
+    
+    // MARK: - Helpers
+    private func resolveStudentName(for contract: WorkContract) -> String {
+        guard let uuid = UUID(uuidString: contract.studentID) else { return "Student" }
+        return displayNameForID(uuid)
+    }
+    
+    private func resolveLessonName(for contract: WorkContract) -> String {
+        guard let uuid = UUID(uuidString: contract.lessonID) else { return "Lesson" }
+        return nameForLesson(uuid)
+    }
 }
 
-// MARK: - Small Rows
+// MARK: - Rows
+
+private struct ContractScheduleRow: View {
+    let item: ContractScheduleItem
+    let studentName: String
+    let lessonName: String
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: item.planItem.reason?.icon ?? "bell").foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(studentName)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(lessonName)
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    
+                    HStack(spacing: 4) {
+                        Text(item.planItem.reason?.label ?? "Check-In")
+                        if let note = item.planItem.note, !note.isEmpty {
+                            Text("• \(note)")
+                        }
+                    }
+                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(item.planItem.scheduledDate, style: .date)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.orange.opacity(0.12)))
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ContractFollowUpRow: View {
+    let item: ContractFollowUpItem
+    let studentName: String
+    let lessonName: String
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.clockwise").foregroundStyle(.purple)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(studentName)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(lessonName)
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text("\(item.daysSinceTouch) days since update")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private struct LessonRow: View {
     let lessonName: String
     let studentNames: String
@@ -397,124 +462,10 @@ private struct LessonRow: View {
     }
 }
 
-private struct CheckInRow: View {
-    let ci: WorkCheckIn
-    let workTitle: String
-    let studentNames: String
-    var onTap: () -> Void
-    var onChanged: (() -> Void)? = nil
-
-    @Environment(\.modelContext) private var modelContext
-    @State private var showRescheduleSheet = false
-    @State private var rescheduleDate = Date()
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 10) {
-                Image(systemName: "bell").foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 2) {
-                    if !studentNames.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(studentNames)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                    }
-                    Text(workTitle)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    Text(ci.date, style: .date)
-                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                // Status badge (scheduled)
-                Text(ci.status.rawValue)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.orange.opacity(0.12)))
-                Menu {
-                    Button("Mark Completed", systemImage: "checkmark.circle") {
-                        let service = WorkCheckInService(context: modelContext)
-                        do { try service.markCompleted(ci) } catch {}
-                        onChanged?()
-                    }
-                    Button("Skip", systemImage: "forward.end") {
-                        let service = WorkCheckInService(context: modelContext)
-                        do { try service.skip(ci) } catch {}
-                        onChanged?()
-                    }
-                    Button("Reschedule", systemImage: "calendar") {
-                        rescheduleDate = ci.date
-                        showRescheduleSheet = true
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(10)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
-        }
-        .buttonStyle(.plain)
-        .sheet(isPresented: $showRescheduleSheet) {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Reschedule Check-In").font(.headline)
-                DatePicker("Date", selection: $rescheduleDate, displayedComponents: .date)
-                HStack {
-                    Spacer()
-                    Button("Cancel") { showRescheduleSheet = false }
-                    Button("Save") {
-                        let service = WorkCheckInService(context: modelContext)
-                        do { try service.reschedule(ci, to: rescheduleDate) } catch {}
-                        showRescheduleSheet = false
-                        onChanged?()
-                    }
-                    .keyboardShortcut(.defaultAction)
-                }
-            }
-            .padding()
-#if os(macOS)
-            .frame(minWidth: 360)
-#endif
-        }
-    }
-}
-
-private struct WorkRow: View {
-    let work: WorkModel
-    let studentNames: String
-    var onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 10) {
-                Image(systemName: "hammer").foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 2) {
-                    if !studentNames.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(studentNames)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                    }
-                    Text(work.title.isEmpty ? work.workType.rawValue : work.title)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    Text(work.createdAt, style: .date)
-                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(10)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 private struct CompletionRow: View {
     let studentName: String
-    let workName: String
-    let record: WorkCompletionRecord
+    let lessonName: String
+    let contract: WorkContract
 
     var body: some View {
         HStack(spacing: 10) {
@@ -523,12 +474,12 @@ private struct CompletionRow: View {
                 Text(studentName)
                     .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
-                Text(workName)
+                Text(lessonName)
                     .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if !record.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let note = contract.completionNote, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
             }
@@ -537,11 +488,3 @@ private struct CompletionRow: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
     }
 }
-
-#Preview {
-    let schema = AppSchema.schema
-    let container = try! ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    // Removed "return" here
-    TodayView(context: container.mainContext)
-}
-

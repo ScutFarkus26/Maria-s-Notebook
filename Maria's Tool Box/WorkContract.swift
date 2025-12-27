@@ -46,8 +46,11 @@ final class WorkContract: Identifiable {
     var statusRaw: String
     var scheduledDate: Date?
     var completedAt: Date?
+    
+    // NEW: specific title for this work (e.g. "Diorama")
+    var title: String?
 
-    // New lightweight fields (additive; optional for backward compatibility)
+    // New lightweight fields
     var kindRaw: String?
     var nextCheckInDate: Date?
     var scheduledReasonRaw: String?
@@ -56,7 +59,7 @@ final class WorkContract: Identifiable {
     var completionOutcomeRaw: String?
     var completionNote: String?
 
-    // Source context (additive; optional)
+    // Source context
     var sourceContextTypeRaw: String?
     var sourceContextID: String?
 
@@ -69,6 +72,7 @@ final class WorkContract: Identifiable {
         studentID: String,
         lessonID: String,
         presentationID: String? = nil,
+        title: String? = nil,
         status: WorkStatus = .active,
         scheduledDate: Date? = nil,
         completedAt: Date? = nil,
@@ -79,12 +83,13 @@ final class WorkContract: Identifiable {
         self.studentID = studentID
         self.lessonID = lessonID
         self.presentationID = presentationID
+        self.title = title
         self.statusRaw = status.rawValue
         self.scheduledDate = scheduledDate
         self.completedAt = completedAt
         self.legacyStudentLessonID = legacyStudentLessonID
 
-        // Default kind based on creation source (presentation → practice; otherwise follow-up)
+        // Default kind based on creation source
         if let presentationID, !presentationID.isEmpty {
             self.kindRaw = WorkKind.practiceLesson.rawValue
         } else {
@@ -121,37 +126,23 @@ final class WorkContract: Identifiable {
 }
 
 extension WorkContract {
-    /// Most recent meaningful touch date using provided plan items and notes.
     func lastMeaningfulTouchDate(planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Date {
         WorkContractAging.lastMeaningfulTouchDate(for: self, planItems: planItems, notes: notes, presentation: presentation)
     }
 
-    /// Day count since last meaningful touch (school-day aware).
     func daysSinceLastTouch(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Int {
         WorkContractAging.daysSinceLastTouch(for: self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
     }
 
-    /// Aging bucket classification (school-day aware).
     func agingBucket(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> AgingBucket {
         WorkContractAging.agingBucket(for: self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
     }
 
-    /// Convenience for stale status (school-day aware).
     func isStale(modelContext: ModelContext, planItems: [WorkPlanItem], notes: [ScopedNote], presentation: Presentation? = nil) -> Bool {
         WorkContractAging.isStale(self, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
     }
 
-    /// Intent-aware overdue: uses only plan items (progress/assessment) and an optional override for last touch.
     func isOverdue(planItems: [WorkPlanItem], lastTouch: Date? = nil) -> Bool {
         WorkContractAging.isOverdue(self, planItems: planItems, lastTouch: lastTouch)
     }
 }
-
-#if DEBUG
-extension WorkContract {
-    var debugDescription: String {
-        return "WorkContract(id=\(id), student=\(studentID.prefix(8))…, lesson=\(lessonID.prefix(8))…, status=\(statusRaw), scheduled=\(scheduledDate?.description ?? "nil"))"
-    }
-}
-#endif
-

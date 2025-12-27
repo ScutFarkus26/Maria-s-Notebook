@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-struct LessonsAgendaView: View {
+struct PresentationsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -263,7 +263,7 @@ struct LessonsAgendaView: View {
                 Image(systemName: "tray")
                     .imageScale(.large)
                     .foregroundStyle(Color.accentColor)
-                Text("Presentations Inbox")
+                Text("Presentations")
                     .font(.headline)
                 Spacer()
                 
@@ -754,3 +754,4 @@ struct LessonsAgendaView: View {
         }
     }
 }
+

@@ -1,22 +1,35 @@
 // TodayViewModel.swift
-// View model powering the Today hub. Fetches lessons, check-ins, in-progress work, and attendance summaries
-// for the selected day. Uses lightweight lookup caches to avoid per-row fetches. Behavior-preserving refactor.
+// View model powering the Today hub. Fetches lessons, work contracts, and plan items
+// for the selected day. Uses lightweight lookup caches to avoid per-row fetches.
 
 import Foundation
 import SwiftUI
 import SwiftData
 import Combine
 
+/// Data structure for a scheduled check-in (explicit WorkPlanItem).
+struct ContractScheduleItem: Identifiable {
+    let contract: WorkContract
+    let planItem: WorkPlanItem
+    var id: UUID { planItem.id }
+}
+
+/// Data structure for a stale follow-up (implicit WorkContract aging).
+struct ContractFollowUpItem: Identifiable {
+    let contract: WorkContract
+    let daysSinceTouch: Int
+    var id: UUID { contract.id }
+}
+
 /// View model for the Today screen.
 /// - Manages date selection and a level filter.
 /// - Builds in-memory caches to avoid repeated fetches per row.
-/// - Exposes published outputs for the view layer. No behavior changes in this refactor.
 @MainActor
 final class TodayViewModel: ObservableObject {
     // MARK: - Types
     /// Lightweight counts shown in the Today header.
     struct AttendanceSummary {
-        var presentCount: Int = 0 // Present + Tardy
+        var presentCount: Int = 0
         var absentCount: Int = 0
         var leftEarlyCount: Int = 0
     }
@@ -55,20 +68,24 @@ final class TodayViewModel: ObservableObject {
 
     // MARK: - Outputs
     @Published var todaysLessons: [StudentLesson] = []
-    @Published var overdueCheckIns: [WorkCheckIn] = []
-    @Published var todaysCheckIns: [WorkCheckIn] = []
-    @Published var inProgressWork: [WorkModel] = []
-    @Published var completedToday: [WorkCompletionRecord] = []
+    
+    // Replaced legacy WorkCheckIn/WorkModel lists with Contract-based lists
+    @Published var overdueSchedule: [ContractScheduleItem] = []
+    @Published var todaysSchedule: [ContractScheduleItem] = []
+    @Published var staleFollowUps: [ContractFollowUpItem] = []
+    
+    // Updated: Now holds WorkContract instead of legacy WorkCompletionRecord
+    @Published var completedContracts: [WorkContract] = []
+    
     @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
     @Published var absentToday: [UUID] = []
     @Published var leftEarlyToday: [UUID] = []
 
     // MARK: - Caches
-    // Lightweight lookup caches for rows (avoid per-row fetches)
     @Published private(set) var studentsByID: [UUID: Student] = [:]
     @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
-    @Published private(set) var worksByID: [UUID: WorkModel] = [:]
-    @Published private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
+    // Caching contracts by ID for generic lookups if needed
+    @Published private(set) var contractsByID: [UUID: WorkContract] = [:]
 
     // MARK: - Scheduling
     private var reloadScheduled = false
@@ -105,20 +122,15 @@ final class TodayViewModel: ObservableObject {
     func reload() {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
 
-        // Build lookup caches first
+        // 1. Setup Caches
         let allStudents = (try? context.fetch(FetchDescriptor<Student>())) ?? []
         let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
         studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
 
         let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
         lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-        let allWorks = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
-        worksByID = Dictionary(uniqueKeysWithValues: allWorks.map { ($0.id, $0) })
-        let allStudentLessons = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
-        studentLessonsByID = Dictionary(uniqueKeysWithValues: allStudentLessons.map { ($0.id, $0) })
 
-        // Lessons scheduled for today — fetch by denormalized day and by exact scheduled time separately,
-        // then merge to avoid optional/OR predicate pitfalls.
+        // 2. Lessons for Today
         do {
             let byDayDescriptor = FetchDescriptor<StudentLesson>(
                 predicate: #Predicate { sl in
@@ -126,10 +138,10 @@ final class TodayViewModel: ObservableObject {
                 },
                 sortBy: []
             )
-            var lessons = try context.fetch(byDayDescriptor)
+            var dayLessons = try context.fetch(byDayDescriptor)
 
-            // Stable sort: by scheduledForDay, then scheduledFor (if available), then createdAt
-            lessons.sort { lhs, rhs in
+            // Stable sort
+            dayLessons.sort { lhs, rhs in
                 if lhs.scheduledForDay != rhs.scheduledForDay {
                     return lhs.scheduledForDay < rhs.scheduledForDay
                 }
@@ -140,94 +152,126 @@ final class TodayViewModel: ObservableObject {
                 default: return lhs.createdAt < rhs.createdAt
                 }
             }
-
-            todaysLessons = filterByLevelIfNeeded(lessons, studentsByID: self.studentsByID)
-
+            todaysLessons = filterByLevelIfNeeded(dayLessons, studentsByID: self.studentsByID)
         } catch {
-            // Fallback: filter in-memory if predicate fetch fails (e.g., schema mismatch during migration)
-            let inMem = allStudentLessons.filter { sl in
-                let sfd = sl.scheduledForDay
-                let sf = sl.scheduledFor
-                // Include if denormalized day matches or exact scheduled time is in the window
-                let matchesDay = (sfd >= day && sfd < nextDay)
-                let matchesExact = {
-                    if let dt = sf { return dt >= day && dt < nextDay } else { return false }
-                }()
-                return matchesDay || matchesExact
-            }
-            todaysLessons = filterByLevelIfNeeded(inMem, studentsByID: self.studentsByID)
+            todaysLessons = []
         }
 
-        // Check-ins
+        // 3. Work Contracts & Schedule (Replacing WorkCheckIn/WorkModel logic)
         do {
-            let overdueDescriptor = FetchDescriptor<WorkCheckIn>(
-                predicate: #Predicate { ci in ci.date < day },
-                sortBy: [SortDescriptor(\.date, order: .forward)]
+            // Fetch Active/Review Contracts
+            let contractsDescriptor = FetchDescriptor<WorkContract>(
+                predicate: #Predicate { c in c.statusRaw == "active" || c.statusRaw == "review" }
             )
-            let todayDescriptor = FetchDescriptor<WorkCheckIn>(
-                predicate: #Predicate { ci in ci.date >= day && ci.date < nextDay },
-                sortBy: [SortDescriptor(\.date, order: .forward)]
-            )
-            let overdueAll = try context.fetch(overdueDescriptor)
-            let todayAll = try context.fetch(todayDescriptor)
-            let overdueScheduled = overdueAll.filter { $0.status == .scheduled }
-            let todayScheduled = todayAll.filter { $0.status == .scheduled }
-            overdueCheckIns = filterCheckInsByLevelIfNeeded(overdueScheduled, studentsByID: self.studentsByID)
-            todaysCheckIns = filterCheckInsByLevelIfNeeded(todayScheduled, studentsByID: self.studentsByID)
-        } catch {
-            overdueCheckIns = []
-            todaysCheckIns = []
-        }
-
-        // Follow-ups due (open follow-up work where the next scheduled check-in is overdue or today)
-        do {
-            let descriptor = FetchDescriptor<WorkModel>(
-                predicate: #Predicate { w in w.completedAt == nil },
-                sortBy: []
-            )
-            let allOpen = try context.fetch(descriptor)
-            // Only follow-ups
-            let followUps = allOpen.filter { $0.workType == .followUp }
-            // Compute next scheduled check-in per work
-            let dueFollowUps: [(work: WorkModel, nextDate: Date)] = followUps.compactMap { w in
-                let next = (w.checkIns ?? [])
-                    .filter { $0.status == .scheduled }
-                    .min(by: { $0.date < $1.date })
-                if let next, next.date < nextDay {
-                    return (w, next.date)
+            let contracts = try context.fetch(contractsDescriptor)
+            contractsByID = Dictionary(uniqueKeysWithValues: contracts.map { ($0.id, $0) })
+            
+            // Fetch Plan Items (The Schedule)
+            let planDescriptor = FetchDescriptor<WorkPlanItem>()
+            let planItems = try context.fetch(planDescriptor)
+            let planItemsByContract = Dictionary(grouping: planItems, by: { $0.workID })
+            
+            // Fetch Notes (For Aging/Touch context)
+            let notesDescriptor = FetchDescriptor<ScopedNote>()
+            let notes = try context.fetch(notesDescriptor)
+            let notesByContract = Dictionary(grouping: notes, by: { $0.workContractID.flatMap(UUID.init) ?? UUID() })
+            
+            var newOverdue: [ContractScheduleItem] = []
+            var newToday: [ContractScheduleItem] = []
+            var newStale: [ContractFollowUpItem] = []
+            
+            let startToday = AppCalendar.startOfDay(Date())
+            
+            // Process Contracts
+            for contract in contracts {
+                // Filter by Level
+                if let sid = UUID(uuidString: contract.studentID),
+                   let s = studentsByID[sid],
+                   !levelFilter.matches(s.level) {
+                    continue
                 }
-                return nil
+                
+                let contractPlans = planItemsByContract[contract.id] ?? []
+                let contractNotes = notesByContract[contract.id] ?? []
+                
+                // Determine Last Meaningful Touch to validate overdue status
+                let lastTouch = contract.lastMeaningfulTouchDate(planItems: contractPlans, notes: contractNotes)
+                let startLastTouch = AppCalendar.startOfDay(lastTouch)
+                
+                // Sort plans to find earliest relevant
+                let sortedPlans = contractPlans.sorted { $0.scheduledDate < $1.scheduledDate }
+                
+                // --- Overdue Logic ---
+                // An item is overdue if its date is < Today AND last touch is BEFORE that date.
+                // (i.e., we haven't "addressed" it since it was scheduled)
+                var isOverdueOrToday = false
+                
+                if let overdueItem = sortedPlans.first(where: { item in
+                    let itemDate = AppCalendar.startOfDay(item.scheduledDate)
+                    return itemDate < startToday && startLastTouch < itemDate
+                }) {
+                    newOverdue.append(ContractScheduleItem(contract: contract, planItem: overdueItem))
+                    isOverdueOrToday = true
+                }
+                
+                // --- Due Today Logic ---
+                // Explicitly scheduled for today
+                if let todayItem = sortedPlans.first(where: { AppCalendar.startOfDay($0.scheduledDate) == startToday }) {
+                    newToday.append(ContractScheduleItem(contract: contract, planItem: todayItem))
+                    isOverdueOrToday = true
+                }
+                
+                // --- Stale/Follow-Up Logic ---
+                // If not explicitly scheduled for today or overdue, check if it's stale (needs follow-up)
+                if !isOverdueOrToday {
+                    if contract.isStale(modelContext: context, planItems: contractPlans, notes: contractNotes) {
+                        let days = contract.daysSinceLastTouch(modelContext: context, planItems: contractPlans, notes: contractNotes)
+                        newStale.append(ContractFollowUpItem(contract: contract, daysSinceTouch: days))
+                    }
+                }
             }
-            // Apply level filter, preserving nextDate pairing
-            let filteredDue = dueFollowUps.filter { pair in
-                filterWorksByLevelIfNeeded([pair.work], studentsByID: self.studentsByID).count > 0
-            }
-            // Sort by next due date ascending; tie-breaker by createdAt descending to match prior feel
-            let sorted = filteredDue.sorted { lhs, rhs in
-                if lhs.nextDate != rhs.nextDate { return lhs.nextDate < rhs.nextDate }
-                return lhs.work.createdAt > rhs.work.createdAt
-            }
-            inProgressWork = sorted.map { $0.work }
+            
+            // Sort outputs
+            self.overdueSchedule = newOverdue.sorted { $0.planItem.scheduledDate < $1.planItem.scheduledDate }
+            self.todaysSchedule = newToday.sorted { $0.planItem.scheduledDate < $1.planItem.scheduledDate }
+            self.staleFollowUps = newStale.sorted { $0.daysSinceTouch > $1.daysSinceTouch } // Most stale first
+            
         } catch {
-            inProgressWork = []
+            print("Error fetching contracts/plans: \(error)")
+            self.overdueSchedule = []
+            self.todaysSchedule = []
+            self.staleFollowUps = []
         }
 
-        // Completions today
+        // 4. Completed Contracts Today (Replaces Legacy Completions)
         do {
-            let descriptor = FetchDescriptor<WorkCompletionRecord>(
-                predicate: #Predicate { rc in rc.completedAt >= day && rc.completedAt < nextDay },
+            // Predicate: check if completedAt falls within today's range
+            let descriptor = FetchDescriptor<WorkContract>(
+                predicate: #Predicate { c in
+                    if let ca = c.completedAt {
+                        return ca >= day && ca < nextDay
+                    } else {
+                        return false
+                    }
+                },
                 sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
             )
-            let all = try context.fetch(descriptor)
-            completedToday = all.filter { rc in
-                guard let s = self.studentsByID[rc.studentID] else { return false }
+            let contracts = try context.fetch(descriptor)
+            
+            completedContracts = contracts.filter { c in
+                guard let uuid = UUID(uuidString: c.studentID),
+                      let s = self.studentsByID[uuid] else { return false }
                 return levelFilter.matches(s.level)
             }
         } catch {
-            completedToday = []
+            completedContracts = []
         }
 
-        // Attendance summary for the day
+        // 5. Attendance
+        reloadAttendance(day: day, nextDay: nextDay)
+    }
+    
+    private func reloadAttendance(day: Date, nextDay: Date) {
         do {
             let descriptor = FetchDescriptor<AttendanceRecord>(
                 predicate: #Predicate { rec in rec.date >= day && rec.date < nextDay },
@@ -243,16 +287,14 @@ final class TodayViewModel: ObservableObject {
                 guard let s = self.studentsByID[rec.studentID] else { continue }
                 if !levelFilter.matches(s.level) { continue }
                 switch rec.status {
-                case .present, .tardy:
-                    present += 1
+                case .present, .tardy: present += 1
                 case .absent:
                     absent += 1
                     absentIDs.insert(rec.studentID)
                 case .leftEarly:
                     leftEarly += 1
                     leftEarlyIDs.insert(rec.studentID)
-                case .unmarked:
-                    break
+                case .unmarked: break
                 }
             }
             attendanceSummary = AttendanceSummary(presentCount: present, absentCount: absent, leftEarlyCount: leftEarly)
@@ -271,7 +313,6 @@ final class TodayViewModel: ObservableObject {
             return lessons.filter { sl in
                 let ids = sl.resolvedStudentIDs
                 if ids.isEmpty { return true }
-                // Keep only if at least one visible student remains
                 return ids.contains { studentsByID[$0] != nil }
             }
         }
@@ -289,24 +330,4 @@ final class TodayViewModel: ObservableObject {
             return anyVisible && anyVisibleMatching
         }
     }
-
-    private func filterCheckInsByLevelIfNeeded(_ items: [WorkCheckIn], studentsByID: [UUID: Student]) -> [WorkCheckIn] {
-        guard levelFilter != .all else { return items }
-        // Map WorkModel.id -> participants
-        let participantsByWorkID: [UUID: [UUID]] = Dictionary(uniqueKeysWithValues: worksByID.map { ($0.key, ($0.value.participants ?? []).map { $0.studentID }) })
-        return items.filter { ci in
-            guard let p = participantsByWorkID[ci.workID] else { return false }
-            for sid in p { if let s = studentsByID[sid], levelFilter.matches(s.level) { return true } }
-            return false
-        }
-    }
-
-    private func filterWorksByLevelIfNeeded(_ works: [WorkModel], studentsByID: [UUID: Student]) -> [WorkModel] {
-        guard levelFilter != .all else { return works }
-        return works.filter { w in
-            for p in (w.participants ?? []) { if let s = studentsByID[p.studentID], levelFilter.matches(s.level) { return true } }
-            return false
-        }
-    }
 }
-

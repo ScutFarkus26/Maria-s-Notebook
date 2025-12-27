@@ -28,7 +28,7 @@ struct ClassSubjectChecklistView: View {
         VStack(spacing: 0) {
             // MARK: - Page Header / Controls
             HStack {
-                Text("Class Checklist")
+                Text("Checklist")
                     .font(.system(.largeTitle, design: .rounded).weight(.heavy))
                 
                 Spacer()
@@ -441,4 +441,3 @@ extension View {
         #endif
     }
 }
-

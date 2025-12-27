@@ -325,11 +325,10 @@ struct RootView: View {
 struct PlanningRootView: View {
     // MARK: - Mode
     enum Mode: String, CaseIterable, Identifiable {
-        case agenda = "Presentations Agenda" // Renamed from "Lessons Agenda"
-        case works = "Work Agenda"
-        case followUpInbox = "Follow-Up Inbox"
+        case agenda = "Presentations"
+        case works = "Open Work"
         case bookClubs = "Projects"
-        case checklist = "Class Checklist"
+        case checklist = "Checklist"
         var id: String { rawValue }
     }
 
@@ -350,7 +349,6 @@ struct PlanningRootView: View {
                         HStack(spacing: 12) {
                             PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                             PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                             PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                         }
@@ -365,7 +363,6 @@ struct PlanningRootView: View {
                         HStack(spacing: 12) {
                             PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                             PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                             PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                         }
@@ -381,7 +378,6 @@ struct PlanningRootView: View {
                 HStack(spacing: 12) {
                     PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                     PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                    PillButton(title: Mode.followUpInbox.rawValue, isSelected: mode == .followUpInbox) { modeRaw = Mode.followUpInbox.rawValue }
                     PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
                     PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                 }
@@ -395,11 +391,9 @@ struct PlanningRootView: View {
 
             Group {
                 if mode == .agenda {
-                    LessonsAgendaView()
+                    PresentationsView()
                 } else if mode == .works {
                     WorksAgendaView()
-                } else if mode == .followUpInbox {
-                    FollowUpInboxView()
                 } else if mode == .bookClubs {
                     NavigationStack {
                         BookClubsRootView()
@@ -412,23 +406,19 @@ struct PlanningRootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
                 // Migrate legacy stored mode labels to new ones
-                if modeRaw == "Agenda" {
-                    modeRaw = Mode.agenda.rawValue
-                }
-                if modeRaw == "Board" {
-                    modeRaw = Mode.agenda.rawValue
-                }
-                if modeRaw == "Lessons Board" {
-                    modeRaw = Mode.agenda.rawValue
-                }
-                if modeRaw == "Lessons Agenda (Beta)" {
-                    modeRaw = Mode.agenda.rawValue
-                }
-                if modeRaw == "Lessons Agenda" {
-                    modeRaw = Mode.agenda.rawValue
-                }
+                if modeRaw == "Agenda" { modeRaw = Mode.agenda.rawValue }
+                if modeRaw == "Board" { modeRaw = Mode.agenda.rawValue }
+                if modeRaw == "Lessons Board" { modeRaw = Mode.agenda.rawValue }
+                if modeRaw == "Lessons Agenda (Beta)" { modeRaw = Mode.agenda.rawValue }
+                if modeRaw == "Lessons Agenda" { modeRaw = Mode.agenda.rawValue }
+                if modeRaw == "Presentations Agenda" { modeRaw = Mode.agenda.rawValue }
+                
                 if modeRaw == "Work Agenda (Beta)" { modeRaw = Mode.works.rawValue }
+                if modeRaw == "Work Agenda" { modeRaw = Mode.works.rawValue }
+                
                 if modeRaw == "Book Clubs" { modeRaw = Mode.bookClubs.rawValue }
+                
+                if modeRaw == "Class Checklist" { modeRaw = Mode.checklist.rawValue }
                 
                 // Migrate LessonsAgendaBeta.startDate -> LessonsAgenda.startDate (one-time)
                 let oldKey = "LessonsAgendaBeta.startDate"
@@ -458,3 +448,4 @@ struct LessonsMenuRootView: View {
     RootView()
         .previewEnvironment()
 }
+
