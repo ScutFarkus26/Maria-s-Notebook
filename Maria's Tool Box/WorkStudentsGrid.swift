@@ -15,7 +15,7 @@ struct WorkStudentsGrid: View {
     let summaries: [StudentWorkSummary]
     // Keyed by UUID, values are WorkContracts
     let openContractsByStudentID: [UUID: [WorkContract]]
-    let lookupService: WorkLookupService
+    let lessonsByID: [UUID: Lesson]
     let onTapStudent: (Student) -> Void
     let onTapContract: (WorkContract) -> Void
 
@@ -33,7 +33,7 @@ struct WorkStudentsGrid: View {
                         StudentWorkCard(
                             summary: summary,
                             contracts: openContractsByStudentID[summary.id] ?? [],
-                            lookupService: lookupService,
+                            lessonsByID: lessonsByID,
                             onTapStudent: onTapStudent,
                             onTapContract: onTapContract
                         )
@@ -48,7 +48,7 @@ struct WorkStudentsGrid: View {
 private struct StudentWorkCard: View {
     let summary: StudentWorkSummary
     let contracts: [WorkContract]
-    let lookupService: WorkLookupService
+    let lessonsByID: [UUID: Lesson]
     let onTapStudent: (Student) -> Void
     let onTapContract: (WorkContract) -> Void
 
@@ -73,13 +73,13 @@ private struct StudentWorkCard: View {
         }
     }
 
-    // RESOLVED: lookupService is now correctly accessed within this struct
+    // Lookup via lessonsByID map
     private func title(for contract: WorkContract) -> String {
         if let t = contract.title, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return t
         }
         if let lid = UUID(uuidString: contract.lessonID),
-           let lesson = lookupService.lessonsByID[lid] {
+           let lesson = lessonsByID[lid] {
             return lesson.name
         }
         return "Untitled Work"

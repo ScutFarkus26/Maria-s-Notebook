@@ -244,13 +244,9 @@ struct StudentsRootView: View {
     }
 
     private var workOverviewContent: some View {
-        let lookupService = WorkLookupService(
-            students: students,
-            lessons: lessons,
-            studentLessons: studentLessons
-        )
-        
         let openContracts = workContracts.filter { $0.isOpen }
+        
+        let lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
         
         var openByStudent: [UUID: [WorkContract]] = [:]
         
@@ -290,7 +286,7 @@ struct StudentsRootView: View {
         return WorkStudentsGrid(
             summaries: summaries,
             openContractsByStudentID: openByStudent,
-            lookupService: lookupService,
+            lessonsByID: lessonsByID,
             onTapStudent: { student in selectedStudentID = student.id },
             onTapContract: { contract in selectedContract = contract }
         )

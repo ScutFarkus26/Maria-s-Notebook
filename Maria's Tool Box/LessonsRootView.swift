@@ -36,6 +36,8 @@ struct LessonsRootView: View {
         case studentLessonDraft(UUID)
         case importPreview(parsed: LessonCSVImporter.Parsed)
         case lessonDetails(UUID)
+        case editSpreadsheet
+        case editOutline
 
         var id: String {
             switch self {
@@ -44,6 +46,8 @@ struct LessonsRootView: View {
             case .studentLessonDraft(let id): return "studentLessonDraft_\(id.uuidString)"
             case .importPreview: return "importPreview"
             case .lessonDetails(let id): return "lessonDetails_\(id.uuidString)"
+            case .editSpreadsheet: return "editSpreadsheet"
+            case .editOutline: return "editOutline"
             }
         }
     }
@@ -318,10 +322,17 @@ struct LessonsRootView: View {
     }
 
     private var mainContentOverlay: some View {
-        ZStack(alignment: .topTrailing) {
-            lessonsMainContent
-            toolbarContent
-        }
+        lessonsMainContent
+            .safeAreaInset(edge: .top) {
+                ZStack {
+                    // Align controls to the trailing edge
+                    HStack { Spacer(); toolbarContent }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
+                .overlay(alignment: .bottom) { Divider() }
+            }
     }
     
     private var toolbarContent: some View {
@@ -632,6 +643,24 @@ struct LessonsRootView: View {
             } else {
                 EmptyView()
             }
+        case .editSpreadsheet:
+            AlbumLessonsSpreadsheetView()
+            #if os(macOS)
+            .frame(minWidth: 860, minHeight: 640)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+        case .editOutline:
+            AlbumLessonsOutlineView()
+            #if os(macOS)
+            .frame(minWidth: 860, minHeight: 640)
+            .presentationSizing(.fitted)
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
         }
     }
 
@@ -652,7 +681,17 @@ struct LessonsRootView: View {
                 let newSL = vm.createStudentLesson(basedOn: baseLesson, in: modelContext)
                 presentedSheet = .studentLessonDraft(newSL.id)
             } label: {
-                Label("Add Presentation", systemImage: "person.crop.circle.badge.plus") // Updated text
+                Label("Add Presentation", systemImage: "person.crop.circle.badge.plus")
+            }
+            Button {
+                presentedSheet = .editSpreadsheet
+            } label: {
+                Label("Edit Order (Spreadsheet)…", systemImage: "tablecells")
+            }
+            Button {
+                presentedSheet = .editOutline
+            } label: {
+                Label("Edit Order (Outline)…", systemImage: "list.bullet.indent")
             }
             Button {
                 showingLessonCSVImporter = true
@@ -660,12 +699,9 @@ struct LessonsRootView: View {
                 Label("Import Lessons from CSV…", systemImage: "arrow.down.doc")
             }
         } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: AppTheme.FontSize.titleXLarge))
-                .foregroundStyle(.green)
+            Label("Add", systemImage: "plus")
         }
         .buttonStyle(.plain)
-        .padding()
     }
 
     private struct SubjectRow: View {
@@ -814,3 +850,4 @@ struct LessonsRootView: View {
         }
     }
 }
+
