@@ -32,12 +32,8 @@ final class AppBootstrapper: ObservableObject {
         // 2. Critical Data Repairs
         // (Completed and removed)
         
-        // 3. Schema & Data Normalization
-        MigrationRunner.runIfNeeded(context: context)
+        // 3. Schema & Data Normalization (WorkModel logic disabled)
         DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: context)
-        DataMigrations.normalizeWorkDatesToDateOnlyIfNeeded(using: context)
-        DataMigrations.backfillParticipantsAndDeleteEmptyWorksIfNeeded(using: context)
-        DataMigrations.backfillEmptyWorkTitlesIfNeeded(using: context)
         
         // 4. Legacy Data (Run asynchronously without awaiting if it's safe, or await if dependent)
         LegacyNotesMigration.runIfNeeded(modelContext: context)

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DebugToolsView: View {
     @Binding var showDannyResetConfirm: Bool
+    @Binding var showPurgeLegacyWorkConfirm: Bool
     let onScanAndQueue: () -> Void
     let onConsolidate: () -> Void
 
@@ -17,6 +18,16 @@ struct DebugToolsView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.red)
+
+                #if DEBUG
+                Button(role: .destructive) {
+                    showPurgeLegacyWorkConfirm = true
+                } label: {
+                    Label("Purge Legacy WorkModel Data", systemImage: "trash.fill")
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                #endif
             }
 
             // Smart Planning (Backfill / Catch Up)

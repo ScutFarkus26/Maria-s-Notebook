@@ -50,6 +50,7 @@ struct SettingsView: View {
 
     // New state properties for Advanced / Debug section
     @State private var showDannyResetConfirm = false
+    @State private var showPurgeLegacyWorkConfirm = false
     @State private var dannyResetSummary: String? = nil
     @State private var seedSummary: String? = nil
 
@@ -185,6 +186,7 @@ struct SettingsView: View {
                     
                     DebugToolsView(
                         showDannyResetConfirm: $showDannyResetConfirm,
+                        showPurgeLegacyWorkConfirm: $showPurgeLegacyWorkConfirm,
                         onScanAndQueue: {
                             Task { @MainActor in
                                 do {
@@ -308,6 +310,26 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This action will permanently delete all lesson and work history for the students named “Danny de Berry” and “Lil Dan D”. This cannot be undone.")
+        }
+        .alert("Purge Legacy WorkModel Data?", isPresented: $showPurgeLegacyWorkConfirm) {
+            Button("Purge", role: .destructive) {
+                Task { @MainActor in
+                    do {
+                        // Delete all legacy WorkModel-related entities
+                        try modelContext.delete(model: WorkCheckIn.self)
+                        try modelContext.delete(model: WorkNote.self)
+                        try modelContext.delete(model: WorkParticipantEntity.self)
+                        try modelContext.delete(model: WorkModel.self)
+                        try modelContext.save()
+                        maintenanceAlert = (title: "Purge Complete", message: "All WorkModel, WorkParticipantEntity, WorkNote, and WorkCheckIn records have been deleted.")
+                    } catch {
+                        maintenanceAlert = (title: "Purge Failed", message: error.localizedDescription)
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete all legacy WorkModel data and related entities. This cannot be undone.")
         }
         // New alert showing completion summary
         .alert("History Deleted", isPresented: Binding(get: { dannyResetSummary != nil }, set: { if !$0 { dannyResetSummary = nil } })) {
