@@ -48,9 +48,6 @@ struct StudentDetailView: View {
         SortDescriptor(\StudentLesson.scheduledFor, order: .forward),
         SortDescriptor(\StudentLesson.createdAt, order: .forward)
     ]) private var studentLessonsRaw: [StudentLesson]
-    @Query(sort: [
-        SortDescriptor(\WorkModel.createdAt, order: .reverse)
-    ]) private var workModelsRaw: [WorkModel]
     @Query private var studentsAll: [Student]
 
     private var selectedChecklistSubject: String? {
@@ -73,18 +70,18 @@ struct StudentDetailView: View {
 
     private var studentLessonsByID: [UUID: StudentLesson] { vm.studentLessonsByID }
 
-    private var worksForStudent: [WorkModel] { vm.worksForStudent }
+    // Removed: private var worksForStudent: [WorkModel] { vm.worksForStudent }
 
     private var nextLessonsForStudent: [StudentLessonSnapshot] { vm.nextLessonsForStudent }
 
     // Added filtered computed properties for student-specific data
     private var studentLessonsAll: [StudentLesson] { studentLessonsRaw.filter { $0.resolvedStudentIDs.contains(student.id) } }
-    private var workModelsAll: [WorkModel] { workModelsRaw.filter { $0.resolvedStudentIDs.contains(student.id) } }
+    // Removed: private var workModelsAll: [WorkModel] { workModelsRaw.filter { $0.resolvedStudentIDs.contains(student.id) } }
 
     // Lightweight ID arrays to aid type-checker in onChange
     private var lessonIDs: [UUID] { lessons.map(\.id) }
     private var studentLessonIDs: [UUID] { studentLessonsAll.map(\.id) }
-    private var workModelIDs: [UUID] { workModelsAll.map(\.id) }
+    // Removed: private var workModelIDs: [UUID] { workModelsAll.map(\.id) }
 
     // MARK: - Derived
     private var levelColor: Color {
@@ -128,41 +125,15 @@ struct StudentDetailView: View {
 
     private var masteredLessonIDs: Set<UUID> { vm.masteredLessonIDs }
 
-    private func workLinkedStudentLesson(for work: WorkModel) -> StudentLesson? {
-        guard let slID = work.studentLessonID else { return nil }
-        return studentLessonsByID[slID]
-    }
+    // Removed helper func workLinkedStudentLesson(for work: WorkModel) -> StudentLesson?
 
-    private func workLesson(for work: WorkModel) -> Lesson? {
-        guard let sl = workLinkedStudentLesson(for: work) else { return nil }
-        return lessonsByID[sl.lessonID]
-    }
+    // Removed helper func workLesson(for work: WorkModel) -> Lesson?
 
-    private func workTitle(for work: WorkModel) -> String {
-        let trimmedTitle = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedTitle.isEmpty { return trimmedTitle }
-        if let lesson = workLesson(for: work) { return lesson.name }
-        return work.workType.rawValue
-    }
+    // Removed helper func workTitle(for work: WorkModel) -> String
 
-    private func workSubtitle(for work: WorkModel) -> String? {
-        let date: Date = {
-            if let sl = workLinkedStudentLesson(for: work) {
-                return sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
-            }
-            return work.createdAt
-        }()
-        let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
-        if let lesson = workLesson(for: work) {
-            let subject = lesson.subject
-            let type = work.workType.rawValue
-            let base = subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? type : "\(type) • \(subject)"
-            return "\(base) • \(dateString)"
-        }
-        return dateString
-    }
+    // Removed helper func workSubtitle(for work: WorkModel) -> String?
 
-    // MARK: - Notes projection (Step 5)
+    // MARK: - Notes projection (restored)
     @MainActor
     private var lessonNotesVisible: [Note] {
         // Collect lessons where this student is attached, then include notes visible to this student
@@ -223,13 +194,11 @@ struct StudentDetailView: View {
         }
     }
 
+    // Updated parentTitle(for note: Note) to remove WorkModel references
     @MainActor
     private func parentTitle(for note: Note) -> String {
         if let lesson = note.lesson {
             return lesson.name
-        }
-        if let work = note.work {
-            return workTitle(for: work)
         }
         return ""
     }
@@ -901,31 +870,26 @@ struct StudentDetailView: View {
         .onAppear {
             WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
             WorkDataMaintenance.migrateWorksToContractsIfNeeded(using: modelContext)
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: [])
             checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
         .onChange(of: lessonIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: [])
             checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
         .onChange(of: studentLessonIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
+            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: [])
             checklistVM.recompute(for: lessons, using: modelContext)
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
-        .onChange(of: workModelIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
-            checklistVM.recompute(for: lessons, using: modelContext)
-            contractsCache = fetchContractsForStudent()
-            vm.updateContracts(contractsCache)
-        }
+        // Removed entire .onChange(of: workModelIDs) block
     }
 
     private func ensureChecklistSubjectSelection() {

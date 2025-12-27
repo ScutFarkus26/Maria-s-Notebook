@@ -7,9 +7,6 @@ struct StudentLessonQuickActionsView: View {
 
     @Query(sort: \Lesson.name, animation: .default)
     private var lessons: [Lesson]
-
-    @Query(sort: \WorkModel.createdAt, animation: .default)
-    private var workModels: [WorkModel]
     
     @Query(sort: \Student.firstName, animation: .default)
     private var studentsAll: [Student]
