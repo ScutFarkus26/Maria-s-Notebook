@@ -75,35 +75,6 @@ enum DataMigrations {
             // If fetch fails, do not set the flag so we can retry later.
         }
     }
-    
-    /// Backfill or repair `scheduledForDay` for all StudentLesson rows from `scheduledFor`.
-    /// Idempotent: guarded by a UserDefaults flag and only updates rows where the value is mismatched.
-    static func repairScheduledForDayIfNeeded(using context: ModelContext, calendar: Calendar = AppCalendar.shared) {
-        let flagKey = "Migration.repairScheduledForDay.v1"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
-        do {
-            let fetch = FetchDescriptor<StudentLesson>()
-            let lessons = try context.fetch(fetch)
-            var changed = 0
-            for sl in lessons {
-                let expected: Date = {
-                    if let dt = sl.scheduledFor {
-                        return calendar.startOfDay(for: dt)
-                    } else {
-                        return Date.distantPast
-                    }
-                }()
-                if sl.scheduledForDay != expected {
-                    sl.scheduledForDay = expected
-                    changed += 1
-                }
-            }
-            if changed > 0 { try? context.save() }
-            UserDefaults.standard.set(true, forKey: flagKey)
-        } catch {
-            // If fetch fails, do not set the flag so we can retry later.
-        }
-    }
 
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
@@ -196,4 +167,3 @@ enum DataMigrations {
         UserDefaults.standard.set(true, forKey: flagKey)
     }
 }
-

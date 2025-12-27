@@ -23,7 +23,6 @@ final class AppBootstrapper: ObservableObject {
         state = .migrating
         
         let context = modelContainer.mainContext
-        let calendar = AppCalendar.shared
         
         print("AppBootstrapper: Starting startup checks...")
         
@@ -31,7 +30,7 @@ final class AppBootstrapper: ObservableObject {
         AppCalendar.adopt(timeZoneFrom: Calendar.current)
         
         // 2. Critical Data Repairs
-        DataMigrations.repairScheduledForDayIfNeeded(using: context, calendar: calendar)
+        // (Completed and removed)
         
         // 3. Schema & Data Normalization
         MigrationRunner.runIfNeeded(context: context)
