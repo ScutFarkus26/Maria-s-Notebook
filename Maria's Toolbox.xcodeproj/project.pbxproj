@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		51E1B2562EFFA41300C30E9D /* StudentDetailViewModel+Compat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E1B2552EFFA41300C30E9D /* StudentDetailViewModel+Compat.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		51E1B2552EFFA41300C30E9D /* StudentDetailViewModel+Compat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StudentDetailViewModel+Compat.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -47,6 +52,7 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
+				51E1B2552EFFA41300C30E9D /* StudentDetailViewModel+Compat.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -132,6 +138,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				51E1B2562EFFA41300C30E9D /* StudentDetailViewModel+Compat.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

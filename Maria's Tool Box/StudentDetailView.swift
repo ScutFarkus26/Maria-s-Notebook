@@ -177,12 +177,24 @@ struct StudentDetailView: View {
     }
 
     @MainActor
-    private var workNotesVisible: [Note] {
-        let all = worksForStudent.flatMap { $0.notesVisible(to: student.id) }
-        return all.sorted { lhs, rhs in
-            if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
-            return lhs.createdAt > rhs.createdAt
+    private var contractNotesVisible: [ScopedNote] {
+        let ids = Set(contractsCache.map { $0.id.uuidString })
+        guard !ids.isEmpty else { return [] }
+        let sort: [SortDescriptor<ScopedNote>] = [
+            SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
+            SortDescriptor(\ScopedNote.createdAt, order: .reverse)
+        ]
+        // Use a single-expression predicate and filter in-memory for the id set
+        let fetch = FetchDescriptor<ScopedNote>(
+            predicate: #Predicate<ScopedNote> { $0.workContractID != nil },
+            sortBy: sort
+        )
+        let fetched = (try? modelContext.fetch(fetch)) ?? []
+        let filtered = fetched.filter { note in
+            if let wid = note.workContractID { return ids.contains(wid) }
+            return false
         }
+        return filtered
     }
 
     @MainActor
@@ -197,6 +209,18 @@ struct StudentDetailView: View {
             return "Student"
         case .students(let ids):
             return "\(ids.count) students"
+        }
+    }
+    
+    @MainActor
+    private func scopeLabel(for note: ScopedNote) -> String {
+        switch note.scope {
+        case .all:
+            return "All"
+        case .student(_):
+            return "Student"
+        case .students(let ids):
+            return ids.isEmpty ? "Group" : "\(ids.count) students"
         }
     }
 
@@ -241,6 +265,35 @@ struct StudentDetailView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            }
+            Text(note.body)
+                .font(.body)
+                .foregroundStyle(.primary)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+    }
+
+    @MainActor
+    @ViewBuilder
+    private func contractNoteRow(_ note: ScopedNote) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(scopeLabel(for: note))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .overlay(
+                        Capsule().stroke(Color.primary.opacity(0.12))
+                    )
+                Spacer()
+                Text(Self.birthdayFormatter.string(from: note.updatedAt))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Text(note.body)
                 .font(.body)
@@ -848,26 +901,31 @@ struct StudentDetailView: View {
         }
         .onAppear {
             WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
+            WorkDataMaintenance.migrateWorksToContractsIfNeeded(using: modelContext)
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
+            vm.updateContracts(contractsCache)
         }
         .onChange(of: lessonIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
+            vm.updateContracts(contractsCache)
         }
         .onChange(of: studentLessonIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             contractsCache = fetchContractsForStudent()
+            vm.updateContracts(contractsCache)
         }
         .onChange(of: workModelIDs) { _, _ in
             vm.updateData(lessons: lessons, studentLessons: studentLessonsAll, workModels: workModelsAll)
             checklistVM.recompute(for: lessons, using: modelContext)
             contractsCache = fetchContractsForStudent()
+            vm.updateContracts(contractsCache)
         }
     }
 
@@ -964,7 +1022,7 @@ struct StudentDetailView: View {
 
     private var studentNotesTab: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if lessonNotesVisible.isEmpty && workNotesVisible.isEmpty {
+            if lessonNotesVisible.isEmpty && contractNotesVisible.isEmpty {
                 notesPlaceholder
             } else {
                 if !lessonNotesVisible.isEmpty {
@@ -984,19 +1042,19 @@ struct StudentDetailView: View {
                         }
                     }
                 }
-                if !workNotesVisible.isEmpty {
+                if !contractNotesVisible.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
                             Image(systemName: "note.text")
                                 .foregroundColor(.secondary)
-                            Text("Work Notes")
+                            Text("Contract Notes")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             Spacer()
                         }
                         VStack(alignment: .leading, spacing: 10) {
-                            ForEach(workNotesVisible, id: \.id) { note in
-                                noteRow(note)
+                            ForEach(contractNotesVisible, id: \.id) { note in
+                                contractNoteRow(note)
                             }
                         }
                     }

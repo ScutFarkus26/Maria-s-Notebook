@@ -19,11 +19,14 @@ final class StudentDetailViewModel: ObservableObject {
     // Published caches and summaries
     @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
     @Published private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
-    @Published private(set) var worksForStudent: [WorkModel] = []
     @Published private(set) var nextLessonsForStudent: [StudentLessonSnapshot] = []
-    @Published private(set) var workSummary: WorkSummary = .empty
     @Published private(set) var masteredLessonIDs: Set<UUID> = []
     @Published private(set) var plannedLessonIDs: Set<UUID> = []
+
+    @Published private(set) var contractsForStudent: [WorkContract] = []
+    @Published private(set) var contractSummary: ContractSummary = .empty
+
+    @Published private(set) var worksForStudent: [WorkModel] = []
 
     // MARK: - UI State
     // UI selection and toast state moved from the view
@@ -44,11 +47,6 @@ final class StudentDetailViewModel: ObservableObject {
         lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
         studentLessonsByID = Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
 
-        // Works for this student
-        worksForStudent = workModels
-            .filter { ($0.participants ?? []).contains { $0.studentID == student.id } }
-            .sorted { $0.createdAt > $1.createdAt }
-
         // Next lessons for this student (not yet presented)
         let fetchedSL = studentLessons.filter { $0.resolvedStudentIDs.contains(student.id) && !$0.isPresented }
         let sortedSL = fetchedSL.sorted { lhs, rhs in
@@ -66,64 +64,49 @@ final class StudentDetailViewModel: ObservableObject {
         nextLessonsForStudent = sortedSL.map { $0.snapshot() }
 
         // Summaries
-        workSummary = Self.computeWorkSummary(for: student.id, works: worksForStudent, studentLessonsByID: studentLessonsByID)
         masteredLessonIDs = Set(studentLessons.filter { $0.isPresented && $0.resolvedStudentIDs.contains(student.id) }.map { $0.resolvedLessonID })
         plannedLessonIDs = Set(nextLessonsForStudent.map { $0.lessonID })
+
+        // worksForStudent intentionally left empty as per instructions
+        worksForStudent = []
     }
 
-    /// Computes summary sets for a single student across their works.
-    /// Pure helper that does not mutate external state.
-    private static func computeWorkSummary(for studentID: UUID, works: [WorkModel], studentLessonsByID: [UUID: StudentLesson]) -> WorkSummary {
+    func updateContracts(_ contracts: [WorkContract]) {
+        // Set and compute summary
+        self.contractsForStudent = contracts
+        self.contractSummary = Self.computeContractSummary(contracts: contracts)
+    }
+
+    private static func computeContractSummary(contracts: [WorkContract]) -> ContractSummary {
         var practice = Set<UUID>()
         var follow = Set<UUID>()
-        var pendingPractice = Set<UUID>()
-        var pendingFollow = Set<UUID>()
-        var pendingAny = Set<UUID>()
+        var pending = Set<UUID>()
 
-        for work in works {
-            guard let slID = work.studentLessonID, let sl = studentLessonsByID[slID] else { continue }
-            let lessonID = sl.lessonID
-            switch work.workType {
-            case .practice:
-                practice.insert(lessonID)
-                if !work.isStudentCompleted(studentID) {
-                    pendingPractice.insert(lessonID)
-                    pendingAny.insert(lessonID)
+        for c in contracts where c.status != .complete {
+            guard let lid = UUID(uuidString: c.lessonID) else { continue }
+            if let k = c.kind {
+                switch k {
+                case .practiceLesson: practice.insert(lid)
+                case .followUpAssignment: follow.insert(lid)
+                case .research: break
                 }
-            case .followUp:
-                follow.insert(lessonID)
-                if !work.isStudentCompleted(studentID) {
-                    pendingFollow.insert(lessonID)
-                    pendingAny.insert(lessonID)
-                }
-            case .research:
-                continue
             }
+            // Loose pending: no scheduledDate means pending
+            if c.scheduledDate == nil { pending.insert(lid) }
         }
-
-        return WorkSummary(
-            practiceLessonIDs: practice,
-            followUpLessonIDs: follow,
-            pendingPracticeLessonIDs: pendingPractice,
-            pendingFollowUpLessonIDs: pendingFollow,
-            pendingWorkLessonIDs: pendingAny
-        )
+        return ContractSummary(practiceLessonIDs: practice, followUpLessonIDs: follow, pendingLessonIDs: pending)
     }
 
     // MARK: - Types
-    struct WorkSummary {
+    struct ContractSummary {
         let practiceLessonIDs: Set<UUID>
         let followUpLessonIDs: Set<UUID>
-        let pendingPracticeLessonIDs: Set<UUID>
-        let pendingFollowUpLessonIDs: Set<UUID>
-        let pendingWorkLessonIDs: Set<UUID>
+        let pendingLessonIDs: Set<UUID>
 
-        static let empty = WorkSummary(
+        static let empty = ContractSummary(
             practiceLessonIDs: [],
             followUpLessonIDs: [],
-            pendingPracticeLessonIDs: [],
-            pendingFollowUpLessonIDs: [],
-            pendingWorkLessonIDs: []
+            pendingLessonIDs: []
         )
     }
 
