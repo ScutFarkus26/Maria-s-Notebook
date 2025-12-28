@@ -116,6 +116,27 @@ final class StudentNotesViewModel: ObservableObject {
         self.items = aggregated
     }
 
+    // MARK: - Add
+    func addGeneralNote(body: String) {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        // Create new Note with student scope
+        let newNote = Note(
+            body: trimmed,
+            scope: .student(student.id)
+        )
+        modelContext.insert(newNote)
+
+        // Save and refresh
+        do {
+            try modelContext.save()
+            fetchAllNotes()
+        } catch {
+            print("Error saving new note: \(error)")
+        }
+    }
+
     // MARK: - Delete
     func delete(item: UnifiedNoteItem) {
         // Attempt to delete backing object based on known types.

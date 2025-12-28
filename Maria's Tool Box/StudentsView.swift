@@ -1,9 +1,13 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
-/// Top-level view for managing and browsing students.
-/// Shows a filter sidebar and a grid of student cards.
-struct StudentsView: View {
+/// Top-level view for managing and browsing students with a unified sidebar.
+struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
+    @Binding var mode: StudentMode
+    @ViewBuilder let attendanceContent: AttendanceContent
+    @ViewBuilder let workloadContent: WorkloadContent
+    
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @Query private var students: [Student]
@@ -13,13 +17,37 @@ struct StudentsView: View {
     
     private let viewModel = StudentsViewModel()
 
+    // MARK: - App Storage for Roster Mode
     @AppStorage("StudentsView.sortOrder") private var studentsSortOrderRaw: String = "alphabetical"
     @AppStorage("StudentsView.selectedFilter") private var studentsFilterRaw: String = "all"
     @AppStorage("StudentsView.presentNow.excludedNames") private var presentNowExcludedNamesRaw: String = "danny de berry,lil dan d"
-
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
+    // MARK: - State for Roster Mode
+    @State private var showingAddStudent = false
+    @State private var selectedStudentID: UUID? = nil
+    @State private var isShowingSaveError: Bool = false
+    @State private var saveErrorMessage: String = ""
+    
+    // MARK: - State for CSV Import
+    @State private var showingStudentCSVImporter: Bool = false
+    @State private var importAlert: ImportAlert? = nil
+    @State private var mappingHeaders: [String] = []
+    @State private var pendingMapping: StudentCSVImporter.Mapping? = nil
+    @State private var pendingFileURL: URL? = nil
+    @State private var pendingParsedImport: StudentCSVImporter.Parsed? = nil
+    @State private var showingMappingSheet: Bool = false
+    @State private var isParsing: Bool = false
+    @State private var parsingTask: Task<Void, Never>? = nil
+
+    private struct ImportAlert: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
+
+    // MARK: - Computed Properties (Roster)
     private var sortOrder: SortOrder {
         switch studentsSortOrderRaw {
         case "manual": return .manual
@@ -39,13 +67,10 @@ struct StudentsView: View {
         default: return .all
         }
     }
-
-    @State private var showingAddStudent = false
-    @State private var selectedStudentID: UUID? = nil
     
-    @State private var isShowingSaveError: Bool = false
-    @State private var saveErrorMessage: String = ""
+    private var levelFilters: [StudentsFilter] { [.upper, .lower] }
 
+    // Logic helpers
     private var excludedPresentNowNames: Set<String> {
         let lower = presentNowExcludedNamesRaw.lowercased()
         let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
@@ -92,8 +117,7 @@ struct StudentsView: View {
 
     private var daysSinceLastLessonByStudent: [UUID: Int] {
         var result: [UUID: Int] = [:]
-
-        // Build excluded lesson IDs where subject or group is "Parsha" (case-insensitive, trimmed)
+        // ... (Existing logic for calculation)
         let excludedLessonIDs: Set<UUID> = {
             func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
             let ids = lessons.filter { l in
@@ -104,10 +128,7 @@ struct StudentsView: View {
             return Set(ids)
         }()
 
-        // Given lessons excluding Parsha
         let given = studentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
-
-        // Compute most recent date per student
         var lastDateByStudent: [UUID: Date] = [:]
         for sl in given {
             let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
@@ -119,7 +140,6 @@ struct StudentsView: View {
                 }
             }
         }
-
         for s in students {
             if let last = lastDateByStudent[s.id] {
                 let days = LessonAgeHelper.schoolDaysSinceCreation(createdAt: last, asOf: Date(), using: modelContext, calendar: calendar)
@@ -131,69 +151,8 @@ struct StudentsView: View {
         return result
     }
 
-    /// Returns students ordered by the persisted manual order, with any missing/extra appended.
-    private func applyManualOrder(to students: [Student]) -> [Student] {
-        return students.sorted { (lhs: Student, rhs: Student) -> Bool in
-            lhs.manualOrder < rhs.manualOrder
-        }
-    }
-
-    /// Assigns sequential manualOrder values based on the provided ordered IDs.
-    private func assignManualOrder(from orderedIDs: [UUID]) {
-        for (idx, id) in orderedIDs.enumerated() {
-            if let s = students.first(where: { $0.id == id }) {
-                s.manualOrder = idx
-            }
-        }
-    }
-
-    /// If no manual order has been assigned yet, seed it alphabetically.
-    private func ensureInitialManualOrderIfNeeded() {
-        if viewModel.ensureInitialManualOrderIfNeeded(students) {
-            do {
-                try modelContext.save()
-            } catch {
-                saveErrorMessage = error.localizedDescription
-                isShowingSaveError = true
-            }
-        }
-    }
-
-    /// Returns the next occurrence of a birthday (month/day) relative to `today`.
-    private func nextBirthday(from birthday: Date, relativeTo today: Date = Date()) -> Date {
-        let cal = Calendar.current
-        let todayStart = cal.startOfDay(for: today)
-        let comps = cal.dateComponents([.month, .day], from: birthday)
-        guard let month = comps.month, let day = comps.day else { return .distantFuture }
-
-        var year = cal.component(.year, from: todayStart)
-        var thisYearComponents = DateComponents(year: year, month: month, day: day)
-        var thisYearDate = cal.date(from: thisYearComponents)
-        // Handle Feb 29 on non-leap years by using Feb 28
-        if thisYearDate == nil && month == 2 && day == 29 {
-            thisYearComponents.day = 28
-            thisYearDate = cal.date(from: thisYearComponents)
-        }
-        guard let thisYear = thisYearDate else { return .distantFuture }
-
-        if thisYear >= todayStart {
-            return thisYear
-        } else {
-            year += 1
-            var nextComponents = DateComponents(year: year, month: month, day: day)
-            var nextDate = cal.date(from: nextComponents)
-            if nextDate == nil && month == 2 && day == 29 {
-                nextComponents.day = 28
-                nextDate = cal.date(from: nextComponents)
-            }
-            return nextDate ?? thisYear
-        }
-    }
-
-    /// Students after applying the current filter and sort order.
     private var filteredStudents: [Student] {
         if sortOrder == .lastLesson {
-            // Start from filtered base using alphabetical to keep deterministic base ordering
             let base = viewModel.filteredStudents(
                 students: students,
                 filter: selectedFilter,
@@ -202,21 +161,14 @@ struct StudentsView: View {
                 showTestStudents: showTestStudents,
                 testStudentNames: testStudentNamesRaw
             )
-            // Build a map of studentID -> days since last lesson (school days), defaulting to 0 when none
             let daysMap = daysSinceLastLessonByStudent
             return base.sorted { lhs, rhs in
                 let l = daysMap[lhs.id] ?? -1
                 let r = daysMap[rhs.id] ?? -1
-
-                // No lessons first (we use -1 to indicate none)
                 let lNo = l < 0
                 let rNo = r < 0
                 if lNo != rNo { return lNo && !rNo }
-
-                // Both have or both don't have lessons: sort by days descending
                 if l != r { return l > r }
-
-                // Tie-breakers
                 let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
                 if nameOrder == .orderedSame { return lhs.manualOrder < rhs.manualOrder }
                 return nameOrder == .orderedAscending
@@ -233,44 +185,31 @@ struct StudentsView: View {
         }
     }
 
-    /// Available level filters.
-    private var levelFilters: [StudentsFilter] {
-        [.upper, .lower]
-    }
-
-    private func selectedFilterRawAssignment(for filter: StudentsFilter) {
-        switch filter {
-        case .upper:
-            studentsFilterRaw = "upper"
-        case .lower:
-            studentsFilterRaw = "lower"
-        case .presentNow:
-            studentsFilterRaw = "presentNow"
-        case .all:
-            studentsFilterRaw = "all"
-        }
-    }
-
     // MARK: - Body
 
     var body: some View {
-        GeometryReader { proxy in
-            let isNarrow = proxy.size.width < 520
+        HStack(spacing: 0) {
+            // THE UNIFIED SIDEBAR
+            unifiedSidebar
+                .frame(width: 200)
+                .background(Color.gray.opacity(0.08))
+
+            Divider()
+
+            // THE CONTENT SWITCHER
             Group {
-                if isNarrow {
-                    compactLayout
-                } else {
-                    HStack(spacing: 0) {
-                        sidebar
-
-                        Divider()
-
-                        content
-                    }
+                switch mode {
+                case .roster:
+                    rosterGridContent
+                case .attendance:
+                    attendanceContent
+                case .workOverview:
+                    workloadContent
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        // Sheets and Alerts
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
         }
@@ -279,25 +218,6 @@ struct StudentsView: View {
                 StudentDetailView(student: student) {
                     selectedStudentID = nil
                 }
-            } else {
-                EmptyView()
-            }
-        }
-        .onAppear {
-            ensureInitialManualOrderIfNeeded()
-        }
-        .onChange(of: students.map { $0.id }) { _, _ in
-            // Seed initial order alphabetically if everything is zero
-            ensureInitialManualOrderIfNeeded()
-
-            // Ensure manualOrder values remain unique; assign new students to the end
-            if viewModel.repairManualOrderUniquenessIfNeeded(students) {
-                do {
-                    try modelContext.save()
-                } catch {
-                    saveErrorMessage = error.localizedDescription
-                    isShowingSaveError = true
-                }
             }
         }
         .alert("Save Failed", isPresented: $isShowingSaveError) {
@@ -305,128 +225,135 @@ struct StudentsView: View {
         } message: {
             Text(saveErrorMessage)
         }
+        .alert(item: $importAlert) { alert in
+            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
+        }
+        // CSV Importer Logic
+        .fileImporter(
+            isPresented: $showingStudentCSVImporter,
+            allowedContentTypes: [.commaSeparatedText, .plainText]
+        ) { result in
+            handleFileImport(result)
+        }
+        .sheet(isPresented: $showingMappingSheet) {
+            StudentCSVMappingView(headers: mappingHeaders, onCancel: {
+                showingMappingSheet = false
+                pendingFileURL = nil
+            }, onConfirm: { mapping in
+                handleMappingConfirm(mapping)
+            })
+        }
+        .sheet(item: $pendingParsedImport, onDismiss: { pendingFileURL = nil }) { parsed in
+            StudentImportPreviewView(parsed: parsed, onCancel: {
+                pendingParsedImport = nil
+            }, onConfirm: { filtered in
+                handleImportCommit(filtered)
+            })
+            .frame(minWidth: 620, minHeight: 520)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewStudentRequested"))) { _ in
+            mode = .roster
+            showingAddStudent = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ImportStudentsRequested"))) { _ in
+            mode = .roster
+            showingStudentCSVImporter = true
+        }
+        .onAppear { ensureInitialManualOrderIfNeeded() }
+        .onChange(of: students.map { $0.id }) { _, _ in
+            ensureInitialManualOrderIfNeeded()
+            if viewModel.repairManualOrderUniquenessIfNeeded(students) {
+                try? modelContext.save()
+            }
+        }
     }
 
-    // MARK: - Subviews
+    // MARK: - Sidebar
 
-    /// Left-hand filter sidebar (All / levels).
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Sort Order")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-
-            SidebarFilterButton(
-                icon: "textformat.abc",
-                title: "A–Z",
-                color: .accentColor,
-                isSelected: sortOrder == .alphabetical
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentsSortOrderRaw = "alphabetical"
-                }
-            }
-
-            SidebarFilterButton(
-                icon: "calendar",
-                title: "Age",
-                color: .accentColor,
-                isSelected: sortOrder == .age
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentsSortOrderRaw = "age"
-                }
-            }
-
-            SidebarFilterButton(
-                icon: "gift",
-                title: "Birthday",
-                color: .accentColor,
-                isSelected: sortOrder == .birthday
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentsSortOrderRaw = "birthday"
-                }
-            }
-            
-            SidebarFilterButton(
-                icon: "clock.badge.exclamationmark",
-                title: "Last Lesson",
-                color: .accentColor,
-                isSelected: sortOrder == .lastLesson
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentsSortOrderRaw = "lastLesson"
-                }
-            }
-
-            SidebarFilterButton(
-                icon: "arrow.up.arrow.down",
-                title: "Manual",
-                color: .accentColor,
-                isSelected: sortOrder == .manual
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentsSortOrderRaw = "manual"
-                }
-            }
-            .padding(.bottom, 8)
-
-            Text("Filters")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-
-            // All filter
-            SidebarFilterButton(
-                icon: "person.3.fill",
-                title: "All",
-                color: .accentColor,
-                isSelected: selectedFilter == .all
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentsFilterRaw = "all"
-                }
-            }
-
-            SidebarFilterButton(
-                icon: "checkmark.circle.fill",
-                title: "Present Now",
-                color: .green,
-                isSelected: selectedFilter == .presentNow,
-                trailingBadgeText: presentNowCount > 0 ? "\(presentNowCount)" : nil,
-                trailingBadgeColor: .green
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentsFilterRaw = "presentNow"
-                }
-            }
-
-            // Individual level filters (Upper, Lower, etc.) based on actual data
-            ForEach(levelFilters, id: \.self) { filter in
-                SidebarFilterButton(
-                    icon: "circle.fill",
-                    title: filter.title,
-                    color: filter.color,
-                    isSelected: selectedFilter == filter
-                ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        selectedFilterRawAssignment(for: filter)
+    private var unifiedSidebar: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                
+                // SECTION 1: NAVIGATION
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MODE")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                    
+                    SidebarNavButton(title: "Roster", icon: "person.3", isSelected: mode == .roster) {
+                        mode = .roster
+                    }
+                    SidebarNavButton(title: "Attendance", icon: "checklist", isSelected: mode == .attendance) {
+                        mode = .attendance
+                    }
+                    SidebarNavButton(title: "Workload", icon: "doc.text", isSelected: mode == .workOverview) {
+                        mode = .workOverview
                     }
                 }
-            }
 
-            Spacer(minLength: 0)
+                // SECTION 2: ROSTER TOOLS (Only visible in Roster Mode)
+                if mode == .roster {
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("SORT ORDER")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
+
+                        SidebarFilterButton(icon: "textformat.abc", title: "A–Z", color: .accentColor, isSelected: sortOrder == .alphabetical) {
+                            withAnimation { studentsSortOrderRaw = "alphabetical" }
+                        }
+                        SidebarFilterButton(icon: "calendar", title: "Age", color: .accentColor, isSelected: sortOrder == .age) {
+                            withAnimation { studentsSortOrderRaw = "age" }
+                        }
+                        SidebarFilterButton(icon: "gift", title: "Birthday", color: .accentColor, isSelected: sortOrder == .birthday) {
+                            withAnimation { studentsSortOrderRaw = "birthday" }
+                        }
+                        SidebarFilterButton(icon: "clock.badge.exclamationmark", title: "Last Lesson", color: .accentColor, isSelected: sortOrder == .lastLesson) {
+                            withAnimation { studentsSortOrderRaw = "lastLesson" }
+                        }
+                        SidebarFilterButton(icon: "arrow.up.arrow.down", title: "Manual", color: .accentColor, isSelected: sortOrder == .manual) {
+                            withAnimation { studentsSortOrderRaw = "manual" }
+                        }
+
+                        Text("FILTERS")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.top, 8)
+
+                        SidebarFilterButton(icon: "person.3.fill", title: "All", color: .accentColor, isSelected: selectedFilter == .all) {
+                            withAnimation { studentsFilterRaw = "all" }
+                        }
+                        SidebarFilterButton(
+                            icon: "checkmark.circle.fill",
+                            title: "Present Now",
+                            color: .green,
+                            isSelected: selectedFilter == .presentNow,
+                            trailingBadgeText: presentNowCount > 0 ? "\(presentNowCount)" : nil,
+                            trailingBadgeColor: .green
+                        ) {
+                            withAnimation { studentsFilterRaw = "presentNow" }
+                        }
+                        
+                        ForEach(levelFilters, id: \.self) { filter in
+                            SidebarFilterButton(icon: "circle.fill", title: filter.title, color: filter.color, isSelected: selectedFilter == filter) {
+                                withAnimation { selectedFilterRawAssignment(for: filter) }
+                            }
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .padding(.vertical, 16)
         }
-        .padding(.vertical, 16)
-        .padding(.leading, 16)
-        .frame(width: 180, alignment: .topLeading)
-        .background(Color.gray.opacity(0.08))
     }
 
-    /// Main grid of student cards.
-    private var content: some View {
+    // MARK: - Roster Content
+
+    private var rosterGridContent: some View {
         Group {
             if filteredStudents.isEmpty {
                 VStack(spacing: 8) {
@@ -436,7 +363,6 @@ struct StudentsView: View {
                         .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 StudentsCardsGridView(
                     students: filteredStudents,
@@ -447,7 +373,6 @@ struct StudentsView: View {
                     isManualMode: sortOrder == .manual,
                     onTapStudent: { selectedStudentID = $0.id },
                     onReorder: { movingStudent, fromIndex, toIndex, subset in
-                        // Reuse existing merge logic from StudentsViewModel
                         let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(
                             movingID: movingStudent.id,
                             from: fromIndex,
@@ -456,18 +381,12 @@ struct StudentsView: View {
                             allStudents: students
                         )
                         assignManualOrder(from: newAllIDs)
-                        do {
-                            try modelContext.save()
-                        } catch {
-                            saveErrorMessage = error.localizedDescription
-                            isShowingSaveError = true
-                        }
+                        try? modelContext.save()
                     }
                 )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.clear)
         .overlay(alignment: .topTrailing) {
             Button {
                 showingAddStudent = true
@@ -477,46 +396,123 @@ struct StudentsView: View {
                     .foregroundStyle(.green)
             }
             .buttonStyle(.plain)
-            .padding()
-        }
-    }
-
-    // MARK: - Compact Layout (narrow iPad/iPhone split)
-    private var compactLayout: some View {
-        VStack(spacing: 0) {
-            // Top compact controls: Filters/Sort menu
-            HStack {
-                Spacer()
-                filtersMenu
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            Divider()
-
-            content
-        }
-    }
-
-    // MARK: - Filters Menu (used in compact layout)
-    private var filtersMenu: some View {
-        Menu {
-            Section("Sort Order") {
-                Button("A–Z") { studentsSortOrderRaw = "alphabetical" }
-                Button("Age") { studentsSortOrderRaw = "age" }
-                Button("Birthday") { studentsSortOrderRaw = "birthday" }
-                Button("Last Lesson") { studentsSortOrderRaw = "lastLesson" }
-                Button("Manual") { studentsSortOrderRaw = "manual" }
-            }
-            Section("Filters") {
-                Button("All") { studentsFilterRaw = "all" }
-                Button("Present Now") { studentsFilterRaw = "presentNow" }
-                ForEach(levelFilters, id: \.self) { filter in
-                    Button(filter.title) { selectedFilterRawAssignment(for: filter) }
+            .keyboardShortcut("n", modifiers: [.command])
+            .contextMenu {
+                Button {
+                    showingStudentCSVImporter = true
+                } label: {
+                    Label("Import Students from CSV…", systemImage: "arrow.down.doc")
                 }
             }
-        } label: {
-            Image(systemName: "line.3.horizontal.decrease.circle")
+            .padding()
         }
+        .overlay {
+            ParsingOverlay(isParsing: $isParsing) {
+                parsingTask?.cancel()
+            }
+        }
+    }
+
+    // MARK: - Logic Helpers
+
+    private func ensureInitialManualOrderIfNeeded() {
+        if viewModel.ensureInitialManualOrderIfNeeded(students) {
+            try? modelContext.save()
+        }
+    }
+    
+    private func assignManualOrder(from orderedIDs: [UUID]) {
+        for (idx, id) in orderedIDs.enumerated() {
+            if let s = students.first(where: { $0.id == id }) {
+                s.manualOrder = idx
+            }
+        }
+    }
+    
+    private func selectedFilterRawAssignment(for filter: StudentsFilter) {
+        switch filter {
+        case .upper: studentsFilterRaw = "upper"
+        case .lower: studentsFilterRaw = "lower"
+        case .presentNow: studentsFilterRaw = "presentNow"
+        case .all: studentsFilterRaw = "all"
+        }
+    }
+
+    // MARK: - CSV Handlers
+
+    private func handleFileImport(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            parsingTask?.cancel()
+            isParsing = true
+            parsingTask = StudentsImportCoordinator.startHeaderScan(from: url, onParsed: { headers, mapping in
+                self.pendingFileURL = url
+                self.mappingHeaders = headers
+                self.pendingMapping = mapping
+                self.showingMappingSheet = true
+            }, onError: { error in
+                self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+            }, onFinally: {
+                self.isParsing = false
+                self.parsingTask = nil
+            })
+        } catch {
+            importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+            isParsing = false
+            parsingTask = nil
+        }
+    }
+
+    private func handleMappingConfirm(_ mapping: StudentCSVImporter.Mapping) {
+        guard let fileURL = pendingFileURL else { return }
+        parsingTask?.cancel()
+        isParsing = true
+        parsingTask = StudentsImportCoordinator.startMappedParse(from: fileURL, mapping: mapping, students: self.students, onParsed: { parsed in
+            self.pendingParsedImport = parsed
+            self.showingMappingSheet = false
+        }, onError: { error in
+            self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+            self.showingMappingSheet = false
+        }, onFinally: {
+            self.isParsing = false
+            self.parsingTask = nil
+        })
+    }
+
+    private func handleImportCommit(_ filtered: StudentCSVImporter.Parsed) {
+        do {
+            let result = try ImportCommitService.commitStudents(parsed: filtered, into: modelContext, existingStudents: students)
+            importAlert = ImportAlert(title: result.title, message: result.message)
+        } catch {
+            importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
+        }
+        pendingParsedImport = nil
     }
 }
 
+// MARK: - Sidebar Button Helper
+struct SidebarNavButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                    .frame(width: 20)
+                Text(title)
+                Spacer()
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+            .cornerRadius(6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+    }
+}

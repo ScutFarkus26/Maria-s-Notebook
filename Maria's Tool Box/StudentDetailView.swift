@@ -120,146 +120,6 @@ struct StudentDetailView: View {
 
     private var masteredLessonIDs: Set<UUID> { vm.masteredLessonIDs }
 
-    // MARK: - Notes projection (restored)
-    @MainActor
-    private var lessonNotesVisible: [Note] {
-        // Collect lessons where this student is attached, then include notes visible to this student
-        let lessonIDsForStudent = Set(studentLessonsAll.map { $0.resolvedLessonID })
-        let attachedLessons = lessons.filter { lessonIDsForStudent.contains($0.id) }
-        let all = attachedLessons.flatMap { $0.notesVisible(to: student.id) }
-        return all.sorted { lhs, rhs in
-            if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
-            return lhs.createdAt > rhs.createdAt
-        }
-    }
-
-    @MainActor
-    private var contractNotesVisible: [ScopedNote] {
-        let ids = Set(contractsCache.map { $0.id.uuidString })
-        guard !ids.isEmpty else { return [] }
-        let sort: [SortDescriptor<ScopedNote>] = [
-            SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
-            SortDescriptor(\ScopedNote.createdAt, order: .reverse)
-        ]
-        // Use a single-expression predicate and filter in-memory for the id set
-        let fetch = FetchDescriptor<ScopedNote>(
-            predicate: #Predicate<ScopedNote> { $0.workContractID != nil },
-            sortBy: sort
-        )
-        let fetched = (try? modelContext.fetch(fetch)) ?? []
-        let filtered = fetched.filter { note in
-            if let wid = note.workContractID { return ids.contains(wid) }
-            return false
-        }
-        return filtered
-    }
-
-    @MainActor
-    private func scopeLabel(for note: Note) -> String {
-        switch note.scope {
-        case .all:
-            return "All"
-        case .student(let id):
-            if let s = vm.lessonsByID.isEmpty ? nil : studentsAll.first(where: { $0.id == id }) {
-                return StudentFormatter.displayName(for: s)
-            }
-            return "Student"
-        case .students(let ids):
-            return "\(ids.count) students"
-        }
-    }
-    
-    @MainActor
-    private func scopeLabel(for note: ScopedNote) -> String {
-        switch note.scope {
-        case .all:
-            return "All"
-        case .student(_):
-            return "Student"
-        case .students(let ids):
-            return ids.isEmpty ? "Group" : "\(ids.count) students"
-        }
-    }
-
-    @MainActor
-    private func parentTitle(for note: Note) -> String {
-        if let lesson = note.lesson {
-            return lesson.name
-        }
-        return ""
-    }
-
-    @MainActor
-    @ViewBuilder
-    private func noteRow(_ note: Note) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                if !parentTitle(for: note).isEmpty {
-                    Text(parentTitle(for: note))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule().fill(Color.primary.opacity(0.06))
-                        )
-                }
-                Text(scopeLabel(for: note))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .overlay(
-                        Capsule().stroke(Color.primary.opacity(0.12))
-                    )
-                Spacer()
-                HStack(spacing: 2) {
-                    Text(note.updatedAt, style: .date)
-                    Text(note.updatedAt, style: .time)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-            Text(note.body)
-                .font(.body)
-                .foregroundStyle(.primary)
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-    }
-
-    @MainActor
-    @ViewBuilder
-    private func contractNoteRow(_ note: ScopedNote) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text(scopeLabel(for: note))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .overlay(
-                        Capsule().stroke(Color.primary.opacity(0.12))
-                    )
-                Spacer()
-                Text(Self.birthdayFormatter.string(from: note.updatedAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Text(note.body)
-                .font(.body)
-                .foregroundStyle(.primary)
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-    }
-
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
         switch type {
         case .research: return ("magnifyingglass", .teal)
@@ -354,8 +214,8 @@ struct StudentDetailView: View {
             StudentMeetingsTab(student: student)
                 .padding(.top, 36)
         case .notes:
-            studentNotesTab
-                .padding(.top, 36)
+            // Handled in body to avoid ScrollView
+            EmptyView()
         }
     }
 
@@ -720,12 +580,20 @@ struct StudentDetailView: View {
             Divider()
                 .padding(.top, 8)
 
-            ScrollView {
-                VStack(spacing: 28) {
-                    tabContent
+            if selectedTab == .notes {
+                // The new Notes timeline has its own internal list, so we avoid the wrapping ScrollView
+                StudentNotesTimelineView(student: student)
+                    .padding(.top, 16)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 24)
+            } else {
+                ScrollView {
+                    VStack(spacing: 28) {
+                        tabContent
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, 32)
-                .padding(.bottom, 24)
             }
         }
 #if os(macOS)
@@ -957,59 +825,8 @@ struct StudentDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }
-
-    private var notesPlaceholder: some View {
-        ContentUnavailableView {
-            Label("Notes", systemImage: "note.text")
-        } description: {
-            Text("This will show the student's notes.")
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var studentNotesTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if lessonNotesVisible.isEmpty && contractNotesVisible.isEmpty {
-                notesPlaceholder
-            } else {
-                if !lessonNotesVisible.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "text.book.closed")
-                                .foregroundColor(.secondary)
-                            Text("Lesson Notes")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Spacer()
-                        }
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(lessonNotesVisible, id: \.id) { note in
-                                noteRow(note)
-                            }
-                        }
-                    }
-                }
-                if !contractNotesVisible.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "note.text")
-                                .foregroundColor(.secondary)
-                            Text("Contract Notes")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Spacer()
-                        }
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(contractNotesVisible, id: \.id) { note in
-                                contractNoteRow(note)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
+
 #Preview {
     let container = ModelContainer.preview
     let context = container.mainContext
@@ -1020,4 +837,3 @@ struct StudentDetailView: View {
     return StudentDetailView(student: student)
         .previewEnvironment(using: container)
 }
-
