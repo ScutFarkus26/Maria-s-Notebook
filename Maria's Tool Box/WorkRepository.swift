@@ -31,7 +31,7 @@ struct WorkRepository {
 
         // Automatically schedule a default check-in according to WorkCheckInDefaults
         let cal = AppCalendar.shared
-        let offsetDays = WorkCheckInDefaults.daysOffset(for: type)
+        let offsetDays = 2
         if let dueDate = cal.date(byAdding: .day, value: offsetDays, to: Date()) {
             let due = cal.startOfDay(for: dueDate)
             let defaultPurpose: String

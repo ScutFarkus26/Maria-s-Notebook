@@ -21,6 +21,7 @@ struct LessonsCardsGridView: View {
     let onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)?
     let onGiveLesson: ((Lesson) -> Void)?
     let statusCounts: [UUID: Int]?
+    let selectedSubject: String?
 
     init(
         lessons: [Lesson],
@@ -28,7 +29,8 @@ struct LessonsCardsGridView: View {
         onTapLesson: @escaping (Lesson) -> Void,
         onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)? = nil,
         onGiveLesson: ((Lesson) -> Void)? = nil,
-        statusCounts: [UUID: Int]? = nil
+        statusCounts: [UUID: Int]? = nil,
+        selectedSubject: String? = nil
     ) {
         self.lessons = lessons
         self.isManualMode = isManualMode
@@ -36,6 +38,7 @@ struct LessonsCardsGridView: View {
         self.onReorder = onReorder
         self.onGiveLesson = onGiveLesson
         self.statusCounts = statusCounts
+        self.selectedSubject = selectedSubject
     }
 
     @State private var draggingLessonID: UUID?
@@ -53,12 +56,56 @@ struct LessonsCardsGridView: View {
 
     private var groupedByGroup: [(key: String, value: [Lesson])] {
         let dict = Dictionary(grouping: lessons) { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
-        return dict
+        let mapped = dict
             .map { (key: $0.key, value: $0.value.sorted { lhs, rhs in
                 if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             })}
-            .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+
+        let subjectKey: String? = {
+            if let selected = selectedSubject, !selected.isEmpty {
+                return selected
+            }
+            let subjectsSet = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }.filter { !$0.isEmpty })
+            if subjectsSet.count == 1 {
+                return lessons.first?.subject
+            }
+            return nil
+        }()
+
+        let keys = dict.keys.map { $0 }
+
+        if let subjectKey = subjectKey {
+            let existingNamed = keys.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            let orderedNamed = FilterOrderStore.loadGroupOrder(for: subjectKey, existing: existingNamed)
+            var index: [String: Int] = [:]
+            for (i, g) in orderedNamed.enumerated() {
+                index[g] = i
+            }
+
+            return mapped.sorted { lhs, rhs in
+                let lk = lhs.key.trimmingCharacters(in: .whitespacesAndNewlines)
+                let rk = rhs.key.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if (lk.isEmpty != rk.isEmpty) {
+                    return !lk.isEmpty
+                }
+                if !lk.isEmpty && !rk.isEmpty {
+                    if let li = index[lk], let ri = index[rk] {
+                        return li < ri
+                    }
+                    if index[lk] != nil && index[rk] == nil {
+                        return true
+                    }
+                    if index[lk] == nil && index[rk] != nil {
+                        return false
+                    }
+                }
+                return lhs.key.localizedCaseInsensitiveCompare(rhs.key) == .orderedAscending
+            }
+        } else {
+            return mapped.sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+        }
     }
 
     var body: some View {
@@ -431,7 +478,8 @@ private class RightClickView: NSView {
         isManualMode: true,
         onTapLesson: { _ in },
         onReorder: { _,_,_,_ in },
-        onGiveLesson: nil
+        onGiveLesson: nil,
+        selectedSubject: nil
     )
 }
 

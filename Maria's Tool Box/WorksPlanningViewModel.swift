@@ -58,7 +58,8 @@ final class WorksPlanningViewModel {
     }
 
     func unscheduledWorks(from works: [WorkModel]) -> [WorkModel] {
-        PlanningEngine.unscheduledWorks(works)
+        // Deprecated: Legacy WorkModel-based planning helpers have been retired. Return empty as per deprecation note.
+        return []
     }
 
     // Fixed: calling AppCalendar directly since PlanningEngine.dayID was removed
@@ -70,7 +71,8 @@ final class WorksPlanningViewModel {
     func isNonSchool(_ day: Date) -> Bool { isNonSchoolDay(day) }
 
     func groupedItems(works: [WorkModel]) -> [DayKey: [ScheduledItem]] {
-        PlanningEngine.groupedItems(works: works, calendar: calendar)
+        // Deprecated: Legacy WorkModel-based planning helpers have been retired. Return empty as per deprecation note.
+        return [:]
     }
 
     func scheduleCheckIn(for workID: UUID, on date: Date, context: ModelContext, saveCoordinator: SaveCoordinator) throws {

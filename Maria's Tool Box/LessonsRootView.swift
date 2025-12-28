@@ -19,16 +19,8 @@ struct LessonsRootView: View {
     @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
     @SceneStorage("Lessons.searchText") private var lessonsSearchTextRaw: String = ""
     @SceneStorage("Lessons.expandedSubjects") private var lessonsExpandedSubjectsRaw: String = ""
-    @SceneStorage("Lessons.layoutMode") private var layoutModeRaw: String = "grid"
     @SceneStorage("Lessons.sourceFilter") private var lessonsSourceRaw: String = ""
     @SceneStorage("Lessons.personalKindFilter") private var lessonsPersonalKindRaw: String = ""
-
-    private enum LayoutMode: String { case grid, list }
-
-    private var layoutMode: LayoutMode {
-        get { LayoutMode(rawValue: layoutModeRaw) ?? .grid }
-        set { layoutModeRaw = newValue.rawValue }
-    }
 
     private enum PresentedSheet: Identifiable {
         case addLesson(defaultSubject: String?, defaultGroup: String?)
@@ -36,8 +28,6 @@ struct LessonsRootView: View {
         case studentLessonDraft(UUID)
         case importPreview(parsed: LessonCSVImporter.Parsed)
         case lessonDetails(UUID)
-        case editSpreadsheet
-        case editOutline
 
         var id: String {
             switch self {
@@ -46,8 +36,6 @@ struct LessonsRootView: View {
             case .studentLessonDraft(let id): return "studentLessonDraft_\(id.uuidString)"
             case .importPreview: return "importPreview"
             case .lessonDetails(let id): return "lessonDetails_\(id.uuidString)"
-            case .editSpreadsheet: return "editSpreadsheet"
-            case .editOutline: return "editOutline"
             }
         }
     }
@@ -247,57 +235,32 @@ struct LessonsRootView: View {
         .background(Color.gray.opacity(0.08))
     }
 
-    private var layoutSelection: Binding<LayoutMode> {
-        Binding<LayoutMode>(
-            get: { LayoutMode(rawValue: self.layoutModeRaw) ?? .grid },
-            set: { self.layoutModeRaw = $0.rawValue }
-        )
-    }
-
     @ViewBuilder
     private var lessonsMainContent: some View {
-        if layoutMode == .grid {
-            let onTap: (Lesson) -> Void = { lesson in
-                presentedSheet = .lessonDetails(lesson.id)
-            }
-            let onReorder: (Lesson, Int, Int, [Lesson]) -> Void = { movingLesson, fromIndex, toIndex, subset in
-                reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
-            }
-            let onGive: (Lesson) -> Void = { lesson in
-                presentedSheet = nil
-                let newSL = vm.createStudentLesson(basedOn: lesson, in: modelContext)
-                presentedSheet = .studentLessonDraft(newSL.id)
-            }
-
-            let grid = LessonsCardsGridView(
-                lessons: filteredLessons,
-                isManualMode: isManualMode,
-                onTapLesson: onTap,
-                onReorder: onReorder,
-                onGiveLesson: onGive,
-                statusCounts: lessonNeedsCounts
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            grid
-        } else {
-            let onTap: (Lesson) -> Void = { lesson in
-                presentedSheet = .lessonDetails(lesson.id)
-            }
-            let onReorder: (Lesson, Int, Int, [Lesson]) -> Void = { movingLesson, fromIndex, toIndex, subset in
-                reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
-            }
-
-            let list = LessonsListView(
-                lessons: filteredLessons,
-                isManualMode: isManualMode,
-                onTapLesson: onTap,
-                onReorder: onReorder
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            list
+        let onTap: (Lesson) -> Void = { lesson in
+            presentedSheet = .lessonDetails(lesson.id)
         }
+        let onReorder: (Lesson, Int, Int, [Lesson]) -> Void = { movingLesson, fromIndex, toIndex, subset in
+            reorderLessons(movingLesson: movingLesson, fromIndex: fromIndex, toIndex: toIndex, subset: subset)
+        }
+        let onGive: (Lesson) -> Void = { lesson in
+            presentedSheet = nil
+            let newSL = vm.createStudentLesson(basedOn: lesson, in: modelContext)
+            presentedSheet = .studentLessonDraft(newSL.id)
+        }
+
+        let grid = LessonsCardsGridView(
+            lessons: filteredLessons,
+            isManualMode: isManualMode,
+            onTapLesson: onTap,
+            onReorder: onReorder,
+            onGiveLesson: onGive,
+            statusCounts: lessonNeedsCounts,
+            selectedSubject: filterState.selectedSubject
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        grid
     }
 
     @ViewBuilder
@@ -337,12 +300,6 @@ struct LessonsRootView: View {
     
     private var toolbarContent: some View {
         HStack(spacing: 12) {
-            Picker("Layout", selection: layoutSelection) {
-                Label("Grid", systemImage: "square.grid.2x2").tag(LayoutMode.grid)
-                Label("List", systemImage: "list.bullet").tag(LayoutMode.list)
-            }
-            .pickerStyle(.segmented)
-
             plusMenuOverlay
         }
         .padding()
@@ -643,24 +600,6 @@ struct LessonsRootView: View {
             } else {
                 EmptyView()
             }
-        case .editSpreadsheet:
-            AlbumLessonsSpreadsheetView()
-            #if os(macOS)
-            .frame(minWidth: 860, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
-        case .editOutline:
-            AlbumLessonsOutlineView()
-            #if os(macOS)
-            .frame(minWidth: 860, minHeight: 640)
-            .presentationSizing(.fitted)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
         }
     }
 
@@ -682,16 +621,6 @@ struct LessonsRootView: View {
                 presentedSheet = .studentLessonDraft(newSL.id)
             } label: {
                 Label("Add Presentation", systemImage: "person.crop.circle.badge.plus")
-            }
-            Button {
-                presentedSheet = .editSpreadsheet
-            } label: {
-                Label("Edit Order (Spreadsheet)…", systemImage: "tablecells")
-            }
-            Button {
-                presentedSheet = .editOutline
-            } label: {
-                Label("Edit Order (Outline)…", systemImage: "list.bullet.indent")
             }
             Button {
                 showingLessonCSVImporter = true
@@ -744,109 +673,6 @@ struct LessonsRootView: View {
                 onTap()
             }
             .padding(.leading, 16)
-        }
-    }
-
-    private struct LessonsListView: View {
-        let lessons: [Lesson]
-        let isManualMode: Bool
-        let onTapLesson: (Lesson) -> Void
-        let onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)?
-        @State private var draggingLessonID: UUID? = nil
-        @State private var hoverTargetID: UUID? = nil
-
-        private func lessonSort(_ lhs: Lesson, _ rhs: Lesson) -> Bool {
-            if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-        }
-
-        private var groupedByGroup: [(key: String, value: [Lesson])] {
-            let dict: [String: [Lesson]] = Dictionary(grouping: lessons) { (lesson: Lesson) in
-                lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            let mapped: [(key: String, value: [Lesson])] = dict.map { pair in
-                let sortedLessons: [Lesson] = pair.value.sorted(by: self.lessonSort)
-                return (key: pair.key, value: sortedLessons)
-            }
-            let sorted: [(key: String, value: [Lesson])] = mapped.sorted { (lhs, rhs) in
-                lhs.key.localizedCaseInsensitiveCompare(rhs.key) == .orderedAscending
-            }
-            return sorted
-        }
-
-        var body: some View {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    if groupedByGroup.count > 1 {
-                        ForEach(groupedByGroup, id: \.key) { entry in
-                            Section {
-                                ForEach(entry.value, id: \.id) { lesson in
-                                    row(lesson)
-                                }
-                            } header: {
-                                Text(entry.key.isEmpty ? "Ungrouped" : entry.key)
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .padding(.top, 8)
-                            }
-                        }
-                    } else {
-                        ForEach(lessons, id: \.id) { lesson in
-                            row(lesson)
-                        }
-                    }
-                }
-                .padding(16)
-            }
-        }
-
-        @ViewBuilder
-        private func row(_ lesson: Lesson) -> some View {
-            let color = AppColors.color(forSubject: lesson.subject)
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Rectangle()
-                    .fill(color)
-                    .frame(width: 4, height: 28)
-                    .cornerRadius(2)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                    if !lesson.group.isEmpty || !lesson.subject.isEmpty {
-                        Text(groupSubjectLine(for: lesson))
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                if lesson.source == .personal {
-                    Text(lesson.personalKind?.badgeLabel ?? "Personal")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(Color.primary.opacity(0.08)))
-                        .foregroundStyle(.secondary)
-                }
-                Image(systemName: "chevron.right")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { onTapLesson(lesson) }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
-            )
-        }
-
-        private func groupSubjectLine(for lesson: Lesson) -> String {
-            switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
-            case (false, false): return "\(lesson.subject) • \(lesson.group)"
-            case (false, true): return lesson.subject
-            case (true, false): return lesson.group
-            default: return ""
-            }
         }
     }
 }

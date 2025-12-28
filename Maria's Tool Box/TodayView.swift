@@ -244,6 +244,7 @@ struct TodayView: View {
             SectionHeader(title: "Lessons for Today", systemImage: "text.book.closed")
             if viewModel.todaysLessons.isEmpty {
                 ContentUnavailableView("No lessons scheduled today", systemImage: "calendar")
+                    .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 VStack(spacing: 8) {
                     ForEach(viewModel.todaysLessons, id: \.id) { sl in
@@ -269,6 +270,7 @@ struct TodayView: View {
             SectionHeader(title: "Scheduled Check-Ins", systemImage: "bell")
             if viewModel.overdueSchedule.isEmpty && viewModel.todaysSchedule.isEmpty {
                 ContentUnavailableView("No check-ins due", systemImage: "checkmark.circle")
+                    .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     if !viewModel.overdueSchedule.isEmpty {
@@ -306,6 +308,7 @@ struct TodayView: View {
             SectionHeader(title: "Follow-Ups Due", systemImage: "bolt")
             if viewModel.staleFollowUps.isEmpty {
                 ContentUnavailableView("No follow-ups due", systemImage: "checkmark.circle")
+                    .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 VStack(spacing: 8) {
                     ForEach(viewModel.staleFollowUps) { item in
