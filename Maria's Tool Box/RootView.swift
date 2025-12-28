@@ -20,6 +20,18 @@ struct RootView: View {
         case settings = "Settings"
 
         var id: String { rawValue }
+        var icon: String {
+            switch self {
+            case .students: return "person.3"
+            case .albums: return "book"
+            case .planning: return "calendar"
+            case .today: return "sun.max"
+            case .logs: return "list.bullet"
+            case .attendance: return "checklist"
+            case .community: return "bubble.left.and.bubble.right"
+            case .settings: return "gear"
+            }
+        }
     }
 
     // MARK: - Storage
@@ -37,8 +49,6 @@ struct RootView: View {
     private var selectedTab: Tab {
         Tab(rawValue: selectedTabRaw) ?? .students
     }
-    
-    private var pillTabs: [Tab] { Tab.allCases.filter { $0 != .attendance } }
 
     // MARK: - Body
     var body: some View {
@@ -66,115 +76,37 @@ struct RootView: View {
                 .overlay(Rectangle().frame(height: 1).foregroundStyle(Color.primary.opacity(0.1)), alignment: .bottom)
             }
 
-            // Top pill navigation
+            Divider()
+
             #if os(iOS)
             Group {
                 if horizontalSizeClass == .compact {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(pillTabs) { tab in
-                                Button {
-                                    selectedTabRaw = tab.rawValue
-                                } label: {
-                                    Text(tab.rawValue)
-                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
-                                        .lineLimit(1)
-                                        .fixedSize(horizontal: true, vertical: false)
-                                        .padding(.horizontal, 20)
-                                        .padding(.vertical, 8)
-                                        .frame(minHeight: 30)
-                                        .background(pillBackground(for: tab))
-                                        .foregroundStyle(pillForeground(for: tab))
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
+                    RootCompactTabs(selectedTabRaw: $selectedTabRaw)
                 } else {
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 12) {
-                            ForEach(pillTabs) { tab in
-                                Button {
-                                    selectedTabRaw = tab.rawValue
-                                } label: {
-                                    Text(tab.rawValue)
-                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
-                                        .lineLimit(1)
-                                        .fixedSize(horizontal: true, vertical: false)
-                                        .padding(.horizontal, 20)
-                                        .padding(.vertical, 8)
-                                        .frame(minHeight: 30)
-                                        .background(pillBackground(for: tab))
-                                        .foregroundStyle(pillForeground(for: tab))
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        Spacer()
+                    NavigationSplitView {
+                        RootSidebar(selection: Binding(
+                            get: { selectedTab },
+                            set: { selectedTabRaw = $0.rawValue }
+                        ))
+                    } detail: {
+                        RootDetailContent(selectedTab: selectedTab)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
-                }
-            }
-            #else
-            HStack {
-                Spacer()
-                HStack(spacing: 12) {
-                    ForEach(pillTabs) { tab in
-                        Button {
-                            selectedTabRaw = tab.rawValue
-                        } label: {
-                            Text(tab.rawValue)
-                                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold))
-                                        .lineLimit(1)
-                                        .fixedSize(horizontal: true, vertical: false)
-                                        .padding(.horizontal, 20)
-                                        .padding(.vertical, 8)
-                                        .frame(minHeight: 30)
-                                        .background(pillBackground(for: tab))
-                                        .foregroundStyle(pillForeground(for: tab))
-                                        .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                Spacer()
-            }
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-            #endif
-
-            Divider()
-
-            // Active view
-            Group {
-                switch selectedTab {
-                case .today:
-                    TodayView(context: modelContext) // Wires the Today hub
-                case .albums:
-                    LessonsMenuRootView()
-                case .students:
-                    StudentsRootView()
-                case .planning:
-                    PlanningRootView()
-                case .logs:
-                    LogsMenuRootView()
-                case .attendance:
-                    AttendanceView()
-                case .community:
-                    CommunityMeetingsView()
-                case .settings:
-                    SettingsView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            #else
+            NavigationSplitView {
+                RootSidebar(selection: Binding(
+                    get: { selectedTab },
+                    set: { selectedTabRaw = $0.rawValue }
+                ))
+            } detail: {
+                RootDetailContent(selectedTab: selectedTab)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            #endif
         }
         .onAppear {
             backfillRelationshipsIfNeeded()
@@ -212,27 +144,9 @@ struct RootView: View {
             UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
         }
         .saveErrorAlert()
-#if os(macOS)
+    #if os(macOS)
         .background(EnsureResizableWindow(minSize: NSSize(width: 900, height: 600)))
-#endif
-    }
-
-    // MARK: - Styling
-
-    private func pillBackground(for tab: Tab) -> some ShapeStyle {
-        if tab == selectedTab {
-            return AnyShapeStyle(Color.accentColor)
-        } else {
-            return AnyShapeStyle(Color.secondary.opacity(0.12))
-        }
-    }
-
-    private func pillForeground(for tab: Tab) -> some ShapeStyle {
-        if tab == selectedTab {
-            return AnyShapeStyle(Color.white)
-        } else {
-            return AnyShapeStyle(Color.primary)
-        }
+    #endif
     }
 
     // MARK: - Backfill
@@ -301,24 +215,53 @@ struct RootView: View {
                 }
             }
             if fixed > 0 {
-#if DEBUG
+    #if DEBUG
                 print("Backfill.scheduledForDay: fixed \(fixed) records")
-#endif
+    #endif
                 _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
             }
             didBackfillScheduledForDay = true
-#if DEBUG
+    #if DEBUG
             print("Backfill.scheduledForDay: fixed \(fixed) records")
-#endif
+    #endif
         } catch {
             didBackfillScheduledForDay = true
-#if DEBUG
+    #if DEBUG
             print("Backfill.scheduledForDay: fixed 0 records due to error")
-#endif
+    #endif
         }
     }
     
     // MARK: - State
+}
+
+/// Extracted detail content for RootView. Mirrors the original switch on selectedTab.
+private struct RootDetailContent: View {
+    let selectedTab: RootView.Tab
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        Group {
+            switch selectedTab {
+            case .today:
+                TodayView(context: modelContext) // Wires the Today hub
+            case .albums:
+                LessonsMenuRootView()
+            case .students:
+                StudentsRootView()
+            case .planning:
+                PlanningRootView()
+            case .logs:
+                LogsMenuRootView()
+            case .attendance:
+                AttendanceView()
+            case .community:
+                CommunityMeetingsView()
+            case .settings:
+                SettingsView()
+            }
+        }
+    }
 }
 
 /// Container for Planning modes (Agenda, Works). Uses pill navigation and stores last mode in AppStorage.
@@ -441,6 +384,46 @@ struct LessonsMenuRootView: View {
     var body: some View {
         LessonsRootView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Sidebar list for selecting a root tab. Excludes the legacy Attendance tab.
+private struct RootSidebar: View {
+    @Binding var selection: RootView.Tab
+
+    private var tabs: [RootView.Tab] {
+        RootView.Tab.allCases.filter { $0 != .attendance }
+    }
+
+    var body: some View {
+        List(selection: $selection) {
+            ForEach(tabs) { tab in
+                Label(tab.rawValue, systemImage: tab.icon)
+                    .tag(tab)
+            }
+        }
+    }
+}
+
+/// Compact iPhone tabs using a standard TabView. Excludes legacy Attendance tab.
+private struct RootCompactTabs: View {
+    // Bind to RootView's selected tab state via the raw string value
+    @Binding var selectedTabRaw: String
+
+    private var tabs: [RootView.Tab] {
+        RootView.Tab.allCases.filter { $0 != .attendance }
+    }
+
+    var body: some View {
+        TabView(selection: $selectedTabRaw) {
+            ForEach(tabs) { tab in
+                RootDetailContent(selectedTab: tab)
+                    .tabItem {
+                        Label(tab.rawValue, systemImage: tab.icon)
+                    }
+                    .tag(tab.rawValue)
+            }
+        }
     }
 }
 
