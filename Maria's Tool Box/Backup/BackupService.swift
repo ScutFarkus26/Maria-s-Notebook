@@ -330,11 +330,44 @@ public final class BackupService {
             throw NSError(domain: "BackupService", code: 1101, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload."])
         }
 
+        var checksumBypassed = false
+
         progress(0.20, "Validating…")
-        // Checksum
-        let sha = sha256Hex(payloadBytes)
-        guard sha == envelope.manifest.sha256 else {
-            throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
+        // Checksum with compatibility fallback for legacy unencrypted backups and optional bypass
+        let computed = sha256Hex(payloadBytes)
+        if computed != envelope.manifest.sha256 {
+            if let p = envelope.payload {
+                var matched = false
+                let altEncoder = JSONEncoder()
+                altEncoder.dateEncodingStrategy = .iso8601
+                // Try plausible variants used by older builds
+                let variants: [JSONEncoder.OutputFormatting] = [
+                    .sortedKeys,
+                    .prettyPrinted,
+                    [.sortedKeys, .prettyPrinted]
+                ]
+                for v in variants {
+                    altEncoder.outputFormatting = v
+                    if let altBytes = try? altEncoder.encode(p), sha256Hex(altBytes) == envelope.manifest.sha256 {
+                        matched = true
+                        break
+                    }
+                }
+                if !matched {
+                    if UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") {
+                        checksumBypassed = true
+                    } else {
+                        throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
+                    }
+                }
+            } else {
+                // For encrypted payloads, checksum must match exact bytes unless bypass is enabled
+                if UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") {
+                    checksumBypassed = true
+                } else {
+                    throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
+                }
+            }
         }
 
         // Decode payload (support legacy v1 preferences)
@@ -396,6 +429,7 @@ public final class BackupService {
         var skips: [String: Int] = [:]
         var deletes: [String: Int] = [:]
         var warnings: [String] = []
+        if checksumBypassed { warnings.append("Checksum mismatch bypassed. File may have been altered. Proceed with caution.") }
 
         // Helper to assign counts
         func assign(_ key: String, ins: Int, sk: Int = 0, del: Int = 0) {
@@ -497,11 +531,44 @@ public final class BackupService {
             throw NSError(domain: "BackupService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload."])
         }
 
+        var checksumBypassed = false
+
         progress(0.20, "Validating…")
-        // Checksum
-        let sha = sha256Hex(payloadBytes)
-        guard sha == envelope.manifest.sha256 else {
-            throw NSError(domain: "BackupService", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
+        // Checksum with compatibility fallback for legacy unencrypted backups and optional bypass
+        let computed = sha256Hex(payloadBytes)
+        if computed != envelope.manifest.sha256 {
+            if let p = envelope.payload {
+                var matched = false
+                let altEncoder = JSONEncoder()
+                altEncoder.dateEncodingStrategy = .iso8601
+                // Try plausible variants used by older builds
+                let variants: [JSONEncoder.OutputFormatting] = [
+                    .sortedKeys,
+                    .prettyPrinted,
+                    [.sortedKeys, .prettyPrinted]
+                ]
+                for v in variants {
+                    altEncoder.outputFormatting = v
+                    if let altBytes = try? altEncoder.encode(p), sha256Hex(altBytes) == envelope.manifest.sha256 {
+                        matched = true
+                        break
+                    }
+                }
+                if !matched {
+                    if UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") {
+                        checksumBypassed = true
+                    } else {
+                        throw NSError(domain: "BackupService", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
+                    }
+                }
+            } else {
+                // For encrypted payloads, checksum must match exact bytes unless bypass is enabled
+                if UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") {
+                    checksumBypassed = true
+                } else {
+                    throw NSError(domain: "BackupService", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
+                }
+            }
         }
 
         // Decode payload (support legacy v1 preferences)
@@ -564,6 +631,7 @@ public final class BackupService {
         }
 
         var warnings: [String] = []
+        if checksumBypassed { warnings.append("Checksum mismatch bypassed. File may have been altered. Proceed with caution.") }
 
         // Replace mode: clear existing data first
         if mode == .replace {

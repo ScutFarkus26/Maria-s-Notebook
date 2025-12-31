@@ -45,6 +45,15 @@ struct BackupRestoreSettingsView: View {
                     Text("Replace").tag(BackupService.RestoreMode.replace)
                 }
                 .pickerStyle(.segmented)
+                // Advanced: Allow checksum bypass for problematic backups
+                Toggle(isOn: Binding(
+                    get: { UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") },
+                    set: { UserDefaults.standard.set($0, forKey: "Backup.allowChecksumBypass") }
+                )) {
+                    Text("Allow checksum bypass (advanced)")
+                }
+                .tint(.red)
+                .help("If a backup fails integrity validation, enabling this lets you import it anyway with a warning. Use only if you trust the file.")
                 HStack(spacing: 12) {
                     Button {
                         performExport()
