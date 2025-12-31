@@ -40,17 +40,15 @@ final class BookClub: Identifiable {
         createdAt: Date = Date(),
         title: String = "",
         bookTitle: String? = nil,
-        memberStudentIDs: [String] = [],
-        sharedTemplates: [BookClubAssignmentTemplate] = [],
-        sessions: [BookClubSession] = []
+        memberStudentIDs: [String] = []
     ) {
         self.id = id
         self.createdAt = createdAt
         self.title = title
         self.bookTitle = bookTitle
         self.memberStudentIDs = memberStudentIDs
-        self.sharedTemplates = sharedTemplates
-        self.sessions = sessions
+        self.sharedTemplates = []
+        self.sessions = []
     }
 }
 
@@ -135,3 +133,4 @@ final class BookClubSession: Identifiable {
         set { agendaItemsJSON = LocalJSONStringList.encode(newValue) }
     }
 }
+

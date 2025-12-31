@@ -21,19 +21,19 @@ struct JSONStringList {
 // MARK: - Role
 @Model
 final class BookClubRole: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
 
-    var bookClubID: UUID
+    var bookClubID: UUID = UUID()
 
-    var title: String
-    var summary: String
-    var instructions: String
+    var title: String = ""
+    var summary: String = ""
+    var instructions: String = ""
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID,
+        bookClubID: UUID = UUID(),
         title: String = "",
         summary: String = "",
         instructions: String = ""
@@ -50,13 +50,13 @@ final class BookClubRole: Identifiable {
 // MARK: - Week Template
 @Model
 final class BookClubTemplateWeek: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
 
-    var bookClubID: UUID
-    var weekIndex: Int
+    var bookClubID: UUID = UUID()
+    var weekIndex: Int = 0
 
-    var readingRange: String
+    var readingRange: String = ""
 
     // Stored as JSON strings for portability
     // CRITICAL FIX: Default values added here ("") to prevent migration crashes
@@ -68,24 +68,18 @@ final class BookClubTemplateWeek: Identifiable {
     var workInstructions: String = ""
 
     // Relationship to assignments
-    var roleAssignments: [BookClubWeekRoleAssignment]
-    
-    // Deprecated fields (Optional to keep for migration safety)
-    var questionChoiceSetID: UUID?
-    var vocabSuggestionWordsJSON: String
-    var vocabRequirementCount: Int
-    var linkedLessonID: String? // Old single lesson link
+    @Relationship(inverse: \BookClubWeekRoleAssignment.week) var roleAssignments: [BookClubWeekRoleAssignment]? = []
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID,
-        weekIndex: Int,
+        bookClubID: UUID = UUID(),
+        weekIndex: Int = 0,
         readingRange: String = "",
         agendaItemsJSON: String = "",
         linkedLessonIDsJSON: String = "",
         workInstructions: String = "",
-        roleAssignments: [BookClubWeekRoleAssignment] = []
+        roleAssignments: [BookClubWeekRoleAssignment]? = []
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -96,19 +90,13 @@ final class BookClubTemplateWeek: Identifiable {
         self.linkedLessonIDsJSON = linkedLessonIDsJSON
         self.workInstructions = workInstructions
         self.roleAssignments = roleAssignments
-        
-        // Defaults for deprecated fields
-        self.questionChoiceSetID = nil
-        self.vocabSuggestionWordsJSON = ""
-        self.vocabRequirementCount = 0
-        self.linkedLessonID = nil
     }
 
     var agendaItems: [String] {
         get { JSONStringList.decode(agendaItemsJSON) }
         set { agendaItemsJSON = JSONStringList.encode(newValue) }
     }
-    
+
     var linkedLessonIDs: [String] {
         get { JSONStringList.decode(linkedLessonIDsJSON) }
         set { linkedLessonIDsJSON = JSONStringList.encode(newValue) }
@@ -118,63 +106,29 @@ final class BookClubTemplateWeek: Identifiable {
 // MARK: - Weekly Role Assignment
 @Model
 final class BookClubWeekRoleAssignment: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
 
-    var weekID: UUID
-    var studentID: String
-    var roleID: UUID
+    var weekID: UUID = UUID()
+    var studentID: String = ""
+    var roleID: UUID = UUID()
+
+    var week: BookClubTemplateWeek?
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        weekID: UUID,
-        studentID: String,
-        roleID: UUID
+        weekID: UUID = UUID(),
+        studentID: String = "",
+        roleID: UUID = UUID(),
+        week: BookClubTemplateWeek? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
         self.weekID = weekID
         self.studentID = studentID
         self.roleID = roleID
+        self.week = week
     }
 }
 
-// MARK: - Legacy Choice Models (Kept to prevent database errors, but unused in new flow)
-@Model
-final class BookClubChoiceSet: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
-    var bookClubID: UUID
-    var title: String
-    var requiredSelectionCount: Int
-    var items: [BookClubChoiceItem]
-
-    init(id: UUID = UUID(), createdAt: Date = Date(), bookClubID: UUID, title: String = "", requiredSelectionCount: Int = 0, items: [BookClubChoiceItem] = []) {
-        self.id = id
-        self.createdAt = createdAt
-        self.bookClubID = bookClubID
-        self.title = title
-        self.requiredSelectionCount = requiredSelectionCount
-        self.items = items
-    }
-}
-
-@Model
-final class BookClubChoiceItem: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
-    var setID: UUID
-    var title: String
-    var instructions: String
-    var linkedLessonID: String?
-
-    init(id: UUID = UUID(), createdAt: Date = Date(), setID: UUID, title: String = "", instructions: String = "", linkedLessonID: String? = nil) {
-        self.id = id
-        self.createdAt = createdAt
-        self.setID = setID
-        self.title = title
-        self.instructions = instructions
-        self.linkedLessonID = linkedLessonID
-    }
-}

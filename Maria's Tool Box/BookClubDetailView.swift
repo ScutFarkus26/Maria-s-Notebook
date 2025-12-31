@@ -10,9 +10,7 @@ struct BookClubDetailView: View {
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
     @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
-    @Query(sort: [SortDescriptor<BookClubTemplateWeek>(\.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
-    @Query(sort: [SortDescriptor<BookClubChoiceItem>(\.createdAt, order: .forward)]) private var allChoiceItems: [BookClubChoiceItem]
-    @Query(sort: [SortDescriptor(\BookClubChoiceSet.createdAt, order: .forward)]) private var allChoiceSets: [BookClubChoiceSet]
+    @Query(sort: [SortDescriptor(\BookClubTemplateWeek.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
     @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
     @Query(sort: [SortDescriptor(\BookClubSession.createdAt, order: .forward)]) private var allSessions: [BookClubSession]
     @Query(sort: [SortDescriptor(\BookClubAssignmentTemplate.createdAt, order: .forward)]) private var allTemplates: [BookClubAssignmentTemplate]

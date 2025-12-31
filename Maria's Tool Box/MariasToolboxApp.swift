@@ -54,8 +54,34 @@ struct MariasToolboxApp: App {
                 let config = ModelConfiguration(isStoredInMemoryOnly: true)
                 return try ModelContainer(for: schema, configurations: config)
             } else if cloud {
-                let config = ModelConfiguration(schema: schema, cloudKitDatabase: .private("iCloud.mariastoolbox"))
-                return try ModelContainer(for: schema, configurations: config)
+                // Derive the iCloud container identifier from bundle id and validate
+                let storeURL = url ?? MariasToolboxApp.storeFileURL()
+                let bundleID = Bundle.main.bundleIdentifier ?? ""
+                let containerID = bundleID.isEmpty ? nil : "iCloud.\(bundleID)"
+
+                #if swift(>=6.0)
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+                    if let containerID {
+                        let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
+                        return try ModelContainer(for: schema, configurations: config)
+                    } else {
+                        throw NSError(domain: "MariasToolbox", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
+                    }
+                } else {
+                    throw NSError(domain: "MariasToolbox", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
+                }
+                #else
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+                    if let containerID {
+                        let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
+                        return try ModelContainer(for: schema, configurations: config)
+                    } else {
+                        throw NSError(domain: "MariasToolbox", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
+                    }
+                } else {
+                    throw NSError(domain: "MariasToolbox", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
+                }
+                #endif
             } else {
                 let config = ModelConfiguration(url: url ?? MariasToolboxApp.storeFileURL())
                 return try ModelContainer(for: schema, configurations: config)
@@ -63,6 +89,7 @@ struct MariasToolboxApp: App {
         }
 
         do {
+            let _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
             if useInMemory {
                 let container = try makeContainer(inMemory: true)
                 UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
@@ -89,6 +116,7 @@ struct MariasToolboxApp: App {
                         // Capture error and return a safe, empty in-memory container
                         // so the app launches to the Error View instead of crashing.
                         print("SwiftData: CloudKit failed. HALTING to prevent split-brain. Error: \(error)")
+                        print("Hint: Ensure iCloud capability with CloudKit is enabled and the container matches iCloud.$(CFBundleIdentifier).")
                         UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                         UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                         MariasToolboxApp.initError = error
@@ -288,7 +316,7 @@ struct MariasToolboxApp: App {
                         }
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
-                        WorkDetailWindowContainer(workID: id)
+                        ContractDetailWindowHost(workID: id)
                             .environment(\.calendar, AppCalendar.shared)
                             .environmentObject(saveCoordinator)
                             .environmentObject(restoreCoordinator)

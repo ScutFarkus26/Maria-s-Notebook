@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		516FA4E52F05D6D000B80054 /* ContractDetailWindowHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516FA4E42F05D6D000B80054 /* ContractDetailWindowHost.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		516FA4E42F05D6D000B80054 /* ContractDetailWindowHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContractDetailWindowHost.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -47,6 +52,7 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
 				5141E7F62ED77B0F004F918F /* Products */,
+				516FA4E42F05D6D000B80054 /* ContractDetailWindowHost.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -132,6 +138,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				516FA4E52F05D6D000B80054 /* ContractDetailWindowHost.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

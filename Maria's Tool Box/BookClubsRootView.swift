@@ -19,8 +19,7 @@ struct BookClubsRootView: View {
     @Query private var allWorkContracts: [WorkContract]
     
     // Legacy queries (optional, kept for safety)
-    @Query private var allChoiceItems: [BookClubChoiceItem]
-    @Query private var allChoiceSets: [BookClubChoiceSet]
+    // Removed legacy queries per instructions
 
     // MARK: - State
     @SceneStorage("BookClubs.selectedClubID") private var selectedClubIDString: String = ""
@@ -195,13 +194,7 @@ struct BookClubsRootView: View {
             modelContext.delete(w)
         }
 
-        // Legacy cleanup: Delete any choice sets that happened to belong to this club ID
-        let sets = allChoiceSets.filter { $0.bookClubID == club.id }
-        for set in sets {
-            let items = allChoiceItems.filter { $0.setID == set.id }
-            for item in items { modelContext.delete(item) }
-            modelContext.delete(set)
-        }
+        // Removed legacy cleanup block per instructions
 
         // Finally, delete the club itself
         modelContext.delete(club)
@@ -253,3 +246,4 @@ struct ProjectSidebarRow: View {
         )
     }
 }
+

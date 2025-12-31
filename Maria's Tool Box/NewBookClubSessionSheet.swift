@@ -149,7 +149,7 @@ struct NewBookClubSessionSheet: View {
             if let week = templateWeek {
                 // -- Template Mode --
                 var roleName = "Member"
-                if let assignment = week.roleAssignments.first(where: { $0.studentID == sid }),
+                if let assignment = week.roleAssignments?.first(where: { $0.studentID == sid }),
                    let role = fetchRole(assignment.roleID) {
                     roleName = role.title
                 }

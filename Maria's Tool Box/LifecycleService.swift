@@ -57,7 +57,6 @@ struct LifecycleService {
                 legacyFingerprint: legacy.legacyFingerprint,
                 migrationKey: mk,
                 studentLesson: nil,
-                work: nil,
                 presentation: presentation,
                 workContract: nil
             )
@@ -79,7 +78,6 @@ struct LifecycleService {
                     legacyFingerprint: nil,
                     migrationKey: mk2,
                     studentLesson: nil,
-                    work: nil,
                     presentation: presentation,
                     workContract: nil
                 )

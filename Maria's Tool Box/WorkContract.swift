@@ -33,37 +33,39 @@ enum WorkSourceContextType: String, Codable {
 
 @Model
 final class WorkContract: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
-    var studentID: String
-    var lessonID: String
-    var presentationID: String?
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
+    var studentID: String = ""
+    var lessonID: String = ""
+    var presentationID: String? = nil
     
-    var title: String?
-    var statusRaw: String
-    var scheduledDate: Date?
-    var completedAt: Date?
+    var title: String? = nil
+    var statusRaw: String = WorkStatus.active.rawValue
+    var scheduledDate: Date? = nil
+    var completedAt: Date? = nil
 
-    var kindRaw: String?
-    var completionOutcomeRaw: String?
-    var completionNote: String?
+    var kindRaw: String? = nil
+    var completionOutcomeRaw: String? = nil
+    var completionNote: String? = nil
     
     // Metadata for specific contexts
-    var sourceContextTypeRaw: String?
-    var sourceContextID: String?
-    var scheduledNote: String?
+    var sourceContextTypeRaw: String? = nil
+    var sourceContextID: String? = nil
+    var scheduledNote: String? = nil
     
     // NEW: Storage for the reason (Fixes BackupService errors)
-    var scheduledReasonRaw: String?
+    var scheduledReasonRaw: String? = nil
     
     // Legacy support
-    var legacyStudentLessonID: String?
+    var legacyStudentLessonID: String? = nil
+
+    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.workContract) var scopedNotes: [ScopedNote]? = []
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        studentID: String,
-        lessonID: String,
+        studentID: String = "",
+        lessonID: String = "",
         presentationID: String? = nil,
         title: String? = nil,
         status: WorkStatus = .active,
@@ -90,6 +92,8 @@ final class WorkContract: Identifiable {
         } else {
             self.kindRaw = WorkKind.followUpAssignment.rawValue
         }
+        
+        self.scopedNotes = []
     }
 
     var status: WorkStatus {

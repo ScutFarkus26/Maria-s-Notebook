@@ -9,11 +9,11 @@ import SwiftData
         case students([UUID])
     }
 
-    var id: UUID
-    var createdAt: Date
-    var updatedAt: Date
-    var body: String { didSet { updatedAt = Date() } }
-    var scopeRaw: Data { didSet { updatedAt = Date() } }
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
+    var body: String = "" { didSet { updatedAt = Date() } }
+    var scopeRaw: Data = (try? JSONEncoder().encode(Scope.all)) ?? Data() { didSet { updatedAt = Date() } }
     var legacyFingerprint: String?
     var migrationKey: String?
     var presentationID: String?
@@ -21,9 +21,10 @@ import SwiftData
 
     // Relationships (optional; at least one is expected to be set by the creator)
     var studentLesson: StudentLesson?
-    var work: WorkModel?
-    var presentation: Presentation? { didSet { presentationID = presentation?.id.uuidString } }
-    var workContract: WorkContract? { didSet { workContractID = workContract?.id.uuidString } }
+    var presentation: Presentation? = nil { didSet { presentationID = presentation?.id.uuidString } }
+    var workContract: WorkContract? = nil { didSet { workContractID = workContract?.id.uuidString } }
+    // Legacy relationship to WorkModel (kept for inverse references in legacy models)
+    @Relationship var work: WorkModel? = nil
 
     init(
         id: UUID = UUID(),
@@ -34,7 +35,6 @@ import SwiftData
         legacyFingerprint: String? = nil,
         migrationKey: String? = nil,
         studentLesson: StudentLesson? = nil,
-        work: WorkModel? = nil,
         presentation: Presentation? = nil,
         workContract: WorkContract? = nil
     ) {
@@ -47,7 +47,6 @@ import SwiftData
         self.presentationID = nil
         self.workContractID = nil
         self.studentLesson = studentLesson
-        self.work = work
         self.presentation = presentation
         self.presentationID = presentation?.id.uuidString
         self.workContract = workContract
@@ -75,3 +74,4 @@ import SwiftData
         }
     }
 }
+

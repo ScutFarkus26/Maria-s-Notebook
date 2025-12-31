@@ -47,7 +47,7 @@ enum LegacyNotesMigration {
                 scope: .all,
                 legacyFingerprint: fp,
                 studentLesson: sl,
-                work: nil
+                workContract: nil
             )
             note.createdAt = sl.givenAt ?? sl.createdAt
             note.updatedAt = note.createdAt
@@ -75,7 +75,7 @@ enum LegacyNotesMigration {
                 scope: .all,
                 legacyFingerprint: fp,
                 studentLesson: sl,
-                work: nil
+                workContract: nil
             )
             note.createdAt = sl.givenAt ?? sl.createdAt
             note.updatedAt = note.createdAt
