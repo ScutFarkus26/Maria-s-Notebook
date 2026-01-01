@@ -1285,7 +1285,7 @@ public final class BackupService {
         var braceCount = 0
         var inString = false
         var escapeNext = false
-        var valueStart = searchStart
+        let valueStart = searchStart
         var valueEnd = searchStart
         
         for i in jsonString[searchStart...].indices {
