@@ -134,4 +134,12 @@ final class WorkContract: Identifiable {
     }
 
     var isOpen: Bool { status != .complete }
+    
+    // MARK: - Status Helpers
+    
+    /// Convenience computed properties for status checks (not usable in predicates)
+    var isActive: Bool { status == .active }
+    var isReview: Bool { status == .review }
+    var isComplete: Bool { status == .complete }
+    var isIncomplete: Bool { status == .active || status == .review }
 }

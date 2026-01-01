@@ -4,7 +4,7 @@ import SwiftData
 enum PlanningActions {
     static func moveToInbox(_ sl: StudentLesson, context: ModelContext) {
         sl.setScheduledFor(nil, using: AppCalendar.shared)
-        Task { @MainActor in try? context.save() }
+        Task { @MainActor in context.safeSave() }
     }
 
     static func planNextLesson(for sl: StudentLesson, lessons: [Lesson], students: [Student], studentLessons: [StudentLesson], context: ModelContext) {
@@ -45,7 +45,7 @@ enum PlanningActions {
         newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
         newStudentLesson.syncSnapshotsFromRelationships()
         context.insert(newStudentLesson)
-        try? context.save()
+        context.safeSave()
     }
 
     /// Push all scheduled lessons that include at least one absent student to the next school day.
@@ -102,7 +102,7 @@ enum PlanningActions {
                 changed = true
             }
         }
-        if changed { try? context.save() }
+        if changed { context.safeSave() }
     }
 
     /// Push all scheduled lessons forward by one school day, preserving their time-of-day.
@@ -132,6 +132,6 @@ enum PlanningActions {
                 changed = true
             }
         }
-        if changed { try? context.save() }
+        if changed { context.safeSave() }
     }
 }

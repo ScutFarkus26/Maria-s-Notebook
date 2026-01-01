@@ -38,7 +38,7 @@ final class LessonsRootViewModel: ObservableObject {
         if let base = lesson { newSL.lesson = base }
         newSL.syncSnapshotsFromRelationships()
         context.insert(newSL)
-        try? context.save()
+        context.safeSave()
         return newSL
     }
     
@@ -49,6 +49,6 @@ final class LessonsRootViewModel: ObservableObject {
             Lesson(name: "Parts of Speech", subject: "Language", group: "Grammar", subheading: "Nouns and Verbs", writeUp: "Identify and classify parts of speech in simple sentences.")
         ]
         for l in samples { context.insert(l) }
-        try? context.save()
+        context.safeSave()
     }
 }

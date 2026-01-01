@@ -373,12 +373,12 @@ struct TodayView: View {
     
     // MARK: - Helpers
     private func resolveStudentName(for contract: WorkContract) -> String {
-        guard let uuid = UUID(uuidString: contract.studentID) else { return "Student" }
+        guard let uuid = contract.studentID.asUUID else { return "Student" }
         return displayNameForID(uuid)
     }
     
     private func resolveLessonName(for contract: WorkContract) -> String {
-        guard let uuid = UUID(uuidString: contract.lessonID) else { return "Lesson" }
+        guard let uuid = contract.lessonID.asUUID else { return "Lesson" }
         return nameForLesson(uuid)
     }
 }

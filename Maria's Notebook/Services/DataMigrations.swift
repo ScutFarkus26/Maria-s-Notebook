@@ -21,7 +21,7 @@ enum DataMigrations {
                     }
                 }
             }
-            if changed > 0 { try? context.save() }
+            if changed > 0 { context.safeSave() }
         }
     }
 
@@ -82,7 +82,7 @@ enum DataMigrations {
             changed = true
         }
 
-        if changed { try? context.save() }
+        if changed { context.safeSave() }
     }
     
     /// Backfill Work participants from legacy studentIDs and delete empty Work items if needed.

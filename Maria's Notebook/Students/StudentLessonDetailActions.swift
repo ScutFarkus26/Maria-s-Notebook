@@ -99,7 +99,7 @@ final class StudentLessonDetailActions: ObservableObject {
             newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
             newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
             context.insert(newStudentLesson)
-            try? context.save()
+            context.safeSave()
             StudentLessonDetailUtilities.notifyInboxRefresh()
             return true
         }
@@ -145,7 +145,7 @@ final class StudentLessonDetailActions: ObservableObject {
             context.insert(newStudentLesson)
         }
 
-        try? context.save()
+        context.safeSave()
         StudentLessonDetailUtilities.notifyInboxRefresh()
         return movedStudentNames
     }
@@ -156,7 +156,7 @@ final class StudentLessonDetailActions: ObservableObject {
         } else {
             work.markStudent(studentID, completedAt: Date())
         }
-        try? context.save()
+        context.safeSave()
     }
 
     func nextLessonInGroup(from current: Lesson?, lessons: [Lesson]) -> Lesson? {

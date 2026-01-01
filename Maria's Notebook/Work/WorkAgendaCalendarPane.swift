@@ -102,7 +102,7 @@ struct WorkAgendaCalendarPane: View {
         // Try to resolve from WorkContract, then Lesson name; fall back to a short lesson id or generic label.
         let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
         if let c = try? modelContext.fetch(fetch).first {
-            if let lid = UUID(uuidString: c.lessonID) {
+            if let lid = c.lessonID.asUUID {
                 let lFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lid })
                 if let l = try? modelContext.fetch(lFetch).first {
                     let name = l.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -117,7 +117,7 @@ struct WorkAgendaCalendarPane: View {
 
     private func studentName(for id: UUID) -> String {
         let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-        if let c = try? modelContext.fetch(fetch).first, let sid = UUID(uuidString: c.studentID) {
+        if let c = try? modelContext.fetch(fetch).first, let sid = c.studentID.asUUID {
             let sFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == sid })
             if let s = try? modelContext.fetch(sFetch).first {
                 return StudentFormatter.displayName(for: s)
@@ -139,7 +139,7 @@ struct WorkAgendaCalendarPane: View {
 
     @ViewBuilder
     private func pill(_ item: WorkPlanItem) -> some View {
-        if let workID = UUID(uuidString: item.workID) {
+        if let workID = item.workID.asUUID {
             let title = workTitle(for: workID)
             let name = studentName(for: workID)
             let reasonText = item.reason.map { reasonLabel($0) } ?? nil
@@ -174,12 +174,12 @@ struct WorkAgendaCalendarPane: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture {
-            if let workID = UUID(uuidString: item.workID) {
+            if let workID = item.workID.asUUID {
                 openDetail(workID: workID)
             }
         }
         .contextMenu {
-            if let workID = UUID(uuidString: item.workID) {
+            if let workID = item.workID.asUUID {
                 Button("Open", systemImage: "arrow.forward.circle") { openDetail(workID: workID) }
             }
             Button("Delete", role: .destructive) { deletePlan(item) }
@@ -217,7 +217,7 @@ struct WorkAgendaCalendarPane: View {
                     // Also update the linked contract's scheduledDate to match the moved plan item
                     let fetchPI = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
                     if let item = try? modelContext.fetch(fetchPI).first,
-                       let wid = UUID(uuidString: item.workID) {
+                       let wid = item.workID.asUUID {
                         let fetchWC = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == wid })
                         if let c = try? modelContext.fetch(fetchWC).first {
                             c.scheduledDate = AppCalendar.startOfDay(day)
@@ -252,7 +252,7 @@ struct WorkAgendaCalendarPane: View {
     private func reschedulePlanItem(id: UUID, to day: Date) {
         let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
         if let item = try? modelContext.fetch(fetch).first,
-           let wid = UUID(uuidString: item.workID) {
+           let wid = item.workID.asUUID {
             item.scheduledDate = AppCalendar.startOfDay(day)
             let fetchWC = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == wid })
             if let c = try? modelContext.fetch(fetchWC).first {

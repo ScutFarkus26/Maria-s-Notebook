@@ -382,13 +382,13 @@ class ClassSubjectChecklistViewModel: ObservableObject {
                 context.insert(newSL)
             }
         }
-        try? context.save(); recomputeMatrix(context: context)
+        context.safeSave(); recomputeMatrix(context: context)
     }
     
     func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
         let contract = findOrCreateContract(student: student, lesson: lesson, context: context)
         contract.status = .complete; contract.completedAt = Date()
-        try? context.save(); recomputeMatrix(context: context)
+        context.safeSave(); recomputeMatrix(context: context)
     }
     
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
@@ -410,7 +410,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
                 context.insert(newSL)
             }
         }
-        try? context.save(); recomputeMatrix(context: context)
+        context.safeSave(); recomputeMatrix(context: context)
     }
     
     func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
@@ -424,7 +424,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         }
         let contracts = fetchContracts(student: student, lesson: lesson, context: context)
         for c in contracts { context.delete(c) }
-        try? context.save(); recomputeMatrix(context: context)
+        context.safeSave(); recomputeMatrix(context: context)
     }
     
     private func fetchContracts(student: Student, lesson: Lesson, context: ModelContext) -> [WorkContract] {
