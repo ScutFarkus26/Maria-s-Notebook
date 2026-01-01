@@ -1,6 +1,12 @@
 import SwiftUI
 import SwiftData
 import Foundation // Fixes whitespacesAndNewlines error
+#if canImport(UIKit)
+import UIKit
+#endif
+#if canImport(AppKit)
+import AppKit
+#endif
 
 struct StudentWorkSummary: Identifiable {
     let id: UUID
@@ -72,6 +78,15 @@ private struct StudentWorkCard: View {
         case nil: return .secondary
         }
     }
+    
+    private var cardBackgroundColor: Color {
+        if monochrome { return .white }
+        #if os(macOS)
+        return Color(NSColor.windowBackgroundColor)
+        #else
+        return Color(uiColor: .systemBackground)
+        #endif
+    }
 
     // Lookup via lessonsByID map
     private func title(for contract: WorkContract) -> String {
@@ -126,7 +141,7 @@ private struct StudentWorkCard: View {
         .frame(maxWidth: .infinity, minHeight: dense ? 140 : 180, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(monochrome ? .white : Color(NSColor.windowBackgroundColor))
+                .fill(cardBackgroundColor)
                 .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color.primary.opacity(0.06), lineWidth: 1))
         )
     }

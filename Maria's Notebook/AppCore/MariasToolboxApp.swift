@@ -100,7 +100,7 @@ struct MariasToolboxApp: App {
         print("SwiftData: Schema accessed successfully")
         
         let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
-        let allowFallback = UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey)
+        let _ = UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey)
         
         // Helper to create container with defensive error handling
         func makeContainer(inMemory: Bool, url: URL? = nil, cloud: Bool = false) throws -> ModelContainer {

@@ -428,12 +428,25 @@ private struct RootSidebar: View {
     }
 
     var body: some View {
+        #if os(macOS)
         List(selection: $selection) {
             ForEach(tabs) { tab in
                 Label(tab.rawValue, systemImage: tab.icon)
                     .tag(tab)
             }
         }
+        #else
+        List {
+            ForEach(tabs) { tab in
+                Button {
+                    selection = tab
+                } label: {
+                    Label(tab.rawValue, systemImage: tab.icon)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        #endif
     }
 }
 
