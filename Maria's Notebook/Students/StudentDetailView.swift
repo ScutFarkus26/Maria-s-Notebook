@@ -442,8 +442,6 @@ struct StudentDetailView: View {
         #endif
         }
         .task {
-            WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
-            WorkDataMaintenance.migrateWorksToContractsIfNeeded(using: modelContext)
             vm.loadData(modelContext: modelContext)
             checklistVM.recompute(for: vm.lessons, using: modelContext)
             ensureChecklistSubjectSelection()

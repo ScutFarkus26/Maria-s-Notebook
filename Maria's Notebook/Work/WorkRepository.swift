@@ -29,7 +29,7 @@ struct WorkRepository {
         work.participants = (work.participants ?? []) + studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: work) }
         context.insert(work)
 
-        // Automatically schedule a default check-in according to WorkCheckInDefaults
+        // Automatically schedule a default check-in (2 days offset)
         let cal = AppCalendar.shared
         let offsetDays = 2
         if let dueDate = cal.date(byAdding: .day, value: offsetDays, to: Date()) {
