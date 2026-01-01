@@ -8,7 +8,87 @@ import Combine
 
 /// Top-level container that manages app-wide navigation between Students, Albums, Planning, Today, Logs, and Settings.
 struct RootView: View {
-    // MARK: - Tabs
+    // MARK: - Navigation Items
+    enum NavigationItem: String, Hashable, Identifiable {
+        case today
+        case attendance
+        case students
+        case lessons // Previously "Albums"
+        
+        // Planning Sub-items (Promoted from PlanningRootView pills)
+        case planningAgenda
+        case planningWork
+        case planningProjects
+        case planningChecklist
+        
+        case logs
+        case community
+        case settings
+        
+        var id: Self { self }
+        
+        var displayName: String {
+            switch self {
+            case .today: return "Today"
+            case .attendance: return "Attendance"
+            case .students: return "Students"
+            case .lessons: return "Lessons"
+            case .planningAgenda: return "Presentations"
+            case .planningWork: return "Open Work"
+            case .planningProjects: return "Projects"
+            case .planningChecklist: return "Checklist"
+            case .logs: return "Logs"
+            case .community: return "Community Meetings"
+            case .settings: return "Settings"
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .today: return "sun.max"
+            case .attendance: return "checklist"
+            case .students: return "person.3"
+            case .lessons: return "book"
+            case .planningAgenda: return "calendar"
+            case .planningWork: return "tray.full"
+            case .planningProjects: return "folder"
+            case .planningChecklist: return "list.clipboard"
+            case .logs: return "list.bullet"
+            case .community: return "bubble.left.and.bubble.right"
+            case .settings: return "gear"
+            }
+        }
+        
+        // Helper to convert from legacy Tab enum for migration
+        init?(fromLegacyTab tab: Tab) {
+            switch tab {
+            case .today: self = .today
+            case .attendance: self = .attendance
+            case .students: self = .students
+            case .albums: self = .lessons
+            case .planning: self = .planningAgenda // Default to agenda for planning
+            case .logs: self = .logs
+            case .community: self = .community
+            case .settings: self = .settings
+            }
+        }
+        
+        // Helper to convert legacy Tab for backward compatibility
+        var legacyTab: Tab? {
+            switch self {
+            case .today: return .today
+            case .attendance: return .attendance
+            case .students: return .students
+            case .lessons: return .albums
+            case .planningAgenda, .planningWork, .planningProjects, .planningChecklist: return .planning
+            case .logs: return .logs
+            case .community: return .community
+            case .settings: return .settings
+            }
+        }
+    }
+    
+    // MARK: - Legacy Tabs (kept for backward compatibility and migration)
     enum Tab: String, CaseIterable, Identifiable {
         case students = "Students"
         case albums = "Lessons" // Renamed from "Albums" to "Lessons"
@@ -35,7 +115,9 @@ struct RootView: View {
     }
 
     // MARK: - Storage
-    @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.students.rawValue
+    @SceneStorage("RootView.selectedNavItem") private var selectedNavItemRaw: String?
+    // Legacy storage for migration
+    @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
@@ -47,8 +129,32 @@ struct RootView: View {
     #endif
 
     // MARK: - Computed
-    private var selectedTab: Tab {
-        Tab(rawValue: selectedTabRaw) ?? .students
+    private var selectedNavItem: NavigationItem {
+        // First, try to use the new navigation item
+        if let raw = selectedNavItemRaw, let item = NavigationItem(rawValue: raw) {
+            return item
+        }
+        // Migration: try to read from legacy selectedTab
+        if let legacyRaw = selectedTabRaw, let legacyTab = Tab(rawValue: legacyRaw) {
+            // Special handling for planning tab: check stored mode first
+            if legacyTab == .planning {
+                if let modeRaw = UserDefaults.standard.string(forKey: "PlanningRootView.mode") {
+                    switch modeRaw {
+                    case "Open Work": return .planningWork
+                    case "Projects": return .planningProjects
+                    case "Checklist": return .planningChecklist
+                    default: return .planningAgenda
+                    }
+                }
+                return .planningAgenda
+            }
+            // For non-planning tabs, convert using the initializer
+            if let item = NavigationItem(fromLegacyTab: legacyTab) {
+                return item
+            }
+        }
+        // Default fallback
+        return .today
     }
 
     // MARK: - Body
@@ -82,15 +188,18 @@ struct RootView: View {
             #if os(iOS)
             Group {
                 if horizontalSizeClass == .compact {
-                    RootCompactTabs(selectedTabRaw: $selectedTabRaw)
+                    RootCompactTabs(selectedNavItem: Binding(
+                        get: { selectedNavItem },
+                        set: { selectedNavItemRaw = $0.rawValue }
+                    ))
                 } else {
                     NavigationSplitView {
                         RootSidebar(selection: Binding(
-                            get: { selectedTab },
-                            set: { selectedTabRaw = $0.rawValue }
+                            get: { selectedNavItem },
+                            set: { selectedNavItemRaw = $0.rawValue }
                         ))
                     } detail: {
-                        RootDetailContent(selectedTab: selectedTab)
+                        RootDetailContent(selectedNavItem: selectedNavItem)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
@@ -99,11 +208,11 @@ struct RootView: View {
             #else
             NavigationSplitView {
                 RootSidebar(selection: Binding(
-                    get: { selectedTab },
-                    set: { selectedTabRaw = $0.rawValue }
+                    get: { selectedNavItem },
+                    set: { selectedNavItemRaw = $0.rawValue }
                 ))
             } detail: {
-                RootDetailContent(selectedTab: selectedTab)
+                RootDetailContent(selectedNavItem: selectedNavItem)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -117,24 +226,34 @@ struct RootView: View {
             await backfillScheduledForDayIfNeeded()
         }
         .onAppear {
-            // Attendance is now a top-level tab, no migration needed
-            // Migrate legacy Lessons container to new top-level Albums tab
-            if selectedTabRaw == "Lessons" {
-                // If selectedTabRaw is "Lessons" (the old string), it might not match the new enum rawValue "Lessons".
-                // But actually, we changed the enum rawValue to "Lessons" in this file.
-                // However, if the stored value was "Albums" (old rawValue), we want to update it.
-                if selectedTabRaw == "Albums" {
-                    selectedTabRaw = Tab.albums.rawValue
+            // Migration: Convert legacy selectedTab to selectedNavItem if needed
+            if selectedNavItemRaw == nil, let legacyRaw = selectedTabRaw {
+                if let legacyTab = Tab(rawValue: legacyRaw) {
+                    if let navItem = NavigationItem(fromLegacyTab: legacyTab) {
+                        // For planning, check stored mode
+                        if legacyTab == .planning {
+                            if let modeRaw = UserDefaults.standard.string(forKey: "PlanningRootView.mode") {
+                                switch modeRaw {
+                                case "Open Work": selectedNavItemRaw = NavigationItem.planningWork.rawValue
+                                case "Projects": selectedNavItemRaw = NavigationItem.planningProjects.rawValue
+                                case "Checklist": selectedNavItemRaw = NavigationItem.planningChecklist.rawValue
+                                default: selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                                }
+                            } else {
+                                selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                            }
+                        } else {
+                            selectedNavItemRaw = navItem.rawValue
+                        }
+                    }
                 }
-            }
-            // Migrate legacy tab labels Lesson Planning -> Planning
-            if selectedTabRaw == "Lesson Planning" {
-                selectedTabRaw = Tab.planning.rawValue
-            }
-            // Migrate removal of Work Planning tab: route to Planning → Works Agenda
-            if selectedTabRaw == "Work Planning" || selectedTabRaw == "Work" {
-                selectedTabRaw = Tab.planning.rawValue
-                UserDefaults.standard.set(PlanningRootView.Mode.works.rawValue, forKey: "PlanningRootView.mode")
+                // Handle legacy string migrations
+                if legacyRaw == "Lesson Planning" {
+                    selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                }
+                if legacyRaw == "Work Planning" || legacyRaw == "Work" {
+                    selectedNavItemRaw = NavigationItem.planningWork.rawValue
+                }
             }
         }
         .onChange(of: appRouter.navigationDestination) { _, destination in
@@ -144,13 +263,25 @@ struct RootView: View {
                 }
                 appRouter.clearNavigation()
             } else if case .openAttendance = destination {
-                selectedTabRaw = Tab.attendance.rawValue
+                selectedNavItemRaw = NavigationItem.attendance.rawValue
                 appRouter.clearNavigation()
             }
         }
+        .onChange(of: appRouter.selectedNavItem) { _, item in
+            if let item = item {
+                selectedNavItemRaw = item.rawValue
+                appRouter.selectedNavItem = nil // Clear after handling
+            }
+        }
+        // Backward compatibility: handle legacy selectedTab
         .onChange(of: appRouter.selectedTab) { _, tab in
-            if let tab = tab {
-                selectedTabRaw = tab.rawValue
+            if let tab = tab, let navItem = NavigationItem(fromLegacyTab: tab) {
+                // For planning, default to agenda
+                if tab == .planning {
+                    selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                } else {
+                    selectedNavItemRaw = navItem.rawValue
+                }
                 appRouter.selectedTab = nil // Clear after handling
             }
         }
@@ -313,26 +444,34 @@ struct RootView: View {
     // MARK: - State
 }
 
-/// Extracted detail content for RootView. Mirrors the original switch on selectedTab.
+/// Extracted detail content for RootView. Routes based on NavigationItem selection.
 private struct RootDetailContent: View {
-    let selectedTab: RootView.Tab
+    let selectedNavItem: RootView.NavigationItem
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         Group {
-            switch selectedTab {
+            switch selectedNavItem {
             case .today:
-                TodayView(context: modelContext) // Wires the Today hub
-            case .albums:
-                LessonsMenuRootView()
-            case .students:
-                StudentsRootView()
-            case .planning:
-                PlanningRootView()
-            case .logs:
-                LogsMenuRootView()
+                TodayView(context: modelContext)
             case .attendance:
                 AttendanceView()
+            case .students:
+                StudentsRootView()
+            case .lessons:
+                LessonsMenuRootView()
+            case .planningAgenda:
+                PresentationsView()
+            case .planningWork:
+                WorksAgendaView()
+            case .planningProjects:
+                NavigationStack {
+                    ProjectsRootView()
+                }
+            case .planningChecklist:
+                ClassSubjectChecklistView()
+            case .logs:
+                LogsMenuRootView()
             case .community:
                 CommunityMeetingsView()
             case .settings:
@@ -342,121 +481,9 @@ private struct RootDetailContent: View {
     }
 }
 
-/// Container for Planning modes (Agenda, Works). Uses pill navigation and stores last mode in AppStorage.
-struct PlanningRootView: View {
-    // MARK: - Mode
-    enum Mode: String, CaseIterable, Identifiable {
-        case agenda = "Presentations"
-        case works = "Open Work"
-        case projects = "Projects"
-        case checklist = "Checklist"
-        var id: String { rawValue }
-    }
-
-    @AppStorage("PlanningRootView.mode") private var modeRaw: String = Mode.agenda.rawValue
-    #if os(iOS)
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    #endif
-
-    private var mode: Mode { Mode(rawValue: modeRaw) ?? .agenda }
-
-    // MARK: - Body
-    var body: some View {
-        VStack(spacing: 0) {
-            #if os(iOS)
-            Group {
-                if horizontalSizeClass == .compact {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                            PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillButton(title: Mode.projects.rawValue, isSelected: mode == .projects) { modeRaw = Mode.projects.rawValue }
-                            PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
-                        }
-                        .padding(.horizontal, 12)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                } else {
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 12) {
-                            PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                            PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillButton(title: Mode.projects.rawValue, isSelected: mode == .projects) { modeRaw = Mode.projects.rawValue }
-                            PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
-                        }
-                        Spacer()
-                    }
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                }
-            }
-            #else
-            HStack {
-                Spacer()
-                HStack(spacing: 12) {
-                    PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
-                    PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                    PillButton(title: Mode.projects.rawValue, isSelected: mode == .projects) { modeRaw = Mode.projects.rawValue }
-                    PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
-                }
-                Spacer()
-            }
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-            #endif
-
-            Divider()
-
-            Group {
-                if mode == .agenda {
-                    PresentationsView()
-                } else if mode == .works {
-                    WorksAgendaView()
-                } else if mode == .projects {
-                    NavigationStack {
-                        ProjectsRootView()
-                    }
-                }
-                else if mode == .checklist {
-                    ClassSubjectChecklistView()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onAppear {
-                // Migrate legacy stored mode labels to new ones
-                if modeRaw == "Agenda" { modeRaw = Mode.agenda.rawValue }
-                if modeRaw == "Board" { modeRaw = Mode.agenda.rawValue }
-                if modeRaw == "Lessons Board" { modeRaw = Mode.agenda.rawValue }
-                if modeRaw == "Lessons Agenda (Beta)" { modeRaw = Mode.agenda.rawValue }
-                if modeRaw == "Lessons Agenda" { modeRaw = Mode.agenda.rawValue }
-                if modeRaw == "Presentations Agenda" { modeRaw = Mode.agenda.rawValue }
-                
-                if modeRaw == "Work Agenda (Beta)" { modeRaw = Mode.works.rawValue }
-                if modeRaw == "Work Agenda" { modeRaw = Mode.works.rawValue }
-                
-                if modeRaw == "Book Clubs" { modeRaw = Mode.projects.rawValue }
-                if modeRaw == "Projects" { modeRaw = Mode.projects.rawValue }
-                
-                if modeRaw == "Class Checklist" { modeRaw = Mode.checklist.rawValue }
-                
-                // Migrate LessonsAgendaBeta.startDate -> LessonsAgenda.startDate (one-time)
-                let oldKey = "LessonsAgendaBeta.startDate"
-                let newKey = "LessonsAgenda.startDate"
-                if UserDefaults.standard.double(forKey: newKey) == 0 {
-                    let old = UserDefaults.standard.double(forKey: oldKey)
-                    if old != 0 {
-                        UserDefaults.standard.set(old, forKey: newKey)
-                        // Optionally clear old key
-                        // UserDefaults.standard.removeObject(forKey: oldKey)
-                    }
-                }
-            }
-        }
-    }
-}
+// NOTE: PlanningRootView has been removed. Planning items are now directly accessible from the sidebar
+// as individual NavigationItems (.planningAgenda, .planningWork, .planningProjects, .planningChecklist).
+// The pill navigation has been replaced with grouped sidebar sections.
 
 /// Thin wrapper to host the Lessons root inside the main container.
 struct LessonsMenuRootView: View {
@@ -466,30 +493,150 @@ struct LessonsMenuRootView: View {
     }
 }
 
-/// Sidebar list for selecting a root tab. Attendance is positioned above Students.
+/// Sidebar with grouped sections (Source List style) for selecting navigation items.
 private struct RootSidebar: View {
-    @Binding var selection: RootView.Tab
-
-    private var tabs: [RootView.Tab] {
-        // Manual ordering: Attendance first, then Students, then the rest
-        [.attendance, .students, .albums, .planning, .today, .logs, .community, .settings]
-    }
+    @Binding var selection: RootView.NavigationItem
 
     var body: some View {
         #if os(macOS)
         List(selection: $selection) {
-            ForEach(tabs) { tab in
-                Label(tab.rawValue, systemImage: tab.icon)
-                    .tag(tab)
+            // Section 1: Daily
+            Section("Daily") {
+                NavigationLink(value: RootView.NavigationItem.today) {
+                    Label("Today", systemImage: "sun.max")
+                }
+                NavigationLink(value: RootView.NavigationItem.attendance) {
+                    Label("Attendance", systemImage: "checklist")
+                }
+            }
+            
+            // Section 2: Classroom
+            Section("Classroom") {
+                NavigationLink(value: RootView.NavigationItem.students) {
+                    Label("Students", systemImage: "person.3")
+                }
+                NavigationLink(value: RootView.NavigationItem.lessons) {
+                    Label("Lessons", systemImage: "book")
+                }
+            }
+            
+            // Section 3: Planning (Expanded)
+            Section("Planning") {
+                NavigationLink(value: RootView.NavigationItem.planningAgenda) {
+                    Label("Presentations", systemImage: "calendar")
+                }
+                NavigationLink(value: RootView.NavigationItem.planningWork) {
+                    Label("Open Work", systemImage: "tray.full")
+                }
+                NavigationLink(value: RootView.NavigationItem.planningProjects) {
+                    Label("Projects", systemImage: "folder")
+                }
+                NavigationLink(value: RootView.NavigationItem.planningChecklist) {
+                    Label("Checklist", systemImage: "list.clipboard")
+                }
+            }
+            
+            // Section 4: System
+            Section("System") {
+                NavigationLink(value: RootView.NavigationItem.logs) {
+                    Label("Logs", systemImage: "list.bullet")
+                }
+                NavigationLink(value: RootView.NavigationItem.community) {
+                    Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
+                }
+                NavigationLink(value: RootView.NavigationItem.settings) {
+                    Label("Settings", systemImage: "gear")
+                }
             }
         }
+        .listStyle(.sidebar)
         #else
         List {
-            ForEach(tabs) { tab in
+            // Section 1: Daily
+            Section("Daily") {
                 Button {
-                    selection = tab
+                    selection = .today
                 } label: {
-                    Label(tab.rawValue, systemImage: tab.icon)
+                    Label("Today", systemImage: "sun.max")
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    selection = .attendance
+                } label: {
+                    Label("Attendance", systemImage: "checklist")
+                }
+                .buttonStyle(.plain)
+            }
+            
+            // Section 2: Classroom
+            Section("Classroom") {
+                Button {
+                    selection = .students
+                } label: {
+                    Label("Students", systemImage: "person.3")
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    selection = .lessons
+                } label: {
+                    Label("Lessons", systemImage: "book")
+                }
+                .buttonStyle(.plain)
+            }
+            
+            // Section 3: Planning
+            Section("Planning") {
+                Button {
+                    selection = .planningAgenda
+                } label: {
+                    Label("Presentations", systemImage: "calendar")
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    selection = .planningWork
+                } label: {
+                    Label("Open Work", systemImage: "tray.full")
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    selection = .planningProjects
+                } label: {
+                    Label("Projects", systemImage: "folder")
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    selection = .planningChecklist
+                } label: {
+                    Label("Checklist", systemImage: "list.clipboard")
+                }
+                .buttonStyle(.plain)
+            }
+            
+            // Section 4: System
+            Section("System") {
+                Button {
+                    selection = .logs
+                } label: {
+                    Label("Logs", systemImage: "list.bullet")
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    selection = .community
+                } label: {
+                    Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    selection = .settings
+                } label: {
+                    Label("Settings", systemImage: "gear")
                 }
                 .buttonStyle(.plain)
             }
@@ -498,24 +645,26 @@ private struct RootSidebar: View {
     }
 }
 
-/// Compact iPhone tabs using a standard TabView. Attendance is positioned above Students.
+/// Compact iPhone tabs using a standard TabView with grouped navigation items.
 private struct RootCompactTabs: View {
-    // Bind to RootView's selected tab state via the raw string value
-    @Binding var selectedTabRaw: String
+    @Binding var selectedNavItem: RootView.NavigationItem
 
-    private var tabs: [RootView.Tab] {
-        // Manual ordering: Attendance first, then Students, then the rest
-        [.attendance, .students, .albums, .planning, .today, .logs, .community, .settings]
+    private var navItems: [RootView.NavigationItem] {
+        // Order: Daily, Classroom, Planning, System
+        [.today, .attendance, .students, .lessons, .planningAgenda, .planningWork, .planningProjects, .planningChecklist, .logs, .community, .settings]
     }
 
     var body: some View {
-        TabView(selection: $selectedTabRaw) {
-            ForEach(tabs) { tab in
-                RootDetailContent(selectedTab: tab)
+        TabView(selection: Binding(
+            get: { selectedNavItem.rawValue },
+            set: { if let item = RootView.NavigationItem(rawValue: $0) { selectedNavItem = item } }
+        )) {
+            ForEach(navItems) { item in
+                RootDetailContent(selectedNavItem: item)
                     .tabItem {
-                        Label(tab.rawValue, systemImage: tab.icon)
+                        Label(item.displayName, systemImage: item.icon)
                     }
-                    .tag(tab.rawValue)
+                    .tag(item.rawValue)
             }
         }
     }

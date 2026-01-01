@@ -70,7 +70,10 @@ class AppRouter: ObservableObject {
     /// Plan lesson request
     @Published var planLessonRequest: PlanLessonRequest? = nil
     
-    /// Tab selection for root view
+    /// Navigation item selection for root view (new primary navigation)
+    @Published var selectedNavItem: RootView.NavigationItem? = nil
+    
+    /// Tab selection for root view (legacy - kept for backward compatibility)
     @Published var selectedTab: RootView.Tab? = nil
     
     /// Students mode selection
@@ -145,7 +148,12 @@ class AppRouter: ObservableObject {
         planLessonRequest = PlanLessonRequest(studentID: studentID, date: date)
     }
     
-    /// Navigate to a specific tab
+    /// Navigate to a specific navigation item
+    func navigateTo(_ item: RootView.NavigationItem) {
+        selectedNavItem = item
+    }
+    
+    /// Navigate to a specific tab (legacy - kept for backward compatibility)
     func navigateToTab(_ tab: RootView.Tab) {
         selectedTab = tab
     }

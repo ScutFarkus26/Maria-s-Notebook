@@ -614,25 +614,25 @@ struct MariasToolboxApp: App {
                 Divider()
                 
                 // Quick Navigation Shortcuts
-                Button("Today") { appRouter.selectedTab = RootView.Tab.today }
+                Button("Today") { appRouter.navigateTo(.today) }
                     .keyboardShortcut("1", modifiers: .command)
                 
-                Button("Planning") { appRouter.selectedTab = RootView.Tab.planning }
+                Button("Presentations") { appRouter.navigateTo(.planningAgenda) }
                     .keyboardShortcut("2", modifiers: .command)
 
-                Button("Students") { appRouter.selectedTab = RootView.Tab.students }
+                Button("Students") { appRouter.navigateTo(.students) }
                     .keyboardShortcut("3", modifiers: .command)
                     
-                Button("Lessons") { appRouter.selectedTab = RootView.Tab.albums }
+                Button("Lessons") { appRouter.navigateTo(.lessons) }
                     .keyboardShortcut("4", modifiers: .command)
                     
-                Button("Logs") { appRouter.selectedTab = RootView.Tab.logs }
+                Button("Logs") { appRouter.navigateTo(.logs) }
                     .keyboardShortcut("5", modifiers: .command)
                     
                 Divider()
                 
                 Button("Open Attendance") {
-                    appRouter.requestOpenAttendance()
+                    appRouter.navigateTo(.attendance)
                 }
                 .keyboardShortcut("0", modifiers: [.command])
             }
@@ -641,7 +641,7 @@ struct MariasToolboxApp: App {
             // Maps the standard macOS "Settings..." menu item (Cmd+,) to your Settings tab
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
-                    appRouter.selectedTab = RootView.Tab.settings
+                    appRouter.navigateTo(.settings)
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
