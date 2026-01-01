@@ -117,11 +117,7 @@ struct RootView: View {
             await backfillScheduledForDayIfNeeded()
         }
         .onAppear {
-            // Migrate legacy top-level Attendance tab to Students -> Attendance mode
-            if Tab(rawValue: selectedTabRaw) == .attendance {
-                selectedTabRaw = Tab.students.rawValue
-                UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
-            }
+            // Attendance is now a top-level tab, no migration needed
             // Migrate legacy Lessons container to new top-level Albums tab
             if selectedTabRaw == "Lessons" {
                 // If selectedTabRaw is "Lessons" (the old string), it might not match the new enum rawValue "Lessons".
@@ -148,8 +144,7 @@ struct RootView: View {
                 }
                 appRouter.clearNavigation()
             } else if case .openAttendance = destination {
-                selectedTabRaw = Tab.students.rawValue
-                UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
+                selectedTabRaw = Tab.attendance.rawValue
                 appRouter.clearNavigation()
             }
         }
@@ -471,12 +466,13 @@ struct LessonsMenuRootView: View {
     }
 }
 
-/// Sidebar list for selecting a root tab. Excludes the legacy Attendance tab.
+/// Sidebar list for selecting a root tab. Attendance is positioned above Students.
 private struct RootSidebar: View {
     @Binding var selection: RootView.Tab
 
     private var tabs: [RootView.Tab] {
-        RootView.Tab.allCases.filter { $0 != .attendance }
+        // Manual ordering: Attendance first, then Students, then the rest
+        [.attendance, .students, .albums, .planning, .today, .logs, .community, .settings]
     }
 
     var body: some View {
@@ -502,13 +498,14 @@ private struct RootSidebar: View {
     }
 }
 
-/// Compact iPhone tabs using a standard TabView. Excludes legacy Attendance tab.
+/// Compact iPhone tabs using a standard TabView. Attendance is positioned above Students.
 private struct RootCompactTabs: View {
     // Bind to RootView's selected tab state via the raw string value
     @Binding var selectedTabRaw: String
 
     private var tabs: [RootView.Tab] {
-        RootView.Tab.allCases.filter { $0 != .attendance }
+        // Manual ordering: Attendance first, then Students, then the rest
+        [.attendance, .students, .albums, .planning, .today, .logs, .community, .settings]
     }
 
     var body: some View {

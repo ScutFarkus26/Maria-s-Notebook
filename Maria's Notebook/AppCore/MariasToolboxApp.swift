@@ -609,16 +609,44 @@ struct MariasToolboxApp: App {
             }
 
             // 3. VIEW ACTIONS (View Menu)
-            // Moves "Attendance" to the View menu since it's a navigation action
+            // Quick Navigation Shortcuts for main tabs
             CommandGroup(after: .sidebar) {
                 Divider()
+                
+                // Quick Navigation Shortcuts
+                Button("Today") { appRouter.selectedTab = RootView.Tab.today }
+                    .keyboardShortcut("1", modifiers: .command)
+                
+                Button("Planning") { appRouter.selectedTab = RootView.Tab.planning }
+                    .keyboardShortcut("2", modifiers: .command)
+
+                Button("Students") { appRouter.selectedTab = RootView.Tab.students }
+                    .keyboardShortcut("3", modifiers: .command)
+                    
+                Button("Lessons") { appRouter.selectedTab = RootView.Tab.albums }
+                    .keyboardShortcut("4", modifiers: .command)
+                    
+                Button("Logs") { appRouter.selectedTab = RootView.Tab.logs }
+                    .keyboardShortcut("5", modifiers: .command)
+                    
+                Divider()
+                
                 Button("Open Attendance") {
                     appRouter.requestOpenAttendance()
                 }
                 .keyboardShortcut("0", modifiers: [.command])
             }
+            
+            // 4. STANDARD SETTINGS (App Menu)
+            // Maps the standard macOS "Settings..." menu item (Cmd+,) to your Settings tab
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    appRouter.selectedTab = RootView.Tab.settings
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
 
-            // 4. HELP & TROUBLESHOOTING (Help Menu)
+            // 5. HELP & TROUBLESHOOTING (Help Menu)
             // Hides the "junk" inside a submenu in Help, or you can delete it entirely
             CommandGroup(replacing: .help) {
                 // Keeps the default search bar

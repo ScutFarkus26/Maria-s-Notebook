@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 // Public enum so both views can see it
 enum StudentMode: String, CaseIterable, Identifiable {
     case roster = "Roster"
-    case attendance = "Attendance"
     case workOverview = "Workload"
     var id: String { rawValue }
 }
@@ -52,9 +51,6 @@ struct StudentsRootView: View {
     var body: some View {
         StudentsView(
             mode: Binding(get: { mode }, set: { mode = $0 }),
-            attendanceContent: {
-                AttendanceView()
-            },
             workloadContent: {
                 workOverviewContent
             }
@@ -70,13 +66,6 @@ struct StudentsRootView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
             #endif
-        }
-        // Allow external triggers to jump straight to Attendance mode
-        .onChange(of: appRouter.navigationDestination) { _, destination in
-            if case .openAttendance = destination {
-                modeRaw = StudentMode.attendance.rawValue
-                appRouter.clearNavigation()
-            }
         }
     }
 

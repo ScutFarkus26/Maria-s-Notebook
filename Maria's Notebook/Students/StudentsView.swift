@@ -3,9 +3,8 @@ import SwiftData
 import UniformTypeIdentifiers
 
 /// Top-level view for managing and browsing students with a unified sidebar.
-struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
+struct StudentsView<WorkloadContent: View>: View {
     @Binding var mode: StudentMode
-    @ViewBuilder let attendanceContent: AttendanceContent
     @ViewBuilder let workloadContent: WorkloadContent
     
     @Environment(\.modelContext) private var modelContext
@@ -226,8 +225,6 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
                 switch mode {
                 case .roster:
                     rosterGridContent
-                case .attendance:
-                    attendanceContent
                 case .workOverview:
                     workloadContent
                 }
@@ -351,9 +348,6 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
                     
                     SidebarNavButton(title: "Roster", icon: "person.3", isSelected: mode == .roster) {
                         mode = .roster
-                    }
-                    SidebarNavButton(title: "Attendance", icon: "checklist", isSelected: mode == .attendance) {
-                        mode = .attendance
                     }
                     SidebarNavButton(title: "Workload", icon: "doc.text", isSelected: mode == .workOverview) {
                         mode = .workOverview
