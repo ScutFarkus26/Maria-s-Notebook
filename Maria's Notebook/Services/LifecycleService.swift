@@ -2,6 +2,24 @@ import Foundation
 import SwiftData
 
 struct LifecycleService {
+    /// Cleans orphaned student IDs from a StudentLesson by removing IDs that no longer exist in the database.
+    /// This ensures referential integrity when using manual ID management instead of SwiftData relationships.
+    static func cleanOrphanedStudentIDs(
+        for studentLesson: StudentLesson,
+        validStudentIDs: Set<String>,
+        modelContext: ModelContext
+    ) {
+        let originalIDs = studentLesson.studentIDs
+        let cleanedIDs = originalIDs.filter { validStudentIDs.contains($0) }
+        if cleanedIDs.count != originalIDs.count {
+            studentLesson.studentIDs = cleanedIDs
+            // Also update the transient relationship array
+            studentLesson.students = studentLesson.students.filter { student in
+                validStudentIDs.contains(student.id.uuidString)
+            }
+        }
+    }
+    
     /// Record a Presentation (immutable) and create per-student WorkContract items.
     /// Idempotent by `legacyStudentLessonID` on Presentation and (presentationID, studentID) on WorkContract.
     static func recordPresentationAndExplodeWork(
@@ -9,10 +27,15 @@ struct LifecycleService {
         presentedAt: Date,
         modelContext: ModelContext
     ) throws -> (presentation: Presentation, work: [WorkContract]) {
+        // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
+        let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
+        let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
+        cleanOrphanedStudentIDs(for: studentLesson, validStudentIDs: validStudentIDs, modelContext: modelContext)
+        
         let legacyID = studentLesson.id.uuidString
         // CloudKit compatibility: lessonID is already String
         let lessonIDStr = studentLesson.lessonID
-        // studentIDs is already [String] for CloudKit compatibility
+        // studentIDs is already [String] for CloudKit compatibility (now cleaned of orphans)
         let studentIDStrs = studentLesson.studentIDs
 
         // 1) Lookup existing Presentation by legacy link

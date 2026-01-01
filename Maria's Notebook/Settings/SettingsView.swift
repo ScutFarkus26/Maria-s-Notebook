@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if DEBUG
+import Foundation
+#endif
 
 // MARK: - SettingsView styled like the reference app, adapted to this app's data
 struct SettingsView: View {
@@ -68,6 +71,20 @@ struct SettingsView: View {
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
+        }
+        .onAppear {
+            #if DEBUG
+            PerformanceLogger.logScreenLoad(
+                screenName: "SettingsView",
+                itemCounts: [
+                    "students": students.count,
+                    "lessons": lessons.count,
+                    "studentLessons": studentLessons.count,
+                    "plannedLessons": plannedLessons.count,
+                    "givenLessons": givenLessons.count
+                ]
+            )
+            #endif
         }
         .alert(isPresented: isMaintenanceAlertPresented) {
             Alert(

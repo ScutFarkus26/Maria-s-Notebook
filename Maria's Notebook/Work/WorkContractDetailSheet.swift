@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 import Foundation
+#if DEBUG
+#endif
 
 struct WorkContractDetailSheet: View {
     let contract: WorkContract
@@ -91,6 +93,19 @@ struct WorkContractDetailSheet: View {
             }.padding(16).background(.bar)
         }
         .onAppear {
+            #if DEBUG
+            PerformanceLogger.logScreenLoad(
+                screenName: "WorkContractDetailSheet",
+                itemCounts: [
+                    "lessons": lessons.count,
+                    "students": students.count,
+                    "workNotes": workNotes.count,
+                    "presentations": presentations.count,
+                    "planItems": planItems.count,
+                    "peerContracts": peerContracts.count
+                ]
+            )
+            #endif
             resolvedPresentationID = resolvePresentationID()
             reloadPresentationNotes()
         }

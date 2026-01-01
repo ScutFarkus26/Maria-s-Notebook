@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if DEBUG
+import Foundation
+#endif
 
 private enum StudentLessonsSort: String {
     case presentThenGiven = "Default"
@@ -108,6 +111,10 @@ struct StudentLessonsRootView: View {
     }
 
     private var filteredAndSorted: [StudentLesson] {
+        #if DEBUG
+        let startTime = Date()
+        #endif
+        
         // Apply completion filter first
         var base: [StudentLesson]
         switch filter {
@@ -138,6 +145,7 @@ struct StudentLessonsRootView: View {
         }
 
         // Sorting
+        let result: [StudentLesson]
         switch sort {
         case .presentThenGiven:
             let upcoming: [StudentLesson] = base.filter { !$0.isGiven }.sorted { lhs, rhs in
@@ -157,11 +165,11 @@ struct StudentLessonsRootView: View {
                 let r = rhs.givenAt ?? .distantPast
                 return l > r
             }
-            return upcoming + given
+            result = upcoming + given
         case .dateCreated:
-            return base.sorted { lhs, rhs in lhs.createdAt > rhs.createdAt }
+            result = base.sorted { lhs, rhs in lhs.createdAt > rhs.createdAt }
         case .dateGiven:
-            return base.sorted { lhs, rhs in
+            result = base.sorted { lhs, rhs in
                 switch (lhs.givenAt, rhs.givenAt) {
                 case let (l?, r?):
                     return l > r
@@ -176,6 +184,17 @@ struct StudentLessonsRootView: View {
                 }
             }
         }
+        
+        #if DEBUG
+        let duration = Date().timeIntervalSince(startTime)
+        PerformanceLogger.log(
+            screenName: "StudentLessonsRootView - Filter & Sort",
+            itemCount: result.count,
+            duration: duration
+        )
+        #endif
+        
+        return result
     }
 
     private var columns: [GridItem] {
@@ -212,6 +231,27 @@ struct StudentLessonsRootView: View {
                 if let first = studentLessons.first { quickActionsLessonID = first.id }
                 appRouter.clearNavigation()
             }
+        }
+        .onAppear {
+            #if DEBUG
+            PerformanceLogger.logScreenLoad(
+                screenName: "StudentLessonsRootView",
+                itemCounts: [
+                    "studentLessons": studentLessons.count,
+                    "lessons": lessons.count,
+                    "students": students.count
+                ]
+            )
+            #endif
+        }
+        .onChange(of: studentLessons.count) { _, newCount in
+            #if DEBUG
+            PerformanceLogger.log(
+                screenName: "StudentLessonsRootView - Query Update",
+                itemCount: newCount,
+                duration: 0
+            )
+            #endif
         }
     }
 

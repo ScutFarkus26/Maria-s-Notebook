@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if DEBUG
+import Foundation
+#endif
 
 
 @MainActor struct PlanningWeekView: View {
@@ -158,6 +161,16 @@ import SwiftData
                 sheetContent(for: sheet)
             }
             .onAppear {
+                #if DEBUG
+                PerformanceLogger.logScreenLoad(
+                    screenName: "PlanningWeekView",
+                    itemCounts: [
+                        "studentLessons": studentLessons.count,
+                        "lessons": lessons.count,
+                        "students": students.count
+                    ]
+                )
+                #endif
                 DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
                 DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
                 startDate = computeInitialStartDate()

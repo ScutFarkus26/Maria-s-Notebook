@@ -942,11 +942,81 @@ public final class BackupService {
 
         var warnings: [String] = []
 
-        // Replace mode: clear existing data first
+        // Replace mode: validate backup in temporary container before wiping main store
+        // This prevents the "all-or-nothing suicide pact" where a failed import leaves the user with zero data
         if mode == .replace {
-            progress(0.40, "Clearing existing data…")
-            AppRouter.shared.signalAppDataWillBeReplaced()
-            try deleteAll(modelContext: modelContext)
+            progress(0.35, "Validating backup in temporary container…")
+            // Create a temporary in-memory container to validate the backup
+            let tempConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+            let tempContainer = try ModelContainer(for: AppSchema.schema, configurations: tempConfig)
+            let tempContext = ModelContext(tempContainer)
+            
+            // Attempt to import into temporary container first
+            do {
+                // Import students first (required for foreign key validation)
+                for dto in payload.students {
+                    let s = Student(
+                        id: dto.id,
+                        firstName: dto.firstName,
+                        lastName: dto.lastName,
+                        birthday: dto.birthday,
+                        level: dto.level == .upper ? .upper : .lower
+                    )
+                    s.dateStarted = dto.dateStarted
+                    s.nextLessons = dto.nextLessons.map { $0.uuidString }
+                    s.manualOrder = dto.manualOrder
+                    tempContext.insert(s)
+                }
+                
+                // Import lessons (required for foreign key validation)
+                for dto in payload.lessons {
+                    let l = Lesson(
+                        id: dto.id,
+                        name: dto.name,
+                        subject: dto.subject,
+                        group: dto.group,
+                        orderInGroup: dto.orderInGroup,
+                        subheading: dto.subheading,
+                        writeUp: dto.writeUp
+                    )
+                    if let pages = dto.pagesFileRelativePath { l.pagesFileRelativePath = pages }
+                    tempContext.insert(l)
+                }
+                
+                // Import StudentLessons (critical for validation - tests foreign key integrity)
+                for dto in payload.studentLessons {
+                    let sl = StudentLesson(
+                        id: dto.id,
+                        lessonID: dto.lessonID,
+                        studentIDs: dto.studentIDs,
+                        createdAt: dto.createdAt,
+                        scheduledFor: dto.scheduledFor,
+                        givenAt: dto.givenAt,
+                        notes: dto.notes,
+                        needsPractice: dto.needsPractice,
+                        needsAnotherPresentation: dto.needsAnotherPresentation,
+                        followUpWork: dto.followUpWork
+                    )
+                    tempContext.insert(sl)
+                }
+                
+                // Try to save the temporary container - if this fails, the backup is invalid
+                try tempContext.save()
+                
+                // Validation successful - now safe to wipe main store
+                progress(0.40, "Backup validated. Clearing existing data…")
+                AppRouter.shared.signalAppDataWillBeReplaced()
+                try deleteAll(modelContext: modelContext)
+            } catch {
+                // Validation failed - abort and throw error without wiping main store
+                throw NSError(
+                    domain: "BackupService",
+                    code: 1004,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Backup validation failed. The backup file contains invalid data that cannot be imported. Your existing data has NOT been modified. Error: \(error.localizedDescription)"
+                    ]
+                )
+            }
         }
 
         progress(0.65, "Importing records…")
@@ -1252,6 +1322,22 @@ public final class BackupService {
 
         progress(0.90, "Saving…")
         try modelContext.save()
+        
+        // CRITICAL: Repair denormalized fields after bulk import
+        // This ensures scheduledForDay is properly synced with scheduledFor
+        progress(0.92, "Repairing denormalized fields…")
+        let allStudentLessons = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+        var repairedCount = 0
+        for sl in allStudentLessons {
+            let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+            if sl.scheduledForDay != correct {
+                sl.scheduledForDay = correct
+                repairedCount += 1
+            }
+        }
+        if repairedCount > 0 {
+            try modelContext.save()
+        }
 
         // Apply preferences
         applyPreferencesDTO(payload.preferences)

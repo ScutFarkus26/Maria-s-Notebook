@@ -43,6 +43,12 @@ final class AppBootstrapper: ObservableObject {
         DataMigrations.migrateUUIDForeignKeysToStringsIfNeeded(using: context)
         DataMigrations.migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)
         
+        // 3.7. Data Integrity Repairs (run on every launch to catch any corruption)
+        // Repair denormalized scheduledForDay fields
+        DataMigrations.repairDenormalizedScheduledForDay(using: context)
+        // Clean orphaned student IDs from StudentLesson records
+        DataMigrations.cleanOrphanedStudentIDs(using: context)
+        
         // 4. Legacy Data (Run asynchronously without awaiting if it's safe, or await if dependent)
         LegacyNotesMigration.runIfNeeded(modelContext: context)
         

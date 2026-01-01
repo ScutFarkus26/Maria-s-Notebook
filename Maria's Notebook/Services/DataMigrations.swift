@@ -194,4 +194,62 @@ enum DataMigrations {
             print("DataMigrations: AttendanceRecord studentID migration completed. Records will be migrated lazily on access.")
         }
     }
+    
+    /// Repairs denormalized scheduledForDay fields to match scheduledFor.
+    /// This ensures data integrity when scheduledForDay gets out of sync with scheduledFor
+    /// (e.g., during bulk imports or when didSet doesn't fire during initialization).
+    /// Safe to call repeatedly - it's idempotent and only fixes mismatched records.
+    static func repairDenormalizedScheduledForDay(using context: ModelContext) {
+        let fetch = FetchDescriptor<StudentLesson>()
+        let lessons = context.safeFetch(fetch)
+        var repaired = 0
+        
+        for sl in lessons {
+            let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+            if sl.scheduledForDay != correct {
+                sl.scheduledForDay = correct
+                repaired += 1
+            }
+        }
+        
+        if repaired > 0 {
+            context.safeSave()
+            print("DataMigrations: Repaired \(repaired) StudentLesson records with mismatched scheduledForDay")
+        }
+    }
+    
+    /// Cleans orphaned student IDs from StudentLesson records.
+    /// Removes student IDs that no longer exist in the database to maintain referential integrity
+    /// when using manual ID management instead of SwiftData relationships.
+    /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
+    static func cleanOrphanedStudentIDs(using context: ModelContext) {
+        // Fetch all students to build valid ID set
+        let studentFetch = FetchDescriptor<Student>()
+        let allStudents = context.safeFetch(studentFetch)
+        let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
+        
+        // Fetch all StudentLessons
+        let lessonFetch = FetchDescriptor<StudentLesson>()
+        let allLessons = context.safeFetch(lessonFetch)
+        
+        var cleaned = 0
+        for sl in allLessons {
+            let originalIDs = sl.studentIDs
+            let cleanedIDs = originalIDs.filter { validStudentIDs.contains($0) }
+            
+            if cleanedIDs.count != originalIDs.count {
+                sl.studentIDs = cleanedIDs
+                // Also update the transient relationship array
+                sl.students = sl.students.filter { student in
+                    validStudentIDs.contains(student.id.uuidString)
+                }
+                cleaned += 1
+            }
+        }
+        
+        if cleaned > 0 {
+            context.safeSave()
+            print("DataMigrations: Cleaned orphaned student IDs from \(cleaned) StudentLesson records")
+        }
+    }
 }

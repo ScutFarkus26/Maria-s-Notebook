@@ -161,26 +161,7 @@ struct RootView: View {
     var body: some View {
         VStack(spacing: 0) {
             if UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
-                let reason = UserDefaults.standard.string(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey) ?? "The persistent store could not be opened. Data will not persist this session."
-                HStack(alignment: .center, spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Warning: Data won't persist this session").font(.callout).fontWeight(.semibold)
-                        Text(reason).font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button {
-                        appRouter.requestCreateBackup()
-                    } label: {
-                        Label("Backup Now", systemImage: "externaldrive.badge.plus")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
-                .overlay(Rectangle().frame(height: 1).foregroundStyle(Color.primary.opacity(0.1)), alignment: .bottom)
+                EphemeralStoreWarningBanner()
             }
 
             Divider()
@@ -667,6 +648,81 @@ private struct RootCompactTabs: View {
                     .tag(item.rawValue)
             }
         }
+    }
+}
+
+/// Warning banner displayed when using ephemeral/in-memory store.
+/// Extracted to avoid type-checking complexity in the main body.
+private struct EphemeralStoreWarningBanner: View {
+    @Environment(\.appRouter) private var appRouter
+    
+    private var reason: String {
+        UserDefaults.standard.string(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey) 
+        ?? "The persistent store could not be opened. Data will not persist this session."
+    }
+    
+    private var isInMemoryMode: Bool {
+        reason.contains("in-memory") || reason.contains("temporary")
+    }
+    
+    private var warningTitle: String {
+        isInMemoryMode ? "⚠️ SAFE MODE: CHANGES WILL NOT BE SAVED" : "Warning: Data won't persist this session"
+    }
+    
+    private var warningMessage: String {
+        isInMemoryMode 
+        ? "You are using an in-memory store. All data will be lost when you quit the app. Create a backup immediately!" 
+        : reason
+    }
+    
+    private var iconColor: Color {
+        isInMemoryMode ? .red : .yellow
+    }
+    
+    private var titleColor: Color {
+        isInMemoryMode ? .red : .primary
+    }
+    
+    private var backgroundColor: AnyShapeStyle {
+        isInMemoryMode ? AnyShapeStyle(Color.red.opacity(0.1)) : AnyShapeStyle(.ultraThinMaterial)
+    }
+    
+    private var borderColor: Color {
+        isInMemoryMode ? Color.red.opacity(0.3) : Color.primary.opacity(0.1)
+    }
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(iconColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(warningTitle)
+                    .font(.callout)
+                    .fontWeight(.bold)
+                    .foregroundStyle(titleColor)
+                Text(warningMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                appRouter.requestCreateBackup()
+            } label: {
+                Label("Backup Now", systemImage: "externaldrive.badge.plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(isInMemoryMode ? .red : nil)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(backgroundColor)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundStyle(borderColor),
+            alignment: .bottom
+        )
     }
 }
 

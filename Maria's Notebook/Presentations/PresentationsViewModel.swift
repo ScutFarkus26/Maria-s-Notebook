@@ -6,6 +6,8 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Combine
+#if DEBUG
+#endif
 
 @MainActor
 final class PresentationsViewModel: ObservableObject {
@@ -69,7 +71,16 @@ final class PresentationsViewModel: ObservableObject {
         // 1. Fetch all StudentLessons (needed for blocking logic and days-since calculations)
         let studentLessons: [StudentLesson]
         do {
+            #if DEBUG
+            studentLessons = try PerformanceLogger.measure(
+                screenName: "PresentationsViewModel - Fetch StudentLessons",
+                operation: {
+                    try modelContext.fetch(FetchDescriptor<StudentLesson>())
+                }
+            )
+            #else
             studentLessons = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+            #endif
         } catch {
             studentLessons = []
         }
@@ -77,7 +88,16 @@ final class PresentationsViewModel: ObservableObject {
         // 2. Fetch all Lessons (needed for grouping and blocking logic - requires full group structure)
         let lessons: [Lesson]
         do {
+            #if DEBUG
+            lessons = try PerformanceLogger.measure(
+                screenName: "PresentationsViewModel - Fetch Lessons",
+                operation: {
+                    try modelContext.fetch(FetchDescriptor<Lesson>())
+                }
+            )
+            #else
             lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+            #endif
         } catch {
             lessons = []
         }
@@ -85,14 +105,42 @@ final class PresentationsViewModel: ObservableObject {
         // 3. Fetch all Students (needed for filtering and calculations)
         let students: [Student]
         do {
+            #if DEBUG
+            students = try PerformanceLogger.measure(
+                screenName: "PresentationsViewModel - Fetch Students",
+                operation: {
+                    try modelContext.fetch(FetchDescriptor<Student>())
+                }
+            )
+            #else
             students = try modelContext.fetch(FetchDescriptor<Student>())
+            #endif
         } catch {
             students = []
         }
         
+        #if DEBUG
+        PerformanceLogger.log(
+            screenName: "PresentationsViewModel - Fetch Results",
+            itemCount: studentLessons.count + lessons.count + students.count,
+            duration: 0
+        )
+        PerformanceLogger.logScreenLoad(
+            screenName: "PresentationsViewModel",
+            itemCounts: [
+                "studentLessons": studentLessons.count,
+                "lessons": lessons.count,
+                "students": students.count
+            ]
+        )
+        #endif
+        
         // 4. Fetch only active/review contracts (already optimized)
         let contracts: [WorkContract]
         do {
+            #if DEBUG
+            let startTime = Date()
+            #endif
             let activeDesc = FetchDescriptor<WorkContract>(
                 predicate: #Predicate { $0.statusRaw == "active" }
             )
@@ -102,6 +150,14 @@ final class PresentationsViewModel: ObservableObject {
             let active = try modelContext.fetch(activeDesc)
             let review = try modelContext.fetch(reviewDesc)
             contracts = active + review
+            #if DEBUG
+            let duration = Date().timeIntervalSince(startTime)
+            PerformanceLogger.log(
+                screenName: "PresentationsViewModel - Fetch Contracts",
+                itemCount: contracts.count,
+                duration: duration
+            )
+            #endif
         } catch {
             contracts = []
         }
