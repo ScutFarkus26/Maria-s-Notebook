@@ -3,7 +3,10 @@ import Foundation
 // MARK: - Constants
 public enum BackupFile {
     public static let fileExtension = "mtbbackup"
-    public static let formatVersion = 4
+    /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
+    public static let formatVersion = 5
+    /// Minimum format version that enforces checksum validation
+    public static let checksumEnforcedVersion = 5
 }
 
 // MARK: - Envelope / Manifest / Payload

@@ -24,28 +24,36 @@ public final class BackupService {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         
-        progress(0.05, "Collecting data…")
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.0), "Collecting students…")
 
-        // Fetch all entities
+        // Fetch all entities with improved progress reporting
         let students: [Student] = safeFetch(Student.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons…")
         let lessons: [Lesson] = safeFetch(Lesson.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.12), "Collecting student lessons…")
         let studentLessons: [StudentLesson] = safeFetch(StudentLesson.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.18), "Collecting work contracts…")
         let workContracts: [WorkContract] = safeFetch(WorkContract.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.21), "Collecting work plan items…")
         let workPlanItems: [WorkPlanItem] = safeFetch(WorkPlanItem.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes…")
         let scopedNotes: [ScopedNote] = safeFetch(ScopedNote.self, using: modelContext)
         let notes: [Note] = safeFetch(Note.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.27), "Collecting calendar data…")
         let nonSchoolDays: [NonSchoolDay] = safeFetch(NonSchoolDay.self, using: modelContext)
         let schoolDayOverrides: [SchoolDayOverride] = safeFetch(SchoolDayOverride.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.30), "Collecting meetings and presentations…")
         let studentMeetings: [StudentMeeting] = safeFetch(StudentMeeting.self, using: modelContext)
         let presentations: [Presentation] = safeFetch(Presentation.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.33), "Collecting community data…")
         let communityTopics: [CommunityTopic] = safeFetch(CommunityTopic.self, using: modelContext)
         let proposedSolutions: [ProposedSolution] = safeFetch(ProposedSolution.self, using: modelContext)
         let meetingNotes: [MeetingNote] = safeFetch(MeetingNote.self, using: modelContext)
         let communityAttachments: [CommunityAttachment] = safeFetch(CommunityAttachment.self, using: modelContext)
-
-        // Attendance, Work Completions, and Book Clubs
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.36), "Collecting attendance and work completions…")
         let attendance: [AttendanceRecord] = safeFetch(AttendanceRecord.self, using: modelContext)
         let workCompletions: [WorkCompletionRecord] = safeFetch(WorkCompletionRecord.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.39), "Collecting book clubs…")
         let bookClubs: [BookClub] = safeFetch(BookClub.self, using: modelContext)
         let bookClubTemplates: [BookClubAssignmentTemplate] = safeFetch(BookClubAssignmentTemplate.self, using: modelContext)
         let bookClubSessions: [BookClubSession] = safeFetch(BookClubSession.self, using: modelContext)
@@ -368,10 +376,10 @@ public final class BackupService {
             preferences: preferences
         )
 
-        progress(0.35, "Encoding…")
+        progress(BackupProgress.progress(for: .encoding), "Encoding data…")
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .sortedKeys
+        encoder.outputFormatting = .sortedKeys  // Ensures deterministic JSON for checksum validation
         let payloadBytes = try encoder.encode(payload)
         let sha = sha256Hex(payloadBytes)
 
@@ -380,7 +388,7 @@ public final class BackupService {
         let finalEncrypted: Data?
 
         if let password = password, !password.isEmpty {
-            progress(0.50, "Encrypting…")
+            progress(BackupProgress.progress(for: .encrypting), "Encrypting data…")
             // 1. Generate 32-byte Salt
             let saltKey = SymmetricKey(size: .bits256)
             let salt = saltKey.withUnsafeBytes { Data($0) }
@@ -441,7 +449,7 @@ public final class BackupService {
             encryptedPayload: finalEncrypted
         )
 
-        progress(0.70, "Writing file…")
+        progress(BackupProgress.progress(for: .writing), "Writing backup file…")
         let envBytes = try encoder.encode(env)
         
         // Remove existing file if any
@@ -449,8 +457,23 @@ public final class BackupService {
             try? FileManager.default.removeItem(at: url)
         }
         try envBytes.write(to: url, options: .atomic)
+        
+        // Set appropriate file permissions (read-write for owner only if encrypted, otherwise standard)
+        if finalEncrypted != nil {
+            try? FileManager.default.setAttributes([
+                .posixPermissions: NSNumber(value: 0o600)  // rw-------
+            ], ofItemAtPath: url.path)
+        }
 
-        progress(1.0, "Done")
+        // Verify backup by reading it back
+        progress(BackupProgress.progress(for: .verifying), "Verifying backup…")
+        let verificationData = try Data(contentsOf: url)
+        let verificationDecoder = JSONDecoder()
+        verificationDecoder.dateDecodingStrategy = .iso8601
+        let _ = try verificationDecoder.decode(BackupEnvelope.self, from: verificationData)
+        // If decode succeeds, file structure is valid
+
+        progress(BackupProgress.progress(for: .complete), "Backup complete")
         return BackupOperationSummary(
             kind: .export,
             fileName: url.lastPathComponent,
@@ -511,12 +534,24 @@ public final class BackupService {
             throw NSError(domain: "BackupService", code: 1101, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload."])
         }
 
-        progress(0.20, "Validating…")
-        // Checksum validation temporarily disabled to allow restoring backups with non-deterministic key order.
-        // let sha = sha256Hex(payloadBytes)
-        // guard sha == envelope.manifest.sha256 else {
-        //     throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
-        // }
+        progress(0.20, "Validating checksum…")
+        // Checksum validation: enforced for format version 5+, optional bypass for older versions
+        let isNewFormat = envelope.formatVersion >= BackupFile.checksumEnforcedVersion
+        let bypassEnabled = UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass")
+        let shouldValidateChecksum = isNewFormat || !bypassEnabled
+        
+        if shouldValidateChecksum && !envelope.manifest.sha256.isEmpty {
+            let sha = sha256Hex(payloadBytes)
+            guard sha == envelope.manifest.sha256 else {
+                throw NSError(
+                    domain: "BackupService",
+                    code: 1102,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Checksum mismatch. The backup file may be corrupted. Expected: \(envelope.manifest.sha256.prefix(16))..., got: \(sha.prefix(16))..."
+                    ]
+                )
+            }
+        }
 
         // Decode payload
         let payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
@@ -665,21 +700,72 @@ public final class BackupService {
             throw NSError(domain: "BackupService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload."])
         }
 
-        progress(0.20, "Validating…")
-        // Checksum validation temporarily disabled to allow restoring backups with non-deterministic key order.
-        // let sha = sha256Hex(payloadBytes)
-        // guard sha == envelope.manifest.sha256 else {
-        //     throw NSError(domain: "BackupService", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
-        // }
+        progress(0.20, "Validating checksum…")
+        // Checksum validation: enforced for format version 5+, optional bypass for older versions
+        let isNewFormat = envelope.formatVersion >= BackupFile.checksumEnforcedVersion
+        let bypassEnabled = UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass")
+        let shouldValidateChecksum = isNewFormat || !bypassEnabled
+        
+        if shouldValidateChecksum && !envelope.manifest.sha256.isEmpty {
+            let sha = sha256Hex(payloadBytes)
+            guard sha == envelope.manifest.sha256 else {
+                throw NSError(
+                    domain: "BackupService",
+                    code: 1002,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Checksum mismatch. The backup file may be corrupted. Expected: \(envelope.manifest.sha256.prefix(16))..., got: \(sha.prefix(16))..."
+                    ]
+                )
+            }
+        }
 
         // Decode payload
         let payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
 
-        // Validation: duplicate IDs (at least students)
-        let studentIDs = payload.students.map { $0.id }
-        let dupStudentIDs = Set(studentIDs.filter { id in studentIDs.filter { $0 == id }.count > 1 })
-        if !dupStudentIDs.isEmpty {
-            throw NSError(domain: "BackupService", code: 1003, userInfo: [NSLocalizedDescriptionKey: "Duplicate Student IDs found in backup: \(dupStudentIDs.map { $0.uuidString }.joined(separator: ", "))"])
+        // Validation: duplicate IDs for all entity types
+        var duplicateErrors: [String] = []
+        
+        func validateNoDuplicates(_ ids: [UUID], entityName: String) {
+            let uniqueIds = Set(ids)
+            if ids.count != uniqueIds.count {
+                let duplicates = Array(Set(ids.filter { id in ids.filter { $0 == id }.count > 1 }))
+                let duplicateStrings = duplicates.prefix(5).map { $0.uuidString }
+                duplicateErrors.append("\(entityName): \(duplicates.count) duplicate ID(s) found (showing first 5: \(duplicateStrings.joined(separator: ", ")))")
+            }
+        }
+        
+        validateNoDuplicates(payload.students.map { $0.id }, entityName: "Student")
+        validateNoDuplicates(payload.lessons.map { $0.id }, entityName: "Lesson")
+        validateNoDuplicates(payload.studentLessons.map { $0.id }, entityName: "StudentLesson")
+        validateNoDuplicates(payload.workContracts.map { $0.id }, entityName: "WorkContract")
+        validateNoDuplicates(payload.workPlanItems.map { $0.id }, entityName: "WorkPlanItem")
+        validateNoDuplicates(payload.scopedNotes.map { $0.id }, entityName: "ScopedNote")
+        validateNoDuplicates(payload.notes.map { $0.id }, entityName: "Note")
+        validateNoDuplicates(payload.nonSchoolDays.map { $0.id }, entityName: "NonSchoolDay")
+        validateNoDuplicates(payload.schoolDayOverrides.map { $0.id }, entityName: "SchoolDayOverride")
+        validateNoDuplicates(payload.studentMeetings.map { $0.id }, entityName: "StudentMeeting")
+        validateNoDuplicates(payload.presentations.map { $0.id }, entityName: "Presentation")
+        validateNoDuplicates(payload.communityTopics.map { $0.id }, entityName: "CommunityTopic")
+        validateNoDuplicates(payload.proposedSolutions.map { $0.id }, entityName: "ProposedSolution")
+        validateNoDuplicates(payload.meetingNotes.map { $0.id }, entityName: "MeetingNote")
+        validateNoDuplicates(payload.communityAttachments.map { $0.id }, entityName: "CommunityAttachment")
+        validateNoDuplicates(payload.attendance.map { $0.id }, entityName: "AttendanceRecord")
+        validateNoDuplicates(payload.workCompletions.map { $0.id }, entityName: "WorkCompletionRecord")
+        validateNoDuplicates(payload.bookClubs.map { $0.id }, entityName: "BookClub")
+        validateNoDuplicates(payload.bookClubAssignmentTemplates.map { $0.id }, entityName: "BookClubAssignmentTemplate")
+        validateNoDuplicates(payload.bookClubSessions.map { $0.id }, entityName: "BookClubSession")
+        validateNoDuplicates(payload.bookClubRoles.map { $0.id }, entityName: "BookClubRole")
+        validateNoDuplicates(payload.bookClubTemplateWeeks.map { $0.id }, entityName: "BookClubTemplateWeek")
+        validateNoDuplicates(payload.bookClubWeekRoleAssignments.map { $0.id }, entityName: "BookClubWeekRoleAssignment")
+        
+        if !duplicateErrors.isEmpty {
+            throw NSError(
+                domain: "BackupService",
+                code: 1003,
+                userInfo: [
+                    NSLocalizedDescriptionKey: "Duplicate IDs found in backup:\n" + duplicateErrors.joined(separator: "\n")
+                ]
+            )
         }
 
         var warnings: [String] = []
@@ -787,7 +873,7 @@ public final class BackupService {
             // Ensure referenced lesson exists
             let lessonExists = (try? fetchOne(Lesson.self, id: dto.lessonID, using: modelContext)) ?? nil
             if lessonExists == nil {
-                warnings.append("Skipped StudentLesson \(dto.id) due to missing Lesson \(dto.lessonID)")
+                warnings.append("Skipped StudentLesson \(dto.id.uuidString.prefix(8))... due to missing Lesson \(dto.lessonID.uuidString.prefix(8))...")
                 continue
             }
             if (try? fetchOne(StudentLesson.self, id: dto.id, using: modelContext)) != nil { continue }
@@ -1178,32 +1264,8 @@ public final class BackupService {
     }
 
     private func deleteAll(modelContext: ModelContext) throws {
-        let types: [any PersistentModel.Type] = [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            Note.self,
-            ScopedNote.self,
-            Presentation.self,
-            WorkContract.self,
-            WorkPlanItem.self,
-            AttendanceRecord.self,
-            NonSchoolDay.self,
-            SchoolDayOverride.self,
-            StudentMeeting.self,
-            CommunityTopic.self,
-            ProposedSolution.self,
-            MeetingNote.self,
-            CommunityAttachment.self,
-            WorkCompletionRecord.self,
-            BookClub.self,
-            BookClubAssignmentTemplate.self,
-            BookClubSession.self,
-            BookClubRole.self,
-            BookClubTemplateWeek.self,
-            BookClubWeekRoleAssignment.self
-        ]
-        for type in types {
+        // Use centralized entity registry
+        for type in BackupEntityRegistry.allTypes {
             try? modelContext.delete(model: type)
         }
         try modelContext.save()

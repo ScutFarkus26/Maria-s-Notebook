@@ -11,114 +11,252 @@ struct BackupRestoreSettingsView: View {
     @Binding var resultSummary: String?
     @Binding var defaultFolderName: String
     
-    // New property to receive the date
     let lastBackupDate: Date?
 
     let performExport: () -> Void
     let presentImporter: () -> Void
-    let presentRestorePreview: () -> Void = {}
     let chooseDefaultFolder: () -> Void
     let openDefaultFolder: () -> Void
     let clearDefaultFolder: () -> Void
 
     var body: some View {
         SettingsGroup(title: "Backup & Restore", systemImage: "arrow.triangle.2.circlepath") {
-            VStack(alignment: .leading, spacing: 12) {
-                // Display Last Backup Time
-                HStack {
-                    Text("Last Backup:")
-                    Spacer()
-                    if let date = lastBackupDate {
-                        Text("\(date, style: .relative)")
-                    } else {
-                        Text("Never")
-                    }
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 16) {
+                // MARK: - Status Section
+                statusSection
                 
                 Divider()
-
-                Toggle("Encrypt Backups", isOn: $encryptBackups)
-                Picker("Restore Mode", selection: $restoreMode) {
-                    Text("Merge").tag(BackupService.RestoreMode.merge)
-                    Text("Replace").tag(BackupService.RestoreMode.replace)
-                }
-                .pickerStyle(.segmented)
-                // Advanced: Allow checksum bypass for problematic backups
-                Toggle(isOn: Binding(
-                    get: { UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") },
-                    set: { UserDefaults.standard.set($0, forKey: "Backup.allowChecksumBypass") }
-                )) {
-                    Text("Allow checksum bypass (advanced)")
-                }
-                .tint(.red)
-                .help("If a backup fails integrity validation, enabling this lets you import it anyway with a warning. Use only if you trust the file.")
-                HStack(spacing: 12) {
-                    Button {
-                        performExport()
-                    } label: {
-                        Label("Export Backup (Data Only)", systemImage: "externaldrive.badge.plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-
-                    Button {
-                        presentImporter()
-                    } label: {
-                        Label("Import Backup…", systemImage: "arrow.down.doc")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-
-                    Button {
-                        presentRestorePreview()
-                    } label: {
-                        Label("Preview restore…", systemImage: "eye")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Preview restore without selecting a file")
-                }
+                
+                // MARK: - Backup Section
+                backupSection
+                
+                Divider()
+                
+                // MARK: - Restore Section
+                restoreSection
+                
+                Divider()
+                
+                // MARK: - Advanced Options
+                advancedSection
+                
+                Divider()
+                
+                // MARK: - Default Folder
+                defaultFolderSection
+                
+                // MARK: - Progress Indicators
                 if backupProgress > 0 && backupProgress < 1.0 {
-                    ProgressView(value: backupProgress) { Text(backupMessage) }
+                    progressIndicator(progress: backupProgress, message: backupMessage)
                 }
+                
                 if importProgress > 0 && importProgress < 1.0 {
-                    ProgressView(value: importProgress) { Text(importMessage) }
+                    progressIndicator(progress: importProgress, message: importMessage)
                 }
-                if let summary = resultSummary {
-                    Text(summary)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Divider().padding(.vertical, 4)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "externaldrive")
-                            .foregroundStyle(.secondary)
-                        Text(defaultFolderName.isEmpty ? "No default folder selected" : "Default folder: \(defaultFolderName)")
-                            .foregroundStyle(defaultFolderName.isEmpty ? .secondary : .primary)
-                    }
-                    HStack(spacing: 8) {
-                        Button {
-                            chooseDefaultFolder()
-                        } label: {
-                            Label("Choose Default Folder…", systemImage: "folder.badge.plus")
-                        }
-                        Button {
-                            openDefaultFolder()
-                        } label: {
-                            Label("Open Default Folder", systemImage: "folder")
-                        }
-                        Button(role: .destructive) {
-                            clearDefaultFolder()
-                        } label: {
-                            Label("Clear", systemImage: "xmark.circle")
-                        }
-                    }
+                
+                // MARK: - Result Summary
+                if let summary = resultSummary, !summary.isEmpty {
+                    resultSummaryView(summary)
                 }
             }
         }
     }
+    
+    // MARK: - Status Section
+    private var statusSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "clock.fill")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+                Text("Last Backup")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let date = lastBackupDate {
+                    Text(date, style: .relative)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                } else {
+                    Text("Never")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Backup Section
+    private var backupSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Create Backup")
+                .font(.headline)
+            
+            Button {
+                performExport()
+            } label: {
+                Label("Export Backup", systemImage: "externaldrive.badge.plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Toggle("Encrypt Backups", isOn: $encryptBackups)
+                .help("Encrypted backups require a password to restore")
+            
+            Text("Backups include all your data except imported documents and file attachments.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    // MARK: - Restore Section
+    private var restoreSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Restore Backup")
+                .font(.headline)
+            
+            Button {
+                presentImporter()
+            } label: {
+                Label("Import Backup…", systemImage: "arrow.down.doc")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Picker("Restore Mode", selection: $restoreMode) {
+                Text("Merge").tag(BackupService.RestoreMode.merge)
+                Text("Replace").tag(BackupService.RestoreMode.replace)
+            }
+            .pickerStyle(.segmented)
+            .help(restoreMode == .merge ? "Add backup data to existing data, skipping duplicates" : "Replace all existing data with backup data")
+            
+            Text(restoreMode == .merge 
+                 ? "Merge mode adds new records while keeping existing ones. Duplicate IDs are skipped."
+                 : "Replace mode deletes all current data and restores from the backup. This action cannot be undone.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    // MARK: - Advanced Section
+    private var advancedSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Advanced")
+                .font(.headline)
+            
+            Toggle(isOn: Binding(
+                get: { UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") },
+                set: { UserDefaults.standard.set($0, forKey: "Backup.allowChecksumBypass") }
+            )) {
+                Text("Allow checksum bypass")
+            }
+            .tint(.orange)
+            .help("If a backup fails integrity validation, enabling this lets you import it anyway with a warning. Use only if you trust the file.")
+            
+            Text("Disable integrity checks for old or problematic backup files. Not recommended for normal use.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    // MARK: - Default Folder Section
+    private var defaultFolderSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "folder.fill")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+                Text("Default Backup Location")
+                    .font(.headline)
+            }
+            
+            if defaultFolderName.isEmpty {
+                Text("No default folder selected")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack {
+                    Image(systemName: "folder")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text(defaultFolderName)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(0.05))
+                )
+            }
+            
+            HStack(spacing: 8) {
+                Button {
+                    chooseDefaultFolder()
+                } label: {
+                    Label("Choose Folder…", systemImage: "folder.badge.plus")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                
+                if !defaultFolderName.isEmpty {
+                    Button {
+                        openDefaultFolder()
+                    } label: {
+                        Label("Open", systemImage: "folder")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    
+                    Button(role: .destructive) {
+                        clearDefaultFolder()
+                    } label: {
+                        Label("Clear", systemImage: "xmark.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Progress Indicator
+    private func progressIndicator(progress: Double, message: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ProgressView(value: progress) {
+                Text(message)
+                    .font(.subheadline)
+            }
+            .progressViewStyle(.linear)
+            
+            Text("\(Int(progress * 100))%")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 4)
+    }
+    
+    // MARK: - Result Summary
+    private func resultSummaryView(_ summary: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .font(.subheadline)
+            Text(summary)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.green.opacity(0.1))
+        )
+    }
 }
-
