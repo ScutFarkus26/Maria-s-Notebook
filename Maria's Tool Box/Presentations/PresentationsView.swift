@@ -26,10 +26,23 @@ struct PresentationsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
-    @Query private var studentLessons: [StudentLesson]
+    // Keep full queries - filtering happens in ViewModel for better performance
+    @Query private var allStudentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
-    @Query private var contracts: [WorkContract]
+    
+    // OPTIMIZATION: Only fetch active/review contracts (needed for blocking logic)
+    // Split into separate queries to help compiler type-check
+    @Query(filter: #Predicate<WorkContract> { $0.statusRaw == "active" }) 
+    private var activeContractsOnly: [WorkContract]
+    
+    @Query(filter: #Predicate<WorkContract> { $0.statusRaw == "review" }) 
+    private var reviewContractsOnly: [WorkContract]
+    
+    // Computed property to combine them
+    private var activeContracts: [WorkContract] {
+        activeContractsOnly + reviewContractsOnly
+    }
 
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @AppStorage("LessonsAgenda.startDate") private var startDateRaw: Double = 0
@@ -54,6 +67,9 @@ struct PresentationsView: View {
     @State private var startDate: Date = Date()
     @State private var selectedStudentLessonForDetail: StudentLesson? = nil
     @State private var isInboxTargeted: Bool = false
+    
+    // OPTIMIZATION: Use ViewModel to cache expensive computations
+    @StateObject private var viewModel = PresentationsViewModel()
 
     // Age settings
     @AppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
@@ -61,87 +77,15 @@ struct PresentationsView: View {
     @AppStorage("LessonAge.freshColorHex") private var ageFreshHex: String = LessonAgeDefaults.freshColorHex
     @AppStorage("LessonAge.warningColorHex") private var ageWarningHex: String = LessonAgeDefaults.warningColorHex
     @AppStorage("LessonAge.overdueColorHex") private var ageOverdueHex: String = LessonAgeDefaults.overdueColorHex
-
-    // MARK: - Blocking Logic
-
-    /// Returns a map of StudentID -> Blocking WorkContract for the previous lesson
+    
+    // Computed properties that use ViewModel (preserves exact same functionality)
+    private var readyLessons: [StudentLesson] { viewModel.readyLessons }
+    private var blockedLessons: [StudentLesson] { viewModel.blockedLessons }
     private func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkContract] {
-        // 1. Resolve current lesson details (Robust fallback if relationship is nil)
-        guard let currentLesson = sl.lesson ?? lessons.first(where: { $0.id == sl.lessonID }) else {
-            return [:]
-        }
-        
-        // Helper for fuzzy matching
-        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-        
-        // 2. Find the previous lesson in this group/sequence using fuzzy matching
-        let subjectKey = norm(currentLesson.subject)
-        let groupKey = norm(currentLesson.group)
-        
-        // Find all lessons in this group
-        let groupLessons = lessons.filter {
-            norm($0.subject) == subjectKey && norm($0.group) == groupKey
-        }.sorted { $0.orderInGroup < $1.orderInGroup }
-        
-        guard let currentIndex = groupLessons.firstIndex(where: { $0.id == currentLesson.id }),
-              currentIndex > 0 else {
-            // No previous lesson, so it can't be blocked
-            return [:]
-        }
-        
-        let previousLesson = groupLessons[currentIndex - 1]
-        
-        // 3. Check if ANY student in this StudentLesson has incomplete work (Active/Review contract) for the previous lesson
-        var blocking: [UUID: WorkContract] = [:]
-        
-        for studentID in sl.studentIDs {
-            let sidString = studentID.uuidString
-            let pidString = previousLesson.id.uuidString
-            
-            // Check for contracts that are NOT complete
-            // We look for .active or .review status
-            if let contract = contracts.first(where: { c in
-                c.studentID == sidString &&
-                c.lessonID == pidString &&
-                (c.status == .active || c.status == .review)
-            }) {
-                blocking[studentID] = contract
-            }
-        }
-        
-        return blocking
-    }
-
-    /// Returns true if this lesson is "blocked" by incomplete work from the PREVIOUS lesson in the sequence
-    private func isBlocked(_ sl: StudentLesson) -> Bool {
-        !getBlockingContracts(sl).isEmpty
-    }
-
-    private var allUnscheduled: [StudentLesson] {
-        studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+        viewModel.getBlockingContracts(sl)
     }
     
-    // Lessons ready to be presented (not blocked)
-    private var readyLessons: [StudentLesson] {
-        let base = allUnscheduled.filter { !isBlocked($0) }
-        return InboxOrderStore.orderedUnscheduled(from: base, orderRaw: inboxOrderRaw)
-            .filter { anyStudentMeetsMissWindow($0) }
-    }
-    
-    // Lessons blocked by previous work
-    private var blockedLessons: [StudentLesson] {
-        return allUnscheduled.filter { isBlocked($0) }
-            .sorted { $0.createdAt < $1.createdAt }
-    }
-
-    private func anyStudentMeetsMissWindow(_ sl: StudentLesson) -> Bool {
-        guard let threshold = missWindow.threshold else { return true }
-        for sid in sl.resolvedStudentIDs {
-            let days = daysSinceLastLessonByStudent[sid] ?? Int.max
-            if days >= threshold { return true }
-        }
-        return false
-    }
+    // ViewModel will be initialized in onAppear with proper environment values
 
     private var visibleStudents: [Student] {
         TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
@@ -164,47 +108,9 @@ struct PresentationsView: View {
         return result
     }
 
+    // Use ViewModel's cached value (preserves exact same functionality)
     private var daysSinceLastLessonByStudent: [UUID: Int] {
-        var result: [UUID: Int] = [:]
-
-        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-        let excludedLessonIDs: Set<UUID> = {
-            let ids = lessons.filter { l in
-                let s = norm(l.subject)
-                let g = norm(l.group)
-                return s == "parsha" || g == "parsha"
-            }.map { $0.id }
-            return Set(ids)
-        }()
-
-        let given = studentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
-
-        var lastDateByStudent: [UUID: Date] = [:]
-        for sl in given {
-            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
-            for sid in sl.resolvedStudentIDs {
-                if let existing = lastDateByStudent[sid] {
-                    if when > existing { lastDateByStudent[sid] = when }
-                } else {
-                    lastDateByStudent[sid] = when
-                }
-            }
-        }
-
-        for s in students {
-            if let last = lastDateByStudent[s.id] {
-                let days = LessonAgeHelper.schoolDaysSinceCreation(
-                    createdAt: last,
-                    asOf: Date(),
-                    using: modelContext,
-                    calendar: calendar
-                )
-                result[s.id] = days
-            } else {
-                result[s.id] = Int.max
-            }
-        }
-        return result
+        viewModel.daysSinceLastLessonByStudent
     }
 
     var body: some View {
@@ -251,15 +157,35 @@ struct PresentationsView: View {
             }
             syncInboxOrderWithCurrentBase()
             syncRecentWindowWithMissWindow()
+            
+            // Update ViewModel with initial data
+            updateViewModel()
         }
         .onChange(of: startDate) { _, new in
             startDateRaw = new.timeIntervalSinceReferenceDate
         }
-        .onChange(of: studentLessons.map { $0.id }) { _, _ in
+        .onChange(of: allStudentLessons.map { $0.id }) { _, _ in
             syncInboxOrderWithCurrentBase()
+            updateViewModel()
+        }
+        .onChange(of: lessons.map { $0.id }) { _, _ in
+            updateViewModel()
+        }
+        .onChange(of: activeContracts.map { $0.id }) { _, _ in
+            updateViewModel()
+        }
+        .onChange(of: students.map { $0.id }) { _, _ in
+            updateViewModel()
         }
         .onChange(of: missWindowRaw) { _, _ in
             syncRecentWindowWithMissWindow()
+            updateViewModel()
+        }
+        .onChange(of: showTestStudents) { _, _ in
+            updateViewModel()
+        }
+        .onChange(of: testStudentNamesRaw) { _, _ in
+            updateViewModel()
         }
         .sheet(item: $selectedStudentLessonForDetail) { sl in
             StudentLessonDetailView(studentLesson: sl) {
@@ -277,8 +203,25 @@ struct PresentationsView: View {
 
 
     // MARK: - Helpers
+    
+    /// Update ViewModel with current data (preserves all functionality)
+    private func updateViewModel() {
+        viewModel.update(
+            modelContext: modelContext,
+            calendar: calendar,
+            studentLessons: allStudentLessons,
+            lessons: lessons,
+            students: students,
+            contracts: activeContracts,
+            inboxOrderRaw: inboxOrderRaw,
+            missWindow: missWindow,
+            showTestStudents: showTestStudents,
+            testStudentNamesRaw: testStudentNamesRaw
+        )
+    }
+    
     private func syncInboxOrderWithCurrentBase() {
-        let base = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+        let base = allStudentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
         let baseIDs = base.map { $0.id }
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = base

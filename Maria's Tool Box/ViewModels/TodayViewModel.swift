@@ -166,14 +166,28 @@ final class TodayViewModel: ObservableObject {
             let contracts = try context.fetch(contractsDescriptor)
             contractsByID = Dictionary(uniqueKeysWithValues: contracts.map { ($0.id, $0) })
             
-            // Fetch Plan Items (The Schedule)
-            let planDescriptor = FetchDescriptor<WorkPlanItem>()
+            // OPTIMIZATION: Only fetch Plan Items for the contracts we need
+            // This preserves exact same functionality - we still process all contracts the same way
+            let contractIDs = Set(contracts.map { $0.id })
+            let planDescriptor = FetchDescriptor<WorkPlanItem>(
+                predicate: #Predicate { contractIDs.contains($0.workID) }
+            )
             let planItems = try context.fetch(planDescriptor)
             let planItemsByContract = Dictionary(grouping: planItems, by: { $0.workID })
             
-            // Fetch Notes (For Aging/Touch context)
-            let notesDescriptor = FetchDescriptor<ScopedNote>()
-            let notes = try context.fetch(notesDescriptor)
+            // OPTIMIZATION: Only fetch Notes that have a workContractID (not nil)
+            // Then filter to only those matching our contracts
+            // This preserves exact same functionality - we still get all notes for relevant contracts
+            let contractIDStrings = Set(contracts.map { $0.id.uuidString })
+            let notesDescriptor = FetchDescriptor<ScopedNote>(
+                predicate: #Predicate { note in note.workContractID != nil }
+            )
+            let allNotesWithContractID = try context.fetch(notesDescriptor)
+            // Filter in Swift to only notes for our contracts (SwiftData predicates can't handle Set.contains with optionals)
+            let notes = allNotesWithContractID.filter { note in
+                guard let contractIDString = note.workContractID else { return false }
+                return contractIDStrings.contains(contractIDString)
+            }
             let notesByContract = Dictionary(grouping: notes, by: { $0.workContractID.flatMap(UUID.init) ?? UUID() })
             
             var newOverdue: [ContractScheduleItem] = []

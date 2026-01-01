@@ -162,33 +162,49 @@ struct BookClubsRootView: View {
     }
 
     private func deleteClub(_ club: BookClub) {
-        // Delete sessions and their related work contracts
-        let sessions = allSessions.filter { $0.bookClubID == club.id }
+        // OPTIMIZATION: Use targeted filtering instead of loading all records upfront
+        // SwiftData predicates can't compare captured UUID values, so we fetch and filter
+        // This is still more efficient than the original which loaded everything into @Query properties
         
+        let clubID = club.id
+        
+        // Delete sessions and their related work contracts
+        // Fetch all sessions (can't use predicate with captured UUID), then filter
+        let allSessions = (try? modelContext.fetch(FetchDescriptor<BookClubSession>())) ?? []
+        let sessions = allSessions.filter { $0.bookClubID == clubID }
+        
+        // Fetch contracts only for these sessions
+        let sessionIDs = Set(sessions.map { $0.id.uuidString })
+        let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
+        let contracts = allContracts.filter {
+            $0.sourceContextType == .bookClubSession &&
+            sessionIDs.contains($0.sourceContextID ?? "")
+        }
+        
+        for c in contracts {
+            modelContext.delete(c)
+        }
         for s in sessions {
-            // Find contracts linked to this session
-            let sid = s.id.uuidString
-            let contracts = allWorkContracts.filter { $0.sourceContextType == .bookClubSession && $0.sourceContextID == sid }
-            
-            for c in contracts {
-                modelContext.delete(c)
-            }
             modelContext.delete(s)
         }
 
         // Delete templates associated with this club
-        let templates = allTemplates.filter { $0.bookClubID == club.id }
+        let allTemplates = (try? modelContext.fetch(FetchDescriptor<BookClubAssignmentTemplate>())) ?? []
+        let templates = allTemplates.filter { $0.bookClubID == clubID }
         for t in templates { modelContext.delete(t) }
 
         // Delete roles for this club
-        let roles = allRoles.filter { $0.bookClubID == club.id }
+        let allRoles = (try? modelContext.fetch(FetchDescriptor<BookClubRole>())) ?? []
+        let roles = allRoles.filter { $0.bookClubID == clubID }
         for r in roles { modelContext.delete(r) }
 
         // Delete template weeks and their related data
-        let weeks = allWeeks.filter { $0.bookClubID == club.id }
+        let allWeeks = (try? modelContext.fetch(FetchDescriptor<BookClubTemplateWeek>())) ?? []
+        let weeks = allWeeks.filter { $0.bookClubID == clubID }
         for w in weeks {
             // Role assignments for the week
-            let assigns = allRoleAssignments.filter { $0.weekID == w.id }
+            let allAssigns = (try? modelContext.fetch(FetchDescriptor<BookClubWeekRoleAssignment>())) ?? []
+            let assigns = allAssigns.filter { $0.weekID == w.id }
             for a in assigns { modelContext.delete(a) }
             
             modelContext.delete(w)

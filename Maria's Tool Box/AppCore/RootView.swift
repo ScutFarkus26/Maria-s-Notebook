@@ -109,10 +109,14 @@ struct RootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             #endif
         }
+        .task {
+            // Run backfill operations asynchronously to avoid blocking UI
+            // These are one-time migrations that must complete, but don't need to block the view
+            await backfillRelationshipsIfNeeded()
+            await backfillIsPresentedIfNeeded()
+            await backfillScheduledForDayIfNeeded()
+        }
         .onAppear {
-            backfillRelationshipsIfNeeded()
-            backfillIsPresentedIfNeeded()
-            backfillScheduledForDayIfNeeded()
             // Migrate legacy top-level Attendance tab to Students -> Attendance mode
             if Tab(rawValue: selectedTabRaw) == .attendance {
                 selectedTabRaw = Tab.students.rawValue
@@ -139,7 +143,9 @@ struct RootView: View {
         }
         .onChange(of: appRouter.navigationDestination) { _, destination in
             if case .backfillIsPresented = destination {
-                backfillIsPresentedIfNeeded()
+                Task {
+                    await backfillIsPresentedIfNeeded()
+                }
                 appRouter.clearNavigation()
             } else if case .openAttendance = destination {
                 selectedTabRaw = Tab.students.rawValue
@@ -160,85 +166,95 @@ struct RootView: View {
     }
 
     // MARK: - Backfill
+    
+    // These backfill operations are one-time migrations that preserve all functionality.
+    // Made async to avoid blocking UI, but they still complete fully.
 
-    private func backfillRelationshipsIfNeeded() {
+    private func backfillRelationshipsIfNeeded() async {
         guard !didBackfillRelationships else { return }
-        do {
-            let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
-            let students = try modelContext.fetch(FetchDescriptor<Student>())
-            let lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
-            let studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
-            let lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        // Run on main actor since we're using modelContext (SwiftData requirement)
+        await MainActor.run {
+            do {
+                let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+                let students = try modelContext.fetch(FetchDescriptor<Student>())
+                let lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+                let studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+                let lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
 
-            var changed = false
-            for sl in sls {
-                let targetLesson = lessonsByID[sl.lessonID]
-                let targetStudents = sl.studentIDs.compactMap { studentsByID[$0] }
-                if sl.lesson?.id != targetLesson?.id { sl.lesson = targetLesson; changed = true }
-                let currentIDs = Set(sl.students.map { $0.id })
-                let targetIDs = Set(targetStudents.map { $0.id })
-                if currentIDs != targetIDs {
-                    sl.students = targetStudents
-                    changed = true
+                var changed = false
+                for sl in sls {
+                    let targetLesson = lessonsByID[sl.lessonID]
+                    let targetStudents = sl.studentIDs.compactMap { studentsByID[$0] }
+                    if sl.lesson?.id != targetLesson?.id { sl.lesson = targetLesson; changed = true }
+                    let currentIDs = Set(sl.students.map { $0.id })
+                    let targetIDs = Set(targetStudents.map { $0.id })
+                    if currentIDs != targetIDs {
+                        sl.students = targetStudents
+                        changed = true
+                    }
+                    if changed {
+                        sl.syncSnapshotsFromRelationships()
+                    }
                 }
                 if changed {
-                    sl.syncSnapshotsFromRelationships()
+                    _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
                 }
+                didBackfillRelationships = true
+            } catch {
+                // If backfill fails, skip and try again next launch
             }
-            if changed {
-                _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
-            }
-            didBackfillRelationships = true
-        } catch {
-            // If backfill fails, skip and try again next launch
         }
     }
 
-    private func backfillIsPresentedIfNeeded() {
-        do {
-            let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
-            var changed = false
-            for sl in sls {
-                if sl.givenAt != nil && sl.isPresented == false {
-                    sl.isPresented = true
-                    changed = true
+    private func backfillIsPresentedIfNeeded() async {
+        await MainActor.run {
+            do {
+                let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+                var changed = false
+                for sl in sls {
+                    if sl.givenAt != nil && sl.isPresented == false {
+                        sl.isPresented = true
+                        changed = true
+                    }
                 }
+                if changed {
+                    _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
+                }
+            } catch {
+                // If backfill fails, skip and try again next launch
             }
-            if changed {
-                _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
-            }
-        } catch {
-            // If backfill fails, skip and try again next launch
         }
     }
     
-    private func backfillScheduledForDayIfNeeded() {
+    private func backfillScheduledForDayIfNeeded() async {
         guard !didBackfillScheduledForDay else { return }
-        do {
-            let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
-            var fixed = 0
-            for sl in sls {
-                let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
-                if sl.scheduledForDay != correct {
-                    sl.scheduledForDay = correct
-                    fixed += 1
+        await MainActor.run {
+            do {
+                let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+                var fixed = 0
+                for sl in sls {
+                    let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+                    if sl.scheduledForDay != correct {
+                        sl.scheduledForDay = correct
+                        fixed += 1
+                    }
                 }
-            }
-            if fixed > 0 {
-    #if DEBUG
+                if fixed > 0 {
+        #if DEBUG
+                    print("Backfill.scheduledForDay: fixed \(fixed) records")
+        #endif
+                    _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
+                }
+                didBackfillScheduledForDay = true
+        #if DEBUG
                 print("Backfill.scheduledForDay: fixed \(fixed) records")
-    #endif
-                _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
+        #endif
+            } catch {
+                didBackfillScheduledForDay = true
+        #if DEBUG
+                print("Backfill.scheduledForDay: fixed 0 records due to error")
+        #endif
             }
-            didBackfillScheduledForDay = true
-    #if DEBUG
-            print("Backfill.scheduledForDay: fixed \(fixed) records")
-    #endif
-        } catch {
-            didBackfillScheduledForDay = true
-    #if DEBUG
-            print("Backfill.scheduledForDay: fixed 0 records due to error")
-    #endif
         }
     }
     
