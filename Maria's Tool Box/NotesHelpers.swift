@@ -47,7 +47,8 @@ extension Lesson {
     /// Notes visible to a specific student: includes `.all` and any note scoped to that student.
     /// Sorted newest first (updatedAt, then createdAt).
     func notesVisible(to studentID: UUID) -> [Note] {
-        let filtered = notes.filter { note in
+        // FIX: 'notes' is now optional [Note]?, defaulting to []
+        let filtered = (notes ?? []).filter { note in
             switch note.scope {
             case .all:
                 return true
@@ -60,24 +61,3 @@ extension Lesson {
         return notesSortedNewestFirst(filtered)
     }
 }
-
-// MARK: - Work filtering
-extension WorkModel {
-    @MainActor
-    /// Notes visible to a specific student: includes `.all` and any note scoped to that student.
-    /// Sorted newest first (updatedAt, then createdAt).
-    func notesVisible(to studentID: UUID) -> [Note] {
-        let filtered = noteItems.filter { note in
-            switch note.scope {
-            case .all:
-                return true
-            case .student(let id):
-                return id == studentID
-            case .students(let ids):
-                return ids.contains(studentID)
-            }
-        }
-        return notesSortedNewestFirst(filtered)
-    }
-}
-

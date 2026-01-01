@@ -288,7 +288,7 @@ private struct PlanPromptSheetView: View {
         .padding()
         #if os(macOS)
         .frame(minWidth: 520)
-        .presentationSizing(.fitted)
+        .presentationSizingFitted()
         #endif
     }
 }

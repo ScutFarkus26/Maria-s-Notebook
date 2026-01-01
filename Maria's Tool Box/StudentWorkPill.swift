@@ -10,20 +10,30 @@ struct StudentWorkPill: View {
     let absentTodayIDs: Set<UUID>
 
     private var workTypeColor: Color {
-        switch item.work.workType {
-        case .research: return .teal
-        case .followUp: return .orange
-        case .practice: return .purple
+        switch item.work.kind {
+        case .practiceLesson: return .purple
+        case .followUpAssignment: return .orange
+        default: return .teal
         }
     }
 
+    private var lessonTitle: String {
+        if let lid = UUID(uuidString: item.work.lessonID) {
+            let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lid })
+            if let lesson = try? modelContext.fetch(fetch).first {
+                let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty { return name }
+            }
+        }
+        return "Work"
+    }
+
     private var studentChips: [(UUID, String, Bool)] {
-        let isToday = calendar.isDate(item.checkIn.date, inSameDayAs: Date())
-        return (item.work.participants ?? []).map { p in
-            let name = nameForStudentID(p.studentID).trimmingCharacters(in: .whitespacesAndNewlines)
-            let absent = isToday && absentTodayIDs.contains(p.studentID)
-            return (p.studentID, name, absent)
-        }.filter { !$0.1.isEmpty }
+        let isToday = calendar.isDate(item.checkIn.scheduledDate, inSameDayAs: Date())
+        guard let sid = UUID(uuidString: item.work.studentID) else { return [] }
+        let name = nameForStudentID(sid).trimmingCharacters(in: .whitespacesAndNewlines)
+        let absent = isToday && absentTodayIDs.contains(sid)
+        return name.isEmpty ? [] : [(sid, name, absent)]
     }
 
     struct ChipView: View {
@@ -57,7 +67,7 @@ struct StudentWorkPill: View {
                     .padding(.top, 6)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.work.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? item.work.workType.rawValue : item.work.title)
+                    Text(lessonTitle)
                         .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                         .lineLimit(nil)
                         .fixedSize(horizontal: false, vertical: true)
@@ -73,7 +83,7 @@ struct StudentWorkPill: View {
                         }
                     }
 
-                    let purpose = item.checkIn.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let purpose = (item.checkIn.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                     if !purpose.isEmpty {
                         Text(purpose)
                             .font(.caption2)

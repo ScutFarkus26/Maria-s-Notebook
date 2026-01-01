@@ -37,11 +37,11 @@ struct DayKey: Hashable {
 }
 
 struct ScheduledItem: Identifiable, Hashable {
-    let work: WorkModel
-    let checkIn: WorkCheckIn
+    let work: WorkContract
+    let checkIn: WorkPlanItem
     var id: UUID { checkIn.id }
 
-    init(work: WorkModel, checkIn: WorkCheckIn) {
+    init(work: WorkContract, checkIn: WorkPlanItem) {
         self.work = work
         self.checkIn = checkIn
     }

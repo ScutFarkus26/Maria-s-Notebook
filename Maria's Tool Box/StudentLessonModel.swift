@@ -32,7 +32,7 @@ import SwiftData
     var studentGroupKeyPersisted: String = ""
 
     @Transient var students: [Student] = []
-    @Transient var lesson: Lesson?
+    @Relationship var lesson: Lesson?
 
     @Relationship(deleteRule: .cascade, inverse: \ScopedNote.studentLesson) var scopedNotes: [ScopedNote] = []
 
@@ -158,3 +158,4 @@ struct StudentLessonSnapshot: Identifiable {
     var isScheduled: Bool { scheduledFor != nil }
     var isGiven: Bool { isPresented || givenAt != nil }
 }
+

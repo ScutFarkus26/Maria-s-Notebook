@@ -37,11 +37,11 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
 @Model
 final class AttendanceRecord: Identifiable {
     // Persistent fields
-    var id: UUID
-    var studentID: UUID
-    var date: Date          // normalized to start-of-day (local calendar)
-    private var statusRaw: String
-    var note: String?
+    var id: UUID = UUID()
+    var studentID: UUID = UUID()
+    var date: Date = Date()          // normalized to start-of-day (local calendar)
+    private var statusRaw: String = "unmarked"
+    var note: String? = nil
 
     // Computed enum mapping for convenient UI usage
     var status: AttendanceStatus {

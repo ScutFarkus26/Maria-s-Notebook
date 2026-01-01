@@ -33,7 +33,7 @@ final class BookClubRole: Identifiable {
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID = UUID(),
+        bookClubID: UUID,
         title: String = "",
         summary: String = "",
         instructions: String = ""
@@ -67,19 +67,20 @@ final class BookClubTemplateWeek: Identifiable {
     // CRITICAL FIX: Default value added here ("")
     var workInstructions: String = ""
 
-    // Relationship to assignments
-    @Relationship(inverse: \BookClubWeekRoleAssignment.week) var roleAssignments: [BookClubWeekRoleAssignment]? = []
+    // Relationship to assignments - FIX: Made optional
+    @Relationship(inverse: \BookClubWeekRoleAssignment.week)
+    var roleAssignments: [BookClubWeekRoleAssignment]? = []
+    
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID = UUID(),
-        weekIndex: Int = 0,
+        bookClubID: UUID,
+        weekIndex: Int,
         readingRange: String = "",
         agendaItemsJSON: String = "",
         linkedLessonIDsJSON: String = "",
-        workInstructions: String = "",
-        roleAssignments: [BookClubWeekRoleAssignment]? = []
+        workInstructions: String = ""
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -89,14 +90,15 @@ final class BookClubTemplateWeek: Identifiable {
         self.agendaItemsJSON = agendaItemsJSON
         self.linkedLessonIDsJSON = linkedLessonIDsJSON
         self.workInstructions = workInstructions
-        self.roleAssignments = roleAssignments
+        self.roleAssignments = []
+        
     }
 
     var agendaItems: [String] {
         get { JSONStringList.decode(agendaItemsJSON) }
         set { agendaItemsJSON = JSONStringList.encode(newValue) }
     }
-
+    
     var linkedLessonIDs: [String] {
         get { JSONStringList.decode(linkedLessonIDsJSON) }
         set { linkedLessonIDsJSON = JSONStringList.encode(newValue) }
@@ -113,14 +115,16 @@ final class BookClubWeekRoleAssignment: Identifiable {
     var studentID: String = ""
     var roleID: UUID = UUID()
 
+    // FIX: Removed @Relationship macro here to break circular dependency.
+    // The relationship is managed by the parent (BookClubTemplateWeek).
     var week: BookClubTemplateWeek?
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        weekID: UUID = UUID(),
-        studentID: String = "",
-        roleID: UUID = UUID(),
+        weekID: UUID,
+        studentID: String,
+        roleID: UUID,
         week: BookClubTemplateWeek? = nil
     ) {
         self.id = id

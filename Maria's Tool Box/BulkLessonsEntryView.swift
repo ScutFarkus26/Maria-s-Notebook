@@ -213,7 +213,7 @@ public struct BulkLessonsEntryView: View {
         }
 #if os(macOS)
         .frame(minWidth: 720, minHeight: 560)
-        .presentationSizing(.fitted)
+        .presentationSizingFitted()
 #else
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)

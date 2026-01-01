@@ -706,7 +706,7 @@ private struct AttendanceCard: View {
             }
 #if os(macOS)
             .frame(minWidth: 420, minHeight: 220)
-            .presentationSizing(.fitted)
+            .presentationSizingFitted()
 #endif
         }
     }

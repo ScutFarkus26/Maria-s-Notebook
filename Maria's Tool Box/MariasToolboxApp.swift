@@ -98,31 +98,12 @@ struct MariasToolboxApp: App {
                 print("SwiftData: Using in-memory store.")
                 return container
             } else {
-                do {
-                    // Try CloudKit
-                    let container = try makeContainer(inMemory: false, cloud: true)
-                    UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                    UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-                    return container
-                } catch {
-                    // STOP: Do not silently fallback unless explicitly allowed.
-                    if allowFallback {
-                        print("SwiftData: CloudKit failed, performing INTENTIONAL local fallback. Error: \(error)")
-                        let container = try makeContainer(inMemory: false)
-                        UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                        UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-                        return container
-                    } else {
-                        // Capture error and return a safe, empty in-memory container
-                        // so the app launches to the Error View instead of crashing.
-                        print("SwiftData: CloudKit failed. HALTING to prevent split-brain. Error: \(error)")
-                        print("Hint: Ensure iCloud capability with CloudKit is enabled and the container matches iCloud.$(CFBundleIdentifier).")
-                        UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                        UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-                        MariasToolboxApp.initError = error
-                        return try makeContainer(inMemory: true)
-                    }
-                }
+                // Use local storage by default (CloudKit requires model compatibility fixes)
+                let container = try makeContainer(inMemory: false, cloud: false)
+                UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                print("SwiftData: Using local storage.")
+                return container
             }
         } catch {
             // If even the in-memory fallback fails, we must surface the blocking error view instead of crashing.

@@ -367,7 +367,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
                 if !group.studentIDs.contains(studentID) { group.studentIDs.append(studentID) }
             } else {
-                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), scheduledFor: nil); newSL.lesson = lesson
+                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), scheduledFor: nil)
                 context.insert(newSL)
             }
         }
@@ -392,7 +392,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             if let group = allSLs.first(where: { $0.isGiven && AppCalendar.startOfDay($0.givenAt ?? Date.distantPast) == todayStart }) {
                 if !group.studentIDs.contains(studentID) { group.studentIDs.append(studentID) }
             } else {
-                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true); newSL.lesson = lesson
+                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true)
                 context.insert(newSL)
             }
         }
@@ -441,3 +441,4 @@ extension View {
         #endif
     }
 }
+

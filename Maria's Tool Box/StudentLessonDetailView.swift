@@ -364,7 +364,7 @@ struct StudentLessonDetailContentView: View {
         )
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 520)
-        .presentationSizing(.fitted)
+        .presentationSizingFitted()
         #endif
     }
     

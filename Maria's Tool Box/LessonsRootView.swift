@@ -548,7 +548,7 @@ struct LessonsRootView: View {
             })
             #if os(macOS)
             .frame(minWidth: 720, minHeight: 560)
-            .presentationSizing(.fitted)
+            .presentationSizingFitted()
             #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -560,7 +560,7 @@ struct LessonsRootView: View {
                 })
                 #if os(macOS)
                 .frame(minWidth: 720, minHeight: 640)
-                .presentationSizing(.fitted)
+                .presentationSizingFitted()
                 #else
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
@@ -592,7 +592,7 @@ struct LessonsRootView: View {
                 })
                 #if os(macOS)
                 .frame(minWidth: 520, minHeight: 560)
-                .presentationSizing(.fitted)
+                .presentationSizingFitted()
                 #else
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)

@@ -6,21 +6,21 @@ import SwiftData
 /// pair preserve the full completion history.
 @Model final class WorkCompletionRecord: Identifiable {
     // MARK: - Identity
-    var id: UUID
+    var id: UUID = UUID()
 
     // MARK: - Foreign Keys (soft references)
     /// The identifier of the work item that was completed.
-    var workID: UUID
+    var workID: UUID = UUID()
 
     /// The identifier of the student who completed the work.
-    var studentID: UUID
+    var studentID: UUID = UUID()
 
     // MARK: - Payload
     /// The timestamp when the completion occurred.
-    var completedAt: Date
+    var completedAt: Date = Date()
 
     /// Optional free-form note or context captured at completion time.
-    var note: String
+    var note: String = ""
 
     // MARK: - Init
     init(

@@ -416,7 +416,8 @@ struct StudentDetailView: View {
             followUpWork: ""
         )
         newSL.students = [student]
-        newSL.lesson = lesson
+        // Removed line per instructions:
+        // newSL.lesson = lesson
         modelContext.insert(newSL)
         _ = saveCoordinator.save(modelContext, reason: "Create draft student lesson")
         return newSL
@@ -440,7 +441,8 @@ struct StudentDetailView: View {
             followUpWork: ""
         )
         newSL.students = [student]
-        newSL.lesson = lesson
+        // Removed line per instructions:
+        // newSL.lesson = lesson
         modelContext.insert(newSL)
         _ = saveCoordinator.save(modelContext, reason: "Create or reuse non-given student lesson")
         return newSL
@@ -461,7 +463,8 @@ struct StudentDetailView: View {
             followUpWork: ""
         )
         newSL.students = [student]
-        newSL.lesson = lesson
+        // Removed line per instructions:
+        // newSL.lesson = lesson
         modelContext.insert(newSL)
         _ = saveCoordinator.save(modelContext, reason: "Log presentation student lesson")
         return newSL
@@ -598,7 +601,7 @@ struct StudentDetailView: View {
         }
 #if os(macOS)
         .frame(minWidth: 860, minHeight: 640)
-        .presentationSizing(.fitted)
+        .presentationSizingFitted()
 #else
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
@@ -690,7 +693,7 @@ struct StudentDetailView: View {
             }
             #if os(macOS)
             .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
+            .presentationSizingFitted()
             #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -702,7 +705,7 @@ struct StudentDetailView: View {
             }
             #if os(macOS)
             .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
+            .presentationSizingFitted()
             #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -714,7 +717,7 @@ struct StudentDetailView: View {
             }
         #if os(macOS)
             .frame(minWidth: 720, minHeight: 640)
-            .presentationSizing(.fitted)
+            .presentationSizingFitted()
         #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -837,3 +840,4 @@ struct StudentDetailView: View {
     return StudentDetailView(student: student)
         .previewEnvironment(using: container)
 }
+

@@ -5,19 +5,19 @@ import SwiftData
 @Model
 final class Lesson: Identifiable {
     /// Stable identifier
-    var id: UUID
+    var id: UUID = UUID()
     /// Lesson Name
-    var name: String
+    var name: String = ""
     /// Subject (e.g., Math, Language)
-    var subject: String
+    var subject: String = ""
     /// Group or category (e.g., Decimal System)
-    var group: String
+    var group: String = ""
     /// Manual order within a group
     var orderInGroup: Int = 0
     /// Short subheading/strapline
-    var subheading: String
+    var subheading: String = ""
     /// Markdown or rich text source for the lesson write-up
-    var writeUp: String
+    var writeUp: String = ""
 
     /// Raw storage for source ("album" or "personal"). Defaults to album for backward compatibility.
     var sourceRaw: String = "album"
@@ -36,11 +36,13 @@ final class Lesson: Identifiable {
 
     // MARK: - Computed Properties
 
+    @Transient
     var source: LessonSource {
         get { LessonSource(rawValue: sourceRaw) ?? .album }
         set { sourceRaw = newValue.rawValue }
     }
 
+    @Transient
     var personalKind: PersonalLessonKind? {
         get {
             guard source == .personal else { return nil }
@@ -54,12 +56,19 @@ final class Lesson: Identifiable {
     }
     
     /// The preferred work kind for this lesson. Used to automatically categorize work spawned from presentations.
+    @Transient
     var defaultWorkKind: WorkKind? {
         get { defaultWorkKindRaw.flatMap { WorkKind(rawValue: $0) } }
         set { defaultWorkKindRaw = newValue?.rawValue }
     }
 
-    @Relationship var notes: [Note] = []
+    // FIX: Made optional for CloudKit
+    // Relationship inferred by SwiftData; inverse configured on Note.lesson
+    var notes: [Note]? = []
+    
+    // Relationship to StudentLesson - inverse specified on this side (the "many" side)
+    @Relationship(inverse: \StudentLesson.lesson)
+    var studentLessons: [StudentLesson]? = []
 
     // MARK: - Initializer
 
@@ -89,5 +98,7 @@ final class Lesson: Identifiable {
         self.sourceRaw = sourceRaw
         self.personalKindRaw = personalKindRaw
         self.defaultWorkKindRaw = defaultWorkKind?.rawValue
+        self.notes = []
+        self.studentLessons = []
     }
 }

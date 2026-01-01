@@ -77,7 +77,7 @@ final class SettingsViewModel: ObservableObject {
             _ = try await backupService.exportBackup(
                 modelContext: modelContext,
                 to: tmp,
-                encrypt: encryptBackups
+                password: encryptBackups ? "defaultPassword" : nil
             ) { [weak self] progress, message in
                 guard let self else { return }
                 Task { @MainActor in

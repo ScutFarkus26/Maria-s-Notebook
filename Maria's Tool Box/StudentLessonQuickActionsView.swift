@@ -198,7 +198,7 @@ struct StudentLessonQuickActionsView: View {
             .padding(16)
             #if os(macOS)
             .frame(minWidth: 420)
-            .presentationSizing(.fitted)
+            .presentationSizingFitted()
             #endif
         }
     }

@@ -25,7 +25,7 @@ struct WorkCheckInNoteEditor: View {
         .padding(20)
 #if os(macOS)
         .frame(minWidth: 440, minHeight: 320)
-        .presentationSizing(.fitted)
+        .presentationSizingFitted()
 #else
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

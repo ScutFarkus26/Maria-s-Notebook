@@ -333,7 +333,7 @@ struct StudentLessonPill: View {
             }
             #if os(macOS)
             .frame(minWidth: 400, minHeight: 500)
-            .presentationSizing(.fitted)
+            .presentationSizingFitted()
             #else
             .presentationDetents([.medium, .large])
             #endif

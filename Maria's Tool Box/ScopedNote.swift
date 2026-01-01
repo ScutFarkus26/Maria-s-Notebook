@@ -20,9 +20,9 @@ import SwiftData
     var workContractID: String?
 
     // Relationships (optional; at least one is expected to be set by the creator)
-    var studentLesson: StudentLesson?
-    var presentation: Presentation? = nil { didSet { presentationID = presentation?.id.uuidString } }
-    var workContract: WorkContract? = nil { didSet { workContractID = workContract?.id.uuidString } }
+    @Relationship var studentLesson: StudentLesson?
+    @Relationship var presentation: Presentation? = nil { didSet { presentationID = presentation?.id.uuidString } }
+    @Relationship var workContract: WorkContract? = nil { didSet { workContractID = workContract?.id.uuidString } }
     // Legacy relationship to WorkModel (kept for inverse references in legacy models)
     @Relationship var work: WorkModel? = nil
 

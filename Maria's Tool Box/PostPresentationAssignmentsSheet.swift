@@ -146,7 +146,7 @@ struct PostPresentationAssignmentsSheet: View {
         .padding(16)
     #if os(macOS)
         .frame(minWidth: 520, minHeight: 560)
-        .presentationSizing(.fitted)
+        .presentationSizingFitted()
     #else
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)

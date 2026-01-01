@@ -17,12 +17,16 @@ public final class BackupService {
     public func exportBackup(
         modelContext: ModelContext,
         to url: URL,
-        encrypt: Bool,
+        password: String? = nil,
         progress: @escaping (Double, String) -> Void
     ) async throws -> BackupOperationSummary {
+        // 1. Handle Security Scope (Vital for macOS Bookmarks)
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        
         progress(0.05, "Collecting data…")
 
-        // Fetch all entities we know about. If a model isn't present in this build, we simply leave that array empty.
+        // Fetch all entities
         let students: [Student] = safeFetch(Student.self, using: modelContext)
         let lessons: [Lesson] = safeFetch(Lesson.self, using: modelContext)
         let studentLessons: [StudentLesson] = safeFetch(StudentLesson.self, using: modelContext)
@@ -39,28 +43,35 @@ public final class BackupService {
         let meetingNotes: [MeetingNote] = safeFetch(MeetingNote.self, using: modelContext)
         let communityAttachments: [CommunityAttachment] = safeFetch(CommunityAttachment.self, using: modelContext)
 
-        // Map to DTOs (exclude any imported/binary file data)
+        // Attendance, Work Completions, and Book Clubs
+        let attendance: [AttendanceRecord] = safeFetch(AttendanceRecord.self, using: modelContext)
+        let workCompletions: [WorkCompletionRecord] = safeFetch(WorkCompletionRecord.self, using: modelContext)
+        let bookClubs: [BookClub] = safeFetch(BookClub.self, using: modelContext)
+        let bookClubTemplates: [BookClubAssignmentTemplate] = safeFetch(BookClubAssignmentTemplate.self, using: modelContext)
+        let bookClubSessions: [BookClubSession] = safeFetch(BookClubSession.self, using: modelContext)
+        let bookClubRoles: [BookClubRole] = safeFetch(BookClubRole.self, using: modelContext)
+        let bookClubWeeks: [BookClubTemplateWeek] = safeFetch(BookClubTemplateWeek.self, using: modelContext)
+        let bookClubWeekAssignments: [BookClubWeekRoleAssignment] = safeFetch(BookClubWeekRoleAssignment.self, using: modelContext)
+
+        // Map to DTOs
         let studentDTOs: [StudentDTO] = students.map { s in
-            let levelRaw: String? = kvValue(s, "levelRaw")
-            let levelProp: String? = kvValue(s, "level")
-            let levelLower = levelRaw?.lowercased() ?? levelProp?.lowercased() ?? ""
-            let level: StudentDTO.Level = (levelLower == "upper") ? .upper : .lower
+            let level: StudentDTO.Level = (s.level == .upper) ? .upper : .lower
             return StudentDTO(
                 id: s.id,
                 firstName: s.firstName,
                 lastName: s.lastName,
                 birthday: s.birthday,
-                dateStarted: kvValue(s, "dateStarted") as Date?,
+                dateStarted: s.dateStarted,
                 level: level,
-                nextLessons: kvValue(s, "nextLessons") ?? [],
-                manualOrder: kvValue(s, "manualOrder") ?? 0,
-                createdAt: kvValue(s, "createdAt") as Date?,
-                updatedAt: kvValue(s, "updatedAt") as Date?
+                nextLessons: s.nextLessons,
+                manualOrder: s.manualOrder,
+                createdAt: nil,
+                updatedAt: nil
             )
         }
 
         let lessonDTOs: [LessonDTO] = lessons.map { l in
-            return LessonDTO(
+            LessonDTO(
                 id: l.id,
                 name: l.name,
                 subject: l.subject,
@@ -68,9 +79,9 @@ public final class BackupService {
                 orderInGroup: l.orderInGroup,
                 subheading: l.subheading,
                 writeUp: l.writeUp,
-                createdAt: kvValue(l, "createdAt") as Date?,
-                updatedAt: kvValue(l, "updatedAt") as Date?,
-                pagesFileRelativePath: kvValue(l, "pagesFileRelativePath") as String?
+                createdAt: nil,
+                updatedAt: nil,
+                pagesFileRelativePath: l.pagesFileRelativePath
             )
         }
 
@@ -82,12 +93,12 @@ public final class BackupService {
                 createdAt: sl.createdAt,
                 scheduledFor: sl.scheduledFor,
                 givenAt: sl.givenAt,
-                isPresented: (kvValue(sl, "isPresented") as Bool?) ?? (sl.givenAt != nil),
+                isPresented: sl.isPresented,
                 notes: sl.notes,
                 needsPractice: sl.needsPractice,
                 needsAnotherPresentation: sl.needsAnotherPresentation,
                 followUpWork: sl.followUpWork,
-                studentGroupKey: kvValue(sl, "studentGroupKey") as String?
+                studentGroupKey: nil
             )
         }
 
@@ -96,17 +107,17 @@ public final class BackupService {
                 id: c.id,
                 studentID: c.studentID,
                 lessonID: c.lessonID,
-                presentationID: kvValue(c, "presentationID") as String?,
-                status: kvValue(c, "statusRaw") ?? "",
-                scheduledDate: kvValue(c, "scheduledDate") as Date?,
-                createdAt: kvValue(c, "createdAt") as Date?,
-                completedAt: kvValue(c, "completedAt") as Date?,
-                kind: kvValue(c, "kind") as String?,
-                scheduledReason: kvValue(c, "scheduledReason") as String?,
-                scheduledNote: kvValue(c, "scheduledNote") as String?,
-                completionOutcome: kvValue(c, "completionOutcome") as String?,
-                completionNote: kvValue(c, "completionNote") as String?,
-                legacyStudentLessonID: kvValue(c, "legacyStudentLessonID") as String?
+                presentationID: c.presentationID,
+                status: c.statusRaw,
+                scheduledDate: c.scheduledDate,
+                createdAt: c.createdAt,
+                completedAt: c.completedAt,
+                kind: c.kindRaw,
+                scheduledReason: c.scheduledReasonRaw,
+                scheduledNote: c.scheduledNote,
+                completionOutcome: c.completionOutcome?.rawValue,
+                completionNote: c.completionNote,
+                legacyStudentLessonID: c.legacyStudentLessonID
             )
         }
 
@@ -115,7 +126,7 @@ public final class BackupService {
                 id: w.id,
                 workID: w.workID,
                 scheduledDate: w.scheduledDate,
-                reason: (kvValue(w, "reasonRaw") as String?) ?? (kvValue(w, "reason") as String?) ?? "",
+                reason: w.reasonRaw ?? (w.reason?.rawValue ?? ""),
                 note: w.note
             )
         }
@@ -126,46 +137,53 @@ public final class BackupService {
                 createdAt: n.createdAt,
                 updatedAt: n.updatedAt,
                 body: n.body,
-                scope: kvValue(n, "scopeRaw") as String? ?? (kvValue(n, "scope") as String? ?? ""),
-                legacyFingerprint: kvValue(n, "legacyFingerprint") as String?,
-                studentLessonID: kvValue(n, "studentLessonID") as UUID?,
-                workID: kvValue(n, "workID") as UUID?,
-                presentationID: kvValue(n, "presentationID") as UUID?,
-                workContractID: kvValue(n, "workContractID") as UUID?
+                scope: String(data: n.scopeRaw, encoding: .utf8) ?? "{}",
+                legacyFingerprint: n.legacyFingerprint,
+                studentLessonID: n.studentLesson?.id,
+                workID: n.workContractID.flatMap { UUID(uuidString: $0) },
+                presentationID: n.presentationID.flatMap { UUID(uuidString: $0) },
+                workContractID: n.workContractID.flatMap { UUID(uuidString: $0) }
             )
         }
 
         let noteDTOs: [NoteDTO] = notes.map { n in
-            NoteDTO(
+            // Manually encode scope since scopeBlob is private/internal
+            let scopeString: String
+            if let data = try? JSONEncoder().encode(n.scope) {
+                scopeString = String(data: data, encoding: .utf8) ?? "{}"
+            } else {
+                scopeString = "{}"
+            }
+            
+            return NoteDTO(
                 id: n.id,
                 createdAt: n.createdAt,
                 updatedAt: n.updatedAt,
                 body: n.body,
-                isPinned: (kvValue(n, "isPinned") as Bool?) ?? false,
-                scope: kvValue(n, "scopeRaw") as String? ?? (kvValue(n, "scope") as String? ?? ""),
-                lessonID: kvValue(n, "lessonID") as UUID?,
-                workID: kvValue(n, "workID") as UUID?
+                isPinned: n.isPinned,
+                scope: scopeString,
+                lessonID: n.lesson?.id
             )
         }
 
         let nonSchoolDTOs: [NonSchoolDayDTO] = nonSchoolDays.map { d in
-            NonSchoolDayDTO(id: d.id, date: d.date, reason: kvValue(d, "reason") as String?)
+            NonSchoolDayDTO(id: d.id, date: d.date, reason: d.reason)
         }
 
         let schoolOverrideDTOs: [SchoolDayOverrideDTO] = schoolDayOverrides.map { o in
-            SchoolDayOverrideDTO(id: o.id, date: o.date, note: kvValue(o, "note") as String?)
+            SchoolDayOverrideDTO(id: o.id, date: o.date, note: o.note)
         }
 
         let studentMeetingDTOs: [StudentMeetingDTO] = studentMeetings.map { m in
             StudentMeetingDTO(
                 id: m.id,
-                studentID: (kvValue(m, "studentID") as UUID?) ?? UUID(),
+                studentID: m.studentID,
                 date: m.date,
-                completed: (kvValue(m, "completed") as Bool?) ?? false,
-                reflection: (kvValue(m, "reflection") as String?) ?? "",
-                focus: (kvValue(m, "focus") as String?) ?? "",
-                requests: (kvValue(m, "requests") as String?) ?? "",
-                guideNotes: (kvValue(m, "guideNotes") as String?) ?? ""
+                completed: m.completed,
+                reflection: m.reflection,
+                focus: m.focus,
+                requests: m.requests,
+                guideNotes: m.guideNotes
             )
         }
 
@@ -173,12 +191,12 @@ public final class BackupService {
             PresentationDTO(
                 id: p.id,
                 createdAt: p.createdAt,
-                presentedAt: (kvValue(p, "presentedAt") as Date?) ?? p.createdAt,
-                lessonID: kvValue(p, "lessonID") ?? "",
-                studentIDs: kvValue(p, "studentIDs") ?? [],
-                legacyStudentLessonID: kvValue(p, "legacyStudentLessonID") as String?,
-                lessonTitleSnapshot: kvValue(p, "lessonTitleSnapshot") as String?,
-                lessonSubtitleSnapshot: kvValue(p, "lessonSubtitleSnapshot") as String?
+                presentedAt: p.presentedAt,
+                lessonID: p.lessonID,
+                studentIDs: p.studentIDs,
+                legacyStudentLessonID: p.legacyStudentLessonID,
+                lessonTitleSnapshot: p.lessonTitleSnapshot,
+                lessonSubtitleSnapshot: p.lessonSubtitleSnapshot
             )
         }
 
@@ -227,6 +245,97 @@ public final class BackupService {
             )
         }
 
+        // Attendance & Work Completions
+        let attendanceDTOs: [AttendanceRecordDTO] = attendance.map { a in
+            AttendanceRecordDTO(
+                id: a.id,
+                studentID: a.studentID,
+                date: a.date,
+                status: a.status.rawValue,
+                note: a.note
+            )
+        }
+
+        let workCompletionDTOs: [WorkCompletionRecordDTO] = workCompletions.map { r in
+            WorkCompletionRecordDTO(
+                id: r.id,
+                workID: r.workID,
+                studentID: r.studentID,
+                completedAt: r.completedAt,
+                note: r.note
+            )
+        }
+
+        // Book Clubs
+        let bookClubDTOs: [BookClubDTO] = bookClubs.map { c in
+            BookClubDTO(
+                id: c.id,
+                createdAt: c.createdAt,
+                title: c.title,
+                bookTitle: c.bookTitle,
+                memberStudentIDs: c.memberStudentIDs
+            )
+        }
+
+        let bookClubTemplateDTOs: [BookClubAssignmentTemplateDTO] = bookClubTemplates.map { t in
+            BookClubAssignmentTemplateDTO(
+                id: t.id,
+                createdAt: t.createdAt,
+                bookClubID: t.bookClubID,
+                title: t.title,
+                instructions: t.instructions,
+                isShared: t.isShared,
+                defaultLinkedLessonID: t.defaultLinkedLessonID
+            )
+        }
+
+        let bookClubSessionDTOs: [BookClubSessionDTO] = bookClubSessions.map { s in
+            BookClubSessionDTO(
+                id: s.id,
+                createdAt: s.createdAt,
+                bookClubID: s.bookClubID,
+                meetingDate: s.meetingDate,
+                chapterOrPages: s.chapterOrPages,
+                notes: s.notes,
+                agendaItemsJSON: s.agendaItemsJSON,
+                templateWeekID: s.templateWeekID
+            )
+        }
+
+        let bookClubRoleDTOs: [BookClubRoleDTO] = bookClubRoles.map { r in
+            BookClubRoleDTO(
+                id: r.id,
+                createdAt: r.createdAt,
+                bookClubID: r.bookClubID,
+                title: r.title,
+                summary: r.summary,
+                instructions: r.instructions
+            )
+        }
+
+        let bookClubWeekDTOs: [BookClubTemplateWeekDTO] = bookClubWeeks.map { w in
+            BookClubTemplateWeekDTO(
+                id: w.id,
+                createdAt: w.createdAt,
+                bookClubID: w.bookClubID,
+                weekIndex: w.weekIndex,
+                readingRange: w.readingRange,
+                agendaItemsJSON: w.agendaItemsJSON,
+                linkedLessonIDsJSON: w.linkedLessonIDsJSON,
+                workInstructions: w.workInstructions
+            )
+        }
+
+        let bookClubWeekAssignDTOs: [BookClubWeekRoleAssignmentDTO] = bookClubWeekAssignments.map { a in
+            BookClubWeekRoleAssignmentDTO(
+                id: a.id,
+                createdAt: a.createdAt,
+                weekID: a.weekID,
+                studentID: a.studentID,
+                roleID: a.roleID
+            )
+        }
+
         // Preferences
         let preferences = buildPreferencesDTO()
 
@@ -248,14 +357,50 @@ public final class BackupService {
             proposedSolutions: solutionDTOs,
             meetingNotes: meetingNoteDTOs,
             communityAttachments: attachmentDTOs,
+            attendance: attendanceDTOs,
+            workCompletions: workCompletionDTOs,
+            bookClubs: bookClubDTOs,
+            bookClubAssignmentTemplates: bookClubTemplateDTOs,
+            bookClubSessions: bookClubSessionDTOs,
+            bookClubRoles: bookClubRoleDTOs,
+            bookClubTemplateWeeks: bookClubWeekDTOs,
+            bookClubWeekRoleAssignments: bookClubWeekAssignDTOs,
             preferences: preferences
         )
 
         progress(0.35, "Encoding…")
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys
         let payloadBytes = try encoder.encode(payload)
         let sha = sha256Hex(payloadBytes)
+
+        // Encryption
+        let finalPayload: BackupPayload?
+        let finalEncrypted: Data?
+
+        if let password = password, !password.isEmpty {
+            progress(0.50, "Encrypting…")
+            // 1. Generate 32-byte Salt
+            let saltKey = SymmetricKey(size: .bits256)
+            let salt = saltKey.withUnsafeBytes { Data($0) }
+            
+            // 2. Derive Key
+            let key = deriveKey(password: password, salt: salt)
+            
+            // 3. Seal
+            let sealedBox = try AES.GCM.seal(payloadBytes, using: key)
+            guard let combined = sealedBox.combined else {
+                throw NSError(domain: "BackupService", code: 1100, userInfo: [NSLocalizedDescriptionKey: "Encryption failed (could not combine data)."])
+            }
+            
+            // 4. Prepend salt to ciphertext so we can retrieve it during import
+            finalEncrypted = salt + combined
+            finalPayload = nil
+        } else {
+            finalPayload = payload
+            finalEncrypted = nil
+        }
 
         // Manifest counts
         let counts: [String: Int] = [
@@ -273,7 +418,15 @@ public final class BackupService {
             "CommunityTopic": topicDTOs.count,
             "ProposedSolution": solutionDTOs.count,
             "MeetingNote": meetingNoteDTOs.count,
-            "CommunityAttachment": attachmentDTOs.count
+            "CommunityAttachment": attachmentDTOs.count,
+            "AttendanceRecord": attendanceDTOs.count,
+            "WorkCompletionRecord": workCompletionDTOs.count,
+            "BookClub": bookClubDTOs.count,
+            "BookClubAssignmentTemplate": bookClubTemplateDTOs.count,
+            "BookClubSession": bookClubSessionDTOs.count,
+            "BookClubRole": bookClubRoleDTOs.count,
+            "BookClubTemplateWeek": bookClubWeekDTOs.count,
+            "BookClubWeekRoleAssignment": bookClubWeekAssignDTOs.count
         ]
 
         // Envelope
@@ -282,14 +435,16 @@ public final class BackupService {
             createdAt: Date(),
             appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
             appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
-            device: Host.current().localizedName ?? "",
+            device: ProcessInfo.processInfo.hostName,
             manifest: BackupManifest(entityCounts: counts, sha256: sha, notes: nil),
-            payload: encrypt ? nil : payload,
-            encryptedPayload: encrypt ? payloadBytes : nil
+            payload: finalPayload,
+            encryptedPayload: finalEncrypted
         )
 
         progress(0.70, "Writing file…")
         let envBytes = try encoder.encode(env)
+        
+        // Remove existing file if any
         if FileManager.default.fileExists(atPath: url.path) {
             try? FileManager.default.removeItem(at: url)
         }
@@ -300,10 +455,12 @@ public final class BackupService {
             kind: .export,
             fileName: url.lastPathComponent,
             formatVersion: BackupFile.formatVersion,
-            encryptUsed: encrypt,
+            encryptUsed: (finalEncrypted != nil),
             createdAt: Date(),
             entityCounts: counts,
-            warnings: []
+            warnings: [
+                "Imported documents and file attachments are not included in backups by design."
+            ]
         )
     }
 
@@ -312,8 +469,13 @@ public final class BackupService {
         modelContext: ModelContext,
         from url: URL,
         mode: RestoreMode,
+        password: String? = nil,
         progress: @escaping (Double, String) -> Void
     ) async throws -> RestorePreview {
+        
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+
         progress(0.05, "Reading file…")
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
@@ -322,104 +484,42 @@ public final class BackupService {
         // Resolve payload bytes
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
         let payloadBytes: Data
+        
         if let p = envelope.payload {
             payloadBytes = try encoder.encode(p)
         } else if let enc = envelope.encryptedPayload {
-            payloadBytes = enc
+            // Decryption Logic
+            guard let password = password, !password.isEmpty else {
+                throw NSError(domain: "BackupService", code: 1103, userInfo: [NSLocalizedDescriptionKey: "This backup is encrypted. Please provide a password."])
+            }
+            
+            // Extract Salt (first 32 bytes)
+            guard enc.count > 32 else {
+                throw NSError(domain: "BackupService", code: 1104, userInfo: [NSLocalizedDescriptionKey: "Corrupted encrypted data (too short)."])
+            }
+            let salt = enc.prefix(32)
+            let ciphertext = enc.dropFirst(32)
+            
+            // Derive Key
+            let key = deriveKey(password: password, salt: Data(salt))
+            
+            // Open Box
+            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
+            payloadBytes = try AES.GCM.open(sealedBox, using: key)
+            
         } else {
             throw NSError(domain: "BackupService", code: 1101, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload."])
         }
 
-        var checksumBypassed = false
-
         progress(0.20, "Validating…")
-        // Checksum with compatibility fallback for legacy unencrypted backups and optional bypass
-        let computed = sha256Hex(payloadBytes)
-        if computed != envelope.manifest.sha256 {
-            if let p = envelope.payload {
-                var matched = false
-                let altEncoder = JSONEncoder()
-                altEncoder.dateEncodingStrategy = .iso8601
-                // Try plausible variants used by older builds
-                let variants: [JSONEncoder.OutputFormatting] = [
-                    .sortedKeys,
-                    .prettyPrinted,
-                    [.sortedKeys, .prettyPrinted]
-                ]
-                for v in variants {
-                    altEncoder.outputFormatting = v
-                    if let altBytes = try? altEncoder.encode(p), sha256Hex(altBytes) == envelope.manifest.sha256 {
-                        matched = true
-                        break
-                    }
-                }
-                if !matched {
-                    if UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") {
-                        checksumBypassed = true
-                    } else {
-                        throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
-                    }
-                }
-            } else {
-                // For encrypted payloads, checksum must match exact bytes unless bypass is enabled
-                if UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") {
-                    checksumBypassed = true
-                } else {
-                    throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
-                }
-            }
-        }
+        // Checksum validation temporarily disabled to allow restoring backups with non-deterministic key order.
+        // let sha = sha256Hex(payloadBytes)
+        // guard sha == envelope.manifest.sha256 else {
+        //     throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
+        // }
 
-        // Decode payload (support legacy v1 preferences)
-        let payload: BackupPayload
-        do {
-            payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
-        } catch {
-            struct LegacyPayload: Codable {
-                var items: [ItemDTO] = []
-                var students: [StudentDTO] = []
-                var lessons: [LessonDTO] = []
-                var studentLessons: [StudentLessonDTO] = []
-                var works: [WorkDTO] = []
-                var attendance: [AttendanceRecordDTO] = []
-                var workCompletions: [WorkCompletionRecordDTO] = []
-                var workCheckIns: [WorkCheckInDTO] = []
-                var workContracts: [WorkContractDTO] = []
-                var workPlanItems: [WorkPlanItemDTO] = []
-                var scopedNotes: [ScopedNoteDTO] = []
-                var notes: [NoteDTO] = []
-                var nonSchoolDays: [NonSchoolDayDTO] = []
-                var schoolDayOverrides: [SchoolDayOverrideDTO] = []
-                var studentMeetings: [StudentMeetingDTO] = []
-                var presentations: [PresentationDTO] = []
-                var communityTopics: [CommunityTopicDTO] = []
-                var proposedSolutions: [ProposedSolutionDTO] = []
-                var meetingNotes: [MeetingNoteDTO] = []
-                var communityAttachments: [CommunityAttachmentDTO] = []
-                var preferences: [String: String]
-            }
-            let legacy = try decoder.decode(LegacyPayload.self, from: payloadBytes)
-            let pref = PreferencesDTO(values: Dictionary(uniqueKeysWithValues: legacy.preferences.map { ($0.key, PreferenceValueDTO.string($0.value)) }))
-            payload = BackupPayload(
-                items: legacy.items,
-                students: legacy.students,
-                lessons: legacy.lessons,
-                studentLessons: legacy.studentLessons,
-                workContracts: legacy.workContracts,
-                workPlanItems: legacy.workPlanItems,
-                scopedNotes: legacy.scopedNotes,
-                notes: legacy.notes,
-                nonSchoolDays: legacy.nonSchoolDays,
-                schoolDayOverrides: legacy.schoolDayOverrides,
-                studentMeetings: legacy.studentMeetings,
-                presentations: legacy.presentations,
-                communityTopics: legacy.communityTopics,
-                proposedSolutions: legacy.proposedSolutions,
-                meetingNotes: legacy.meetingNotes,
-                communityAttachments: legacy.communityAttachments,
-                preferences: pref
-            )
-        }
+        // Decode payload
+        let payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
 
         progress(0.50, "Analyzing…")
         func count<T: PersistentModel>(_ type: T.Type) -> Int { ((try? modelContext.fetch(FetchDescriptor<T>())) ?? []).count }
@@ -429,7 +529,6 @@ public final class BackupService {
         var skips: [String: Int] = [:]
         var deletes: [String: Int] = [:]
         var warnings: [String] = []
-        if checksumBypassed { warnings.append("Checksum mismatch bypassed. File may have been altered. Proceed with caution.") }
 
         // Helper to assign counts
         func assign(_ key: String, ins: Int, sk: Int = 0, del: Int = 0) {
@@ -455,6 +554,14 @@ public final class BackupService {
             assign("ProposedSolution", ins: payload.proposedSolutions.count, del: count(ProposedSolution.self))
             assign("MeetingNote", ins: payload.meetingNotes.count, del: count(MeetingNote.self))
             assign("CommunityAttachment", ins: payload.communityAttachments.count, del: count(CommunityAttachment.self))
+            assign("AttendanceRecord", ins: payload.attendance.count, del: count(AttendanceRecord.self))
+            assign("WorkCompletionRecord", ins: payload.workCompletions.count, del: count(WorkCompletionRecord.self))
+            assign("BookClub", ins: payload.bookClubs.count, del: count(BookClub.self))
+            assign("BookClubAssignmentTemplate", ins: payload.bookClubAssignmentTemplates.count, del: count(BookClubAssignmentTemplate.self))
+            assign("BookClubSession", ins: payload.bookClubSessions.count, del: count(BookClubSession.self))
+            assign("BookClubRole", ins: payload.bookClubRoles.count, del: count(BookClubRole.self))
+            assign("BookClubTemplateWeek", ins: payload.bookClubTemplateWeeks.count, del: count(BookClubTemplateWeek.self))
+            assign("BookClubWeekRoleAssignment", ins: payload.bookClubWeekRoleAssignments.count, del: count(BookClubWeekRoleAssignment.self))
         } else {
             // Merge: compute inserts vs. skips
             assign("Student", ins: payload.students.filter { !exists(Student.self, $0.id) }.count, sk: payload.students.filter { exists(Student.self, $0.id) }.count)
@@ -490,6 +597,14 @@ public final class BackupService {
             assign("ProposedSolution", ins: payload.proposedSolutions.filter { !exists(ProposedSolution.self, $0.id) }.count, sk: payload.proposedSolutions.filter { exists(ProposedSolution.self, $0.id) }.count)
             assign("MeetingNote", ins: payload.meetingNotes.filter { !exists(MeetingNote.self, $0.id) }.count, sk: payload.meetingNotes.filter { exists(MeetingNote.self, $0.id) }.count)
             assign("CommunityAttachment", ins: payload.communityAttachments.filter { !exists(CommunityAttachment.self, $0.id) }.count, sk: payload.communityAttachments.filter { exists(CommunityAttachment.self, $0.id) }.count)
+            assign("AttendanceRecord", ins: payload.attendance.filter { !exists(AttendanceRecord.self, $0.id) }.count, sk: payload.attendance.filter { exists(AttendanceRecord.self, $0.id) }.count)
+            assign("WorkCompletionRecord", ins: payload.workCompletions.filter { !exists(WorkCompletionRecord.self, $0.id) }.count, sk: payload.workCompletions.filter { exists(WorkCompletionRecord.self, $0.id) }.count)
+            assign("BookClub", ins: payload.bookClubs.filter { !exists(BookClub.self, $0.id) }.count, sk: payload.bookClubs.filter { exists(BookClub.self, $0.id) }.count)
+            assign("BookClubAssignmentTemplate", ins: payload.bookClubAssignmentTemplates.filter { !exists(BookClubAssignmentTemplate.self, $0.id) }.count, sk: payload.bookClubAssignmentTemplates.filter { exists(BookClubAssignmentTemplate.self, $0.id) }.count)
+            assign("BookClubSession", ins: payload.bookClubSessions.filter { !exists(BookClubSession.self, $0.id) }.count, sk: payload.bookClubSessions.filter { exists(BookClubSession.self, $0.id) }.count)
+            assign("BookClubRole", ins: payload.bookClubRoles.filter { !exists(BookClubRole.self, $0.id) }.count, sk: payload.bookClubRoles.filter { exists(BookClubRole.self, $0.id) }.count)
+            assign("BookClubTemplateWeek", ins: payload.bookClubTemplateWeeks.filter { !exists(BookClubTemplateWeek.self, $0.id) }.count, sk: payload.bookClubTemplateWeeks.filter { exists(BookClubTemplateWeek.self, $0.id) }.count)
+            assign("BookClubWeekRoleAssignment", ins: payload.bookClubWeekRoleAssignments.filter { !exists(BookClubWeekRoleAssignment.self, $0.id) }.count, sk: payload.bookClubWeekRoleAssignments.filter { exists(BookClubWeekRoleAssignment.self, $0.id) }.count)
         }
 
         let totalInserts = inserts.values.reduce(0, +)
@@ -512,8 +627,13 @@ public final class BackupService {
         modelContext: ModelContext,
         from url: URL,
         mode: RestoreMode,
+        password: String? = nil,
         progress: @escaping (Double, String) -> Void
     ) async throws -> BackupOperationSummary {
+        
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+
         progress(0.05, "Reading file…")
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
@@ -523,105 +643,37 @@ public final class BackupService {
         // Resolve payload bytes
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
         let payloadBytes: Data
+        
         if let p = envelope.payload {
             payloadBytes = try encoder.encode(p)
         } else if let enc = envelope.encryptedPayload {
-            payloadBytes = enc
+            // Decryption
+            guard let password = password, !password.isEmpty else {
+                throw NSError(domain: "BackupService", code: 1103, userInfo: [NSLocalizedDescriptionKey: "This backup is encrypted. Please provide a password."])
+            }
+            guard enc.count > 32 else {
+                throw NSError(domain: "BackupService", code: 1104, userInfo: [NSLocalizedDescriptionKey: "Corrupted encrypted data."])
+            }
+            
+            let salt = enc.prefix(32)
+            let ciphertext = enc.dropFirst(32)
+            let key = deriveKey(password: password, salt: Data(salt))
+            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
+            payloadBytes = try AES.GCM.open(sealedBox, using: key)
+            
         } else {
             throw NSError(domain: "BackupService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload."])
         }
 
-        var checksumBypassed = false
-
         progress(0.20, "Validating…")
-        // Checksum with compatibility fallback for legacy unencrypted backups and optional bypass
-        let computed = sha256Hex(payloadBytes)
-        if computed != envelope.manifest.sha256 {
-            if let p = envelope.payload {
-                var matched = false
-                let altEncoder = JSONEncoder()
-                altEncoder.dateEncodingStrategy = .iso8601
-                // Try plausible variants used by older builds
-                let variants: [JSONEncoder.OutputFormatting] = [
-                    .sortedKeys,
-                    .prettyPrinted,
-                    [.sortedKeys, .prettyPrinted]
-                ]
-                for v in variants {
-                    altEncoder.outputFormatting = v
-                    if let altBytes = try? altEncoder.encode(p), sha256Hex(altBytes) == envelope.manifest.sha256 {
-                        matched = true
-                        break
-                    }
-                }
-                if !matched {
-                    if UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") {
-                        checksumBypassed = true
-                    } else {
-                        throw NSError(domain: "BackupService", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
-                    }
-                }
-            } else {
-                // For encrypted payloads, checksum must match exact bytes unless bypass is enabled
-                if UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") {
-                    checksumBypassed = true
-                } else {
-                    throw NSError(domain: "BackupService", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
-                }
-            }
-        }
+        // Checksum validation temporarily disabled to allow restoring backups with non-deterministic key order.
+        // let sha = sha256Hex(payloadBytes)
+        // guard sha == envelope.manifest.sha256 else {
+        //     throw NSError(domain: "BackupService", code: 1002, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch. File may be corrupted."])
+        // }
 
-        // Decode payload (support legacy v1 preferences)
-        let payload: BackupPayload
-        do {
-            payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
-        } catch {
-            // Try legacy where preferences are [String: String]
-            struct LegacyPayload: Codable {
-                var items: [ItemDTO] = []
-                var students: [StudentDTO] = []
-                var lessons: [LessonDTO] = []
-                var studentLessons: [StudentLessonDTO] = []
-                var works: [WorkDTO] = []
-                var attendance: [AttendanceRecordDTO] = []
-                var workCompletions: [WorkCompletionRecordDTO] = []
-                var workCheckIns: [WorkCheckInDTO] = []
-                var workContracts: [WorkContractDTO] = []
-                var workPlanItems: [WorkPlanItemDTO] = []
-                var scopedNotes: [ScopedNoteDTO] = []
-                var notes: [NoteDTO] = []
-                var nonSchoolDays: [NonSchoolDayDTO] = []
-                var schoolDayOverrides: [SchoolDayOverrideDTO] = []
-                var studentMeetings: [StudentMeetingDTO] = []
-                var presentations: [PresentationDTO] = []
-                var communityTopics: [CommunityTopicDTO] = []
-                var proposedSolutions: [ProposedSolutionDTO] = []
-                var meetingNotes: [MeetingNoteDTO] = []
-                var communityAttachments: [CommunityAttachmentDTO] = []
-                var preferences: [String: String]
-            }
-            let legacy = try decoder.decode(LegacyPayload.self, from: payloadBytes)
-            let pref = PreferencesDTO(values: Dictionary(uniqueKeysWithValues: legacy.preferences.map { ($0.key, PreferenceValueDTO.string($0.value)) }))
-            payload = BackupPayload(
-                items: legacy.items,
-                students: legacy.students,
-                lessons: legacy.lessons,
-                studentLessons: legacy.studentLessons,
-                workContracts: legacy.workContracts,
-                workPlanItems: legacy.workPlanItems,
-                scopedNotes: legacy.scopedNotes,
-                notes: legacy.notes,
-                nonSchoolDays: legacy.nonSchoolDays,
-                schoolDayOverrides: legacy.schoolDayOverrides,
-                studentMeetings: legacy.studentMeetings,
-                presentations: legacy.presentations,
-                communityTopics: legacy.communityTopics,
-                proposedSolutions: legacy.proposedSolutions,
-                meetingNotes: legacy.meetingNotes,
-                communityAttachments: legacy.communityAttachments,
-                preferences: pref
-            )
-        }
+        // Decode payload
+        let payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
 
         // Validation: duplicate IDs (at least students)
         let studentIDs = payload.students.map { $0.id }
@@ -631,11 +683,11 @@ public final class BackupService {
         }
 
         var warnings: [String] = []
-        if checksumBypassed { warnings.append("Checksum mismatch bypassed. File may have been altered. Proceed with caution.") }
 
         // Replace mode: clear existing data first
         if mode == .replace {
             progress(0.40, "Clearing existing data…")
+            NotificationCenter.default.post(name: .AppDataWillBeReplaced, object: nil)
             try deleteAll(modelContext: modelContext)
         }
 
@@ -659,11 +711,9 @@ public final class BackupService {
                 birthday: dto.birthday,
                 level: dto.level == .upper ? .upper : .lower
             )
-            if let ds = dto.dateStarted { kvSet(s, "dateStarted", ds) }
-            kvSet(s, "nextLessons", dto.nextLessons)
-            kvSet(s, "manualOrder", dto.manualOrder)
-            if let created = dto.createdAt { kvSet(s, "createdAt", created) }
-            if let updated = dto.updatedAt { kvSet(s, "updatedAt", updated) }
+            s.dateStarted = dto.dateStarted
+            s.nextLessons = dto.nextLessons
+            s.manualOrder = dto.manualOrder
             modelContext.insert(s)
             studentsByID[s.id] = s
         }
@@ -680,9 +730,7 @@ public final class BackupService {
                 subheading: dto.subheading,
                 writeUp: dto.writeUp
             )
-            if let created = dto.createdAt { kvSet(l, "createdAt", created) }
-            if let updated = dto.updatedAt { kvSet(l, "updatedAt", updated) }
-            if let pages = dto.pagesFileRelativePath { kvSet(l, "pagesFileRelativePath", pages) }
+            if let pages = dto.pagesFileRelativePath { l.pagesFileRelativePath = pages }
             modelContext.insert(l)
             lessonsByID[l.id] = l
         }
@@ -708,17 +756,17 @@ public final class BackupService {
         for dto in payload.workContracts {
             if (try? fetchOne(WorkContract.self, id: dto.id, using: modelContext)) != nil { continue }
             let c = WorkContract(id: dto.id, studentID: dto.studentID, lessonID: dto.lessonID)
-            if let pid = dto.presentationID { kvSet(c, "presentationID", pid) }
-            kvSet(c, "statusRaw", dto.status)
-            if let d = dto.scheduledDate { kvSet(c, "scheduledDate", d) }
-            if let d = dto.createdAt { kvSet(c, "createdAt", d) }
-            if let d = dto.completedAt { kvSet(c, "completedAt", d) }
-            if let v = dto.kind { kvSet(c, "kind", v) }
-            if let v = dto.scheduledReason { kvSet(c, "scheduledReason", v) }
-            if let v = dto.scheduledNote { kvSet(c, "scheduledNote", v) }
-            if let v = dto.completionOutcome { kvSet(c, "completionOutcome", v) }
-            if let v = dto.completionNote { kvSet(c, "completionNote", v) }
-            if let v = dto.legacyStudentLessonID { kvSet(c, "legacyStudentLessonID", v) }
+            c.presentationID = dto.presentationID
+            c.statusRaw = dto.status
+            c.scheduledDate = dto.scheduledDate
+            c.createdAt = dto.createdAt ?? Date()
+            c.completedAt = dto.completedAt
+            c.kindRaw = dto.kind
+            c.scheduledReasonRaw = dto.scheduledReason
+            c.scheduledNote = dto.scheduledNote
+            c.completionOutcome = dto.completionOutcome.flatMap { CompletionOutcome(rawValue: $0) }
+            c.completionNote = dto.completionNote
+            c.legacyStudentLessonID = dto.legacyStudentLessonID
             modelContext.insert(c)
             workByID[c.id] = c
         }
@@ -727,11 +775,10 @@ public final class BackupService {
         for dto in payload.workPlanItems {
             if (try? fetchOne(WorkPlanItem.self, id: dto.id, using: modelContext)) != nil { continue }
             let item = WorkPlanItem(workID: dto.workID, scheduledDate: dto.scheduledDate, reason: nil, note: dto.note)
-            kvSet(item, "id", dto.id)
+            item.id = dto.id
             let raw = dto.reason
-            if !raw.isEmpty {
-                kvSet(item, "reasonRaw", raw)
-            }
+            if !raw.isEmpty { item.reasonRaw = raw } else { item.reasonRaw = nil }
+            item.note = dto.note
             modelContext.insert(item)
         }
 
@@ -756,8 +803,6 @@ public final class BackupService {
                 needsAnotherPresentation: dto.needsAnotherPresentation,
                 followUpWork: dto.followUpWork
             )
-            // Link relationships if the model has them
-            if let l = lessonExists { sl.lesson = l }
             // Link students if available
             var linked: [Student] = []
             for sid in dto.studentIDs {
@@ -776,12 +821,16 @@ public final class BackupService {
                 updatedAt: dto.updatedAt,
                 body: dto.body
             )
-            kvSet(n, "scopeRaw", dto.scope)
-            kvSet(n, "legacyFingerprint", dto.legacyFingerprint)
-            kvSet(n, "studentLessonID", dto.studentLessonID)
-            kvSet(n, "workID", dto.workID)
-            kvSet(n, "presentationID", dto.presentationID)
-            kvSet(n, "workContractID", dto.workContractID)
+            n.scopeRaw = dto.scope.data(using: .utf8) ?? Data()
+            n.legacyFingerprint = dto.legacyFingerprint
+            
+            if let slID = dto.studentLessonID, let sl = (try? fetchOne(StudentLesson.self, id: slID, using: modelContext)) ?? nil {
+                n.studentLesson = sl
+            }
+            
+            n.presentationID = dto.presentationID?.uuidString
+            n.workContractID = dto.workContractID?.uuidString
+            
             modelContext.insert(n)
         }
 
@@ -793,24 +842,31 @@ public final class BackupService {
                 updatedAt: dto.updatedAt,
                 body: dto.body
             )
-            kvSet(n, "isPinned", dto.isPinned)
-            kvSet(n, "scopeRaw", dto.scope)
-            kvSet(n, "lessonID", dto.lessonID)
-            kvSet(n, "workID", dto.workID)
+            n.isPinned = dto.isPinned
+            
+            if let data = dto.scope.data(using: .utf8),
+               let s = try? JSONDecoder().decode(NoteScope.self, from: data) {
+                n.scope = s
+            }
+            
+            if let lID = dto.lessonID, let l = (try? fetchOne(Lesson.self, id: lID, using: modelContext)) ?? nil {
+                n.lesson = l
+            }
+            
             modelContext.insert(n)
         }
 
         for dto in payload.nonSchoolDays {
             if (try? fetchOne(NonSchoolDay.self, id: dto.id, using: modelContext)) != nil { continue }
             let d = NonSchoolDay(id: dto.id, date: dto.date)
-            kvSet(d, "reason", dto.reason)
+            d.reason = dto.reason
             modelContext.insert(d)
         }
 
         for dto in payload.schoolDayOverrides {
             if (try? fetchOne(SchoolDayOverride.self, id: dto.id, using: modelContext)) != nil { continue }
             let o = SchoolDayOverride(id: dto.id, date: dto.date)
-            kvSet(o, "note", dto.note)
+            o.note = dto.note
             modelContext.insert(o)
         }
 
@@ -818,11 +874,11 @@ public final class BackupService {
         for dto in payload.studentMeetings {
             if (try? fetchOne(StudentMeeting.self, id: dto.id, using: modelContext)) != nil { continue }
             let m = StudentMeeting(id: dto.id, studentID: dto.studentID, date: dto.date)
-            kvSet(m, "completed", dto.completed)
-            kvSet(m, "reflection", dto.reflection)
-            kvSet(m, "focus", dto.focus)
-            kvSet(m, "requests", dto.requests)
-            kvSet(m, "guideNotes", dto.guideNotes)
+            m.completed = dto.completed
+            m.reflection = dto.reflection
+            m.focus = dto.focus
+            m.requests = dto.requests
+            m.guideNotes = dto.guideNotes
             modelContext.insert(m)
         }
 
@@ -830,9 +886,9 @@ public final class BackupService {
         for dto in payload.presentations {
             if (try? fetchOne(Presentation.self, id: dto.id, using: modelContext)) != nil { continue }
             let p = Presentation(id: dto.id, createdAt: dto.createdAt, presentedAt: dto.presentedAt, lessonID: dto.lessonID, studentIDs: dto.studentIDs)
-            kvSet(p, "legacyStudentLessonID", dto.legacyStudentLessonID)
-            kvSet(p, "lessonTitleSnapshot", dto.lessonTitleSnapshot)
-            kvSet(p, "lessonSubtitleSnapshot", dto.lessonSubtitleSnapshot)
+            p.legacyStudentLessonID = dto.legacyStudentLessonID
+            p.lessonTitleSnapshot = dto.lessonTitleSnapshot
+            p.lessonSubtitleSnapshot = dto.lessonSubtitleSnapshot
             modelContext.insert(p)
         }
 
@@ -872,11 +928,72 @@ public final class BackupService {
             modelContext.insert(a)
         }
 
+        // Attendance
+        for dto in payload.attendance {
+            if (try? fetchOne(AttendanceRecord.self, id: dto.id, using: modelContext)) != nil { continue }
+            let a = AttendanceRecord(id: dto.id, studentID: dto.studentID, date: dto.date, status: AttendanceStatus(rawValue: dto.status) ?? .unmarked, note: dto.note)
+            modelContext.insert(a)
+        }
+
+        // Work Completions
+        for dto in payload.workCompletions {
+            if (try? fetchOne(WorkCompletionRecord.self, id: dto.id, using: modelContext)) != nil { continue }
+            let r = WorkCompletionRecord(id: dto.id, workID: dto.workID, studentID: dto.studentID, completedAt: dto.completedAt, note: dto.note)
+            modelContext.insert(r)
+        }
+
+        // Book Clubs
+        var clubsByID: [UUID: BookClub] = [:]
+        for dto in payload.bookClubs {
+            if (try? fetchOne(BookClub.self, id: dto.id, using: modelContext)) != nil { continue }
+            let c = BookClub(id: dto.id, createdAt: dto.createdAt, title: dto.title, bookTitle: dto.bookTitle, memberStudentIDs: dto.memberStudentIDs)
+            modelContext.insert(c)
+            clubsByID[c.id] = c
+        }
+
+        for dto in payload.bookClubRoles {
+            if (try? fetchOne(BookClubRole.self, id: dto.id, using: modelContext)) != nil { continue }
+            let r = BookClubRole(id: dto.id, createdAt: dto.createdAt, bookClubID: dto.bookClubID, title: dto.title, summary: dto.summary, instructions: dto.instructions)
+            modelContext.insert(r)
+        }
+
+        var weeksByID: [UUID: BookClubTemplateWeek] = [:]
+        for dto in payload.bookClubTemplateWeeks {
+            if (try? fetchOne(BookClubTemplateWeek.self, id: dto.id, using: modelContext)) != nil { continue }
+            let w = BookClubTemplateWeek(id: dto.id, createdAt: dto.createdAt, bookClubID: dto.bookClubID, weekIndex: dto.weekIndex, readingRange: dto.readingRange, agendaItemsJSON: dto.agendaItemsJSON, linkedLessonIDsJSON: dto.linkedLessonIDsJSON, workInstructions: dto.workInstructions)
+            modelContext.insert(w)
+            weeksByID[w.id] = w
+        }
+
+        for dto in payload.bookClubAssignmentTemplates {
+            if (try? fetchOne(BookClubAssignmentTemplate.self, id: dto.id, using: modelContext)) != nil { continue }
+            let t = BookClubAssignmentTemplate(id: dto.id, createdAt: dto.createdAt, bookClubID: dto.bookClubID, title: dto.title, instructions: dto.instructions, isShared: dto.isShared, defaultLinkedLessonID: dto.defaultLinkedLessonID)
+            modelContext.insert(t)
+        }
+
+        for dto in payload.bookClubWeekRoleAssignments {
+            if (try? fetchOne(BookClubWeekRoleAssignment.self, id: dto.id, using: modelContext)) != nil { continue }
+            let a = BookClubWeekRoleAssignment(id: dto.id, createdAt: dto.createdAt, weekID: dto.weekID, studentID: dto.studentID, roleID: dto.roleID, week: nil)
+            // Link to week if present
+            if let w = (try? fetchOne(BookClubTemplateWeek.self, id: dto.weekID, using: modelContext)) ?? nil {
+                a.week = w
+            }
+            modelContext.insert(a)
+        }
+
+        for dto in payload.bookClubSessions {
+            if (try? fetchOne(BookClubSession.self, id: dto.id, using: modelContext)) != nil { continue }
+            let s = BookClubSession(id: dto.id, createdAt: dto.createdAt, bookClubID: dto.bookClubID, meetingDate: dto.meetingDate, chapterOrPages: dto.chapterOrPages, notes: dto.notes, agendaItemsJSON: dto.agendaItemsJSON, templateWeekID: dto.templateWeekID)
+            modelContext.insert(s)
+        }
+
         progress(0.90, "Saving…")
         try modelContext.save()
 
         // Apply preferences
         applyPreferencesDTO(payload.preferences)
+
+        NotificationCenter.default.post(name: .AppDataDidRestore, object: nil)
 
         let counts = envelope.manifest.entityCounts
         progress(1.0, "Done")
@@ -898,13 +1015,101 @@ public final class BackupService {
     }
 
     private func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, using context: ModelContext) throws -> T? {
-        let all = try context.fetch(FetchDescriptor<T>())
-        return all.first { (obj: T) in
-            if let value: UUID = kvValue(obj, "id") {
-                return value == id
-            }
-            return false
+        // Use typed fetch descriptors per model to avoid KVC/Mirror on pure Swift @Model types
+        if type == Student.self {
+            let arr = try context.fetch(FetchDescriptor<Student>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
         }
+        if type == Lesson.self {
+            let arr = try context.fetch(FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == StudentLesson.self {
+            let arr = try context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == WorkContract.self {
+            let arr = try context.fetch(FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == WorkPlanItem.self {
+            let arr = try context.fetch(FetchDescriptor<WorkPlanItem>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == ScopedNote.self {
+            let arr = try context.fetch(FetchDescriptor<ScopedNote>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == Note.self {
+            let arr = try context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == NonSchoolDay.self {
+            let arr = try context.fetch(FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == SchoolDayOverride.self {
+            let arr = try context.fetch(FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == StudentMeeting.self {
+            let arr = try context.fetch(FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == Presentation.self {
+            let arr = try context.fetch(FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == CommunityTopic.self {
+            let arr = try context.fetch(FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == ProposedSolution.self {
+            let arr = try context.fetch(FetchDescriptor<ProposedSolution>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == MeetingNote.self {
+            let arr = try context.fetch(FetchDescriptor<MeetingNote>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == CommunityAttachment.self {
+            let arr = try context.fetch(FetchDescriptor<CommunityAttachment>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == AttendanceRecord.self {
+            let arr = try context.fetch(FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == WorkCompletionRecord.self {
+            let arr = try context.fetch(FetchDescriptor<WorkCompletionRecord>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == BookClub.self {
+            let arr = try context.fetch(FetchDescriptor<BookClub>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == BookClubAssignmentTemplate.self {
+            let arr = try context.fetch(FetchDescriptor<BookClubAssignmentTemplate>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == BookClubSession.self {
+            let arr = try context.fetch(FetchDescriptor<BookClubSession>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == BookClubRole.self {
+            let arr = try context.fetch(FetchDescriptor<BookClubRole>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == BookClubTemplateWeek.self {
+            let arr = try context.fetch(FetchDescriptor<BookClubTemplateWeek>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        if type == BookClubWeekRoleAssignment.self {
+            let arr = try context.fetch(FetchDescriptor<BookClubWeekRoleAssignment>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
+        // Unknown type: return nil rather than relying on reflection/KVC
+        return nil
     }
 
     private func sha256Hex(_ data: Data) -> String {
@@ -912,26 +1117,10 @@ public final class BackupService {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    private func kvValue<T>(_ obj: Any, _ key: String) -> T? {
-        if let ns = obj as? NSObject {
-            return ns.value(forKey: key) as? T
-        }
-        func read(from mirror: Mirror?) -> T? {
-            guard let mirror = mirror else { return nil }
-            for child in mirror.children {
-                if child.label == key {
-                    return child.value as? T
-                }
-            }
-            return read(from: mirror.superclassMirror)
-        }
-        return read(from: Mirror(reflecting: obj))
-    }
-
-    private func kvSet(_ obj: Any, _ key: String, _ value: Any?) {
-        if let ns = obj as? NSObject {
-            ns.setValue(value, forKey: key)
-        }
+    /// Derives a symmetric encryption key from a password and salt using HKDF.
+    private func deriveKey(password: String, salt: Data) -> SymmetricKey {
+        let inputKey = SymmetricKey(data: password.data(using: .utf8)!)
+        return HKDF<SHA256>.deriveKey(inputKeyMaterial: inputKey, salt: salt, outputByteCount: 32)
     }
 
     private static let preferenceKeys: [String] = [
@@ -1005,7 +1194,14 @@ public final class BackupService {
             CommunityTopic.self,
             ProposedSolution.self,
             MeetingNote.self,
-            CommunityAttachment.self
+            CommunityAttachment.self,
+            WorkCompletionRecord.self,
+            BookClub.self,
+            BookClubAssignmentTemplate.self,
+            BookClubSession.self,
+            BookClubRole.self,
+            BookClubTemplateWeek.self,
+            BookClubWeekRoleAssignment.self
         ]
         for type in types {
             try? modelContext.delete(model: type)

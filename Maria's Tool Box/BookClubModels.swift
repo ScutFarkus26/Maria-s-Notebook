@@ -31,7 +31,7 @@ final class BookClub: Identifiable {
     // Store Student IDs as strings for CloudKit compatibility
     var memberStudentIDs: [String] = []
 
-    // Relationships
+    // Relationships - FIX: Made optional
     @Relationship(inverse: \BookClubAssignmentTemplate.bookClub) var sharedTemplates: [BookClubAssignmentTemplate]? = []
     @Relationship(inverse: \BookClubSession.bookClub) var sessions: [BookClubSession]? = []
 
@@ -59,7 +59,7 @@ final class BookClubAssignmentTemplate: Identifiable {
 
     // Foreign key to BookClub
     var bookClubID: UUID = UUID()
-    var bookClub: BookClub? = nil
+    var bookClub: BookClub?
 
     var title: String = ""
     var instructions: String = ""
@@ -94,7 +94,7 @@ final class BookClubSession: Identifiable {
 
     // Foreign key to BookClub
     var bookClubID: UUID = UUID()
-    var bookClub: BookClub? = nil
+    var bookClub: BookClub?
 
     var meetingDate: Date = Date()
     var chapterOrPages: String? = nil
@@ -133,4 +133,3 @@ final class BookClubSession: Identifiable {
         set { agendaItemsJSON = LocalJSONStringList.encode(newValue) }
     }
 }
-

@@ -256,9 +256,6 @@ final class StudentLessonDetailViewModel {
                 followUpWork: ""
             )
             newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-            newStudentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
-            modelContext.insert(newStudentLesson)
-            try? modelContext.save()
         }
     }
     
@@ -293,7 +290,6 @@ final class StudentLessonDetailViewModel {
             followUpWork: ""
         )
         newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-        newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
         modelContext.insert(newStudentLesson)
         try? modelContext.save()
         StudentLessonDetailUtilities.notifyInboxRefresh()
@@ -357,3 +353,4 @@ final class StudentLessonDetailViewModel {
         StudentLessonDetailUtilities.notifyInboxRefresh()
     }
 }
+

@@ -69,7 +69,7 @@ struct NewBookClubSessionSheet: View {
         .padding(16)
     #if os(macOS)
         .frame(minWidth: 420)
-        .presentationSizing(.fitted)
+        .presentationSizingFitted()
     #else
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

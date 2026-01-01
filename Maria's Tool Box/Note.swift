@@ -85,7 +85,7 @@ final class Note: Identifiable {
     private var scopeBlob: Data?
 
     // Relationships (optional). Inverse to Lesson.notes only; WorkModel inverse added later.
-    @Relationship(inverse: \Lesson.notes) var lesson: Lesson?
+    @Relationship var lesson: Lesson?
     @Relationship var work: WorkModel?
 
     // Computed, Codable scope
