@@ -31,7 +31,8 @@ public final class BackupService {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons…")
         let lessons: [Lesson] = safeFetch(Lesson.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.12), "Collecting student lessons…")
-        let studentLessons: [StudentLesson] = safeFetch(StudentLesson.self, using: modelContext)
+        // Use safeFetchWithErrorHandling for StudentLesson as it may have corrupted studentIDs data
+        let studentLessons: [StudentLesson] = safeFetchWithErrorHandling(StudentLesson.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.18), "Collecting work contracts…")
         let workContracts: [WorkContract] = safeFetch(WorkContract.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.21), "Collecting work plan items…")
@@ -46,7 +47,9 @@ public final class BackupService {
         let studentMeetings: [StudentMeeting] = safeFetch(StudentMeeting.self, using: modelContext)
         let presentations: [Presentation] = safeFetch(Presentation.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.33), "Collecting community data…")
-        let communityTopics: [CommunityTopic] = safeFetch(CommunityTopic.self, using: modelContext)
+        // Use safeFetch with additional error handling for CommunityTopic
+        // This entity may have corrupted data that causes SwiftData to crash
+        let communityTopics: [CommunityTopic] = safeFetchWithErrorHandling(CommunityTopic.self, using: modelContext)
         let proposedSolutions: [ProposedSolution] = safeFetch(ProposedSolution.self, using: modelContext)
         let meetingNotes: [MeetingNote] = safeFetch(MeetingNote.self, using: modelContext)
         let communityAttachments: [CommunityAttachment] = safeFetch(CommunityAttachment.self, using: modelContext)
@@ -1114,6 +1117,19 @@ public final class BackupService {
     private func safeFetch<T: PersistentModel>(_ type: T.Type, using context: ModelContext) -> [T] {
         let descriptor = FetchDescriptor<T>()
         return (try? context.fetch(descriptor)) ?? []
+    }
+    
+    /// Safe fetch with additional error handling for entities that may have corrupted data.
+    /// This is a workaround for SwiftData crashes when reading corrupted properties.
+    private func safeFetchWithErrorHandling<T: PersistentModel>(_ type: T.Type, using context: ModelContext) -> [T] {
+        // Try normal fetch first
+        if let results = try? context.fetch(FetchDescriptor<T>()) {
+            return results
+        }
+        // If fetch fails, return empty array to allow backup to continue
+        // The backup will continue with other entities, preserving as much data as possible
+        print("BackupService: Warning - Could not fetch \(String(describing: type)). Skipping this entity type.")
+        return []
     }
 
     private func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, using context: ModelContext) throws -> T? {

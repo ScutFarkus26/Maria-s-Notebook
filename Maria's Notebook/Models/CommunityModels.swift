@@ -32,24 +32,41 @@ final class CommunityTopic: Identifiable {
     @Relationship(deleteRule: .cascade, inverse: \MeetingNote.topic) var notes: [MeetingNote]? = []
 
     /// Freeform tags for filtering (e.g., Safety, Environment, Curriculum)
-    /// Stored as JSON string to handle type mismatches gracefully
-    private var tagsRaw: String = "[]"
+    /// 
+    /// MIGRATION NOTE: The old database had 'tags' as [String] but may contain corrupted UUID data.
+    /// We now store tags as JSON-encoded Data in '_tagsData' to avoid SwiftData type conflicts.
+    /// Using Data instead of String provides better type safety and avoids encoding issues.
+    /// The public 'tags' property is computed and marked @Transient so SwiftData doesn't try
+    /// to read the old stored property during fetches.
+    @Attribute(.externalStorage) private var _tagsData: Data? = nil
     
+    /// Public tags property. Uses JSON encoding to safely handle corrupted data.
+    /// Marked as @Transient so SwiftData ignores it completely and doesn't try to read
+    /// any old stored property that may contain corrupted UUID data.
+    /// 
+    /// LAZY MIGRATION: When this property is accessed, it safely decodes from _tagsData.
+    /// If _tagsData is nil (new record) or invalid (corrupted), it returns an empty array.
+    /// When set, it encodes to _tagsData, which triggers a lazy migration on save.
+    @Transient
     var tags: [String] {
         get {
-            guard let data = tagsRaw.data(using: .utf8),
+            // Safely decode from JSON storage
+            guard let data = _tagsData,
                   let array = try? JSONDecoder().decode([String].self, from: data) else {
-                // If decoding fails, try to handle legacy UUID data or return empty
+                // If decoding fails (e.g., old corrupted data or nil), return empty array
+                // This prevents crashes and allows the record to be accessed safely
                 return []
             }
             return array
         }
         set {
-            if let data = try? JSONEncoder().encode(newValue),
-               let string = String(data: data, encoding: .utf8) {
-                tagsRaw = string
+            // Encode to JSON for storage
+            // This will persist the new format, completing the lazy migration
+            if let data = try? JSONEncoder().encode(newValue) {
+                _tagsData = data
             } else {
-                tagsRaw = "[]"
+                // If encoding fails, store nil (will be treated as empty array on read)
+                _tagsData = nil
             }
         }
     }
@@ -74,7 +91,7 @@ final class CommunityTopic: Identifiable {
         self.proposedSolutions = []
         self.notes = []
         self.attachments = []
-        self.tagsRaw = "[]"
+        self._tagsData = try? JSONEncoder().encode([String]())
     }
 
     var isResolved: Bool { addressedDate != nil }

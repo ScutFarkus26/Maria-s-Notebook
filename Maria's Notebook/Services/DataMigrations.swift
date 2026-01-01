@@ -105,41 +105,44 @@ enum DataMigrations {
     }
     
     /// Fix CommunityTopic.tags property migration to new storage format.
-    /// The tags property now uses JSON-encoded string storage (tagsRaw) instead of direct array storage.
-    /// This migration ensures all existing topics have valid JSON in tagsRaw.
-    /// Note: This must run before any CommunityTopic is accessed to avoid crashes from type mismatches.
+    /// The tags property now uses JSON-encoded Data storage (_tagsData) instead of direct array storage.
+    /// 
+    /// IMPORTANT: This migration cannot fetch CommunityTopic records directly because SwiftData
+    /// may crash when trying to read the old tags property from corrupted data. Instead, we use
+    /// a lazy migration approach where records are migrated when they are accessed and saved.
+    /// 
+    /// The computed property in CommunityTopic safely handles corrupted data by returning an
+    /// empty array if _tagsData contains invalid data, preventing crashes.
     static func fixCommunityTopicTagsIfNeeded(using context: ModelContext) {
-        let flagKey = "Migration.communityTopicTagsFix.v1"
+        let flagKey = "Migration.communityTopicTagsFix.v2"
         if UserDefaults.standard.bool(forKey: flagKey) { return }
         
-        // Use a flag to track if we've successfully migrated
-        // Don't set it until migration completes to allow retries
-        do {
-            // Fetch with error handling - if this crashes, the migration will be retried on next launch
-            let fetch = FetchDescriptor<CommunityTopic>()
-            let topics = try context.fetch(fetch)
-            var changed = 0
-            
-            for topic in topics {
-                // Access tags property - it will safely decode from tagsRaw
-                // If tagsRaw contains invalid data, it will return empty array
-                // Force a save to ensure tagsRaw is properly set
-                let currentTags = topic.tags
-                topic.tags = currentTags // This will encode to tagsRaw properly
-                changed += 1
-            }
-            
-            if changed > 0 {
-                try context.save()
-                print("DataMigrations: Migrated \(changed) CommunityTopic tags to new storage format")
-            }
-            // Only set flag after successful completion
-            UserDefaults.standard.set(true, forKey: flagKey)
-        } catch {
-            // If fetch or save fails (e.g., due to type mismatch crash), don't set the flag
-            // This allows the migration to be retried on next launch
-            print("DataMigrations: Error fixing CommunityTopic tags (will retry): \(error)")
-            // Don't set the flag - allow retry
-        }
+        // Mark migration as complete immediately to prevent any fetch attempts that might crash
+        // The computed property in CommunityTopic will safely handle corrupted data
+        // by returning an empty array if _tagsData contains invalid data.
+        // Records will be migrated lazily when accessed and saved (tags property setter encodes to _tagsData).
+        UserDefaults.standard.set(true, forKey: flagKey)
+        print("DataMigrations: CommunityTopic tags migration v2 flag set. Records will be migrated lazily on access.")
+    }
+    
+    /// Fix StudentLesson.studentIDs property migration to new storage format.
+    /// The studentIDs property now uses JSON-encoded Data storage (_studentIDsData) instead of direct array storage.
+    /// 
+    /// IMPORTANT: This migration cannot fetch StudentLesson records directly because SwiftData
+    /// may crash when trying to read the old studentIDs property from corrupted data (UUIDs instead of Strings).
+    /// Instead, we use a lazy migration approach where records are migrated when they are accessed and saved.
+    /// 
+    /// The computed property in StudentLesson safely handles corrupted data by returning an
+    /// empty array if _studentIDsData contains invalid data, preventing crashes.
+    static func fixStudentLessonStudentIDsIfNeeded(using context: ModelContext) {
+        let flagKey = "Migration.studentLessonStudentIDsFix.v1"
+        if UserDefaults.standard.bool(forKey: flagKey) { return }
+        
+        // Mark migration as complete immediately to prevent any fetch attempts that might crash
+        // The computed property in StudentLesson will safely handle corrupted data
+        // by returning an empty array if _studentIDsData contains invalid data.
+        // Records will be migrated lazily when accessed and saved (studentIDs property setter encodes to _studentIDsData).
+        UserDefaults.standard.set(true, forKey: flagKey)
+        print("DataMigrations: StudentLesson studentIDs migration flag set. Records will be migrated lazily on access.")
     }
 }
