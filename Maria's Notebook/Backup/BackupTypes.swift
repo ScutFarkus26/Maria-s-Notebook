@@ -3,10 +3,15 @@ import Foundation
 // MARK: - Constants
 public enum BackupFile {
     public static let fileExtension = "mtbbackup"
+    /// Format version 6: Adds compression support (LZFSE) while maintaining backward compatibility
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
-    public static let formatVersion = 5
+    public static let formatVersion = 6
     /// Minimum format version that enforces checksum validation
     public static let checksumEnforcedVersion = 5
+    /// Format version that introduced compression (backups < this version are uncompressed)
+    public static let compressionIntroducedVersion = 6
+    /// Compression algorithm constant
+    public static let compressionAlgorithm = "lzfse"
 }
 
 // MARK: - Envelope / Manifest / Payload
@@ -18,8 +23,10 @@ public struct BackupEnvelope: Codable {
     public var device: String
     public var manifest: BackupManifest
     // If encryption is enabled, payload is nil and encryptedPayload contains the encrypted bytes.
+    // For format version 6+, compressedPayload may contain compressed (but not encrypted) data.
     public var payload: BackupPayload? = nil
     public var encryptedPayload: Data? = nil
+    public var compressedPayload: Data? = nil  // Format version 6+: compressed but unencrypted data
 
     enum CodingKeys: String, CodingKey {
         case formatVersion
@@ -30,9 +37,10 @@ public struct BackupEnvelope: Codable {
         case manifest
         case payload
         case encryptedPayload
+        case compressedPayload
     }
 
-    public init(formatVersion: Int, createdAt: Date, appBuild: String, appVersion: String, device: String, manifest: BackupManifest, payload: BackupPayload? = nil, encryptedPayload: Data? = nil) {
+    public init(formatVersion: Int, createdAt: Date, appBuild: String, appVersion: String, device: String, manifest: BackupManifest, payload: BackupPayload? = nil, encryptedPayload: Data? = nil, compressedPayload: Data? = nil) {
         self.formatVersion = formatVersion
         self.createdAt = createdAt
         self.appBuild = appBuild
@@ -41,6 +49,7 @@ public struct BackupEnvelope: Codable {
         self.manifest = manifest
         self.payload = payload
         self.encryptedPayload = encryptedPayload
+        self.compressedPayload = compressedPayload
     }
 
     public init(from decoder: Decoder) throws {
@@ -53,6 +62,7 @@ public struct BackupEnvelope: Codable {
         self.manifest = try container.decode(BackupManifest.self, forKey: .manifest)
         self.payload = try container.decodeIfPresent(BackupPayload.self, forKey: .payload)
         self.encryptedPayload = try container.decodeIfPresent(Data.self, forKey: .encryptedPayload)
+        self.compressedPayload = try container.decodeIfPresent(Data.self, forKey: .compressedPayload)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -65,6 +75,7 @@ public struct BackupEnvelope: Codable {
         try container.encode(manifest, forKey: .manifest)
         try container.encodeIfPresent(payload, forKey: .payload)
         try container.encodeIfPresent(encryptedPayload, forKey: .encryptedPayload)
+        try container.encodeIfPresent(compressedPayload, forKey: .compressedPayload)
     }
 }
 
@@ -72,6 +83,15 @@ public struct BackupManifest: Codable {
     public var entityCounts: [String: Int]
     public var sha256: String
     public var notes: String?
+    /// Compression algorithm used (if any). nil means no compression (backward compatible)
+    public var compression: String? = nil
+    
+    public init(entityCounts: [String: Int], sha256: String, notes: String? = nil, compression: String? = nil) {
+        self.entityCounts = entityCounts
+        self.sha256 = sha256
+        self.notes = notes
+        self.compression = compression
+    }
 }
 
 // MARK: - PreferencesDTO and PreferenceValueDTO

@@ -73,6 +73,22 @@ This document summarizes the improvements that have been applied to the backup a
   - Ensures consistency and makes it easier to add new entity types in the future
 - **Files Modified**: `BackupService.swift`
 
+### 10. Compression Support (Issue #6)
+- **Status**: ✅ Complete
+- **Changes**: 
+  - Added LZFSE compression support using the Compression framework
+  - Format version increased to 6
+  - New `compressedPayload` field in `BackupEnvelope` for compressed but unencrypted backups
+  - Compression metadata stored in `BackupManifest.compression`
+  - Compression applied before encryption (compressed data is then encrypted if password is provided)
+  - Checksum is calculated on uncompressed data for integrity verification
+  - Full backward compatibility: old backups (format version < 6) continue to work without compression
+  - Automatic decompression during import and preview
+- **Files Modified**: 
+  - `BackupTypes.swift` (added compression field to manifest, new compressedPayload field, format version 6)
+  - `BackupService.swift` (compression/decompression helpers, updated export/import logic)
+- **Benefits**: Significantly reduces backup file sizes (typically 2-4x compression for JSON), enabling automatic backups without storage bloat
+
 ## 📝 Implementation Notes
 
 ### Checksum Validation Logic
@@ -101,9 +117,7 @@ The following improvements were considered but not implemented as they require s
 
 1. **Generic fetchOne Method**: SwiftData's `#Predicate` macro requires compile-time type information, making a truly generic implementation infeasible without code generation or macros.
 
-2. **Compression Support**: Can be added later if needed. The infrastructure is ready, but compression adds complexity and the current file sizes may not justify it.
-
-3. **Batch Processing for Large Datasets**: Current implementation loads all entities into memory. Batch processing could be added for very large datasets, but would require significant refactoring.
+2. **Batch Processing for Large Datasets**: Current implementation loads all entities into memory. Batch processing could be added for very large datasets, but would require significant refactoring. This is a prerequisite for safe automatic backups (see `AUTO_BACKUP_ROADMAP.md`).
 
 4. **Incremental Backups**: Would require tracking modification timestamps and significant architectural changes.
 
@@ -111,10 +125,14 @@ The following improvements were considered but not implemented as they require s
 
 1. Test backup/restore with format version 4 backups (backward compatibility)
 2. Test backup/restore with format version 5 backups (new format)
-3. Test checksum validation with corrupted backup files
-4. Test duplicate ID detection with malformed backup files
-5. Test file permissions on encrypted backups
-6. Test backup verification with write failures (disk full, etc.)
+3. Test backup/restore with format version 6 backups (compressed format)
+4. Test compression/decompression with various data sizes
+5. Test encrypted + compressed backups
+6. Test unencrypted + compressed backups
+7. Test checksum validation with corrupted backup files
+8. Test duplicate ID detection with malformed backup files
+9. Test file permissions on encrypted backups
+10. Test backup verification with write failures (disk full, etc.)
 
 ## 📊 Impact
 
