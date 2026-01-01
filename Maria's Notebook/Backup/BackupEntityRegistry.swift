@@ -23,12 +23,12 @@ struct BackupEntityRegistry {
         CommunityAttachment.self,
         AttendanceRecord.self,
         WorkCompletionRecord.self,
-        BookClub.self,
-        BookClubAssignmentTemplate.self,
-        BookClubSession.self,
-        BookClubRole.self,
-        BookClubTemplateWeek.self,
-        BookClubWeekRoleAssignment.self
+        Project.self,
+        ProjectAssignmentTemplate.self,
+        ProjectSession.self,
+        ProjectRole.self,
+        ProjectTemplateWeek.self,
+        ProjectWeekRoleAssignment.self
     ]
     
     /// Entity type names for progress reporting and error messages

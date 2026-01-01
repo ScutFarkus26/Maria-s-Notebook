@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-struct BookClubEditorSheet: View {
-    let club: BookClub?
+struct ProjectEditorSheet: View {
+    let club: Project?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -17,7 +17,7 @@ struct BookClubEditorSheet: View {
     struct TemplateDraft: Identifiable, Hashable { var id = UUID(); var title: String = ""; var instructions: String = ""; var defaultLinkedLessonID: String? = nil }
     @State private var sharedTemplates: [TemplateDraft] = []
 
-    init(club: BookClub?) {
+    init(club: Project?) {
         self.club = club
         _title = State(initialValue: club?.title ?? "")
         _bookTitle = State(initialValue: club?.bookTitle ?? "")
@@ -127,23 +127,23 @@ struct BookClubEditorSheet: View {
             let existingNonShared = (club.sharedTemplates ?? []).filter { !$0.isShared }
             club.sharedTemplates = existingNonShared
             for draft in sharedTemplates.prefix(2) {
-                let tpl = BookClubAssignmentTemplate(bookClubID: club.id, title: draft.title, instructions: draft.instructions, isShared: true, defaultLinkedLessonID: draft.defaultLinkedLessonID)
+                let tpl = ProjectAssignmentTemplate(projectID: club.id, title: draft.title, instructions: draft.instructions, isShared: true, defaultLinkedLessonID: draft.defaultLinkedLessonID)
                 club.sharedTemplates = (club.sharedTemplates ?? []) + [tpl]
             }
         } else {
             // Create new
-            let newClub = BookClub(title: trimmedTitle, bookTitle: bt.isEmpty ? nil : bt, memberStudentIDs: Array(selectedMemberIDs))
+            let newClub = Project(title: trimmedTitle, bookTitle: bt.isEmpty ? nil : bt, memberStudentIDs: Array(selectedMemberIDs))
             // Two shared templates (allow fewer if user left blank; still create placeholders)
-            var templates: [BookClubAssignmentTemplate] = []
+            var templates: [ProjectAssignmentTemplate] = []
             for draft in sharedTemplates.prefix(2) {
-                let tpl = BookClubAssignmentTemplate(bookClubID: newClub.id, title: draft.title, instructions: draft.instructions, isShared: true, defaultLinkedLessonID: draft.defaultLinkedLessonID)
+                let tpl = ProjectAssignmentTemplate(projectID: newClub.id, title: draft.title, instructions: draft.instructions, isShared: true, defaultLinkedLessonID: draft.defaultLinkedLessonID)
                 templates.append(tpl)
             }
             newClub.sharedTemplates = templates
             modelContext.insert(newClub)
         }
 
-        _ = saveCoordinator.save(modelContext, reason: "Save Book Club")
+        _ = saveCoordinator.save(modelContext, reason: "Save Project")
         dismiss()
     }
 }

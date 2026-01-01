@@ -182,13 +182,13 @@ public struct BackupPayload: Codable {
     public var attendance: [AttendanceRecordDTO]
     public var workCompletions: [WorkCompletionRecordDTO]
 
-    // Book Club entities
-    public var bookClubs: [BookClubDTO]
-    public var bookClubAssignmentTemplates: [BookClubAssignmentTemplateDTO]
-    public var bookClubSessions: [BookClubSessionDTO]
-    public var bookClubRoles: [BookClubRoleDTO]
-    public var bookClubTemplateWeeks: [BookClubTemplateWeekDTO]
-    public var bookClubWeekRoleAssignments: [BookClubWeekRoleAssignmentDTO]
+    // Project entities
+    public var projects: [ProjectDTO]
+    public var projectAssignmentTemplates: [ProjectAssignmentTemplateDTO]
+    public var projectSessions: [ProjectSessionDTO]
+    public var projectRoles: [ProjectRoleDTO]
+    public var projectTemplateWeeks: [ProjectTemplateWeekDTO]
+    public var projectWeekRoleAssignments: [ProjectWeekRoleAssignmentDTO]
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO
@@ -212,12 +212,12 @@ public struct BackupPayload: Codable {
         case communityAttachments
         case attendance
         case workCompletions
-        case bookClubs
-        case bookClubAssignmentTemplates
-        case bookClubSessions
-        case bookClubRoles
-        case bookClubTemplateWeeks
-        case bookClubWeekRoleAssignments
+        case projects
+        case projectAssignmentTemplates
+        case projectSessions
+        case projectRoles
+        case projectTemplateWeeks
+        case projectWeekRoleAssignments
         // Removed bookClubChoiceSets and bookClubChoiceItems
         case preferences
     }
@@ -241,12 +241,12 @@ public struct BackupPayload: Codable {
         communityAttachments: [CommunityAttachmentDTO],
         attendance: [AttendanceRecordDTO],
         workCompletions: [WorkCompletionRecordDTO],
-        bookClubs: [BookClubDTO],
-        bookClubAssignmentTemplates: [BookClubAssignmentTemplateDTO],
-        bookClubSessions: [BookClubSessionDTO],
-        bookClubRoles: [BookClubRoleDTO],
-        bookClubTemplateWeeks: [BookClubTemplateWeekDTO],
-        bookClubWeekRoleAssignments: [BookClubWeekRoleAssignmentDTO],
+        projects: [ProjectDTO],
+        projectAssignmentTemplates: [ProjectAssignmentTemplateDTO],
+        projectSessions: [ProjectSessionDTO],
+        projectRoles: [ProjectRoleDTO],
+        projectTemplateWeeks: [ProjectTemplateWeekDTO],
+        projectWeekRoleAssignments: [ProjectWeekRoleAssignmentDTO],
         preferences: PreferencesDTO
     ) {
         self.items = items
@@ -267,12 +267,12 @@ public struct BackupPayload: Codable {
         self.communityAttachments = communityAttachments
         self.attendance = attendance
         self.workCompletions = workCompletions
-        self.bookClubs = bookClubs
-        self.bookClubAssignmentTemplates = bookClubAssignmentTemplates
-        self.bookClubSessions = bookClubSessions
-        self.bookClubRoles = bookClubRoles
-        self.bookClubTemplateWeeks = bookClubTemplateWeeks
-        self.bookClubWeekRoleAssignments = bookClubWeekRoleAssignments
+        self.projects = projects
+        self.projectAssignmentTemplates = projectAssignmentTemplates
+        self.projectSessions = projectSessions
+        self.projectRoles = projectRoles
+        self.projectTemplateWeeks = projectTemplateWeeks
+        self.projectWeekRoleAssignments = projectWeekRoleAssignments
         self.preferences = preferences
     }
 
@@ -298,12 +298,12 @@ public struct BackupPayload: Codable {
         // New arrays (backward compatible)
         self.attendance = try container.decodeIfPresent([AttendanceRecordDTO].self, forKey: .attendance) ?? []
         self.workCompletions = try container.decodeIfPresent([WorkCompletionRecordDTO].self, forKey: .workCompletions) ?? []
-        self.bookClubs = try container.decodeIfPresent([BookClubDTO].self, forKey: .bookClubs) ?? []
-        self.bookClubAssignmentTemplates = try container.decodeIfPresent([BookClubAssignmentTemplateDTO].self, forKey: .bookClubAssignmentTemplates) ?? []
-        self.bookClubSessions = try container.decodeIfPresent([BookClubSessionDTO].self, forKey: .bookClubSessions) ?? []
-        self.bookClubRoles = try container.decodeIfPresent([BookClubRoleDTO].self, forKey: .bookClubRoles) ?? []
-        self.bookClubTemplateWeeks = try container.decodeIfPresent([BookClubTemplateWeekDTO].self, forKey: .bookClubTemplateWeeks) ?? []
-        self.bookClubWeekRoleAssignments = try container.decodeIfPresent([BookClubWeekRoleAssignmentDTO].self, forKey: .bookClubWeekRoleAssignments) ?? []
+        self.projects = try container.decodeIfPresent([ProjectDTO].self, forKey: .projects) ?? []
+        self.projectAssignmentTemplates = try container.decodeIfPresent([ProjectAssignmentTemplateDTO].self, forKey: .projectAssignmentTemplates) ?? []
+        self.projectSessions = try container.decodeIfPresent([ProjectSessionDTO].self, forKey: .projectSessions) ?? []
+        self.projectRoles = try container.decodeIfPresent([ProjectRoleDTO].self, forKey: .projectRoles) ?? []
+        self.projectTemplateWeeks = try container.decodeIfPresent([ProjectTemplateWeekDTO].self, forKey: .projectTemplateWeeks) ?? []
+        self.projectWeekRoleAssignments = try container.decodeIfPresent([ProjectWeekRoleAssignmentDTO].self, forKey: .projectWeekRoleAssignments) ?? []
 
         self.preferences = try container.decode(PreferencesDTO.self, forKey: .preferences)
     }
@@ -328,12 +328,12 @@ public struct BackupPayload: Codable {
         try container.encode(communityAttachments, forKey: .communityAttachments)
         try container.encode(attendance, forKey: .attendance)
         try container.encode(workCompletions, forKey: .workCompletions)
-        try container.encode(bookClubs, forKey: .bookClubs)
-        try container.encode(bookClubAssignmentTemplates, forKey: .bookClubAssignmentTemplates)
-        try container.encode(bookClubSessions, forKey: .bookClubSessions)
-        try container.encode(bookClubRoles, forKey: .bookClubRoles)
-        try container.encode(bookClubTemplateWeeks, forKey: .bookClubTemplateWeeks)
-        try container.encode(bookClubWeekRoleAssignments, forKey: .bookClubWeekRoleAssignments)
+        try container.encode(projects, forKey: .projects)
+        try container.encode(projectAssignmentTemplates, forKey: .projectAssignmentTemplates)
+        try container.encode(projectSessions, forKey: .projectSessions)
+        try container.encode(projectRoles, forKey: .projectRoles)
+        try container.encode(projectTemplateWeeks, forKey: .projectTemplateWeeks)
+        try container.encode(projectWeekRoleAssignments, forKey: .projectWeekRoleAssignments)
         try container.encode(preferences, forKey: .preferences)
     }
 }
@@ -541,8 +541,8 @@ public struct CommunityAttachmentDTO: Codable {
     public var createdAt: Date
 }
 
-// MARK: - Book Club DTOs
-public struct BookClubDTO: Codable {
+// MARK: - Project DTOs
+public struct ProjectDTO: Codable {
     public var id: UUID
     public var createdAt: Date
     public var title: String
@@ -550,20 +550,20 @@ public struct BookClubDTO: Codable {
     public var memberStudentIDs: [String]
 }
 
-public struct BookClubAssignmentTemplateDTO: Codable {
+public struct ProjectAssignmentTemplateDTO: Codable {
     public var id: UUID
     public var createdAt: Date
-    public var bookClubID: UUID
+    public var projectID: UUID
     public var title: String
     public var instructions: String
     public var isShared: Bool
     public var defaultLinkedLessonID: String?
 }
 
-public struct BookClubSessionDTO: Codable {
+public struct ProjectSessionDTO: Codable {
     public var id: UUID
     public var createdAt: Date
-    public var bookClubID: UUID
+    public var projectID: UUID
     public var meetingDate: Date
     public var chapterOrPages: String?
     public var notes: String?
@@ -571,19 +571,19 @@ public struct BookClubSessionDTO: Codable {
     public var templateWeekID: UUID?
 }
 
-public struct BookClubRoleDTO: Codable {
+public struct ProjectRoleDTO: Codable {
     public var id: UUID
     public var createdAt: Date
-    public var bookClubID: UUID
+    public var projectID: UUID
     public var title: String
     public var summary: String
     public var instructions: String
 }
 
-public struct BookClubTemplateWeekDTO: Codable {
+public struct ProjectTemplateWeekDTO: Codable {
     public var id: UUID
     public var createdAt: Date
-    public var bookClubID: UUID
+    public var projectID: UUID
     public var weekIndex: Int
     public var readingRange: String
     public var agendaItemsJSON: String
@@ -591,7 +591,7 @@ public struct BookClubTemplateWeekDTO: Codable {
     public var workInstructions: String
 }
 
-public struct BookClubWeekRoleAssignmentDTO: Codable {
+public struct ProjectWeekRoleAssignmentDTO: Codable {
     public var id: UUID
     public var createdAt: Date
     public var weekID: UUID

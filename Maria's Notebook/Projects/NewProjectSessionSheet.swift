@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-struct NewBookClubSessionSheet: View {
-    let club: BookClub
+struct NewProjectSessionSheet: View {
+    let club: Project
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -14,15 +14,15 @@ struct NewBookClubSessionSheet: View {
     @State private var useTemplateWeek: Bool = false
     @State private var selectedTemplateWeekID: UUID? = nil
 
-    @Query(sort: [SortDescriptor(\BookClubTemplateWeek.weekIndex, order: .forward)]) private var allTemplateWeeks: [BookClubTemplateWeek]
-    @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
+    @Query(sort: [SortDescriptor(\ProjectTemplateWeek.weekIndex, order: .forward)]) private var allTemplateWeeks: [ProjectTemplateWeek]
+    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var allRoles: [ProjectRole]
     @Query private var allStudentLessons: [StudentLesson]
 
-    private var templateWeeks: [BookClubTemplateWeek] {
-        allTemplateWeeks.filter { $0.bookClubID == club.id }
+    private var templateWeeks: [ProjectTemplateWeek] {
+        allTemplateWeeks.filter { $0.projectID == club.id }
     }
 
-    init(club: BookClub) {
+    init(club: Project) {
         self.club = club
     }
 
@@ -80,13 +80,13 @@ struct NewBookClubSessionSheet: View {
         !club.memberStudentIDs.isEmpty
     }
     
-    private func fetchRole(_ id: UUID) -> BookClubRole? {
+    private func fetchRole(_ id: UUID) -> ProjectRole? {
         return allRoles.first { $0.id == id }
     }
 
     private func create() {
-        let session = BookClubSession(
-            bookClubID: club.id,
+        let session = ProjectSession(
+            projectID: club.id,
             meetingDate: AppCalendar.startOfDay(meetingDate),
             chapterOrPages: chapterOrPages.isEmpty ? nil : chapterOrPages
         )
@@ -138,11 +138,11 @@ struct NewBookClubSessionSheet: View {
 
         // 2. Create Direct Work Contracts
         // We resolve a generic "Book Club" lesson to attach these contracts to.
-        let lessonUUID = resolveGenericBookClubLessonID(context: modelContext)
+        let lessonUUID = resolveGenericProjectLessonID(context: modelContext)
 
         // Prepare data for the contracts loop
         let sharedTemplates = (club.sharedTemplates ?? []).filter { $0.isShared }
-        let templateWeek: BookClubTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil) ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! }) : nil
+        let templateWeek: ProjectTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil) ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! }) : nil
 
         for sid in club.memberStudentIDs {
             // A. Determine Content based on Template or Generic
@@ -195,7 +195,7 @@ struct NewBookClubSessionSheet: View {
             }
         }
 
-        _ = saveCoordinator.save(modelContext, reason: "Create Book Club Session (Direct Work)")
+        _ = saveCoordinator.save(modelContext, reason: "Create Project Session (Direct Work)")
         dismiss()
     }
     
@@ -208,7 +208,7 @@ struct NewBookClubSessionSheet: View {
             scheduledDate: scheduledDate,
             completedAt: nil
         )
-        contract.sourceContextType = .bookClubSession
+        contract.sourceContextType = .projectSession
         contract.sourceContextID = sessionID.uuidString
         contract.kind = .followUpAssignment
         
@@ -225,13 +225,13 @@ struct NewBookClubSessionSheet: View {
         modelContext.insert(planItem)
     }
 
-    private func resolveGenericBookClubLessonID(context: ModelContext) -> UUID {
-        let name = "Book Club Work"
+    private func resolveGenericProjectLessonID(context: ModelContext) -> UUID {
+        let name = "Project Work"
         let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.name == name })
         if let existing = try? context.fetch(fetch), let first = existing.first {
             return first.id
         }
-        let l = Lesson(name: name, subject: "Book Clubs", group: "Book Club")
+        let l = Lesson(name: name, subject: "Projects", group: "Project")
         context.insert(l)
         return l.id
     }

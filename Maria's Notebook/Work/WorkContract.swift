@@ -28,7 +28,7 @@ enum WorkStatus: String, Codable, CaseIterable {
 }
 
 enum WorkSourceContextType: String, Codable {
-    case bookClubSession
+    case projectSession
 }
 
 @Model

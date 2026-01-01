@@ -22,11 +22,11 @@ struct AppSchema {
         WorkContract.self,
         WorkPlanItem.self,
         StudentMeeting.self,
-        BookClub.self,
-        BookClubAssignmentTemplate.self,
-        BookClubSession.self,
-        BookClubRole.self,
-        BookClubTemplateWeek.self,
-        BookClubWeekRoleAssignment.self,
+        Project.self,
+        ProjectAssignmentTemplate.self,
+        ProjectSession.self,
+        ProjectRole.self,
+        ProjectTemplateWeek.self,
+        ProjectWeekRoleAssignment.self,
     ])
 }

@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-struct BookClubSessionDetailView: View {
-    let session: BookClubSession
+struct ProjectSessionDetailView: View {
+    let session: ProjectSession
 
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
@@ -22,7 +22,7 @@ struct BookClubSessionDetailView: View {
     private var sessionContracts: [WorkContract] {
         let sid = session.id.uuidString
         return allWorkContracts.filter {
-            $0.sourceContextType == .bookClubSession && $0.sourceContextID == sid
+            $0.sourceContextType == .projectSession && $0.sourceContextID == sid
         }
     }
 
@@ -125,7 +125,7 @@ struct BookClubSessionDetailView: View {
         }
         .navigationTitle(Self.df.string(from: session.meetingDate))
         .sheet(item: $showLessonPickerForContract) { targetContract in
-            BookClubLessonPickerSheet(
+            ProjectLessonPickerSheet(
                 viewModel: {
                     let initialIDs = Set([UUID(uuidString: targetContract.studentID)].compactMap { $0 })
                     let vm = LessonPickerViewModel(selectedStudentIDs: initialIDs)
@@ -201,7 +201,7 @@ struct BookClubSessionDetailView: View {
 }
 
 // A minimal wrapper that reuses LessonPickerViewModel to choose a single lesson
-private struct BookClubLessonPickerSheet: View {
+private struct ProjectLessonPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 

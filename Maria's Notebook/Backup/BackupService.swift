@@ -53,13 +53,13 @@ public final class BackupService {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.36), "Collecting attendance and work completions…")
         let attendance: [AttendanceRecord] = safeFetch(AttendanceRecord.self, using: modelContext)
         let workCompletions: [WorkCompletionRecord] = safeFetch(WorkCompletionRecord.self, using: modelContext)
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.39), "Collecting book clubs…")
-        let bookClubs: [BookClub] = safeFetch(BookClub.self, using: modelContext)
-        let bookClubTemplates: [BookClubAssignmentTemplate] = safeFetch(BookClubAssignmentTemplate.self, using: modelContext)
-        let bookClubSessions: [BookClubSession] = safeFetch(BookClubSession.self, using: modelContext)
-        let bookClubRoles: [BookClubRole] = safeFetch(BookClubRole.self, using: modelContext)
-        let bookClubWeeks: [BookClubTemplateWeek] = safeFetch(BookClubTemplateWeek.self, using: modelContext)
-        let bookClubWeekAssignments: [BookClubWeekRoleAssignment] = safeFetch(BookClubWeekRoleAssignment.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.39), "Collecting projects…")
+        let projects: [Project] = safeFetch(Project.self, using: modelContext)
+        let projectTemplates: [ProjectAssignmentTemplate] = safeFetch(ProjectAssignmentTemplate.self, using: modelContext)
+        let projectSessions: [ProjectSession] = safeFetch(ProjectSession.self, using: modelContext)
+        let projectRoles: [ProjectRole] = safeFetch(ProjectRole.self, using: modelContext)
+        let projectWeeks: [ProjectTemplateWeek] = safeFetch(ProjectTemplateWeek.self, using: modelContext)
+        let projectWeekAssignments: [ProjectWeekRoleAssignment] = safeFetch(ProjectWeekRoleAssignment.self, using: modelContext)
 
         // Map to DTOs
         let studentDTOs: [StudentDTO] = students.map { s in
@@ -274,9 +274,9 @@ public final class BackupService {
             )
         }
 
-        // Book Clubs
-        let bookClubDTOs: [BookClubDTO] = bookClubs.map { c in
-            BookClubDTO(
+        // Projects
+        let projectDTOs: [ProjectDTO] = projects.map { c in
+            ProjectDTO(
                 id: c.id,
                 createdAt: c.createdAt,
                 title: c.title,
@@ -285,11 +285,11 @@ public final class BackupService {
             )
         }
 
-        let bookClubTemplateDTOs: [BookClubAssignmentTemplateDTO] = bookClubTemplates.map { t in
-            BookClubAssignmentTemplateDTO(
+        let projectTemplateDTOs: [ProjectAssignmentTemplateDTO] = projectTemplates.map { t in
+            ProjectAssignmentTemplateDTO(
                 id: t.id,
                 createdAt: t.createdAt,
-                bookClubID: t.bookClubID,
+                projectID: t.projectID,
                 title: t.title,
                 instructions: t.instructions,
                 isShared: t.isShared,
@@ -297,11 +297,11 @@ public final class BackupService {
             )
         }
 
-        let bookClubSessionDTOs: [BookClubSessionDTO] = bookClubSessions.map { s in
-            BookClubSessionDTO(
+        let projectSessionDTOs: [ProjectSessionDTO] = projectSessions.map { s in
+            ProjectSessionDTO(
                 id: s.id,
                 createdAt: s.createdAt,
-                bookClubID: s.bookClubID,
+                projectID: s.projectID,
                 meetingDate: s.meetingDate,
                 chapterOrPages: s.chapterOrPages,
                 notes: s.notes,
@@ -310,22 +310,22 @@ public final class BackupService {
             )
         }
 
-        let bookClubRoleDTOs: [BookClubRoleDTO] = bookClubRoles.map { r in
-            BookClubRoleDTO(
+        let projectRoleDTOs: [ProjectRoleDTO] = projectRoles.map { r in
+            ProjectRoleDTO(
                 id: r.id,
                 createdAt: r.createdAt,
-                bookClubID: r.bookClubID,
+                projectID: r.projectID,
                 title: r.title,
                 summary: r.summary,
                 instructions: r.instructions
             )
         }
 
-        let bookClubWeekDTOs: [BookClubTemplateWeekDTO] = bookClubWeeks.map { w in
-            BookClubTemplateWeekDTO(
+        let projectWeekDTOs: [ProjectTemplateWeekDTO] = projectWeeks.map { w in
+            ProjectTemplateWeekDTO(
                 id: w.id,
                 createdAt: w.createdAt,
-                bookClubID: w.bookClubID,
+                projectID: w.projectID,
                 weekIndex: w.weekIndex,
                 readingRange: w.readingRange,
                 agendaItemsJSON: w.agendaItemsJSON,
@@ -334,8 +334,8 @@ public final class BackupService {
             )
         }
 
-        let bookClubWeekAssignDTOs: [BookClubWeekRoleAssignmentDTO] = bookClubWeekAssignments.map { a in
-            BookClubWeekRoleAssignmentDTO(
+        let projectWeekAssignDTOs: [ProjectWeekRoleAssignmentDTO] = projectWeekAssignments.map { a in
+            ProjectWeekRoleAssignmentDTO(
                 id: a.id,
                 createdAt: a.createdAt,
                 weekID: a.weekID,
@@ -367,12 +367,12 @@ public final class BackupService {
             communityAttachments: attachmentDTOs,
             attendance: attendanceDTOs,
             workCompletions: workCompletionDTOs,
-            bookClubs: bookClubDTOs,
-            bookClubAssignmentTemplates: bookClubTemplateDTOs,
-            bookClubSessions: bookClubSessionDTOs,
-            bookClubRoles: bookClubRoleDTOs,
-            bookClubTemplateWeeks: bookClubWeekDTOs,
-            bookClubWeekRoleAssignments: bookClubWeekAssignDTOs,
+            projects: projectDTOs,
+            projectAssignmentTemplates: projectTemplateDTOs,
+            projectSessions: projectSessionDTOs,
+            projectRoles: projectRoleDTOs,
+            projectTemplateWeeks: projectWeekDTOs,
+            projectWeekRoleAssignments: projectWeekAssignDTOs,
             preferences: preferences
         )
 
@@ -429,12 +429,12 @@ public final class BackupService {
             "CommunityAttachment": attachmentDTOs.count,
             "AttendanceRecord": attendanceDTOs.count,
             "WorkCompletionRecord": workCompletionDTOs.count,
-            "BookClub": bookClubDTOs.count,
-            "BookClubAssignmentTemplate": bookClubTemplateDTOs.count,
-            "BookClubSession": bookClubSessionDTOs.count,
-            "BookClubRole": bookClubRoleDTOs.count,
-            "BookClubTemplateWeek": bookClubWeekDTOs.count,
-            "BookClubWeekRoleAssignment": bookClubWeekAssignDTOs.count
+            "Project": projectDTOs.count,
+            "ProjectAssignmentTemplate": projectTemplateDTOs.count,
+            "ProjectSession": projectSessionDTOs.count,
+            "ProjectRole": projectRoleDTOs.count,
+            "ProjectTemplateWeek": projectWeekDTOs.count,
+            "ProjectWeekRoleAssignment": projectWeekAssignDTOs.count
         ]
 
         // Envelope
@@ -505,7 +505,9 @@ public final class BackupService {
         let envelope = try decoder.decode(BackupEnvelope.self, from: data)
 
         // Resolve payload bytes
-        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys  // Must match export encoding for checksum validation
         let payloadBytes: Data
         
         if let p = envelope.payload {
@@ -591,12 +593,12 @@ public final class BackupService {
             assign("CommunityAttachment", ins: payload.communityAttachments.count, del: count(CommunityAttachment.self))
             assign("AttendanceRecord", ins: payload.attendance.count, del: count(AttendanceRecord.self))
             assign("WorkCompletionRecord", ins: payload.workCompletions.count, del: count(WorkCompletionRecord.self))
-            assign("BookClub", ins: payload.bookClubs.count, del: count(BookClub.self))
-            assign("BookClubAssignmentTemplate", ins: payload.bookClubAssignmentTemplates.count, del: count(BookClubAssignmentTemplate.self))
-            assign("BookClubSession", ins: payload.bookClubSessions.count, del: count(BookClubSession.self))
-            assign("BookClubRole", ins: payload.bookClubRoles.count, del: count(BookClubRole.self))
-            assign("BookClubTemplateWeek", ins: payload.bookClubTemplateWeeks.count, del: count(BookClubTemplateWeek.self))
-            assign("BookClubWeekRoleAssignment", ins: payload.bookClubWeekRoleAssignments.count, del: count(BookClubWeekRoleAssignment.self))
+            assign("Project", ins: payload.projects.count, del: count(Project.self))
+            assign("ProjectAssignmentTemplate", ins: payload.projectAssignmentTemplates.count, del: count(ProjectAssignmentTemplate.self))
+            assign("ProjectSession", ins: payload.projectSessions.count, del: count(ProjectSession.self))
+            assign("ProjectRole", ins: payload.projectRoles.count, del: count(ProjectRole.self))
+            assign("ProjectTemplateWeek", ins: payload.projectTemplateWeeks.count, del: count(ProjectTemplateWeek.self))
+            assign("ProjectWeekRoleAssignment", ins: payload.projectWeekRoleAssignments.count, del: count(ProjectWeekRoleAssignment.self))
         } else {
             // Merge: compute inserts vs. skips
             assign("Student", ins: payload.students.filter { !exists(Student.self, $0.id) }.count, sk: payload.students.filter { exists(Student.self, $0.id) }.count)
@@ -634,12 +636,12 @@ public final class BackupService {
             assign("CommunityAttachment", ins: payload.communityAttachments.filter { !exists(CommunityAttachment.self, $0.id) }.count, sk: payload.communityAttachments.filter { exists(CommunityAttachment.self, $0.id) }.count)
             assign("AttendanceRecord", ins: payload.attendance.filter { !exists(AttendanceRecord.self, $0.id) }.count, sk: payload.attendance.filter { exists(AttendanceRecord.self, $0.id) }.count)
             assign("WorkCompletionRecord", ins: payload.workCompletions.filter { !exists(WorkCompletionRecord.self, $0.id) }.count, sk: payload.workCompletions.filter { exists(WorkCompletionRecord.self, $0.id) }.count)
-            assign("BookClub", ins: payload.bookClubs.filter { !exists(BookClub.self, $0.id) }.count, sk: payload.bookClubs.filter { exists(BookClub.self, $0.id) }.count)
-            assign("BookClubAssignmentTemplate", ins: payload.bookClubAssignmentTemplates.filter { !exists(BookClubAssignmentTemplate.self, $0.id) }.count, sk: payload.bookClubAssignmentTemplates.filter { exists(BookClubAssignmentTemplate.self, $0.id) }.count)
-            assign("BookClubSession", ins: payload.bookClubSessions.filter { !exists(BookClubSession.self, $0.id) }.count, sk: payload.bookClubSessions.filter { exists(BookClubSession.self, $0.id) }.count)
-            assign("BookClubRole", ins: payload.bookClubRoles.filter { !exists(BookClubRole.self, $0.id) }.count, sk: payload.bookClubRoles.filter { exists(BookClubRole.self, $0.id) }.count)
-            assign("BookClubTemplateWeek", ins: payload.bookClubTemplateWeeks.filter { !exists(BookClubTemplateWeek.self, $0.id) }.count, sk: payload.bookClubTemplateWeeks.filter { exists(BookClubTemplateWeek.self, $0.id) }.count)
-            assign("BookClubWeekRoleAssignment", ins: payload.bookClubWeekRoleAssignments.filter { !exists(BookClubWeekRoleAssignment.self, $0.id) }.count, sk: payload.bookClubWeekRoleAssignments.filter { exists(BookClubWeekRoleAssignment.self, $0.id) }.count)
+            assign("Project", ins: payload.projects.filter { !exists(Project.self, $0.id) }.count, sk: payload.projects.filter { exists(Project.self, $0.id) }.count)
+            assign("ProjectAssignmentTemplate", ins: payload.projectAssignmentTemplates.filter { !exists(ProjectAssignmentTemplate.self, $0.id) }.count, sk: payload.projectAssignmentTemplates.filter { exists(ProjectAssignmentTemplate.self, $0.id) }.count)
+            assign("ProjectSession", ins: payload.projectSessions.filter { !exists(ProjectSession.self, $0.id) }.count, sk: payload.projectSessions.filter { exists(ProjectSession.self, $0.id) }.count)
+            assign("ProjectRole", ins: payload.projectRoles.filter { !exists(ProjectRole.self, $0.id) }.count, sk: payload.projectRoles.filter { exists(ProjectRole.self, $0.id) }.count)
+            assign("ProjectTemplateWeek", ins: payload.projectTemplateWeeks.filter { !exists(ProjectTemplateWeek.self, $0.id) }.count, sk: payload.projectTemplateWeeks.filter { exists(ProjectTemplateWeek.self, $0.id) }.count)
+            assign("ProjectWeekRoleAssignment", ins: payload.projectWeekRoleAssignments.filter { !exists(ProjectWeekRoleAssignment.self, $0.id) }.count, sk: payload.projectWeekRoleAssignments.filter { exists(ProjectWeekRoleAssignment.self, $0.id) }.count)
         }
 
         let totalInserts = inserts.values.reduce(0, +)
@@ -676,7 +678,9 @@ public final class BackupService {
         let envelope = try decoder.decode(BackupEnvelope.self, from: data)
 
         // Resolve payload bytes
-        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys  // Must match export encoding for checksum validation
         let payloadBytes: Data
         
         if let p = envelope.payload {
@@ -751,12 +755,12 @@ public final class BackupService {
         validateNoDuplicates(payload.communityAttachments.map { $0.id }, entityName: "CommunityAttachment")
         validateNoDuplicates(payload.attendance.map { $0.id }, entityName: "AttendanceRecord")
         validateNoDuplicates(payload.workCompletions.map { $0.id }, entityName: "WorkCompletionRecord")
-        validateNoDuplicates(payload.bookClubs.map { $0.id }, entityName: "BookClub")
-        validateNoDuplicates(payload.bookClubAssignmentTemplates.map { $0.id }, entityName: "BookClubAssignmentTemplate")
-        validateNoDuplicates(payload.bookClubSessions.map { $0.id }, entityName: "BookClubSession")
-        validateNoDuplicates(payload.bookClubRoles.map { $0.id }, entityName: "BookClubRole")
-        validateNoDuplicates(payload.bookClubTemplateWeeks.map { $0.id }, entityName: "BookClubTemplateWeek")
-        validateNoDuplicates(payload.bookClubWeekRoleAssignments.map { $0.id }, entityName: "BookClubWeekRoleAssignment")
+        validateNoDuplicates(payload.projects.map { $0.id }, entityName: "Project")
+        validateNoDuplicates(payload.projectAssignmentTemplates.map { $0.id }, entityName: "ProjectAssignmentTemplate")
+        validateNoDuplicates(payload.projectSessions.map { $0.id }, entityName: "ProjectSession")
+        validateNoDuplicates(payload.projectRoles.map { $0.id }, entityName: "ProjectRole")
+        validateNoDuplicates(payload.projectTemplateWeeks.map { $0.id }, entityName: "ProjectTemplateWeek")
+        validateNoDuplicates(payload.projectWeekRoleAssignments.map { $0.id }, entityName: "ProjectWeekRoleAssignment")
         
         if !duplicateErrors.isEmpty {
             throw NSError(
@@ -1028,48 +1032,48 @@ public final class BackupService {
             modelContext.insert(r)
         }
 
-        // Book Clubs
-        var clubsByID: [UUID: BookClub] = [:]
-        for dto in payload.bookClubs {
-            if (try? fetchOne(BookClub.self, id: dto.id, using: modelContext)) != nil { continue }
-            let c = BookClub(id: dto.id, createdAt: dto.createdAt, title: dto.title, bookTitle: dto.bookTitle, memberStudentIDs: dto.memberStudentIDs)
+        // Projects
+        var clubsByID: [UUID: Project] = [:]
+        for dto in payload.projects {
+            if (try? fetchOne(Project.self, id: dto.id, using: modelContext)) != nil { continue }
+            let c = Project(id: dto.id, createdAt: dto.createdAt, title: dto.title, bookTitle: dto.bookTitle, memberStudentIDs: dto.memberStudentIDs)
             modelContext.insert(c)
             clubsByID[c.id] = c
         }
 
-        for dto in payload.bookClubRoles {
-            if (try? fetchOne(BookClubRole.self, id: dto.id, using: modelContext)) != nil { continue }
-            let r = BookClubRole(id: dto.id, createdAt: dto.createdAt, bookClubID: dto.bookClubID, title: dto.title, summary: dto.summary, instructions: dto.instructions)
+        for dto in payload.projectRoles {
+            if (try? fetchOne(ProjectRole.self, id: dto.id, using: modelContext)) != nil { continue }
+            let r = ProjectRole(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, title: dto.title, summary: dto.summary, instructions: dto.instructions)
             modelContext.insert(r)
         }
 
-        var weeksByID: [UUID: BookClubTemplateWeek] = [:]
-        for dto in payload.bookClubTemplateWeeks {
-            if (try? fetchOne(BookClubTemplateWeek.self, id: dto.id, using: modelContext)) != nil { continue }
-            let w = BookClubTemplateWeek(id: dto.id, createdAt: dto.createdAt, bookClubID: dto.bookClubID, weekIndex: dto.weekIndex, readingRange: dto.readingRange, agendaItemsJSON: dto.agendaItemsJSON, linkedLessonIDsJSON: dto.linkedLessonIDsJSON, workInstructions: dto.workInstructions)
+        var weeksByID: [UUID: ProjectTemplateWeek] = [:]
+        for dto in payload.projectTemplateWeeks {
+            if (try? fetchOne(ProjectTemplateWeek.self, id: dto.id, using: modelContext)) != nil { continue }
+            let w = ProjectTemplateWeek(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, weekIndex: dto.weekIndex, readingRange: dto.readingRange, agendaItemsJSON: dto.agendaItemsJSON, linkedLessonIDsJSON: dto.linkedLessonIDsJSON, workInstructions: dto.workInstructions)
             modelContext.insert(w)
             weeksByID[w.id] = w
         }
 
-        for dto in payload.bookClubAssignmentTemplates {
-            if (try? fetchOne(BookClubAssignmentTemplate.self, id: dto.id, using: modelContext)) != nil { continue }
-            let t = BookClubAssignmentTemplate(id: dto.id, createdAt: dto.createdAt, bookClubID: dto.bookClubID, title: dto.title, instructions: dto.instructions, isShared: dto.isShared, defaultLinkedLessonID: dto.defaultLinkedLessonID)
+        for dto in payload.projectAssignmentTemplates {
+            if (try? fetchOne(ProjectAssignmentTemplate.self, id: dto.id, using: modelContext)) != nil { continue }
+            let t = ProjectAssignmentTemplate(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, title: dto.title, instructions: dto.instructions, isShared: dto.isShared, defaultLinkedLessonID: dto.defaultLinkedLessonID)
             modelContext.insert(t)
         }
 
-        for dto in payload.bookClubWeekRoleAssignments {
-            if (try? fetchOne(BookClubWeekRoleAssignment.self, id: dto.id, using: modelContext)) != nil { continue }
-            let a = BookClubWeekRoleAssignment(id: dto.id, createdAt: dto.createdAt, weekID: dto.weekID, studentID: dto.studentID, roleID: dto.roleID, week: nil)
+        for dto in payload.projectWeekRoleAssignments {
+            if (try? fetchOne(ProjectWeekRoleAssignment.self, id: dto.id, using: modelContext)) != nil { continue }
+            let a = ProjectWeekRoleAssignment(id: dto.id, createdAt: dto.createdAt, weekID: dto.weekID, studentID: dto.studentID, roleID: dto.roleID, week: nil)
             // Link to week if present
-            if let w = (try? fetchOne(BookClubTemplateWeek.self, id: dto.weekID, using: modelContext)) ?? nil {
+            if let w = (try? fetchOne(ProjectTemplateWeek.self, id: dto.weekID, using: modelContext)) ?? nil {
                 a.week = w
             }
             modelContext.insert(a)
         }
 
-        for dto in payload.bookClubSessions {
-            if (try? fetchOne(BookClubSession.self, id: dto.id, using: modelContext)) != nil { continue }
-            let s = BookClubSession(id: dto.id, createdAt: dto.createdAt, bookClubID: dto.bookClubID, meetingDate: dto.meetingDate, chapterOrPages: dto.chapterOrPages, notes: dto.notes, agendaItemsJSON: dto.agendaItemsJSON, templateWeekID: dto.templateWeekID)
+        for dto in payload.projectSessions {
+            if (try? fetchOne(ProjectSession.self, id: dto.id, using: modelContext)) != nil { continue }
+            let s = ProjectSession(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, meetingDate: dto.meetingDate, chapterOrPages: dto.chapterOrPages, notes: dto.notes, agendaItemsJSON: dto.agendaItemsJSON, templateWeekID: dto.templateWeekID)
             modelContext.insert(s)
         }
 
@@ -1170,28 +1174,28 @@ public final class BackupService {
             let arr = try context.fetch(FetchDescriptor<WorkCompletionRecord>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == BookClub.self {
-            let arr = try context.fetch(FetchDescriptor<BookClub>(predicate: #Predicate { $0.id == id }))
+        if type == Project.self {
+            let arr = try context.fetch(FetchDescriptor<Project>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == BookClubAssignmentTemplate.self {
-            let arr = try context.fetch(FetchDescriptor<BookClubAssignmentTemplate>(predicate: #Predicate { $0.id == id }))
+        if type == ProjectAssignmentTemplate.self {
+            let arr = try context.fetch(FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == BookClubSession.self {
-            let arr = try context.fetch(FetchDescriptor<BookClubSession>(predicate: #Predicate { $0.id == id }))
+        if type == ProjectSession.self {
+            let arr = try context.fetch(FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == BookClubRole.self {
-            let arr = try context.fetch(FetchDescriptor<BookClubRole>(predicate: #Predicate { $0.id == id }))
+        if type == ProjectRole.self {
+            let arr = try context.fetch(FetchDescriptor<ProjectRole>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == BookClubTemplateWeek.self {
-            let arr = try context.fetch(FetchDescriptor<BookClubTemplateWeek>(predicate: #Predicate { $0.id == id }))
+        if type == ProjectTemplateWeek.self {
+            let arr = try context.fetch(FetchDescriptor<ProjectTemplateWeek>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == BookClubWeekRoleAssignment.self {
-            let arr = try context.fetch(FetchDescriptor<BookClubWeekRoleAssignment>(predicate: #Predicate { $0.id == id }))
+        if type == ProjectWeekRoleAssignment.self {
+            let arr = try context.fetch(FetchDescriptor<ProjectWeekRoleAssignment>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
         // Unknown type: return nil rather than relying on reflection/KVC

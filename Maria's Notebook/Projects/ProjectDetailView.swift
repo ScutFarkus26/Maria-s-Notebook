@@ -1,21 +1,21 @@
 import SwiftUI
 import SwiftData
 
-struct BookClubDetailView: View {
-    let club: BookClub
+struct ProjectDetailView: View {
+    let club: Project
 
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @Environment(\.dismiss) private var dismiss
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
-    @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
-    @Query(sort: [SortDescriptor(\BookClubTemplateWeek.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
-    @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
-    @Query(sort: [SortDescriptor(\BookClubSession.createdAt, order: .forward)]) private var allSessions: [BookClubSession]
-    @Query(sort: [SortDescriptor(\BookClubAssignmentTemplate.createdAt, order: .forward)]) private var allTemplates: [BookClubAssignmentTemplate]
+    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var allRoles: [ProjectRole]
+    @Query(sort: [SortDescriptor(\ProjectTemplateWeek.weekIndex, order: .forward)]) private var allWeeks: [ProjectTemplateWeek]
+    @Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]
+    @Query(sort: [SortDescriptor(\ProjectSession.createdAt, order: .forward)]) private var allSessions: [ProjectSession]
+    @Query(sort: [SortDescriptor(\ProjectAssignmentTemplate.createdAt, order: .forward)]) private var allTemplates: [ProjectAssignmentTemplate]
 
-    private var roles: [BookClubRole] { allRoles.filter { $0.bookClubID == club.id } }
+    private var roles: [ProjectRole] { allRoles.filter { $0.projectID == club.id } }
 
     @State private var showNewSession: Bool = false
     @State private var showEditClub: Bool = false
@@ -132,7 +132,7 @@ struct BookClubDetailView: View {
 
                         // Weeks (remain collapsible to save space)
                         DisclosureGroup {
-                            BookClubWeeksEditorView(club: club, showHeader: false)
+                            ProjectWeeksEditorView(club: club, showHeader: false)
                                 .padding(.top, 4)
                         } label: {
                             Label("Weeks", systemImage: "calendar")
@@ -163,7 +163,7 @@ struct BookClubDetailView: View {
                         } else {
                             VStack(alignment: .leading, spacing: 8) {
                                 ForEach((club.sessions ?? []).sorted(by: { $0.meetingDate > $1.meetingDate })) { session in
-                                    NavigationLink(destination: BookClubSessionDetailView(session: session)) {
+                                    NavigationLink(destination: ProjectSessionDetailView(session: session)) {
                                         // Use subview to correctly query work count
                                         SessionRow(session: session)
                                     }
@@ -180,13 +180,13 @@ struct BookClubDetailView: View {
         }
         .navigationTitle(club.title)
         .sheet(isPresented: $showNewSession) {
-            NewBookClubSessionSheet(club: club)
+            NewProjectSessionSheet(club: club)
         }
         .sheet(isPresented: $showEditClub) {
-            BookClubEditorSheet(club: club)
+            ProjectEditorSheet(club: club)
         }
         .sheet(isPresented: $showManageRoles) {
-            NavigationStack { BookClubRolesEditorView(club: club) }
+            NavigationStack { ProjectRolesEditorView(club: club) }
             #if os(macOS)
             .frame(minWidth: 520, minHeight: 360)
             #endif
@@ -196,10 +196,10 @@ struct BookClubDetailView: View {
 
 // Helper view to show session details + work count
 private struct SessionRow: View {
-    let session: BookClubSession
+    let session: ProjectSession
     @Query private var contracts: [WorkContract]
     
-    init(session: BookClubSession) {
+    init(session: ProjectSession) {
         self.session = session
         let sid = session.id.uuidString
         _contracts = Query(filter: #Predicate<WorkContract> { $0.sourceContextID == sid })

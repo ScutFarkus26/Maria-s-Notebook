@@ -21,7 +21,7 @@ struct LocalJSONStringList {
 // MARK: - Models
 
 @Model
-final class BookClub: Identifiable {
+final class Project: Identifiable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
 
@@ -32,8 +32,8 @@ final class BookClub: Identifiable {
     var memberStudentIDs: [String] = []
 
     // Relationships - FIX: Made optional
-    @Relationship(inverse: \BookClubAssignmentTemplate.bookClub) var sharedTemplates: [BookClubAssignmentTemplate]? = []
-    @Relationship(inverse: \BookClubSession.bookClub) var sessions: [BookClubSession]? = []
+    @Relationship(inverse: \ProjectAssignmentTemplate.project) var sharedTemplates: [ProjectAssignmentTemplate]? = []
+    @Relationship(inverse: \ProjectSession.project) var sessions: [ProjectSession]? = []
 
     init(
         id: UUID = UUID(),
@@ -53,13 +53,13 @@ final class BookClub: Identifiable {
 }
 
 @Model
-final class BookClubAssignmentTemplate: Identifiable {
+final class ProjectAssignmentTemplate: Identifiable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
 
-    // Foreign key to BookClub
-    var bookClubID: UUID = UUID()
-    var bookClub: BookClub?
+    // Foreign key to Project
+    var projectID: UUID = UUID()
+    var project: Project?
 
     var title: String = ""
     var instructions: String = ""
@@ -71,7 +71,7 @@ final class BookClubAssignmentTemplate: Identifiable {
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID = UUID(),
+        projectID: UUID = UUID(),
         title: String = "",
         instructions: String = "",
         isShared: Bool = true,
@@ -79,7 +79,7 @@ final class BookClubAssignmentTemplate: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.bookClubID = bookClubID
+        self.projectID = projectID
         self.title = title
         self.instructions = instructions
         self.isShared = isShared
@@ -88,13 +88,13 @@ final class BookClubAssignmentTemplate: Identifiable {
 }
 
 @Model
-final class BookClubSession: Identifiable {
+final class ProjectSession: Identifiable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
 
-    // Foreign key to BookClub
-    var bookClubID: UUID = UUID()
-    var bookClub: BookClub?
+    // Foreign key to Project
+    var projectID: UUID = UUID()
+    var project: Project?
 
     var meetingDate: Date = Date()
     var chapterOrPages: String? = nil
@@ -111,7 +111,7 @@ final class BookClubSession: Identifiable {
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID = UUID(),
+        projectID: UUID = UUID(),
         meetingDate: Date = Date(),
         chapterOrPages: String? = nil,
         notes: String? = nil,
@@ -120,7 +120,7 @@ final class BookClubSession: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.bookClubID = bookClubID
+        self.projectID = projectID
         self.meetingDate = meetingDate
         self.chapterOrPages = chapterOrPages
         self.notes = notes

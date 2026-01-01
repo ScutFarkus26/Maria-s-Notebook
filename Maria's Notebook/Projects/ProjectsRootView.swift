@@ -1,19 +1,19 @@
 import SwiftUI
 import SwiftData
 
-struct BookClubsRootView: View {
+struct ProjectsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     // MARK: - Data
-    @Query(sort: [SortDescriptor(\BookClub.createdAt, order: .reverse)]) private var clubs: [BookClub]
+    @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)]) private var clubs: [Project]
     
     // Queries needed for cascading deletes
-    @Query private var allWeeks: [BookClubTemplateWeek]
-    @Query private var allRoleAssignments: [BookClubWeekRoleAssignment]
-    @Query private var allRoles: [BookClubRole]
-    @Query private var allSessions: [BookClubSession]
-    @Query private var allTemplates: [BookClubAssignmentTemplate]
+    @Query private var allWeeks: [ProjectTemplateWeek]
+    @Query private var allRoleAssignments: [ProjectWeekRoleAssignment]
+    @Query private var allRoles: [ProjectRole]
+    @Query private var allSessions: [ProjectSession]
+    @Query private var allTemplates: [ProjectAssignmentTemplate]
     
     // NEW: Query work contracts to delete orphaned items
     @Query private var allWorkContracts: [WorkContract]
@@ -22,12 +22,12 @@ struct BookClubsRootView: View {
     // Removed legacy queries per instructions
 
     // MARK: - State
-    @SceneStorage("BookClubs.selectedClubID") private var selectedClubIDString: String = ""
+    @SceneStorage("Projects.selectedClubID") private var selectedClubIDString: String = ""
     @State private var showNewSheet: Bool = false
     @State private var searchText: String = ""
     
     // Deletion State
-    @State private var clubToDelete: BookClub?
+    @State private var clubToDelete: Project?
     @State private var showDeleteAlert: Bool = false
 
     private var selectedClubID: UUID? {
@@ -35,11 +35,11 @@ struct BookClubsRootView: View {
         nonmutating set { selectedClubIDString = newValue?.uuidString ?? "" }
     }
 
-    private var selectedClub: BookClub? {
+    private var selectedClub: Project? {
         clubs.first { $0.id == selectedClubID }
     }
 
-    private var filteredClubs: [BookClub] {
+    private var filteredClubs: [Project] {
         if searchText.isEmpty { return clubs }
         return clubs.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
     }
@@ -123,7 +123,7 @@ struct BookClubsRootView: View {
             // MARK: Detail Area
             ZStack {
                 if let club = selectedClub {
-                    BookClubDetailView(club: club)
+                    ProjectDetailView(club: club)
                         .id(club.id) // Force recreation when selection changes
                 } else {
                     ContentUnavailableView(
@@ -136,7 +136,7 @@ struct BookClubsRootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .sheet(isPresented: $showNewSheet) {
-            BookClubEditorSheet(club: nil)
+            ProjectEditorSheet(club: nil)
         }
         .alert("Delete Project?", isPresented: $showDeleteAlert, presenting: clubToDelete) { club in
             Button("Delete", role: .destructive) {
@@ -157,11 +157,11 @@ struct BookClubsRootView: View {
 
     // MARK: - Helpers
 
-    private func lastSessionDate(for club: BookClub) -> Date? {
+    private func lastSessionDate(for club: Project) -> Date? {
         (club.sessions ?? []).map { $0.meetingDate }.max()
     }
 
-    private func deleteClub(_ club: BookClub) {
+    private func deleteClub(_ club: Project) {
         // OPTIMIZATION: Use targeted filtering instead of loading all records upfront
         // SwiftData predicates can't compare captured UUID values, so we fetch and filter
         // This is still more efficient than the original which loaded everything into @Query properties
@@ -170,14 +170,14 @@ struct BookClubsRootView: View {
         
         // Delete sessions and their related work contracts
         // Fetch all sessions (can't use predicate with captured UUID), then filter
-        let allSessions = (try? modelContext.fetch(FetchDescriptor<BookClubSession>())) ?? []
-        let sessions = allSessions.filter { $0.bookClubID == clubID }
+        let allSessions = (try? modelContext.fetch(FetchDescriptor<ProjectSession>())) ?? []
+        let sessions = allSessions.filter { $0.projectID == clubID }
         
         // Fetch contracts only for these sessions
         let sessionIDs = Set(sessions.map { $0.id.uuidString })
         let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
         let contracts = allContracts.filter {
-            $0.sourceContextType == .bookClubSession &&
+            $0.sourceContextType == .projectSession &&
             sessionIDs.contains($0.sourceContextID ?? "")
         }
         
@@ -189,21 +189,21 @@ struct BookClubsRootView: View {
         }
 
         // Delete templates associated with this club
-        let allTemplates = (try? modelContext.fetch(FetchDescriptor<BookClubAssignmentTemplate>())) ?? []
-        let templates = allTemplates.filter { $0.bookClubID == clubID }
+        let allTemplates = (try? modelContext.fetch(FetchDescriptor<ProjectAssignmentTemplate>())) ?? []
+        let templates = allTemplates.filter { $0.projectID == clubID }
         for t in templates { modelContext.delete(t) }
 
         // Delete roles for this club
-        let allRoles = (try? modelContext.fetch(FetchDescriptor<BookClubRole>())) ?? []
-        let roles = allRoles.filter { $0.bookClubID == clubID }
+        let allRoles = (try? modelContext.fetch(FetchDescriptor<ProjectRole>())) ?? []
+        let roles = allRoles.filter { $0.projectID == clubID }
         for r in roles { modelContext.delete(r) }
 
         // Delete template weeks and their related data
-        let allWeeks = (try? modelContext.fetch(FetchDescriptor<BookClubTemplateWeek>())) ?? []
-        let weeks = allWeeks.filter { $0.bookClubID == clubID }
+        let allWeeks = (try? modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
+        let weeks = allWeeks.filter { $0.projectID == clubID }
         for w in weeks {
             // Role assignments for the week
-            let allAssigns = (try? modelContext.fetch(FetchDescriptor<BookClubWeekRoleAssignment>())) ?? []
+            let allAssigns = (try? modelContext.fetch(FetchDescriptor<ProjectWeekRoleAssignment>())) ?? []
             let assigns = allAssigns.filter { $0.weekID == w.id }
             for a in assigns { modelContext.delete(a) }
             
@@ -220,14 +220,14 @@ struct BookClubsRootView: View {
             selectedClubIDString = ""
         }
         
-        _ = saveCoordinator.save(modelContext, reason: "Delete Book Club")
+        _ = saveCoordinator.save(modelContext, reason: "Delete Project")
     }
 }
 
 // MARK: - Sidebar Row
 
 struct ProjectSidebarRow: View {
-    let club: BookClub
+    let club: Project
     let isSelected: Bool
     let lastSessionDate: Date?
 
@@ -245,7 +245,7 @@ struct ProjectSidebarRow: View {
                     .lineLimit(1)
                 
                 let memberCount = club.memberStudentIDs.count
-                let dateStr = lastSessionDate.map { BookClubsRootView.df.string(from: $0) }
+                let dateStr = lastSessionDate.map { ProjectsRootView.df.string(from: $0) }
                 
                 Text("\(memberCount) member\(memberCount == 1 ? "" : "s")\(dateStr != nil ? " • " + dateStr! : "")")
                     .font(.caption)

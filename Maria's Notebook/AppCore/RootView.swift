@@ -296,7 +296,7 @@ struct PlanningRootView: View {
     enum Mode: String, CaseIterable, Identifiable {
         case agenda = "Presentations"
         case works = "Open Work"
-        case bookClubs = "Projects"
+        case projects = "Projects"
         case checklist = "Checklist"
         var id: String { rawValue }
     }
@@ -318,7 +318,7 @@ struct PlanningRootView: View {
                         HStack(spacing: 12) {
                             PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                            PillButton(title: Mode.projects.rawValue, isSelected: mode == .projects) { modeRaw = Mode.projects.rawValue }
                             PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                         }
                         .padding(.horizontal, 12)
@@ -332,7 +332,7 @@ struct PlanningRootView: View {
                         HStack(spacing: 12) {
                             PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                             PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                            PillButton(title: Mode.projects.rawValue, isSelected: mode == .projects) { modeRaw = Mode.projects.rawValue }
                             PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                         }
                         Spacer()
@@ -347,7 +347,7 @@ struct PlanningRootView: View {
                 HStack(spacing: 12) {
                     PillButton(title: Mode.agenda.rawValue, isSelected: mode == .agenda) { modeRaw = Mode.agenda.rawValue }
                     PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                    PillButton(title: Mode.bookClubs.rawValue, isSelected: mode == .bookClubs) { modeRaw = Mode.bookClubs.rawValue }
+                    PillButton(title: Mode.projects.rawValue, isSelected: mode == .projects) { modeRaw = Mode.projects.rawValue }
                     PillButton(title: Mode.checklist.rawValue, isSelected: mode == .checklist) { modeRaw = Mode.checklist.rawValue }
                 }
                 Spacer()
@@ -363,9 +363,9 @@ struct PlanningRootView: View {
                     PresentationsView()
                 } else if mode == .works {
                     WorksAgendaView()
-                } else if mode == .bookClubs {
+                } else if mode == .projects {
                     NavigationStack {
-                        BookClubsRootView()
+                        ProjectsRootView()
                     }
                 }
                 else if mode == .checklist {
@@ -385,7 +385,8 @@ struct PlanningRootView: View {
                 if modeRaw == "Work Agenda (Beta)" { modeRaw = Mode.works.rawValue }
                 if modeRaw == "Work Agenda" { modeRaw = Mode.works.rawValue }
                 
-                if modeRaw == "Book Clubs" { modeRaw = Mode.bookClubs.rawValue }
+                if modeRaw == "Book Clubs" { modeRaw = Mode.projects.rawValue }
+                if modeRaw == "Projects" { modeRaw = Mode.projects.rawValue }
                 
                 if modeRaw == "Class Checklist" { modeRaw = Mode.checklist.rawValue }
                 

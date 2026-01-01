@@ -20,11 +20,11 @@ struct JSONStringList {
 
 // MARK: - Role
 @Model
-final class BookClubRole: Identifiable {
+final class ProjectRole: Identifiable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
 
-    var bookClubID: UUID = UUID()
+    var projectID: UUID = UUID()
 
     var title: String = ""
     var summary: String = ""
@@ -33,14 +33,14 @@ final class BookClubRole: Identifiable {
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID,
+        projectID: UUID,
         title: String = "",
         summary: String = "",
         instructions: String = ""
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.bookClubID = bookClubID
+        self.projectID = projectID
         self.title = title
         self.summary = summary
         self.instructions = instructions
@@ -49,11 +49,11 @@ final class BookClubRole: Identifiable {
 
 // MARK: - Week Template
 @Model
-final class BookClubTemplateWeek: Identifiable {
+final class ProjectTemplateWeek: Identifiable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
 
-    var bookClubID: UUID = UUID()
+    var projectID: UUID = UUID()
     var weekIndex: Int = 0
 
     var readingRange: String = ""
@@ -68,14 +68,14 @@ final class BookClubTemplateWeek: Identifiable {
     var workInstructions: String = ""
 
     // Relationship to assignments - FIX: Made optional
-    @Relationship(inverse: \BookClubWeekRoleAssignment.week)
-    var roleAssignments: [BookClubWeekRoleAssignment]? = []
+    @Relationship(inverse: \ProjectWeekRoleAssignment.week)
+    var roleAssignments: [ProjectWeekRoleAssignment]? = []
     
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        bookClubID: UUID,
+        projectID: UUID,
         weekIndex: Int,
         readingRange: String = "",
         agendaItemsJSON: String = "",
@@ -84,7 +84,7 @@ final class BookClubTemplateWeek: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.bookClubID = bookClubID
+        self.projectID = projectID
         self.weekIndex = weekIndex
         self.readingRange = readingRange
         self.agendaItemsJSON = agendaItemsJSON
@@ -107,7 +107,7 @@ final class BookClubTemplateWeek: Identifiable {
 
 // MARK: - Weekly Role Assignment
 @Model
-final class BookClubWeekRoleAssignment: Identifiable {
+final class ProjectWeekRoleAssignment: Identifiable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
 
@@ -116,8 +116,8 @@ final class BookClubWeekRoleAssignment: Identifiable {
     var roleID: UUID = UUID()
 
     // FIX: Removed @Relationship macro here to break circular dependency.
-    // The relationship is managed by the parent (BookClubTemplateWeek).
-    var week: BookClubTemplateWeek?
+    // The relationship is managed by the parent (ProjectTemplateWeek).
+    var week: ProjectTemplateWeek?
 
     init(
         id: UUID = UUID(),
@@ -125,7 +125,7 @@ final class BookClubWeekRoleAssignment: Identifiable {
         weekID: UUID,
         studentID: String,
         roleID: UUID,
-        week: BookClubTemplateWeek? = nil
+        week: ProjectTemplateWeek? = nil
     ) {
         self.id = id
         self.createdAt = createdAt

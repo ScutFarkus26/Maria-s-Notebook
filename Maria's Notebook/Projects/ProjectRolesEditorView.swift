@@ -1,22 +1,22 @@
 import SwiftUI
 import SwiftData
 
-struct BookClubRolesEditorView: View {
-    let club: BookClub
+struct ProjectRolesEditorView: View {
+    let club: Project
 
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @Environment(\.dismiss) private var dismiss
 
     // FIX: Use explicit generic SortDescriptor so SwiftData compiles reliably.
-    @Query(sort: [SortDescriptor<BookClubRole>(\.createdAt, order: .forward)])
-    private var allRoles: [BookClubRole]
+    @Query(sort: [SortDescriptor<ProjectRole>(\.createdAt, order: .forward)])
+    private var allRoles: [ProjectRole]
 
     @State private var showEditor: Bool = false
-    @State private var editingRole: BookClubRole? = nil
+    @State private var editingRole: ProjectRole? = nil
 
-    private var roles: [BookClubRole] {
-        allRoles.filter { $0.bookClubID == club.id }
+    private var roles: [ProjectRole] {
+        allRoles.filter { $0.projectID == club.id }
     }
 
     var body: some View {
@@ -91,7 +91,7 @@ struct BookClubRolesEditorView: View {
         }
         .sheet(isPresented: $showEditor) {
             NavigationStack {
-                BookClubRoleEditorSheet(club: club, role: editingRole) {
+                ProjectRoleEditorSheet(club: club, role: editingRole) {
                     showEditor = false
                 }
             }
@@ -99,9 +99,9 @@ struct BookClubRolesEditorView: View {
         }
     }
 
-    private func delete(_ role: BookClubRole) {
+    private func delete(_ role: ProjectRole) {
         modelContext.delete(role)
-        _ = saveCoordinator.save(modelContext, reason: "Delete book club role")
+        _ = saveCoordinator.save(modelContext, reason: "Delete project role")
     }
 
     private func deleteAtOffsets(_ offsets: IndexSet) {
@@ -114,9 +114,9 @@ struct BookClubRolesEditorView: View {
     }
 }
 
-private struct BookClubRoleEditorSheet: View {
-    let club: BookClub
-    let role: BookClubRole?
+private struct ProjectRoleEditorSheet: View {
+    let club: Project
+    let role: ProjectRole?
     let onDone: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -127,7 +127,7 @@ private struct BookClubRoleEditorSheet: View {
     @State private var summary: String = ""
     @State private var instructions: String = ""
 
-    init(club: BookClub, role: BookClubRole?, onDone: @escaping () -> Void) {
+    init(club: Project, role: ProjectRole?, onDone: @escaping () -> Void) {
         self.club = club
         self.role = role
         self.onDone = onDone
@@ -181,8 +181,8 @@ private struct BookClubRoleEditorSheet: View {
             role.instructions = instructions
         } else {
             // IMPORTANT: Associates role with this club so it shows in the filtered list.
-            let newRole = BookClubRole(
-                bookClubID: club.id,
+            let newRole = ProjectRole(
+                projectID: club.id,
                 title: trimmedTitle,
                 summary: summary,
                 instructions: instructions
@@ -190,7 +190,7 @@ private struct BookClubRoleEditorSheet: View {
             modelContext.insert(newRole)
         }
 
-        _ = saveCoordinator.save(modelContext, reason: "Save book club role")
+        _ = saveCoordinator.save(modelContext, reason: "Save project role")
         onDone()
         dismiss()
     }

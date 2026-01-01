@@ -1,25 +1,25 @@
 import SwiftUI
 import SwiftData
 
-struct BookClubWeeksEditorView: View {
-    let club: BookClub
+struct ProjectWeeksEditorView: View {
+    let club: Project
     let showHeader: Bool
 
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
-    @Query(sort: [SortDescriptor<BookClubTemplateWeek>(\.weekIndex, order: .forward)]) private var allWeeks: [BookClubTemplateWeek]
-    @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
+    @Query(sort: [SortDescriptor<ProjectTemplateWeek>(\.weekIndex, order: .forward)]) private var allWeeks: [ProjectTemplateWeek]
+    @Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]
 
-    @State private var editingWeek: BookClubTemplateWeek? = nil
+    @State private var editingWeek: ProjectTemplateWeek? = nil
 
-    init(club: BookClub, showHeader: Bool = true) {
+    init(club: Project, showHeader: Bool = true) {
         self.club = club
         self.showHeader = showHeader
     }
 
-    private var weeks: [BookClubTemplateWeek] {
-        allWeeks.filter { $0.bookClubID == club.id }
+    private var weeks: [ProjectTemplateWeek] {
+        allWeeks.filter { $0.projectID == club.id }
     }
 
     var body: some View {
@@ -64,31 +64,31 @@ struct BookClubWeeksEditorView: View {
             }
         }
         .sheet(item: $editingWeek) { week in
-            BookClubWeekEditorView(club: club, week: week) { editingWeek = nil }
+            ProjectWeekEditorView(club: club, week: week) { editingWeek = nil }
         }
     }
 
     private func addWeek() {
         let nextIndex = (weeks.map { $0.weekIndex }.max() ?? 0) + 1
-        let w = BookClubTemplateWeek(bookClubID: club.id, weekIndex: nextIndex)
+        let w = ProjectTemplateWeek(projectID: club.id, weekIndex: nextIndex)
         if w.agendaItems.isEmpty { w.agendaItems = ["Go over work from last week"] }
         modelContext.insert(w)
-        _ = saveCoordinator.save(modelContext, reason: "Add book club template week")
+        _ = saveCoordinator.save(modelContext, reason: "Add project template week")
         editingWeek = w
     }
 
-    private func delete(_ week: BookClubTemplateWeek) {
+    private func delete(_ week: ProjectTemplateWeek) {
         let assigns = allRoleAssignments.filter { $0.weekID == week.id }
         for a in assigns { modelContext.delete(a) }
         modelContext.delete(week)
-        _ = saveCoordinator.save(modelContext, reason: "Delete book club template week")
+        _ = saveCoordinator.save(modelContext, reason: "Delete project template week")
     }
 }
 
-struct BookClubWeekEditorView: View, Identifiable {
+struct ProjectWeekEditorView: View, Identifiable {
     var id: UUID { week.id }
-    let club: BookClub
-    let week: BookClubTemplateWeek
+    let club: Project
+    let week: ProjectTemplateWeek
     var onDone: () -> Void
 
     @Environment(\.modelContext) private var modelContext
@@ -96,8 +96,8 @@ struct BookClubWeekEditorView: View, Identifiable {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @Query(sort: [SortDescriptor(\Student.firstName, order: .forward), SortDescriptor(\Student.lastName, order: .forward)]) private var students: [Student]
-    @Query(sort: [SortDescriptor(\BookClubRole.createdAt, order: .forward)]) private var allRoles: [BookClubRole]
-    @Query(sort: [SortDescriptor(\BookClubWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [BookClubWeekRoleAssignment]
+    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var allRoles: [ProjectRole]
+    @Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]
     @Query(sort: [SortDescriptor(\Lesson.name, order: .forward)]) private var allLessons: [Lesson]
 
     @State private var readingRange: String
@@ -108,7 +108,7 @@ struct BookClubWeekEditorView: View, Identifiable {
     @State private var pickingLessonForWeek: Bool = false
     @State private var viewingLesson: Lesson? = nil
 
-    init(club: BookClub, week: BookClubTemplateWeek, onDone: @escaping () -> Void) {
+    init(club: Project, week: ProjectTemplateWeek, onDone: @escaping () -> Void) {
         self.club = club
         self.week = week
         self.onDone = onDone
@@ -118,8 +118,8 @@ struct BookClubWeekEditorView: View, Identifiable {
         _linkedLessonIDs = State(initialValue: week.linkedLessonIDs)
     }
 
-    private var roles: [BookClubRole] {
-        allRoles.filter { $0.bookClubID == club.id }
+    private var roles: [ProjectRole] {
+        allRoles.filter { $0.projectID == club.id }
     }
 
     private var clubMembers: [Student] {
@@ -331,7 +331,7 @@ struct BookClubWeekEditorView: View, Identifiable {
         if let existing = allRoleAssignments.first(where: { $0.weekID == week.id && $0.studentID == sid }) {
             if let roleID { existing.roleID = roleID } else { modelContext.delete(existing) }
         } else if let roleID {
-            let a = BookClubWeekRoleAssignment(weekID: week.id, studentID: sid, roleID: roleID)
+            let a = ProjectWeekRoleAssignment(weekID: week.id, studentID: sid, roleID: roleID)
             modelContext.insert(a)
         }
     }
