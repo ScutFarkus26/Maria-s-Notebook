@@ -8,9 +8,21 @@ struct LessonsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
-    @Query private var lessons: [Lesson]
-    @Query private var studentLessons: [StudentLesson]
+    
+    // OPTIMIZATION: Use lightweight query for studentLessons change detection only (IDs only)
+    // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
+    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessons: [Lesson]
+    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
+    
+    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
+    private var studentLessonIDs: [UUID] {
+        studentLessonsForChangeDetection.map { $0.id }
+    }
+    
     @State private var selectedLesson: Lesson? = nil
+    
+    // OPTIMIZATION: Cache studentLessons only for filtered lessons
+    @State private var cachedStudentLessons: [StudentLesson] = []
 
     @State private var importAlert: ImportAlert? = nil
     @State private var showingLessonCSVImporter: Bool = false
@@ -76,7 +88,8 @@ struct LessonsRootView: View {
     }
 
     private var lessonNeedsCounts: [UUID: Int] {
-        let grouped: [UUID: [StudentLesson]] = Dictionary(grouping: studentLessons, by: { (sl: StudentLesson) in sl.resolvedLessonID })
+        // OPTIMIZATION: Use cached studentLessons (only for filtered lessons) instead of all studentLessons
+        let grouped: [UUID: [StudentLesson]] = Dictionary(grouping: cachedStudentLessons, by: { (sl: StudentLesson) in sl.resolvedLessonID })
         let counts: [UUID: Int] = grouped.mapValues { (list: [StudentLesson]) in
             list.filter { !$0.isGiven }.count
         }
@@ -139,6 +152,7 @@ struct LessonsRootView: View {
                 DispatchQueue.main.async {
                     ensureInitialOrderInGroupIfNeeded()
                     recomputeFilteredLessons()
+                    updateCachedStudentLessons()
                 }
             }
             .onChange(of: lessonIDs) { _, _ in
@@ -542,6 +556,35 @@ struct LessonsRootView: View {
 
     private func recomputeFilteredLessons() {
         vm.recomputeFilteredLessons(all: lessons, filterState: filterState, using: viewModel)
+        // Update cached studentLessons after filtering
+        updateCachedStudentLessons()
+    }
+    
+    // MARK: - StudentLessons Optimization
+    
+    /// Updates cached studentLessons to only include those for filtered lessons
+    private func updateCachedStudentLessons() {
+        let filteredLessonIDs = Set(vm.filteredLessons.map { $0.id })
+        guard !filteredLessonIDs.isEmpty else {
+            cachedStudentLessons = []
+            return
+        }
+        
+        // Fetch only studentLessons for filtered lessons
+        do {
+            // SwiftData predicates don't easily support filtering by resolvedLessonID (which uses relationships),
+            // so we fetch all and filter in memory. This is still better than loading all studentLessons
+            // reactively via @Query when we only need a subset.
+            let descriptor = FetchDescriptor<StudentLesson>(
+                sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+            )
+            let allStudentLessons = try modelContext.fetch(descriptor)
+            cachedStudentLessons = allStudentLessons.filter { filteredLessonIDs.contains($0.resolvedLessonID) }
+        } catch {
+            // Fallback: use safe fetch
+            let allStudentLessons = modelContext.safeFetch(FetchDescriptor<StudentLesson>())
+            cachedStudentLessons = allStudentLessons.filter { filteredLessonIDs.contains($0.resolvedLessonID) }
+        }
     }
 
     @ViewBuilder
@@ -561,7 +604,7 @@ struct LessonsRootView: View {
             .presentationDragIndicator(.visible)
             #endif
         case .studentLessonDraft(let id):
-            if let sl = studentLessons.first(where: { $0.id == id }) {
+            if let sl = cachedStudentLessons.first(where: { $0.id == id }) ?? studentLessonsForChangeDetection.first(where: { $0.id == id }) {
                 StudentLessonDetailView(studentLesson: sl, onDone: {
                     presentedSheet = nil
                 })

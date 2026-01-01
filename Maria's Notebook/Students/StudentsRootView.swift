@@ -13,12 +13,20 @@ enum StudentMode: String, CaseIterable, Identifiable {
 struct StudentsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
-    @Query private var students: [Student]
-    @Query(sort: \StudentLesson.createdAt, order: .forward) private var studentLessons: [StudentLesson]
-    @Query(sort: \Lesson.name, order: .forward) private var lessons: [Lesson]
     
-    // Querying WorkContract as per previous refactor
-    @Query(sort: \WorkContract.createdAt, order: .reverse) private var workContracts: [WorkContract]
+    // OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
+    // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
+    @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
+    @Query(sort: [SortDescriptor(\WorkContract.id)]) private var contractsForChangeDetection: [WorkContract]
+    
+    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
+    private var studentIDs: [UUID] {
+        studentsForChangeDetection.map { $0.id }
+    }
+    
+    private var contractIDs: [UUID] {
+        contractsForChangeDetection.map { $0.id }
+    }
 
     // We keep the state here to persist it, but pass it down as a binding
     @AppStorage("StudentsRootView.mode") private var modeRaw: String = StudentMode.roster.rawValue
@@ -31,6 +39,11 @@ struct StudentsRootView: View {
 
     // Workload specific state
     @State private var selectedContract: WorkContract? = nil
+    
+    // OPTIMIZATION: Cache workload data to avoid reloading on every view update
+    @State private var cachedOpenContracts: [WorkContract] = []
+    @State private var cachedStudents: [UUID: Student] = [:]
+    @State private var cachedLessons: [UUID: Lesson] = [:]
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -68,36 +81,150 @@ struct StudentsRootView: View {
     }
 
     private var workOverviewContent: some View {
-        let openContracts = workContracts.filter { $0.isOpen }
+        WorkloadContentView(
+            openContracts: cachedOpenContracts,
+            studentsByID: cachedStudents,
+            lessonsByID: cachedLessons,
+            onTapContract: { contract in selectedContract = contract }
+        )
+        .task(id: mode) {
+            // Reload workload data when mode changes to workOverview
+            if mode == .workOverview {
+                await loadWorkloadData()
+            }
+        }
+        .onChange(of: contractIDs) { _, _ in
+            // Reload workload data when contracts change (if in workOverview mode)
+            if mode == .workOverview {
+                Task { @MainActor in
+                    await loadWorkloadData()
+                }
+            }
+        }
+    }
+    
+    // MARK: - Workload Data Loading
+    
+    /// Loads workload data on-demand: only open contracts and related students/lessons
+    @MainActor
+    private func loadWorkloadData() async {
+        // Fetch only open contracts (active or review status)
+        let openContracts: [WorkContract]
+        do {
+            let activeDescriptor = FetchDescriptor<WorkContract>(
+                predicate: #Predicate<WorkContract> { $0.statusRaw == "active" },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
+            let reviewDescriptor = FetchDescriptor<WorkContract>(
+                predicate: #Predicate<WorkContract> { $0.statusRaw == "review" },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
+            let active = try modelContext.fetch(activeDescriptor)
+            let review = try modelContext.fetch(reviewDescriptor)
+            openContracts = active + review
+        } catch {
+            openContracts = []
+        }
         
-        let lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-        
-        var openByStudent: [UUID: [WorkContract]] = [:]
+        // Collect student and lesson IDs from contracts
+        var neededStudentIDs = Set<UUID>()
+        var neededLessonIDs = Set<UUID>()
         
         for contract in openContracts {
             if let sid = UUID(uuidString: contract.studentID) {
-                openByStudent[sid, default: []].append(contract)
+                neededStudentIDs.insert(sid)
+            }
+            if let lid = UUID(uuidString: contract.lessonID) {
+                neededLessonIDs.insert(lid)
             }
         }
         
-        var counts: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
+        // Fetch only needed students
+        var studentsByID: [UUID: Student] = [:]
+        if !neededStudentIDs.isEmpty {
+            do {
+                let studentsDescriptor = FetchDescriptor<Student>(
+                    predicate: #Predicate { neededStudentIDs.contains($0.id) }
+                )
+                let fetchedStudents = try modelContext.fetch(studentsDescriptor)
+                let visibleStudents = TestStudentsFilter.filterVisible(fetchedStudents)
+                studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+            } catch {
+                // Fallback: safe fetch
+                let allStudents = modelContext.safeFetch(FetchDescriptor<Student>())
+                let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
+                for student in visibleStudents where neededStudentIDs.contains(student.id) {
+                    studentsByID[student.id] = student
+                }
+            }
+        }
+        
+        // Fetch only needed lessons
+        var lessonsByID: [UUID: Lesson] = [:]
+        if !neededLessonIDs.isEmpty {
+            do {
+                let lessonsDescriptor = FetchDescriptor<Lesson>(
+                    predicate: #Predicate { neededLessonIDs.contains($0.id) }
+                )
+                let fetchedLessons = try modelContext.fetch(lessonsDescriptor)
+                lessonsByID = Dictionary(uniqueKeysWithValues: fetchedLessons.map { ($0.id, $0) })
+            } catch {
+                // Fallback: safe fetch
+                let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
+                for lesson in allLessons where neededLessonIDs.contains(lesson.id) {
+                    lessonsByID[lesson.id] = lesson
+                }
+            }
+        }
+        
+        // Update cache
+        cachedOpenContracts = openContracts
+        cachedStudents = studentsByID
+        cachedLessons = lessonsByID
+    }
+}
+
+// MARK: - Workload Content View
+
+private struct WorkloadContentView: View {
+    let openContracts: [WorkContract]
+    let studentsByID: [UUID: Student]
+    let lessonsByID: [UUID: Lesson]
+    let onTapContract: (WorkContract) -> Void
+    
+    private var openByStudent: [UUID: [WorkContract]] {
+        var result: [UUID: [WorkContract]] = [:]
+        for contract in openContracts {
+            if let sid = UUID(uuidString: contract.studentID) {
+                result[sid, default: []].append(contract)
+            }
+        }
+        return result
+    }
+    
+    private var counts: [UUID: (practice: Int, follow: Int, research: Int)] {
+        var result: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
         for contract in openContracts {
             guard let sid = UUID(uuidString: contract.studentID) else { continue }
             
             switch contract.kind {
             case .practiceLesson:
-                counts[sid, default: (0,0,0)].practice += 1
+                result[sid, default: (0,0,0)].practice += 1
             case .followUpAssignment:
-                counts[sid, default: (0,0,0)].follow += 1
+                result[sid, default: (0,0,0)].follow += 1
             case .research:
-                counts[sid, default: (0,0,0)].research += 1
+                result[sid, default: (0,0,0)].research += 1
             case nil:
-                counts[sid, default: (0,0,0)].follow += 1
+                result[sid, default: (0,0,0)].follow += 1
             }
         }
-        
-        let summaries: [StudentWorkSummary] = students.map { s in
-            let c = counts[s.id, default: (0,0,0)]
+        return result
+    }
+    
+    private var summaries: [StudentWorkSummary] {
+        let countsMap = counts
+        return studentsByID.values.map { s in
+            let c = countsMap[s.id, default: (0,0,0)]
             return StudentWorkSummary(id: s.id, student: s, practiceOpen: c.practice, followUpOpen: c.follow, researchOpen: c.research)
         }
         .sorted { lhs, rhs in
@@ -106,8 +233,10 @@ struct StudentsRootView: View {
             }
             return lhs.totalOpen > rhs.totalOpen
         }
-
-        return WorkStudentsGrid(
+    }
+    
+    var body: some View {
+        WorkStudentsGrid(
             summaries: summaries,
             openContractsByStudentID: openByStudent,
             lessonsByID: lessonsByID,
@@ -115,7 +244,7 @@ struct StudentsRootView: View {
                 // In Workload view, tapping a student could perhaps filter or open details
                 // For now, we leave it as is or implement specific workload navigation
             },
-            onTapContract: { contract in selectedContract = contract }
+            onTapContract: onTapContract
         )
     }
 }

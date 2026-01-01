@@ -56,8 +56,17 @@ final class PresentationsViewModel: ObservableObject {
         self.calendar = calendar
         
         // Fetch data using targeted queries (only what we need)
-        // 1. Fetch all StudentLessons (needed for blocking logic calculations)
-        // Note: We need all to calculate days since last lesson for all students
+        // 
+        // ALGORITHMIC REQUIREMENT: The blocking logic and days-since-last-lesson calculations
+        // require ALL records because:
+        // 1. Blocking logic: To determine if a lesson is blocked, we need to build the complete
+        //    lesson group structure (subject/group) and find the previous lesson in sequence.
+        //    This requires all lessons to correctly identify the sequence order.
+        // 2. Days since last lesson: To calculate days since the last lesson for each student,
+        //    we need to examine ALL studentLessons to find the most recent one for each student.
+        //    This cannot be optimized without changing the algorithm semantics.
+        //
+        // 1. Fetch all StudentLessons (needed for blocking logic and days-since calculations)
         let studentLessons: [StudentLesson]
         do {
             studentLessons = try modelContext.fetch(FetchDescriptor<StudentLesson>())
@@ -65,7 +74,7 @@ final class PresentationsViewModel: ObservableObject {
             studentLessons = []
         }
         
-        // 2. Fetch all Lessons (needed for grouping and blocking logic)
+        // 2. Fetch all Lessons (needed for grouping and blocking logic - requires full group structure)
         let lessons: [Lesson]
         do {
             lessons = try modelContext.fetch(FetchDescriptor<Lesson>())

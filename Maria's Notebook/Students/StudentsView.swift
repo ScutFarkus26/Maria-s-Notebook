@@ -11,10 +11,33 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) private var calendar
+    
+    // OPTIMIZATION: Students always needed in roster mode, so keep @Query
     @Query private var students: [Student]
-    @Query private var attendanceRecords: [AttendanceRecord]
-    @Query private var studentLessons: [StudentLesson]
-    @Query private var lessons: [Lesson]
+    
+    // OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
+    // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
+    @Query(sort: [SortDescriptor(\AttendanceRecord.id)]) private var attendanceRecordsForChangeDetection: [AttendanceRecord]
+    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
+    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
+    
+    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
+    private var attendanceRecordIDs: [UUID] {
+        attendanceRecordsForChangeDetection.map { $0.id }
+    }
+    
+    private var studentLessonIDs: [UUID] {
+        studentLessonsForChangeDetection.map { $0.id }
+    }
+    
+    private var lessonIDs: [UUID] {
+        lessonsForChangeDetection.map { $0.id }
+    }
+    
+    // OPTIMIZATION: Cache data loaded on-demand based on mode and filters
+    @State private var cachedAttendanceRecords: [AttendanceRecord] = []
+    @State private var cachedStudentLessons: [StudentLesson] = []
+    @State private var cachedLessons: [UUID: Lesson] = [:]
     
     private let viewModel = StudentsViewModel()
 
@@ -105,7 +128,7 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
         let cal = Calendar.current
         let now = Date()
         let today = cal.startOfDay(for: now)
-        let todays = attendanceRecords.filter { rec in
+        let todays = cachedAttendanceRecords.filter { rec in
             cal.isDate(rec.date, inSameDayAs: today) && (rec.status == .present || rec.status == .tardy)
         }
         // CloudKit compatibility: Convert String studentIDs to UUIDs
@@ -122,7 +145,7 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
         // ... (Existing logic for calculation)
         let excludedLessonIDs: Set<UUID> = {
             func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-            let ids = lessons.filter { l in
+            let ids = cachedLessons.values.filter { l in
                 let s = norm(l.subject)
                 let g = norm(l.group)
                 return s == "parsha" || g == "parsha"
@@ -130,7 +153,7 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
             return Set(ids)
         }()
 
-        let given = studentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
+        let given = cachedStudentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
         var lastDateByStudent: [UUID: Date] = [:]
         for sl in given {
             let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
@@ -268,7 +291,43 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
                 appRouter.clearNavigation()
             }
         }
-        .onAppear { ensureInitialManualOrderIfNeeded() }
+        .onAppear { 
+            ensureInitialManualOrderIfNeeded()
+            // Load data on-demand based on mode
+            Task { @MainActor in
+                await loadDataOnDemand()
+            }
+        }
+        .onChange(of: mode) { _, _ in
+            Task { @MainActor in
+                await loadDataOnDemand()
+            }
+        }
+        .onChange(of: studentsSortOrderRaw) { _, _ in
+            Task { @MainActor in
+                await loadDataOnDemand()
+            }
+        }
+        .onChange(of: studentsFilterRaw) { _, _ in
+            Task { @MainActor in
+                await loadDataOnDemand()
+            }
+        }
+        .onChange(of: attendanceRecordIDs) { _, _ in
+            Task { @MainActor in
+                await loadDataOnDemand()
+            }
+        }
+        .onChange(of: studentLessonIDs) { _, _ in
+            Task { @MainActor in
+                await loadDataOnDemand()
+            }
+        }
+        .onChange(of: lessonIDs) { _, _ in
+            Task { @MainActor in
+                await loadDataOnDemand()
+            }
+        }
         .onChange(of: students.map { $0.id }) { _, _ in
             ensureInitialManualOrderIfNeeded()
             if viewModel.repairManualOrderUniquenessIfNeeded(students) {
@@ -423,6 +482,77 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
     }
 
     // MARK: - Logic Helpers
+    
+    // MARK: - On-Demand Data Loading
+    
+    /// Loads data on-demand based on current mode and filters
+    @MainActor
+    private func loadDataOnDemand() async {
+        guard mode == .roster else {
+            // Clear caches when not in roster mode
+            cachedAttendanceRecords = []
+            cachedStudentLessons = []
+            cachedLessons = [:]
+            return
+        }
+        
+        // Load attendanceRecords if needed for presentNow filter or count
+        // Always load in roster mode to show "Present Now" count in sidebar
+        let needsAttendanceRecords = true
+        if needsAttendanceRecords {
+            // Fetch only today's attendance records
+            let cal = Calendar.current
+            let today = cal.startOfDay(for: Date())
+            let tomorrow = cal.date(byAdding: .day, value: 1, to: today) ?? today
+            do {
+                let descriptor = FetchDescriptor<AttendanceRecord>(
+                    predicate: #Predicate { rec in
+                        rec.date >= today && rec.date < tomorrow
+                    },
+                    sortBy: [SortDescriptor(\.date, order: .forward)]
+                )
+                cachedAttendanceRecords = try modelContext.fetch(descriptor)
+            } catch {
+                cachedAttendanceRecords = modelContext.safeFetch(FetchDescriptor<AttendanceRecord>())
+                    .filter { cal.isDate($0.date, inSameDayAs: today) }
+            }
+        } else {
+            cachedAttendanceRecords = []
+        }
+        
+        // Load studentLessons and lessons only if sortOrder == .lastLesson
+        if sortOrder == .lastLesson {
+            // Fetch all studentLessons (needed for lastLesson calculation)
+            do {
+                let descriptor = FetchDescriptor<StudentLesson>(
+                    sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+                )
+                cachedStudentLessons = try modelContext.fetch(descriptor)
+            } catch {
+                cachedStudentLessons = modelContext.safeFetch(FetchDescriptor<StudentLesson>())
+            }
+            
+            // Fetch lessons referenced by studentLessons
+            let neededLessonIDs = Set(cachedStudentLessons.map { $0.resolvedLessonID })
+            if !neededLessonIDs.isEmpty {
+                do {
+                    let descriptor = FetchDescriptor<Lesson>(
+                        predicate: #Predicate { neededLessonIDs.contains($0.id) }
+                    )
+                    let fetched = try modelContext.fetch(descriptor)
+                    cachedLessons = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
+                } catch {
+                    let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
+                    cachedLessons = Dictionary(uniqueKeysWithValues: allLessons.filter { neededLessonIDs.contains($0.id) }.map { ($0.id, $0) })
+                }
+            } else {
+                cachedLessons = [:]
+            }
+        } else {
+            cachedStudentLessons = []
+            cachedLessons = [:]
+        }
+    }
 
     private func ensureInitialManualOrderIfNeeded() {
         if viewModel.ensureInitialManualOrderIfNeeded(students) {

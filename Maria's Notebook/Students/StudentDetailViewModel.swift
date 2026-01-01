@@ -42,14 +42,10 @@ final class StudentDetailViewModel: ObservableObject {
     
     // MARK: - Data Loading
     /// Load lessons and student lessons from the database using FetchDescriptor.
-    /// This replaces the @Query approach to avoid loading all records reactively.
+    /// OPTIMIZATION: Only loads studentLessons for this student and lessons referenced by them.
     func loadData(modelContext: ModelContext) {
-        // Load all lessons (used for lookups across the app)
-        let lessonsDescriptor = FetchDescriptor<Lesson>()
-        let fetchedLessons = (try? modelContext.fetch(lessonsDescriptor)) ?? []
-        
-        // Load all student lessons and filter by student in memory
-        // Note: SwiftData predicates don't easily support array contains,
+        // OPTIMIZATION: Load all studentLessons first, then filter by student
+        // Note: SwiftData predicates don't easily support array contains for resolvedStudentIDs,
         // so we fetch all and filter in memory (still better than @Query reactive loading)
         let studentLessonsDescriptor = FetchDescriptor<StudentLesson>(
             sortBy: [
@@ -59,6 +55,24 @@ final class StudentDetailViewModel: ObservableObject {
         )
         let allStudentLessons = (try? modelContext.fetch(studentLessonsDescriptor)) ?? []
         let filteredStudentLessons = allStudentLessons.filter { $0.resolvedStudentIDs.contains(student.id) }
+        
+        // OPTIMIZATION: Only fetch lessons that are referenced by this student's studentLessons
+        let neededLessonIDs = Set(filteredStudentLessons.map { $0.resolvedLessonID })
+        let fetchedLessons: [Lesson]
+        if !neededLessonIDs.isEmpty {
+            do {
+                let lessonsDescriptor = FetchDescriptor<Lesson>(
+                    predicate: #Predicate { neededLessonIDs.contains($0.id) }
+                )
+                fetchedLessons = try modelContext.fetch(lessonsDescriptor)
+            } catch {
+                // Fallback: fetch all if predicate fails
+                let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
+                fetchedLessons = allLessons.filter { neededLessonIDs.contains($0.id) }
+            }
+        } else {
+            fetchedLessons = []
+        }
         
         // Update published properties
         self.lessons = fetchedLessons
