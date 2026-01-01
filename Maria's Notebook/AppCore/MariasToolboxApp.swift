@@ -575,76 +575,81 @@ struct MariasToolboxApp: App {
         #endif
         .modelContainer(sharedModelContainer)
         .commands {
-            CommandMenu("Lessons") {
+            // 1. STANDARD "NEW" ITEMS (File > New)
+            // Consolidates all creation actions into the standard location
+            CommandGroup(replacing: .newItem) {
                 Button("New Lesson") { appRouter.requestNewLesson() }
                     .keyboardShortcut("n", modifiers: [.command])
-                Button("Import Lessons…") { appRouter.requestImportLessons() }
-                    .keyboardShortcut("i", modifiers: [.command])
-            }
-            CommandMenu("Students") {
+                
                 Button("New Student") { appRouter.requestNewStudent() }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
-                Button("Import Students…") { appRouter.requestImportStudents() }
-                    .keyboardShortcut("i", modifiers: [.command, .shift])
-            }
-            CommandMenu("Backup") {
-                Button("Create Backup") { appRouter.requestCreateBackup() }
-                    .keyboardShortcut("b", modifiers: [.command])
-                Button("Restore…") { appRouter.requestRestoreBackup() }
-                    .keyboardShortcut("b", modifiers: [.command, .shift])
-            }
-            CommandMenu("Work") {
+                
                 Button("New Work…") { appRouter.requestNewWork() }
                     .keyboardShortcut("n", modifiers: [.command, .option])
             }
-            CommandMenu("Attendance") {
+
+            // 2. STANDARD "IMPORT/EXPORT" ITEMS (File > Import)
+            // Moves Imports, Backups, and Restores here
+            CommandGroup(replacing: .importExport) {
+                Section {
+                    Button("Import Lessons…") { appRouter.requestImportLessons() }
+                        .keyboardShortcut("i", modifiers: [.command])
+                    
+                    Button("Import Students…") { appRouter.requestImportStudents() }
+                        .keyboardShortcut("i", modifiers: [.command, .shift])
+                }
+                
+                Section {
+                    Button("Create Backup") { appRouter.requestCreateBackup() }
+                        .keyboardShortcut("b", modifiers: [.command])
+                    
+                    Button("Restore Data…") { appRouter.requestRestoreBackup() }
+                        .keyboardShortcut("b", modifiers: [.command, .shift])
+                }
+            }
+
+            // 3. VIEW ACTIONS (View Menu)
+            // Moves "Attendance" to the View menu since it's a navigation action
+            CommandGroup(after: .sidebar) {
+                Divider()
                 Button("Open Attendance") {
                     appRouter.requestOpenAttendance()
                 }
+                .keyboardShortcut("0", modifiers: [.command])
             }
-            CommandMenu("Troubleshooting") {
-                #if os(macOS)
-                Toggle(
-                    "Allow Local Store Fallback",
-                    isOn: Binding(
+
+            // 4. HELP & TROUBLESHOOTING (Help Menu)
+            // Hides the "junk" inside a submenu in Help, or you can delete it entirely
+            CommandGroup(replacing: .help) {
+                // Keeps the default search bar
+                Button("\(Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "App") Help") {
+                    // Action to open help
+                }
+                .keyboardShortcut("?", modifiers: [.command])
+
+                Divider()
+
+                // Move all technical toggles into a submenu to keep the top bar clean
+                Menu("Troubleshooting") {
+                    #if os(macOS)
+                    Toggle("Allow Local Store Fallback", isOn: Binding(
                         get: { UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey) },
                         set: { UserDefaults.standard.set($0, forKey: MariasToolboxApp.allowLocalStoreFallbackKey) }
-                    )
-                )
-                Toggle(
-                    "Enable CloudKit Sync",
-                    isOn: Binding(
+                    ))
+                    Toggle("Enable CloudKit Sync", isOn: Binding(
                         get: { UserDefaults.standard.bool(forKey: MariasToolboxApp.enableCloudKitKey) },
-                        set: { 
-                            UserDefaults.standard.set($0, forKey: MariasToolboxApp.enableCloudKitKey)
-                            #if DEBUG
-                            print("CloudKit sync \($0 ? "enabled" : "disabled"). Restart app for changes to take effect.")
-                            #endif
-                            NSApp.requestUserAttention(.informationalRequest)
-                        }
-                    )
-                )
-                #endif
-                Button("Use In-Memory Store On Next Launch") {
-                    UserDefaults.standard.set(true, forKey: MariasToolboxApp.useInMemoryFlagKey)
-                    #if os(macOS)
-                    NSApp.requestUserAttention(.criticalRequest)
+                        set: { UserDefaults.standard.set($0, forKey: MariasToolboxApp.enableCloudKitKey) }
+                    ))
                     #endif
-                    #if DEBUG
-                    print("Set toggle: App will use in-memory SwiftData store on next launch.")
-                    #endif
-                }
-                Button("Reset Persistent Store…") {
-                    do {
-                        try MariasToolboxApp.resetPersistentStore()
-                        #if DEBUG
-                        print("SwiftData: Persistent store reset. Quit and relaunch the app to recreate a fresh store.")
-                        #endif
-                        #if os(macOS)
-                        NSApp.requestUserAttention(.criticalRequest)
-                        #endif
-                    } catch {
-                        print("SwiftData: Failed to reset persistent store:", error)
+                    
+                    Button("Use In-Memory Store Next Launch") {
+                        UserDefaults.standard.set(true, forKey: MariasToolboxApp.useInMemoryFlagKey)
+                    }
+                    
+                    Divider()
+                    
+                    Button("Reset Local Database…", role: .destructive) {
+                        try? MariasToolboxApp.resetPersistentStore()
                     }
                 }
             }
