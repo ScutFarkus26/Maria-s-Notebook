@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import CoreData
+import OSLog
 #if os(macOS)
 import AppKit
 #endif
@@ -23,22 +24,111 @@ struct MariasToolboxApp: App {
     
     // Track initialization errors to show in the UI
     static var initError: Error?
+    
+    // Logger for reset operations
+    private static let resetLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "Reset")
 
     @StateObject private var saveCoordinator = SaveCoordinator()
     @StateObject private var bootstrapper = AppBootstrapper.shared
     @StateObject private var restoreCoordinator = RestoreCoordinator()
     @StateObject private var appRouter = AppRouter.shared
+    @StateObject private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
     #if os(macOS)
     @NSApplicationDelegateAdaptor private var appDelegate: AutoBackupAppDelegate
     #endif
 
+    /// Deletes the SwiftData persistent store file/package.
+    /// This only deletes local data on this device and does NOT delete CloudKit data.
+    /// If CloudKit is enabled, data will re-sync from iCloud after app restart.
     static func resetPersistentStore() throws {
         let url = storeFileURL()
         let fm = FileManager.default
-        if fm.fileExists(atPath: url.path) {
+        
+        // Check if store exists
+        guard fm.fileExists(atPath: url.path) else {
+            #if DEBUG
+            resetLogger.info("Reset: Store file does not exist at \(url.path), nothing to delete")
+            print("🔵 Reset: Store file does not exist, nothing to delete")
+            #endif
+            return
+        }
+        
+        // SwiftData stores can be either files or packages (directories on macOS)
+        // Remove the item regardless of whether it's a file or directory
+        var isDirectory: ObjCBool = false
+        if fm.fileExists(atPath: url.path, isDirectory: &isDirectory) {
+            #if DEBUG
+            let itemType = isDirectory.boolValue ? "package" : "file"
+            resetLogger.info("Reset: Deleting SwiftData store \(itemType) at \(url.path)")
+            print("🔴 Reset: Deleting SwiftData store \(itemType) at \(url.path)")
+            #endif
+            
             try fm.removeItem(at: url)
+            
+            #if DEBUG
+            resetLogger.info("Reset: Successfully deleted SwiftData store")
+            print("✅ Reset: Successfully deleted SwiftData store")
+            #endif
         }
     }
+    
+    #if DEBUG
+    /// Resets the local database by deleting SwiftData store files and clearing related state.
+    /// This is a DEBUG-only function that performs a complete reset and logs the event.
+    /// - Note: This only deletes local data on this device. CloudKit data is NOT affected.
+    /// - Important: App restart is required after calling this function.
+    static func resetLocalDatabaseInDebug() throws {
+        resetLogger.info("Reset: Starting local database reset (DEBUG only)")
+        print("🔴 Reset: Starting local database reset (DEBUG only)")
+        
+        // Delete the persistent store
+        try resetPersistentStore()
+        
+        // Clear error state flags
+        UserDefaults.standard.removeObject(forKey: lastStoreErrorDescriptionKey)
+        UserDefaults.standard.set(false, forKey: ephemeralSessionFlagKey)
+        UserDefaults.standard.set(false, forKey: useInMemoryFlagKey)
+        
+        // Clear error state
+        initError = nil
+        DatabaseErrorCoordinator.shared.clearError()
+        
+        resetLogger.info("Reset: Local database reset complete. Store file deleted, error flags cleared. CloudKit data preserved.")
+        print("✅ Reset: Local database reset complete. Store file deleted, error flags cleared. CloudKit data preserved.")
+    }
+    
+    #if os(macOS)
+    /// Shows a confirmation dialog and resets the local database if confirmed.
+    /// This is a DEBUG-only function that requires user confirmation before resetting.
+    static func requestResetLocalDatabaseWithConfirmation() {
+        let alert = NSAlert()
+        alert.messageText = "Reset Local Database?"
+        alert.informativeText = "This deletes local data on this device. CloudKit data is preserved and will re-sync after restart. The app will restart automatically."
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Delete").hasDestructiveAction = true
+        
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn {
+            // User confirmed - perform reset
+            do {
+                try resetLocalDatabaseInDebug()
+                // Terminate app to restart cleanly
+                NSApplication.shared.terminate(nil)
+            } catch {
+                resetLogger.error("Reset: Failed to reset database: \(error.localizedDescription)")
+                print("❌ Reset: Failed to reset database: \(error.localizedDescription)")
+                
+                // Show error alert
+                let errorAlert = NSAlert(error: error)
+                errorAlert.messageText = "Reset Failed"
+                errorAlert.informativeText = "Failed to reset local database: \(error.localizedDescription)"
+                errorAlert.runModal()
+            }
+        }
+    }
+    #endif
+    #endif
     
     static func resetLocalDatabaseAndForceCloudKitSync() throws {
         // Reset the local store
@@ -322,21 +412,25 @@ struct MariasToolboxApp: App {
                                 ]
                             )
                             MariasToolboxApp.initError = migrationError
+                            DatabaseErrorCoordinator.shared.setError(migrationError)
                             UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                             UserDefaults.standard.set(migrationError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                         }
                     } else {
                         MariasToolboxApp.initError = error
+                        DatabaseErrorCoordinator.shared.setError(error)
                         UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                         UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                     }
                 } else {
                     MariasToolboxApp.initError = error
+                    DatabaseErrorCoordinator.shared.setError(error)
                     UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                     UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                 }
             } else {
                 MariasToolboxApp.initError = error
+                DatabaseErrorCoordinator.shared.setError(error)
                 UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                 UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
             }
@@ -380,6 +474,7 @@ struct MariasToolboxApp: App {
                     ]
                 )
                 MariasToolboxApp.initError = criticalError
+                DatabaseErrorCoordinator.shared.setError(criticalError, details: "Original: \(originalDesc). Final: \(finalDesc)")
                 UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                 UserDefaults.standard.set(criticalError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                 
@@ -398,27 +493,33 @@ struct MariasToolboxApp: App {
                     print("SwiftData: Created minimal empty container for error UI")
                     #endif
                     
-                    // Set the error so the UI can display it
-                    let originalErrorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
-                    let finalErrorDesc = (finalError as NSError?)?.localizedDescription ?? String(describing: finalError)
-                    let criticalError = NSError(
-                        domain: "MariasNotebook",
-                        code: 5001,
-                        userInfo: [
-                            NSLocalizedDescriptionKey: "Critical database initialization failure. The app cannot create a database container. Original: \(originalErrorDesc). Final: \(finalErrorDesc). Please try resetting the database or reinstalling the app."
-                        ]
-                    )
+                    // Set the error so the UI can display it (reuse criticalError from outer scope)
                     MariasToolboxApp.initError = criticalError
+                    DatabaseErrorCoordinator.shared.setError(criticalError, details: "Original: \(originalDesc). Final: \(finalDesc)")
                     UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                     UserDefaults.standard.set(criticalError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                     
                     return emptyContainer
-                } catch {
+                } catch let emptyContainerError {
                     // Even creating an empty container failed - this should never happen
-                    // but if it does, we must crash with a clear message
+                    // Set error state instead of crashing so user can recover
                     let originalErrorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
                     let finalErrorDesc = (finalError as NSError?)?.localizedDescription ?? String(describing: finalError)
-                    fatalError("CRITICAL: Failed to create even an empty container. This indicates a severe system issue. Original: \(originalErrorDesc). Final: \(finalErrorDesc)")
+                    let emptyErrorDesc = (emptyContainerError as NSError?)?.localizedDescription ?? String(describing: emptyContainerError)
+                    let criticalError = NSError(
+                        domain: "MariasNotebook",
+                        code: 5002,
+                        userInfo: [
+                            NSLocalizedDescriptionKey: "Critical database initialization failure. Failed to create even an empty container. This indicates a severe system issue. Original: \(originalErrorDesc). Final: \(finalErrorDesc). Empty container error: \(emptyErrorDesc). Please try resetting the database or reinstalling the app."
+                        ]
+                    )
+                    MariasToolboxApp.initError = criticalError
+                    DatabaseErrorCoordinator.shared.setError(criticalError, details: "Original: \(originalErrorDesc). Final: \(finalErrorDesc). Empty container error: \(emptyErrorDesc)")
+                    UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                    UserDefaults.standard.set(criticalError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                    // We still need to return something, so rethrow and let the caller handle it
+                    // The caller (sharedModelContainer) will catch this and handle it
+                    throw criticalError
                 }
             }
         }
@@ -460,15 +561,29 @@ struct MariasToolboxApp: App {
             // This should never be reached if createModelContainer handles all errors properly,
             // but we include it as a safety net
             print("SwiftData: Unexpected error in container initialization: \(error)")
+            let errorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
             let unexpectedError = NSError(
                 domain: "MariasNotebook",
                 code: 6000,
-                userInfo: [NSLocalizedDescriptionKey: "Unexpected error during container initialization: \(error.localizedDescription)"]
+                userInfo: [NSLocalizedDescriptionKey: "Unexpected error during container initialization: \(errorDesc)"]
             )
             MariasToolboxApp.initError = unexpectedError
-            // Use safe string conversion
-            let errorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
-            fatalError("CRITICAL: Unexpected error in container initialization: \(errorDesc)")
+            DatabaseErrorCoordinator.shared.setError(unexpectedError, details: errorDesc)
+            
+            // Create an empty container so the app can show the error UI
+            // This is a last resort fallback
+            do {
+                let emptySchema = Schema([])
+                let emptyConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+                let emptyContainer = try ModelContainer(for: emptySchema, configurations: emptyConfig)
+                UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+                UserDefaults.standard.set(unexpectedError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                return emptyContainer
+            } catch {
+                // If even this fails, we have no choice but to crash
+                // This should never happen in practice
+                fatalError("CRITICAL: Cannot create any container, including empty one. System failure: \(errorDesc)")
+            }
         }
     }
 
@@ -480,57 +595,31 @@ struct MariasToolboxApp: App {
         #endif
         // Cleanup: remove legacy Beta flag now that Engagement Lifecycle is always on
         UserDefaults.standard.removeObject(forKey: "useEngagementLifecycle")
+        
+        #if DEBUG
+        // TEST: Simulate database initialization failure for testing recovery flow
+        // Set this UserDefaults key to trigger a simulated failure
+        if UserDefaults.standard.bool(forKey: "DEBUG_SimulateDatabaseInitFailure") {
+            let testError = NSError(
+                domain: "MariasNotebook",
+                code: 9999,
+                userInfo: [
+                    NSLocalizedDescriptionKey: "DEBUG: Simulated database initialization failure. This is a test error to verify the recovery UI. Clear the 'DEBUG_SimulateDatabaseInitFailure' UserDefaults flag to restore normal operation."
+                ]
+            )
+            MariasToolboxApp.initError = testError
+            DatabaseErrorCoordinator.shared.setError(testError, details: "This is a simulated error for testing purposes.")
+            print("⚠️ DEBUG: Simulated database initialization failure enabled")
+        }
+        #endif
     }
 
     var body: some Scene {
         WindowGroup("") {
             Group {
-                if let error = MariasToolboxApp.initError {
-                    // BLOCKING ERROR VIEW
-                    ContentUnavailableView {
-                        Label("Database Connection Failed", systemImage: "exclamationmark.triangle.fill")
-                    } description: {
-                        VStack(spacing: 8) {
-                            Text("The app could not connect to the iCloud database.")
-                            Text("To prevent data loss (Split-Brain), the app has stopped.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("Error: \(error.localizedDescription)")
-                                .font(.caption2)
-                                .padding(.top)
-                                .textSelection(.enabled)
-                        }
-                    } actions: {
-                        VStack(spacing: 12) {
-                            Button("Quit & Retry") {
-                                #if os(macOS)
-                                NSApplication.shared.terminate(nil)
-                                #else
-                                exit(0)
-                                #endif
-                            }
-                            .buttonStyle(.borderedProminent)
-                            
-                            Button("Use Offline Mode (Warning: Syncs Separately)") {
-                                UserDefaults.standard.set(true, forKey: MariasToolboxApp.allowLocalStoreFallbackKey)
-                                #if os(macOS)
-                                NSApplication.shared.terminate(nil)
-                                #else
-                                exit(0)
-                                #endif
-                            }
-                            
-                            Button("Reset Local Database…", role: .destructive) {
-                                try? MariasToolboxApp.resetPersistentStore()
-                                #if os(macOS)
-                                NSApplication.shared.terminate(nil)
-                                #else
-                                exit(0)
-                                #endif
-                            }
-                        }
-                        .padding()
-                    }
+                // Show database error view if there's an initialization error
+                if databaseErrorCoordinator.error != nil || MariasToolboxApp.initError != nil {
+                    DatabaseErrorView(errorCoordinator: databaseErrorCoordinator, appRouter: appRouter)
                 } else {
                     // NORMAL APP FLOW
                     if bootstrapper.state == .ready {
@@ -565,6 +654,11 @@ struct MariasToolboxApp: App {
                 }
             }
             .task {
+                // Sync initError to error coordinator if not already set
+                if databaseErrorCoordinator.error == nil, let error = MariasToolboxApp.initError {
+                    databaseErrorCoordinator.setError(error)
+                }
+                
                 // Only bootstrap if the store loaded successfully
                 if MariasToolboxApp.initError == nil {
                     #if os(macOS)
@@ -680,11 +774,18 @@ struct MariasToolboxApp: App {
                         UserDefaults.standard.set(true, forKey: MariasToolboxApp.useInMemoryFlagKey)
                     }
                     
+                    #if DEBUG
                     Divider()
                     
                     Button("Reset Local Database…", role: .destructive) {
-                        try? MariasToolboxApp.resetPersistentStore()
+                        #if os(macOS)
+                        MariasToolboxApp.requestResetLocalDatabaseWithConfirmation()
+                        #else
+                        // On iOS, this would need a different approach (not available via menu)
+                        try? MariasToolboxApp.resetLocalDatabaseInDebug()
+                        #endif
                     }
+                    #endif
                 }
             }
         }

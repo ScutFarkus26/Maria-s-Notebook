@@ -184,8 +184,9 @@ struct AttendanceView: View {
 
     // MARK: - Header
     private var regularHeader: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 12) {
+        VStack(spacing: 12) {
+            // Row 1: Date navigation and primary actions
+            HStack(spacing: 16) {
                 Button {
                     let prev = SchoolCalendar.previousSchoolDay(before: viewModel.selectedDate, using: modelContext)
                     viewModel.selectedDate = prev.normalizedDay()
@@ -225,23 +226,6 @@ struct AttendanceView: View {
 
                 Spacer()
 
-                // Level filter
-                Picker("Level", selection: $viewModel.levelFilter) {
-                    Text("All").tag(AttendanceViewModel.LevelFilter.all)
-                    Text("Lower").tag(AttendanceViewModel.LevelFilter.lower)
-                    Text("Upper").tag(AttendanceViewModel.LevelFilter.upper)
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 240)
-
-                // Sort picker
-                Picker("Sort", selection: $viewModel.sortKey) {
-                    Text("First").tag(AttendanceViewModel.SortKey.firstName)
-                    Text("Last").tag(AttendanceViewModel.SortKey.lastName)
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 180)
-
                 Button {
                     isEditing.toggle()
                     setLocked(!isEditing, for: viewModel.selectedDate)
@@ -272,6 +256,19 @@ struct AttendanceView: View {
                 .disabled(isNonSchoolDay || !isEditing)
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             }
+            
+            // Row 2: Sort filter
+            HStack(spacing: 16) {
+                // Sort picker
+                Picker("Sort", selection: $viewModel.sortKey) {
+                    Text("First").tag(AttendanceViewModel.SortKey.firstName)
+                    Text("Last").tag(AttendanceViewModel.SortKey.lastName)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 200)
+
+                Spacer()
+            }
 
             if isNonSchoolDay {
                 HStack(spacing: 8) {
@@ -285,8 +282,8 @@ struct AttendanceView: View {
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
             }
 
-            // Header stats: "In Class" treats Present + Tardy as in-class attendance.
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            // Row 3: Header stats: "In Class" treats Present + Tardy as in-class attendance.
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
                 // Primary stat: In Class
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
@@ -308,7 +305,7 @@ struct AttendanceView: View {
                     .padding(.horizontal, 4)
 
                 // Breakdown chips (secondary)
-                HStack(spacing: 8) {
+                HStack(spacing: 12) {
                     breakdownChip(title: "Present", count: viewModel.countPresent, color: .green)
                     breakdownChip(title: "Tardy", count: viewModel.countTardy, color: .blue)
                     breakdownChip(title: "Absent", count: viewModel.countAbsent, color: .red)
@@ -334,8 +331,8 @@ struct AttendanceView: View {
                 Spacer()
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 28)
+        .padding(.vertical, 16)
     }
 
     // Compact header for iPhone (compact width)
@@ -427,36 +424,15 @@ struct AttendanceView: View {
                 .padding(.vertical, 2)
             }
 
-            // Row 3: Filters (fit horizontally if possible; stack if not)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    Picker("Level", selection: $viewModel.levelFilter) {
-                        Text("All").tag(AttendanceViewModel.LevelFilter.all)
-                        Text("Lower").tag(AttendanceViewModel.LevelFilter.lower)
-                        Text("Upper").tag(AttendanceViewModel.LevelFilter.upper)
-                    }
-                    .pickerStyle(.segmented)
-
-                    Picker("Sort", selection: $viewModel.sortKey) {
-                        Text("First").tag(AttendanceViewModel.SortKey.firstName)
-                        Text("Last").tag(AttendanceViewModel.SortKey.lastName)
-                    }
-                    .pickerStyle(.segmented)
+            // Row 3: Sort filter
+            HStack(spacing: 12) {
+                Picker("Sort", selection: $viewModel.sortKey) {
+                    Text("First").tag(AttendanceViewModel.SortKey.firstName)
+                    Text("Last").tag(AttendanceViewModel.SortKey.lastName)
                 }
-                VStack(spacing: 8) {
-                    Picker("Level", selection: $viewModel.levelFilter) {
-                        Text("All").tag(AttendanceViewModel.LevelFilter.all)
-                        Text("Lower").tag(AttendanceViewModel.LevelFilter.lower)
-                        Text("Upper").tag(AttendanceViewModel.LevelFilter.upper)
-                    }
-                    .pickerStyle(.segmented)
+                .pickerStyle(.segmented)
 
-                    Picker("Sort", selection: $viewModel.sortKey) {
-                        Text("First").tag(AttendanceViewModel.SortKey.firstName)
-                        Text("Last").tag(AttendanceViewModel.SortKey.lastName)
-                    }
-                    .pickerStyle(.segmented)
-                }
+                Spacer()
             }
         }
         .padding(.horizontal, 12)
@@ -508,7 +484,7 @@ struct AttendanceView: View {
                     )
                 }
             }
-            .padding(12)
+            .padding(20)
         }
     }
 

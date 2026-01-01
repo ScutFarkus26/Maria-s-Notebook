@@ -18,6 +18,11 @@ struct SettingsView: View {
 
     @Query(filter: #Predicate<StudentLesson> { $0.givenAt != nil })
     private var givenLessons: [StudentLesson]
+    
+    @Query private var workContracts: [WorkContract]
+    @Query private var presentations: [Presentation]
+    @Query private var notes: [Note]
+    @Query private var attendance: [AttendanceRecord]
 
     // New state properties for Advanced / Debug section
     @State private var showDannyResetConfirm = false
@@ -41,6 +46,7 @@ struct SettingsView: View {
                 VStack(spacing: 24) {
                     // MARK: - Overview Section
                     SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
+                        // Row 1: Core (Existing)
                         OverviewStatsGrid(
                             studentsCount: studentsTotal,
                             lessonsCount: lessonsTotal,
@@ -48,6 +54,16 @@ struct SettingsView: View {
                             givenCount: givenTotal,
                             columns: overviewColumns
                         )
+                        
+                        Divider()
+                        
+                        // Row 2: Detail (New)
+                        LazyVGrid(columns: overviewColumns, spacing: 16) {
+                            StatCard(title: "Work Items", value: "\(workContracts.count)", subtitle: "Assigned", systemImage: "doc.text.fill")
+                            StatCard(title: "Presentations", value: "\(presentations.count)", subtitle: "History", systemImage: "easel.fill")
+                            StatCard(title: "Observations", value: "\(notes.count)", subtitle: "Notes", systemImage: "note.text")
+                            StatCard(title: "Attendance", value: "\(attendance.count)", subtitle: "Days", systemImage: "calendar")
+                        }
                     }
                     
                     // MARK: - Attendance Section
@@ -58,6 +74,9 @@ struct SettingsView: View {
                     
                     // MARK: - Data Management Section
                     dataManagementSection
+                    
+                    // MARK: - Maintenance Section
+                    maintenanceSection
                     
                     // MARK: - Advanced / Debug Section
                     advancedDebugSection
@@ -159,20 +178,15 @@ struct SettingsView: View {
     private var dataManagementSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Data Management")
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 24),
-                GridItem(.flexible(), spacing: 24)
-            ], spacing: 24) {
-                backupRestorePane
-                    .frame(maxWidth: .infinity)
-                maintenancePane
-                    .frame(maxWidth: .infinity)
-            }
+            DataManagementGrid()
         }
     }
 
-    private var backupRestorePane: some View {
-        BackupRestoreSectionView()
+    private var maintenanceSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "Maintenance")
+            maintenancePane
+        }
     }
 
     private var maintenancePane: some View {

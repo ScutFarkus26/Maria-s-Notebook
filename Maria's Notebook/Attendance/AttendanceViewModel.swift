@@ -9,9 +9,6 @@ final class AttendanceViewModel: ObservableObject {
     // CloudKit compatibility: Use String keys since studentID is now String
     @Published var recordsByStudent: [String: AttendanceRecord] = [:]
 
-    enum LevelFilter: String, CaseIterable { case all, lower, upper }
-    @Published var levelFilter: LevelFilter = .all
-
     enum SortKey: String, CaseIterable { case firstName, lastName }
     @Published var sortKey: SortKey = .lastName
 
@@ -26,15 +23,9 @@ final class AttendanceViewModel: ObservableObject {
     }
 
     func sortedAndFiltered(students: [Student]) -> [Student] {
-        let base: [Student]
-        switch levelFilter {
-        case .all: base = students
-        case .lower: base = students.filter { $0.level == .lower }
-        case .upper: base = students.filter { $0.level == .upper }
-        }
         switch sortKey {
         case .firstName:
-            return base.sorted { lhs, rhs in
+            return students.sorted { lhs, rhs in
                 let c = lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName)
                 if c == .orderedSame {
                     return lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName) == .orderedAscending
@@ -42,7 +33,7 @@ final class AttendanceViewModel: ObservableObject {
                 return c == .orderedAscending
             }
         case .lastName:
-            return base.sorted { lhs, rhs in
+            return students.sorted { lhs, rhs in
                 let c = lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName)
                 if c == .orderedSame {
                     return lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName) == .orderedAscending

@@ -10,23 +10,51 @@ struct FollowUpInboxView: View {
     private let workStaleOverdueDays: Int = 5
     private let reviewStaleDays: Int = 3
 
-    // Data sources
-    @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
-    @Query private var studentLessons: [StudentLesson]
-    @Query private var contracts: [WorkContract]
-    @Query private var planItems: [WorkPlanItem]
-    @Query private var notes: [ScopedNote]
-
+    // Loaded data (replaces unfiltered @Query)
+    @State private var inboxData: InboxData?
+    
+    // Lightweight change detection queries (IDs only to detect when to reload)
+    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
+    @Query(sort: [SortDescriptor(\WorkContract.id)]) private var contractsForChangeDetection: [WorkContract]
+    
     @Query(filter: #Predicate<WorkNote> { $0.isLessonToGive == true }, sort: [
         SortDescriptor(\WorkNote.createdAt, order: .reverse)
     ]) private var lessonReminderNotes: [WorkNote]
+    
+    // Extract IDs for change detection
+    private var studentLessonIDs: [UUID] {
+        studentLessonsForChangeDetection.map { $0.id }
+    }
+    private var contractIDs: [UUID] {
+        contractsForChangeDetection.map { $0.id }
+    }
 
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     private var visibleStudents: [Student] {
-        TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        guard let data = inboxData else { return [] }
+        return TestStudentsFilter.filterVisible(data.students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
+    
+    // Computed properties for data access
+    private var lessons: [Lesson] { inboxData?.lessons ?? [] }
+    private var students: [Student] { inboxData?.students ?? [] }
+    private var studentLessons: [StudentLesson] { inboxData?.studentLessons ?? [] }
+    private var contracts: [WorkContract] { inboxData?.contracts ?? [] }
+    private var planItems: [WorkPlanItem] { inboxData?.planItems ?? [] }
+    private var notes: [ScopedNote] { inboxData?.notes ?? [] }
+    
+    private func loadData() {
+        let loader = InboxDataLoader(context: modelContext)
+        inboxData = loader.loadInboxData()
+        
+        #if DEBUG
+        // Debug logging to verify reduced data fetching
+        if let data = inboxData {
+            print("📊 InboxDataLoader: Loaded \(data.studentLessons.count) studentLessons, \(data.contracts.count) contracts, \(data.planItems.count) planItems, \(data.notes.count) notes, \(data.students.count) students, \(data.lessons.count) lessons")
+        }
+        #endif
     }
 
     // Simple filter control
@@ -112,6 +140,15 @@ struct FollowUpInboxView: View {
             }
         }
         .padding(16)
+        .task {
+            loadData()
+        }
+        .onChange(of: studentLessonIDs) { _, _ in
+            loadData()
+        }
+        .onChange(of: contractIDs) { _, _ in
+            loadData()
+        }
         .sheet(item: $selectedSL) { token in
             let targetID = token.id
             let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetID })
