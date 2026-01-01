@@ -18,6 +18,8 @@ struct MariasToolboxApp: App {
     static let ephemeralSessionFlagKey = "SwiftDataEphemeralSession"
     static let lastStoreErrorDescriptionKey = "SwiftDataLastErrorDescription"
     static let allowLocalStoreFallbackKey = "AllowLocalStoreFallback"
+    static let enableCloudKitKey = "EnableCloudKitSync"
+    static let cloudKitActiveKey = "CloudKitActive" // Tracks if CloudKit is actually running (not just enabled)
     
     // Track initialization errors to show in the UI
     static var initError: Error?
@@ -121,8 +123,16 @@ struct MariasToolboxApp: App {
                     #if swift(>=6.0)
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
                         if let containerID {
+                            print("SwiftData: CloudKit configuration:")
+                            print("  - Container ID: \(containerID)")
+                            print("  - Store URL: \(storeURL.path)")
+                            print("  - Database: Private")
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
-                            return try ModelContainer(for: schema, configurations: config)
+                            let container = try ModelContainer(for: schema, configurations: config)
+                            print("SwiftData: ✅ CloudKit container created successfully!")
+                            print("SwiftData: CloudKit sync is now active. Changes will sync across devices.")
+                            UserDefaults.standard.set(true, forKey: MariasToolboxApp.cloudKitActiveKey)
+                            return container
                         } else {
                             throw NSError(domain: "MariasNotebook", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
                         }
@@ -132,8 +142,16 @@ struct MariasToolboxApp: App {
                     #else
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
                         if let containerID {
+                            print("SwiftData: CloudKit configuration:")
+                            print("  - Container ID: \(containerID)")
+                            print("  - Store URL: \(storeURL.path)")
+                            print("  - Database: Private")
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
-                            return try ModelContainer(for: schema, configurations: config)
+                            let container = try ModelContainer(for: schema, configurations: config)
+                            print("SwiftData: ✅ CloudKit container created successfully!")
+                            print("SwiftData: CloudKit sync is now active. Changes will sync across devices.")
+                            UserDefaults.standard.set(true, forKey: MariasToolboxApp.cloudKitActiveKey)
+                            return container
                         } else {
                             throw NSError(domain: "MariasNotebook", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
                         }
@@ -147,6 +165,7 @@ struct MariasToolboxApp: App {
                         url: url ?? MariasToolboxApp.storeFileURL(),
                         cloudKitDatabase: .none
                     )
+                    UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
                     return try ModelContainer(for: schema, configurations: config)
                 }
             } catch {
@@ -188,12 +207,23 @@ struct MariasToolboxApp: App {
                     print("SwiftData: Store file does not exist, will create new store at \(storeURL.path)")
                 }
                 
-                // Use local storage by default (CloudKit requires model compatibility fixes)
-                print("SwiftData: Creating local storage container...")
-                let container = try makeContainer(inMemory: false, cloud: false)
+                // CloudKit compatibility: All model fixes are complete. Enable CloudKit via UserDefaults flag.
+                let enableCloudKit = UserDefaults.standard.bool(forKey: enableCloudKitKey)
+                if enableCloudKit {
+                    print("SwiftData: Creating CloudKit-enabled container...")
+                } else {
+                    print("SwiftData: Creating local storage container (CloudKit disabled - set '\(enableCloudKitKey)' UserDefaults flag to enable)...")
+                }
+                let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
                 UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                 UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-                print("SwiftData: Using local storage.")
+                if enableCloudKit {
+                    // cloudKitActiveKey is set in makeContainer when CloudKit is successfully initialized
+                    print("SwiftData: ✅ Using CloudKit-enabled storage.")
+                } else {
+                    UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                    print("SwiftData: Using local storage.")
+                }
                 return container
             }
         } catch {
@@ -514,6 +544,17 @@ struct MariasToolboxApp: App {
                     isOn: Binding(
                         get: { UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey) },
                         set: { UserDefaults.standard.set($0, forKey: MariasToolboxApp.allowLocalStoreFallbackKey) }
+                    )
+                )
+                Toggle(
+                    "Enable CloudKit Sync",
+                    isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: MariasToolboxApp.enableCloudKitKey) },
+                        set: { 
+                            UserDefaults.standard.set($0, forKey: MariasToolboxApp.enableCloudKitKey)
+                            print("CloudKit sync \($0 ? "enabled" : "disabled"). Restart app for changes to take effect.")
+                            NSApp.requestUserAttention(.informationalRequest)
+                        }
                     )
                 )
                 #endif

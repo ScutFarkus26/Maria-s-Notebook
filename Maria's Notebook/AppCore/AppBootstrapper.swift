@@ -39,6 +39,10 @@ final class AppBootstrapper: ObservableObject {
         DataMigrations.fixCommunityTopicTagsIfNeeded(using: context)
         DataMigrations.fixStudentLessonStudentIDsIfNeeded(using: context)
         
+        // 3.6. CloudKit compatibility: Migrate UUID foreign keys to Strings
+        DataMigrations.migrateUUIDForeignKeysToStringsIfNeeded(using: context)
+        DataMigrations.migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)
+        
         // 4. Legacy Data (Run asynchronously without awaiting if it's safe, or await if dependent)
         LegacyNotesMigration.runIfNeeded(modelContext: context)
         

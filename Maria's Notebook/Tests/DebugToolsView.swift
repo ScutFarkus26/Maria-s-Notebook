@@ -5,6 +5,16 @@ struct DebugToolsView: View {
     @Binding var showPurgeLegacyWorkConfirm: Bool
     let onScanAndQueue: () -> Void
     let onConsolidate: () -> Void
+    
+    private func statusText(isEnabled: Bool, isActive: Bool) -> String {
+        if isActive {
+            return "CloudKit active and syncing"
+        } else if isEnabled {
+            return "CloudKit enabled (restart required)"
+        } else {
+            return "CloudKit disabled"
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -28,6 +38,39 @@ struct DebugToolsView: View {
                 .buttonStyle(.bordered)
                 .tint(.red)
                 #endif
+            }
+
+            // CloudKit Settings
+            SettingsGroup(title: "CloudKit Sync", systemImage: "icloud") {
+                let isEnabled = UserDefaults.standard.bool(forKey: MariasToolboxApp.enableCloudKitKey)
+                let isActive = UserDefaults.standard.bool(forKey: MariasToolboxApp.cloudKitActiveKey)
+                
+                Toggle(
+                    "Enable CloudKit Sync",
+                    isOn: Binding(
+                        get: { isEnabled },
+                        set: { 
+                            UserDefaults.standard.set($0, forKey: MariasToolboxApp.enableCloudKitKey)
+                        }
+                    )
+                )
+                .help("Enable CloudKit to sync data across devices. Requires app restart to take effect.")
+                
+                // Status indicator
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(isActive ? Color.green : (isEnabled ? Color.orange : Color.gray))
+                        .frame(width: 8, height: 8)
+                    Text(statusText(isEnabled: isEnabled, isActive: isActive))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 4)
+                
+                Text("CloudKit sync allows your data to be synchronized across all your devices. Check the console logs on app launch to verify CloudKit is active.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
             }
 
             // Smart Planning (Backfill / Catch Up)
