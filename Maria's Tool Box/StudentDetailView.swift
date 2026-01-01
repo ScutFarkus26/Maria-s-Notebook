@@ -120,93 +120,76 @@ struct StudentDetailView: View {
 
     private var masteredLessonIDs: Set<UUID> { vm.masteredLessonIDs }
 
-    private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
-        switch type {
-        case .research: return ("magnifyingglass", .teal)
-        case .followUp: return ("bolt.fill", .orange)
-        case .practice: return ("arrow.triangle.2.circlepath", .purple)
-        }
-    }
-
-    private var attendanceSummaryThisSchoolYear: String {
-        let tardy = daysTardyThisSchoolYear
-        let absent = daysAbsentThisSchoolYear
-        return "Days Tardy: \(tardy) • Days Absent: \(absent)"
-    }
-
-    private var daysTardyThisSchoolYear: Int {
-        let calendar = Calendar.current
-        let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
-        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
-        let studentID = student.id
-        let from = start
-        let to = end
-        let descriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate<AttendanceRecord> { rec in
-                rec.studentID == studentID && rec.date >= from && rec.date < to
-            }
-        )
-        let records = (try? modelContext.fetch(descriptor)) ?? []
-        return records.filter { $0.status == .tardy }.count
-    }
-
-    private var daysAbsentThisSchoolYear: Int {
-        let calendar = Calendar.current
-        let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
-        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
-        let studentID = student.id
-        let from = start
-        let to = end
-        let descriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate<AttendanceRecord> { rec in
-                rec.studentID == studentID && rec.date >= from && rec.date < to
-            }
-        )
-        let records = (try? modelContext.fetch(descriptor)) ?? []
-        return records.filter { $0.status == .absent }.count
-    }
-
-    private func metricBadge(label: String, count: Int, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Text(label)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-            Text("\(count)")
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule().fill(color.opacity(0.15))
-        )
-        .foregroundStyle(color)
-    }
-
-    private var attendanceInfoRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "calendar.badge.checkmark")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text("Attendance (This School Year)")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            HStack(spacing: 8) {
-                metricBadge(label: "Tardy", count: daysTardyThisSchoolYear, color: .blue)
-                metricBadge(label: "Absent", count: daysAbsentThisSchoolYear, color: .red)
-            }
-        }
-    }
 
     // MARK: - Tab content builders
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
         case .overview:
-            overviewTab
+            StudentOverviewTab(
+                student: student,
+                isEditing: isEditing,
+                draftFirstName: $draftFirstName,
+                draftLastName: $draftLastName,
+                draftBirthday: $draftBirthday,
+                draftLevel: $draftLevel,
+                draftStartDate: $draftStartDate,
+                contractsCache: $contractsCache,
+                selectedContract: $selectedContract,
+                lessonsByID: lessonsByID,
+                nextLessonsForStudent: nextLessonsForStudent
+            )
         case .checklist:
-            checklistTab
+            StudentChecklistTab(
+                student: student,
+                subjects: subjectsForChecklist,
+                selectedSubject: selectedChecklistSubject,
+                lessons: lessons,
+                studentLessonsRaw: studentLessonsRaw,
+                rowStatesByLesson: checklistVM.rowStatesByLesson,
+                onSubjectSelected: { setSelectedChecklistSubject($0) },
+                onTapScheduled: { lesson, row in
+                    if let pid = row?.plannedItemID, let sl = studentLessonsRaw.first(where: { $0.id == pid }) {
+                        vm.selectedStudentLessonForDetail = sl
+                    } else {
+                        let draft = createOrReuseNonGivenStudentLesson(for: lesson)
+                        vm.selectedStudentLessonForDetail = draft
+                        checklistVM.recompute(for: lessons, using: modelContext)
+                    }
+                },
+                onTapPresented: { lesson, row in
+                    if let presID = row?.presentationLogID, let sl = studentLessonsRaw.first(where: { $0.id == presID }) {
+                        vm.selectedStudentLessonForDetail = sl
+                    } else {
+                        let sl = logPresentation(for: lesson)
+                        _ = ensureContract(for: lesson, presentationStudentLesson: sl)
+                    }
+                },
+                onTapActive: { lesson, row in
+                    if let cid = row?.contractID, let c = fetchContract(by: cid) {
+                        selectedContract = c
+                    } else if (row?.isPresented ?? false) {
+                        if let c = ensureContract(for: lesson, presentationStudentLesson: nil) {
+                            selectedContract = c
+                        }
+                    }
+                },
+                onTapComplete: { lesson, row in
+                    if let cid = row?.contractID, let c = fetchContract(by: cid), c.status != .complete {
+                        c.status = .complete
+                        c.completedAt = AppCalendar.startOfDay(Date())
+                        _ = saveCoordinator.save(modelContext, reason: "Complete contract from checklist")
+                        checklistVM.recompute(for: lessons, using: modelContext)
+                    } else if (row?.isPresented ?? false) && row?.contractID == nil {
+                        if let c = ensureContract(for: lesson, presentationStudentLesson: nil) {
+                            c.status = .complete
+                            c.completedAt = AppCalendar.startOfDay(Date())
+                            _ = saveCoordinator.save(modelContext, reason: "Create-and-complete contract from checklist")
+                            checklistVM.recompute(for: lessons, using: modelContext)
+                        }
+                    }
+                }
+            )
         case .history:
             historyPlaceholder
                 .padding(.top, 36)
@@ -219,57 +202,7 @@ struct StudentDetailView: View {
         }
     }
 
-    private var overviewTab: some View {
-        VStack(spacing: 0) {
-            StudentHeaderView(student: student)
-                .padding(.top, 36)
-            if isEditing {
-                editForm
-            } else {
-                infoRows
-
-                Divider()
-                    .padding(.top, 8)
-
-                // REPLACED WorkListSection with WorkContract list for this student
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Working on")
-                        .font(.headline)
-                        .padding(.horizontal, 4)
-                    if contractsCache.isEmpty {
-                        Text("No active work contracts.")
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 12)
-                    } else {
-                        ForEach(contractsCache, id: \.id) { contract in
-                            Button(action: {
-                                selectedContract = contract
-                            }) {
-                                ContractRow(contract: contract, lessonName: lessonName(for: contract))
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 4)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-
-                Divider()
-                    .padding(.top, 8)
-
-                NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
-            }
-        }
-    }
-
-    // MARK: - New computed property and helper for contracts
-
-    private var contractsForStudent: [WorkContract] {
-        fetchContractsForStudent()
-    }
+    // MARK: - Helper functions for contracts
 
     private func fetchContractsForStudent() -> [WorkContract] {
         let sid = student.id.uuidString
@@ -284,116 +217,6 @@ struct StudentDetailView: View {
         )
         let contracts = (try? modelContext.fetch(descriptor)) ?? []
         return contracts
-    }
-
-    // MARK: - New ContractRow view inside StudentDetailView
-
-    private struct ContractRow: View {
-        let contract: WorkContract
-        let lessonName: String
-
-        var body: some View {
-            HStack(spacing: 12) {
-                Text(lessonName)
-                    .font(.body)
-                    .foregroundColor(.primary)
-                Spacer()
-                Text(contract.status.rawValue.capitalized)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(statusColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule().fill(statusColor.opacity(0.2))
-                    )
-            }
-        }
-
-        private var statusColor: Color {
-            switch contract.status {
-            case .active:
-                return .blue
-            case .review:
-                return .orange
-            case .complete:
-                return .green
-            }
-        }
-    }
-
-    // MARK: - Restored checklistTab property
-
-    private var checklistTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SubjectPillsView(subjects: subjectsForChecklist, selected: selectedChecklistSubject) { subject in
-                setSelectedChecklistSubject(subject)
-            }
-
-            if let subject = selectedChecklistSubject ?? subjectsForChecklist.first {
-                makeChecklistSection(for: subject)
-            } else {
-                ContentUnavailableView {
-                    Label("No Subjects", systemImage: "text.book.closed")
-                } description: {
-                    Text("Add lessons in Albums to see subjects here.")
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 36)
-    }
-
-    // MARK: - Extracted builders to help the type-checker
-    private func makeChecklistSection(for subject: String) -> some View {
-        let groups = lessonsVM.groups(for: subject, lessons: lessons)
-        return SubjectChecklistSection(
-            subject: subject,
-            orderedGroups: groups,
-            lessons: lessons,
-            rowStatesByLesson: checklistVM.rowStatesByLesson,
-            onTapScheduled: { lesson, row in
-                if let pid = row?.plannedItemID, let sl = studentLessonsRaw.first(where: { $0.id == pid }) {
-                    vm.selectedStudentLessonForDetail = sl
-                } else {
-                    let draft = createOrReuseNonGivenStudentLesson(for: lesson)
-                    vm.selectedStudentLessonForDetail = draft
-                    checklistVM.recompute(for: lessons, using: modelContext)
-                }
-            },
-            onTapPresented: { lesson, row in
-                if let presID = row?.presentationLogID, let sl = studentLessonsRaw.first(where: { $0.id == presID }) {
-                    vm.selectedStudentLessonForDetail = sl
-                } else {
-                    let sl = logPresentation(for: lesson)
-                    _ = ensureContract(for: lesson, presentationStudentLesson: sl)
-                }
-            },
-            onTapActive: { lesson, row in
-                if let cid = row?.contractID, let c = fetchContract(by: cid) {
-                    selectedContract = c
-                } else if (row?.isPresented ?? false) {
-                    if let c = ensureContract(for: lesson, presentationStudentLesson: nil) {
-                        selectedContract = c
-                    }
-                }
-            },
-            onTapComplete: { lesson, row in
-                if let cid = row?.contractID, let c = fetchContract(by: cid), c.status != .complete {
-                    c.status = .complete
-                    c.completedAt = AppCalendar.startOfDay(Date())
-                    _ = saveCoordinator.save(modelContext, reason: "Complete contract from checklist")
-                    checklistVM.recompute(for: lessons, using: modelContext)
-                } else if (row?.isPresented ?? false) && row?.contractID == nil {
-                    if let c = ensureContract(for: lesson, presentationStudentLesson: nil) {
-                        c.status = .complete
-                        c.completedAt = AppCalendar.startOfDay(Date())
-                        _ = saveCoordinator.save(modelContext, reason: "Create-and-complete contract from checklist")
-                        checklistVM.recompute(for: lessons, using: modelContext)
-                    }
-                }
-            }
-        )
     }
 
     private func createDraftStudentLesson(for lesson: Lesson) -> StudentLesson {
@@ -505,12 +328,6 @@ struct StudentDetailView: View {
         return (try? modelContext.fetch(descriptor))?.first
     }
 
-    private func lessonName(for contract: WorkContract) -> String {
-        if let id = UUID(uuidString: contract.lessonID), let lesson = lessonsByID[id] {
-            return lesson.name
-        }
-        return "Lesson"
-    }
 
     private static let birthdayFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -585,10 +402,7 @@ struct StudentDetailView: View {
 
             if selectedTab == .notes {
                 // The new Notes timeline has its own internal list, so we avoid the wrapping ScrollView
-                StudentNotesTimelineView(student: student)
-                    .padding(.top, 16)
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 24)
+                StudentNotesTab(student: student)
             } else {
                 ScrollView {
                     VStack(spacing: 28) {
@@ -776,40 +590,6 @@ struct StudentDetailView: View {
         _checklistVM = StateObject(wrappedValue: StudentChecklistViewModel(studentID: student.id))
     }
 
-    // MARK: - Reintroduced helpers (Phase 5 safety)
-
-    private var infoRows: some View {
-        VStack(spacing: 14) {
-            InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
-            if let ds = student.dateStarted {
-                InfoRowView(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))
-            }
-            InfoRowView(icon: "gift", title: "Age", value: ageDescription)
-            InfoRowView(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
-            DaysSinceLastLessonView(student: student)
-            attendanceInfoRow
-        }
-        .padding(.horizontal, 8)
-    }
-
-    private var editForm: some View {
-        VStack(spacing: 14) {
-            HStack {
-                TextField("First Name", text: $draftFirstName)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Last Name", text: $draftLastName)
-                    .textFieldStyle(.roundedBorder)
-            }
-            DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
-            DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
-            Picker("Level", selection: $draftLevel) {
-                Text(Student.Level.lower.rawValue).tag(Student.Level.lower)
-                Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
-            }
-            .pickerStyle(.segmented)
-        }
-        .padding(.horizontal, 8)
-    }
 
     private var historyPlaceholder: some View {
         ContentUnavailableView {

@@ -1,0 +1,206 @@
+// PresentationsDayColumn.swift
+// Day column component extracted from PresentationsView
+
+import SwiftUI
+import SwiftData
+import UniformTypeIdentifiers
+
+struct PresentationsDayColumn: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendar) private var calendar
+
+    let day: Date
+    let allStudentLessons: [StudentLesson]
+    let onClear: (StudentLesson) -> Void
+    let onSelect: (StudentLesson) -> Void
+
+    @State private var itemFrames: [UUID: CGRect] = [:]
+    @State private var zoneSpaceID = UUID()
+    @State private var isTargeted: Bool = false
+    @State private var insertionIndex: Int? = nil
+
+    private var scheduledLessonsForDay: [StudentLesson] {
+        allStudentLessons.filter { sl in
+            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return false }
+            return calendar.isDate(scheduled, inSameDayAs: day)
+        }
+        .sorted { ($0.scheduledFor ?? .distantPast) < ($1.scheduledFor ?? .distantPast) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Day header
+            HStack(spacing: 6) {
+                Text(day.formatted(Date.FormatStyle().weekday(.abbreviated)))
+                    .font(.caption.weight(.semibold))
+                Text(day.formatted(Date.FormatStyle().day()))
+                    .font(.headline.weight(.semibold))
+                Spacer()
+            }
+            .padding(.horizontal, 6)
+
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.primary.opacity(isTargeted ? 0.08 : 0.04))
+                if isTargeted {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.accentColor.opacity(0.7), lineWidth: 2)
+                }
+
+                ScrollView(.vertical, showsIndicators: true) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if scheduledLessonsForDay.isEmpty {
+                            Text("No plans yet")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(8)
+                        } else {
+                            ForEach(scheduledLessonsForDay, id: \.id) { sl in
+                                StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false)
+                                    .onTapGesture { onSelect(sl) }
+                                    .draggable(sl.id.uuidString) {
+                                        StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false).opacity(0.85)
+                                    }
+                                    .contextMenu {
+                                        Button("Clear Schedule", systemImage: "xmark.circle") {
+                                            onClear(sl)
+                                        }
+                                    }
+                                    .background(
+                                        GeometryReader { proxy in
+                                            Color.clear.preference(
+                                                key: PillFramePreference.self,
+                                                value: [sl.id: proxy.frame(in: .named(zoneSpaceID))]
+                                            )
+                                        }
+                                    )
+                            }
+                        }
+                    }
+                    .padding(8)
+                }
+            }
+            .coordinateSpace(name: zoneSpaceID)
+            .onPreferenceChange(PillFramePreference.self) { frames in
+                itemFrames = frames
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .onDrop(of: [UTType.text], delegate: PresentationsDayColumnDropDelegate(
+                calendar: calendar,
+                modelContext: modelContext,
+                allStudentLessons: allStudentLessons,
+                day: day,
+                getCurrent: { scheduledLessonsForDay },
+                itemFramesProvider: { itemFrames },
+                onTargetChange: { targeted in
+                    withAnimation(.easeInOut(duration: 0.12)) { isTargeted = targeted }
+                },
+                onInsertionIndexChange: { idx in
+                    if insertionIndex != idx {
+                        withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
+                    }
+                }
+            ))
+            .frame(width: 360)
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    private struct PillFramePreference: PreferenceKey {
+        static var defaultValue: [UUID: CGRect] = [:]
+        static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+            value.merge(nextValue(), uniquingKeysWith: { $1 })
+        }
+    }
+}
+
+// MARK: - Drop Delegate for day column
+private struct PresentationsDayColumnDropDelegate: DropDelegate {
+    let calendar: Calendar
+    let modelContext: ModelContext
+    let allStudentLessons: [StudentLesson]
+    let day: Date
+    let getCurrent: () -> [StudentLesson]
+    let itemFramesProvider: () -> [UUID: CGRect]
+    let onTargetChange: (Bool) -> Void
+    let onInsertionIndexChange: (Int?) -> Void
+
+    func dropEntered(info: DropInfo) {
+        onTargetChange(true)
+        onInsertionIndexChange(computeIndex(info))
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        onInsertionIndexChange(computeIndex(info))
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        onTargetChange(false)
+        onInsertionIndexChange(nil)
+    }
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [UTType.text])
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        onTargetChange(false)
+        onInsertionIndexChange(nil)
+        let providers = info.itemProviders(for: [UTType.text])
+        return performDropFromProvidersAsync(providers: providers, location: info.location)
+    }
+
+    private func computeIndex(_ info: DropInfo) -> Int? {
+        let current = getCurrent()
+        let frames = itemFramesProvider()
+        let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+            if let rect = frames[item.id] { return (item.id, rect) }
+            return nil
+        })
+        return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
+    }
+
+    private func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
+        guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
+        provider.loadObject(ofClass: NSString.self) { reading, _ in
+            guard let ns = reading as? NSString else { return }
+            let payload = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
+            if let id = UUID(uuidString: payload) {
+                Task { @MainActor in
+                    applyDrop(of: id, locationY: location.y)
+                }
+            }
+        }
+        return true
+    }
+
+    @MainActor
+    private func applyDrop(of id: UUID, locationY: CGFloat) {
+        let current = getCurrent()
+        var ids = current.map { $0.id }
+        if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
+        let frames = itemFramesProvider()
+        let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
+            if let rect = frames[item.id] { return (item.id, rect) }
+            return nil
+        })
+        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: locationY, frames: dict)
+        let bounded = max(0, min(insertionIndex, ids.count))
+        ids.insert(id, at: bounded)
+        let baseDate = baseDateForDay(day: day, calendar: calendar)
+        let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+        for id in ids {
+            if let item = allStudentLessons.first(where: { $0.id == id }) {
+                item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+            }
+        }
+        try? modelContext.save()
+    }
+
+    private func baseDateForDay(day: Date, calendar: Calendar) -> Date {
+        let startOfDay = calendar.startOfDay(for: day)
+        return calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+    }
+}
+
