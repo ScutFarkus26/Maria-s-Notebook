@@ -53,6 +53,19 @@ struct PresentationsCalendarStrip: View {
                         .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 12)
+                
+                HStack(spacing: 8) {
+                    Spacer()
+                    Button {
+                        moveAllScheduledLessonsForward()
+                    } label: {
+                        Label("Move All Forward 1 Day", systemImage: "arrow.right.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Move all scheduled lessons forward by one school day")
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 12) {
@@ -110,6 +123,25 @@ struct PresentationsCalendarStrip: View {
             if !isNonSchool(cursor) { remaining -= 1 }
         }
         startDate = cursor
+    }
+    
+    private func moveAllScheduledLessonsForward() {
+        // Find all scheduled lessons that haven't been given
+        let scheduledLessons = studentLessons.filter { sl in
+            sl.scheduledFor != nil && !sl.isGiven
+        }
+        
+        guard !scheduledLessons.isEmpty else { return }
+        
+        // Move each lesson forward by one school day
+        for lesson in scheduledLessons {
+            guard let currentDate = lesson.scheduledFor else { continue }
+            let nextSchoolDay = SchoolCalendar.nextSchoolDay(after: currentDate, using: modelContext)
+            lesson.setScheduledFor(nextSchoolDay, using: calendar)
+        }
+        
+        // Save changes
+        try? modelContext.save()
     }
 }
 
