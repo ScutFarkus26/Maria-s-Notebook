@@ -168,12 +168,12 @@ struct BackupRestoreSettingsView: View {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
-                Text("Default Backup Location")
+                Text("Default Backup Folder")
                     .font(.headline)
             }
             
             if defaultFolderName.isEmpty {
-                Text("No default folder selected")
+                Text("No folder selected")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -260,3 +260,4 @@ struct BackupRestoreSettingsView: View {
         )
     }
 }
+

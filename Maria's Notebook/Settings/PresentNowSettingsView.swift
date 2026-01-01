@@ -6,9 +6,9 @@ struct PresentNowSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Exclude names from ‘Present Now’")
+            Text("Exclude Students from Present Now")
                 .font(.headline)
-            Text("Enter a comma or semicolon separated list of full names to exclude from the Present Now filter. Matching is case-insensitive.")
+            Text("Enter names separated by commas or semicolons. Matching is case-insensitive.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             TextEditor(text: $draft)
@@ -25,7 +25,7 @@ struct PresentNowSettingsView: View {
                 )
             HStack {
                 Spacer()
-                Button("Restore Default") {
+                Button("Reset to Default") {
                     draft = "danny de berry,lil dan d"
                 }
                 Button("Save") {

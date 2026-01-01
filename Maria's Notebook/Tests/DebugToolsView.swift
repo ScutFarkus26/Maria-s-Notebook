@@ -1,9 +1,11 @@
 import SwiftUI
+import SwiftData
 #if os(macOS)
 import AppKit
 #endif
 
 struct DebugToolsView: View {
+    @Environment(\.modelContext) private var modelContext
     @Binding var showDannyResetConfirm: Bool
     @Binding var showPurgeLegacyWorkConfirm: Bool
     @State private var showResetConfirm = false
@@ -103,6 +105,12 @@ struct DebugToolsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.top, 4)
+                
+                // CloudKit Status & Record Counts
+                Divider()
+                    .padding(.vertical, 8)
+                
+                CloudKitStatusView()
             }
 
             // Smart Planning (Backfill / Catch Up)

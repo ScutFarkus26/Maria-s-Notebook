@@ -47,14 +47,14 @@ struct SettingsView: View {
                         )
                     }
                     
-                    // MARK: - Data Management Section
-                    dataManagementSection
+                    // MARK: - Attendance Section
+                    attendanceSection
                     
                     // MARK: - School Configuration Section
                     schoolConfigurationSection
                     
-                    // MARK: - Attendance Section
-                    attendanceSection
+                    // MARK: - Data Management Section
+                    dataManagementSection
                     
                     // MARK: - Advanced / Debug Section
                     advancedDebugSection
@@ -142,7 +142,10 @@ struct SettingsView: View {
     private var dataManagementSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Data Management")
-            HStack(alignment: .top, spacing: 24) {
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 24),
+                GridItem(.flexible(), spacing: 24)
+            ], spacing: 24) {
                 backupRestorePane
                     .frame(maxWidth: .infinity)
                 maintenancePane
@@ -195,14 +198,17 @@ struct SettingsView: View {
     private var attendanceSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Attendance")
-            HStack(alignment: .top, spacing: 24) {
-                SettingsGroup(title: "Present Now Filters", systemImage: "line.3.horizontal.decrease.circle") {
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 24),
+                GridItem(.flexible(), spacing: 24)
+            ], spacing: 24) {
+                SettingsGroup(title: "Present Now", systemImage: "line.3.horizontal.decrease.circle") {
                     PresentNowSettingsView()
                         .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity)
-                
-                SettingsGroup(title: "Email Reports", systemImage: "envelope") {
+
+                SettingsGroup(title: "Attendance Email", systemImage: "envelope") {
                     AttendanceEmailSettingsView()
                         .frame(maxWidth: .infinity)
                 }

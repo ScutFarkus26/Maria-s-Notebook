@@ -27,7 +27,7 @@ struct MaintenanceSettingsView: View {
                     .controlSize(.large)
                 }
 
-                Text("Housekeeping tools to keep your data tidy.")
+                Text("Housekeeping tools to keep your data clean.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.top, 4)
@@ -43,7 +43,7 @@ struct MaintenanceSettingsView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
 
-                    Text("Deletes any Student Lesson records that have no students, and clears stale work links.")
+                    Text("Deletes Student Lesson records with no students and clears stale work links.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
