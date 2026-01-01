@@ -7,11 +7,10 @@ enum DataMigrations {
     /// Idempotent: guarded by a UserDefaults flag and only updates rows where time != start of day.
     static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.givenAtDateOnly.v1"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
-        let calendar = AppCalendar.shared
-        do {
+        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+            let calendar = AppCalendar.shared
             let fetch = FetchDescriptor<StudentLesson>()
-            let lessons = try context.fetch(fetch)
+            let lessons = context.safeFetch(fetch)
             var changed = 0
             for sl in lessons {
                 if let dt = sl.givenAt {
@@ -23,9 +22,6 @@ enum DataMigrations {
                 }
             }
             if changed > 0 { try? context.save() }
-            UserDefaults.standard.set(true, forKey: flagKey)
-        } catch {
-            // If fetch fails, do not set the flag so we can retry later.
         }
     }
 
@@ -36,8 +32,7 @@ enum DataMigrations {
     /// - WorkCheckIn.date
     static func normalizeWorkDatesToDateOnlyIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.workDatesDateOnly.v1"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
-        UserDefaults.standard.set(true, forKey: flagKey)
+        MigrationFlag.markComplete(key: flagKey)
     }
 
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
@@ -45,7 +40,7 @@ enum DataMigrations {
     static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
         // Fetch all candidate lessons (unscheduled and not given)
         let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.scheduledFor == nil && $0.givenAt == nil })
-        let candidates = (try? context.fetch(descriptor)) ?? []
+        let candidates = context.safeFetch(descriptor)
         guard !candidates.isEmpty else { return }
 
         // Group by (lessonID + sorted studentIDs)
@@ -71,13 +66,13 @@ enum DataMigrations {
                 canonical.needsAnotherPresentation = true
             }
             // Prefer non-empty notes/followUpWork if canonical empty
-            if canonical.notes.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                if let firstNote = duplicates.map({ $0.notes }).first(where: { !$0.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty }) {
+            if canonical.notes.trimmed().isEmpty {
+                if let firstNote = duplicates.map({ $0.notes }).first(where: { !$0.trimmed().isEmpty }) {
                     canonical.notes = firstNote
                 }
             }
-            if canonical.followUpWork.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                if let firstFU = duplicates.map({ $0.followUpWork }).first(where: { !$0.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty }) {
+            if canonical.followUpWork.trimmed().isEmpty {
+                if let firstFU = duplicates.map({ $0.followUpWork }).first(where: { !$0.trimmed().isEmpty }) {
                     canonical.followUpWork = firstFU
                 }
             }
@@ -94,16 +89,14 @@ enum DataMigrations {
     /// Idempotent and safe to call multiple times.
     static func backfillParticipantsAndDeleteEmptyWorksIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.workParticipantsBackfillAndPrune.v1"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
-        UserDefaults.standard.set(true, forKey: flagKey)
+        MigrationFlag.markComplete(key: flagKey)
     }
     
     /// Backfill nil WorkModel.title values to empty string once.
     static func backfillEmptyWorkTitlesIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.workTitlesBackfillEmpty.v1"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
         // Title is non-optional; this migration is obsolete. Mark as done.
-        UserDefaults.standard.set(true, forKey: flagKey)
+        MigrationFlag.markComplete(key: flagKey)
     }
     
     /// Fix CommunityTopic.tags property migration to new storage format.
@@ -117,14 +110,15 @@ enum DataMigrations {
     /// empty array if _tagsData contains invalid data, preventing crashes.
     static func fixCommunityTopicTagsIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.communityTopicTagsFix.v2"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
         
         // Mark migration as complete immediately to prevent any fetch attempts that might crash
         // The computed property in CommunityTopic will safely handle corrupted data
         // by returning an empty array if _tagsData contains invalid data.
         // Records will be migrated lazily when accessed and saved (tags property setter encodes to _tagsData).
-        UserDefaults.standard.set(true, forKey: flagKey)
-        print("DataMigrations: CommunityTopic tags migration v2 flag set. Records will be migrated lazily on access.")
+        if !MigrationFlag.isComplete(key: flagKey) {
+            MigrationFlag.markComplete(key: flagKey)
+            print("DataMigrations: CommunityTopic tags migration v2 flag set. Records will be migrated lazily on access.")
+        }
     }
     
     /// Fix StudentLesson.studentIDs property migration to new storage format.
@@ -138,14 +132,15 @@ enum DataMigrations {
     /// empty array if _studentIDsData contains invalid data, preventing crashes.
     static func fixStudentLessonStudentIDsIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.studentLessonStudentIDsFix.v1"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
         
         // Mark migration as complete immediately to prevent any fetch attempts that might crash
         // The computed property in StudentLesson will safely handle corrupted data
         // by returning an empty array if _studentIDsData contains invalid data.
         // Records will be migrated lazily when accessed and saved (studentIDs property setter encodes to _studentIDsData).
-        UserDefaults.standard.set(true, forKey: flagKey)
-        print("DataMigrations: StudentLesson studentIDs migration flag set. Records will be migrated lazily on access.")
+        if !MigrationFlag.isComplete(key: flagKey) {
+            MigrationFlag.markComplete(key: flagKey)
+            print("DataMigrations: StudentLesson studentIDs migration flag set. Records will be migrated lazily on access.")
+        }
     }
     
     /// Migrate UUID foreign keys to String format for CloudKit compatibility.
@@ -153,14 +148,15 @@ enum DataMigrations {
     /// Idempotent: guarded by a UserDefaults flag.
     static func migrateUUIDForeignKeysToStringsIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.uuidForeignKeysToStrings.v1"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
         
         // Note: This migration is primarily handled by lazy migration when records are accessed.
         // The models now store UUIDs as strings, and initializers convert UUID parameters to strings.
         // Existing records will be migrated when they are read and saved.
         // We mark this migration as complete to indicate the schema change is in place.
-        UserDefaults.standard.set(true, forKey: flagKey)
-        print("DataMigrations: UUID foreign keys to strings migration flag set. Records will be migrated lazily on access.")
+        if !MigrationFlag.isComplete(key: flagKey) {
+            MigrationFlag.markComplete(key: flagKey)
+            print("DataMigrations: UUID foreign keys to strings migration flag set. Records will be migrated lazily on access.")
+        }
     }
     
     /// Migrate AttendanceRecord.studentID from UUID to String format.
@@ -168,11 +164,9 @@ enum DataMigrations {
     /// Idempotent: guarded by a UserDefaults flag.
     static func migrateAttendanceRecordStudentIDToStringIfNeeded(using context: ModelContext) {
         let flagKey = "Migration.attendanceRecordStudentIDToString.v1"
-        if UserDefaults.standard.bool(forKey: flagKey) { return }
-        
-        do {
+        _ = MigrationFlag.runIfNeeded(key: flagKey) {
             let fetch = FetchDescriptor<AttendanceRecord>()
-            let records = try context.fetch(fetch)
+            let records = context.safeFetch(fetch)
             
             for record in records {
                 // Check if studentID is already a valid UUID string
@@ -197,11 +191,7 @@ enum DataMigrations {
                 // The store should have been migrated at the CoreData level
             }
             
-            UserDefaults.standard.set(true, forKey: flagKey)
             print("DataMigrations: AttendanceRecord studentID migration completed. Records will be migrated lazily on access.")
-        } catch {
-            // If fetch fails, don't set the flag so we can retry later
-            print("DataMigrations: AttendanceRecord studentID migration error: \(error)")
         }
     }
 }

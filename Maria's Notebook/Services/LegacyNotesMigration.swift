@@ -11,18 +11,16 @@ enum LegacyNotesMigration {
             return
         }
         
-        let defaults = UserDefaults.standard
-        if defaults.bool(forKey: didMigrateKey) { return }
-
         do {
-            var pendingSaves = 0
-            pendingSaves += try migrateStudentLessonNotes(context: modelContext)
-            pendingSaves += try migrateStudentLessonFollowUps(context: modelContext)
-            pendingSaves += try migrateWorkNotes(context: modelContext)
-            if pendingSaves > 0 {
-                try modelContext.save()
+            _ = try MigrationFlag.runIfNeeded(key: didMigrateKey) {
+                var pendingSaves = 0
+                pendingSaves += try migrateStudentLessonNotes(context: modelContext)
+                pendingSaves += try migrateStudentLessonFollowUps(context: modelContext)
+                pendingSaves += try migrateWorkNotes(context: modelContext)
+                if pendingSaves > 0 {
+                    try modelContext.save()
+                }
             }
-            defaults.set(true, forKey: didMigrateKey)
         } catch {
             // Do not set the flag on failure; log and return
             print("LegacyNotesMigration error:", error)
@@ -98,7 +96,7 @@ enum LegacyNotesMigration {
 
     private static func existsNoteWithFingerprint(_ fingerprint: String, context: ModelContext) -> Bool {
         let descriptor = FetchDescriptor<ScopedNote>(predicate: #Predicate { $0.legacyFingerprint == fingerprint })
-        let matches = (try? context.fetch(descriptor)) ?? []
+        let matches = context.safeFetch(descriptor)
         return !matches.isEmpty
     }
 
@@ -114,6 +112,6 @@ enum LegacyNotesMigration {
     }
 
     private static func normalize(_ s: String) -> String {
-        s.trimmingCharacters(in: .whitespacesAndNewlines)
+        s.trimmed()
     }
 }

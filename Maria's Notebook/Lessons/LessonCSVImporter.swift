@@ -360,16 +360,7 @@ enum LessonCSVImporter {
     }
     /// Normalize a component string by trimming, lowercasing, removing diacritics and collapsing whitespace.
     private static func normalizeComponent(_ s: String) -> String {
-        // Trim whitespace
-        var result = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Lowercase
-        result = result.lowercased()
-        // Remove diacritics
-        result = result.folding(options: .diacriticInsensitive, locale: .current)
-        // Collapse whitespace sequences to single space
-        let components = result.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
-        result = components.joined(separator: " ")
-        return result
+        StringNormalization.normalizeComponent(s)
     }
 
     /// Compute duplicate key for a lesson.

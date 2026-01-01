@@ -171,12 +171,12 @@ final class TodayViewModel: ObservableObject {
                 )
                 let fetchedStudents = try context.fetch(studentsDescriptor)
                 let visibleStudents = TestStudentsFilter.filterVisible(fetchedStudents)
-                studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+                studentsByID = visibleStudents.toDictionary(by: \.id)
             } catch {
                 // Fallback: fetch all if predicate fails (shouldn't happen, but safe)
-                let allStudents = (try? context.fetch(FetchDescriptor<Student>())) ?? []
+                let allStudents = context.safeFetch(FetchDescriptor<Student>())
                 let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
-                studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+                studentsByID = visibleStudents.toDictionary(by: \.id)
             }
         }
         self.studentsByID = studentsByID
@@ -189,11 +189,11 @@ final class TodayViewModel: ObservableObject {
                     predicate: #Predicate { neededLessonIDs.contains($0.id) }
                 )
                 let fetchedLessons = try context.fetch(lessonsDescriptor)
-                lessonsByID = Dictionary(uniqueKeysWithValues: fetchedLessons.map { ($0.id, $0) })
+                lessonsByID = fetchedLessons.toDictionary(by: \.id)
             } catch {
                 // Fallback: fetch all if predicate fails
-                let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
-                lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+                let lessons = context.safeFetch(FetchDescriptor<Lesson>())
+                lessonsByID = lessons.toDictionary(by: \.id)
             }
         }
         self.lessonsByID = lessonsByID

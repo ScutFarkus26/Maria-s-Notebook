@@ -13,11 +13,11 @@ func scanAndBackfillBlockedLessonsGrouped(modelContext: ModelContext) throws -> 
 
     // 2. Fetch Metadata (Lessons and existing Plans)
     let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
-    let lessonsByID = Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) })
+    let lessonsByID = allLessons.toDictionary(by: \.id)
     
     // Group lessons by Subject|Group and sort by order
-    let lessonsByGroup: [String: [Lesson]] = Dictionary(grouping: allLessons) { l in
-        "\(l.subject.trimmingCharacters(in: .whitespacesAndNewlines))|\(l.group.trimmingCharacters(in: .whitespacesAndNewlines))".lowercased()
+    let lessonsByGroup: [String: [Lesson]] = allLessons.grouped { l in
+        "\(l.subject.trimmed())|\(l.group.trimmed())".lowercased()
     }
     let sortedLessonsByGroup = lessonsByGroup.mapValues { $0.sorted { $0.orderInGroup < $1.orderInGroup } }
 
@@ -33,7 +33,7 @@ func scanAndBackfillBlockedLessonsGrouped(modelContext: ModelContext) throws -> 
     
     // Cache students for object linking
     let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
-    let studentsByID = Dictionary(uniqueKeysWithValues: allStudents.map { ($0.id.uuidString, $0) })
+    let studentsByID = allStudents.toDictionary(by: { $0.id.uuidString })
 
     // 3. Accumulate students who need the NEXT lesson
     // Map: [NextLessonID : Set<StudentIDString>]

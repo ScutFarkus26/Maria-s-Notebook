@@ -95,24 +95,32 @@ struct MariasToolboxApp: App {
         // 4. Missing inverse relationships when one side specifies inverse:
         // 5. Invalid property types (e.g., using types SwiftData doesn't support)
         
+        #if DEBUG
         print("SwiftData: Starting container initialization...")
+        #endif
         
         // Get schema - if SwiftData asserts here, it's a schema definition problem
         let schema = AppSchema.schema
+        #if DEBUG
         print("SwiftData: Schema accessed successfully")
+        #endif
         
         let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
         let _ = UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey)
         
         // Helper to create container with defensive error handling
         func makeContainer(inMemory: Bool, url: URL? = nil, cloud: Bool = false) throws -> ModelContainer {
+            #if DEBUG
             print("SwiftData: Attempting to create container (inMemory: \(inMemory), cloud: \(cloud))...")
+            #endif
             do {
                 if inMemory {
                     let config = ModelConfiguration(isStoredInMemoryOnly: true)
                     // SwiftData may assert here if the schema is invalid
                     let container = try ModelContainer(for: schema, configurations: config)
+                    #if DEBUG
                     print("SwiftData: Successfully created in-memory container")
+                    #endif
                     return container
                 } else if cloud {
                     // Derive the iCloud container identifier from bundle id and validate
@@ -123,14 +131,18 @@ struct MariasToolboxApp: App {
                     #if swift(>=6.0)
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
                         if let containerID {
+                            #if DEBUG
                             print("SwiftData: CloudKit configuration:")
                             print("  - Container ID: \(containerID)")
                             print("  - Store URL: \(storeURL.path)")
                             print("  - Database: Private")
+                            #endif
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                             let container = try ModelContainer(for: schema, configurations: config)
+                            #if DEBUG
                             print("SwiftData: ✅ CloudKit container created successfully!")
                             print("SwiftData: CloudKit sync is now active. Changes will sync across devices.")
+                            #endif
                             UserDefaults.standard.set(true, forKey: MariasToolboxApp.cloudKitActiveKey)
                             return container
                         } else {
@@ -142,14 +154,18 @@ struct MariasToolboxApp: App {
                     #else
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
                         if let containerID {
+                            #if DEBUG
                             print("SwiftData: CloudKit configuration:")
                             print("  - Container ID: \(containerID)")
                             print("  - Store URL: \(storeURL.path)")
                             print("  - Database: Private")
+                            #endif
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                             let container = try ModelContainer(for: schema, configurations: config)
+                            #if DEBUG
                             print("SwiftData: ✅ CloudKit container created successfully!")
                             print("SwiftData: CloudKit sync is now active. Changes will sync across devices.")
+                            #endif
                             UserDefaults.standard.set(true, forKey: MariasToolboxApp.cloudKitActiveKey)
                             return container
                         } else {
@@ -181,13 +197,17 @@ struct MariasToolboxApp: App {
             
             let _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
             if useInMemory {
+                #if DEBUG
                 print("SwiftData: Creating in-memory store...")
+                #endif
                 // We already validated the schema, so this should work
                 let container = try makeContainer(inMemory: true)
                 UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                 UserDefaults.standard.set("Using temporary in-memory store on next launch.", forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                 UserDefaults.standard.set(false, forKey: MariasToolboxApp.useInMemoryFlagKey)
+                #if DEBUG
                 print("SwiftData: Using in-memory store.")
+                #endif
                 return container
             } else {
                 // Validate store file before attempting to open
@@ -202,27 +222,37 @@ struct MariasToolboxApp: App {
                             userInfo: [NSLocalizedDescriptionKey: "Store file exists but is not readable. The database may be corrupted or locked by another process."]
                         )
                     }
+                    #if DEBUG
                     print("SwiftData: Store file exists at \(storeURL.path)")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("SwiftData: Store file does not exist, will create new store at \(storeURL.path)")
+                    #endif
                 }
                 
                 // CloudKit compatibility: All model fixes are complete. Enable CloudKit via UserDefaults flag.
                 let enableCloudKit = UserDefaults.standard.bool(forKey: enableCloudKitKey)
+                #if DEBUG
                 if enableCloudKit {
                     print("SwiftData: Creating CloudKit-enabled container...")
                 } else {
                     print("SwiftData: Creating local storage container (CloudKit disabled - set '\(enableCloudKitKey)' UserDefaults flag to enable)...")
                 }
+                #endif
                 let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
                 UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                 UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                 if enableCloudKit {
                     // cloudKitActiveKey is set in makeContainer when CloudKit is successfully initialized
+                    #if DEBUG
                     print("SwiftData: ✅ Using CloudKit-enabled storage.")
+                    #endif
                 } else {
                     UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                    #if DEBUG
                     print("SwiftData: Using local storage.")
+                    #endif
                 }
                 return container
             }
@@ -246,15 +276,21 @@ struct MariasToolboxApp: App {
                         // This is the UUID to String migration issue
                         // Try to automatically reset the store if it's safe to do so
                         // (i.e., if there's no important data to preserve)
+                        #if DEBUG
                         print("SwiftData: Detected AttendanceRecord.studentID migration issue. Attempting automatic store reset...")
+                        #endif
                         do {
                             try MariasToolboxApp.resetPersistentStore()
+                            #if DEBUG
                             print("SwiftData: Store reset successfully. Retrying with fresh store...")
+                            #endif
                             // Retry creating the container with the fresh store
                             let container = try makeContainer(inMemory: false, cloud: false)
                             UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                             UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                            #if DEBUG
                             print("SwiftData: Successfully opened store after reset.")
+                            #endif
                             return container
                         } catch {
                             // If reset failed, show error message
@@ -289,10 +325,14 @@ struct MariasToolboxApp: App {
             // This allows the app to show the blocking error view even if persistent storage fails
             // NOTE: If SwiftData asserts internally here, we cannot catch it
             do {
+                #if DEBUG
                 print("SwiftData: Attempting final fallback to in-memory container...")
+                #endif
                 let config = ModelConfiguration(isStoredInMemoryOnly: true)
                 let fallbackContainer = try ModelContainer(for: schema, configurations: config)
+                #if DEBUG
                 print("SwiftData: Successfully created fallback in-memory container")
+                #endif
                 UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                 // Use safe string representation
                 let errorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
@@ -328,11 +368,15 @@ struct MariasToolboxApp: App {
                 // This is a workaround - the error UI doesn't actually need a real container, but SwiftUI's
                 // .modelContainer() modifier requires a non-optional ModelContainer.
                 do {
+                    #if DEBUG
                     print("SwiftData: Attempting to create minimal empty container for error UI...")
+                    #endif
                     let emptySchema = Schema([])
                     let emptyConfig = ModelConfiguration(isStoredInMemoryOnly: true)
                     let emptyContainer = try ModelContainer(for: emptySchema, configurations: emptyConfig)
+                    #if DEBUG
                     print("SwiftData: Created minimal empty container for error UI")
+                    #endif
                     
                     // Set the error so the UI can display it
                     let originalErrorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
@@ -380,13 +424,17 @@ struct MariasToolboxApp: App {
         // - Check for invalid property types or annotations
         //
         // NOTE: We cannot catch SwiftData's internal assertions - they crash immediately.
+        #if DEBUG
         print("SwiftData: Accessing sharedModelContainer - will create container now...")
         print("SwiftData: If crash occurs here, check schema definition in AppSchema.swift")
+        #endif
         
         do {
             let container = try MariasToolboxApp.createModelContainer()
             MariasToolboxApp._sharedModelContainer = container
+            #if DEBUG
             print("SwiftData: Container created and cached successfully")
+            #endif
             return container
         } catch {
             // This should never be reached if createModelContainer handles all errors properly,
@@ -552,7 +600,9 @@ struct MariasToolboxApp: App {
                         get: { UserDefaults.standard.bool(forKey: MariasToolboxApp.enableCloudKitKey) },
                         set: { 
                             UserDefaults.standard.set($0, forKey: MariasToolboxApp.enableCloudKitKey)
+                            #if DEBUG
                             print("CloudKit sync \($0 ? "enabled" : "disabled"). Restart app for changes to take effect.")
+                            #endif
                             NSApp.requestUserAttention(.informationalRequest)
                         }
                     )
@@ -563,12 +613,16 @@ struct MariasToolboxApp: App {
                     #if os(macOS)
                     NSApp.requestUserAttention(.criticalRequest)
                     #endif
+                    #if DEBUG
                     print("Set toggle: App will use in-memory SwiftData store on next launch.")
+                    #endif
                 }
                 Button("Reset Persistent Store…") {
                     do {
                         try MariasToolboxApp.resetPersistentStore()
+                        #if DEBUG
                         print("SwiftData: Persistent store reset. Quit and relaunch the app to recreate a fresh store.")
+                        #endif
                         #if os(macOS)
                         NSApp.requestUserAttention(.criticalRequest)
                         #endif

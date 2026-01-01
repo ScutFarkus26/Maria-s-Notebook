@@ -92,8 +92,8 @@ struct FollowUpInboxEngine {
         constants: Constants = Constants()
     ) -> [FollowUpInboxItem] {
         var results: [FollowUpInboxItem] = []
-        let lessonsByID: [UUID: Lesson] = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-        let studentsByID: [UUID: Student] = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        let lessonsByID: [UUID: Lesson] = lessons.toDictionary(by: \.id)
+        let studentsByID: [UUID: Student] = students.toDictionary(by: \.id)
 
         // Helper: student display name for a set of IDs (single vs group)
         func childName(for ids: [UUID]) -> (UUID?, String) {

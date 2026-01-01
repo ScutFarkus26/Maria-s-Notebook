@@ -117,7 +117,7 @@ enum StudentCSVImporter {
             // Extract text safely
             func value(_ idx: Int?) -> String {
                 guard let idx, idx >= 0, idx < rawRow.count else { return "" }
-                return rawRow[idx].trimmingCharacters(in: .whitespacesAndNewlines)
+                return rawRow[idx].trimmed()
             }
 
             var first = ""
@@ -192,7 +192,7 @@ enum StudentCSVImporter {
         for (i, rawRow) in csv.rows.enumerated() {
             func value(_ idx: Int?) -> String {
                 guard let idx, idx >= 0, idx < rawRow.count else { return "" }
-                return rawRow[idx].trimmingCharacters(in: .whitespacesAndNewlines)
+                return rawRow[idx].trimmed()
             }
 
             var first = ""

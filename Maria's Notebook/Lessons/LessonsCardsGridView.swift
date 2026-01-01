@@ -55,7 +55,7 @@ struct LessonsCardsGridView: View {
     private var idList: [UUID] { lessons.map { $0.id } }
 
     private var groupedByGroup: [(key: String, value: [Lesson])] {
-        let dict = Dictionary(grouping: lessons) { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let dict = Dictionary(grouping: lessons) { $0.group.trimmed() }
         let mapped = dict
             .map { (key: $0.key, value: $0.value.sorted { lhs, rhs in
                 if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
@@ -66,7 +66,7 @@ struct LessonsCardsGridView: View {
             if let selected = selectedSubject, !selected.isEmpty {
                 return selected
             }
-            let subjectsSet = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }.filter { !$0.isEmpty })
+            let subjectsSet = Set(lessons.map { $0.subject.trimmed().lowercased() }.filter { !$0.isEmpty })
             if subjectsSet.count == 1 {
                 return lessons.first?.subject
             }
@@ -76,7 +76,7 @@ struct LessonsCardsGridView: View {
         let keys = dict.keys.map { $0 }
 
         if let subjectKey = subjectKey {
-            let existingNamed = keys.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            let existingNamed = keys.map { $0.trimmed() }.filter { !$0.isEmpty }
             let orderedNamed = FilterOrderStore.loadGroupOrder(for: subjectKey, existing: existingNamed)
             var index: [String: Int] = [:]
             for (i, g) in orderedNamed.enumerated() {

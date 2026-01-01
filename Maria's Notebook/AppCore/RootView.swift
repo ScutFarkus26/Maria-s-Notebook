@@ -178,8 +178,8 @@ struct RootView: View {
                 let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
                 let students = try modelContext.fetch(FetchDescriptor<Student>())
                 let lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
-                let studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
-                let lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+                let studentsByID = students.toDictionary(by: \.id)
+                let lessonsByID = lessons.toDictionary(by: \.id)
 
                 var changed = false
                 for sl in sls {
@@ -251,9 +251,6 @@ struct RootView: View {
                     _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
                 }
                 didBackfillScheduledForDay = true
-        #if DEBUG
-                print("Backfill.scheduledForDay: fixed \(fixed) records")
-        #endif
             } catch {
                 didBackfillScheduledForDay = true
         #if DEBUG

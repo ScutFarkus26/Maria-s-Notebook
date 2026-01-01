@@ -35,7 +35,7 @@ final class SaveCoordinator: ObservableObject {
             if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
                 message += "\nUnderlying: \(underlying.localizedDescription)"
             }
-            if let why = reason, !why.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let why = reason, !why.trimmed().isEmpty {
                 message = "\(why):\n\n\(message)"
             }
             self.lastSaveErrorMessage = message

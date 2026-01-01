@@ -74,7 +74,7 @@ public enum CSVParser {
         let firstRow = rows[0]
         
         // Trim fields in first row
-        let trimmedHeaders = firstRow.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let trimmedHeaders = firstRow.map { $0.trimmed() }
         
         let allNonEmpty = !trimmedHeaders.contains(where: { $0.isEmpty })
         let uniqueHeaders = Set(trimmedHeaders).count == trimmedHeaders.count
@@ -139,7 +139,7 @@ public enum DateParser {
     }()
 
     public static func parse(_ value: String) -> Date? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = value.trimmed()
         if trimmed.isEmpty { return nil }
 
         if let date = iso.date(from: trimmed) {
@@ -161,7 +161,7 @@ public extension String {
     
     func normalizedNameKey() -> String {
         let components = self.lowercased()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmed()
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
         return components.joined(separator: " ")
