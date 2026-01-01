@@ -118,12 +118,12 @@ struct AttendanceInfoRow: View {
         let calendar = Calendar.current
         let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
         guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
-        let studentID = student.id
+        let studentIDString = student.id.uuidString
         let from = start
         let to = end
         let descriptor = FetchDescriptor<AttendanceRecord>(
             predicate: #Predicate<AttendanceRecord> { rec in
-                rec.studentID == studentID && rec.date >= from && rec.date < to
+                rec.studentID == studentIDString && rec.date >= from && rec.date < to
             }
         )
         let records = (try? modelContext.fetch(descriptor)) ?? []
@@ -134,12 +134,12 @@ struct AttendanceInfoRow: View {
         let calendar = Calendar.current
         let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
         guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
-        let studentID = student.id
+        let studentIDString = student.id.uuidString
         let from = start
         let to = end
         let descriptor = FetchDescriptor<AttendanceRecord>(
             predicate: #Predicate<AttendanceRecord> { rec in
-                rec.studentID == studentID && rec.date >= from && rec.date < to
+                rec.studentID == studentIDString && rec.date >= from && rec.date < to
             }
         )
         let records = (try? modelContext.fetch(descriptor)) ?? []

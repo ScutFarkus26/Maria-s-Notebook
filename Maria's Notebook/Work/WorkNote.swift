@@ -3,7 +3,7 @@ import SwiftData
 
 @Model final class WorkNote: Identifiable {
     // Core fields
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
     var text: String = ""
     var isLessonToGive: Bool = false

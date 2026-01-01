@@ -96,10 +96,14 @@ public final class BackupService {
             )
         }
 
-        let studentLessonDTOs: [StudentLessonDTO] = studentLessons.map { sl in
-            StudentLessonDTO(
+        let studentLessonDTOs: [StudentLessonDTO] = studentLessons.compactMap { sl in
+            // CloudKit compatibility: Convert String lessonID to UUID for DTO
+            guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else {
+                return nil // Skip if lessonID is invalid
+            }
+            return StudentLessonDTO(
                 id: sl.id,
-                lessonID: sl.lessonID,
+                lessonID: lessonIDUUID,
                 studentIDs: sl.resolvedStudentIDs,
                 createdAt: sl.createdAt,
                 scheduledFor: sl.scheduledFor,
@@ -132,10 +136,12 @@ public final class BackupService {
             )
         }
 
-        let workPlanItemDTOs: [WorkPlanItemDTO] = workPlanItems.map { w in
-            WorkPlanItemDTO(
+        let workPlanItemDTOs: [WorkPlanItemDTO] = workPlanItems.compactMap { w in
+            // CloudKit compatibility: Convert String workID to UUID for DTO
+            guard let workIDUUID = UUID(uuidString: w.workID) else { return nil }
+            return WorkPlanItemDTO(
                 id: w.id,
-                workID: w.workID,
+                workID: workIDUUID,
                 scheduledDate: w.scheduledDate,
                 reason: w.reasonRaw ?? (w.reason?.rawValue ?? ""),
                 note: w.note
@@ -185,10 +191,12 @@ public final class BackupService {
             SchoolDayOverrideDTO(id: o.id, date: o.date, note: o.note)
         }
 
-        let studentMeetingDTOs: [StudentMeetingDTO] = studentMeetings.map { m in
-            StudentMeetingDTO(
+        let studentMeetingDTOs: [StudentMeetingDTO] = studentMeetings.compactMap { m in
+            // CloudKit compatibility: Convert String studentID to UUID for DTO
+            guard let studentIDUUID = UUID(uuidString: m.studentID) else { return nil }
+            return StudentMeetingDTO(
                 id: m.id,
-                studentID: m.studentID,
+                studentID: studentIDUUID,
                 date: m.date,
                 completed: m.completed,
                 reflection: m.reflection,
@@ -257,21 +265,26 @@ public final class BackupService {
         }
 
         // Attendance & Work Completions
-        let attendanceDTOs: [AttendanceRecordDTO] = attendance.map { a in
-            AttendanceRecordDTO(
+        let attendanceDTOs: [AttendanceRecordDTO] = attendance.compactMap { a in
+            // CloudKit compatibility: Convert String studentID to UUID for DTO
+            guard let studentIDUUID = UUID(uuidString: a.studentID) else { return nil }
+            return AttendanceRecordDTO(
                 id: a.id,
-                studentID: a.studentID,
+                studentID: studentIDUUID,
                 date: a.date,
                 status: a.status.rawValue,
                 note: a.note
             )
         }
 
-        let workCompletionDTOs: [WorkCompletionRecordDTO] = workCompletions.map { r in
-            WorkCompletionRecordDTO(
+        let workCompletionDTOs: [WorkCompletionRecordDTO] = workCompletions.compactMap { r in
+            // CloudKit compatibility: Convert String IDs to UUIDs for DTO
+            guard let workIDUUID = UUID(uuidString: r.workID),
+                  let studentIDUUID = UUID(uuidString: r.studentID) else { return nil }
+            return WorkCompletionRecordDTO(
                 id: r.id,
-                workID: r.workID,
-                studentID: r.studentID,
+                workID: workIDUUID,
+                studentID: studentIDUUID,
                 completedAt: r.completedAt,
                 note: r.note
             )
@@ -288,11 +301,13 @@ public final class BackupService {
             )
         }
 
-        let projectTemplateDTOs: [ProjectAssignmentTemplateDTO] = projectTemplates.map { t in
-            ProjectAssignmentTemplateDTO(
+        let projectTemplateDTOs: [ProjectAssignmentTemplateDTO] = projectTemplates.compactMap { t in
+            // CloudKit compatibility: Convert String projectID to UUID for DTO
+            guard let projectIDUUID = UUID(uuidString: t.projectID) else { return nil }
+            return ProjectAssignmentTemplateDTO(
                 id: t.id,
                 createdAt: t.createdAt,
-                projectID: t.projectID,
+                projectID: projectIDUUID,
                 title: t.title,
                 instructions: t.instructions,
                 isShared: t.isShared,
@@ -300,35 +315,42 @@ public final class BackupService {
             )
         }
 
-        let projectSessionDTOs: [ProjectSessionDTO] = projectSessions.map { s in
-            ProjectSessionDTO(
+        let projectSessionDTOs: [ProjectSessionDTO] = projectSessions.compactMap { s in
+            // CloudKit compatibility: Convert String IDs to UUIDs for DTO
+            guard let projectIDUUID = UUID(uuidString: s.projectID) else { return nil }
+            let templateWeekIDUUID = s.templateWeekID.flatMap { UUID(uuidString: $0) }
+            return ProjectSessionDTO(
                 id: s.id,
                 createdAt: s.createdAt,
-                projectID: s.projectID,
+                projectID: projectIDUUID,
                 meetingDate: s.meetingDate,
                 chapterOrPages: s.chapterOrPages,
                 notes: s.notes,
                 agendaItemsJSON: s.agendaItemsJSON,
-                templateWeekID: s.templateWeekID
+                templateWeekID: templateWeekIDUUID
             )
         }
 
-        let projectRoleDTOs: [ProjectRoleDTO] = projectRoles.map { r in
-            ProjectRoleDTO(
+        let projectRoleDTOs: [ProjectRoleDTO] = projectRoles.compactMap { r in
+            // CloudKit compatibility: Convert String projectID to UUID for DTO
+            guard let projectIDUUID = UUID(uuidString: r.projectID) else { return nil }
+            return ProjectRoleDTO(
                 id: r.id,
                 createdAt: r.createdAt,
-                projectID: r.projectID,
+                projectID: projectIDUUID,
                 title: r.title,
                 summary: r.summary,
                 instructions: r.instructions
             )
         }
 
-        let projectWeekDTOs: [ProjectTemplateWeekDTO] = projectWeeks.map { w in
-            ProjectTemplateWeekDTO(
+        let projectWeekDTOs: [ProjectTemplateWeekDTO] = projectWeeks.compactMap { w in
+            // CloudKit compatibility: Convert String projectID to UUID for DTO
+            guard let projectIDUUID = UUID(uuidString: w.projectID) else { return nil }
+            return ProjectTemplateWeekDTO(
                 id: w.id,
                 createdAt: w.createdAt,
-                projectID: w.projectID,
+                projectID: projectIDUUID,
                 weekIndex: w.weekIndex,
                 readingRange: w.readingRange,
                 agendaItemsJSON: w.agendaItemsJSON,
@@ -337,13 +359,16 @@ public final class BackupService {
             )
         }
 
-        let projectWeekAssignDTOs: [ProjectWeekRoleAssignmentDTO] = projectWeekAssignments.map { a in
-            ProjectWeekRoleAssignmentDTO(
+        let projectWeekAssignDTOs: [ProjectWeekRoleAssignmentDTO] = projectWeekAssignments.compactMap { a in
+            // CloudKit compatibility: Convert String IDs to UUIDs for DTO
+            guard let weekIDUUID = UUID(uuidString: a.weekID),
+                  let roleIDUUID = UUID(uuidString: a.roleID) else { return nil }
+            return ProjectWeekRoleAssignmentDTO(
                 id: a.id,
                 createdAt: a.createdAt,
-                weekID: a.weekID,
+                weekID: weekIDUUID,
                 studentID: a.studentID,
-                roleID: a.roleID
+                roleID: roleIDUUID
             )
         }
 
@@ -616,6 +641,7 @@ public final class BackupService {
             let lessonsInStore = Set(((try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []).map { $0.id })
             let lessonsInPayload = Set(payload.lessons.map { $0.id })
             let studentLessonAnalysis = payload.studentLessons.reduce(into: (ins: 0, sk: 0, missingLesson: 0)) { acc, sl in
+                // DTO has lessonID as UUID, so use it directly for comparison
                 let hasLesson = lessonsInStore.contains(sl.lessonID) || lessonsInPayload.contains(sl.lessonID)
                 if !hasLesson {
                     acc.sk += 1
@@ -1058,6 +1084,7 @@ public final class BackupService {
 
         for dto in payload.projectRoles {
             if (try? fetchOne(ProjectRole.self, id: dto.id, using: modelContext)) != nil { continue }
+            // CloudKit compatibility: Convert UUID to String for model
             let r = ProjectRole(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, title: dto.title, summary: dto.summary, instructions: dto.instructions)
             modelContext.insert(r)
         }
@@ -1065,6 +1092,7 @@ public final class BackupService {
         var weeksByID: [UUID: ProjectTemplateWeek] = [:]
         for dto in payload.projectTemplateWeeks {
             if (try? fetchOne(ProjectTemplateWeek.self, id: dto.id, using: modelContext)) != nil { continue }
+            // CloudKit compatibility: Convert UUID to String for model
             let w = ProjectTemplateWeek(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, weekIndex: dto.weekIndex, readingRange: dto.readingRange, agendaItemsJSON: dto.agendaItemsJSON, linkedLessonIDsJSON: dto.linkedLessonIDsJSON, workInstructions: dto.workInstructions)
             modelContext.insert(w)
             weeksByID[w.id] = w
@@ -1072,12 +1100,14 @@ public final class BackupService {
 
         for dto in payload.projectAssignmentTemplates {
             if (try? fetchOne(ProjectAssignmentTemplate.self, id: dto.id, using: modelContext)) != nil { continue }
+            // CloudKit compatibility: Convert UUID to String for model
             let t = ProjectAssignmentTemplate(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, title: dto.title, instructions: dto.instructions, isShared: dto.isShared, defaultLinkedLessonID: dto.defaultLinkedLessonID)
             modelContext.insert(t)
         }
 
         for dto in payload.projectWeekRoleAssignments {
             if (try? fetchOne(ProjectWeekRoleAssignment.self, id: dto.id, using: modelContext)) != nil { continue }
+            // CloudKit compatibility: Convert UUIDs to Strings for model
             let a = ProjectWeekRoleAssignment(id: dto.id, createdAt: dto.createdAt, weekID: dto.weekID, studentID: dto.studentID, roleID: dto.roleID, week: nil)
             // Link to week if present
             if let w = (try? fetchOne(ProjectTemplateWeek.self, id: dto.weekID, using: modelContext)) ?? nil {
@@ -1088,6 +1118,7 @@ public final class BackupService {
 
         for dto in payload.projectSessions {
             if (try? fetchOne(ProjectSession.self, id: dto.id, using: modelContext)) != nil { continue }
+            // CloudKit compatibility: Convert UUIDs to Strings for model
             let s = ProjectSession(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, meetingDate: dto.meetingDate, chapterOrPages: dto.chapterOrPages, notes: dto.notes, agendaItemsJSON: dto.agendaItemsJSON, templateWeekID: dto.templateWeekID)
             modelContext.insert(s)
         }

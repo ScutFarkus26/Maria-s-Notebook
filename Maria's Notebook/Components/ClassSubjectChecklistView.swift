@@ -318,7 +318,9 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         let lessonIDs = Set(lessons.map { $0.id })
         guard !lessonIDs.isEmpty else { matrixStates = [:]; return }
         
-        let slDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { lessonIDs.contains($0.lessonID) })
+        // CloudKit compatibility: Convert UUIDs to strings for comparison
+        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
+        let slDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { lessonIDStrings.contains($0.lessonID) })
         let allSLs = (try? context.fetch(slDescriptor)) ?? []
         
         let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
@@ -331,7 +333,9 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             let studentContracts = allContracts.filter { $0.studentID == student.id.uuidString }
             
             for lesson in lessons {
-                let slsForLesson = studentSLs.filter { $0.lessonID == lesson.id }
+                // CloudKit compatibility: Convert UUID to String for comparison
+                let lessonIDString = lesson.id.uuidString
+                let slsForLesson = studentSLs.filter { $0.lessonID == lessonIDString }
                 
                 let nonGiven = slsForLesson.filter { !$0.isGiven }
                 let plannedCandidate = nonGiven.first
@@ -358,7 +362,9 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     
     func toggleScheduled(student: Student, lesson: Lesson, context: ModelContext) {
         let studentID = student.id; let lessonID = lesson.id
-        let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID }))) ?? []
+        // CloudKit compatibility: Convert UUID to String for comparison
+        let lessonIDString = lessonID.uuidString
+        let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))) ?? []
         
         let studentIDString = studentID.uuidString
         if let existing = allSLs.first(where: { !$0.isGiven && $0.studentIDs.contains(studentIDString) }) {
@@ -388,7 +394,9 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
         let studentID = student.id; let lessonID = lesson.id
         let studentIDString = studentID.uuidString
-        let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID }))) ?? []
+        // CloudKit compatibility: Convert UUID to String for comparison
+        let lessonIDString = lessonID.uuidString
+        let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))) ?? []
         
         if let existing = allSLs.first(where: { $0.isGiven && $0.studentIDs.contains(studentIDString) }) {
             var ids = existing.studentIDs; ids.removeAll { $0 == studentIDString }
@@ -407,7 +415,9 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     
     func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
         let lid = lesson.id; let sid = student.id; let sidString = sid.uuidString
-        let sls = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lid }))) ?? []
+        // CloudKit compatibility: Convert UUID to String for comparison
+        let lidString = lid.uuidString
+        let sls = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lidString }))) ?? []
         for sl in sls where sl.studentIDs.contains(sidString) {
             var newIDs = sl.studentIDs; newIDs.removeAll { $0 == sidString }
             if newIDs.isEmpty { context.delete(sl) } else { sl.studentIDs = newIDs }

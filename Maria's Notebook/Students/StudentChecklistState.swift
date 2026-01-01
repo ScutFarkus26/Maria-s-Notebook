@@ -63,12 +63,12 @@ final class StudentChecklistViewModel: ObservableObject {
             return
         }
 
-        let lessonIDsSet = Set(lessonIDs)
+        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
 
         // Fetch StudentLessons once
         let slFetch = FetchDescriptor<StudentLesson>(
             predicate: #Predicate { sl in
-                lessonIDsSet.contains(sl.lessonID)
+                lessonIDStrings.contains(sl.lessonID)
             }
         )
         let allSLs: [StudentLesson] = (try? context.fetch(slFetch)) ?? []
@@ -82,10 +82,11 @@ final class StudentChecklistViewModel: ObservableObject {
         let presentationsByLesson: [UUID: StudentLesson] = {
             let grouped = Dictionary(grouping: presentedSLs, by: { $0.lessonID })
             let pairs: [(UUID, StudentLesson)] = grouped.compactMap { (key, group) in
-                guard let mostRecent = group.max(by: { lhs, rhs in
+                guard let lessonUUID = UUID(uuidString: key),
+                      let mostRecent = group.max(by: { lhs, rhs in
                     Self.presentationSortKey(lhs) < Self.presentationSortKey(rhs)
                 }) else { return nil }
-                return (key, mostRecent)
+                return (lessonUUID, mostRecent)
             }
             return Dictionary(uniqueKeysWithValues: pairs)
         }()
@@ -117,14 +118,15 @@ final class StudentChecklistViewModel: ObservableObject {
 
         // Fetch plan items for all relevant contracts in one go
         let allContractIDs: [UUID] = Array(Set(contracts.map { $0.id }))
+        let allContractIDStrings = Set(allContractIDs.map { $0.uuidString })
         let planItems: [WorkPlanItem]
         if allContractIDs.isEmpty {
             planItems = []
         } else {
-            let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate { item in allContractIDs.contains(item.workID) })
+            let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate { item in allContractIDStrings.contains(item.workID) })
             planItems = (try? context.fetch(fetch)) ?? []
         }
-        let planItemsByContract: [UUID: [WorkPlanItem]] = Dictionary(grouping: planItems, by: { $0.workID })
+        let planItemsByContract: [UUID: [WorkPlanItem]] = Dictionary(grouping: planItems, by: { UUID(uuidString: $0.workID) ?? UUID() })
 
         // Build states per lessonID
         var result: [UUID: StudentChecklistRowState] = [:]
@@ -134,7 +136,7 @@ final class StudentChecklistViewModel: ObservableObject {
             let lessonKey = lessonID.uuidString
 
             // Planned selection among non-given SLs (inbox + scheduled)
-            let nonGiven = nonGivenByLesson[lessonID] ?? []
+            let nonGiven = nonGivenByLesson[lessonKey] ?? []
             let plannedCandidate = nonGiven.sorted(by: { lhs, rhs in
                 let lKey = Self.planSortKey(lhs)
                 let rKey = Self.planSortKey(rhs)

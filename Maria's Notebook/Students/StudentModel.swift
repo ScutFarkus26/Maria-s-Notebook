@@ -15,15 +15,22 @@ final class Student: Identifiable {
         case upper = "Upper"
     }
 
-    @Attribute(.unique) var id: UUID
-    var firstName: String
-    var lastName: String
-    var birthday: Date
-    var level: Level
+    var id: UUID = UUID()
+    var firstName: String = ""
+    var lastName: String = ""
+    var birthday: Date = Date()
+    // Store level as raw string for CloudKit compatibility (SwiftData doesn't support enum defaults)
+    private var levelRaw: String = Level.lower.rawValue
     // CloudKit compatibility: Store UUIDs as strings
     var nextLessons: [String] = []
     var manualOrder: Int = 0
     var dateStarted: Date? = nil
+    
+    // Computed property for level enum
+    var level: Level {
+        get { Level(rawValue: levelRaw) ?? .lower }
+        set { levelRaw = newValue.rawValue }
+    }
 
     // Note: studentLessons relationship removed because StudentLesson.students is @Transient
     // Use queries filtered by studentIDs instead to find lessons for a student
@@ -38,7 +45,7 @@ final class Student: Identifiable {
         firstName: String,
         lastName: String,
         birthday: Date,
-        level: Level,
+        level: Level = .lower,
         dateStarted: Date? = nil,
         nextLessons: [UUID] = [],
         manualOrder: Int = 0
@@ -47,7 +54,7 @@ final class Student: Identifiable {
         self.firstName = firstName
         self.lastName = lastName
         self.birthday = birthday
-        self.level = level
+        self.levelRaw = level.rawValue
         self.dateStarted = dateStarted
         // Convert UUIDs to strings for CloudKit compatibility
         self.nextLessons = nextLessons.map { $0.uuidString }
@@ -59,5 +66,8 @@ final class Student: Identifiable {
         get { nextLessons.compactMap { UUID(uuidString: $0) } }
         set { nextLessons = newValue.map { $0.uuidString } }
     }
+    
+    // Inverse relationship for WorkNote.student (CloudKit compatibility)
+    @Relationship(inverse: \WorkNote.student) var workNotes: [WorkNote]? = []
 }
 

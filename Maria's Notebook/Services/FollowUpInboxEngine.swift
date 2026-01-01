@@ -142,8 +142,9 @@ struct FollowUpInboxEngine {
                 let days = schoolDaysSince(presentedDate)
 
                 let lessonKey = sl.id.uuidString.lowercased()
+                // CloudKit compatibility: lessonID is already String
                 let childLessonKeys: [String] = sl.resolvedStudentIDs.map { sid in
-                    "\(sid.uuidString.lowercased())|\(sl.lessonID.uuidString.lowercased())"
+                    "\(sid.uuidString.lowercased())|\(sl.lessonID.lowercased())"
                 }
 
                 // Exclude if there is any follow-up work linked by legacy ID or by child+lesson fallback.
@@ -163,7 +164,7 @@ struct FollowUpInboxEngine {
                 }
 
                 let lessonTitle: String = {
-                    if let l = lessonsByID[sl.lessonID] {
+                    if let lessonUUID = UUID(uuidString: sl.lessonID), let l = lessonsByID[lessonUUID] {
                         let t = l.name.trimmingCharacters(in: .whitespacesAndNewlines)
                         return t.isEmpty ? "Lesson" : t
                     }
@@ -197,7 +198,7 @@ struct FollowUpInboxEngine {
         }
 
         // Pre-group planItems and notes for work aging
-        let itemsByWorkID: [UUID: [WorkPlanItem]] = Dictionary(grouping: planItems, by: { $0.workID })
+        let itemsByWorkID: [UUID: [WorkPlanItem]] = Dictionary(grouping: planItems, by: { UUID(uuidString: $0.workID) ?? UUID() })
         let notesByWorkID: [UUID: [ScopedNote]] = Dictionary(grouping: notes, by: { note in
             if let raw = note.workContractID, let id = UUID(uuidString: raw) { return id }
             return UUID() // unmatched bucket

@@ -108,7 +108,8 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
         let todays = attendanceRecords.filter { rec in
             cal.isDate(rec.date, inSameDayAs: today) && (rec.status == .present || rec.status == .tardy)
         }
-        var ids = Set(todays.map { $0.studentID })
+        // CloudKit compatibility: Convert String studentIDs to UUIDs
+        var ids = Set(todays.compactMap { UUID(uuidString: $0.studentID) })
         ids.subtract(hiddenTestStudentIDs)
         ids.subtract(excludedPresentNowIDs)
         return ids

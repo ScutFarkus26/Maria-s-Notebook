@@ -9,7 +9,7 @@ import SwiftData
         case students([UUID])
     }
 
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
     var body: String = "" { didSet { updatedAt = Date() } }

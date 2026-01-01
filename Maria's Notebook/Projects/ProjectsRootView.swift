@@ -160,8 +160,9 @@ struct ProjectsRootView: View {
         
         // Delete sessions and their related work contracts
         // Fetch all sessions (can't use predicate with captured UUID), then filter
+        let clubIDString = clubID.uuidString
         let allSessions = (try? modelContext.fetch(FetchDescriptor<ProjectSession>())) ?? []
-        let sessions = allSessions.filter { $0.projectID == clubID }
+        let sessions = allSessions.filter { $0.projectID == clubIDString }
         
         // Fetch contracts only for these sessions
         let sessionIDs = Set(sessions.map { $0.id.uuidString })
@@ -180,21 +181,21 @@ struct ProjectsRootView: View {
 
         // Delete templates associated with this club
         let allTemplates = (try? modelContext.fetch(FetchDescriptor<ProjectAssignmentTemplate>())) ?? []
-        let templates = allTemplates.filter { $0.projectID == clubID }
+        let templates = allTemplates.filter { $0.projectID == clubIDString }
         for t in templates { modelContext.delete(t) }
 
         // Delete roles for this club
         let allRoles = (try? modelContext.fetch(FetchDescriptor<ProjectRole>())) ?? []
-        let roles = allRoles.filter { $0.projectID == clubID }
+        let roles = allRoles.filter { $0.projectID == clubIDString }
         for r in roles { modelContext.delete(r) }
 
         // Delete template weeks and their related data
         let allWeeks = (try? modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
-        let weeks = allWeeks.filter { $0.projectID == clubID }
+        let weeks = allWeeks.filter { $0.projectID == clubIDString }
         for w in weeks {
             // Role assignments for the week
             let allAssigns = (try? modelContext.fetch(FetchDescriptor<ProjectWeekRoleAssignment>())) ?? []
-            let assigns = allAssigns.filter { $0.weekID == w.id }
+            let assigns = allAssigns.filter { $0.weekID == w.id.uuidString }
             for a in assigns { modelContext.delete(a) }
             
             modelContext.delete(w)

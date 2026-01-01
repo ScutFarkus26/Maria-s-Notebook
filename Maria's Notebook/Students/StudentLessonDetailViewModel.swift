@@ -46,7 +46,8 @@ final class StudentLessonDetailViewModel {
         self.modelContext = modelContext
         
         // Initialize local state from the model
-        self.editingLessonID = studentLesson.lessonID
+        // CloudKit compatibility: Convert String lessonID to UUID
+        self.editingLessonID = UUID(uuidString: studentLesson.lessonID) ?? UUID()
         self.scheduledFor = studentLesson.scheduledFor
         self.givenAt = studentLesson.givenAt
         self.isPresented = studentLesson.isPresented

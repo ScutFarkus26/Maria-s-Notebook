@@ -495,7 +495,7 @@ struct AttendanceView: View {
                 ForEach(filteredStudents, id: \.id) { student in
                     AttendanceCard(
                         student: student,
-                        record: viewModel.recordsByStudent[student.id],
+                        record: viewModel.recordsByStudent[student.id.uuidString],
                         isEditing: isEditing,
                         onTap: {
                             viewModel.cycleStatus(for: student, modelContext: modelContext)
@@ -514,7 +514,7 @@ struct AttendanceView: View {
 
     private func names(for status: AttendanceStatus) -> [String] {
         filteredStudents.compactMap { s in
-            if let rec = viewModel.recordsByStudent[s.id], rec.status == status {
+            if let rec = viewModel.recordsByStudent[s.id.uuidString], rec.status == status {
                 return s.fullName
             }
             return nil

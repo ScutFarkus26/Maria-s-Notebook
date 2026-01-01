@@ -3,16 +3,23 @@ import SwiftData
 
 @Model final class WorkParticipantEntity: Identifiable {
     // Identity (optional but useful for list operations)
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
 
     // The identifier of the student participating in the work
-    var studentID: UUID = UUID()
+    // CloudKit compatibility: Store UUID as string
+    var studentID: String = ""
 
     // The timestamp when the student completed the work (nil if not completed)
     var completedAt: Date? = nil
 
-    // Relationship back to the parent work item
-    var work: WorkModel? = nil
+    // Relationship back to the parent work item (inverse specified on WorkModel.participants)
+    @Relationship var work: WorkModel? = nil
+    
+    // Computed property for backward compatibility with UUID
+    var studentIDUUID: UUID? {
+        get { UUID(uuidString: studentID) }
+        set { studentID = newValue?.uuidString ?? "" }
+    }
 
     init(
         id: UUID = UUID(),
@@ -21,7 +28,8 @@ import SwiftData
         work: WorkModel? = nil
     ) {
         self.id = id
-        self.studentID = studentID
+        // CloudKit compatibility: Store UUID as string
+        self.studentID = studentID.uuidString
         let cal = AppCalendar.shared
         self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.work = work

@@ -183,7 +183,9 @@ struct RootView: View {
 
                 var changed = false
                 for sl in sls {
-                    let targetLesson = lessonsByID[sl.lessonID]
+                    // CloudKit compatibility: Convert String lessonID to UUID for lookup
+                    guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else { continue }
+                    let targetLesson = lessonsByID[lessonIDUUID]
                     let targetStudents: [Student] = sl.studentIDs.compactMap { idString in
                         guard let id = UUID(uuidString: idString) else { return nil }
                         return studentsByID[id]

@@ -520,7 +520,9 @@ struct StudentLessonDetailContentView: View {
                 let reason: WorkPlanItem.Reason = (sched.kind == checkInKind) ? .progressCheck : .dueDate
                 
                 let workID = contract.id
-                let planPredicate = #Predicate<WorkPlanItem> { $0.workID == workID }
+                // CloudKit compatibility: Convert UUID to String for comparison
+                let workIDString = workID.uuidString
+                let planPredicate = #Predicate<WorkPlanItem> { $0.workID == workIDString }
                 let planFetch = FetchDescriptor<WorkPlanItem>(predicate: planPredicate)
                 
                 let existingPlans = (try? modelContext.fetch(planFetch)) ?? []

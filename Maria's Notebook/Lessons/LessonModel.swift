@@ -5,7 +5,7 @@ import SwiftData
 @Model
 final class Lesson: Identifiable {
     /// Stable identifier
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     /// Lesson Name
     var name: String = ""
     /// Subject (e.g., Math, Language)
@@ -63,12 +63,15 @@ final class Lesson: Identifiable {
     }
 
     // FIX: Made optional for CloudKit
-    // Relationship inferred by SwiftData; inverse configured on Note.lesson
-    var notes: [Note]? = []
+    // Relationship with explicit inverse and cascade delete rule
+    @Relationship(deleteRule: .cascade, inverse: \Note.lesson) var notes: [Note]? = []
     
     // Relationship to StudentLesson - inverse specified on this side (the "many" side)
     @Relationship(inverse: \StudentLesson.lesson)
     var studentLessons: [StudentLesson]? = []
+    
+    // Inverse relationship for WorkNote.lesson (CloudKit compatibility)
+    @Relationship(inverse: \WorkNote.lesson) var workNotes: [WorkNote]? = []
 
     // MARK: - Initializer
 

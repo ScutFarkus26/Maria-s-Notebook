@@ -160,7 +160,9 @@ struct FollowUpInboxView: View {
 
     private func studentName(for note: WorkNote) -> String {
         if let s = note.student { return StudentFormatter.displayName(for: s) }
-        if let sid = (note.work?.participants ?? []).first?.studentID,
+        // CloudKit compatibility: Convert String studentID to UUID for comparison
+        if let sidString = (note.work?.participants ?? []).first?.studentID,
+           let sid = UUID(uuidString: sidString),
            let s = students.first(where: { $0.id == sid }) {
             return StudentFormatter.displayName(for: s)
         }
@@ -174,7 +176,9 @@ struct FollowUpInboxView: View {
         // Fallback to lesson name if available through StudentLesson
         if let slID = w.studentLessonID,
            let sl = studentLessons.first(where: { $0.id == slID }),
-           let lesson = lessons.first(where: { $0.id == sl.lessonID }) {
+           // CloudKit compatibility: Convert String lessonID to UUID for comparison
+           let lessonIDUUID = UUID(uuidString: sl.lessonID),
+           let lesson = lessons.first(where: { $0.id == lessonIDUUID }) {
             return lesson.name
         }
         return nil

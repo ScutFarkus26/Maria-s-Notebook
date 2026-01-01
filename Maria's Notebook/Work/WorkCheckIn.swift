@@ -8,8 +8,9 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
 }
 
 @Model final class WorkCheckIn: Identifiable {
-    @Attribute(.unique) var id: UUID = UUID()
-    var workID: UUID = UUID()
+    var id: UUID = UUID()
+    // CloudKit compatibility: Store UUID as string
+    var workID: String = ""
     @Relationship var work: WorkModel?
     var date: Date = Date()
     private var statusRaw: String = WorkCheckInStatus.scheduled.rawValue
@@ -25,9 +26,16 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
         }
     }
     
+    // Computed property for backward compatibility with UUID
+    var workIDUUID: UUID? {
+        get { UUID(uuidString: workID) }
+        set { workID = newValue?.uuidString ?? "" }
+    }
+    
     init(id: UUID = UUID(), workID: UUID, date: Date = Date(), status: WorkCheckInStatus = .scheduled, purpose: String = "", note: String = "", work: WorkModel? = nil) {
         self.id = id
-        self.workID = workID
+        // CloudKit compatibility: Store UUID as string
+        self.workID = workID.uuidString
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
         self.statusRaw = status.rawValue

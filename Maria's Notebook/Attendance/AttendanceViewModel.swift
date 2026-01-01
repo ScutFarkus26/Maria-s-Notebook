@@ -6,7 +6,8 @@ import SwiftData
 @MainActor
 final class AttendanceViewModel: ObservableObject {
     @Published var selectedDate: Date
-    @Published var recordsByStudent: [UUID: AttendanceRecord] = [:]
+    // CloudKit compatibility: Use String keys since studentID is now String
+    @Published var recordsByStudent: [String: AttendanceRecord] = [:]
 
     enum LevelFilter: String, CaseIterable { case all, lower, upper }
     @Published var levelFilter: LevelFilter = .all
@@ -59,7 +60,8 @@ final class AttendanceViewModel: ObservableObject {
         do {
             let result = try store.loadOrCreateRecords(for: target, students: students)
             let records = result.records
-            let allowed = Set(students.map { $0.id })
+            // CloudKit compatibility: Convert UUIDs to Strings for comparison
+            let allowed = Set(students.map { $0.id.uuidString })
             let filtered = records.filter { allowed.contains($0.studentID) }
             self.recordsByStudent = Dictionary(uniqueKeysWithValues: filtered.map { ($0.studentID, $0) })
         } catch {
@@ -69,11 +71,13 @@ final class AttendanceViewModel: ObservableObject {
 
     // MARK: - Actions
     func cycleStatus(for student: Student, modelContext: ModelContext) {
-        guard let rec = recordsByStudent[student.id] else { return }
+        // CloudKit compatibility: Convert UUID to String for lookup
+        let studentIDString = student.id.uuidString
+        guard let rec = recordsByStudent[studentIDString] else { return }
         let next = nextStatus(after: rec.status)
         let store = AttendanceStore(context: modelContext)
         if store.updateStatus(rec, to: next) {
-            recordsByStudent[student.id]?.status = next
+            recordsByStudent[studentIDString]?.status = next
         }
     }
 
@@ -88,11 +92,13 @@ final class AttendanceViewModel: ObservableObject {
     }
 
     func updateNote(for student: Student, note: String?, modelContext: ModelContext) {
-        guard let rec = recordsByStudent[student.id] else { return }
+        // CloudKit compatibility: Convert UUID to String for lookup
+        let studentIDString = student.id.uuidString
+        guard let rec = recordsByStudent[studentIDString] else { return }
         let store = AttendanceStore(context: modelContext)
         if store.updateNote(rec, to: note) {
             let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            recordsByStudent[student.id]?.note = trimmed.isEmpty ? nil : trimmed
+            recordsByStudent[studentIDString]?.note = trimmed.isEmpty ? nil : trimmed
         }
     }
 
@@ -100,7 +106,8 @@ final class AttendanceViewModel: ObservableObject {
         let store = AttendanceStore(context: modelContext)
         do {
             let updated = try store.markAllPresent(for: selectedDate, students: students)
-            let allowed = Set(students.map { $0.id })
+            // CloudKit compatibility: Convert UUIDs to Strings for comparison
+            let allowed = Set(students.map { $0.id.uuidString })
             for rec in updated where allowed.contains(rec.studentID) {
                 recordsByStudent[rec.studentID] = rec
             }
@@ -111,7 +118,8 @@ final class AttendanceViewModel: ObservableObject {
         let store = AttendanceStore(context: modelContext)
         do {
             let updated = try store.resetDay(for: selectedDate, students: students)
-            let allowed = Set(students.map { $0.id })
+            // CloudKit compatibility: Convert UUIDs to Strings for comparison
+            let allowed = Set(students.map { $0.id.uuidString })
             for rec in updated where allowed.contains(rec.studentID) {
                 recordsByStudent[rec.studentID] = rec
             }

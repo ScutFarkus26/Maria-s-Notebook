@@ -37,8 +37,9 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
 @Model
 final class AttendanceRecord: Identifiable {
     // Persistent fields
-    @Attribute(.unique) var id: UUID = UUID()
-    var studentID: UUID = UUID()
+    var id: UUID = UUID()
+    // CloudKit compatibility: Store UUID as string
+    var studentID: String = ""
     var date: Date = Date()          // normalized to start-of-day (local calendar)
     private var statusRaw: String = "unmarked"
     var note: String? = nil
@@ -47,6 +48,12 @@ final class AttendanceRecord: Identifiable {
     var status: AttendanceStatus {
         get { AttendanceStatus(rawValue: statusRaw) ?? .unmarked }
         set { statusRaw = newValue.rawValue }
+    }
+    
+    // Computed property for backward compatibility with UUID
+    var studentIDUUID: UUID? {
+        get { UUID(uuidString: studentID) }
+        set { studentID = newValue?.uuidString ?? "" }
     }
 
     init(
@@ -57,7 +64,8 @@ final class AttendanceRecord: Identifiable {
         note: String? = nil
     ) {
         self.id = id
-        self.studentID = studentID
+        // CloudKit compatibility: Store UUID as string
+        self.studentID = studentID.uuidString
         self.date = date
         self.statusRaw = status.rawValue
         self.note = note
@@ -104,7 +112,7 @@ struct AttendanceStore {
 
         var didInsert = false
         for student in students {
-            if existingByStudent[student.id] == nil {
+            if existingByStudent[student.id.uuidString] == nil {
                 let rec = AttendanceRecord(studentID: student.id, date: day, status: .unmarked, note: nil)
                 context.insert(rec)
                 existing.append(rec)

@@ -19,7 +19,7 @@ struct NewProjectSessionSheet: View {
     @Query private var allStudentLessons: [StudentLesson]
 
     private var templateWeeks: [ProjectTemplateWeek] {
-        allTemplateWeeks.filter { $0.projectID == club.id }
+        allTemplateWeeks.filter { $0.projectID == club.id.uuidString }
     }
 
     init(club: Project) {
@@ -97,7 +97,7 @@ struct NewProjectSessionSheet: View {
            let week = templateWeeks.first(where: { $0.id == selectedID }) {
             session.chapterOrPages = week.readingRange
             session.agendaItems = week.agendaItems
-            session.templateWeekID = week.id
+            session.templateWeekID = week.id.uuidString
         }
 
         // Attach to club immediately so ID is valid
@@ -116,8 +116,9 @@ struct NewProjectSessionSheet: View {
                 let memberUUIDs = club.memberStudentIDs.compactMap { UUID(uuidString: $0) }.sorted()
                 let memberStrings = memberUUIDs.map { $0.uuidString }.sorted()
                 
+                let lessonIDString = lessonID.uuidString
                 let existing = allStudentLessons.first { sl in
-                    sl.lessonID == lessonID && sl.studentIDs.sorted() == memberStrings
+                    sl.lessonID == lessonIDString && sl.studentIDs.sorted() == memberStrings
                 }
                 
                 if let existing {
@@ -151,7 +152,8 @@ struct NewProjectSessionSheet: View {
                 // -- Template Mode --
                 var roleName = "Member"
                 if let assignment = week.roleAssignments?.first(where: { $0.studentID == sid }),
-                   let role = fetchRole(assignment.roleID) {
+                   let roleID = UUID(uuidString: assignment.roleID),
+                   let role = fetchRole(roleID) {
                     roleName = role.title
                 }
                 

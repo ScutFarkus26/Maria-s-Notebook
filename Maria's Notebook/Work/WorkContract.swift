@@ -44,7 +44,7 @@ enum WorkSourceContextType: String, Codable {
 
 @Model
 final class WorkContract: Identifiable {
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
     var studentID: String = ""
     var lessonID: String = ""

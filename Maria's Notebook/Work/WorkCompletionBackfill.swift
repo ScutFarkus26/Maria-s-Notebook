@@ -10,7 +10,9 @@ enum WorkCompletionBackfill {
     static func backfill(for workID: UUID, participants: [WorkParticipantEntity], in context: ModelContext) throws {
         for p in participants {
             guard let completed = p.completedAt else { continue }
-            try ensureLatestRecord(for: workID, studentID: p.studentID, completedAt: completed, note: "(backfilled)", in: context)
+            // CloudKit compatibility: Convert String studentID to UUID for the call
+            guard let studentUUID = UUID(uuidString: p.studentID) else { continue }
+            try ensureLatestRecord(for: workID, studentID: studentUUID, completedAt: completed, note: "(backfilled)", in: context)
         }
     }
 
@@ -18,9 +20,12 @@ enum WorkCompletionBackfill {
     /// If not found, insert a new record with the provided note.
     @discardableResult
     static func ensureLatestRecord(for workID: UUID, studentID: UUID, completedAt: Date, note: String = "", in context: ModelContext) throws -> WorkCompletionRecord {
+        // CloudKit compatibility: Convert UUIDs to strings for comparison
+        let workIDString = workID.uuidString
+        let studentIDString = studentID.uuidString
         var descriptor = FetchDescriptor<WorkCompletionRecord>(
             predicate: #Predicate { rec in
-                rec.workID == workID && rec.studentID == studentID && rec.completedAt == completedAt
+                rec.workID == workIDString && rec.studentID == studentIDString && rec.completedAt == completedAt
             }
         )
         descriptor.fetchLimit = 1

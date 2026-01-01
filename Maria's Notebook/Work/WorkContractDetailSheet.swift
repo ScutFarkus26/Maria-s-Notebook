@@ -61,7 +61,8 @@ struct WorkContractDetailSheet: View {
         let contractID = contract.id
         let workID = contractID.uuidString
         _workNotes = Query(filter: #Predicate<ScopedNote> { $0.workContractID == workID })
-        _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == contractID })
+        // CloudKit compatibility: workID is now String, so use workID string
+        _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workID })
         let lessonID = contract.lessonID
         _peerContracts = Query(filter: #Predicate<WorkContract> { $0.lessonID == lessonID })
     }

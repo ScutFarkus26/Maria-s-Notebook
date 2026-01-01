@@ -213,8 +213,10 @@ final class LessonPickerViewModel: ObservableObject {
         let selectedIDs = Array(selectedStudentIDs)
         let selectedSet = Set(selectedIDs)
         let targetLessonID = finalLesson.id
+        // CloudKit compatibility: Convert UUID to String for predicate
+        let targetLessonIDString = targetLessonID.uuidString
         let predicate = #Predicate<StudentLesson> { sl in
-            sl.givenAt == nil && sl.lessonID == targetLessonID
+            sl.givenAt == nil && sl.lessonID == targetLessonIDString
         }
         let existingCandidates = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))) ?? []
         let existingMatch = existingCandidates.first(where: { $0.resolvedLessonID == targetLessonID && Set($0.resolvedStudentIDs) == selectedSet })
@@ -241,7 +243,8 @@ final class LessonPickerViewModel: ObservableObject {
         }
 
         // Apply current state onto the chosen record
-        studentLesson.lessonID = finalLesson.id
+        // CloudKit compatibility: Convert UUID to String
+        studentLesson.lessonID = finalLesson.id.uuidString
         studentLesson.studentIDs = selectedIDs.map { $0.uuidString }
         studentLesson.scheduledFor = (mode == .plan ? scheduledFor : nil)
         studentLesson.givenAt = (mode == .given ? givenAt : nil)

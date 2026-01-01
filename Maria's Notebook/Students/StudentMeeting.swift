@@ -3,14 +3,21 @@ import SwiftData
 
 @Model
 final class StudentMeeting: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var studentID: UUID
-    var date: Date
-    var completed: Bool
-    var reflection: String
-    var focus: String
-    var requests: String
-    var guideNotes: String
+    var id: UUID = UUID()
+    // CloudKit compatibility: Store UUID as string
+    var studentID: String = ""
+    var date: Date = Date()
+    var completed: Bool = false
+    var reflection: String = ""
+    var focus: String = ""
+    var requests: String = ""
+    var guideNotes: String = ""
+    
+    // Computed property for backward compatibility with UUID
+    var studentIDUUID: UUID? {
+        get { UUID(uuidString: studentID) }
+        set { studentID = newValue?.uuidString ?? "" }
+    }
 
     init(
         id: UUID = UUID(),
@@ -23,7 +30,8 @@ final class StudentMeeting: Identifiable {
         guideNotes: String = ""
     ) {
         self.id = id
-        self.studentID = studentID
+        // CloudKit compatibility: Store UUID as string
+        self.studentID = studentID.uuidString
         self.date = date
         self.completed = completed
         self.reflection = reflection

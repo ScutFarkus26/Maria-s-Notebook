@@ -10,8 +10,11 @@ enum BackupDestination {
 
     /// Save the chosen folder as a bookmark.
     static func setDefaultFolder(_ url: URL) throws {
-        // vital: Use security scope on BOTH macOS and iOS to ensure persistence across app restarts.
+        #if os(macOS)
         let options: URL.BookmarkCreationOptions = [.withSecurityScope]
+        #else
+        let options: URL.BookmarkCreationOptions = []
+        #endif
         
         let data = try url.bookmarkData(options: options, includingResourceValuesForKeys: nil, relativeTo: nil)
         UserDefaults.standard.set(data, forKey: bookmarkKey)
@@ -22,8 +25,11 @@ enum BackupDestination {
         guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
         var stale = false
         
-        // vital: Must specify security scope during resolution as well
+        #if os(macOS)
         let options: URL.BookmarkResolutionOptions = [.withSecurityScope]
+        #else
+        let options: URL.BookmarkResolutionOptions = []
+        #endif
         
         do {
             let url = try URL(resolvingBookmarkData: data, options: options, relativeTo: nil, bookmarkDataIsStale: &stale)

@@ -10,7 +10,8 @@ struct LifecycleService {
         modelContext: ModelContext
     ) throws -> (presentation: Presentation, work: [WorkContract]) {
         let legacyID = studentLesson.id.uuidString
-        let lessonIDStr = studentLesson.lessonID.uuidString
+        // CloudKit compatibility: lessonID is already String
+        let lessonIDStr = studentLesson.lessonID
         // studentIDs is already [String] for CloudKit compatibility
         let studentIDStrs = studentLesson.studentIDs
 

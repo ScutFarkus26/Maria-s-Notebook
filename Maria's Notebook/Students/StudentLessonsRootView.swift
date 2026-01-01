@@ -62,7 +62,9 @@ struct StudentLessonsRootView: View {
     private func applySubjectFilter(_ base: [StudentLesson]) -> [StudentLesson] {
         if let subject = selectedSubject {
             return base.filter { sl in
-                if let l = lessonMap[sl.lessonID] {
+                // CloudKit compatibility: Convert String lessonID to UUID for lookup
+                if let lessonIDUUID = UUID(uuidString: sl.lessonID),
+                   let l = lessonMap[lessonIDUUID] {
                     return l.subject.caseInsensitiveCompare(subject) == .orderedSame
                 }
                 return false
@@ -126,7 +128,9 @@ struct StudentLessonsRootView: View {
         // Subject filter (using referenced Lesson)
         if let subject = selectedSubject {
             base = base.filter { sl in
-                if let l = lessonMap[sl.lessonID] {
+                // CloudKit compatibility: Convert String lessonID to UUID for lookup
+                if let lessonIDUUID = UUID(uuidString: sl.lessonID),
+                   let l = lessonMap[lessonIDUUID] {
                     return l.subject.caseInsensitiveCompare(subject) == .orderedSame
                 }
                 return false
@@ -338,7 +342,7 @@ struct StudentLessonsRootView: View {
                                 }
                                 LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                     ForEach(hiddenUndated, id: \.id) { sl in
-                                        StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
+                                        StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                             .onTapGesture { selectedLessonID = sl.id }
                                             .contextMenu {
                                                 Button {
@@ -383,7 +387,7 @@ struct StudentLessonsRootView: View {
                                         }
                                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                             ForEach(up, id: \.id) { sl in
-                                                StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
+                                                StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                                     .onTapGesture { selectedLessonID = sl.id }
                                                     .contextMenu {
                                                         Button {
@@ -407,7 +411,7 @@ struct StudentLessonsRootView: View {
                                         }
                                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                             ForEach(gv, id: \.id) { sl in
-                                                StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
+                                                StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                                     .onTapGesture { selectedLessonID = sl.id }
                                                     .contextMenu {
                                                         Button {
@@ -440,7 +444,7 @@ struct StudentLessonsRootView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                             ForEach(filteredAndSorted, id: \.id) { sl in
-                                StudentLessonCard(snapshot: sl.snapshot(), lesson: lessonMap[sl.lessonID], students: students)
+                                StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                     .onTapGesture { selectedLessonID = sl.id }
                                     .contextMenu {
                                         Button {

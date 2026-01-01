@@ -73,13 +73,13 @@ enum NoteScope: Codable, Equatable {
 @Model
 final class Note: Identifiable {
     // Identity & timestamps
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
-    var updatedAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     // Content
-    var body: String
-    var isPinned: Bool
+    var body: String = ""
+    var isPinned: Bool = false
 
     // Persisted scope storage (JSON-encoded) kept small; no external storage needed
     private var scopeBlob: Data?

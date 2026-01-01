@@ -19,7 +19,7 @@ struct ProjectWeeksEditorView: View {
     }
 
     private var weeks: [ProjectTemplateWeek] {
-        allWeeks.filter { $0.projectID == club.id }
+        allWeeks.filter { $0.projectID == club.id.uuidString }
     }
 
     var body: some View {
@@ -78,7 +78,7 @@ struct ProjectWeeksEditorView: View {
     }
 
     private func delete(_ week: ProjectTemplateWeek) {
-        let assigns = allRoleAssignments.filter { $0.weekID == week.id }
+        let assigns = allRoleAssignments.filter { $0.weekID == week.id.uuidString }
         for a in assigns { modelContext.delete(a) }
         modelContext.delete(week)
         _ = saveCoordinator.save(modelContext, reason: "Delete project template week")
@@ -119,7 +119,7 @@ struct ProjectWeekEditorView: View, Identifiable {
     }
 
     private var roles: [ProjectRole] {
-        allRoles.filter { $0.projectID == club.id }
+        allRoles.filter { $0.projectID == club.id.uuidString }
     }
 
     private var clubMembers: [Student] {
@@ -323,13 +323,18 @@ struct ProjectWeekEditorView: View, Identifiable {
     // MARK: - Role schedule helpers
     private func currentRoleID(for studentID: UUID) -> UUID? {
         let sid = studentID.uuidString
-        return allRoleAssignments.first { $0.weekID == week.id && $0.studentID == sid }?.roleID
+        let weekIDString = week.id.uuidString
+        if let roleIDString = allRoleAssignments.first(where: { $0.weekID == weekIDString && $0.studentID == sid })?.roleID {
+            return UUID(uuidString: roleIDString)
+        }
+        return nil
     }
 
     private func setRoleID(_ roleID: UUID?, for studentID: UUID) {
         let sid = studentID.uuidString
-        if let existing = allRoleAssignments.first(where: { $0.weekID == week.id && $0.studentID == sid }) {
-            if let roleID { existing.roleID = roleID } else { modelContext.delete(existing) }
+        let weekIDString = week.id.uuidString
+        if let existing = allRoleAssignments.first(where: { $0.weekID == weekIDString && $0.studentID == sid }) {
+            if let roleID { existing.roleID = roleID.uuidString } else { modelContext.delete(existing) }
         } else if let roleID {
             let a = ProjectWeekRoleAssignment(weekID: week.id, studentID: sid, roleID: roleID)
             modelContext.insert(a)

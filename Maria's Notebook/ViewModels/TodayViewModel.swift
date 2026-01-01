@@ -246,17 +246,17 @@ final class TodayViewModel: ObservableObject {
             
             // OPTIMIZATION: Only fetch Plan Items for the contracts we need
             // This preserves exact same functionality - we still process all contracts the same way
-            let contractIDs = Set(contracts.map { $0.id })
+            let contractIDStrings = Set(contracts.map { $0.id.uuidString })
             let planDescriptor = FetchDescriptor<WorkPlanItem>(
-                predicate: #Predicate { contractIDs.contains($0.workID) }
+                predicate: #Predicate { contractIDStrings.contains($0.workID) }
             )
             let planItems = try context.fetch(planDescriptor)
-            let planItemsByContract = Dictionary(grouping: planItems, by: { $0.workID })
+            let planItemsByContract = Dictionary(grouping: planItems, by: { UUID(uuidString: $0.workID) ?? UUID() })
             
             // OPTIMIZATION: Only fetch Notes that have a workContractID (not nil)
             // Then filter to only those matching our contracts
             // This preserves exact same functionality - we still get all notes for relevant contracts
-            let contractIDStrings = Set(contracts.map { $0.id.uuidString })
+            // Reuse contractIDStrings from above (line 250)
             let notesDescriptor = FetchDescriptor<ScopedNote>(
                 predicate: #Predicate { note in note.workContractID != nil }
             )
@@ -372,7 +372,8 @@ final class TodayViewModel: ObservableObject {
             let records = try context.fetch(descriptor)
             
             // MEMORY OPTIMIZATION: Only load students referenced in attendance records if not already loaded
-            let attendanceStudentIDs = Set(records.map { $0.studentID })
+            // CloudKit compatibility: Convert String studentIDs to UUIDs
+            let attendanceStudentIDs = Set(records.compactMap { UUID(uuidString: $0.studentID) })
             for sid in attendanceStudentIDs where studentsByID[sid] == nil {
                 if let student = try? context.fetch(FetchDescriptor<Student>(
                     predicate: #Predicate { $0.id == sid }
@@ -391,16 +392,18 @@ final class TodayViewModel: ObservableObject {
             var absentIDs: Set<UUID> = []
             var leftEarlyIDs: Set<UUID> = []
             for rec in records {
-                guard let s = self.studentsByID[rec.studentID] else { continue }
+                // CloudKit compatibility: Convert String studentID to UUID for lookup
+                guard let studentIDUUID = UUID(uuidString: rec.studentID),
+                      let s = self.studentsByID[studentIDUUID] else { continue }
                 if !levelFilter.matches(s.level) { continue }
                 switch rec.status {
                 case .present, .tardy: present += 1
                 case .absent:
                     absent += 1
-                    absentIDs.insert(rec.studentID)
+                    absentIDs.insert(studentIDUUID)
                 case .leftEarly:
                     leftEarly += 1
-                    leftEarlyIDs.insert(rec.studentID)
+                    leftEarlyIDs.insert(studentIDUUID)
                 case .unmarked: break
                 }
             }

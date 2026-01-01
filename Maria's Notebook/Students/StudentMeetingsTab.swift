@@ -19,7 +19,11 @@ struct StudentMeetingsTab: View {
     @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
     private var meetingItemsRaw: [StudentMeeting]
 
-    private var meetingItems: [StudentMeeting] { meetingItemsRaw.filter { $0.studentID == student.id } }
+    // CloudKit compatibility: Convert UUID to String for comparison
+    private var meetingItems: [StudentMeeting] { 
+        let studentIDString = student.id.uuidString
+        return meetingItemsRaw.filter { $0.studentID == studentIDString } 
+    }
 
     // MARK: - Local State for current meeting (persisted via UserDefaults per student)
     @State private var isCompleted: Bool = false

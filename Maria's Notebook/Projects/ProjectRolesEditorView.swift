@@ -16,7 +16,7 @@ struct ProjectRolesEditorView: View {
     @State private var editingRole: ProjectRole? = nil
 
     private var roles: [ProjectRole] {
-        allRoles.filter { $0.projectID == club.id }
+        allRoles.filter { $0.projectID == club.id.uuidString }
     }
 
     var body: some View {

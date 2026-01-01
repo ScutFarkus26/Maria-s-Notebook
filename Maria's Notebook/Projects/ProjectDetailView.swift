@@ -15,7 +15,7 @@ struct ProjectDetailView: View {
     @Query(sort: [SortDescriptor(\ProjectSession.createdAt, order: .forward)]) private var allSessions: [ProjectSession]
     @Query(sort: [SortDescriptor(\ProjectAssignmentTemplate.createdAt, order: .forward)]) private var allTemplates: [ProjectAssignmentTemplate]
 
-    private var roles: [ProjectRole] { allRoles.filter { $0.projectID == club.id } }
+    private var roles: [ProjectRole] { allRoles.filter { $0.projectID == club.id.uuidString } }
 
     @State private var showNewSession: Bool = false
     @State private var showEditClub: Bool = false

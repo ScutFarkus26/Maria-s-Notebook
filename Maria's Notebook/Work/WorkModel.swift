@@ -9,7 +9,7 @@ import SwiftUI
         case practice = "Practice"
     }
 
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var title: String = ""
     // Persisted raw value for the enum to keep storage simple and stable
     private var workTypeRaw: String = "Research"
@@ -66,7 +66,8 @@ import SwiftUI
     }
 
     func participant(for studentID: UUID) -> WorkParticipantEntity? {
-        return (participants ?? []).first { $0.studentID == studentID }
+        let studentIDString = studentID.uuidString
+        return (participants ?? []).first { $0.studentID == studentIDString }
     }
 
     func isStudentCompleted(_ studentID: UUID) -> Bool {
@@ -77,8 +78,9 @@ import SwiftUI
     func markStudent(_ studentID: UUID, completedAt date: Date?) {
         let cal = AppCalendar.shared
         let normalized = date.map { cal.startOfDay(for: $0) }
+        let studentIDString = studentID.uuidString
         if participants == nil { participants = [] }
-        if let idx = participants?.firstIndex(where: { $0.studentID == studentID }) {
+        if let idx = participants?.firstIndex(where: { $0.studentID == studentIDString }) {
             participants?[idx].completedAt = normalized
         } else {
             participants = (participants ?? []) + [WorkParticipantEntity(studentID: studentID, completedAt: normalized, work: self)]

@@ -8,9 +8,9 @@
 import Foundation
 import SwiftData
 @Model final class StudentLesson: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var lessonID: UUID
+    var id: UUID = UUID()
     // CloudKit compatibility: Store UUIDs as strings
+    var lessonID: String = ""
     // MIGRATION NOTE: The old database may have studentIDs stored as UUIDs instead of Strings.
     // We now store as JSON-encoded Data to avoid SwiftData type conflicts.
     @Attribute(.externalStorage) private var _studentIDsData: Data? = nil
@@ -37,7 +37,7 @@ import SwiftData
             }
         }
     }
-    var createdAt: Date
+    var createdAt: Date = Date()
     var scheduledFor: Date? {
         didSet {
             if let date = scheduledFor {
@@ -51,10 +51,10 @@ import SwiftData
     var scheduledForDay: Date = Date.distantPast
     var givenAt: Date?
     var isPresented: Bool = false
-    var notes: String
-    var needsPractice: Bool
-    var needsAnotherPresentation: Bool
-    var followUpWork: String
+    var notes: String = ""
+    var needsPractice: Bool = false
+    var needsAnotherPresentation: Bool = false
+    var followUpWork: String = ""
     var studentGroupKeyPersisted: String = ""
 
     @Transient var students: [Student] = []
@@ -62,6 +62,12 @@ import SwiftData
 
     // CloudKit compatibility: Relationship arrays must be optional
     @Relationship(deleteRule: .cascade, inverse: \ScopedNote.studentLesson) var scopedNotes: [ScopedNote]? = []
+    
+    // Computed property for backward compatibility with UUID
+    var lessonIDUUID: UUID? {
+        get { UUID(uuidString: lessonID) }
+        set { lessonID = newValue?.uuidString ?? "" }
+    }
 
     init(
         id: UUID = UUID(),
@@ -77,7 +83,8 @@ import SwiftData
         followUpWork: String = ""
     ) {
         self.id = id
-        self.lessonID = lessonID
+        // CloudKit compatibility: Store UUID as string
+        self.lessonID = lessonID.uuidString
         // Convert UUIDs to strings for CloudKit compatibility and encode to Data
         let stringIDs = studentIDs.map { $0.uuidString }
         self._studentIDsData = try? JSONEncoder().encode(stringIDs)
@@ -108,7 +115,8 @@ import SwiftData
     ) {
         self.id = id
         self.lesson = lesson
-        self.lessonID = lesson?.id ?? UUID()
+        // CloudKit compatibility: Store UUID as string
+        self.lessonID = lesson?.id.uuidString ?? UUID().uuidString
         self.students = students
         // Convert UUIDs to strings for CloudKit compatibility and encode to Data
         let stringIDs = students.map { $0.id.uuidString }
@@ -126,7 +134,8 @@ import SwiftData
     }
 
     func syncSnapshotsFromRelationships() {
-        self.lessonID = self.lesson?.id ?? self.lessonID
+        // CloudKit compatibility: Store UUID as string
+        self.lessonID = self.lesson?.id.uuidString ?? self.lessonID
         // Convert UUIDs to strings for CloudKit compatibility
         let stringIDs = self.students.map { $0.id.uuidString }
         self.studentIDs = stringIDs // This will encode to _studentIDsData
@@ -139,9 +148,10 @@ import SwiftData
     func snapshot() -> StudentLessonSnapshot {
         // Convert string IDs to UUIDs for CloudKit compatibility
         let studentUUIDs = studentIDs.compactMap { UUID(uuidString: $0) }
+        let lessonUUID = UUID(uuidString: lessonID) ?? UUID()
         return StudentLessonSnapshot(
             id: id,
-            lessonID: lessonID,
+            lessonID: lessonUUID,
             studentIDs: studentUUIDs,
             createdAt: createdAt,
             scheduledFor: scheduledFor,

@@ -22,7 +22,7 @@ struct LocalJSONStringList {
 
 @Model
 final class Project: Identifiable {
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
 
     var title: String = ""
@@ -54,11 +54,12 @@ final class Project: Identifiable {
 
 @Model
 final class ProjectAssignmentTemplate: Identifiable {
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
 
     // Foreign key to Project
-    var projectID: UUID = UUID()
+    // CloudKit compatibility: Store UUID as string
+    var projectID: String = ""
     var project: Project?
 
     var title: String = ""
@@ -67,6 +68,12 @@ final class ProjectAssignmentTemplate: Identifiable {
 
     // Optional default link to a Lesson by UUID string
     var defaultLinkedLessonID: String? = nil
+    
+    // Computed property for backward compatibility with UUID
+    var projectIDUUID: UUID? {
+        get { UUID(uuidString: projectID) }
+        set { projectID = newValue?.uuidString ?? "" }
+    }
 
     init(
         id: UUID = UUID(),
@@ -79,7 +86,8 @@ final class ProjectAssignmentTemplate: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.projectID = projectID
+        // CloudKit compatibility: Store UUID as string
+        self.projectID = projectID.uuidString
         self.title = title
         self.instructions = instructions
         self.isShared = isShared
@@ -89,11 +97,12 @@ final class ProjectAssignmentTemplate: Identifiable {
 
 @Model
 final class ProjectSession: Identifiable {
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
 
     // Foreign key to Project
-    var projectID: UUID = UUID()
+    // CloudKit compatibility: Store UUID as string
+    var projectID: String = ""
     var project: Project?
 
     var meetingDate: Date = Date()
@@ -104,9 +113,21 @@ final class ProjectSession: Identifiable {
     var agendaItemsJSON: String = ""
 
     // Optional link back to a template week
-    var templateWeekID: UUID? = nil
+    // CloudKit compatibility: Store UUID as string
+    var templateWeekID: String? = nil
 
     // NOTE: WorkContracts are now queried dynamically via sourceContextID matching this session ID.
+    
+    // Computed properties for backward compatibility with UUID
+    var projectIDUUID: UUID? {
+        get { UUID(uuidString: projectID) }
+        set { projectID = newValue?.uuidString ?? "" }
+    }
+    
+    var templateWeekIDUUID: UUID? {
+        get { templateWeekID.flatMap { UUID(uuidString: $0) } }
+        set { templateWeekID = newValue?.uuidString }
+    }
 
     init(
         id: UUID = UUID(),
@@ -120,12 +141,13 @@ final class ProjectSession: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.projectID = projectID
+        // CloudKit compatibility: Store UUIDs as strings
+        self.projectID = projectID.uuidString
         self.meetingDate = meetingDate
         self.chapterOrPages = chapterOrPages
         self.notes = notes
         self.agendaItemsJSON = agendaItemsJSON
-        self.templateWeekID = templateWeekID
+        self.templateWeekID = templateWeekID?.uuidString
     }
 
     var agendaItems: [String] {

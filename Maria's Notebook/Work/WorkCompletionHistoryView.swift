@@ -87,11 +87,14 @@ struct WorkCompletionHistoryView: View {
                 return
             }
             // Fallback direct fetch.
+            // CloudKit compatibility: Convert UUIDs to strings for comparison
+            let workIDString = workID.uuidString
             let predicate: Predicate<WorkCompletionRecord>
             if let studentID {
-                predicate = #Predicate { $0.workID == workID && $0.studentID == studentID }
+                let studentIDString = studentID.uuidString
+                predicate = #Predicate { $0.workID == workIDString && $0.studentID == studentIDString }
             } else {
-                predicate = #Predicate { $0.workID == workID }
+                predicate = #Predicate { $0.workID == workIDString }
             }
             let descriptor = FetchDescriptor<WorkCompletionRecord>(
                 predicate: predicate,

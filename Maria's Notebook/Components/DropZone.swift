@@ -311,8 +311,10 @@ struct BoardDropDelegate: DropDelegate {
     @MainActor
     private func findOrCreateTargetStudentLesson(lessonID: UUID, studentID: UUID) -> StudentLesson {
         let studentIDString = studentID.uuidString
+        // CloudKit compatibility: Convert UUID to String for comparison
+        let lessonIDString = lessonID.uuidString
         let predicate: (StudentLesson) -> Bool = { sl in
-            sl.lessonID == lessonID && sl.scheduledFor == nil && !sl.isGiven && sl.studentIDs == [studentIDString]
+            sl.lessonID == lessonIDString && sl.scheduledFor == nil && !sl.isGiven && sl.studentIDs == [studentIDString]
         }
         
         if let existing = allStudentLessons.first(where: predicate) {

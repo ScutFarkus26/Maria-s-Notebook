@@ -21,14 +21,21 @@ struct JSONStringList {
 // MARK: - Role
 @Model
 final class ProjectRole: Identifiable {
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
 
-    var projectID: UUID = UUID()
+    // CloudKit compatibility: Store UUID as string
+    var projectID: String = ""
 
     var title: String = ""
     var summary: String = ""
     var instructions: String = ""
+    
+    // Computed property for backward compatibility with UUID
+    var projectIDUUID: UUID? {
+        get { UUID(uuidString: projectID) }
+        set { projectID = newValue?.uuidString ?? "" }
+    }
 
     init(
         id: UUID = UUID(),
@@ -40,7 +47,8 @@ final class ProjectRole: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.projectID = projectID
+        // CloudKit compatibility: Store UUID as string
+        self.projectID = projectID.uuidString
         self.title = title
         self.summary = summary
         self.instructions = instructions
@@ -50,10 +58,11 @@ final class ProjectRole: Identifiable {
 // MARK: - Week Template
 @Model
 final class ProjectTemplateWeek: Identifiable {
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
 
-    var projectID: UUID = UUID()
+    // CloudKit compatibility: Store UUID as string
+    var projectID: String = ""
     var weekIndex: Int = 0
 
     var readingRange: String = ""
@@ -84,7 +93,8 @@ final class ProjectTemplateWeek: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.projectID = projectID
+        // CloudKit compatibility: Store UUID as string
+        self.projectID = projectID.uuidString
         self.weekIndex = weekIndex
         self.readingRange = readingRange
         self.agendaItemsJSON = agendaItemsJSON
@@ -103,21 +113,39 @@ final class ProjectTemplateWeek: Identifiable {
         get { JSONStringList.decode(linkedLessonIDsJSON) }
         set { linkedLessonIDsJSON = JSONStringList.encode(newValue) }
     }
+    
+    // Computed property for backward compatibility with UUID
+    var projectIDUUID: UUID? {
+        get { UUID(uuidString: projectID) }
+        set { projectID = newValue?.uuidString ?? "" }
+    }
 }
 
 // MARK: - Weekly Role Assignment
 @Model
 final class ProjectWeekRoleAssignment: Identifiable {
-    @Attribute(.unique) var id: UUID = UUID()
+    var id: UUID = UUID()
     var createdAt: Date = Date()
 
-    var weekID: UUID = UUID()
+    // CloudKit compatibility: Store UUIDs as strings
+    var weekID: String = ""
     var studentID: String = ""
-    var roleID: UUID = UUID()
+    var roleID: String = ""
 
     // FIX: Removed @Relationship macro here to break circular dependency.
     // The relationship is managed by the parent (ProjectTemplateWeek).
     var week: ProjectTemplateWeek?
+    
+    // Computed properties for backward compatibility with UUID
+    var weekIDUUID: UUID? {
+        get { UUID(uuidString: weekID) }
+        set { weekID = newValue?.uuidString ?? "" }
+    }
+    
+    var roleIDUUID: UUID? {
+        get { UUID(uuidString: roleID) }
+        set { roleID = newValue?.uuidString ?? "" }
+    }
 
     init(
         id: UUID = UUID(),
@@ -129,9 +157,10 @@ final class ProjectWeekRoleAssignment: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.weekID = weekID
+        // CloudKit compatibility: Store UUIDs as strings
+        self.weekID = weekID.uuidString
         self.studentID = studentID
-        self.roleID = roleID
+        self.roleID = roleID.uuidString
         self.week = week
     }
 }

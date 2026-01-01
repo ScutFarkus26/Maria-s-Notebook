@@ -40,8 +40,10 @@ enum WorkContractAging {
         let today = AppCalendar.startOfDay(Date())
 
         // 1) Most recent past plan item date for progress/assessment
+        // CloudKit compatibility: Convert UUID to String for comparison
+        let contractIDString = contract.id.uuidString
         let pastPlanDates: [Date] = planItems
-            .filter { $0.workID == contract.id }
+            .filter { $0.workID == contractIDString }
             .filter { item in
                 if let r = item.reason {
                     switch r {
@@ -181,9 +183,11 @@ enum WorkContractAging {
         lastTouch overrideLastTouch: Date? = nil
     ) -> Bool {
         let today = AppCalendar.startOfDay(Date())
+        // CloudKit compatibility: Convert UUID to String for comparison
+        let contractIDString = contract.id.uuidString
         // Earliest relevant scheduled date (calendar shows earliest among relevant kinds)
         let relevant = planItems
-            .filter { $0.workID == contract.id }
+            .filter { $0.workID == contractIDString }
             .filter { item in
                 if let r = item.reason {
                     switch r {

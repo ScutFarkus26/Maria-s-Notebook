@@ -8,7 +8,8 @@ enum PlanningActions {
     }
 
     static func planNextLesson(for sl: StudentLesson, lessons: [Lesson], students: [Student], studentLessons: [StudentLesson], context: ModelContext) {
-        guard let currentLesson = lessons.first(where: { $0.id == sl.lessonID }) else { return }
+        guard let lessonIDUUID = UUID(uuidString: sl.lessonID),
+              let currentLesson = lessons.first(where: { $0.id == lessonIDUUID }) else { return }
         let currentSubject = currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentGroup = currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return }
@@ -75,8 +76,11 @@ enum PlanningActions {
         for rec in attendance {
             let day = calendar.startOfDay(for: rec.date)
             var inner = attendanceMap[day] ?? [:]
-            inner[rec.studentID] = rec.status
-            attendanceMap[day] = inner
+            // CloudKit compatibility: Convert String studentID to UUID
+            if let studentIDUUID = UUID(uuidString: rec.studentID) {
+                inner[studentIDUUID] = rec.status
+                attendanceMap[day] = inner
+            }
         }
 
         var changed = false

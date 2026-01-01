@@ -21,7 +21,8 @@ final class StudentLessonDetailActions: ObservableObject {
         // Do not allow zero-student lessons; skip applying edits if empty selection
         guard !selectedStudentIDs.isEmpty else { return }
 
-        studentLesson.lessonID = editingLessonID
+        // CloudKit compatibility: Convert UUID to String for assignment
+        studentLesson.lessonID = editingLessonID.uuidString
         studentLesson.setScheduledFor(scheduledFor, using: calendar)
         print("[Detail] tz=\(calendar.timeZone.identifier) set scheduledFor=\(String(describing: scheduledFor)) for sl=\(studentLesson.id)")
         studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }

@@ -91,7 +91,9 @@ private struct LinkedWorkItem: View {
     private var participations: [StudentParticipation] {
         let participants = work.participants ?? []
         return participants.compactMap { participant in
-            guard let student = studentsAll.first(where: { $0.id == participant.studentID }) else { return nil }
+            // CloudKit compatibility: Convert String studentID to UUID for comparison
+            guard let studentIDUUID = UUID(uuidString: participant.studentID),
+                  let student = studentsAll.first(where: { $0.id == studentIDUUID }) else { return nil }
             return StudentParticipation(
                 id: student.id,
                 student: student,

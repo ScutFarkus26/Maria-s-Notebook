@@ -242,7 +242,8 @@ struct WorksAgendaView: View {
         let today = AppCalendar.startOfDay(Date())
         // Update or create a single plan item for this contract
         let workID: UUID = c.id
-        let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.workID == workID })
+        let workIDString = workID.uuidString
+        let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.workID == workIDString })
         let existing = (try? modelContext.fetch(fetch)) ?? []
         if let first = existing.sorted(by: { $0.scheduledDate < $1.scheduledDate }).first {
             first.scheduledDate = today

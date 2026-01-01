@@ -3,10 +3,10 @@ import SwiftData
 
 @Model
 final class AlbumGroupOrder: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var scopeKey: String   // e.g., subject key used to scope album lessons
-    var groupName: String  // exact group name (empty string represents ungrouped)
-    var sortIndex: Int     // 0-based order among groups for this scope
+    var id: UUID = UUID()
+    var scopeKey: String = ""   // e.g., subject key used to scope album lessons
+    var groupName: String = ""  // exact group name (empty string represents ungrouped)
+    var sortIndex: Int = 0     // 0-based order among groups for this scope
 
     init(id: UUID = UUID(), scopeKey: String, groupName: String, sortIndex: Int = 0) {
         self.id = id

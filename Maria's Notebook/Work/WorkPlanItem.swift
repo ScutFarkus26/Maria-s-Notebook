@@ -37,15 +37,16 @@ final class WorkPlanItem: Identifiable {
     }
 
     // Identity
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
 
     // Foreign key to WorkContract (store UUID for light coupling)
-    var workID: UUID
+    // CloudKit compatibility: Store UUID as string
+    var workID: String = ""
 
     // Planning info
     /// Normalized to start-of-day via AppCalendar.shared
-    var scheduledDate: Date
+    var scheduledDate: Date = Date()
     var reasonRaw: String?
     var note: String?
 
@@ -59,7 +60,8 @@ final class WorkPlanItem: Identifiable {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.workID = workID
+        // CloudKit compatibility: Store UUID as string
+        self.workID = workID.uuidString
         self.scheduledDate = scheduledDate
         self.reasonRaw = reason?.rawValue
         self.note = note
@@ -68,6 +70,12 @@ final class WorkPlanItem: Identifiable {
     var reason: Reason? {
         get { reasonRaw.flatMap(Reason.init(rawValue:)) }
         set { reasonRaw = newValue?.rawValue }
+    }
+    
+    // Computed property for backward compatibility with UUID
+    var workIDUUID: UUID? {
+        get { UUID(uuidString: workID) }
+        set { workID = newValue?.uuidString ?? "" }
     }
 }
 

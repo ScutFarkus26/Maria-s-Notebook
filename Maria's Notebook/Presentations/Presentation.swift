@@ -5,13 +5,13 @@ import SwiftData
 /// Once created, treat as read-only history.
 @Model
 final class Presentation: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var createdAt: Date
-    var presentedAt: Date
+    var id: UUID = UUID()
+    var createdAt: Date = Date()
+    var presentedAt: Date = Date()
 
     // Legacy references (store UUIDs as strings for CloudKit friendliness)
-    var lessonID: String
-    var studentIDs: [String]
+    var lessonID: String = ""
+    var studentIDs: [String] = []
     var legacyStudentLessonID: String?
 
     // Snapshots to keep history stable even if source lesson changes later
@@ -42,6 +42,9 @@ final class Presentation: Identifiable {
     var studentUUIDs: [UUID] {
         studentIDs.compactMap { UUID(uuidString: $0) }
     }
+    
+    // Inverse relationship for ScopedNote.presentation (CloudKit compatibility)
+    @Relationship(inverse: \ScopedNote.presentation) var scopedNotes: [ScopedNote]? = []
 }
 
 #if DEBUG

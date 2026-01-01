@@ -137,11 +137,13 @@ struct WorkAgendaCalendarPane: View {
         }
     }
 
+    @ViewBuilder
     private func pill(_ item: WorkPlanItem) -> some View {
-        let title = workTitle(for: item.workID)
-        let name = studentName(for: item.workID)
-        let reasonText = item.reason.map { reasonLabel($0) } ?? nil
-        return VStack(alignment: .leading, spacing: 4) {
+        if let workID = UUID(uuidString: item.workID) {
+            let title = workTitle(for: workID)
+            let name = studentName(for: workID)
+            let reasonText = item.reason.map { reasonLabel($0) } ?? nil
+            VStack(alignment: .leading, spacing: 4) {
             // Top row: Name first, then lesson title
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -171,10 +173,19 @@ struct WorkAgendaCalendarPane: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.06)))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
         .contentShape(Rectangle())
-        .onTapGesture { openDetail(workID: item.workID) }
+        .onTapGesture {
+            if let workID = UUID(uuidString: item.workID) {
+                openDetail(workID: workID)
+            }
+        }
         .contextMenu {
-            Button("Open", systemImage: "arrow.forward.circle") { openDetail(workID: item.workID) }
+            if let workID = UUID(uuidString: item.workID) {
+                Button("Open", systemImage: "arrow.forward.circle") { openDetail(workID: workID) }
+            }
             Button("Delete", role: .destructive) { deletePlan(item) }
+        }
+        } else {
+            Text("Invalid work ID").foregroundStyle(.red)
         }
     }
 
@@ -205,8 +216,8 @@ struct WorkAgendaCalendarPane: View {
                     reschedulePlanItem(id: id, to: AppCalendar.startOfDay(day))
                     // Also update the linked contract's scheduledDate to match the moved plan item
                     let fetchPI = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
-                    if let item = try? modelContext.fetch(fetchPI).first {
-                        let wid: UUID = item.workID
+                    if let item = try? modelContext.fetch(fetchPI).first,
+                       let wid = UUID(uuidString: item.workID) {
                         let fetchWC = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == wid })
                         if let c = try? modelContext.fetch(fetchWC).first {
                             c.scheduledDate = AppCalendar.startOfDay(day)
@@ -240,9 +251,9 @@ struct WorkAgendaCalendarPane: View {
 
     private func reschedulePlanItem(id: UUID, to day: Date) {
         let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
-        if let item = try? modelContext.fetch(fetch).first {
+        if let item = try? modelContext.fetch(fetch).first,
+           let wid = UUID(uuidString: item.workID) {
             item.scheduledDate = AppCalendar.startOfDay(day)
-            let wid: UUID = item.workID
             let fetchWC = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == wid })
             if let c = try? modelContext.fetch(fetchWC).first {
                 c.scheduledDate = AppCalendar.startOfDay(day)

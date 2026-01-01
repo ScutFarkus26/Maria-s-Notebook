@@ -98,15 +98,19 @@ struct StudentDuplicatesCleaner {
                 var changed = false
 
                 // 1) Repoint any participant entries that reference a duplicate student ID
+                // CloudKit compatibility: Convert String studentID to UUID for comparison
+                let duplicateIDStrings = Set(plan.duplicateIDs.map { $0.uuidString })
+                let primaryIDString = primary.id.uuidString
                 for p in (w.participants ?? []) {
-                    if plan.duplicateIDs.contains(p.studentID) {
-                        p.studentID = primary.id
+                    if duplicateIDStrings.contains(p.studentID) {
+                        p.studentID = primaryIDString
                         changed = true
                     }
                 }
 
                 // 2) Deduplicate participants so there is at most one per student
-                var seen: [UUID: WorkParticipantEntity] = [:]
+                // CloudKit compatibility: Use String keys since studentID is now String
+                var seen: [String: WorkParticipantEntity] = [:]
                 for p in (w.participants ?? []) {
                     if let existing = seen[p.studentID] {
                         // Merge completion: prefer a non-nil date; if both non-nil, keep earliest

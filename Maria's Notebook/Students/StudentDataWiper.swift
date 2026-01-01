@@ -39,6 +39,8 @@ struct StudentDataWiper {
             print(msg)
             return "No matching students found."
         }
+        // Convert target IDs to strings for CloudKit compatibility (used throughout)
+        let targetIDStrings = Set(targetIDs.map { $0.uuidString })
 
         // 2) Presentations — remove target students from studentIDs; delete presentation if empty after removal
         let allPresentations = try context.fetch(FetchDescriptor<Presentation>())
@@ -61,8 +63,6 @@ struct StudentDataWiper {
         }
 
         // 3) StudentLessons — remove target IDs; delete if no students remain
-        // Convert target IDs to strings for CloudKit compatibility
-        let targetIDStrings = Set(targetIDs.map { $0.uuidString })
         let allSLs = try context.fetch(FetchDescriptor<StudentLesson>())
         var slUpdated = 0
         var slDeleted = 0
@@ -89,7 +89,7 @@ struct StudentDataWiper {
             let beforeCount = (w.participants ?? []).count
             if beforeCount == 0 { continue }
             let current = w.participants ?? []
-            let remaining = current.filter { !targetIDs.contains($0.studentID) }
+            let remaining = current.filter { !targetIDStrings.contains($0.studentID) }
             w.participants = remaining
             let afterCount = (w.participants ?? []).count
             if afterCount == beforeCount { continue }
@@ -105,7 +105,7 @@ struct StudentDataWiper {
         // 5) WorkCompletionRecords — delete for target students only
         let allCompletions = try context.fetch(FetchDescriptor<WorkCompletionRecord>())
         var completionsDeleted = 0
-        for rc in allCompletions where targetIDs.contains(rc.studentID) {
+        for rc in allCompletions where targetIDStrings.contains(rc.studentID) {
             context.delete(rc)
             completionsDeleted += 1
         }
@@ -157,8 +157,8 @@ struct StudentDataWiper {
             }
             // Delete if attached WorkModel still includes any target student (participant)
             if let w = n.work {
-                let ids = Set((w.participants ?? []).map { $0.studentID })
-                if !ids.isDisjoint(with: targetIDs) {
+                let participantIDStrings = Set((w.participants ?? []).map { $0.studentID })
+                if !participantIDStrings.isDisjoint(with: targetIDStrings) {
                     context.delete(n)
                     scopedNotesDeleted += 1
                     continue notesLoop

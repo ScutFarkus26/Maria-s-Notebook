@@ -92,7 +92,8 @@ import SwiftData
     }
     
     @MainActor private func planNextLesson(for sl: StudentLesson) {
-        guard let currentLesson = lessons.first(where: { $0.id == sl.lessonID }) else { return }
+        guard let lessonIDUUID = UUID(uuidString: sl.lessonID),
+              let currentLesson = lessons.first(where: { $0.id == lessonIDUUID }) else { return }
         let currentSubject = currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentGroup = currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return }

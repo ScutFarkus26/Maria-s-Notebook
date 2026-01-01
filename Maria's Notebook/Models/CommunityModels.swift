@@ -5,19 +5,19 @@ import SwiftData
 @Model
 final class CommunityTopic: Identifiable {
     // Identity
-    @Attribute(.unique) var id: UUID
+    var id: UUID = UUID()
 
     // Core info
-    var title: String
-    var issueDescription: String
+    var title: String = ""
+    var issueDescription: String = ""
 
     // Timeline
-    var createdAt: Date
+    var createdAt: Date = Date()
     /// Set when the topic is addressed/resolved in a meeting
     var addressedDate: Date?
 
     // Resolution summary (freeform)
-    var resolution: String
+    var resolution: String = ""
     /// Optional person who brought this topic forward
     var broughtBy: String = ""
     // Preferred name in UI: "Raised by". Keep storage in broughtBy for persistence.
@@ -100,14 +100,14 @@ final class CommunityTopic: Identifiable {
 /// A proposed solution for a community topic.
 @Model
 final class ProposedSolution: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var title: String
-    var details: String
+    var id: UUID = UUID()
+    var title: String = ""
+    var details: String = ""
     /// Optional person who proposed this solution
-    var proposedBy: String
-    var createdAt: Date
+    var proposedBy: String = ""
+    var createdAt: Date = Date()
     /// Whether this solution was adopted as part of the resolution
-    var isAdopted: Bool
+    var isAdopted: Bool = false
 
     // Parent
     var topic: CommunityTopic?
@@ -134,10 +134,10 @@ final class ProposedSolution: Identifiable {
 /// A note captured during a community meeting, with an optional speaker attribution.
 @Model
 final class MeetingNote: Identifiable {
-    @Attribute(.unique) var id: UUID
-    var speaker: String
-    var content: String
-    var createdAt: Date
+    var id: UUID = UUID()
+    var speaker: String = ""
+    var content: String = ""
+    var createdAt: Date = Date()
 
     // Parent
     var topic: CommunityTopic?
@@ -161,11 +161,11 @@ final class MeetingNote: Identifiable {
 final class CommunityAttachment: Identifiable {
     enum Kind: String, Codable, CaseIterable { case photo, file }
 
-    @Attribute(.unique) var id: UUID
-    var filename: String
-    var kindRaw: String
+    var id: UUID = UUID()
+    var filename: String = ""
+    var kindRaw: String = Kind.file.rawValue
     @Attribute(.externalStorage) var data: Data?
-    var createdAt: Date
+    var createdAt: Date = Date()
 
     // Parent
     var topic: CommunityTopic?

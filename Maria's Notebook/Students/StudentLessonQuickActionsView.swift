@@ -37,7 +37,9 @@ struct StudentLessonQuickActionsView: View {
     }
 
     private var lesson: Lesson? {
-        lessons.first(where: { $0.id == studentLesson.lessonID })
+        // CloudKit compatibility: lessonID is now String, convert to UUID for comparison
+        guard let lessonIDUUID = UUID(uuidString: studentLesson.lessonID) else { return nil }
+        return lessons.first(where: { $0.id == lessonIDUUID })
     }
 
     private var subject: String {
@@ -169,7 +171,8 @@ struct StudentLessonQuickActionsView: View {
                         let trimmed = followUpDraft.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !trimmed.isEmpty {
                             let sidStrings = studentLesson.resolvedStudentIDs.map { $0.uuidString }
-                            let lidString = studentLesson.lessonID.uuidString
+                            // CloudKit compatibility: lessonID is already String
+                            let lidString = studentLesson.lessonID
                             for sid in sidStrings {
                                 // De-dupe by (student, lesson, kind=followUp) in active/review
                                 let activeRaw = WorkStatus.active.rawValue
@@ -220,7 +223,8 @@ struct StudentLessonQuickActionsView: View {
         }
 
         // Phase 3: Auto-create next lesson in group when marking presented now
-        if presentedNow, let current = lessons.first(where: { $0.id == studentLesson.lessonID }) {
+        if presentedNow, let lessonIDUUID = UUID(uuidString: studentLesson.lessonID),
+           let current = lessons.first(where: { $0.id == lessonIDUUID }) {
             let currentSubject = current.subject.trimmingCharacters(in: .whitespacesAndNewlines)
             let currentGroup = current.group.trimmingCharacters(in: .whitespacesAndNewlines)
             if !currentSubject.isEmpty, !currentGroup.isEmpty {
@@ -267,19 +271,22 @@ struct StudentLessonQuickActionsView: View {
 
         // Ensure relationships mirror snapshots
         studentLesson.students = studentsAll.filter { studentLesson.resolvedStudentIDs.contains($0.id) }
-        studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
+        if let lessonIDUUID = UUID(uuidString: studentLesson.lessonID) {
+            studentLesson.lesson = lessons.first(where: { $0.id == lessonIDUUID })
+        }
 
         if needsAnotherPresentation {
             // Skip creating follow-up if zero students
             guard !studentLesson.resolvedStudentIDs.isEmpty else { return }
             let sameStudents = Set(studentLesson.resolvedStudentIDs)
+            let currentLessonID = studentLesson.resolvedLessonID
             let exists = studentLessonsAll.contains { sl in
-                sl.resolvedLessonID == studentLesson.lessonID && Set(sl.resolvedStudentIDs) == sameStudents && !sl.isGiven
+                sl.resolvedLessonID == currentLessonID && Set(sl.resolvedStudentIDs) == sameStudents && !sl.isGiven
             }
             if !exists {
                 let newPresentation = StudentLesson(
                     id: UUID(),
-                    lessonID: studentLesson.lessonID,
+                    lessonID: currentLessonID,
                     studentIDs: studentLesson.resolvedStudentIDs,
                     createdAt: Date(),
                     scheduledFor: nil,
@@ -291,7 +298,9 @@ struct StudentLessonQuickActionsView: View {
                     followUpWork: ""
                 )
                 newPresentation.students = studentsAll.filter { studentLesson.resolvedStudentIDs.contains($0.id) }
-                newPresentation.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
+                if let lessonIDUUID = UUID(uuidString: studentLesson.lessonID) {
+                    newPresentation.lesson = lessons.first(where: { $0.id == lessonIDUUID })
+                }
                 modelContext.insert(newPresentation)
             }
         }
@@ -308,7 +317,8 @@ struct StudentLessonQuickActionsView: View {
     private func addPracticeIfNeeded() {
         // Create practice contracts if none exist for these students/lesson
         let sidStrings = studentLesson.resolvedStudentIDs.map { $0.uuidString }
-        let lidString = studentLesson.lessonID.uuidString
+        // CloudKit compatibility: lessonID is already String
+        let lidString = studentLesson.lessonID
         var createdAny = false
         for sid in sidStrings {
             let activeRaw = WorkStatus.active.rawValue

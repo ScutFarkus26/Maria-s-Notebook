@@ -202,7 +202,8 @@ final class PresentationsViewModel: ObservableObject {
         let unscheduled = cachedStudentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
         
         for sl in unscheduled {
-            guard let currentLesson = sl.lesson ?? lessons.first(where: { $0.id == sl.lessonID }) else {
+            guard let lessonIDUUID = UUID(uuidString: sl.lessonID),
+                  let currentLesson = sl.lesson ?? lessons.first(where: { $0.id == lessonIDUUID }) else {
                 continue
             }
             

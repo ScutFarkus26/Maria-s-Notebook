@@ -2,9 +2,9 @@ import Foundation
 import SwiftData
 
 @Model final class NonSchoolDay: Identifiable {
-    @Attribute(.unique) var id: UUID
+    var id: UUID = UUID()
     /// Stored as start-of-day for the selected date
-    var date: Date
+    var date: Date = Date()
     var reason: String?
 
     init(id: UUID = UUID(), date: Date, reason: String? = nil) {

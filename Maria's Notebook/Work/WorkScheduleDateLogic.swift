@@ -71,7 +71,9 @@ enum WorkScheduleDateLogic {
 
     /// Compute schedule dates for a given contract by filtering plan items.
     static func compute(for contract: WorkContract, allPlanItems: [WorkPlanItem]) -> WorkScheduleDates {
-        let items = allPlanItems.filter { $0.workID == contract.id }
+        // CloudKit compatibility: Convert UUID to String for comparison
+        let contractIDString = contract.id.uuidString
+        let items = allPlanItems.filter { $0.workID == contractIDString }
         return compute(forPlanItems: items)
     }
 

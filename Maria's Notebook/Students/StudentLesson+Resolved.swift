@@ -3,7 +3,7 @@ import Foundation
 extension StudentLesson {
     /// Prefer the relationship's ID; fall back to snapshot for compatibility during transition.
     var resolvedLessonID: UUID {
-        lesson?.id ?? lessonID
+        lesson?.id ?? (UUID(uuidString: lessonID) ?? UUID())
     }
 
     /// Prefer the relationship; fall back to snapshot for compatibility during transition.
