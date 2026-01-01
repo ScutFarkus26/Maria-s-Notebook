@@ -42,12 +42,7 @@ struct StudentDetailView: View {
 
     @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
 
-    // MARK: - Queries
-    @Query private var lessons: [Lesson]
-    @Query(sort: [
-        SortDescriptor(\StudentLesson.scheduledFor, order: .forward),
-        SortDescriptor(\StudentLesson.createdAt, order: .forward)
-    ]) private var studentLessonsRaw: [StudentLesson]
+    // MARK: - Queries (kept for compatibility, but data loading moved to ViewModel)
     @Query private var studentsAll: [Student]
 
     private var selectedChecklistSubject: String? {
@@ -62,22 +57,23 @@ struct StudentDetailView: View {
 
     private let lessonsVM = LessonsViewModel()
     private var subjectsForChecklist: [String] {
-        lessonsVM.subjects(from: lessons)
+        lessonsVM.subjects(from: vm.lessons)
     }
 
-    // MARK: - Live computed caches from @Query
+    // MARK: - Live computed caches from ViewModel
+    private var lessons: [Lesson] { vm.lessons }
+    private var studentLessonsRaw: [StudentLesson] { vm.studentLessons }
     private var lessonsByID: [UUID: Lesson] { vm.lessonsByID }
-
     private var studentLessonsByID: [UUID: StudentLesson] { vm.studentLessonsByID }
-
     private var nextLessonsForStudent: [StudentLessonSnapshot] { vm.nextLessonsForStudent }
-
+    
     // Added filtered computed properties for student-specific data
-    private var studentLessonsAll: [StudentLesson] { studentLessonsRaw.filter { $0.resolvedStudentIDs.contains(student.id) } }
+    // Note: Now this is just an alias since ViewModel already filters
+    private var studentLessonsAll: [StudentLesson] { vm.studentLessons }
 
     // Lightweight ID arrays to aid type-checker in onChange
-    private var lessonIDs: [UUID] { lessons.map(\.id) }
-    private var studentLessonIDs: [UUID] { studentLessonsAll.map(\.id) }
+    private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
+    private var studentLessonIDs: [UUID] { vm.studentLessons.map(\.id) }
 
     // MARK: - Derived
     private var levelColor: Color {
@@ -149,43 +145,48 @@ struct StudentDetailView: View {
                 rowStatesByLesson: checklistVM.rowStatesByLesson,
                 onSubjectSelected: { setSelectedChecklistSubject($0) },
                 onTapScheduled: { lesson, row in
-                    if let pid = row?.plannedItemID, let sl = studentLessonsRaw.first(where: { $0.id == pid }) {
+                    if let pid = row?.plannedItemID, let sl = vm.studentLessons.first(where: { $0.id == pid }) {
                         vm.selectedStudentLessonForDetail = sl
                     } else {
-                        let draft = createOrReuseNonGivenStudentLesson(for: lesson)
+                        let draft = vm.createOrReuseNonGivenStudentLesson(for: lesson, modelContext: modelContext)
+                        _ = saveCoordinator.save(modelContext, reason: "Create or reuse non-given student lesson")
+                        vm.loadData(modelContext: modelContext)
                         vm.selectedStudentLessonForDetail = draft
-                        checklistVM.recompute(for: lessons, using: modelContext)
+                        checklistVM.recompute(for: vm.lessons, using: modelContext)
                     }
                 },
                 onTapPresented: { lesson, row in
-                    if let presID = row?.presentationLogID, let sl = studentLessonsRaw.first(where: { $0.id == presID }) {
+                    if let presID = row?.presentationLogID, let sl = vm.studentLessons.first(where: { $0.id == presID }) {
                         vm.selectedStudentLessonForDetail = sl
                     } else {
-                        let sl = logPresentation(for: lesson)
-                        _ = ensureContract(for: lesson, presentationStudentLesson: sl)
+                        let sl = vm.logPresentation(for: lesson, modelContext: modelContext)
+                        _ = vm.ensureContract(for: lesson, presentationStudentLesson: sl, modelContext: modelContext)
+                        _ = saveCoordinator.save(modelContext, reason: "Log presentation and ensure contract")
+                        vm.loadData(modelContext: modelContext)
                     }
                 },
                 onTapActive: { lesson, row in
-                    if let cid = row?.contractID, let c = fetchContract(by: cid) {
+                    if let cid = row?.contractID, let c = vm.fetchContract(by: cid, modelContext: modelContext) {
                         selectedContract = c
                     } else if (row?.isPresented ?? false) {
-                        if let c = ensureContract(for: lesson, presentationStudentLesson: nil) {
+                        if let c = vm.ensureContract(for: lesson, presentationStudentLesson: nil, modelContext: modelContext) {
+                            _ = saveCoordinator.save(modelContext, reason: "Ensure contract from checklist")
                             selectedContract = c
                         }
                     }
                 },
                 onTapComplete: { lesson, row in
-                    if let cid = row?.contractID, let c = fetchContract(by: cid), c.status != .complete {
+                    if let cid = row?.contractID, let c = vm.fetchContract(by: cid, modelContext: modelContext), c.status != .complete {
                         c.status = .complete
                         c.completedAt = AppCalendar.startOfDay(Date())
                         _ = saveCoordinator.save(modelContext, reason: "Complete contract from checklist")
-                        checklistVM.recompute(for: lessons, using: modelContext)
+                        checklistVM.recompute(for: vm.lessons, using: modelContext)
                     } else if (row?.isPresented ?? false) && row?.contractID == nil {
-                        if let c = ensureContract(for: lesson, presentationStudentLesson: nil) {
+                        if let c = vm.ensureContract(for: lesson, presentationStudentLesson: nil, modelContext: modelContext) {
                             c.status = .complete
                             c.completedAt = AppCalendar.startOfDay(Date())
                             _ = saveCoordinator.save(modelContext, reason: "Create-and-complete contract from checklist")
-                            checklistVM.recompute(for: lessons, using: modelContext)
+                            checklistVM.recompute(for: vm.lessons, using: modelContext)
                         }
                     }
                 }
@@ -202,130 +203,95 @@ struct StudentDetailView: View {
         }
     }
 
-    // MARK: - Helper functions for contracts
-
+    // MARK: - Helper functions (delegate to ViewModel)
+    
     private func fetchContractsForStudent() -> [WorkContract] {
-        let sid = student.id.uuidString
-        let completeStatusRaw = WorkStatus.complete.rawValue
-
-        let predicate = #Predicate<WorkContract> { contract in
-            contract.studentID == sid && contract.statusRaw != completeStatusRaw
-        }
-        let descriptor = FetchDescriptor<WorkContract>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\WorkContract.createdAt, order: .reverse)]
-        )
-        let contracts = (try? modelContext.fetch(descriptor)) ?? []
-        return contracts
+        return vm.fetchContractsForStudent(modelContext: modelContext)
     }
-
-    private func createDraftStudentLesson(for lesson: Lesson) -> StudentLesson {
-        // Reuse an existing unscheduled entry for this lesson+student if it exists
-        if let existing = studentLessonsRaw.first(where: { $0.resolvedLessonID == lesson.id && $0.scheduledFor == nil && !$0.isGiven && Set($0.resolvedStudentIDs) == Set([student.id]) }) {
-            return existing
+    
+    @ViewBuilder
+    private func lessonGiveSheet(for lesson: Lesson) -> some View {
+        // Create a draft StudentLesson for this student and selected lesson
+        // Note: createDraftStudentLesson already saves the context
+        let newSL: StudentLesson = vm.createDraftStudentLesson(for: lesson, modelContext: modelContext)
+        
+        let detailView = StudentLessonDetailView(studentLesson: newSL) {
+            vm.selectedLessonForGive = nil
+            // Refresh data after the sheet is dismissed
+            vm.loadData(modelContext: modelContext)
         }
-
-        let newSL = StudentLesson(
-            id: UUID(),
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: vm.giveStartGiven ? Date() : nil,
-            isPresented: vm.giveStartGiven,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
-        newSL.students = [student]
-        // Removed line per instructions:
-        // newSL.lesson = lesson
-        modelContext.insert(newSL)
-        _ = saveCoordinator.save(modelContext, reason: "Create draft student lesson")
-        return newSL
+        
+        #if os(macOS)
+        detailView
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizingFitted()
+        #else
+        detailView
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        #endif
     }
-
-    private func createOrReuseNonGivenStudentLesson(for lesson: Lesson) -> StudentLesson {
-        if let existing = studentLessonsRaw.first(where: { $0.resolvedLessonID == lesson.id && !$0.isGiven && Set($0.resolvedStudentIDs) == Set([student.id]) }) {
-            return existing
+    
+    @ViewBuilder
+    private var bottomBarContent: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack {
+                Spacer()
+                if isEditing {
+                    editingButtons
+                } else {
+                    viewingButtons
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        let newSL = StudentLesson(
-            id: UUID(),
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            isPresented: false,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
-        newSL.students = [student]
-        // Removed line per instructions:
-        // newSL.lesson = lesson
-        modelContext.insert(newSL)
-        _ = saveCoordinator.save(modelContext, reason: "Create or reuse non-given student lesson")
-        return newSL
     }
-
-    private func logPresentation(for lesson: Lesson) -> StudentLesson {
-        let newSL = StudentLesson(
-            id: UUID(),
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            isPresented: true,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
-        newSL.students = [student]
-        // Removed line per instructions:
-        // newSL.lesson = lesson
-        modelContext.insert(newSL)
-        _ = saveCoordinator.save(modelContext, reason: "Log presentation student lesson")
-        return newSL
-    }
-
-    private func ensureContract(for lesson: Lesson, presentationStudentLesson: StudentLesson?) -> WorkContract? {
-        let sid = student.id.uuidString
-        let lid = lesson.id.uuidString
-        let activeRaw = WorkStatus.active.rawValue
-        let reviewRaw = WorkStatus.review.rawValue
-        let predicate = #Predicate<WorkContract> { contract in
-            contract.studentID == sid &&
-            contract.lessonID == lid &&
-            (contract.statusRaw == activeRaw || contract.statusRaw == reviewRaw)
+    
+    @ViewBuilder
+    private var editingButtons: some View {
+        Button("Cancel") {
+            isEditing = false
         }
-        let descriptor = FetchDescriptor<WorkContract>(predicate: predicate)
-        if let existing = (try? modelContext.fetch(descriptor))?.first {
-            return existing
+        Button("Save") {
+            let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !fn.isEmpty, !ln.isEmpty else { return }
+            student.firstName = fn
+            student.lastName = ln
+            student.birthday = draftBirthday
+            student.level = draftLevel
+            student.dateStarted = draftStartDate
+            _ = saveCoordinator.save(modelContext, reason: "Edit student details")
+            isEditing = false
         }
-        let newContract = WorkContract(
-            id: UUID(),
-            createdAt: Date(),
-            studentID: student.id.uuidString,
-            lessonID: lesson.id.uuidString,
-            presentationID: presentationStudentLesson?.id.uuidString,
-            status: .active,
-            scheduledDate: nil,
-            completedAt: nil,
-            legacyStudentLessonID: nil
-        )
-        modelContext.insert(newContract)
-        _ = saveCoordinator.save(modelContext, reason: "Create new work contract")
-        return newContract
+        .keyboardShortcut(.defaultAction)
+        .buttonStyle(.borderedProminent)
+        .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
-
-    private func fetchContract(by id: UUID) -> WorkContract? {
-        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == id })
-        return (try? modelContext.fetch(descriptor))?.first
+    
+    @ViewBuilder
+    private var viewingButtons: some View {
+        if selectedTab != .checklist {
+            Button("Edit") {
+                draftFirstName = student.firstName
+                draftLastName = student.lastName
+                draftBirthday = student.birthday
+                draftLevel = student.level
+                draftStartDate = student.dateStarted ?? Date()
+                isEditing = true
+            }
+        }
+        Button("Delete", role: .destructive) {
+            showDeleteAlert = true
+        }
+        Button("Done") {
+            if let onDone { onDone() } else { dismiss() }
+        }
+        .keyboardShortcut(.defaultAction)
+        .buttonStyle(.borderedProminent)
     }
 
 
@@ -421,54 +387,7 @@ struct StudentDetailView: View {
         .presentationDragIndicator(.visible)
 #endif
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
-                Divider()
-                HStack {
-                    Spacer()
-                    if isEditing {
-                        Button("Cancel") {
-                            isEditing = false
-                        }
-                        Button("Save") {
-                            let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !fn.isEmpty, !ln.isEmpty else { return }
-                            student.firstName = fn
-                            student.lastName = ln
-                            student.birthday = draftBirthday
-                            student.level = draftLevel
-                            student.dateStarted = draftStartDate
-                            _ = saveCoordinator.save(modelContext, reason: "Edit student details")
-                            isEditing = false
-                        }
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    } else {
-                        if selectedTab != .checklist {
-                            Button("Edit") {
-                                draftFirstName = student.firstName
-                                draftLastName = student.lastName
-                                draftBirthday = student.birthday
-                                draftLevel = student.level
-                                draftStartDate = student.dateStarted ?? Date()
-                                isEditing = true
-                            }
-                        }
-                        Button("Delete", role: .destructive) {
-                            showDeleteAlert = true
-                        }
-                        Button("Done") {
-                            if let onDone { onDone() } else { dismiss() }
-                        }
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.bar)
-            }
+            bottomBarContent
         }
         .overlay(alignment: .top) {
             Group {
@@ -499,19 +418,7 @@ struct StudentDetailView: View {
             Text("This action cannot be undone.")
         }
         .sheet(item: $vm.selectedLessonForGive) { lesson in
-            // Create a draft StudentLesson for this student and selected lesson
-            let newSL = createDraftStudentLesson(for: lesson)
-
-            StudentLessonDetailView(studentLesson: newSL) {
-                vm.selectedLessonForGive = nil
-            }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizingFitted()
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
+            lessonGiveSheet(for: lesson)
         }
         .sheet(item: $vm.selectedStudentLessonForDetail) { sl in
             StudentLessonDetailView(studentLesson: sl) {
@@ -537,25 +444,27 @@ struct StudentDetailView: View {
             .presentationDragIndicator(.visible)
         #endif
         }
-        .onAppear {
+        .task {
             WorkDataMaintenance.backfillParticipantsIfNeeded(using: modelContext)
             WorkDataMaintenance.migrateWorksToContractsIfNeeded(using: modelContext)
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll)
-            checklistVM.recompute(for: lessons, using: modelContext)
+            vm.loadData(modelContext: modelContext)
+            checklistVM.recompute(for: vm.lessons, using: modelContext)
             ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
         .onChange(of: lessonIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll)
-            checklistVM.recompute(for: lessons, using: modelContext)
+            // Reload data when lessons change
+            vm.loadData(modelContext: modelContext)
+            checklistVM.recompute(for: vm.lessons, using: modelContext)
             ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
         .onChange(of: studentLessonIDs) { _, _ in
-            vm.updateData(lessons: lessons, studentLessons: studentLessonsAll)
-            checklistVM.recompute(for: lessons, using: modelContext)
+            // Reload data when student lessons change
+            vm.loadData(modelContext: modelContext)
+            checklistVM.recompute(for: vm.lessons, using: modelContext)
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }

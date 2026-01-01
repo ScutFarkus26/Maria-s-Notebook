@@ -17,6 +17,8 @@ final class StudentDetailViewModel: ObservableObject {
 
     // MARK: - Published Caches
     // Published caches and summaries
+    @Published private(set) var lessons: [Lesson] = []
+    @Published private(set) var studentLessons: [StudentLesson] = []
     @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
     @Published private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
     @Published private(set) var nextLessonsForStudent: [StudentLessonSnapshot] = []
@@ -36,6 +38,34 @@ final class StudentDetailViewModel: ObservableObject {
     // MARK: - Initialization
     init(student: Student) {
         self.student = student
+    }
+    
+    // MARK: - Data Loading
+    /// Load lessons and student lessons from the database using FetchDescriptor.
+    /// This replaces the @Query approach to avoid loading all records reactively.
+    func loadData(modelContext: ModelContext) {
+        // Load all lessons (used for lookups across the app)
+        let lessonsDescriptor = FetchDescriptor<Lesson>()
+        let fetchedLessons = (try? modelContext.fetch(lessonsDescriptor)) ?? []
+        
+        // Load all student lessons and filter by student in memory
+        // Note: SwiftData predicates don't easily support array contains,
+        // so we fetch all and filter in memory (still better than @Query reactive loading)
+        let studentLessonsDescriptor = FetchDescriptor<StudentLesson>(
+            sortBy: [
+                SortDescriptor(\StudentLesson.scheduledFor, order: .forward),
+                SortDescriptor(\StudentLesson.createdAt, order: .forward)
+            ]
+        )
+        let allStudentLessons = (try? modelContext.fetch(studentLessonsDescriptor)) ?? []
+        let filteredStudentLessons = allStudentLessons.filter { $0.resolvedStudentIDs.contains(student.id) }
+        
+        // Update published properties
+        self.lessons = fetchedLessons
+        self.studentLessons = filteredStudentLessons
+        
+        // Update derived caches
+        updateData(lessons: fetchedLessons, studentLessons: filteredStudentLessons)
     }
 
     // MARK: - Public API
@@ -206,6 +236,145 @@ final class StudentDetailViewModel: ObservableObject {
             try? modelContext.save()
             showToast("Presentation recorded")
         }
+    }
+    
+    // MARK: - Business Logic (moved from View)
+    
+    /// Fetch contracts for the student (non-complete only)
+    func fetchContractsForStudent(modelContext: ModelContext) -> [WorkContract] {
+        let sid = student.id.uuidString
+        let completeStatusRaw = WorkStatus.complete.rawValue
+        
+        let predicate = #Predicate<WorkContract> { contract in
+            contract.studentID == sid && contract.statusRaw != completeStatusRaw
+        }
+        let descriptor = FetchDescriptor<WorkContract>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\WorkContract.createdAt, order: .reverse)]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+    
+    /// Create a draft student lesson, reusing existing if available
+    func createDraftStudentLesson(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
+        // Reuse an existing unscheduled entry for this lesson+student if it exists
+        if let existing = studentLessons.first(where: { 
+            $0.resolvedLessonID == lesson.id && 
+            $0.scheduledFor == nil && 
+            !$0.isGiven && 
+            Set($0.resolvedStudentIDs) == Set([student.id]) 
+        }) {
+            return existing
+        }
+        
+        let newSL = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: [student.id],
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: giveStartGiven ? Date() : nil,
+            isPresented: giveStartGiven,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newSL.students = [student]
+        modelContext.insert(newSL)
+        try? modelContext.save()
+        
+        return newSL
+    }
+    
+    /// Create or reuse a non-given student lesson
+    func createOrReuseNonGivenStudentLesson(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
+        if let existing = studentLessons.first(where: { 
+            $0.resolvedLessonID == lesson.id && 
+            !$0.isGiven && 
+            Set($0.resolvedStudentIDs) == Set([student.id]) 
+        }) {
+            return existing
+        }
+        
+        let newSL = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: [student.id],
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: nil,
+            isPresented: false,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newSL.students = [student]
+        modelContext.insert(newSL)
+        try? modelContext.save()
+        
+        return newSL
+    }
+    
+    /// Log a presentation for a lesson
+    func logPresentation(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
+        let newSL = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: [student.id],
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: nil,
+            isPresented: true,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newSL.students = [student]
+        modelContext.insert(newSL)
+        try? modelContext.save()
+        
+        return newSL
+    }
+    
+    /// Ensure a contract exists for a lesson, creating one if needed
+    func ensureContract(for lesson: Lesson, presentationStudentLesson: StudentLesson?, modelContext: ModelContext) -> WorkContract? {
+        let sid = student.id.uuidString
+        let lid = lesson.id.uuidString
+        let activeRaw = WorkStatus.active.rawValue
+        let reviewRaw = WorkStatus.review.rawValue
+        let predicate = #Predicate<WorkContract> { contract in
+            contract.studentID == sid &&
+            contract.lessonID == lid &&
+            (contract.statusRaw == activeRaw || contract.statusRaw == reviewRaw)
+        }
+        let descriptor = FetchDescriptor<WorkContract>(predicate: predicate)
+        if let existing = (try? modelContext.fetch(descriptor))?.first {
+            return existing
+        }
+        
+        let newContract = WorkContract(
+            id: UUID(),
+            createdAt: Date(),
+            studentID: student.id.uuidString,
+            lessonID: lesson.id.uuidString,
+            presentationID: presentationStudentLesson?.id.uuidString,
+            status: .active,
+            scheduledDate: nil,
+            completedAt: nil,
+            legacyStudentLessonID: nil
+        )
+        modelContext.insert(newContract)
+        try? modelContext.save()
+        return newContract
+    }
+    
+    /// Fetch a contract by ID
+    func fetchContract(by id: UUID, modelContext: ModelContext) -> WorkContract? {
+        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == id })
+        return (try? modelContext.fetch(descriptor))?.first
     }
 }
 
