@@ -36,6 +36,22 @@ struct MariasToolboxApp: App {
             try fm.removeItem(at: url)
         }
     }
+    
+    static func resetLocalDatabaseAndForceCloudKitSync() throws {
+        // Reset the local store
+        try resetPersistentStore()
+        
+        // Ensure CloudKit is enabled
+        UserDefaults.standard.set(true, forKey: enableCloudKitKey)
+        
+        // Clear any error flags
+        UserDefaults.standard.removeObject(forKey: lastStoreErrorDescriptionKey)
+        UserDefaults.standard.set(false, forKey: ephemeralSessionFlagKey)
+        
+        #if DEBUG
+        print("SwiftData: Local database reset and CloudKit sync enabled. App restart required.")
+        #endif
+    }
 
     static func storeFileURL() -> URL {
         let fm = FileManager.default
@@ -231,8 +247,9 @@ struct MariasToolboxApp: App {
                     #endif
                 }
                 
-                // CloudKit compatibility: All model fixes are complete. Enable CloudKit via UserDefaults flag.
-                let enableCloudKit = UserDefaults.standard.bool(forKey: enableCloudKitKey)
+                // CloudKit compatibility: All model fixes are complete. Enable CloudKit by default.
+                // Users can disable it via the settings toggle if needed.
+                let enableCloudKit = UserDefaults.standard.object(forKey: enableCloudKitKey) as? Bool ?? true
                 #if DEBUG
                 if enableCloudKit {
                     print("SwiftData: Creating CloudKit-enabled container...")

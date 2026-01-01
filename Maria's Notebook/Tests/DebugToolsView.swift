@@ -1,8 +1,12 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct DebugToolsView: View {
     @Binding var showDannyResetConfirm: Bool
     @Binding var showPurgeLegacyWorkConfirm: Bool
+    @State private var showResetConfirm = false
     let onScanAndQueue: () -> Void
     let onConsolidate: () -> Void
     
@@ -66,6 +70,34 @@ struct DebugToolsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.top, 4)
+                
+                // Reset & Force Sync button
+                Button(role: .destructive) {
+                    showResetConfirm = true
+                } label: {
+                    Label("Reset Local Database & Force CloudKit Sync", systemImage: "arrow.clockwise.icloud")
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+                .help("Deletes local database and forces sync from CloudKit. App will restart automatically.")
+                .padding(.top, 8)
+                .alert("Reset Local Database?", isPresented: $showResetConfirm) {
+                    Button("Reset & Restart", role: .destructive) {
+                        do {
+                            try MariasToolboxApp.resetLocalDatabaseAndForceCloudKitSync()
+                            #if os(macOS)
+                            NSApplication.shared.terminate(nil)
+                            #else
+                            exit(0)
+                            #endif
+                        } catch {
+                            print("Failed to reset database: \(error)")
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will delete all local data and force the app to sync from CloudKit. The app will restart automatically. Make sure CloudKit has your data before doing this!")
+                }
                 
                 Text("CloudKit sync allows your data to be synchronized across all your devices. Check the console logs on app launch to verify CloudKit is active.")
                     .font(.caption)
