@@ -201,7 +201,7 @@ struct WorksAgendaView: View {
             return false
         }
         // Optional search
-        if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !searchText.trimmed().isEmpty {
             let query = searchText.lowercased()
             works = works.filter { c in
                 var hay: [String] = []
@@ -220,7 +220,7 @@ struct WorksAgendaView: View {
 
     private func lessonTitle(forLessonID lessonID: String) -> String {
         if let lid = UUID(uuidString: lessonID), let lesson = lessonsByID[lid] {
-            let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = lesson.name.trimmed()
             if !name.isEmpty { return name }
         }
         return "Lesson \(String(lessonID.prefix(6)))"

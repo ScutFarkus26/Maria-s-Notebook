@@ -56,7 +56,7 @@ final class TodayViewModel: ObservableObject {
     // MARK: - Inputs
     @Published var date: Date {
         didSet {
-            let normalized = AppCalendar.startOfDay(date)
+            let normalized = date.startOfDay
             if date != normalized {
                 date = normalized
                 return
@@ -103,14 +103,14 @@ final class TodayViewModel: ObservableObject {
         self.context = context
         self.calendar = calendar
         AppCalendar.adopt(timeZoneFrom: calendar)
-        self.date = AppCalendar.startOfDay(date)
+        self.date = date.startOfDay
         scheduleReload()
     }
 
     func setCalendar(_ cal: Calendar) {
         self.calendar = cal
         AppCalendar.adopt(timeZoneFrom: cal)
-        let normalized = AppCalendar.startOfDay(self.date)
+        let normalized = self.date.startOfDay
         if self.date != normalized {
             self.date = normalized
         } else {
@@ -312,7 +312,7 @@ final class TodayViewModel: ObservableObject {
         var newToday: [ContractScheduleItem] = []
         var newStale: [ContractFollowUpItem] = []
         
-        let startToday = AppCalendar.startOfDay(Date())
+        let startToday = Date().startOfDay
         
         for contract in contracts {
             // Filter by Level
@@ -327,7 +327,7 @@ final class TodayViewModel: ObservableObject {
             
             // Determine Last Meaningful Touch to validate overdue status
             let lastTouch = contract.lastMeaningfulTouchDate(planItems: contractPlans, notes: contractNotes)
-            let startLastTouch = AppCalendar.startOfDay(lastTouch)
+            let startLastTouch = lastTouch.startOfDay
             
             // Sort plans to find earliest relevant
             let sortedPlans = contractPlans.sorted { $0.scheduledDate < $1.scheduledDate }
@@ -338,7 +338,7 @@ final class TodayViewModel: ObservableObject {
             var isOverdueOrToday = false
             
             if let overdueItem = sortedPlans.first(where: { item in
-                let itemDate = AppCalendar.startOfDay(item.scheduledDate)
+                let itemDate = item.scheduledDate.startOfDay
                 return itemDate < startToday && startLastTouch < itemDate
             }) {
                 newOverdue.append(ContractScheduleItem(contract: contract, planItem: overdueItem))
@@ -347,7 +347,7 @@ final class TodayViewModel: ObservableObject {
             
             // --- Due Today Logic ---
             // Explicitly scheduled for today
-            if let todayItem = sortedPlans.first(where: { AppCalendar.startOfDay($0.scheduledDate) == startToday }) {
+            if let todayItem = sortedPlans.first(where: { $0.scheduledDate.isSameDay(as: Date()) }) {
                 newToday.append(ContractScheduleItem(contract: contract, planItem: todayItem))
                 isOverdueOrToday = true
             }
@@ -402,9 +402,9 @@ final class TodayViewModel: ObservableObject {
             // CloudKit compatibility: Convert String studentIDs to UUIDs
             let attendanceStudentIDs = Set(records.compactMap { $0.studentID.asUUID })
             for sid in attendanceStudentIDs where studentsByID[sid] == nil {
-                if let student = try? context.fetch(FetchDescriptor<Student>(
+                if let student = context.safeFetchFirst(FetchDescriptor<Student>(
                     predicate: #Predicate { $0.id == sid }
-                )).first {
+                )) {
                     let visible = TestStudentsFilter.filterVisible([student])
                     if let s = visible.first {
                         studentsByID[sid] = s

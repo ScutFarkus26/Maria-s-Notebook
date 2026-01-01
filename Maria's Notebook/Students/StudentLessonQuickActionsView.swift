@@ -184,7 +184,7 @@ struct StudentLessonQuickActionsView: View {
                                     ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
                                     ($0.kindRaw ?? "") == followRaw
                                 })
-                                let exists = ((try? modelContext.fetch(fetch)) ?? []).first != nil
+                                let exists = modelContext.safeFetchFirst(fetch) != nil
                                 if !exists {
                                     let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
                                     c.kind = .followUpAssignment
@@ -330,7 +330,7 @@ struct StudentLessonQuickActionsView: View {
                 ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
                 ($0.kindRaw ?? "") == practiceRaw
             })
-            let exists = ((try? modelContext.fetch(fetch)) ?? []).first != nil
+            let exists = modelContext.safeFetchFirst(fetch) != nil
             if !exists {
                 let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
                 c.kind = .practiceLesson

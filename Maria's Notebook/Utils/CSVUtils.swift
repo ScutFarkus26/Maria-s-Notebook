@@ -154,16 +154,3 @@ public enum DateParser {
     }
 }
 
-public extension String {
-    func trimmed() -> String {
-        self.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    func normalizedNameKey() -> String {
-        let components = self.lowercased()
-            .trimmed()
-            .components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
-        return components.joined(separator: " ")
-    }
-}

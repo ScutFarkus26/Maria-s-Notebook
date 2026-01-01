@@ -249,7 +249,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     
     // MARK: - Name Display Helpers
     private func normalizedFirstName(_ name: String) -> String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        name.trimmed().lowercased()
     }
 
     private var duplicateFirstNameKeys: Set<String> {
@@ -262,10 +262,10 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
 
     func displayName(for student: Student) -> String {
-        let firstTrimmed = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let firstTrimmed = student.firstName.trimmed()
         let key = normalizedFirstName(student.firstName)
         if duplicateFirstNameKeys.contains(key) {
-            let lastInitial = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines).first.map { String($0) } ?? ""
+            let lastInitial = student.lastName.trimmed().first.map { String($0) } ?? ""
             if lastInitial.isEmpty { return firstTrimmed }
             return "\(firstTrimmed) \(lastInitial)."
         } else {
@@ -296,7 +296,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     
     func refreshMatrix(context: ModelContext) {
         guard !selectedSubject.isEmpty else { return }
-        let sub = selectedSubject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sub = selectedSubject.trimmed()
         let allLessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
         self.lessons = allLessons.filter { $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame }
         self.orderedGroups = lessonsLogic.groups(for: sub, lessons: self.lessons)
@@ -304,9 +304,9 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func lessonsIn(group: String) -> [Lesson] {
-        let groupTrimmed = group.trimmingCharacters(in: .whitespacesAndNewlines)
+        let groupTrimmed = group.trimmed()
         return lessons.filter {
-            $0.group.trimmingCharacters(in: .whitespacesAndNewlines).localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
+            $0.group.trimmed().localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
         }.sorted { $0.orderInGroup < $1.orderInGroup }
     }
     
@@ -361,28 +361,49 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func toggleScheduled(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentID = student.id; let lessonID = lesson.id
-        // CloudKit compatibility: Convert UUID to String for comparison
+        let studentID = student.id
+        let lessonID = lesson.id
         let lessonIDString = lessonID.uuidString
-        let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))) ?? []
-        
         let studentIDString = studentID.uuidString
-        if let existing = allSLs.first(where: { !$0.isGiven && $0.studentIDs.contains(studentIDString) }) {
-            var ids = existing.studentIDs; ids.removeAll { $0 == studentIDString }
-            if ids.isEmpty {
-                context.delete(existing)
-            } else {
-                existing.studentIDs = ids
+        
+        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        
+        // Check if student is already in an unscheduled lesson
+        if let existing = findUnscheduledLessonContaining(student: studentIDString, in: allSLs) {
+            removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
+        } else {
+            addStudentToUnscheduledLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
+        }
+        
+        context.safeSave()
+        recomputeMatrix(context: context)
+    }
+    
+    // MARK: - Helper Methods for toggleScheduled
+    
+    private func findUnscheduledLessonContaining(student: String, in lessons: [StudentLesson]) -> StudentLesson? {
+        lessons.first(where: { !$0.isGiven && $0.studentIDs.contains(student) })
+    }
+    
+    private func removeStudentFromLesson(student: String, lesson: StudentLesson, context: ModelContext) {
+        var ids = lesson.studentIDs
+        ids.removeAll { $0 == student }
+        if ids.isEmpty {
+            context.delete(lesson)
+        } else {
+            lesson.studentIDs = ids
+        }
+    }
+    
+    private func addStudentToUnscheduledLesson(student: Student, studentIDString: String, lesson: Lesson, in allSLs: [StudentLesson], context: ModelContext) {
+        if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
+            if !group.studentIDs.contains(studentIDString) {
+                group.studentIDs.append(studentIDString)
             }
         } else {
-            if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
-                if !group.studentIDs.contains(studentIDString) { group.studentIDs.append(studentIDString) }
-            } else {
-                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), scheduledFor: nil)
-                context.insert(newSL)
-            }
+            let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), scheduledFor: nil)
+            context.insert(newSL)
         }
-        context.safeSave(); recomputeMatrix(context: context)
     }
     
     func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
@@ -392,25 +413,40 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentID = student.id; let lessonID = lesson.id
+        let studentID = student.id
+        let lessonID = lesson.id
         let studentIDString = studentID.uuidString
-        // CloudKit compatibility: Convert UUID to String for comparison
         let lessonIDString = lessonID.uuidString
-        let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))) ?? []
         
-        if let existing = allSLs.first(where: { $0.isGiven && $0.studentIDs.contains(studentIDString) }) {
-            var ids = existing.studentIDs; ids.removeAll { $0 == studentIDString }
-            if ids.isEmpty { context.delete(existing) } else { existing.studentIDs = ids }
+        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        
+        // Check if student is already in a given lesson
+        if let existing = findGivenLessonContaining(student: studentIDString, in: allSLs) {
+            removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
         } else {
-            let todayStart = AppCalendar.startOfDay(Date())
-            if let group = allSLs.first(where: { $0.isGiven && AppCalendar.startOfDay($0.givenAt ?? Date.distantPast) == todayStart }) {
-                if !group.studentIDs.contains(studentIDString) { group.studentIDs.append(studentIDString) }
-            } else {
-                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true)
-                context.insert(newSL)
-            }
+            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
         }
-        context.safeSave(); recomputeMatrix(context: context)
+        
+        context.safeSave()
+        recomputeMatrix(context: context)
+    }
+    
+    // MARK: - Helper Methods for togglePresented
+    
+    private func findGivenLessonContaining(student: String, in lessons: [StudentLesson]) -> StudentLesson? {
+        lessons.first(where: { $0.isGiven && $0.studentIDs.contains(student) })
+    }
+    
+    private func addStudentToGivenLesson(student: Student, studentIDString: String, lesson: Lesson, in allSLs: [StudentLesson], context: ModelContext) {
+        let today = Date()
+        if let group = allSLs.first(where: { $0.isGiven && ($0.givenAt ?? Date.distantPast).isSameDay(as: today) }) {
+            if !group.studentIDs.contains(studentIDString) {
+                group.studentIDs.append(studentIDString)
+            }
+        } else {
+            let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true)
+            context.insert(newSL)
+        }
     }
     
     func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {

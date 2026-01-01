@@ -10,13 +10,13 @@ enum PlanningActions {
     static func planNextLesson(for sl: StudentLesson, lessons: [Lesson], students: [Student], studentLessons: [StudentLesson], context: ModelContext) {
         guard let lessonIDUUID = UUID(uuidString: sl.lessonID),
               let currentLesson = lessons.first(where: { $0.id == lessonIDUUID }) else { return }
-        let currentSubject = currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentGroup = currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentSubject = currentLesson.subject.trimmed()
+        let currentGroup = currentLesson.group.trimmed()
         guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return }
 
         let candidates = lessons.filter { l in
-            l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
+            l.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
+            l.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
         }
         .sorted { $0.orderInGroup < $1.orderInGroup }
 
@@ -63,13 +63,13 @@ enum PlanningActions {
                 sl.isPresented == false && sl.givenAt == nil && sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end
             }
         )
-        let scheduled: [StudentLesson] = (try? context.fetch(descriptor)) ?? []
+        let scheduled: [StudentLesson] = context.safeFetch(descriptor)
 
         // Fetch attendance records for the same range
         let attDescriptor = FetchDescriptor<AttendanceRecord>(
             predicate: #Predicate { rec in rec.date >= start && rec.date < end }
         )
-        let attendance: [AttendanceRecord] = (try? context.fetch(attDescriptor)) ?? []
+        let attendance: [AttendanceRecord] = context.safeFetch(attDescriptor)
 
         // Build lookup: (dayStart, studentID) -> status
         var attendanceMap: [Date: [UUID: AttendanceStatus]] = [:]
@@ -119,7 +119,7 @@ enum PlanningActions {
                 sl.isPresented == false && sl.givenAt == nil && sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end
             }
         )
-        let scheduled: [StudentLesson] = (try? context.fetch(descriptor)) ?? []
+        let scheduled: [StudentLesson] = context.safeFetch(descriptor)
 
         var changed = false
         for sl in scheduled {

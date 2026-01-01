@@ -45,7 +45,7 @@ func scanAndBackfillBlockedLessonsGrouped(modelContext: ModelContext) throws -> 
               let currentLesson = lessonsByID[currentLessonID] else { continue }
         
         // Find the sequence for this lesson
-        let groupKey = "\(currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines))|\(currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines))".lowercased()
+        let groupKey = "\(currentLesson.subject.trimmed())|\(currentLesson.group.trimmed())".lowercased()
         guard let sequence = sortedLessonsByGroup[groupKey] else { continue }
         
         // Find the index and check if there is a next lesson

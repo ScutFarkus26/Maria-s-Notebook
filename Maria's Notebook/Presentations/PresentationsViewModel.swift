@@ -183,7 +183,7 @@ final class PresentationsViewModel: ObservableObject {
         
         // Helper for fuzzy matching
         func norm(_ s: String) -> String {
-            s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            s.trimmed().lowercased()
         }
         
         // Group lessons by subject/group for efficient lookup
@@ -247,7 +247,7 @@ final class PresentationsViewModel: ObservableObject {
         var result: [UUID: Int] = [:]
         
         func norm(_ s: String) -> String {
-            s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            s.trimmed().lowercased()
         }
         
         let excludedLessonIDs: Set<UUID> = {

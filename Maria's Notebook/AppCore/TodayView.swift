@@ -36,7 +36,7 @@ struct TodayView: View {
     private var nameForLesson: (UUID) -> String { { id in viewModel.lessonsByID[id]?.name ?? "Lesson" } }
     
     private var duplicateFirstNames: Set<String> {
-        let firsts = viewModel.studentsByID.values.map { $0.firstName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        let firsts = viewModel.studentsByID.values.map { $0.firstName.trimmed().lowercased() }
         var counts: [String: Int] = [:]
         for f in firsts { counts[f, default: 0] += 1 }
         return Set(counts.filter { $0.value > 1 }.map { $0.key })
@@ -45,9 +45,9 @@ struct TodayView: View {
     private var displayNameForID: (UUID) -> String { { id in
         guard let s = viewModel.studentsByID[id] else { return "Student" }
         let first = s.firstName
-        let key = first.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let key = first.trimmed().lowercased()
         if duplicateFirstNames.contains(key) {
-            if let initialChar = s.lastName.trimmingCharacters(in: .whitespacesAndNewlines).first {
+            if let initialChar = s.lastName.trimmed().first {
                 return "\(first) \(String(initialChar).uppercased())."
             }
         }
@@ -225,7 +225,7 @@ struct TodayView: View {
                     HStack(spacing: 6) {
                         ForEach(viewModel.absentToday.sorted { displayNameForID($0).localizedCaseInsensitiveCompare(displayNameForID($1)) == .orderedAscending }, id: \.self) { sid in
                             let name = displayNameForID(sid)
-                            if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            if !name.trimmed().isEmpty {
                                 studentPill(name, color: .red)
                             }
                         }
@@ -234,7 +234,7 @@ struct TodayView: View {
                         }
                         ForEach(viewModel.leftEarlyToday.sorted { displayNameForID($0).localizedCaseInsensitiveCompare(displayNameForID($1)) == .orderedAscending }, id: \.self) { sid in
                             let name = displayNameForID(sid)
-                            if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            if !name.trimmed().isEmpty {
                                 studentPill(name, color: .purple)
                             }
                         }
@@ -465,7 +465,7 @@ private struct LessonRow: View {
         HStack(spacing: 10) {
             Image(systemName: "text.book.closed").foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
-                if !studentNames.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !studentNames.trimmed().isEmpty {
                     Text(studentNames)
                         .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary)
@@ -506,7 +506,7 @@ private struct CompletionRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if let note = contract.completionNote, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let note = contract.completionNote, !note.trimmed().isEmpty {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
             }

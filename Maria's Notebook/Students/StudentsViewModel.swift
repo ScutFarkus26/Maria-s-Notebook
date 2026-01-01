@@ -15,14 +15,14 @@ struct StudentsViewModel {
             guard showTestStudents == false else { return [] }
             let lower = testStudentNames.lowercased()
             let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
-            let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            let tokens = parts.map { String($0).trimmed() }.filter { !$0.isEmpty }
             return Set(tokens)
         }()
 
         let visibleStudents: [Student] = {
             guard !normalizedHiddenNames.isEmpty else { return students }
             return students.filter { s in
-                let name = s.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let name = s.fullName.trimmed().lowercased()
                 return !normalizedHiddenNames.contains(name)
             }
         }()

@@ -10,18 +10,18 @@ struct LessonsViewModel {
 
     // Compute ordered unique subjects using FilterOrderStore
     func subjects(from lessons: [Lesson]) -> [String] {
-        let unique = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })
+        let unique = Set(lessons.map { $0.subject.trimmed() }.filter { !$0.isEmpty })
         let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         return FilterOrderStore.loadSubjectOrder(existing: existing)
     }
 
     // Compute ordered unique groups for a given subject using FilterOrderStore
     func groups(for subject: String, lessons: [Lesson]) -> [String] {
-        let trimmedSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSubject = subject.trimmed()
         let unique = Set(
             lessons
                 .filter { $0.subject.caseInsensitiveCompare(trimmedSubject) == .orderedSame }
-                .map { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .map { $0.group.trimmed() }
                 .filter { !$0.isEmpty }
         )
         let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -30,7 +30,7 @@ struct LessonsViewModel {
 
     // MARK: - Private Helpers
 
-    private func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+    private func norm(_ s: String) -> String { s.trimmed().lowercased() }
 
     private func subjectIndexMap(from lessons: [Lesson]) -> [String: Int] {
         let list = subjects(from: lessons)
@@ -54,7 +54,7 @@ struct LessonsViewModel {
 
     // Main filter/sort pipeline extracted from LessonsRootView
     func filteredLessons(lessons: [Lesson], sourceFilter: LessonSource?, personalKindFilter: PersonalLessonKind?, searchText: String, selectedSubject: String?, selectedGroup: String?) -> [Lesson] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = searchText.trimmed()
         var scoped = lessons
         
         // Only apply scope filters if NOT searching. Search should be global ("Search all lessons").
@@ -160,7 +160,7 @@ struct LessonsViewModel {
     // Ensure per-(subject, group) orderInGroup uniqueness, return true if any changes were made
     func ensureInitialOrderInGroupIfNeeded(_ lessons: [Lesson]) -> Bool {
         var changed = false
-        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        func norm(_ s: String) -> String { s.trimmed().lowercased() }
         var buckets: [String: [Lesson]] = [:]
         for l in lessons {
             let key = norm(l.subject) + "|" + norm(l.group)

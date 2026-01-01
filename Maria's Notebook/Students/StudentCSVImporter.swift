@@ -131,8 +131,8 @@ enum StudentCSVImporter {
                 if parts.count > 0 { first = String(parts[0]) }
                 if parts.count > 1 { last = parts.dropFirst().joined(separator: " ") }
             }
-            first = first.trimmingCharacters(in: .whitespacesAndNewlines)
-            last = last.trimmingCharacters(in: .whitespacesAndNewlines)
+            first = first.trimmed()
+            last = last.trimmed()
             if first.isEmpty || last.isEmpty {
                 warnings.append("Row \(i + 2): Missing first or last name; row skipped.")
                 continue
@@ -206,8 +206,8 @@ enum StudentCSVImporter {
                 if parts.count > 0 { first = String(parts[0]) }
                 if parts.count > 1 { last = parts.dropFirst().joined(separator: " ") }
             }
-            first = first.trimmingCharacters(in: .whitespacesAndNewlines)
-            last = last.trimmingCharacters(in: .whitespacesAndNewlines)
+            first = first.trimmed()
+            last = last.trimmed()
             if first.isEmpty || last.isEmpty {
                 warnings.append("Row \(i + 2): Missing first or last name; row skipped.")
                 continue
