@@ -212,35 +212,14 @@ struct StudentsView<WorkloadContent: View>: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 0) {
-            // THE UNIFIED SIDEBAR
-            unifiedSidebar
-                .frame(width: 200)
-                .background(Color.gray.opacity(0.08))
-
-            Divider()
-
-            // THE CONTENT SWITCHER
-            Group {
-                switch mode {
-                case .roster:
-                    rosterGridContent
-                case .workOverview:
-                    workloadContent
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        NavigationSplitView {
+            sidebarContent
+        } detail: {
+            detailContent
         }
         // Sheets and Alerts
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
-        }
-        .sheet(isPresented: Binding(get: { selectedStudentID != nil }, set: { if !$0 { selectedStudentID = nil } })) {
-            if let id = selectedStudentID, let student = students.first(where: { $0.id == id }) {
-                StudentDetailView(student: student) {
-                    selectedStudentID = nil
-                }
-            }
         }
         .alert("Save Failed", isPresented: $isShowingSaveError) {
             Button("OK", role: .cancel) {}
@@ -333,7 +312,157 @@ struct StudentsView<WorkloadContent: View>: View {
         }
     }
 
-    // MARK: - Sidebar
+    // MARK: - Sidebar Content
+    
+    private var sidebarContent: some View {
+        NavigationStack {
+            Group {
+                switch mode {
+                case .roster:
+                    rosterListContent
+                case .workOverview:
+                    workloadContent
+                }
+            }
+            .navigationTitle("Students")
+            .toolbar {
+                toolbarContent
+            }
+        }
+    }
+    
+    // MARK: - Toolbar Content
+    
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        // Mode switcher
+        ToolbarItem(placement: .automatic) {
+            Picker("Mode", selection: $mode) {
+                Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
+                Label("Workload", systemImage: "doc.text").tag(StudentMode.workOverview)
+            }
+            .pickerStyle(.segmented)
+        }
+        
+        // Sort Order Menu (only show in roster mode)
+        if mode == .roster {
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    Button {
+                        withAnimation { studentsSortOrderRaw = "alphabetical" }
+                    } label: {
+                        Label("A–Z", systemImage: "textformat.abc")
+                        if sortOrder == .alphabetical {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { studentsSortOrderRaw = "age" }
+                    } label: {
+                        Label("Age", systemImage: "calendar")
+                        if sortOrder == .age {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { studentsSortOrderRaw = "birthday" }
+                    } label: {
+                        Label("Birthday", systemImage: "gift")
+                        if sortOrder == .birthday {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { studentsSortOrderRaw = "lastLesson" }
+                    } label: {
+                        Label("Last Lesson", systemImage: "clock.badge.exclamationmark")
+                        if sortOrder == .lastLesson {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { studentsSortOrderRaw = "manual" }
+                    } label: {
+                        Label("Manual", systemImage: "arrow.up.arrow.down")
+                        if sortOrder == .manual {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                } label: {
+                    Label("Sort", systemImage: "arrow.up.arrow.down")
+                }
+            }
+            
+            // Filter Menu (only show in roster mode)
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    Button {
+                        withAnimation { studentsFilterRaw = "all" }
+                    } label: {
+                        Label("All", systemImage: "person.3.fill")
+                        if selectedFilter == .all {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { studentsFilterRaw = "presentNow" }
+                    } label: {
+                        Label("Present Now", systemImage: "checkmark.circle.fill")
+                        if selectedFilter == .presentNow {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { studentsFilterRaw = "upper" }
+                    } label: {
+                        Label("Upper", systemImage: "circle.fill")
+                        if selectedFilter == .upper {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { studentsFilterRaw = "lower" }
+                    } label: {
+                        Label("Lower", systemImage: "circle.fill")
+                        if selectedFilter == .lower {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                } label: {
+                    Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+                }
+            }
+            
+            #if os(iOS)
+            if sortOrder == .manual {
+                ToolbarItem(placement: .automatic) {
+                    EditButton()
+                }
+            }
+            #endif
+        }
+        
+        // Add Student button (only show in roster mode)
+        if mode == .roster {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingAddStudent = true
+                } label: {
+                    Label("Add Student", systemImage: "plus.circle.fill")
+                }
+                .keyboardShortcut("n", modifiers: [.command])
+                .contextMenu {
+                    Button {
+                        showingStudentCSVImporter = true
+                    } label: {
+                        Label("Import Students from CSV…", systemImage: "arrow.down.doc")
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Sidebar (unused - kept for reference)
 
     private var unifiedSidebar: some View {
         ScrollView {
@@ -413,66 +542,66 @@ struct StudentsView<WorkloadContent: View>: View {
         }
     }
 
-    // MARK: - Roster Content
-
-    private var rosterGridContent: some View {
+    // MARK: - Roster Content (List View)
+    
+    private var rosterListContent: some View {
         Group {
             if filteredStudents.isEmpty {
-                VStack(spacing: 8) {
-                    Text("No students yet")
-                        .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                ContentUnavailableView {
+                    Label("No students yet", systemImage: "person.3")
+                } description: {
                     Text("Click the plus button to add your first student.")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
+                } actions: {
+                    Button {
+                        showingAddStudent = true
+                    } label: {
+                        Label("Add Student", systemImage: "plus.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
             } else {
-                StudentsCardsGridView(
-                    students: filteredStudents,
-                    isBirthdayMode: sortOrder == .birthday,
-                    isAgeMode: sortOrder == .age,
-                    isLastLessonMode: sortOrder == .lastLesson,
-                    lastLessonDays: daysSinceLastLessonByStudent,
-                    isManualMode: sortOrder == .manual,
-                    onTapStudent: { selectedStudentID = $0.id },
-                    onReorder: { movingStudent, fromIndex, toIndex, subset in
-                        let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(
-                            movingID: movingStudent.id,
-                            from: fromIndex,
-                            to: toIndex,
-                            current: subset,
-                            allStudents: students
+                List(selection: $selectedStudentID) {
+                    ForEach(filteredStudents, id: \.id) { student in
+                        StudentListRow(
+                            student: student,
+                            sortOrder: sortOrder,
+                            daysSinceLastLesson: daysSinceLastLessonByStudent[student.id]
                         )
-                        assignManualOrder(from: newAllIDs)
-                        try? modelContext.save()
+                        .tag(student.id)
                     }
-                )
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(alignment: .topTrailing) {
-            Button {
-                showingAddStudent = true
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: AppTheme.FontSize.titleXLarge))
-                    .foregroundStyle(.green)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut("n", modifiers: [.command])
-            .contextMenu {
-                Button {
-                    showingStudentCSVImporter = true
-                } label: {
-                    Label("Import Students from CSV…", systemImage: "arrow.down.doc")
+                    .onMove { source, destination in
+                        handleManualReorder(from: source, to: destination)
+                    }
                 }
+                .listStyle(.sidebar)
             }
-            .padding()
         }
         .overlay {
             ParsingOverlay(isParsing: $isParsing) {
                 parsingTask?.cancel()
             }
         }
+    }
+    
+    // MARK: - Detail Content
+    
+    private var detailContent: some View {
+        Group {
+            if let id = selectedStudentID, let student = students.first(where: { $0.id == id }) {
+                HStack(alignment: .top, spacing: 0) {
+                    StudentDetailView(student: student)
+                        .frame(maxWidth: 700)
+                    Spacer()
+                }
+            } else {
+                ContentUnavailableView {
+                    Label("Select a Student", systemImage: "person.circle")
+                } description: {
+                    Text("Choose a student from the list to view their details.")
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Logic Helpers
@@ -490,28 +619,22 @@ struct StudentsView<WorkloadContent: View>: View {
             return
         }
         
-        // Load attendanceRecords if needed for presentNow filter or count
-        // Always load in roster mode to show "Present Now" count in sidebar
-        let needsAttendanceRecords = true
-        if needsAttendanceRecords {
-            // Fetch only today's attendance records
-            let cal = Calendar.current
-            let today = cal.startOfDay(for: Date())
-            let tomorrow = cal.date(byAdding: .day, value: 1, to: today) ?? today
-            do {
-                let descriptor = FetchDescriptor<AttendanceRecord>(
-                    predicate: #Predicate { rec in
-                        rec.date >= today && rec.date < tomorrow
-                    },
-                    sortBy: [SortDescriptor(\.date, order: .forward)]
-                )
-                cachedAttendanceRecords = try modelContext.fetch(descriptor)
-            } catch {
-                cachedAttendanceRecords = modelContext.safeFetch(FetchDescriptor<AttendanceRecord>())
-                    .filter { cal.isDate($0.date, inSameDayAs: today) }
-            }
-        } else {
-            cachedAttendanceRecords = []
+        // Load attendanceRecords - always load in roster mode to show "Present Now" count in sidebar
+        // Fetch only today's attendance records
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let tomorrow = cal.date(byAdding: .day, value: 1, to: today) ?? today
+        do {
+            let descriptor = FetchDescriptor<AttendanceRecord>(
+                predicate: #Predicate { rec in
+                    rec.date >= today && rec.date < tomorrow
+                },
+                sortBy: [SortDescriptor(\.date, order: .forward)]
+            )
+            cachedAttendanceRecords = try modelContext.fetch(descriptor)
+        } catch {
+            cachedAttendanceRecords = modelContext.safeFetch(FetchDescriptor<AttendanceRecord>())
+                .filter { cal.isDate($0.date, inSameDayAs: today) }
         }
         
         // Load studentLessons and lessons only if sortOrder == .lastLesson
@@ -560,6 +683,20 @@ struct StudentsView<WorkloadContent: View>: View {
                 s.manualOrder = idx
             }
         }
+    }
+    
+    private func handleManualReorder(from source: IndexSet, to destination: Int) {
+        guard sortOrder == .manual, let fromIndex = source.first else { return }
+        let movingStudent = filteredStudents[fromIndex]
+        let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(
+            movingID: movingStudent.id,
+            from: fromIndex,
+            to: destination,
+            current: filteredStudents,
+            allStudents: students
+        )
+        assignManualOrder(from: newAllIDs)
+        try? modelContext.save()
     }
     
     private func selectedFilterRawAssignment(for filter: StudentsFilter) {

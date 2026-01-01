@@ -577,7 +577,7 @@ struct MariasToolboxApp: App {
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
-        .defaultSize(width: 1200, height: 800)
+        .defaultSize(width: 1000, height: 700)
         #endif
         .modelContainer(sharedModelContainer)
         .commands {
