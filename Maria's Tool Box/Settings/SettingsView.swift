@@ -7,7 +7,6 @@ struct SettingsView: View {
 
     // Live data for stats
     @Query private var students: [Student]
-    @Query private var items: [Item]
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
 

@@ -5,7 +5,6 @@ import SwiftData
 /// to avoid drift between builds and previews.
 struct AppSchema {
     static let schema = Schema([
-        Item.self,
         Student.self,
         Lesson.self,
         StudentLesson.self,
