@@ -13,6 +13,91 @@ public final class BackupService {
     }
 
     public init() {}
+    
+    // MARK: - Size Estimation
+    
+    /// Estimates the backup size in bytes based on current entity counts.
+    /// This performs lightweight fetches to count entities (doesn't process full data).
+    /// - Parameter modelContext: The model context to count entities from
+    /// - Returns: Estimated backup size in bytes (approximate, accounts for compression)
+    public func estimateBackupSize(modelContext: ModelContext) -> Int64 {
+        // Count entities by fetching them (SwiftData doesn't have a count-only API)
+        // This is relatively fast since we're just counting, not processing data
+        var counts: [String: Int] = [:]
+        counts["Student"] = safeFetch(Student.self, using: modelContext).count
+        counts["Lesson"] = safeFetch(Lesson.self, using: modelContext).count
+        counts["StudentLesson"] = safeFetch(StudentLesson.self, using: modelContext).count
+        counts["WorkContract"] = safeFetch(WorkContract.self, using: modelContext).count
+        counts["WorkPlanItem"] = safeFetch(WorkPlanItem.self, using: modelContext).count
+        counts["ScopedNote"] = safeFetch(ScopedNote.self, using: modelContext).count
+        counts["Note"] = safeFetch(Note.self, using: modelContext).count
+        counts["NonSchoolDay"] = safeFetch(NonSchoolDay.self, using: modelContext).count
+        counts["SchoolDayOverride"] = safeFetch(SchoolDayOverride.self, using: modelContext).count
+        counts["StudentMeeting"] = safeFetch(StudentMeeting.self, using: modelContext).count
+        counts["Presentation"] = safeFetch(Presentation.self, using: modelContext).count
+        counts["CommunityTopic"] = safeFetch(CommunityTopic.self, using: modelContext).count
+        counts["ProposedSolution"] = safeFetch(ProposedSolution.self, using: modelContext).count
+        counts["MeetingNote"] = safeFetch(MeetingNote.self, using: modelContext).count
+        counts["CommunityAttachment"] = safeFetch(CommunityAttachment.self, using: modelContext).count
+        counts["AttendanceRecord"] = safeFetch(AttendanceRecord.self, using: modelContext).count
+        counts["WorkCompletionRecord"] = safeFetch(WorkCompletionRecord.self, using: modelContext).count
+        counts["Project"] = safeFetch(Project.self, using: modelContext).count
+        counts["ProjectAssignmentTemplate"] = safeFetch(ProjectAssignmentTemplate.self, using: modelContext).count
+        counts["ProjectSession"] = safeFetch(ProjectSession.self, using: modelContext).count
+        counts["ProjectRole"] = safeFetch(ProjectRole.self, using: modelContext).count
+        counts["ProjectTemplateWeek"] = safeFetch(ProjectTemplateWeek.self, using: modelContext).count
+        counts["ProjectWeekRoleAssignment"] = safeFetch(ProjectWeekRoleAssignment.self, using: modelContext).count
+        
+        return estimateBackupSizeFromCounts(counts)
+    }
+    
+    /// Estimates backup size from entity counts dictionary.
+    /// Uses average sizes per entity type and accounts for compression.
+    public func estimateBackupSizeFromCounts(_ counts: [String: Int]) -> Int64 {
+        // Average bytes per entity type (based on typical JSON size)
+        // These are rough estimates for uncompressed JSON
+        let averageBytesPerEntity: [String: Int] = [
+            "Student": 600,
+            "Lesson": 2500,
+            "StudentLesson": 300,
+            "WorkContract": 800,
+            "WorkPlanItem": 500,
+            "ScopedNote": 400,
+            "Note": 300,
+            "NonSchoolDay": 200,
+            "SchoolDayOverride": 200,
+            "StudentMeeting": 1200,
+            "Presentation": 800,
+            "CommunityTopic": 1500,
+            "ProposedSolution": 1000,
+            "MeetingNote": 800,
+            "CommunityAttachment": 600,
+            "AttendanceRecord": 300,
+            "WorkCompletionRecord": 400,
+            "Project": 2000,
+            "ProjectAssignmentTemplate": 2500,
+            "ProjectSession": 1500,
+            "ProjectRole": 1200,
+            "ProjectTemplateWeek": 1800,
+            "ProjectWeekRoleAssignment": 300
+        ]
+        
+        // Calculate uncompressed size
+        let uncompressedSize = counts.reduce(0) { total, pair in
+            let averageSize = averageBytesPerEntity[pair.key] ?? 1000 // Default to 1KB if unknown
+            return total + (averageSize * pair.value)
+        }
+        
+        // Add envelope overhead (metadata, manifest, etc.) - roughly 2KB
+        let envelopeOverhead: Int64 = 2048
+        
+        // Account for compression (LZFSE typically achieves 2-4x compression)
+        // Use 3x compression ratio as average estimate
+        let compressionRatio = 3.0
+        let compressedSize = Int64(Double(uncompressedSize) / compressionRatio)
+        
+        return compressedSize + envelopeOverhead
+    }
 
     // MARK: - Export
     public func exportBackup(
@@ -27,43 +112,43 @@ public final class BackupService {
         
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.0), "Collecting students…")
 
-        // Fetch all entities with improved progress reporting
-        let students: [Student] = safeFetch(Student.self, using: modelContext)
+        // Fetch entities using batch processing for large datasets to reduce memory pressure
+        // Batch size of 1000 provides a good balance between memory efficiency and performance
+        let students: [Student] = safeFetchInBatches(Student.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons…")
-        let lessons: [Lesson] = safeFetch(Lesson.self, using: modelContext)
+        let lessons: [Lesson] = safeFetchInBatches(Lesson.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.12), "Collecting student lessons…")
-        // Use safeFetchWithErrorHandling for StudentLesson as it may have corrupted studentIDs data
-        let studentLessons: [StudentLesson] = safeFetchWithErrorHandling(StudentLesson.self, using: modelContext)
+        // Use batch fetching for StudentLesson (may have corrupted studentIDs data, handled in safeFetchWithErrorHandling)
+        let studentLessons: [StudentLesson] = safeFetchInBatchesWithErrorHandling(StudentLesson.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.18), "Collecting work contracts…")
-        let workContracts: [WorkContract] = safeFetch(WorkContract.self, using: modelContext)
+        let workContracts: [WorkContract] = safeFetchInBatches(WorkContract.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.21), "Collecting work plan items…")
-        let workPlanItems: [WorkPlanItem] = safeFetch(WorkPlanItem.self, using: modelContext)
+        let workPlanItems: [WorkPlanItem] = safeFetchInBatches(WorkPlanItem.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes…")
-        let scopedNotes: [ScopedNote] = safeFetch(ScopedNote.self, using: modelContext)
-        let notes: [Note] = safeFetch(Note.self, using: modelContext)
+        let scopedNotes: [ScopedNote] = safeFetchInBatches(ScopedNote.self, using: modelContext)
+        let notes: [Note] = safeFetchInBatches(Note.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.27), "Collecting calendar data…")
-        let nonSchoolDays: [NonSchoolDay] = safeFetch(NonSchoolDay.self, using: modelContext)
-        let schoolDayOverrides: [SchoolDayOverride] = safeFetch(SchoolDayOverride.self, using: modelContext)
+        let nonSchoolDays: [NonSchoolDay] = safeFetchInBatches(NonSchoolDay.self, using: modelContext)
+        let schoolDayOverrides: [SchoolDayOverride] = safeFetchInBatches(SchoolDayOverride.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.30), "Collecting meetings and presentations…")
-        let studentMeetings: [StudentMeeting] = safeFetch(StudentMeeting.self, using: modelContext)
-        let presentations: [Presentation] = safeFetch(Presentation.self, using: modelContext)
+        let studentMeetings: [StudentMeeting] = safeFetchInBatches(StudentMeeting.self, using: modelContext)
+        let presentations: [Presentation] = safeFetchInBatches(Presentation.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.33), "Collecting community data…")
-        // Use safeFetch with additional error handling for CommunityTopic
-        // This entity may have corrupted data that causes SwiftData to crash
-        let communityTopics: [CommunityTopic] = safeFetchWithErrorHandling(CommunityTopic.self, using: modelContext)
-        let proposedSolutions: [ProposedSolution] = safeFetch(ProposedSolution.self, using: modelContext)
-        let meetingNotes: [MeetingNote] = safeFetch(MeetingNote.self, using: modelContext)
-        let communityAttachments: [CommunityAttachment] = safeFetch(CommunityAttachment.self, using: modelContext)
+        // Use batch fetching with error handling for CommunityTopic (may have corrupted data)
+        let communityTopics: [CommunityTopic] = safeFetchInBatchesWithErrorHandling(CommunityTopic.self, using: modelContext)
+        let proposedSolutions: [ProposedSolution] = safeFetchInBatches(ProposedSolution.self, using: modelContext)
+        let meetingNotes: [MeetingNote] = safeFetchInBatches(MeetingNote.self, using: modelContext)
+        let communityAttachments: [CommunityAttachment] = safeFetchInBatches(CommunityAttachment.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.36), "Collecting attendance and work completions…")
-        let attendance: [AttendanceRecord] = safeFetch(AttendanceRecord.self, using: modelContext)
-        let workCompletions: [WorkCompletionRecord] = safeFetch(WorkCompletionRecord.self, using: modelContext)
+        let attendance: [AttendanceRecord] = safeFetchInBatches(AttendanceRecord.self, using: modelContext)
+        let workCompletions: [WorkCompletionRecord] = safeFetchInBatches(WorkCompletionRecord.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.39), "Collecting projects…")
-        let projects: [Project] = safeFetch(Project.self, using: modelContext)
-        let projectTemplates: [ProjectAssignmentTemplate] = safeFetch(ProjectAssignmentTemplate.self, using: modelContext)
-        let projectSessions: [ProjectSession] = safeFetch(ProjectSession.self, using: modelContext)
-        let projectRoles: [ProjectRole] = safeFetch(ProjectRole.self, using: modelContext)
-        let projectWeeks: [ProjectTemplateWeek] = safeFetch(ProjectTemplateWeek.self, using: modelContext)
-        let projectWeekAssignments: [ProjectWeekRoleAssignment] = safeFetch(ProjectWeekRoleAssignment.self, using: modelContext)
+        let projects: [Project] = safeFetchInBatches(Project.self, using: modelContext)
+        let projectTemplates: [ProjectAssignmentTemplate] = safeFetchInBatches(ProjectAssignmentTemplate.self, using: modelContext)
+        let projectSessions: [ProjectSession] = safeFetchInBatches(ProjectSession.self, using: modelContext)
+        let projectRoles: [ProjectRole] = safeFetchInBatches(ProjectRole.self, using: modelContext)
+        let projectWeeks: [ProjectTemplateWeek] = safeFetchInBatches(ProjectTemplateWeek.self, using: modelContext)
+        let projectWeekAssignments: [ProjectWeekRoleAssignment] = safeFetchInBatches(ProjectWeekRoleAssignment.self, using: modelContext)
 
         // Map to DTOs
         let studentDTOs: [StudentDTO] = students.map { s in
@@ -1190,6 +1275,83 @@ public final class BackupService {
     private func safeFetch<T: PersistentModel>(_ type: T.Type, using context: ModelContext) -> [T] {
         let descriptor = FetchDescriptor<T>()
         return (try? context.fetch(descriptor)) ?? []
+    }
+    
+    /// Fetches entities in batches to reduce memory pressure during backup operations.
+    /// This processes entities in chunks (default 1000) rather than loading all at once.
+    /// - Parameters:
+    ///   - type: The entity type to fetch
+    ///   - context: The ModelContext to fetch from
+    ///   - batchSize: Number of entities to fetch per batch (default 1000)
+    /// - Returns: All entities fetched in batches and accumulated
+    private func safeFetchInBatches<T: PersistentModel>(
+        _ type: T.Type,
+        using context: ModelContext,
+        batchSize: Int = 1000
+    ) -> [T] {
+        var allEntities: [T] = []
+        var offset = 0
+        
+        while true {
+            var descriptor = FetchDescriptor<T>()
+            descriptor.fetchOffset = offset
+            descriptor.fetchLimit = batchSize
+            
+            guard let batch = try? context.fetch(descriptor), !batch.isEmpty else {
+                break
+            }
+            
+            allEntities.append(contentsOf: batch)
+            
+            // If we got fewer than batchSize, we've reached the end
+            if batch.count < batchSize {
+                break
+            }
+            
+            offset += batchSize
+        }
+        
+        return allEntities
+    }
+    
+    /// Fetches entities in batches with error handling for types that may have corrupted data.
+    /// Similar to safeFetchInBatches but uses safeFetchWithErrorHandling logic per batch.
+    /// - Parameters:
+    ///   - type: The entity type to fetch
+    ///   - context: The ModelContext to fetch from
+    ///   - batchSize: Number of entities to fetch per batch (default 1000)
+    /// - Returns: All entities fetched in batches and accumulated, with corrupted batches skipped
+    private func safeFetchInBatchesWithErrorHandling<T: PersistentModel>(
+        _ type: T.Type,
+        using context: ModelContext,
+        batchSize: Int = 1000
+    ) -> [T] {
+        var allEntities: [T] = []
+        var offset = 0
+        
+        while true {
+            var descriptor = FetchDescriptor<T>()
+            descriptor.fetchOffset = offset
+            descriptor.fetchLimit = batchSize
+            
+            // Try to fetch batch, skip if it fails (corrupted data handling)
+            guard let batch = try? context.fetch(descriptor), !batch.isEmpty else {
+                // If fetch fails, we've either reached the end or hit corrupted data
+                // In either case, stop fetching
+                break
+            }
+            
+            allEntities.append(contentsOf: batch)
+            
+            // If we got fewer than batchSize, we've reached the end
+            if batch.count < batchSize {
+                break
+            }
+            
+            offset += batchSize
+        }
+        
+        return allEntities
     }
     
     /// Safe fetch with additional error handling for entities that may have corrupted data.

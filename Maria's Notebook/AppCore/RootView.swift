@@ -16,13 +16,13 @@ struct RootView: View {
         case lessons // Previously "Albums"
         
         // Planning Sub-items (Promoted from PlanningRootView pills)
+        case planningChecklist
         case planningAgenda
         case planningWork
         case planningProjects
-        case planningChecklist
         
-        case logs
         case community
+        case logs
         case settings
         
         var id: Self { self }
@@ -33,12 +33,12 @@ struct RootView: View {
             case .attendance: return "Attendance"
             case .students: return "Students"
             case .lessons: return "Lessons"
+            case .planningChecklist: return "Checklist"
             case .planningAgenda: return "Presentations"
             case .planningWork: return "Open Work"
             case .planningProjects: return "Projects"
-            case .planningChecklist: return "Checklist"
-            case .logs: return "Logs"
             case .community: return "Community Meetings"
+            case .logs: return "Logs"
             case .settings: return "Settings"
             }
         }
@@ -49,12 +49,12 @@ struct RootView: View {
             case .attendance: return "checklist"
             case .students: return "person.3"
             case .lessons: return "book"
+            case .planningChecklist: return "list.clipboard"
             case .planningAgenda: return "calendar"
             case .planningWork: return "tray.full"
             case .planningProjects: return "folder"
-            case .planningChecklist: return "list.clipboard"
-            case .logs: return "list.bullet"
             case .community: return "bubble.left.and.bubble.right"
+            case .logs: return "list.bullet"
             case .settings: return "gear"
             }
         }
@@ -67,8 +67,8 @@ struct RootView: View {
             case .students: self = .students
             case .albums: self = .lessons
             case .planning: self = .planningAgenda // Default to agenda for planning
-            case .logs: self = .logs
             case .community: self = .community
+            case .logs: self = .logs
             case .settings: self = .settings
             }
         }
@@ -80,9 +80,9 @@ struct RootView: View {
             case .attendance: return .attendance
             case .students: return .students
             case .lessons: return .albums
-            case .planningAgenda, .planningWork, .planningProjects, .planningChecklist: return .planning
-            case .logs: return .logs
+            case .planningChecklist, .planningAgenda, .planningWork, .planningProjects: return .planning
             case .community: return .community
+            case .logs: return .logs
             case .settings: return .settings
             }
         }
@@ -460,6 +460,8 @@ private struct RootDetailContent: View {
                 StudentsRootView()
             case .lessons:
                 LessonsMenuRootView()
+            case .planningChecklist:
+                ClassSubjectChecklistView()
             case .planningAgenda:
                 PresentationsView()
             case .planningWork:
@@ -468,12 +470,10 @@ private struct RootDetailContent: View {
                 NavigationStack {
                     ProjectsRootView()
                 }
-            case .planningChecklist:
-                ClassSubjectChecklistView()
-            case .logs:
-                LogsMenuRootView()
             case .community:
                 CommunityMeetingsView()
+            case .logs:
+                LogsMenuRootView()
             case .settings:
                 SettingsView()
             }
@@ -518,10 +518,19 @@ private struct RootSidebar: View {
                 NavigationLink(value: RootView.NavigationItem.lessons) {
                     Label("Lessons", systemImage: "book")
                 }
+                NavigationLink(value: RootView.NavigationItem.community) {
+                    Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
+                }
+                NavigationLink(value: RootView.NavigationItem.logs) {
+                    Label("Logs", systemImage: "list.bullet")
+                }
             }
             
             // Section 3: Planning (Expanded)
             Section("Planning") {
+                NavigationLink(value: RootView.NavigationItem.planningChecklist) {
+                    Label("Checklist", systemImage: "list.clipboard")
+                }
                 NavigationLink(value: RootView.NavigationItem.planningAgenda) {
                     Label("Presentations", systemImage: "calendar")
                 }
@@ -531,19 +540,10 @@ private struct RootSidebar: View {
                 NavigationLink(value: RootView.NavigationItem.planningProjects) {
                     Label("Projects", systemImage: "folder")
                 }
-                NavigationLink(value: RootView.NavigationItem.planningChecklist) {
-                    Label("Checklist", systemImage: "list.clipboard")
-                }
             }
             
             // Section 4: System
             Section("System") {
-                NavigationLink(value: RootView.NavigationItem.logs) {
-                    Label("Logs", systemImage: "list.bullet")
-                }
-                NavigationLink(value: RootView.NavigationItem.community) {
-                    Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
-                }
                 NavigationLink(value: RootView.NavigationItem.settings) {
                     Label("Settings", systemImage: "gear")
                 }
@@ -584,10 +584,31 @@ private struct RootSidebar: View {
                     Label("Lessons", systemImage: "book")
                 }
                 .buttonStyle(.plain)
+                
+                Button {
+                    selection = .community
+                } label: {
+                    Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    selection = .logs
+                } label: {
+                    Label("Logs", systemImage: "list.bullet")
+                }
+                .buttonStyle(.plain)
             }
             
             // Section 3: Planning
             Section("Planning") {
+                Button {
+                    selection = .planningChecklist
+                } label: {
+                    Label("Checklist", systemImage: "list.clipboard")
+                }
+                .buttonStyle(.plain)
+                
                 Button {
                     selection = .planningAgenda
                 } label: {
@@ -608,31 +629,10 @@ private struct RootSidebar: View {
                     Label("Projects", systemImage: "folder")
                 }
                 .buttonStyle(.plain)
-                
-                Button {
-                    selection = .planningChecklist
-                } label: {
-                    Label("Checklist", systemImage: "list.clipboard")
-                }
-                .buttonStyle(.plain)
             }
             
             // Section 4: System
             Section("System") {
-                Button {
-                    selection = .logs
-                } label: {
-                    Label("Logs", systemImage: "list.bullet")
-                }
-                .buttonStyle(.plain)
-                
-                Button {
-                    selection = .community
-                } label: {
-                    Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
-                }
-                .buttonStyle(.plain)
-                
                 Button {
                     selection = .settings
                 } label: {
@@ -651,7 +651,7 @@ private struct RootCompactTabs: View {
 
     private var navItems: [RootView.NavigationItem] {
         // Order: Daily, Classroom, Planning, System
-        [.today, .attendance, .students, .lessons, .planningAgenda, .planningWork, .planningProjects, .planningChecklist, .logs, .community, .settings]
+        [.today, .attendance, .students, .lessons, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .logs, .settings]
     }
 
     var body: some View {

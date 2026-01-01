@@ -265,9 +265,13 @@ try FileManager.default.setAttributes([
 ## 📈 Future Enhancements
 
 ### 17. Automatic Backups
-- Scheduled backups (daily, weekly)
-- Automatic backup before major operations
-- Retention policy (keep last N backups)
+- **Status**: ✅ IMPLEMENTED (see `IMPROVEMENTS_APPLIED.md` #12)
+- Automatic backup on app quit (implemented)
+- Retention policy (implemented)
+- Settings UI for configuration (implemented)
+- **Future enhancements still possible:**
+  - Scheduled backups (daily, weekly)
+  - Automatic backup before major operations
 
 ### 18. Cloud Backup Integration
 - iCloud Drive integration
@@ -292,21 +296,21 @@ try FileManager.default.setAttributes([
 ## Priority Recommendations
 
 **High Priority (Do First):**
-1. Re-enable checksum validation (#1)
-2. Add backup verification after creation (#2)
-3. Improve error messages with entity details (#7)
-4. Fix repetitive fetchOne code (#5)
+1. Re-enable checksum validation (#1) - ✅ COMPLETE
+2. Add backup verification after creation (#2) - ✅ COMPLETE
+3. Improve error messages with entity details (#7) - ✅ COMPLETE
+4. Fix repetitive fetchOne code (#5) - ⚠️ Out of scope (SwiftData limitations)
 
 **Medium Priority:**
-5. Add compression (#6)
-6. Batch processing for large datasets (#3)
-7. Better progress reporting (#11)
-8. Centralized entity registry (#13)
+5. Add compression (#6) - ✅ COMPLETE
+6. Batch processing for large datasets (#3) - ✅ COMPLETE
+7. Better progress reporting (#11) - ✅ COMPLETE
+8. Centralized entity registry (#13) - ✅ COMPLETE
 
 **Low Priority (Nice to Have):**
 9. Incremental backups (#8)
 10. Backup metadata browsing (#10)
-11. Automatic backups (#17)
+11. Automatic backups (#17) - ✅ IMPLEMENTED (backup on quit, retention policy)
 
 ## Implementation Notes
 

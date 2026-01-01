@@ -28,6 +28,9 @@ struct MariasToolboxApp: App {
     @StateObject private var bootstrapper = AppBootstrapper.shared
     @StateObject private var restoreCoordinator = RestoreCoordinator()
     @StateObject private var appRouter = AppRouter.shared
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor private var appDelegate: AutoBackupAppDelegate
+    #endif
 
     static func resetPersistentStore() throws {
         let url = storeFileURL()
@@ -564,6 +567,9 @@ struct MariasToolboxApp: App {
             .task {
                 // Only bootstrap if the store loaded successfully
                 if MariasToolboxApp.initError == nil {
+                    #if os(macOS)
+                    appDelegate.setModelContainer(sharedModelContainer)
+                    #endif
                     await bootstrapper.bootstrap(modelContainer: sharedModelContainer)
                 }
             }

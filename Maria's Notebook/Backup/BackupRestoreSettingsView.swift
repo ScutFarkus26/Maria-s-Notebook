@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import Foundation
 
 struct BackupRestoreSettingsView: View {
     @Binding var encryptBackups: Bool
@@ -12,12 +13,17 @@ struct BackupRestoreSettingsView: View {
     @Binding var defaultFolderName: String
     
     let lastBackupDate: Date?
+    let estimatedBackupSize: Int64?
 
     let performExport: () -> Void
     let presentImporter: () -> Void
     let chooseDefaultFolder: () -> Void
     let openDefaultFolder: () -> Void
     let clearDefaultFolder: () -> Void
+
+    // Automatic backup settings
+    @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true
+    @AppStorage("AutoBackup.retentionCount") private var autoBackupRetention = 10
 
     var body: some View {
         SettingsGroup(title: "Backup & Restore", systemImage: "arrow.triangle.2.circlepath") {
@@ -29,6 +35,11 @@ struct BackupRestoreSettingsView: View {
                 
                 // MARK: - Backup Section
                 backupSection
+                
+                Divider()
+                
+                // MARK: - Automatic Backups Section
+                automaticBackupsSection
                 
                 Divider()
                 
@@ -104,9 +115,76 @@ struct BackupRestoreSettingsView: View {
             Toggle("Encrypt Backups", isOn: $encryptBackups)
                 .help("Encrypted backups require a password to restore")
             
+            if let estimatedSize = estimatedBackupSize {
+                HStack(spacing: 6) {
+                    Image(systemName: "doc.badge.ellipsis")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text("Estimated size: \(formatByteCount(estimatedSize))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
             Text("Backups include all your data except imported documents and file attachments.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+    
+    // MARK: - Helpers
+    private func formatByteCount(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        return formatter.string(fromByteCount: bytes)
+    }
+    
+    // MARK: - Automatic Backups Section
+    private var automaticBackupsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Automatic Backups")
+                .font(.headline)
+            
+            Toggle("Enable Automatic Backups", isOn: $autoBackupEnabled)
+                .help("Automatically create a backup when you quit the app")
+            
+            if autoBackupEnabled {
+                HStack {
+                    Text("Keep")
+                        .font(.subheadline)
+                    Stepper(value: $autoBackupRetention, in: 1...100, step: 1) {
+                        Text("\(autoBackupRetention)")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .frame(minWidth: 40, alignment: .trailing)
+                    }
+                    Text(autoBackupRetention == 1 ? "backup" : "backups")
+                        .font(.subheadline)
+                    Spacer()
+                }
+                .help("Number of automatic backups to keep (older backups are automatically deleted)")
+                
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                        .padding(.top, 2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Automatic backups are created when you quit the app and stored in:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("~/Documents/Backups/Auto/")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                }
+            } else {
+                Text("Automatic backups are disabled. You can still create manual backups above.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
     

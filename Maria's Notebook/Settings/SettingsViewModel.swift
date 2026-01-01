@@ -22,6 +22,7 @@ final class SettingsViewModel: ObservableObject {
     @Published var defaultFolderName: String = ""
     @Published var exportData: Data? = nil
     @Published var importError: String? = nil
+    @Published var estimatedBackupSize: Int64? = nil
 
     // Internal
     private let backupService = BackupService()
@@ -52,6 +53,13 @@ final class SettingsViewModel: ObservableObject {
 
     func loadDefaultFolderName() {
         defaultFolderName = BackupDestination.resolveDefaultFolder()?.lastPathComponent ?? ""
+    }
+    
+    /// Calculates estimated backup size asynchronously
+    func calculateEstimatedBackupSize(modelContext: ModelContext) {
+        Task { @MainActor in
+            estimatedBackupSize = backupService.estimateBackupSize(modelContext: modelContext)
+        }
     }
 
     private func uniquedURL(in folder: URL, base: String, ext: String) -> URL {

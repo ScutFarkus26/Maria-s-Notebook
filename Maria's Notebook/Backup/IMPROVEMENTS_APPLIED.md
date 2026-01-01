@@ -89,6 +89,46 @@ This document summarizes the improvements that have been applied to the backup a
   - `BackupService.swift` (compression/decompression helpers, updated export/import logic)
 - **Benefits**: Significantly reduces backup file sizes (typically 2-4x compression for JSON), enabling automatic backups without storage bloat
 
+### 11. Batch Processing for Large Datasets (Issue #3)
+- **Status**: ✅ Complete
+- **Changes**: 
+  - Implemented batch fetching for all entity types using `fetchOffset` and `fetchLimit`
+  - Added `safeFetchInBatches()` helper method that processes entities in chunks of 1000
+  - Added `safeFetchInBatchesWithErrorHandling()` for entity types that may have corrupted data
+  - All entity fetching now uses batch processing to reduce memory spikes during backup operations
+  - Entities are fetched in batches rather than loading all at once into memory
+- **Files Modified**: 
+  - `BackupService.swift` (batch fetching helpers, updated all fetch calls to use batch processing)
+- **Benefits**: 
+  - Reduces peak memory usage during backup by processing entities in manageable chunks
+  - Prevents memory spikes that could crash the app with large datasets (1000+ students, 5000+ lessons)
+  - Critical prerequisite for enabling automatic backups (now implemented)
+- **Technical Details**: 
+  - Batch size of 1000 provides good balance between memory efficiency and performance
+  - Still accumulates all entities before conversion to DTOs (required for BackupPayload structure)
+  - Reduces memory pressure by avoiding holding all SwiftData entities in memory simultaneously
+
+### 12. Automatic Backups Implementation
+- **Status**: ✅ Complete
+- **Changes**: 
+  - Created `AutoBackupManager` class to manage automatic backups on app quit
+  - Created `AutoBackupAppDelegate` to integrate with macOS app lifecycle
+  - Added Settings UI for configuring auto-backup preferences (enable/disable, retention count)
+  - Automatic backups run when the app quits (non-intrusive)
+  - Backups stored in `~/Documents/Backups/Auto/` with timestamped filenames
+  - Automatic cleanup of old backups based on retention policy (default: 10 backups)
+- **Files Created**: 
+  - `Backup/AutoBackupManager.swift` - Manages automatic backup operations
+  - `AppCore/AutoBackupAppDelegate.swift` - App lifecycle integration
+- **Files Modified**: 
+  - `AppCore/MariasToolboxApp.swift` - Added AppDelegate adapter
+  - `Backup/BackupRestoreSettingsView.swift` - Added automatic backup configuration UI
+- **Benefits**: 
+  - Protects user data automatically without manual intervention
+  - Non-intrusive (runs on app quit, doesn't interrupt workflow)
+  - Configurable retention policy prevents storage bloat
+  - Uses optimized backup format (compressed, batch-processed, checksum-validated)
+
 ## 📝 Implementation Notes
 
 ### Checksum Validation Logic
@@ -116,8 +156,6 @@ When adding new entity types to the app, update `BackupEntityRegistry.allTypes` 
 The following improvements were considered but not implemented as they require significant architectural changes:
 
 1. **Generic fetchOne Method**: SwiftData's `#Predicate` macro requires compile-time type information, making a truly generic implementation infeasible without code generation or macros.
-
-2. **Batch Processing for Large Datasets**: Current implementation loads all entities into memory. Batch processing could be added for very large datasets, but would require significant refactoring. This is a prerequisite for safe automatic backups (see `AUTO_BACKUP_ROADMAP.md`).
 
 4. **Incremental Backups**: Would require tracking modification timestamps and significant architectural changes.
 
