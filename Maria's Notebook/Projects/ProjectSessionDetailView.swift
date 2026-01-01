@@ -22,7 +22,7 @@ struct ProjectSessionDetailView: View {
     private var sessionContracts: [WorkContract] {
         let sid = session.id.uuidString
         return allWorkContracts.filter {
-            $0.sourceContextType == .projectSession && $0.sourceContextID == sid
+            ($0.sourceContextType == .projectSession || $0.sourceContextType == .bookClubSession) && $0.sourceContextID == sid
         }
     }
 

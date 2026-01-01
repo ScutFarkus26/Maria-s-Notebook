@@ -29,6 +29,17 @@ enum WorkStatus: String, Codable, CaseIterable {
 
 enum WorkSourceContextType: String, Codable {
     case projectSession
+    case bookClubSession // Legacy: for backward compatibility with old backups
+    
+    // When reading, treat old case as new case
+    var normalized: WorkSourceContextType {
+        switch self {
+        case .bookClubSession:
+            return .projectSession
+        case .projectSession:
+            return .projectSession
+        }
+    }
 }
 
 @Model

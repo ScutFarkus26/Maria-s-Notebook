@@ -177,7 +177,7 @@ struct ProjectsRootView: View {
         let sessionIDs = Set(sessions.map { $0.id.uuidString })
         let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
         let contracts = allContracts.filter {
-            $0.sourceContextType == .projectSession &&
+            ($0.sourceContextType == .projectSession || $0.sourceContextType == .bookClubSession) &&
             sessionIDs.contains($0.sourceContextID ?? "")
         }
         

@@ -218,6 +218,13 @@ public struct BackupPayload: Codable {
         case projectRoles
         case projectTemplateWeeks
         case projectWeekRoleAssignments
+        // Backward compatibility: old bookClub keys
+        case bookClubs
+        case bookClubAssignmentTemplates
+        case bookClubSessions
+        case bookClubRoles
+        case bookClubTemplateWeeks
+        case bookClubWeekRoleAssignments
         // Removed bookClubChoiceSets and bookClubChoiceItems
         case preferences
     }
@@ -298,12 +305,56 @@ public struct BackupPayload: Codable {
         // New arrays (backward compatible)
         self.attendance = try container.decodeIfPresent([AttendanceRecordDTO].self, forKey: .attendance) ?? []
         self.workCompletions = try container.decodeIfPresent([WorkCompletionRecordDTO].self, forKey: .workCompletions) ?? []
-        self.projects = try container.decodeIfPresent([ProjectDTO].self, forKey: .projects) ?? []
-        self.projectAssignmentTemplates = try container.decodeIfPresent([ProjectAssignmentTemplateDTO].self, forKey: .projectAssignmentTemplates) ?? []
-        self.projectSessions = try container.decodeIfPresent([ProjectSessionDTO].self, forKey: .projectSessions) ?? []
-        self.projectRoles = try container.decodeIfPresent([ProjectRoleDTO].self, forKey: .projectRoles) ?? []
-        self.projectTemplateWeeks = try container.decodeIfPresent([ProjectTemplateWeekDTO].self, forKey: .projectTemplateWeeks) ?? []
-        self.projectWeekRoleAssignments = try container.decodeIfPresent([ProjectWeekRoleAssignmentDTO].self, forKey: .projectWeekRoleAssignments) ?? []
+        
+        // Projects: Try new keys first, then fall back to old keys for backward compatibility
+        if let newProjects = try container.decodeIfPresent([ProjectDTO].self, forKey: .projects) {
+            self.projects = newProjects
+        } else if let oldBookClubs = try container.decodeIfPresent([BookClubDTO].self, forKey: .bookClubs) {
+            // Convert old BookClubDTO to new ProjectDTO
+            self.projects = oldBookClubs.map { BookClubDTO.toProjectDTO($0) }
+        } else {
+            self.projects = []
+        }
+        
+        if let newTemplates = try container.decodeIfPresent([ProjectAssignmentTemplateDTO].self, forKey: .projectAssignmentTemplates) {
+            self.projectAssignmentTemplates = newTemplates
+        } else if let oldTemplates = try container.decodeIfPresent([BookClubAssignmentTemplateDTO].self, forKey: .bookClubAssignmentTemplates) {
+            self.projectAssignmentTemplates = oldTemplates.map { BookClubAssignmentTemplateDTO.toProjectDTO($0) }
+        } else {
+            self.projectAssignmentTemplates = []
+        }
+        
+        if let newSessions = try container.decodeIfPresent([ProjectSessionDTO].self, forKey: .projectSessions) {
+            self.projectSessions = newSessions
+        } else if let oldSessions = try container.decodeIfPresent([BookClubSessionDTO].self, forKey: .bookClubSessions) {
+            self.projectSessions = oldSessions.map { BookClubSessionDTO.toProjectDTO($0) }
+        } else {
+            self.projectSessions = []
+        }
+        
+        if let newRoles = try container.decodeIfPresent([ProjectRoleDTO].self, forKey: .projectRoles) {
+            self.projectRoles = newRoles
+        } else if let oldRoles = try container.decodeIfPresent([BookClubRoleDTO].self, forKey: .bookClubRoles) {
+            self.projectRoles = oldRoles.map { BookClubRoleDTO.toProjectDTO($0) }
+        } else {
+            self.projectRoles = []
+        }
+        
+        if let newWeeks = try container.decodeIfPresent([ProjectTemplateWeekDTO].self, forKey: .projectTemplateWeeks) {
+            self.projectTemplateWeeks = newWeeks
+        } else if let oldWeeks = try container.decodeIfPresent([BookClubTemplateWeekDTO].self, forKey: .bookClubTemplateWeeks) {
+            self.projectTemplateWeeks = oldWeeks.map { BookClubTemplateWeekDTO.toProjectDTO($0) }
+        } else {
+            self.projectTemplateWeeks = []
+        }
+        
+        if let newAssignments = try container.decodeIfPresent([ProjectWeekRoleAssignmentDTO].self, forKey: .projectWeekRoleAssignments) {
+            self.projectWeekRoleAssignments = newAssignments
+        } else if let oldAssignments = try container.decodeIfPresent([BookClubWeekRoleAssignmentDTO].self, forKey: .bookClubWeekRoleAssignments) {
+            self.projectWeekRoleAssignments = oldAssignments.map { BookClubWeekRoleAssignmentDTO.toProjectDTO($0) }
+        } else {
+            self.projectWeekRoleAssignments = []
+        }
 
         self.preferences = try container.decode(PreferencesDTO.self, forKey: .preferences)
     }
@@ -548,6 +599,88 @@ public struct ProjectDTO: Codable {
     public var title: String
     public var bookTitle: String?
     public var memberStudentIDs: [String]
+}
+
+// MARK: - Legacy BookClub DTOs (for backward compatibility)
+private struct BookClubDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var title: String
+    var bookTitle: String?
+    var memberStudentIDs: [String]
+    
+    static func toProjectDTO(_ old: BookClubDTO) -> ProjectDTO {
+        ProjectDTO(id: old.id, createdAt: old.createdAt, title: old.title, bookTitle: old.bookTitle, memberStudentIDs: old.memberStudentIDs)
+    }
+}
+
+private struct BookClubAssignmentTemplateDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var bookClubID: UUID
+    var title: String
+    var instructions: String
+    var isShared: Bool
+    var defaultLinkedLessonID: String?
+    
+    static func toProjectDTO(_ old: BookClubAssignmentTemplateDTO) -> ProjectAssignmentTemplateDTO {
+        ProjectAssignmentTemplateDTO(id: old.id, createdAt: old.createdAt, projectID: old.bookClubID, title: old.title, instructions: old.instructions, isShared: old.isShared, defaultLinkedLessonID: old.defaultLinkedLessonID)
+    }
+}
+
+private struct BookClubSessionDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var bookClubID: UUID
+    var meetingDate: Date
+    var chapterOrPages: String?
+    var notes: String?
+    var agendaItemsJSON: String
+    var templateWeekID: UUID?
+    
+    static func toProjectDTO(_ old: BookClubSessionDTO) -> ProjectSessionDTO {
+        ProjectSessionDTO(id: old.id, createdAt: old.createdAt, projectID: old.bookClubID, meetingDate: old.meetingDate, chapterOrPages: old.chapterOrPages, notes: old.notes, agendaItemsJSON: old.agendaItemsJSON, templateWeekID: old.templateWeekID)
+    }
+}
+
+private struct BookClubRoleDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var bookClubID: UUID
+    var title: String
+    var summary: String
+    var instructions: String
+    
+    static func toProjectDTO(_ old: BookClubRoleDTO) -> ProjectRoleDTO {
+        ProjectRoleDTO(id: old.id, createdAt: old.createdAt, projectID: old.bookClubID, title: old.title, summary: old.summary, instructions: old.instructions)
+    }
+}
+
+private struct BookClubTemplateWeekDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var bookClubID: UUID
+    var weekIndex: Int
+    var readingRange: String
+    var agendaItemsJSON: String
+    var linkedLessonIDsJSON: String
+    var workInstructions: String
+    
+    static func toProjectDTO(_ old: BookClubTemplateWeekDTO) -> ProjectTemplateWeekDTO {
+        ProjectTemplateWeekDTO(id: old.id, createdAt: old.createdAt, projectID: old.bookClubID, weekIndex: old.weekIndex, readingRange: old.readingRange, agendaItemsJSON: old.agendaItemsJSON, linkedLessonIDsJSON: old.linkedLessonIDsJSON, workInstructions: old.workInstructions)
+    }
+}
+
+private struct BookClubWeekRoleAssignmentDTO: Codable {
+    var id: UUID
+    var createdAt: Date
+    var weekID: UUID
+    var studentID: String
+    var roleID: UUID
+    
+    static func toProjectDTO(_ old: BookClubWeekRoleAssignmentDTO) -> ProjectWeekRoleAssignmentDTO {
+        ProjectWeekRoleAssignmentDTO(id: old.id, createdAt: old.createdAt, weekID: old.weekID, studentID: old.studentID, roleID: old.roleID)
+    }
 }
 
 public struct ProjectAssignmentTemplateDTO: Codable {

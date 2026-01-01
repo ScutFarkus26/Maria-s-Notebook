@@ -505,13 +505,19 @@ public final class BackupService {
         let envelope = try decoder.decode(BackupEnvelope.self, from: data)
 
         // Resolve payload bytes
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .sortedKeys  // Must match export encoding for checksum validation
         let payloadBytes: Data
         
-        if let p = envelope.payload {
-            payloadBytes = try encoder.encode(p)
+        if envelope.payload != nil {
+            // For unencrypted backups, extract payload bytes directly from JSON to preserve exact encoding
+            if let extracted = try extractPayloadBytes(from: data) {
+                payloadBytes = extracted
+            } else {
+                // Fallback: re-encode if extraction fails
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                encoder.outputFormatting = .sortedKeys
+                payloadBytes = try encoder.encode(envelope.payload!)
+            }
         } else if let enc = envelope.encryptedPayload {
             // Decryption Logic
             guard let password = password, !password.isEmpty else {
@@ -678,13 +684,19 @@ public final class BackupService {
         let envelope = try decoder.decode(BackupEnvelope.self, from: data)
 
         // Resolve payload bytes
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .sortedKeys  // Must match export encoding for checksum validation
         let payloadBytes: Data
         
-        if let p = envelope.payload {
-            payloadBytes = try encoder.encode(p)
+        if envelope.payload != nil {
+            // For unencrypted backups, extract payload bytes directly from JSON to preserve exact encoding
+            if let extracted = try extractPayloadBytes(from: data) {
+                payloadBytes = extracted
+            } else {
+                // Fallback: re-encode if extraction fails
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                encoder.outputFormatting = .sortedKeys
+                payloadBytes = try encoder.encode(envelope.payload!)
+            }
         } else if let enc = envelope.encryptedPayload {
             // Decryption
             guard let password = password, !password.isEmpty else {
@@ -1205,6 +1217,115 @@ public final class BackupService {
     private func sha256Hex(_ data: Data) -> String {
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    /// Extracts payload bytes directly from envelope JSON string to preserve exact encoding
+    /// This avoids re-encoding differences that cause checksum mismatches
+    private func extractPayloadBytes(from envelopeData: Data) throws -> Data? {
+        guard let jsonString = String(data: envelopeData, encoding: .utf8) else {
+            return nil
+        }
+        
+        // Find the "payload" key in the JSON string and extract its value
+        // This preserves the exact bytes that were used to calculate the checksum
+        // Search for the key pattern that appears at the top level (after a comma or opening brace, followed by colon)
+        let payloadKeyPattern = "\"payload\""
+        var searchRange = jsonString.startIndex..<jsonString.endIndex
+        
+        // Find the payload key, ensuring it's a top-level key (preceded by { or , and whitespace)
+        while let keyRange = jsonString.range(of: payloadKeyPattern, range: searchRange) {
+            // Check if this is a top-level key by looking backwards
+            var checkIndex = keyRange.lowerBound
+            if checkIndex > jsonString.startIndex {
+                checkIndex = jsonString.index(before: checkIndex)
+                // Skip whitespace backwards
+                while checkIndex > jsonString.startIndex && jsonString[checkIndex].isWhitespace {
+                    checkIndex = jsonString.index(before: checkIndex)
+                }
+                // Should be preceded by { or ,
+                if checkIndex >= jsonString.startIndex && (jsonString[checkIndex] == "{" || jsonString[checkIndex] == ",") {
+                    // Found the payload key at top level
+                    return extractPayloadValue(from: jsonString, startingAt: keyRange.upperBound)
+                }
+            } else if checkIndex == jsonString.startIndex {
+                // Key is at the very start (after opening brace), this is valid
+                return extractPayloadValue(from: jsonString, startingAt: keyRange.upperBound)
+            }
+            
+            // Continue searching after this occurrence
+            searchRange = keyRange.upperBound..<jsonString.endIndex
+        }
+        
+        return nil
+    }
+    
+    /// Extracts the JSON value starting from after the colon following a key
+    private func extractPayloadValue(from jsonString: String, startingAt: String.Index) -> Data? {
+        var searchStart = startingAt
+        
+        // Skip whitespace
+        while searchStart < jsonString.endIndex && jsonString[searchStart].isWhitespace {
+            searchStart = jsonString.index(after: searchStart)
+        }
+        guard searchStart < jsonString.endIndex && jsonString[searchStart] == ":" else {
+            return nil
+        }
+        searchStart = jsonString.index(after: searchStart)
+        
+        // Skip whitespace after colon
+        while searchStart < jsonString.endIndex && jsonString[searchStart].isWhitespace {
+            searchStart = jsonString.index(after: searchStart)
+        }
+        
+        // Extract the JSON value (object) - find matching braces
+        guard searchStart < jsonString.endIndex && jsonString[searchStart] == "{" else {
+            return nil
+        }
+        
+        var braceCount = 0
+        var inString = false
+        var escapeNext = false
+        var valueStart = searchStart
+        var valueEnd = searchStart
+        
+        for i in jsonString[searchStart...].indices {
+            let char = jsonString[i]
+            
+            if escapeNext {
+                escapeNext = false
+                continue
+            }
+            
+            if char == "\\" {
+                escapeNext = true
+                continue
+            }
+            
+            if char == "\"" {
+                inString.toggle()
+                continue
+            }
+            
+            if !inString {
+                if char == "{" {
+                    braceCount += 1
+                } else if char == "}" {
+                    braceCount -= 1
+                    if braceCount == 0 {
+                        valueEnd = jsonString.index(after: i)
+                        break
+                    }
+                }
+            }
+        }
+        
+        guard braceCount == 0 else {
+            return nil
+        }
+        
+        // Extract the payload JSON substring and convert to Data
+        let payloadJsonString = String(jsonString[valueStart..<valueEnd])
+        return payloadJsonString.data(using: .utf8)
     }
 
     /// Derives a symmetric encryption key from a password and salt using HKDF.
