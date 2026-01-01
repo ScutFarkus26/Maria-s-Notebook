@@ -25,6 +25,10 @@ final class PresentationsViewModel: ObservableObject {
     private var cachedContracts: [WorkContract] = []
     private var cachedStudentLessons: [StudentLesson] = []
     private var cachedStudents: [Student] = []
+    private var lastStudentLessonsIDs: Set<UUID> = []
+    private var lastLessonsIDs: Set<UUID> = []
+    private var lastContractsIDs: Set<UUID> = []
+    private var lastStudentsIDs: Set<UUID> = []
     
     // MARK: - Initialization
     init() {
@@ -33,14 +37,11 @@ final class PresentationsViewModel: ObservableObject {
     
     // MARK: - Public API
     
-    /// Update the view model with fresh data. Call this when data changes.
+    /// Fetch data and update the view model. This replaces passing arrays from the view.
+    /// The ViewModel now does targeted fetching internally instead of loading all data via @Query.
     func update(
         modelContext: ModelContext,
         calendar: Calendar,
-        studentLessons: [StudentLesson],
-        lessons: [Lesson],
-        students: [Student],
-        contracts: [WorkContract],
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow,
         showTestStudents: Bool,
@@ -48,19 +49,68 @@ final class PresentationsViewModel: ObservableObject {
     ) {
         self.modelContext = modelContext
         self.calendar = calendar
-        // Only recalculate if data actually changed
-        let dataChanged = cachedStudentLessons.count != studentLessons.count ||
-                         cachedLessons.count != lessons.count ||
-                         cachedContracts.count != contracts.count ||
-                         cachedStudents.count != students.count
+        
+        // Fetch data using targeted queries (only what we need)
+        // 1. Fetch all StudentLessons (needed for blocking logic calculations)
+        // Note: We need all to calculate days since last lesson for all students
+        let studentLessons: [StudentLesson]
+        do {
+            studentLessons = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+        } catch {
+            studentLessons = []
+        }
+        
+        // 2. Fetch all Lessons (needed for grouping and blocking logic)
+        let lessons: [Lesson]
+        do {
+            lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+        } catch {
+            lessons = []
+        }
+        
+        // 3. Fetch all Students (needed for filtering and calculations)
+        let students: [Student]
+        do {
+            students = try modelContext.fetch(FetchDescriptor<Student>())
+        } catch {
+            students = []
+        }
+        
+        // 4. Fetch only active/review contracts (already optimized)
+        let contracts: [WorkContract]
+        do {
+            let activeDesc = FetchDescriptor<WorkContract>(
+                predicate: #Predicate { $0.statusRaw == "active" }
+            )
+            let reviewDesc = FetchDescriptor<WorkContract>(
+                predicate: #Predicate { $0.statusRaw == "review" }
+            )
+            let active = try modelContext.fetch(activeDesc)
+            let review = try modelContext.fetch(reviewDesc)
+            contracts = active + review
+        } catch {
+            contracts = []
+        }
+        
+        // Check if data actually changed
+        let studentLessonsIDs = Set(studentLessons.map { $0.id })
+        let lessonsIDs = Set(lessons.map { $0.id })
+        let contractsIDs = Set(contracts.map { $0.id })
+        let studentsIDs = Set(students.map { $0.id })
+        
+        let dataChanged = studentLessonsIDs != lastStudentLessonsIDs ||
+                         lessonsIDs != lastLessonsIDs ||
+                         contractsIDs != lastContractsIDs ||
+                         studentsIDs != lastStudentsIDs
         
         if !dataChanged && lastUpdateDate != nil {
-            // Check if contracts changed (most likely to change)
-            let contractsChanged = Set(cachedContracts.map { $0.id }) != Set(contracts.map { $0.id })
-            if !contractsChanged {
-                return // No need to recalculate
-            }
+            return // No need to recalculate
         }
+        
+        lastStudentLessonsIDs = studentLessonsIDs
+        lastLessonsIDs = lessonsIDs
+        lastContractsIDs = contractsIDs
+        lastStudentsIDs = studentsIDs
         
         cachedStudentLessons = studentLessons
         cachedLessons = lessons

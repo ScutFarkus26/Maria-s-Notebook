@@ -82,8 +82,9 @@ private func deleteClub(_ club: BookClub) {
 **Solution for PresentationsView:**
 ```swift
 // Add predicates to limit data loaded
+// Note: isGiven is a computed property, so we must use stored properties (isPresented, givenAt) in predicates
 @Query(
-    filter: #Predicate<StudentLesson> { $0.scheduledFor == nil && $0.isGiven == false },
+    filter: #Predicate<StudentLesson> { $0.scheduledFor == nil && $0.isPresented == false && $0.givenAt == nil },
     sort: [SortDescriptor(\.createdAt, order: .forward)]
 ) private var unscheduledLessons: [StudentLesson]
 

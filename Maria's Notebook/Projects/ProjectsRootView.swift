@@ -8,18 +8,8 @@ struct ProjectsRootView: View {
     // MARK: - Data
     @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)]) private var clubs: [Project]
     
-    // Queries needed for cascading deletes
-    @Query private var allWeeks: [ProjectTemplateWeek]
-    @Query private var allRoleAssignments: [ProjectWeekRoleAssignment]
-    @Query private var allRoles: [ProjectRole]
-    @Query private var allSessions: [ProjectSession]
-    @Query private var allTemplates: [ProjectAssignmentTemplate]
-    
-    // NEW: Query work contracts to delete orphaned items
-    @Query private var allWorkContracts: [WorkContract]
-    
-    // Legacy queries (optional, kept for safety)
-    // Removed legacy queries per instructions
+    // OPTIMIZATION: Removed unfiltered queries - deletion logic uses targeted FetchDescriptor
+    // when needed, avoiding loading all records into memory upfront
 
     // MARK: - State
     @SceneStorage("Projects.selectedClubID") private var selectedClubIDString: String = ""

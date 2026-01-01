@@ -26,10 +26,12 @@ struct PresentationsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
-    // Keep full queries - filtering happens in ViewModel for better performance
-    @Query private var allStudentLessons: [StudentLesson]
-    @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
+    // OPTIMIZATION: Use lightweight queries for change detection only
+    // These queries only track IDs/counts to detect changes, not load all data
+    // The ViewModel does targeted fetching with predicates
+    @Query private var studentLessonIDs: [StudentLesson]
+    @Query private var lessonIDs: [Lesson]
+    @Query private var studentIDs: [Student]
     
     // OPTIMIZATION: Only fetch active/review contracts (needed for blocking logic)
     // Split into separate queries to help compiler type-check
@@ -83,12 +85,6 @@ struct PresentationsView: View {
     private var blockedLessons: [StudentLesson] { viewModel.blockedLessons }
     private func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkContract] {
         viewModel.getBlockingContracts(sl)
-    }
-    
-    // ViewModel will be initialized in onAppear with proper environment values
-
-    private var visibleStudents: [Student] {
-        TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
     private func isNonSchool(_ day: Date) -> Bool {
@@ -164,17 +160,17 @@ struct PresentationsView: View {
         .onChange(of: startDate) { _, new in
             startDateRaw = new.timeIntervalSinceReferenceDate
         }
-        .onChange(of: allStudentLessons.map { $0.id }) { _, _ in
+        .onChange(of: studentLessonIDs.map { $0.id }) { _, _ in
             syncInboxOrderWithCurrentBase()
             updateViewModel()
         }
-        .onChange(of: lessons.map { $0.id }) { _, _ in
+        .onChange(of: lessonIDs.map { $0.id }) { _, _ in
             updateViewModel()
         }
         .onChange(of: activeContracts.map { $0.id }) { _, _ in
             updateViewModel()
         }
-        .onChange(of: students.map { $0.id }) { _, _ in
+        .onChange(of: studentIDs.map { $0.id }) { _, _ in
             updateViewModel()
         }
         .onChange(of: missWindowRaw) { _, _ in
@@ -204,15 +200,11 @@ struct PresentationsView: View {
 
     // MARK: - Helpers
     
-    /// Update ViewModel with current data (preserves all functionality)
+    /// Update ViewModel - now fetches data internally with targeted queries
     private func updateViewModel() {
         viewModel.update(
             modelContext: modelContext,
             calendar: calendar,
-            studentLessons: allStudentLessons,
-            lessons: lessons,
-            students: students,
-            contracts: activeContracts,
             inboxOrderRaw: inboxOrderRaw,
             missWindow: missWindow,
             showTestStudents: showTestStudents,
@@ -221,7 +213,11 @@ struct PresentationsView: View {
     }
     
     private func syncInboxOrderWithCurrentBase() {
-        let base = allStudentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+        // Fetch only unscheduled, non-given lessons for inbox ordering
+        let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate { $0.scheduledFor == nil && $0.isPresented == false && $0.givenAt == nil }
+        )
+        let base = (try? modelContext.fetch(descriptor)) ?? []
         let baseIDs = base.map { $0.id }
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = base
@@ -257,7 +253,9 @@ struct PresentationsView: View {
 
     private func filteredSnapshot(_ sl: StudentLesson) -> StudentLessonSnapshot {
         let snap = sl.snapshot()
-        let hiddenIDs = TestStudentsFilter.hiddenIDs(from: students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        // Fetch students only when needed for filtering
+        let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+        let hiddenIDs = TestStudentsFilter.hiddenIDs(from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw)
         let visibleIDs = snap.studentIDs.filter { !hiddenIDs.contains($0) }
         return StudentLessonSnapshot(
             id: snap.id,

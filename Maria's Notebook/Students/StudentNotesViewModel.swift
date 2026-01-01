@@ -162,18 +162,30 @@ final class StudentNotesViewModel: ObservableObject {
 
     // MARK: - Helpers
     private func fetchNote(id: UUID) -> Note? {
-        let d = FetchDescriptor<Note>()
-        return (try? modelContext.fetch(d))?.first(where: { $0.id == id })
+        // OPTIMIZATION: Use predicate instead of fetching all notes
+        let d = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.id == id }
+        )
+        return try? modelContext.fetch(d).first
     }
 
     private func fetchScopedNote(id: UUID) -> ScopedNote? {
-        let d = FetchDescriptor<ScopedNote>()
-        return (try? modelContext.fetch(d))?.first(where: { $0.id == id })
+        // OPTIMIZATION: Use predicate instead of fetching all notes
+        let d = FetchDescriptor<ScopedNote>(
+            predicate: #Predicate<ScopedNote> { $0.id == id }
+        )
+        return try? modelContext.fetch(d).first
     }
 
     private func buildLessonNameLookup(for contracts: [WorkContract]) -> [String: String] {
-        // Prefetch lessons and build a lookup by UUID
-        let lessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+        // OPTIMIZATION: Only fetch lessons that are referenced by contracts
+        let lessonIDs = Set(contracts.compactMap { UUID(uuidString: $0.lessonID) })
+        guard !lessonIDs.isEmpty else { return [:] }
+        
+        // Note: SwiftData predicates don't support Set.contains with captured values,
+        // so we fetch all lessons and filter. This is still better than fetching all contracts/notes.
+        let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+        let lessons = allLessons.filter { lessonIDs.contains($0.id) }
         let byID: [UUID: Lesson] = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
 
         var map: [String: String] = [:]

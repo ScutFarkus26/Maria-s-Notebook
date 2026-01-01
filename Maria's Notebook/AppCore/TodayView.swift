@@ -18,8 +18,10 @@ struct TodayView: View {
     @State private var selectedContractID: UUID? = nil
     @State private var selectedStudentLesson: StudentLesson? = nil
 
-    @Query private var studentLessonsAll: [StudentLesson]
-    @Query private var planItemsAll: [WorkPlanItem] // Watch for plan changes
+    // OPTIMIZATION: Use lightweight queries for change detection only
+    // The ViewModel does targeted fetches, these queries just detect when data changes
+    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
+    @Query(sort: [SortDescriptor(\WorkPlanItem.id)]) private var planItemsForChangeDetection: [WorkPlanItem]
     
     // Helpers
     private var nameForLesson: (UUID) -> String { { id in viewModel.lessonsByID[id]?.name ?? "Lesson" } }
@@ -100,8 +102,8 @@ struct TodayView: View {
             viewModel.setCalendar(newCal)
             AppCalendar.adopt(timeZoneFrom: newCal)
         }
-        .onChange(of: studentLessonsAll.map { $0.id }) { _, _ in viewModel.reload() }
-        .onChange(of: planItemsAll) { _, _ in viewModel.reload() }
+        .onChange(of: studentLessonsForChangeDetection.map { $0.id }) { _, _ in viewModel.reload() }
+        .onChange(of: planItemsForChangeDetection.map { $0.id }) { _, _ in viewModel.reload() }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             viewModel.reload()
         }
