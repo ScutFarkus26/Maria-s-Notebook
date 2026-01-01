@@ -1,6 +1,6 @@
 //
 //  StudentNoteRowView.swift
-//  Maria's Toolbox
+//  Maria's Notebook
 //
 //  Created by Danny De Berry on 12/27/25.
 //

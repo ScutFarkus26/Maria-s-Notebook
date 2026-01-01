@@ -47,7 +47,7 @@ final class SettingsViewModel: ObservableObject {
 
     func defaultBackupFilename() -> String {
         let formatter = Self.backupFilenameFormatter
-        return "MariasToolbox_DataBackup_\(formatter.string(from: Date()))"
+        return "MariasNotebook_DataBackup_\(formatter.string(from: Date()))"
     }
 
     func loadDefaultFolderName() {

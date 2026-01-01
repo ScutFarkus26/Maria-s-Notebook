@@ -1,6 +1,6 @@
 //
 //  AppRouter.swift
-//  Maria's Tool Box
+//  Maria's Notebook
 //
 //  Navigation coordinator for SwiftUI navigation patterns
 //  Replaces NotificationCenter-based navigation with type-safe routing

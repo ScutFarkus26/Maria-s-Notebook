@@ -42,9 +42,6 @@ struct StudentDetailView: View {
 
     @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
 
-    // MARK: - Queries (kept for compatibility, but data loading moved to ViewModel)
-    @Query private var studentsAll: [Student]
-
     private var selectedChecklistSubject: String? {
         let s = selectedChecklistSubjectRaw.trimmingCharacters(in: .whitespacesAndNewlines)
         return s.isEmpty ? nil : s

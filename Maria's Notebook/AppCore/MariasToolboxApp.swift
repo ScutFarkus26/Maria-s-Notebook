@@ -1,6 +1,6 @@
 //
 //  MariasToolboxApp.swift
-//  Maria's Toolbox
+//  Maria's Notebook
 //
 //  Created by Danny De Berry on 11/26/25.
 //
@@ -37,7 +37,7 @@ struct MariasToolboxApp: App {
     static func storeFileURL() -> URL {
         let fm = FileManager.default
         let appSupport = try! fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let bundleID = Bundle.main.bundleIdentifier ?? "MariasToolbox"
+        let bundleID = Bundle.main.bundleIdentifier ?? "MariasNotebook"
         let containerDir = appSupport.appendingPathComponent(bundleID, isDirectory: true)
         try? fm.createDirectory(at: containerDir, withIntermediateDirectories: true)
         // IMPORTANT: return a file URL for the SwiftData store package. Do not pre-create it.
@@ -66,10 +66,10 @@ struct MariasToolboxApp: App {
                         let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                         return try ModelContainer(for: schema, configurations: config)
                     } else {
-                        throw NSError(domain: "MariasToolbox", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
+                        throw NSError(domain: "MariasNotebook", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
                     }
                 } else {
-                    throw NSError(domain: "MariasToolbox", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
+                    throw NSError(domain: "MariasNotebook", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
                 }
                 #else
                 if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
@@ -77,14 +77,18 @@ struct MariasToolboxApp: App {
                         let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                         return try ModelContainer(for: schema, configurations: config)
                     } else {
-                        throw NSError(domain: "MariasToolbox", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
+                        throw NSError(domain: "MariasNotebook", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
                     }
                 } else {
-                    throw NSError(domain: "MariasToolbox", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
+                    throw NSError(domain: "MariasNotebook", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
                 }
                 #endif
             } else {
-                let config = ModelConfiguration(url: url ?? MariasToolboxApp.storeFileURL())
+                // Explicitly disable CloudKit for SwiftData (we use CloudDocuments for file storage instead)
+                let config = ModelConfiguration(
+                    url: url ?? MariasToolboxApp.storeFileURL(),
+                    cloudKitDatabase: .none
+                )
                 return try ModelContainer(for: schema, configurations: config)
             }
         }

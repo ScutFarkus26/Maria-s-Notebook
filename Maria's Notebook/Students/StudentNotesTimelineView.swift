@@ -1,8 +1,8 @@
 //
 //  StudentNotesTimelineView.swift
-//  Maria's Toolbox
+//  Maria's Notebook
 //
-//  Created by Maria's Toolbox on 12/27/25.
+//  Created by Danny De Berry on 12/27/25.
 //
 
 import SwiftUI

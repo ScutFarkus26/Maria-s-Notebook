@@ -1,5 +1,5 @@
 // BackupManager.swift (Deprecated)
-// Maria's Toolbox
+// Maria's Notebook
 //
 // This file has been replaced by BackupService (data-only backup/restore).
 // It remains in the project as a compile-time guard to catch any lingering references.

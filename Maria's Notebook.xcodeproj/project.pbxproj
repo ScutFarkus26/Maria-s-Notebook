@@ -7,26 +7,26 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5141E7F52ED77B0F004F918F /* Maria's Notebook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Notebook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		5141E8022ED77B10004F918F /* Exceptions for "Maria's Tool Box" folder in "Maria's Toolbox" target */ = {
+		5141E8022ED77B10004F918F /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 5141E7F42ED77B0F004F918F /* Maria's Toolbox */;
+			target = 5141E7F42ED77B0F004F918F /* Maria's Notebook */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		5141E7F72ED77B0F004F918F /* Maria's Tool Box */ = {
+		5141E7F72ED77B0F004F918F /* Maria's Notebook */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				5141E8022ED77B10004F918F /* Exceptions for "Maria's Tool Box" folder in "Maria's Toolbox" target */,
+				5141E8022ED77B10004F918F /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook" target */,
 			);
-			path = "Maria's Tool Box";
+			path = "Maria's Notebook";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -45,7 +45,7 @@
 		5141E7EC2ED77B0F004F918F = {
 			isa = PBXGroup;
 			children = (
-				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
+				5141E7F72ED77B0F004F918F /* Maria's Notebook */,
 				5141E7F62ED77B0F004F918F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -53,7 +53,7 @@
 		5141E7F62ED77B0F004F918F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */,
+				5141E7F52ED77B0F004F918F /* Maria's Notebook.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,9 +61,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		5141E7F42ED77B0F004F918F /* Maria's Toolbox */ = {
+		5141E7F42ED77B0F004F918F /* Maria's Notebook */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Toolbox" */;
+			buildConfigurationList = 5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Notebook" */;
 			buildPhases = (
 				5141E7F12ED77B0F004F918F /* Sources */,
 				5141E7F22ED77B0F004F918F /* Frameworks */,
@@ -74,13 +74,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				5141E7F72ED77B0F004F918F /* Maria's Tool Box */,
+				5141E7F72ED77B0F004F918F /* Maria's Notebook */,
 			);
-			name = "Maria's Toolbox";
+			name = "Maria's Notebook";
 			packageProductDependencies = (
 			);
-			productName = "Maria's Tool Box";
-			productReference = 5141E7F52ED77B0F004F918F /* Maria's Toolbox.app */;
+			productName = "Maria's Notebook";
+			productReference = 5141E7F52ED77B0F004F918F /* Maria's Notebook.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -98,7 +98,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 5141E7F02ED77B0F004F918F /* Build configuration list for PBXProject "Maria's Toolbox" */;
+			buildConfigurationList = 5141E7F02ED77B0F004F918F /* Build configuration list for PBXProject "Maria's Notebook" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -112,7 +112,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				5141E7F42ED77B0F004F918F /* Maria's Toolbox */,
+				5141E7F42ED77B0F004F918F /* Maria's Notebook */,
 			);
 		};
 /* End PBXProject section */
@@ -145,7 +145,7 @@
 				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = "Maria's Tool Box/Maria's Tool Box.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "Maria's Notebook/Maria_s_Notebook.entitlements";
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
@@ -169,8 +169,8 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Maria's Tool Box/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Toolbox";
+				INFOPLIST_FILE = "Maria's Notebook/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Notebook";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -187,7 +187,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = "Danny-De-Berry.Maria-s-Tool-Box";
+				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -210,7 +210,7 @@
 				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = "Maria's Tool Box/Maria's Tool Box.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "Maria's Notebook/Maria_s_Notebook.entitlements";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=xros*]" = "Apple Development";
@@ -233,8 +233,8 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Maria's Tool Box/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Toolbox";
+				INFOPLIST_FILE = "Maria's Notebook/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Notebook";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -251,7 +251,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = "Danny-De-Berry.Maria-s-Tool-Box";
+				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -390,7 +390,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		5141E7F02ED77B0F004F918F /* Build configuration list for PBXProject "Maria's Toolbox" */ = {
+		5141E7F02ED77B0F004F918F /* Build configuration list for PBXProject "Maria's Notebook" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5141E8062ED77B10004F918F /* Debug */,
@@ -399,7 +399,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Toolbox" */ = {
+		5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Notebook" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5141E8042ED77B10004F918F /* Debug */,
