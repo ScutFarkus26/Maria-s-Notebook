@@ -9,6 +9,7 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
     @ViewBuilder let workloadContent: WorkloadContent
     
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) private var calendar
     @Query private var students: [Student]
     @Query private var attendanceRecords: [AttendanceRecord]
@@ -251,13 +252,20 @@ struct StudentsView<AttendanceContent: View, WorkloadContent: View>: View {
             })
             .frame(minWidth: 620, minHeight: 520)
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewStudentRequested"))) { _ in
-            mode = .roster
-            showingAddStudent = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ImportStudentsRequested"))) { _ in
-            mode = .roster
-            showingStudentCSVImporter = true
+        .onChange(of: appRouter.navigationDestination) { _, destination in
+            if case .newStudent = destination {
+                mode = .roster
+                showingAddStudent = true
+                appRouter.clearNavigation()
+            } else if case .importStudents = destination {
+                mode = .roster
+                showingStudentCSVImporter = true
+                appRouter.clearNavigation()
+            } else if case .openStudentDetail(let studentID) = destination {
+                mode = .roster
+                selectedStudentID = studentID
+                appRouter.clearNavigation()
+            }
         }
         .onAppear { ensureInitialManualOrderIfNeeded() }
         .onChange(of: students.map { $0.id }) { _, _ in

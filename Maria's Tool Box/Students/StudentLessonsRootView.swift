@@ -15,6 +15,7 @@ private enum CompletionFilter: String {
 }
 
 struct StudentLessonsRootView: View {
+    @Environment(\.appRouter) private var appRouter
     @Query private var studentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
@@ -201,9 +202,12 @@ struct StudentLessonsRootView: View {
                 EmptyView()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("QuickActionsRequested"))) { _ in
-            // If there is at least one student lesson, open quick actions for the first upcoming
-            if let first = studentLessons.first { quickActionsLessonID = first.id }
+        .onChange(of: appRouter.navigationDestination) { _, destination in
+            if case .quickActions = destination {
+                // If there is at least one student lesson, open quick actions for the first upcoming
+                if let first = studentLessons.first { quickActionsLessonID = first.id }
+                appRouter.clearNavigation()
+            }
         }
     }
 

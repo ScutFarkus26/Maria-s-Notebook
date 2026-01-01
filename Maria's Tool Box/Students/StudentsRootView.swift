@@ -12,6 +12,7 @@ enum StudentMode: String, CaseIterable, Identifiable {
 
 struct StudentsRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @Query private var students: [Student]
     @Query(sort: \StudentLesson.createdAt, order: .forward) private var studentLessons: [StudentLesson]
     @Query(sort: \Lesson.name, order: .forward) private var lessons: [Lesson]
@@ -58,8 +59,11 @@ struct StudentsRootView: View {
             #endif
         }
         // Allow external triggers to jump straight to Attendance mode
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenAttendanceRequested"))) { _ in
-            modeRaw = StudentMode.attendance.rawValue
+        .onChange(of: appRouter.navigationDestination) { _, destination in
+            if case .openAttendance = destination {
+                modeRaw = StudentMode.attendance.rawValue
+                appRouter.clearNavigation()
+            }
         }
     }
 

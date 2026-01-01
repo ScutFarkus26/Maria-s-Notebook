@@ -11,6 +11,6 @@ enum StudentLessonDetailUtilities {
     }
 
     static func notifyInboxRefresh() {
-        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+        AppRouter.shared.refreshPlanningInbox()
     }
 }

@@ -20,6 +20,7 @@ public struct InboxSheetView: View {
   let onUpdateOrder: ((String) -> Void)?
 
   @Environment(\.calendar) private var calendar
+  @Environment(\.appRouter) private var appRouter
   @Environment(\.modelContext) private var modelContext
   @State private var selected: Set<UUID> = []
 
@@ -136,7 +137,7 @@ public struct InboxSheetView: View {
 
     // Clear selection and notify any listeners to refresh
     selected.removeAll()
-    NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+    appRouter.refreshPlanningInbox()
   }
 
   public var body: some View {

@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct LessonsRootView: View {
     @StateObject private var vm = LessonsRootViewModel()
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
@@ -106,11 +107,17 @@ struct LessonsRootView: View {
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
         }
         let withNotifications = withAlert
-            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NewLessonRequested"))) { _ in
-                presentedSheet = .addLesson(defaultSubject: filterState.selectedSubject, defaultGroup: filterState.selectedGroup)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ImportLessonsRequested"))) { _ in
-                showingLessonCSVImporter = true
+            .onChange(of: appRouter.navigationDestination) { _, destination in
+                if case .newLesson(let defaultSubject, let defaultGroup) = destination {
+                    presentedSheet = .addLesson(
+                        defaultSubject: defaultSubject ?? filterState.selectedSubject,
+                        defaultGroup: defaultGroup ?? filterState.selectedGroup
+                    )
+                    appRouter.clearNavigation()
+                } else if case .importLessons = destination {
+                    showingLessonCSVImporter = true
+                    appRouter.clearNavigation()
+                }
             }
             .onAppear {
                 // Restore persisted filters into the observable state

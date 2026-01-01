@@ -687,7 +687,7 @@ public final class BackupService {
         // Replace mode: clear existing data first
         if mode == .replace {
             progress(0.40, "Clearing existing data…")
-            NotificationCenter.default.post(name: .AppDataWillBeReplaced, object: nil)
+            AppRouter.shared.signalAppDataWillBeReplaced()
             try deleteAll(modelContext: modelContext)
         }
 
@@ -993,7 +993,7 @@ public final class BackupService {
         // Apply preferences
         applyPreferencesDTO(payload.preferences)
 
-        NotificationCenter.default.post(name: .AppDataDidRestore, object: nil)
+        AppRouter.shared.signalAppDataDidRestore()
 
         let counts = envelope.manifest.entityCounts
         progress(1.0, "Done")

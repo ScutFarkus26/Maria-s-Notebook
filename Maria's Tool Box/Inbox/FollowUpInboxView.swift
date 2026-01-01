@@ -3,6 +3,7 @@ import SwiftData
 
 struct FollowUpInboxView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
 
     // Step 2 — Local rule constants (no settings yet)
     private let lessonFollowUpOverdueDays: Int = 7
@@ -208,7 +209,7 @@ struct FollowUpInboxView: View {
             if let w = note.work {
                 selectedWork = WorkToken(id: w.id)
             } else if let s = note.student {
-                NotificationCenter.default.post(name: Notification.Name("OpenStudentDetailRequested"), object: s.id)
+                appRouter.requestOpenStudentDetail(s.id)
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {

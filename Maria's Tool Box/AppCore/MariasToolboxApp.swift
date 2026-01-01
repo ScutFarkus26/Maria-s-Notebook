@@ -24,6 +24,7 @@ struct MariasToolboxApp: App {
     @StateObject private var saveCoordinator = SaveCoordinator()
     @StateObject private var bootstrapper = AppBootstrapper.shared
     @StateObject private var restoreCoordinator = RestoreCoordinator()
+    @StateObject private var appRouter = AppRouter.shared
 
     static func resetPersistentStore() throws {
         let url = storeFileURL()
@@ -196,6 +197,7 @@ struct MariasToolboxApp: App {
                             } else {
                                 RootView()
                                     .environment(\.calendar, AppCalendar.shared)
+                                    .environment(\.appRouter, appRouter)
                                     .environmentObject(saveCoordinator)
                                     .environmentObject(restoreCoordinator)
                             }
@@ -228,30 +230,30 @@ struct MariasToolboxApp: App {
         .modelContainer(sharedModelContainer)
         .commands {
             CommandMenu("Lessons") {
-                Button("New Lesson") { NotificationCenter.default.post(name: Notification.Name("NewLessonRequested"), object: nil) }
+                Button("New Lesson") { appRouter.requestNewLesson() }
                     .keyboardShortcut("n", modifiers: [.command])
-                Button("Import Lessons…") { NotificationCenter.default.post(name: Notification.Name("ImportLessonsRequested"), object: nil) }
+                Button("Import Lessons…") { appRouter.requestImportLessons() }
                     .keyboardShortcut("i", modifiers: [.command])
             }
             CommandMenu("Students") {
-                Button("New Student") { NotificationCenter.default.post(name: Notification.Name("NewStudentRequested"), object: nil) }
+                Button("New Student") { appRouter.requestNewStudent() }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
-                Button("Import Students…") { NotificationCenter.default.post(name: Notification.Name("ImportStudentsRequested"), object: nil) }
+                Button("Import Students…") { appRouter.requestImportStudents() }
                     .keyboardShortcut("i", modifiers: [.command, .shift])
             }
             CommandMenu("Backup") {
-                Button("Create Backup") { NotificationCenter.default.post(name: Notification.Name("CreateBackupRequested"), object: nil) }
+                Button("Create Backup") { appRouter.requestCreateBackup() }
                     .keyboardShortcut("b", modifiers: [.command])
-                Button("Restore…") { NotificationCenter.default.post(name: Notification.Name("RestoreBackupRequested"), object: nil) }
+                Button("Restore…") { appRouter.requestRestoreBackup() }
                     .keyboardShortcut("b", modifiers: [.command, .shift])
             }
             CommandMenu("Work") {
-                Button("New Work…") { NotificationCenter.default.post(name: Notification.Name("NewWorkRequested"), object: nil) }
+                Button("New Work…") { appRouter.requestNewWork() }
                     .keyboardShortcut("n", modifiers: [.command, .option])
             }
             CommandMenu("Attendance") {
                 Button("Open Attendance") {
-                    NotificationCenter.default.post(name: Notification.Name("OpenAttendanceRequested"), object: nil)
+                    appRouter.requestOpenAttendance()
                 }
             }
             CommandMenu("Troubleshooting") {

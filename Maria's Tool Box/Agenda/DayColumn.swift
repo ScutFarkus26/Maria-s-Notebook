@@ -4,6 +4,7 @@ import SwiftData
 
 struct DayColumn: View {
     @Environment(\.calendar) private var calendar
+    @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
     @Query private var studentLessons: [StudentLesson]
     @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)]) private var allStudents: [Student]
@@ -57,10 +58,7 @@ struct DayColumn: View {
 
                     if !unplannedStudents.isEmpty {
                         UnplannedStudentsStrip(date: normalizedDay, unplanned: unplannedStudents) { student in
-                            NotificationCenter.default.post(name: .PlanLessonForStudentOnDate, object: nil, userInfo: [
-                                "studentID": student.id,
-                                "date": normalizedDay
-                            ])
+                            appRouter.requestPlanLessonForStudentOnDate(studentID: student.id, date: normalizedDay)
                         }
                         .padding(.top, 8)
                     }

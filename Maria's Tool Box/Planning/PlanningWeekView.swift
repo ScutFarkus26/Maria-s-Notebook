@@ -4,6 +4,7 @@ import SwiftData
 
 @MainActor struct PlanningWeekView: View {
     @Environment(\.calendar) private var calendar
+    @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
     @Query private var studentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
@@ -161,7 +162,7 @@ import SwiftData
                 startDate = computeInitialStartDate()
                 syncInboxOrderWithCurrentBase()
             }
-            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("PlanningInboxNeedsRefresh"))) { _ in
+            .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
                 // Keep inbox and week grid in sync after external changes (e.g., deletions, moves)
                 DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
                 syncInboxOrderWithCurrentBase()

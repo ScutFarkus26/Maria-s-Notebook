@@ -8,6 +8,7 @@ import SwiftData
 /// Today hub view. Binds to TodayViewModel and renders multiple sections.
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) private var calendar
     @EnvironmentObject private var restoreCoordinator: RestoreCoordinator
 
@@ -101,7 +102,7 @@ struct TodayView: View {
         }
         .onChange(of: studentLessonsAll.map { $0.id }) { _, _ in viewModel.reload() }
         .onChange(of: planItemsAll) { _, _ in viewModel.reload() }
-        .onReceive(NotificationCenter.default.publisher(for: .PlanningInboxNeedsRefresh)) { _ in
+        .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             viewModel.reload()
         }
         // Sheet for Contract Details

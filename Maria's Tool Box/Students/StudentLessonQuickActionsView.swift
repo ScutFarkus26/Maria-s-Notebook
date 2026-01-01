@@ -3,6 +3,7 @@ import SwiftData
 
 struct StudentLessonQuickActionsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @Environment(\.dismiss) private var dismiss
 
     @Query(sort: \Lesson.name, animation: .default)
@@ -254,7 +255,7 @@ struct StudentLessonQuickActionsView: View {
                         newSL.lesson = lessons.first(where: { $0.id == next.id })
                         modelContext.insert(newSL)
                         try? modelContext.save()
-                        NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+                        appRouter.refreshPlanningInbox()
                     }
                 }
             }

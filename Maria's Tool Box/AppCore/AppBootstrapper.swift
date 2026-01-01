@@ -39,7 +39,7 @@ final class AppBootstrapper: ObservableObject {
         LegacyNotesMigration.runIfNeeded(modelContext: context)
         
         // 5. Signal UI
-        NotificationCenter.default.post(name: .PlanningInboxNeedsRefresh, object: nil)
+        AppRouter.shared.refreshPlanningInbox()
         
         print("AppBootstrapper: Startup checks complete.")
         state = .ready

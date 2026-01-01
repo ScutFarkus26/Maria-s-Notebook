@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
     @Environment(\.calendar) private var calendar
@@ -320,6 +321,7 @@ struct StudentLessonPill: View {
             .accessibilityLabel(accessibilityLabel)
             .onDrop(of: [UTType.text], delegate: PillDropDelegate(
                 modelContext: modelContext,
+                appRouter: appRouter,
                 targetLessonID: snapshot.lessonID,
                 targetStudentLessonID: targetStudentLessonID,
                 setHighlight: { isValid in isValidDragTarget = isValid },
@@ -360,6 +362,7 @@ struct StudentLessonPill: View {
 
     private struct PillDropDelegate: DropDelegate {
         let modelContext: ModelContext
+        let appRouter: AppRouter
         let targetLessonID: UUID
         let targetStudentLessonID: UUID?
         let setHighlight: (Bool) -> Void
@@ -419,7 +422,7 @@ struct StudentLessonPill: View {
                         // Removed: source.syncSnapshotsFromRelationships()
                     }
                     onDidMutate("Move student between lessons")
-                    NotificationCenter.default.post(name: Notification.Name("PlanningInboxNeedsRefresh"), object: nil)
+                    appRouter.refreshPlanningInbox()
                 }
             }
             return true

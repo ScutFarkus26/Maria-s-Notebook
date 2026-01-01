@@ -209,7 +209,7 @@ final class SettingsViewModel: ObservableObject {
                 entityCounts: summary.entityCounts,
                 warnings: summary.warnings
             )
-            NotificationCenter.default.post(name: Notification.Name("BackfillIsPresentedRequested"), object: nil)
+            AppRouter.shared.requestBackfillIsPresented()
         } catch {
             importError = "Failed to restore: \(error.localizedDescription)"
         }

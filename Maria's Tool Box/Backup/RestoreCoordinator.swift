@@ -4,13 +4,22 @@ import Combine
 final class RestoreCoordinator: ObservableObject {
     @Published var isRestoring: Bool = false
     private var cancellables: Set<AnyCancellable> = []
+    private let appRouter = AppRouter.shared
 
     init() {
-        NotificationCenter.default.publisher(for: .AppDataWillBeReplaced)
-            .sink { [weak self] _ in self?.isRestoring = true }
+        appRouter.$appDataWillBeReplaced
+            .sink { [weak self] willBeReplaced in
+                if willBeReplaced {
+                    self?.isRestoring = true
+                }
+            }
             .store(in: &cancellables)
-        NotificationCenter.default.publisher(for: .AppDataDidRestore)
-            .sink { [weak self] _ in self?.isRestoring = false }
+        appRouter.$appDataDidRestore
+            .sink { [weak self] didRestore in
+                if didRestore {
+                    self?.isRestoring = false
+                }
+            }
             .store(in: &cancellables)
     }
 }

@@ -15,6 +15,7 @@ extension UTType {
 
 struct BackupRestoreSectionView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @StateObject private var viewModel = SettingsViewModel()
     @AppStorage("Backup.encrypt") private var encryptBackups: Bool = false
 
@@ -165,11 +166,14 @@ struct BackupRestoreSectionView: View {
                 )
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("CreateBackupRequested"))) { _ in
-            Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RestoreBackupRequested"))) { _ in
-            showingImporter = true
+        .onChange(of: appRouter.navigationDestination) { _, destination in
+            if case .createBackup = destination {
+                Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) }
+                appRouter.clearNavigation()
+            } else if case .restoreBackup = destination {
+                showingImporter = true
+                appRouter.clearNavigation()
+            }
         }
         .onAppear {
             viewModel.loadDefaultFolderName()

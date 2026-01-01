@@ -37,6 +37,7 @@ struct RootView: View {
     // MARK: - Storage
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String = Tab.students.rawValue
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
@@ -63,7 +64,7 @@ struct RootView: View {
                     }
                     Spacer()
                     Button {
-                        NotificationCenter.default.post(name: Notification.Name("CreateBackupRequested"), object: nil)
+                        appRouter.requestCreateBackup()
                     } label: {
                         Label("Backup Now", systemImage: "externaldrive.badge.plus")
                     }
@@ -136,12 +137,21 @@ struct RootView: View {
                 UserDefaults.standard.set(PlanningRootView.Mode.works.rawValue, forKey: "PlanningRootView.mode")
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackfillIsPresentedRequested"))) { _ in
-            backfillIsPresentedIfNeeded()
+        .onChange(of: appRouter.navigationDestination) { _, destination in
+            if case .backfillIsPresented = destination {
+                backfillIsPresentedIfNeeded()
+                appRouter.clearNavigation()
+            } else if case .openAttendance = destination {
+                selectedTabRaw = Tab.students.rawValue
+                UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
+                appRouter.clearNavigation()
+            }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("OpenAttendanceRequested"))) { _ in
-            selectedTabRaw = Tab.students.rawValue
-            UserDefaults.standard.set("Attendance", forKey: "StudentsRootView.mode")
+        .onChange(of: appRouter.selectedTab) { _, tab in
+            if let tab = tab {
+                selectedTabRaw = tab.rawValue
+                appRouter.selectedTab = nil // Clear after handling
+            }
         }
         .saveErrorAlert()
     #if os(macOS)

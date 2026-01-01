@@ -396,7 +396,4 @@ struct PillFramePreference: PreferenceKey {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
 }
-extension Notification.Name {
-    static let PlanLessonForStudentOnDate = Notification.Name("PlanLessonForStudentOnDate")
-}
 
