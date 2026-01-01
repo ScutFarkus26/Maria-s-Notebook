@@ -166,11 +166,11 @@ struct BackupRestoreSectionView: View {
                 )
             }
         }
-        .onChange(of: appRouter.navigationDestination) { _, destination in
-            if case .createBackup = destination {
+        .onChange(of: appRouter.navigationDestination) { oldValue, newValue in
+            if case .createBackup = newValue {
                 Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) }
                 appRouter.clearNavigation()
-            } else if case .restoreBackup = destination {
+            } else if case .restoreBackup = newValue {
                 showingImporter = true
                 appRouter.clearNavigation()
             }
@@ -179,7 +179,7 @@ struct BackupRestoreSectionView: View {
             viewModel.loadDefaultFolderName()
         }
 #if os(iOS)
-        .onChange(of: viewModel.exportData) { newValue in
+        .onChange(of: viewModel.exportData) { oldValue, newValue in
             showingExporter = (newValue != nil)
         }
 #endif

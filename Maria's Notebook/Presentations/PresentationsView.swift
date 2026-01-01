@@ -27,11 +27,24 @@ struct PresentationsView: View {
     @Environment(\.calendar) private var calendar
 
     // OPTIMIZATION: Use lightweight queries for change detection only
-    // These queries only track IDs/counts to detect changes, not load all data
-    // The ViewModel does targeted fetching with predicates
-    @Query private var studentLessonIDs: [StudentLesson]
-    @Query private var lessonIDs: [Lesson]
-    @Query private var studentIDs: [Student]
+    // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
+    // The ViewModel handles all actual data loading with targeted fetches
+    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
+    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
+    @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
+    
+    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
+    private var studentLessonIDs: [UUID] {
+        studentLessonsForChangeDetection.map { $0.id }
+    }
+    
+    private var lessonIDs: [UUID] {
+        lessonsForChangeDetection.map { $0.id }
+    }
+    
+    private var studentIDs: [UUID] {
+        studentsForChangeDetection.map { $0.id }
+    }
     
     // OPTIMIZATION: Only fetch active/review contracts (needed for blocking logic)
     // Split into separate queries to help compiler type-check
@@ -72,13 +85,6 @@ struct PresentationsView: View {
     
     // OPTIMIZATION: Use ViewModel to cache expensive computations
     @StateObject private var viewModel = PresentationsViewModel()
-
-    // Age settings
-    @AppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
-    @AppStorage("LessonAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
-    @AppStorage("LessonAge.freshColorHex") private var ageFreshHex: String = LessonAgeDefaults.freshColorHex
-    @AppStorage("LessonAge.warningColorHex") private var ageWarningHex: String = LessonAgeDefaults.warningColorHex
-    @AppStorage("LessonAge.overdueColorHex") private var ageOverdueHex: String = LessonAgeDefaults.overdueColorHex
     
     // Computed properties that use ViewModel (preserves exact same functionality)
     private var readyLessons: [StudentLesson] { viewModel.readyLessons }
@@ -91,13 +97,9 @@ struct PresentationsView: View {
         SchoolCalendar.isNonSchoolDay(day, using: modelContext)
     }
 
-    // Find the earliest date with a scheduled lesson (including past dates)
+    // Find the earliest date with a scheduled lesson (using ViewModel's cached data)
     private var earliestDateWithLesson: Date? {
-        let scheduledDates = studentLessonIDs.compactMap { sl -> Date? in
-            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return nil }
-            return calendar.startOfDay(for: scheduled)
-        }
-        return scheduledDates.min()
+        viewModel.earliestDateWithLesson(calendar: calendar)
     }
     
     private var days: [Date] {
@@ -202,17 +204,17 @@ struct PresentationsView: View {
         .onChange(of: startDate) { _, new in
             startDateRaw = new.timeIntervalSinceReferenceDate
         }
-        .onChange(of: studentLessonIDs.map { $0.id }) { _, _ in
+        .onChange(of: studentLessonIDs) { _, _ in
             syncInboxOrderWithCurrentBase()
             updateViewModel()
         }
-        .onChange(of: lessonIDs.map { $0.id }) { _, _ in
+        .onChange(of: lessonIDs) { _, _ in
             updateViewModel()
         }
         .onChange(of: activeContracts.map { $0.id }) { _, _ in
             updateViewModel()
         }
-        .onChange(of: studentIDs.map { $0.id }) { _, _ in
+        .onChange(of: studentIDs) { _, _ in
             updateViewModel()
         }
         .onChange(of: missWindowRaw) { _, _ in
@@ -270,33 +272,10 @@ struct PresentationsView: View {
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }
 
-    private func ageColor(for sl: StudentLesson) -> Color {
-        if sl.isGiven { return .clear }
-        let fresh = ColorUtils.color(from: ageFreshHex)
-        let warn = ColorUtils.color(from: ageWarningHex)
-        let overdue = ColorUtils.color(from: ageOverdueHex)
-        let base = sl.givenAt ?? sl.createdAt
-        let days = schoolDaysBetween(from: base, to: Date())
-        if days >= ageOverdueDays { return overdue }
-        if days >= ageWarningDays { return warn }
-        return fresh
-    }
-
-    private func schoolDaysBetween(from start: Date, to end: Date) -> Int {
-        var count = 0
-        var d = calendar.startOfDay(for: start)
-        let endDay = calendar.startOfDay(for: end)
-        while d < endDay {
-            if !SchoolCalendar.isNonSchoolDay(d, using: modelContext) { count += 1 }
-            d = calendar.date(byAdding: .day, value: 1, to: d) ?? d
-        }
-        return count
-    }
-
     private func filteredSnapshot(_ sl: StudentLesson) -> StudentLessonSnapshot {
         let snap = sl.snapshot()
-        // Fetch students only when needed for filtering
-        let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+        // Use ViewModel's cached students (avoids redundant fetching)
+        let allStudents = viewModel.cachedStudents
         let hiddenIDs = TestStudentsFilter.hiddenIDs(from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw)
         let visibleIDs = snap.studentIDs.filter { !hiddenIDs.contains($0) }
         return StudentLessonSnapshot(

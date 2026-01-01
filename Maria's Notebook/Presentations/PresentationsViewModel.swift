@@ -15,6 +15,11 @@ final class PresentationsViewModel: ObservableObject {
     @Published var blockingContractsCache: [UUID: [UUID: WorkContract]] = [:]
     @Published var daysSinceLastLessonByStudent: [UUID: Int] = [:]
     
+    // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
+    var cachedStudents: [Student] {
+        self._cachedStudents
+    }
+    
     // MARK: - Dependencies (passed in update method)
     private var modelContext: ModelContext?
     private var calendar: Calendar = .current
@@ -24,7 +29,7 @@ final class PresentationsViewModel: ObservableObject {
     private var cachedLessons: [Lesson] = []
     private var cachedContracts: [WorkContract] = []
     private var cachedStudentLessons: [StudentLesson] = []
-    private var cachedStudents: [Student] = []
+    private var _cachedStudents: [Student] = []
     private var lastStudentLessonsIDs: Set<UUID> = []
     private var lastLessonsIDs: Set<UUID> = []
     private var lastContractsIDs: Set<UUID> = []
@@ -115,7 +120,7 @@ final class PresentationsViewModel: ObservableObject {
         cachedStudentLessons = studentLessons
         cachedLessons = lessons
         cachedContracts = contracts
-        cachedStudents = students
+        _cachedStudents = students
         lastUpdateDate = Date()
         
         // Filter visible students
@@ -174,6 +179,15 @@ final class PresentationsViewModel: ObservableObject {
     /// Check if a lesson is blocked (from cache)
     func isBlocked(_ sl: StudentLesson) -> Bool {
         return !getBlockingContracts(sl).isEmpty
+    }
+    
+    /// Get the earliest date with a scheduled lesson (computed from cached data)
+    func earliestDateWithLesson(calendar: Calendar) -> Date? {
+        let scheduledDates = cachedStudentLessons.compactMap { sl -> Date? in
+            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return nil }
+            return calendar.startOfDay(for: scheduled)
+        }
+        return scheduledDates.min()
     }
     
     // MARK: - Private Helpers
