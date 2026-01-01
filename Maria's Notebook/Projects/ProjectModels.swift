@@ -22,7 +22,7 @@ struct LocalJSONStringList {
 
 @Model
 final class Project: Identifiable {
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     var createdAt: Date = Date()
 
     var title: String = ""
@@ -54,7 +54,7 @@ final class Project: Identifiable {
 
 @Model
 final class ProjectAssignmentTemplate: Identifiable {
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     var createdAt: Date = Date()
 
     // Foreign key to Project
@@ -89,7 +89,7 @@ final class ProjectAssignmentTemplate: Identifiable {
 
 @Model
 final class ProjectSession: Identifiable {
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     var createdAt: Date = Date()
 
     // Foreign key to Project

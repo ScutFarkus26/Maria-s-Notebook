@@ -3,7 +3,7 @@ import SwiftData
 
 @Model
 final class StudentMeeting: Identifiable {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var studentID: UUID
     var date: Date
     var completed: Bool

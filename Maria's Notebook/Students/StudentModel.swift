@@ -15,16 +15,19 @@ final class Student: Identifiable {
         case upper = "Upper"
     }
 
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var firstName: String
     var lastName: String
     var birthday: Date
     var level: Level
-    var nextLessons: [UUID]    // Store lesson UUIDs
+    // CloudKit compatibility: Store UUIDs as strings
+    var nextLessons: [String] = []
     var manualOrder: Int = 0
     var dateStarted: Date? = nil
 
-    var studentLessons: [StudentLesson] = []
+    // Note: studentLessons relationship removed because StudentLesson.students is @Transient
+    // Use queries filtered by studentIDs instead to find lessons for a student
+    // var studentLessons: [StudentLesson]? = [] // Removed - cannot have relationship to @Transient property
 
     var fullName: String {
         "\(firstName) \(lastName)"
@@ -46,8 +49,15 @@ final class Student: Identifiable {
         self.birthday = birthday
         self.level = level
         self.dateStarted = dateStarted
-        self.nextLessons = nextLessons
+        // Convert UUIDs to strings for CloudKit compatibility
+        self.nextLessons = nextLessons.map { $0.uuidString }
         self.manualOrder = manualOrder
+    }
+    
+    /// Convenience computed property to get nextLessons as UUIDs
+    var nextLessonUUIDs: [UUID] {
+        get { nextLessons.compactMap { UUID(uuidString: $0) } }
+        set { nextLessons = newValue.map { $0.uuidString } }
     }
 }
 

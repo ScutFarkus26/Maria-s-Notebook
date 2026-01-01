@@ -5,7 +5,7 @@ import SwiftData
 @Model
 final class CommunityTopic: Identifiable {
     // Identity
-    var id: UUID
+    @Attribute(.unique) var id: UUID
 
     // Core info
     var title: String
@@ -27,14 +27,35 @@ final class CommunityTopic: Identifiable {
     }
 
     // Children
-    @Relationship(deleteRule: .cascade, inverse: \ProposedSolution.topic) var proposedSolutions: [ProposedSolution] = []
-    @Relationship(deleteRule: .cascade, inverse: \MeetingNote.topic) var notes: [MeetingNote] = []
+    // CloudKit compatibility: Relationship arrays must be optional
+    @Relationship(deleteRule: .cascade, inverse: \ProposedSolution.topic) var proposedSolutions: [ProposedSolution]? = []
+    @Relationship(deleteRule: .cascade, inverse: \MeetingNote.topic) var notes: [MeetingNote]? = []
 
     /// Freeform tags for filtering (e.g., Safety, Environment, Curriculum)
-    var tags: [String] = []
+    /// Stored as JSON string to handle type mismatches gracefully
+    private var tagsRaw: String = "[]"
+    
+    var tags: [String] {
+        get {
+            guard let data = tagsRaw.data(using: .utf8),
+                  let array = try? JSONDecoder().decode([String].self, from: data) else {
+                // If decoding fails, try to handle legacy UUID data or return empty
+                return []
+            }
+            return array
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                tagsRaw = string
+            } else {
+                tagsRaw = "[]"
+            }
+        }
+    }
 
     /// Attachments associated with this topic (photos, documents)
-    @Relationship(deleteRule: .cascade, inverse: \CommunityAttachment.topic) var attachments: [CommunityAttachment] = []
+    @Relationship(deleteRule: .cascade, inverse: \CommunityAttachment.topic) var attachments: [CommunityAttachment]? = []
 
     init(
         id: UUID = UUID(),
@@ -50,6 +71,10 @@ final class CommunityTopic: Identifiable {
         self.createdAt = createdAt
         self.addressedDate = addressedDate
         self.resolution = resolution
+        self.proposedSolutions = []
+        self.notes = []
+        self.attachments = []
+        self.tagsRaw = "[]"
     }
 
     var isResolved: Bool { addressedDate != nil }
@@ -58,7 +83,7 @@ final class CommunityTopic: Identifiable {
 /// A proposed solution for a community topic.
 @Model
 final class ProposedSolution: Identifiable {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var title: String
     var details: String
     /// Optional person who proposed this solution
@@ -92,7 +117,7 @@ final class ProposedSolution: Identifiable {
 /// A note captured during a community meeting, with an optional speaker attribution.
 @Model
 final class MeetingNote: Identifiable {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var speaker: String
     var content: String
     var createdAt: Date
@@ -119,7 +144,7 @@ final class MeetingNote: Identifiable {
 final class CommunityAttachment: Identifiable {
     enum Kind: String, Codable, CaseIterable { case photo, file }
 
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var filename: String
     var kindRaw: String
     @Attribute(.externalStorage) var data: Data?

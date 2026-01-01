@@ -75,12 +75,15 @@ struct StudentDuplicatesCleaner {
             }
 
             // Update references in StudentLesson
+            // Convert duplicate IDs to strings for CloudKit compatibility
+            let duplicateIDStrings = Set(plan.duplicateIDs.map { $0.uuidString })
+            let primaryIDString = primary.id.uuidString
             for i in 0..<studentLessons.count {
                 let sl = studentLessons[i]
-                if sl.studentIDs.contains(where: { plan.duplicateIDs.contains($0) }) {
+                if sl.studentIDs.contains(where: { duplicateIDStrings.contains($0) }) {
                     var set = Set(sl.studentIDs)
-                    for d in plan.duplicateIDs { set.remove(d) }
-                    set.insert(primary.id)
+                    for d in duplicateIDStrings { set.remove(d) }
+                    set.insert(primaryIDString)
                     let newList = Array(set)
                     if newList != sl.studentIDs {
                         sl.studentIDs = newList

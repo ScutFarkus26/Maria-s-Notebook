@@ -9,7 +9,8 @@ extension StudentLesson {
     /// Prefer the relationship; fall back to snapshot for compatibility during transition.
     var resolvedStudentIDs: [UUID] {
         if !students.isEmpty { return students.map { $0.id } }
-        return studentIDs
+        // Convert string IDs back to UUIDs for CloudKit compatibility
+        return studentIDs.compactMap { UUID(uuidString: $0) }
     }
 
     /// Order-insensitive key for quick equality/group checks.

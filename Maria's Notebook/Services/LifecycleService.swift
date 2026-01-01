@@ -11,7 +11,8 @@ struct LifecycleService {
     ) throws -> (presentation: Presentation, work: [WorkContract]) {
         let legacyID = studentLesson.id.uuidString
         let lessonIDStr = studentLesson.lessonID.uuidString
-        let studentIDStrs = studentLesson.studentIDs.map { $0.uuidString }
+        // studentIDs is already [String] for CloudKit compatibility
+        let studentIDStrs = studentLesson.studentIDs
 
         // 1) Lookup existing Presentation by legacy link
         let existingPresentation: Presentation? = try fetchPresentation(byLegacyID: legacyID, context: modelContext)
@@ -44,7 +45,7 @@ struct LifecycleService {
         var existingKeys: Set<String> = Set(existingForPresentation.compactMap { $0.migrationKey })
 
         // A) Scoped notes attached to StudentLesson → Presentation
-        for legacy in studentLesson.scopedNotes {
+        for legacy in studentLesson.scopedNotes ?? [] {
             let mk = "studentLessonScopedNote:\(studentLesson.id.uuidString):\(legacy.id.uuidString)"
             if existingKeys.contains(mk) {
                 continue

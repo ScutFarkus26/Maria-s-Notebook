@@ -3,7 +3,7 @@ import SwiftData
 
 @Model
 final class AlbumGroupUIState: Identifiable {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var scopeKey: String
     var groupName: String  // exact group name (empty string represents ungrouped)
     var isCollapsed: Bool

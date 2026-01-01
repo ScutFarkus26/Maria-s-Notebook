@@ -327,7 +327,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
-            let studentSLs = allSLs.filter { $0.studentIDs.contains(student.id) }
+            let studentSLs = allSLs.filter { $0.studentIDs.contains(student.id.uuidString) }
             let studentContracts = allContracts.filter { $0.studentID == student.id.uuidString }
             
             for lesson in lessons {
@@ -360,12 +360,17 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         let studentID = student.id; let lessonID = lesson.id
         let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID }))) ?? []
         
-        if let existing = allSLs.first(where: { !$0.isGiven && $0.studentIDs.contains(studentID) }) {
-            var ids = existing.studentIDs; ids.removeAll { $0 == studentID }
-            if ids.isEmpty { context.delete(existing) } else { existing.studentIDs = ids }
+        let studentIDString = studentID.uuidString
+        if let existing = allSLs.first(where: { !$0.isGiven && $0.studentIDs.contains(studentIDString) }) {
+            var ids = existing.studentIDs; ids.removeAll { $0 == studentIDString }
+            if ids.isEmpty {
+                context.delete(existing)
+            } else {
+                existing.studentIDs = ids
+            }
         } else {
             if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
-                if !group.studentIDs.contains(studentID) { group.studentIDs.append(studentID) }
+                if !group.studentIDs.contains(studentIDString) { group.studentIDs.append(studentIDString) }
             } else {
                 let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), scheduledFor: nil)
                 context.insert(newSL)
@@ -382,15 +387,16 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
         let studentID = student.id; let lessonID = lesson.id
+        let studentIDString = studentID.uuidString
         let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonID }))) ?? []
         
-        if let existing = allSLs.first(where: { $0.isGiven && $0.studentIDs.contains(studentID) }) {
-            var ids = existing.studentIDs; ids.removeAll { $0 == studentID }
+        if let existing = allSLs.first(where: { $0.isGiven && $0.studentIDs.contains(studentIDString) }) {
+            var ids = existing.studentIDs; ids.removeAll { $0 == studentIDString }
             if ids.isEmpty { context.delete(existing) } else { existing.studentIDs = ids }
         } else {
             let todayStart = AppCalendar.startOfDay(Date())
             if let group = allSLs.first(where: { $0.isGiven && AppCalendar.startOfDay($0.givenAt ?? Date.distantPast) == todayStart }) {
-                if !group.studentIDs.contains(studentID) { group.studentIDs.append(studentID) }
+                if !group.studentIDs.contains(studentIDString) { group.studentIDs.append(studentIDString) }
             } else {
                 let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true)
                 context.insert(newSL)
@@ -400,10 +406,10 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
-        let lid = lesson.id; let sid = student.id
+        let lid = lesson.id; let sid = student.id; let sidString = sid.uuidString
         let sls = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lid }))) ?? []
-        for sl in sls where sl.studentIDs.contains(sid) {
-            var newIDs = sl.studentIDs; newIDs.removeAll { $0 == sid }
+        for sl in sls where sl.studentIDs.contains(sidString) {
+            var newIDs = sl.studentIDs; newIDs.removeAll { $0 == sidString }
             if newIDs.isEmpty { context.delete(sl) } else { sl.studentIDs = newIDs }
         }
         let contracts = fetchContracts(student: student, lesson: lesson, context: context)

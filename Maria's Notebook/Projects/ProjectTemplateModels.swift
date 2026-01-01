@@ -21,7 +21,7 @@ struct JSONStringList {
 // MARK: - Role
 @Model
 final class ProjectRole: Identifiable {
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     var createdAt: Date = Date()
 
     var projectID: UUID = UUID()
@@ -50,7 +50,7 @@ final class ProjectRole: Identifiable {
 // MARK: - Week Template
 @Model
 final class ProjectTemplateWeek: Identifiable {
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     var createdAt: Date = Date()
 
     var projectID: UUID = UUID()
@@ -108,7 +108,7 @@ final class ProjectTemplateWeek: Identifiable {
 // MARK: - Weekly Role Assignment
 @Model
 final class ProjectWeekRoleAssignment: Identifiable {
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     var createdAt: Date = Date()
 
     var weekID: UUID = UUID()

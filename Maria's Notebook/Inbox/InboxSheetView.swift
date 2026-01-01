@@ -103,8 +103,8 @@ public struct InboxSheetView: View {
         deletedIDs.append(targetID)
         modelContext.delete(target)
       } else {
-        // Update target's students
-        target.studentIDs = remainingIDs
+        // Update target's students - convert UUIDs to strings for CloudKit compatibility
+        target.studentIDs = remainingIDs.map { $0.uuidString }
         let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
         let fetched = (try? modelContext.fetch(fetch)) ?? []
         target.students = fetched
@@ -366,7 +366,14 @@ public struct InboxSheetView: View {
   private func handleStudentToInboxDrop(sourceStudentLessonID: UUID, lessonID: UUID, studentID: UUID, location: CGPoint) {
     // 1) Find or create an unscheduled single-student StudentLesson for this lesson+student
     let targetSL: StudentLesson = {
-      if let existing = studentLessons.first(where: { $0.resolvedLessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && Set($0.resolvedStudentIDs) == Set([studentID]) }) {
+      // Break up complex predicate to help compiler type-check
+      let matchesLesson = { (sl: StudentLesson) in sl.resolvedLessonID == lessonID }
+      let isUnscheduled = { (sl: StudentLesson) in sl.scheduledFor == nil && !sl.isGiven }
+      let matchesStudent = { (sl: StudentLesson) in Set(sl.resolvedStudentIDs) == Set([studentID]) }
+      
+      if let existing = studentLessons.first(where: { sl in
+        matchesLesson(sl) && isUnscheduled(sl) && matchesStudent(sl)
+      }) {
         return existing
       }
       // Fetch Lesson and Student to set relationships first
@@ -395,7 +402,8 @@ public struct InboxSheetView: View {
 
     // 2) Remove the student from the source scheduled StudentLesson; delete it if empty
     if let src = studentLessons.first(where: { $0.id == sourceStudentLessonID }) {
-      src.studentIDs.removeAll { $0 == studentID }
+      let studentIDString = studentID.uuidString
+      src.studentIDs.removeAll { $0 == studentIDString }
       src.students.removeAll { $0.id == studentID }
       if src.studentIDs.isEmpty {
         modelContext.delete(src)

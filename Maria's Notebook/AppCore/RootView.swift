@@ -184,7 +184,10 @@ struct RootView: View {
                 var changed = false
                 for sl in sls {
                     let targetLesson = lessonsByID[sl.lessonID]
-                    let targetStudents = sl.studentIDs.compactMap { studentsByID[$0] }
+                    let targetStudents: [Student] = sl.studentIDs.compactMap { idString in
+                        guard let id = UUID(uuidString: idString) else { return nil }
+                        return studentsByID[id]
+                    }
                     if sl.lesson?.id != targetLesson?.id { sl.lesson = targetLesson; changed = true }
                     let currentIDs = Set(sl.students.map { $0.id })
                     let targetIDs = Set(targetStudents.map { $0.id })

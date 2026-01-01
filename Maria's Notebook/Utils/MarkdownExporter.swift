@@ -19,9 +19,9 @@ struct MarkdownExporter {
             
             """
         }
-        if !t.proposedSolutions.isEmpty {
+        if !(t.proposedSolutions ?? []).isEmpty {
             m += "## Proposed Solutions\n\n"
-            for s in t.proposedSolutions {
+            for s in t.proposedSolutions ?? [] {
                 let title = s.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 let details = s.details.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !title.isEmpty {
@@ -45,9 +45,9 @@ struct MarkdownExporter {
             
             """
         }
-        if !t.notes.isEmpty {
+        if !(t.notes ?? []).isEmpty {
             m += "## Meeting Notes\n\n"
-            let notes = t.notes.sorted { $0.createdAt < $1.createdAt }
+            let notes = (t.notes ?? []).sorted { $0.createdAt < $1.createdAt }
             for n in notes {
                 let speaker = n.speaker.trimmingCharacters(in: .whitespacesAndNewlines)
                 let content = n.content.trimmingCharacters(in: .whitespacesAndNewlines)

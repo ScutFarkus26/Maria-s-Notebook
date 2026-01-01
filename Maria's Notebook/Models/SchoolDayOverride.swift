@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 @Model final class SchoolDayOverride: Identifiable {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     /// Stored as start-of-day for the selected date
     var date: Date
     var note: String?

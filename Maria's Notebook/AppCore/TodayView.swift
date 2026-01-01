@@ -19,9 +19,18 @@ struct TodayView: View {
     @State private var selectedStudentLesson: StudentLesson? = nil
 
     // OPTIMIZATION: Use lightweight queries for change detection only
-    // The ViewModel does targeted fetches, these queries just detect when data changes
+    // Only fetch IDs to detect changes, not full objects - significantly reduces memory usage
     @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
     @Query(sort: [SortDescriptor(\WorkPlanItem.id)]) private var planItemsForChangeDetection: [WorkPlanItem]
+    
+    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
+    private var studentLessonIDs: [UUID] {
+        studentLessonsForChangeDetection.map { $0.id }
+    }
+    
+    private var planItemIDs: [UUID] {
+        planItemsForChangeDetection.map { $0.id }
+    }
     
     // Helpers
     private var nameForLesson: (UUID) -> String { { id in viewModel.lessonsByID[id]?.name ?? "Lesson" } }
@@ -97,13 +106,25 @@ struct TodayView: View {
         .onAppear {
             viewModel.setCalendar(calendar)
             AppCalendar.adopt(timeZoneFrom: calendar)
+            // Ensure initial date is a school day
+            let coerced = SchoolCalendar.nearestSchoolDay(to: viewModel.date, using: modelContext)
+            if coerced != viewModel.date {
+                viewModel.date = AppCalendar.startOfDay(coerced)
+            }
         }
         .onChange(of: calendar) { _, newCal in
             viewModel.setCalendar(newCal)
             AppCalendar.adopt(timeZoneFrom: newCal)
         }
-        .onChange(of: studentLessonsForChangeDetection.map { $0.id }) { _, _ in viewModel.reload() }
-        .onChange(of: planItemsForChangeDetection.map { $0.id }) { _, _ in viewModel.reload() }
+        .onChange(of: viewModel.date) { _, newValue in
+            // Ensure date is always a school day
+            let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+            if coerced != newValue {
+                viewModel.date = AppCalendar.startOfDay(coerced)
+            }
+        }
+        .onChange(of: studentLessonIDs) { _, _ in viewModel.reload() }
+        .onChange(of: planItemIDs) { _, _ in viewModel.reload() }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             viewModel.reload()
         }
@@ -135,7 +156,6 @@ struct TodayView: View {
 
     // MARK: - Header
     private var header: some View {
-        let cal = calendar
         return VStack(spacing: 8) {
             HStack(spacing: 12) {
                 Text("Today")
@@ -151,14 +171,14 @@ struct TodayView: View {
             }
             HStack(spacing: 12) {
                 Button {
-                    if let prev = cal.date(byAdding: .day, value: -1, to: viewModel.date) {
-                        viewModel.date = AppCalendar.startOfDay(prev)
-                    }
+                    let prev = viewModel.previousDayWithLessons(before: viewModel.date)
+                    viewModel.date = AppCalendar.startOfDay(prev)
                 } label: { Image(systemName: "chevron.left") }
                 .buttonStyle(.plain)
 
                 DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
-                    viewModel.date = AppCalendar.startOfDay(newValue)
+                    let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+                    viewModel.date = AppCalendar.startOfDay(coerced)
                 }), displayedComponents: .date)
 #if os(macOS)
                 .datePickerStyle(.field)
@@ -167,14 +187,15 @@ struct TodayView: View {
 #endif
 
                 Button {
-                    if let next = cal.date(byAdding: .day, value: 1, to: viewModel.date) {
-                        viewModel.date = AppCalendar.startOfDay(next)
-                    }
+                    let next = viewModel.nextDayWithLessons(after: viewModel.date)
+                    viewModel.date = AppCalendar.startOfDay(next)
                 } label: { Image(systemName: "chevron.right") }
                 .buttonStyle(.plain)
 
                 Button("Today") {
-                    viewModel.date = AppCalendar.startOfDay(Date())
+                    let today = Date()
+                    let coerced = SchoolCalendar.nearestSchoolDay(to: today, using: modelContext)
+                    viewModel.date = AppCalendar.startOfDay(coerced)
                 }
                 .buttonStyle(.plain)
             }

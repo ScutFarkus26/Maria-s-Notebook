@@ -40,7 +40,7 @@ enum LegacyNotesMigration {
             let body = normalize(sl.notes)
             if body.isEmpty { continue }
             let fp = fingerprint(parts: ["StudentLesson", sl.id.uuidString, "notes", body])
-            if hasExistingScopedNote(parentNotes: sl.scopedNotes, fingerprint: fp) { continue }
+            if hasExistingScopedNote(parentNotes: sl.scopedNotes ?? [], fingerprint: fp) { continue }
             if existsNoteWithFingerprint(fp, context: context) { continue }
             let note = ScopedNote(
                 body: body,
@@ -51,7 +51,8 @@ enum LegacyNotesMigration {
             )
             note.createdAt = sl.givenAt ?? sl.createdAt
             note.updatedAt = note.createdAt
-            sl.scopedNotes.append(note)
+            if sl.scopedNotes == nil { sl.scopedNotes = [] }
+            sl.scopedNotes?.append(note)
             inserted += 1
             if inserted % 100 == 0 { try context.save() }
         }
@@ -68,7 +69,7 @@ enum LegacyNotesMigration {
             let body = normalize(raw)
             if body.isEmpty { continue }
             let fp = fingerprint(parts: ["StudentLesson", sl.id.uuidString, "followUpWork", body])
-            if hasExistingScopedNote(parentNotes: sl.scopedNotes, fingerprint: fp) { continue }
+            if hasExistingScopedNote(parentNotes: sl.scopedNotes ?? [], fingerprint: fp) { continue }
             if existsNoteWithFingerprint(fp, context: context) { continue }
             let note = ScopedNote(
                 body: body,
@@ -79,7 +80,8 @@ enum LegacyNotesMigration {
             )
             note.createdAt = sl.givenAt ?? sl.createdAt
             note.updatedAt = note.createdAt
-            sl.scopedNotes.append(note)
+            if sl.scopedNotes == nil { sl.scopedNotes = [] }
+            sl.scopedNotes?.append(note)
             inserted += 1
             if inserted % 100 == 0 { try context.save() }
         }

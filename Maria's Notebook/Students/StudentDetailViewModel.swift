@@ -200,8 +200,9 @@ final class StudentDetailViewModel: ObservableObject {
     }
 
     func openMastered(for lesson: Lesson, modelContext: ModelContext) {
+        let studentIDString = student.id.uuidString
         let presented = studentLessonsByID.values
-            .filter { $0.lessonID == lesson.id && $0.studentIDs.contains(student.id) && $0.isPresented }
+            .filter { $0.lessonID == lesson.id && $0.studentIDs.contains(studentIDString) && $0.isPresented }
             .sorted(by: { ($0.givenAt ?? $0.createdAt) > ($1.givenAt ?? $1.createdAt) })
         if let sl = presented.first {
             selectedStudentLessonForDetail = sl

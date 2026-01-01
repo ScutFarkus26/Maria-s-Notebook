@@ -7,16 +7,21 @@ struct WorksAgendaView: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @EnvironmentObject private var restoreCoordinator: RestoreCoordinator
 
-    @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
-    @Query private var allContracts: [WorkContract]
+    // MEMORY OPTIMIZATION: Only load active/review contracts (open work), not all contracts
+    @Query(filter: #Predicate<WorkContract> { $0.statusRaw == "active" || $0.statusRaw == "review" }) 
+    private var openContracts: [WorkContract]
+    
+    // MEMORY OPTIMIZATION: Use lightweight queries for change detection only
+    // The actual data is loaded on-demand when needed
+    @Query private var lessonIDs: [Lesson]
+    @Query private var studentIDs: [Student]
+    
+    // Lazy-loaded caches (only populated when needed)
+    @State private var lessonsByIDCache: [UUID: Lesson] = [:]
+    @State private var studentsByIDCache: [UUID: Student] = [:]
 
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
-
-    private var visibleStudents: [Student] {
-        TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
-    }
 
     @State private var sortMode: WorkAgendaSortMode = .lesson
     @State private var searchText: String = ""
@@ -27,8 +32,60 @@ struct WorksAgendaView: View {
     private struct SelectionToken: Identifiable, Equatable { let id: UUID; let contractID: UUID }
     @State private var selected: SelectionToken? = nil
 
-    private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
-    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) }) }
+    // MEMORY OPTIMIZATION: Load lessons and students on-demand based on contracts
+    private var lessonsByID: [UUID: Lesson] { lessonsByIDCache }
+    private var studentsByID: [UUID: Student] { studentsByIDCache }
+    
+    private func loadLessonsAndStudentsIfNeeded() {
+        // Collect IDs from open contracts
+        var neededLessonIDs = Set<UUID>()
+        var neededStudentIDs = Set<UUID>()
+        
+        for contract in openContracts {
+            if let lid = UUID(uuidString: contract.lessonID) {
+                neededLessonIDs.insert(lid)
+            }
+            if let sid = UUID(uuidString: contract.studentID) {
+                neededStudentIDs.insert(sid)
+            }
+        }
+        
+        // Load only needed lessons
+        if !neededLessonIDs.isEmpty {
+            do {
+                let descriptor = FetchDescriptor<Lesson>(
+                    predicate: #Predicate { neededLessonIDs.contains($0.id) }
+                )
+                let fetched = try modelContext.fetch(descriptor)
+                lessonsByIDCache = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
+            } catch {
+                // Fallback: load all if predicate fails
+                let all = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+                lessonsByIDCache = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+            }
+        } else {
+            lessonsByIDCache = [:]
+        }
+        
+        // Load only needed students
+        if !neededStudentIDs.isEmpty {
+            do {
+                let descriptor = FetchDescriptor<Student>(
+                    predicate: #Predicate { neededStudentIDs.contains($0.id) }
+                )
+                let fetched = try modelContext.fetch(descriptor)
+                let visible = TestStudentsFilter.filterVisible(fetched, show: showTestStudents, namesRaw: testStudentNamesRaw)
+                studentsByIDCache = Dictionary(uniqueKeysWithValues: visible.map { ($0.id, $0) })
+            } catch {
+                // Fallback: load all if predicate fails
+                let all = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+                let visible = TestStudentsFilter.filterVisible(all, show: showTestStudents, namesRaw: testStudentNamesRaw)
+                studentsByIDCache = Dictionary(uniqueKeysWithValues: visible.map { ($0.id, $0) })
+            }
+        } else {
+            studentsByIDCache = [:]
+        }
+    }
 
     var body: some View {
         Group {
@@ -88,6 +145,25 @@ struct WorksAgendaView: View {
                 }
             }
         }
+        .onAppear {
+            loadLessonsAndStudentsIfNeeded()
+        }
+        .onChange(of: openContracts.map { $0.id }) { _, _ in
+            // Reload when contracts change
+            loadLessonsAndStudentsIfNeeded()
+        }
+        .onChange(of: lessonIDs.map { $0.id }) { _, _ in
+            loadLessonsAndStudentsIfNeeded()
+        }
+        .onChange(of: studentIDs.map { $0.id }) { _, _ in
+            loadLessonsAndStudentsIfNeeded()
+        }
+        .onChange(of: showTestStudents) { _, _ in
+            loadLessonsAndStudentsIfNeeded()
+        }
+        .onChange(of: testStudentNamesRaw) { _, _ in
+            loadLessonsAndStudentsIfNeeded()
+        }
     }
 
     private var header: some View {
@@ -117,13 +193,9 @@ struct WorksAgendaView: View {
     }
 
     // MARK: - Data helpers
-    private func isOpen(_ c: WorkContract) -> Bool {
-        return c.status != .complete
-    }
-
     private func openWorksFiltered() -> [WorkContract] {
-        // Filter to open
-        var works = allContracts.filter(isOpen(_:))
+        // openContracts already contains only active/review contracts (open work)
+        var works = openContracts
         works = works.filter { c in
             if let sid = UUID(uuidString: c.studentID) { return studentsByID[sid] != nil }
             return false

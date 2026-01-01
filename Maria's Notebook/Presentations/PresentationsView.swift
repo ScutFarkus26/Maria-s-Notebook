@@ -91,16 +91,48 @@ struct PresentationsView: View {
         SchoolCalendar.isNonSchoolDay(day, using: modelContext)
     }
 
+    // Find the earliest date with a scheduled lesson (including past dates)
+    private var earliestDateWithLesson: Date? {
+        let scheduledDates = studentLessonIDs.compactMap { sl -> Date? in
+            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return nil }
+            return calendar.startOfDay(for: scheduled)
+        }
+        return scheduledDates.min()
+    }
+    
     private var days: [Date] {
-        // Compute 14 upcoming school days starting at startDate
+        // Determine the effective start: earliest of (first lesson date, today, startDate)
+        let earliestLessonDate = earliestDateWithLesson
+        let today = calendar.startOfDay(for: Date())
+        
+        // Start from the earliest of: first lesson date, today, or startDate
+        let baseDate: Date
+        if let earliest = earliestLessonDate {
+            // Use the earliest of: first lesson date, today, or startDate
+            baseDate = min(earliest, min(today, startDate))
+        } else {
+            // No lessons scheduled, use the earlier of today or startDate
+            baseDate = min(today, startDate)
+        }
+        
+        // Compute school days starting exactly at baseDate, extending forward
         var result: [Date] = []
-        var cursor = calendar.startOfDay(for: startDate)
+        let maxDays = 14
+        var cursor = calendar.startOfDay(for: baseDate)
         var safety = 0
-        while result.count < 14 && safety < 1000 {
-            if !isNonSchool(cursor) { result.append(cursor) }
-            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+        
+        while result.count < maxDays && safety < 1000 {
+            if !isNonSchool(cursor) {
+                result.append(cursor)
+            }
+            if let next = calendar.date(byAdding: .day, value: 1, to: cursor) {
+                cursor = next
+            } else {
+                break
+            }
             safety += 1
         }
+        
         return result
     }
 
@@ -145,10 +177,20 @@ struct PresentationsView: View {
             if startDateRaw != 0 {
                 startDate = Date(timeIntervalSinceReferenceDate: startDateRaw)
             } else {
-                startDate = AgendaSchoolDayRules.computeInitialStartDate(
-                    calendar: calendar,
-                    isNonSchoolDay: { day in SchoolCalendar.isNonSchoolDay(day, using: modelContext) }
-                )
+                // Find the earliest date with a scheduled lesson
+                let earliestLessonDate = earliestDateWithLesson
+                let today = calendar.startOfDay(for: Date())
+                
+                if let earliest = earliestLessonDate {
+                    // Use the earlier of: earliest lesson date or today
+                    startDate = min(earliest, today)
+                } else {
+                    // No lessons scheduled, use today
+                    startDate = AgendaSchoolDayRules.computeInitialStartDate(
+                        calendar: calendar,
+                        isNonSchoolDay: { day in SchoolCalendar.isNonSchoolDay(day, using: modelContext) }
+                    )
+                }
                 startDateRaw = startDate.timeIntervalSinceReferenceDate
             }
             syncInboxOrderWithCurrentBase()

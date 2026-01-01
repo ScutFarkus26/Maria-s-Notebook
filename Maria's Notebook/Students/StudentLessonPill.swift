@@ -115,7 +115,7 @@ struct StudentLessonPill: View {
         }
         let presented = (try? modelContext.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))) ?? []
         let filtered = presented.filter { !excludedLessonIDs.contains($0.resolvedLessonID) }
-        return Set(filtered.flatMap { $0.studentIDs })
+        return Set(filtered.flatMap { $0.resolvedStudentIDs })
     }
 
     private var suppressHighlighting: Bool {
@@ -399,8 +399,9 @@ struct StudentLessonPill: View {
                     let src = (try? modelContext.fetch(srcDesc))?.first
                     let tgt = (try? modelContext.fetch(tgtDesc))?.first
                     guard let source = src, let target = tgt, source.id != target.id, lessonID == targetLessonID else { return }
-                    if !target.studentIDs.contains(studentID) {
-                        target.studentIDs.append(studentID)
+                    let studentIDString = studentID.uuidString
+                    if !target.studentIDs.contains(studentIDString) {
+                        target.studentIDs.append(studentIDString)
                         if !target.students.contains(where: { $0.id == studentID }) {
                             let stuDesc = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
                             if let s = (try? modelContext.fetch(stuDesc))?.first {
@@ -411,11 +412,11 @@ struct StudentLessonPill: View {
                         }
                         // Removed: target.syncSnapshotsFromRelationships()
                     }
-                    source.studentIDs.removeAll { $0 == studentID }
+                    source.studentIDs.removeAll { $0 == studentIDString }
                     if source.studentIDs.isEmpty {
                         modelContext.delete(source)
                     } else {
-                        let remainingIDs = source.studentIDs
+                        let remainingIDs = source.studentIDs.compactMap { UUID(uuidString: $0) }
                         let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
                         let fetched = (try? modelContext.fetch(fetch)) ?? []
                         source.students = fetched

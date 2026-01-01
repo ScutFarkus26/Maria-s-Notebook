@@ -72,7 +72,8 @@ final class StudentChecklistViewModel: ObservableObject {
             }
         )
         let allSLs: [StudentLesson] = (try? context.fetch(slFetch)) ?? []
-        let allSLsForStudent: [StudentLesson] = allSLs.filter { $0.studentIDs.contains(self.studentID) }
+        let studentIDString = self.studentID.uuidString
+        let allSLsForStudent: [StudentLesson] = allSLs.filter { $0.studentIDs.contains(studentIDString) }
 
         // Non-given count as inbox/planned
         let nonGivenByLesson = Dictionary(grouping: allSLsForStudent.filter { !$0.isGiven }) { $0.lessonID }

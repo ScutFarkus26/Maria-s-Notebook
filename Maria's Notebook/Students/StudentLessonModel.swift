@@ -8,9 +8,10 @@
 import Foundation
 import SwiftData
 @Model final class StudentLesson: Identifiable {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var lessonID: UUID
-    var studentIDs: [UUID]
+    // CloudKit compatibility: Store UUIDs as strings
+    var studentIDs: [String] = []
     var createdAt: Date
     var scheduledFor: Date? {
         didSet {
@@ -34,7 +35,8 @@ import SwiftData
     @Transient var students: [Student] = []
     @Relationship var lesson: Lesson?
 
-    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.studentLesson) var scopedNotes: [ScopedNote] = []
+    // CloudKit compatibility: Relationship arrays must be optional
+    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.studentLesson) var scopedNotes: [ScopedNote]? = []
 
     init(
         id: UUID = UUID(),
@@ -51,7 +53,8 @@ import SwiftData
     ) {
         self.id = id
         self.lessonID = lessonID
-        self.studentIDs = studentIDs
+        // Convert UUIDs to strings for CloudKit compatibility
+        self.studentIDs = studentIDs.map { $0.uuidString }
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
@@ -61,6 +64,7 @@ import SwiftData
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork
+        self.scopedNotes = []
     }
 
     init(
@@ -80,7 +84,8 @@ import SwiftData
         self.lesson = lesson
         self.lessonID = lesson?.id ?? UUID()
         self.students = students
-        self.studentIDs = students.map { $0.id }
+        // Convert UUIDs to strings for CloudKit compatibility
+        self.studentIDs = students.map { $0.id.uuidString }
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
@@ -90,11 +95,13 @@ import SwiftData
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork
+        self.scopedNotes = []
     }
 
     func syncSnapshotsFromRelationships() {
         self.lessonID = self.lesson?.id ?? self.lessonID
-        self.studentIDs = self.students.map { $0.id }
+        // Convert UUIDs to strings for CloudKit compatibility
+        self.studentIDs = self.students.map { $0.id.uuidString }
         self.updateDenormalizedKeys()
     }
 
@@ -102,10 +109,12 @@ import SwiftData
     var isGiven: Bool { isPresented || givenAt != nil }
     
     func snapshot() -> StudentLessonSnapshot {
-        StudentLessonSnapshot(
+        // Convert string IDs to UUIDs for CloudKit compatibility
+        let studentUUIDs = studentIDs.compactMap { UUID(uuidString: $0) }
+        return StudentLessonSnapshot(
             id: id,
             lessonID: lessonID,
-            studentIDs: studentIDs,
+            studentIDs: studentUUIDs,
             createdAt: createdAt,
             scheduledFor: scheduledFor,
             givenAt: givenAt,

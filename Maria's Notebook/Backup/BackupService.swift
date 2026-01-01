@@ -71,7 +71,7 @@ public final class BackupService {
                 birthday: s.birthday,
                 dateStarted: s.dateStarted,
                 level: level,
-                nextLessons: s.nextLessons,
+                nextLessons: s.nextLessonUUIDs,
                 manualOrder: s.manualOrder,
                 createdAt: nil,
                 updatedAt: nil
@@ -97,7 +97,7 @@ public final class BackupService {
             StudentLessonDTO(
                 id: sl.id,
                 lessonID: sl.lessonID,
-                studentIDs: sl.studentIDs,
+                studentIDs: sl.resolvedStudentIDs,
                 createdAt: sl.createdAt,
                 scheduledFor: sl.scheduledFor,
                 givenAt: sl.givenAt,
@@ -814,7 +814,7 @@ public final class BackupService {
                 level: dto.level == .upper ? .upper : .lower
             )
             s.dateStarted = dto.dateStarted
-            s.nextLessons = dto.nextLessons
+            s.nextLessons = dto.nextLessons.map { $0.uuidString }
             s.manualOrder = dto.manualOrder
             modelContext.insert(s)
             studentsByID[s.id] = s

@@ -37,7 +37,7 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
 @Model
 final class AttendanceRecord: Identifiable {
     // Persistent fields
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     var studentID: UUID = UUID()
     var date: Date = Date()          // normalized to start-of-day (local calendar)
     private var statusRaw: String = "unmarked"

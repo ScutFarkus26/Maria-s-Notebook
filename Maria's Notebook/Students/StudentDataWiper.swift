@@ -61,12 +61,14 @@ struct StudentDataWiper {
         }
 
         // 3) StudentLessons — remove target IDs; delete if no students remain
+        // Convert target IDs to strings for CloudKit compatibility
+        let targetIDStrings = Set(targetIDs.map { $0.uuidString })
         let allSLs = try context.fetch(FetchDescriptor<StudentLesson>())
         var slUpdated = 0
         var slDeleted = 0
         for sl in allSLs {
             let beforeIDs = sl.studentIDs
-            let afterIDs = beforeIDs.filter { !targetIDs.contains($0) }
+            let afterIDs = beforeIDs.filter { !targetIDStrings.contains($0) }
             if afterIDs.count == beforeIDs.count { continue }
             if afterIDs.isEmpty {
                 context.delete(sl)
@@ -145,7 +147,9 @@ struct StudentDataWiper {
             }
             // Delete if attached StudentLesson still includes any target student
             if let sl = n.studentLesson {
-                if !Set(sl.studentIDs).isDisjoint(with: targetIDs) {
+                // Convert studentIDs strings to UUIDs for comparison with targetIDs
+                let slUUIDs = Set(sl.studentIDs.compactMap { UUID(uuidString: $0) })
+                if !slUUIDs.isDisjoint(with: targetIDs) {
                     context.delete(n)
                     scopedNotesDeleted += 1
                     continue notesLoop

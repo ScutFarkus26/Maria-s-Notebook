@@ -35,6 +35,9 @@ final class AppBootstrapper: ObservableObject {
         // 3. Schema & Data Normalization (WorkModel logic disabled)
         DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: context)
         
+        // 3.5. Fix CommunityTopic tags type mismatch
+        DataMigrations.fixCommunityTopicTagsIfNeeded(using: context)
+        
         // 4. Legacy Data (Run asynchronously without awaiting if it's safe, or await if dependent)
         LegacyNotesMigration.runIfNeeded(modelContext: context)
         

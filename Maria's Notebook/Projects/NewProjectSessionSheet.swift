@@ -114,9 +114,10 @@ struct NewProjectSessionSheet: View {
             for lessonIDStr in week.linkedLessonIDs {
                 guard let lessonID = UUID(uuidString: lessonIDStr) else { continue }
                 let memberUUIDs = club.memberStudentIDs.compactMap { UUID(uuidString: $0) }.sorted()
+                let memberStrings = memberUUIDs.map { $0.uuidString }.sorted()
                 
                 let existing = allStudentLessons.first { sl in
-                    sl.lessonID == lessonID && sl.studentIDs.sorted() == memberUUIDs
+                    sl.lessonID == lessonID && sl.studentIDs.sorted() == memberStrings
                 }
                 
                 if let existing {

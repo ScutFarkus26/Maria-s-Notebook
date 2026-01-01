@@ -73,7 +73,7 @@ enum NoteScope: Codable, Equatable {
 @Model
 final class Note: Identifiable {
     // Identity & timestamps
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var createdAt: Date
     var updatedAt: Date
 

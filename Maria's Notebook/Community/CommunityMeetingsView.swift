@@ -52,13 +52,13 @@ struct CommunityMeetingsView: View {
         let baseParts = [t.title, t.issueDescription, t.resolution]
         let baseText = baseParts.joined(separator: "\n")
 
-        let solutionsText = t.proposedSolutions.map { part in
+        let solutionsText = (t.proposedSolutions ?? []).map { part in
             let title = part.title
             let details = part.details
             return "\(title)\n\(details)"
         }.joined(separator: "\n")
 
-        let notesText = t.notes.map { note in
+        let notesText = (t.notes ?? []).map { note in
             let speaker = note.speaker
             let content = note.content
             return "\(speaker)\n\(content)"

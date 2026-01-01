@@ -15,6 +15,15 @@ struct PresentationsCalendarStrip: View {
     @Environment(\.modelContext) private var modelContext
     
     @Query private var studentLessons: [StudentLesson]
+    
+    // Find the earliest date with a scheduled lesson (including past dates)
+    private var earliestDateWithLesson: Date? {
+        let scheduledDates = studentLessons.compactMap { sl -> Date? in
+            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return nil }
+            return calendar.startOfDay(for: scheduled)
+        }
+        return scheduledDates.min()
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -61,10 +70,30 @@ struct PresentationsCalendarStrip: View {
                     .padding(.vertical, 8)
                 }
             }
+            .onAppear {
+                // Scroll to the first day (which is the earliest of: first lesson date or today)
+                if let first = days.first {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation {
+                            proxy.scrollTo(first, anchor: .leading)
+                        }
+                    }
+                }
+            }
             .onChange(of: startDate) { _, _ in
                 if let first = days.first {
                     withAnimation {
                         proxy.scrollTo(first, anchor: .leading)
+                    }
+                }
+            }
+            .onChange(of: days) { _, _ in
+                // When days change, scroll to first day (earliest of: first lesson date or today)
+                if let first = days.first {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation {
+                            proxy.scrollTo(first, anchor: .leading)
+                        }
                     }
                 }
             }

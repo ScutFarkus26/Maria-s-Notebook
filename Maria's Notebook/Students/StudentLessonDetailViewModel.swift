@@ -53,7 +53,8 @@ final class StudentLessonDetailViewModel {
         self.notes = studentLesson.notes
         self.originalNotes = studentLesson.notes
         self.needsAnotherPresentation = studentLesson.needsAnotherPresentation
-        self.selectedStudentIDs = Set(studentLesson.studentIDs)
+        // Convert string IDs to UUIDs for CloudKit compatibility
+        self.selectedStudentIDs = Set(studentLesson.studentIDs.compactMap { UUID(uuidString: $0) })
         
         self.showLessonPicker = autoFocusLessonPicker
     }
@@ -204,10 +205,10 @@ final class StudentLessonDetailViewModel {
         // Remove students from current VM state
         selectedStudentIDs.subtract(studentsToMove)
         
-        // Sync to model immediately so the view updates
-        let remaining = Set(studentLesson.studentIDs).subtracting(studentsToMove)
-        studentLesson.studentIDs = Array(remaining)
-        studentLesson.students = studentsAll.filter { remaining.contains($0.id) }
+        // Sync to model immediately so the view updates - convert UUIDs to strings for CloudKit compatibility
+        let remainingUUIDs = Set(studentLesson.resolvedStudentIDs).subtracting(studentsToMove)
+        studentLesson.studentIDs = remainingUUIDs.map { $0.uuidString }
+        studentLesson.students = studentsAll.filter { remainingUUIDs.contains($0.id) }
         try? modelContext.save()
         
         StudentLessonDetailUtilities.notifyInboxRefresh()

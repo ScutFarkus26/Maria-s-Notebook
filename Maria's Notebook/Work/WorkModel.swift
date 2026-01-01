@@ -9,7 +9,7 @@ import SwiftUI
         case practice = "Practice"
     }
 
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     var title: String = ""
     // Persisted raw value for the enum to keep storage simple and stable
     private var workTypeRaw: String = "Research"
@@ -19,8 +19,9 @@ import SwiftUI
     var completedAt: Date? = nil
     @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn]? = []
-    @Relationship(deleteRule: .cascade, inverse: \Note.work) var noteItems: [Note] = []
-    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.work) var scopedNotes: [ScopedNote] = []
+    // CloudKit compatibility: Relationship arrays must be optional
+    @Relationship(deleteRule: .cascade, inverse: \Note.work) var noteItems: [Note]? = []
+    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.work) var scopedNotes: [ScopedNote]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkNote.work) var checkNotes: [WorkNote]? = []
 
     init(
@@ -42,6 +43,8 @@ import SwiftUI
         self.createdAt = cal.startOfDay(for: createdAt)
         self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.participants = participants
+        self.noteItems = []
+        self.scopedNotes = []
         for p in (self.participants ?? []) { p.work = self }
     }
 

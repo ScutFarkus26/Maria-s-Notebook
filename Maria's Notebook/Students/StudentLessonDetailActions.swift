@@ -28,7 +28,7 @@ final class StudentLessonDetailActions: ObservableObject {
         studentLesson.isPresented = isPresented
         studentLesson.notes = notes
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.studentIDs = Array(selectedStudentIDs)
+        studentLesson.studentIDs = selectedStudentIDs.map { $0.uuidString }
         studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
         studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
     }

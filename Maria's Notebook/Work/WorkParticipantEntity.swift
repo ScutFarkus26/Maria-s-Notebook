@@ -3,7 +3,7 @@ import SwiftData
 
 @Model final class WorkParticipantEntity: Identifiable {
     // Identity (optional but useful for list operations)
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
 
     // The identifier of the student participating in the work
     var studentID: UUID = UUID()

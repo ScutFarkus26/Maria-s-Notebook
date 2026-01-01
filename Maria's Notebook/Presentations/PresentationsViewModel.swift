@@ -219,12 +219,12 @@ final class PresentationsViewModel: ObservableObject {
             let previousLesson = groupLessons[currentIndex - 1]
             var blocking: [UUID: WorkContract] = [:]
             
-            for studentID in sl.studentIDs {
-                let sidString = studentID.uuidString
+            for studentIDString in sl.studentIDs {
+                guard let studentID = UUID(uuidString: studentIDString) else { continue }
                 let pidString = previousLesson.id.uuidString
                 
                 if let contract = contracts.first(where: { c in
-                    c.studentID == sidString &&
+                    c.studentID == studentIDString &&
                     c.lessonID == pidString &&
                     (c.status == .active || c.status == .review)
                 }) {

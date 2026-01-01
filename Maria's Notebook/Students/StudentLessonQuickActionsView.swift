@@ -109,7 +109,7 @@ struct StudentLessonQuickActionsView: View {
                             let newStudentLesson = StudentLesson(
                                 id: UUID(),
                                 lessonID: next.id,
-                                studentIDs: studentLesson.studentIDs,
+                                studentIDs: studentLesson.resolvedStudentIDs,
                                 createdAt: Date(),
                                 scheduledFor: nil,
                                 givenAt: nil,
@@ -168,7 +168,7 @@ struct StudentLessonQuickActionsView: View {
                     Button("Add") {
                         let trimmed = followUpDraft.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !trimmed.isEmpty {
-                            let sidStrings = studentLesson.studentIDs.map { $0.uuidString }
+                            let sidStrings = studentLesson.resolvedStudentIDs.map { $0.uuidString }
                             let lidString = studentLesson.lessonID.uuidString
                             for sid in sidStrings {
                                 // De-dupe by (student, lesson, kind=followUp) in active/review
@@ -266,7 +266,7 @@ struct StudentLessonQuickActionsView: View {
         studentLesson.needsAnotherPresentation = needsAnotherPresentation
 
         // Ensure relationships mirror snapshots
-        studentLesson.students = studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
+        studentLesson.students = studentsAll.filter { studentLesson.resolvedStudentIDs.contains($0.id) }
         studentLesson.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
 
         if needsAnotherPresentation {
@@ -280,7 +280,7 @@ struct StudentLessonQuickActionsView: View {
                 let newPresentation = StudentLesson(
                     id: UUID(),
                     lessonID: studentLesson.lessonID,
-                    studentIDs: studentLesson.studentIDs,
+                    studentIDs: studentLesson.resolvedStudentIDs,
                     createdAt: Date(),
                     scheduledFor: nil,
                     givenAt: nil,
@@ -290,7 +290,7 @@ struct StudentLessonQuickActionsView: View {
                     needsAnotherPresentation: false,
                     followUpWork: ""
                 )
-                newPresentation.students = studentsAll.filter { studentLesson.studentIDs.contains($0.id) }
+                newPresentation.students = studentsAll.filter { studentLesson.resolvedStudentIDs.contains($0.id) }
                 newPresentation.lesson = lessons.first(where: { $0.id == studentLesson.lessonID })
                 modelContext.insert(newPresentation)
             }
@@ -307,7 +307,7 @@ struct StudentLessonQuickActionsView: View {
 
     private func addPracticeIfNeeded() {
         // Create practice contracts if none exist for these students/lesson
-        let sidStrings = studentLesson.studentIDs.map { $0.uuidString }
+        let sidStrings = studentLesson.resolvedStudentIDs.map { $0.uuidString }
         let lidString = studentLesson.lessonID.uuidString
         var createdAny = false
         for sid in sidStrings {

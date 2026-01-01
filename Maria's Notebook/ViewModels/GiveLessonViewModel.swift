@@ -242,7 +242,7 @@ final class LessonPickerViewModel: ObservableObject {
 
         // Apply current state onto the chosen record
         studentLesson.lessonID = finalLesson.id
-        studentLesson.studentIDs = selectedIDs
+        studentLesson.studentIDs = selectedIDs.map { $0.uuidString }
         studentLesson.scheduledFor = (mode == .plan ? scheduledFor : nil)
         studentLesson.givenAt = (mode == .given ? givenAt : nil)
         studentLesson.isPresented = (mode == .given)

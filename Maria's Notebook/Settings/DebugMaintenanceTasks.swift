@@ -141,7 +141,7 @@ func consolidateOnDeckLessons(modelContext: ModelContext) throws -> String {
             }
             
             target.students = Array(allStudents)
-            target.studentIDs = target.students.map { $0.id } // Sync IDs
+            target.studentIDs = target.students.map { $0.id.uuidString } // Sync IDs - convert to strings for CloudKit
             consolidatedCount += 1
         }
     }

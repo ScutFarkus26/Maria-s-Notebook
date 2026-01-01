@@ -31,7 +31,7 @@ enum PlanningActions {
         let newStudentLesson = StudentLesson(
             id: UUID(),
             lessonID: next.id,
-            studentIDs: sl.studentIDs,
+            studentIDs: sl.studentIDs.compactMap { UUID(uuidString: $0) },
             createdAt: Date(),
             scheduledFor: nil,
             givenAt: nil,

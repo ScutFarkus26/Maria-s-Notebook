@@ -5,7 +5,7 @@ import SwiftData
 @Model
 final class Lesson: Identifiable {
     /// Stable identifier
-    var id: UUID = UUID()
+    @Attribute(.unique) var id: UUID = UUID()
     /// Lesson Name
     var name: String = ""
     /// Subject (e.g., Math, Language)

@@ -122,15 +122,10 @@ final class TodayViewModel: ObservableObject {
     func reload() {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
 
-        // 1. Setup Caches
-        let allStudents = (try? context.fetch(FetchDescriptor<Student>())) ?? []
-        let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
-        studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
-
-        let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
-        lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-
-        // 2. Lessons for Today
+        // MEMORY OPTIMIZATION: Fetch lessons for today first, then only load students/lessons we actually need
+        
+        // 2. Lessons for Today (fetch first to know what we need)
+        var dayLessons: [StudentLesson] = []
         do {
             let byDayDescriptor = FetchDescriptor<StudentLesson>(
                 predicate: #Predicate { sl in
@@ -138,7 +133,7 @@ final class TodayViewModel: ObservableObject {
                 },
                 sortBy: []
             )
-            var dayLessons = try context.fetch(byDayDescriptor)
+            dayLessons = try context.fetch(byDayDescriptor)
 
             // Stable sort
             dayLessons.sort { lhs, rhs in
@@ -152,10 +147,59 @@ final class TodayViewModel: ObservableObject {
                 default: return lhs.createdAt < rhs.createdAt
                 }
             }
-            todaysLessons = filterByLevelIfNeeded(dayLessons, studentsByID: self.studentsByID)
         } catch {
             todaysLessons = []
         }
+
+        // 1. MEMORY OPTIMIZATION: Only load students and lessons that are actually referenced today
+        // Collect IDs from today's lessons
+        var neededStudentIDs = Set<UUID>()
+        var neededLessonIDs = Set<UUID>()
+        
+        for sl in dayLessons {
+            neededStudentIDs.formUnion(sl.resolvedStudentIDs)
+            neededLessonIDs.insert(sl.resolvedLessonID)
+        }
+        
+        // Load only needed students
+        var studentsByID: [UUID: Student] = [:]
+        if !neededStudentIDs.isEmpty {
+            do {
+                // Fetch only the students we need
+                let studentsDescriptor = FetchDescriptor<Student>(
+                    predicate: #Predicate { neededStudentIDs.contains($0.id) }
+                )
+                let fetchedStudents = try context.fetch(studentsDescriptor)
+                let visibleStudents = TestStudentsFilter.filterVisible(fetchedStudents)
+                studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+            } catch {
+                // Fallback: fetch all if predicate fails (shouldn't happen, but safe)
+                let allStudents = (try? context.fetch(FetchDescriptor<Student>())) ?? []
+                let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
+                studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+            }
+        }
+        self.studentsByID = studentsByID
+        
+        // Load only needed lessons
+        var lessonsByID: [UUID: Lesson] = [:]
+        if !neededLessonIDs.isEmpty {
+            do {
+                let lessonsDescriptor = FetchDescriptor<Lesson>(
+                    predicate: #Predicate { neededLessonIDs.contains($0.id) }
+                )
+                let fetchedLessons = try context.fetch(lessonsDescriptor)
+                lessonsByID = Dictionary(uniqueKeysWithValues: fetchedLessons.map { ($0.id, $0) })
+            } catch {
+                // Fallback: fetch all if predicate fails
+                let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
+                lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+            }
+        }
+        self.lessonsByID = lessonsByID
+        
+        // Filter today's lessons by level
+        todaysLessons = filterByLevelIfNeeded(dayLessons, studentsByID: studentsByID)
 
         // 3. Work Contracts & Schedule (Replacing WorkCheckIn/WorkModel logic)
         do {
@@ -165,6 +209,40 @@ final class TodayViewModel: ObservableObject {
             )
             let contracts = try context.fetch(contractsDescriptor)
             contractsByID = Dictionary(uniqueKeysWithValues: contracts.map { ($0.id, $0) })
+            
+            // MEMORY OPTIMIZATION: Collect student/lesson IDs from contracts to load only what we need
+            var contractStudentIDs = Set<UUID>()
+            var contractLessonIDs = Set<UUID>()
+            for contract in contracts {
+                if let sid = UUID(uuidString: contract.studentID) {
+                    contractStudentIDs.insert(sid)
+                }
+                if let lid = UUID(uuidString: contract.lessonID) {
+                    contractLessonIDs.insert(lid)
+                }
+            }
+            
+            // Load contract-related students and lessons if not already loaded
+            for sid in contractStudentIDs where studentsByID[sid] == nil {
+                if let student = try? context.fetch(FetchDescriptor<Student>(
+                    predicate: #Predicate { $0.id == sid }
+                )).first {
+                    let visible = TestStudentsFilter.filterVisible([student])
+                    if let s = visible.first {
+                        studentsByID[sid] = s
+                    }
+                }
+            }
+            self.studentsByID = studentsByID
+            
+            for lid in contractLessonIDs where lessonsByID[lid] == nil {
+                if let lesson = try? context.fetch(FetchDescriptor<Lesson>(
+                    predicate: #Predicate { $0.id == lid }
+                )).first {
+                    lessonsByID[lid] = lesson
+                }
+            }
+            self.lessonsByID = lessonsByID
             
             // OPTIMIZATION: Only fetch Plan Items for the contracts we need
             // This preserves exact same functionality - we still process all contracts the same way
@@ -292,6 +370,21 @@ final class TodayViewModel: ObservableObject {
                 sortBy: []
             )
             let records = try context.fetch(descriptor)
+            
+            // MEMORY OPTIMIZATION: Only load students referenced in attendance records if not already loaded
+            let attendanceStudentIDs = Set(records.map { $0.studentID })
+            for sid in attendanceStudentIDs where studentsByID[sid] == nil {
+                if let student = try? context.fetch(FetchDescriptor<Student>(
+                    predicate: #Predicate { $0.id == sid }
+                )).first {
+                    let visible = TestStudentsFilter.filterVisible([student])
+                    if let s = visible.first {
+                        studentsByID[sid] = s
+                    }
+                }
+            }
+            self.studentsByID = studentsByID
+            
             var present = 0
             var absent = 0
             var leftEarly = 0
@@ -343,5 +436,104 @@ final class TodayViewModel: ObservableObject {
             }
             return anyVisible && anyVisibleMatching
         }
+    }
+    
+    /// Finds the next day (after the given date) that has lessons scheduled.
+    /// Only considers school days and respects the current level filter.
+    func nextDayWithLessons(after date: Date) -> Date {
+        var current = SchoolCalendar.nextSchoolDay(after: date, using: context)
+        // Safety cap: search up to 2 years forward
+        for _ in 0..<730 {
+            let (day, nextDay) = AppCalendar.dayRange(for: current)
+            do {
+                let descriptor = FetchDescriptor<StudentLesson>(
+                    predicate: #Predicate { sl in
+                        sl.scheduledForDay >= day && sl.scheduledForDay < nextDay
+                    }
+                )
+                let lessons = try context.fetch(descriptor)
+                if !lessons.isEmpty {
+                    // Check if any lessons match the level filter
+                    var neededStudentIDs = Set<UUID>()
+                    for sl in lessons {
+                        neededStudentIDs.formUnion(sl.resolvedStudentIDs)
+                    }
+                    if !neededStudentIDs.isEmpty {
+                        let studentsDescriptor = FetchDescriptor<Student>(
+                            predicate: #Predicate { neededStudentIDs.contains($0.id) }
+                        )
+                        let students = try context.fetch(studentsDescriptor)
+                        let visibleStudents = TestStudentsFilter.filterVisible(students)
+                        let studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+                        let filtered = filterByLevelIfNeeded(lessons, studentsByID: studentsByID)
+                        if !filtered.isEmpty {
+                            return current
+                        }
+                    } else if levelFilter == .all {
+                        // If no students but level filter is "all", still count it
+                        return current
+                    }
+                }
+            } catch {
+                // If fetch fails, continue to next day
+            }
+            current = SchoolCalendar.nextSchoolDay(after: current, using: context)
+            // Prevent infinite loop if we've wrapped around
+            if current <= date {
+                break
+            }
+        }
+        // If no day with lessons found, return the next school day
+        return SchoolCalendar.nextSchoolDay(after: date, using: context)
+    }
+    
+    /// Finds the previous day (before the given date) that has lessons scheduled.
+    /// Only considers school days and respects the current level filter.
+    func previousDayWithLessons(before date: Date) -> Date {
+        var current = SchoolCalendar.previousSchoolDay(before: date, using: context)
+        // Safety cap: search up to 2 years backward
+        for _ in 0..<730 {
+            let (day, nextDay) = AppCalendar.dayRange(for: current)
+            do {
+                let descriptor = FetchDescriptor<StudentLesson>(
+                    predicate: #Predicate { sl in
+                        sl.scheduledForDay >= day && sl.scheduledForDay < nextDay
+                    }
+                )
+                let lessons = try context.fetch(descriptor)
+                if !lessons.isEmpty {
+                    // Check if any lessons match the level filter
+                    var neededStudentIDs = Set<UUID>()
+                    for sl in lessons {
+                        neededStudentIDs.formUnion(sl.resolvedStudentIDs)
+                    }
+                    if !neededStudentIDs.isEmpty {
+                        let studentsDescriptor = FetchDescriptor<Student>(
+                            predicate: #Predicate { neededStudentIDs.contains($0.id) }
+                        )
+                        let students = try context.fetch(studentsDescriptor)
+                        let visibleStudents = TestStudentsFilter.filterVisible(students)
+                        let studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+                        let filtered = filterByLevelIfNeeded(lessons, studentsByID: studentsByID)
+                        if !filtered.isEmpty {
+                            return current
+                        }
+                    } else if levelFilter == .all {
+                        // If no students but level filter is "all", still count it
+                        return current
+                    }
+                }
+            } catch {
+                // If fetch fails, continue to next day
+            }
+            let prev = SchoolCalendar.previousSchoolDay(before: current, using: context)
+            // Prevent infinite loop if we've wrapped around
+            if prev >= date || prev == current {
+                break
+            }
+            current = prev
+        }
+        // If no day with lessons found, return the previous school day
+        return SchoolCalendar.previousSchoolDay(before: date, using: context)
     }
 }

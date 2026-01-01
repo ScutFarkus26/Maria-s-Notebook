@@ -179,33 +179,10 @@ struct StudentsViewModel {
     }
 
     private func daysSinceLastLesson(for student: Student) -> Int {
-        // Use the student's in-memory lessons list if populated; otherwise, return 0.
         // This helper is a fallback used only when the view cannot provide context-aware counts.
-        var last: Date? = nil
-        for sl in student.studentLessons {
-            if sl.isGiven {
-                let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
-                if let current = last {
-                    if when > current { last = when }
-                } else {
-                    last = when
-                }
-            }
-        }
-        guard let lastDate = last else { return 0 }
-        // Approximate school days by excluding weekends only (no context available here).
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: lastDate)
-        let end = cal.startOfDay(for: Date())
-        if end <= start { return 0 }
-        var count = 0
-        var cursor = start
-        while cursor < end {
-            let wd = cal.component(.weekday, from: cursor)
-            if wd != 1 && wd != 7 { count += 1 }
-            cursor = cal.date(byAdding: .day, value: 1, to: cursor) ?? cursor
-        }
-        return max(0, count)
+        // Note: studentLessons relationship was removed because StudentLesson.students is @Transient.
+        // This fallback now returns 0 - views should provide their own student lessons context.
+        return 0
     }
 }
 

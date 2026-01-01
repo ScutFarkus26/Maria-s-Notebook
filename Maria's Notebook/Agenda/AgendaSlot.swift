@@ -317,7 +317,13 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         })
                         let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
 
-                        let existing = allStudentLessons.first(where: { $0.resolvedLessonID == lessonID && $0.scheduledFor == nil && !$0.isGiven && Set($0.resolvedStudentIDs) == Set([studentID]) })
+                        let existing = allStudentLessons.first(where: { sl in
+                            let matchesLesson = sl.resolvedLessonID == lessonID
+                            let isUnscheduled = sl.scheduledFor == nil
+                            let isNotGiven = !sl.isGiven
+                            let matchesStudentSet = Set(sl.resolvedStudentIDs) == Set([studentID])
+                            return matchesLesson && isUnscheduled && isNotGiven && matchesStudentSet
+                        })
                         let targetSL: StudentLesson
                         if let ex = existing {
                             targetSL = ex
@@ -343,7 +349,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         }
                         
                         if let src = allStudentLessons.first(where: { $0.id == srcID }) {
-                            src.studentIDs.removeAll { $0 == studentID }
+                            src.studentIDs.removeAll { $0 == studentID.uuidString }
                             src.students.removeAll { $0.id == studentID }
                             if src.studentIDs.isEmpty { modelContext.delete(src) } else { /* Removed src.syncSnapshotsFromRelationships() */ }
                         }
