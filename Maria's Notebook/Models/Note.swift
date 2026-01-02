@@ -1,6 +1,15 @@
 import Foundation
 import SwiftData
 
+public enum NoteCategory: String, Codable, CaseIterable {
+    case academic
+    case behavioral
+    case social
+    case emotional
+    case health
+    case general
+}
+
 enum NoteScope: Codable, Equatable {
     case all
     case student(UUID)
@@ -80,6 +89,15 @@ final class Note: Identifiable {
     // Content
     var body: String = ""
     var isPinned: Bool = false
+    // Store category as raw string for SwiftData/CloudKit compatibility
+    private var categoryRaw: String = NoteCategory.general.rawValue
+    var includeInReport: Bool = false
+    
+    // Computed property for category enum
+    var category: NoteCategory {
+        get { NoteCategory(rawValue: categoryRaw) ?? .general }
+        set { categoryRaw = newValue.rawValue }
+    }
 
     // Persisted scope storage (JSON-encoded) kept small; no external storage needed
     private var scopeBlob: Data?
@@ -102,6 +120,8 @@ final class Note: Identifiable {
         body: String,
         scope: NoteScope = .all,
         isPinned: Bool = false,
+        category: NoteCategory = .general,
+        includeInReport: Bool = false,
         lesson: Lesson? = nil,
         work: WorkModel? = nil
     ) {
@@ -110,6 +130,8 @@ final class Note: Identifiable {
         self.updatedAt = updatedAt
         self.body = body
         self.isPinned = isPinned
+        self.categoryRaw = category.rawValue
+        self.includeInReport = includeInReport
         self.lesson = lesson
         self.work = work
         self.scopeBlob = try? JSONEncoder().encode(scope)

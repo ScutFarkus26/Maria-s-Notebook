@@ -58,6 +58,7 @@ struct StudentNoteRowView: View {
         case .lesson:  return "book.closed.fill"
         case .work:    return "doc.text.fill"
         case .meeting: return "person.2.fill"
+        case .presentation: return "presentation.fill"
         }
     }
 
@@ -82,7 +83,9 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 source: .lesson,
                 contextText: "Decimal System",
                 color: .green,
-                associatedID: nil
+                associatedID: nil,
+                category: .academic,
+                includeInReport: false
             ))
             
             StudentNoteRowView(item: UnifiedNoteItem(
@@ -92,7 +95,9 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 source: .work,
                 contextText: "Handwriting Practice",
                 color: .orange,
-                associatedID: nil
+                associatedID: nil,
+                category: .academic,
+                includeInReport: true
             ))
         }
     }

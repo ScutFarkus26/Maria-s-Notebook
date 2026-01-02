@@ -12,6 +12,7 @@ public struct UnifiedNoteItem: Identifiable {
         case lesson
         case work
         case meeting
+        case presentation
     }
 
     public let id: UUID
@@ -21,6 +22,8 @@ public struct UnifiedNoteItem: Identifiable {
     public let contextText: String
     public let color: Color
     public let associatedID: UUID?
+    public let category: NoteCategory
+    public let includeInReport: Bool
 }
 
 // MARK: - View Model
@@ -67,7 +70,9 @@ final class StudentNotesViewModel: ObservableObject {
                 source: .general,
                 contextText: context,
                 color: .blue, // Blue for general
-                associatedID: note.id // link back to the Note as the source object
+                associatedID: note.id, // link back to the Note as the source object
+                category: note.category,
+                includeInReport: note.includeInReport
             )
         }
         aggregated.append(contentsOf: generalItems)
@@ -105,11 +110,139 @@ final class StudentNotesViewModel: ObservableObject {
                     source: .work,
                     contextText: context,
                     color: .orange, // Orange for work
-                    associatedID: assoc
+                    associatedID: assoc,
+                    category: .general, // ScopedNote doesn't have category, default to .general
+                    includeInReport: false // ScopedNote doesn't have includeInReport, default to false
                 )
             }
             aggregated.append(contentsOf: workItems)
         }
+
+        // 3) Presentation-related notes from ScopedNote linked to Presentations that include this student
+        let studentIDString = student.id.uuidString
+        let presentationScopedFetch = FetchDescriptor<ScopedNote>(
+            predicate: #Predicate<ScopedNote> { $0.presentationID != nil },
+            sortBy: [
+                SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
+                SortDescriptor(\ScopedNote.createdAt, order: .reverse)
+            ]
+        )
+        let presentationScopedNotes: [ScopedNote] = (try? modelContext.fetch(presentationScopedFetch)) ?? []
+        
+        // Fetch all presentations to build a lookup
+        let allPresentations: [Presentation] = (try? modelContext.fetch(FetchDescriptor<Presentation>())) ?? []
+        let presentationsByID: [String: Presentation] = Dictionary(uniqueKeysWithValues: allPresentations.map { ($0.id.uuidString, $0) })
+        
+        // Fetch all lessons for context lookup
+        let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+        let lessonsByID: [String: Lesson] = Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id.uuidString, $0) })
+        
+        let presentationItems: [UnifiedNoteItem] = presentationScopedNotes.compactMap { note in
+            guard let presentationID = note.presentationID,
+                  let presentation = presentationsByID[presentationID],
+                  presentation.studentIDs.contains(studentIDString) else {
+                return nil
+            }
+            
+            // Get lesson name from presentation
+            let context: String = {
+                if let lessonID = UUID(uuidString: presentation.lessonID),
+                   let lesson = lessonsByID[lessonID.uuidString] {
+                    let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return name.isEmpty ? "Presentation" : name
+                } else if let snapshot = presentation.lessonTitleSnapshot?.trimmingCharacters(in: .whitespacesAndNewlines),
+                          !snapshot.isEmpty {
+                    return snapshot
+                }
+                return "Presentation"
+            }()
+            
+            let assoc = UUID(uuidString: presentationID)
+            return UnifiedNoteItem(
+                id: note.id,
+                date: note.updatedAt,
+                body: note.body,
+                source: .presentation,
+                contextText: context,
+                color: .purple, // Purple for presentations
+                associatedID: assoc,
+                category: .general, // ScopedNote doesn't have category, default to .general
+                includeInReport: false // ScopedNote doesn't have includeInReport, default to false
+            )
+        }
+        aggregated.append(contentsOf: presentationItems)
+
+        // 4) Meeting-related notes from StudentMeeting records for this student
+        let meetingFetch = FetchDescriptor<StudentMeeting>(
+            predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
+            sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]
+        )
+        let studentMeetings: [StudentMeeting] = (try? modelContext.fetch(meetingFetch)) ?? []
+        
+        // Check if StudentMeeting has a notes field or relationship to MeetingNote
+        // Based on AppSchema, MeetingNote is related to CommunityTopic, not StudentMeeting
+        // StudentMeeting has text fields: reflection, focus, requests, guideNotes
+        // We'll create note items from these text fields if they contain content
+        let meetingItems: [UnifiedNoteItem] = studentMeetings.flatMap { meeting -> [UnifiedNoteItem] in
+            var items: [UnifiedNoteItem] = []
+            
+            // Create items from each non-empty text field
+            if !meeting.reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                items.append(UnifiedNoteItem(
+                    id: UUID(), // Generate new ID for each field
+                    date: meeting.date,
+                    body: meeting.reflection,
+                    source: .meeting,
+                    contextText: "Meeting - Reflection",
+                    color: .green, // Green for meetings
+                    associatedID: meeting.id,
+                    category: .general,
+                    includeInReport: false
+                ))
+            }
+            if !meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                items.append(UnifiedNoteItem(
+                    id: UUID(),
+                    date: meeting.date,
+                    body: meeting.focus,
+                    source: .meeting,
+                    contextText: "Meeting - Focus",
+                    color: .green,
+                    associatedID: meeting.id,
+                    category: .general,
+                    includeInReport: false
+                ))
+            }
+            if !meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                items.append(UnifiedNoteItem(
+                    id: UUID(),
+                    date: meeting.date,
+                    body: meeting.requests,
+                    source: .meeting,
+                    contextText: "Meeting - Requests",
+                    color: .green,
+                    associatedID: meeting.id,
+                    category: .general,
+                    includeInReport: false
+                ))
+            }
+            if !meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                items.append(UnifiedNoteItem(
+                    id: UUID(),
+                    date: meeting.date,
+                    body: meeting.guideNotes,
+                    source: .meeting,
+                    contextText: "Meeting - Guide Notes",
+                    color: .green,
+                    associatedID: meeting.id,
+                    category: .general,
+                    includeInReport: false
+                ))
+            }
+            
+            return items
+        }
+        aggregated.append(contentsOf: meetingItems)
 
         // Sort combined results by date (descending)
         aggregated.sort { $0.date > $1.date }
@@ -151,7 +284,7 @@ final class StudentNotesViewModel: ObservableObject {
             }
             // If not found as Note, attempt ScopedNote
             fallthrough
-        case .work:
+        case .work, .presentation:
             if let s = fetchScopedNote(id: item.id) {
                 modelContext.delete(s)
                 try? modelContext.save()
