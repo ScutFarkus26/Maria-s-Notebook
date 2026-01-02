@@ -197,6 +197,9 @@ struct RootView: View {
                     } detail: {
                         RootDetailContent(selectedNavItem: selectedNavItem)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .navigationDestination(for: RootView.NavigationItem.self) { item in
+                                RootDetailContent(selectedNavItem: item)
+                            }
                     }
                 }
             }
@@ -210,6 +213,9 @@ struct RootView: View {
             } detail: {
                 RootDetailContent(selectedNavItem: selectedNavItem)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .navigationDestination(for: RootView.NavigationItem.self) { item in
+                        RootDetailContent(selectedNavItem: item)
+                    }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             #endif
@@ -405,7 +411,7 @@ private struct RootSidebar: View {
                 }
             }
             
-            // Section 3: Planning (Expanded)
+            // Section 3: Planning
             Section("Planning") {
                 NavigationLink(value: RootView.NavigationItem.planningChecklist) {
                     Label("Checklist", systemImage: "list.clipboard")
@@ -430,19 +436,16 @@ private struct RootSidebar: View {
         }
         .listStyle(.sidebar)
         #else
+        // iOS/iPadOS: Use Buttons to avoid "Missing navigationDestination" errors
         List {
             // Section 1: Daily
             Section("Daily") {
-                Button {
-                    selection = .today
-                } label: {
+                Button { selection = .today } label: {
                     Label("Today", systemImage: "sun.max")
                 }
                 .buttonStyle(.plain)
                 
-                Button {
-                    selection = .attendance
-                } label: {
+                Button { selection = .attendance } label: {
                     Label("Attendance", systemImage: "checklist")
                 }
                 .buttonStyle(.plain)
@@ -450,30 +453,22 @@ private struct RootSidebar: View {
             
             // Section 2: Classroom
             Section("Classroom") {
-                Button {
-                    selection = .students
-                } label: {
+                Button { selection = .students } label: {
                     Label("Students", systemImage: "person.3")
                 }
                 .buttonStyle(.plain)
                 
-                Button {
-                    selection = .lessons
-                } label: {
+                Button { selection = .lessons } label: {
                     Label("Lessons", systemImage: "book")
                 }
                 .buttonStyle(.plain)
                 
-                Button {
-                    selection = .community
-                } label: {
+                Button { selection = .community } label: {
                     Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
                 }
                 .buttonStyle(.plain)
                 
-                Button {
-                    selection = .logs
-                } label: {
+                Button { selection = .logs } label: {
                     Label("Logs", systemImage: "list.bullet")
                 }
                 .buttonStyle(.plain)
@@ -481,30 +476,22 @@ private struct RootSidebar: View {
             
             // Section 3: Planning
             Section("Planning") {
-                Button {
-                    selection = .planningChecklist
-                } label: {
+                Button { selection = .planningChecklist } label: {
                     Label("Checklist", systemImage: "list.clipboard")
                 }
                 .buttonStyle(.plain)
                 
-                Button {
-                    selection = .planningAgenda
-                } label: {
+                Button { selection = .planningAgenda } label: {
                     Label("Presentations", systemImage: "calendar")
                 }
                 .buttonStyle(.plain)
                 
-                Button {
-                    selection = .planningWork
-                } label: {
+                Button { selection = .planningWork } label: {
                     Label("Open Work", systemImage: "tray.full")
                 }
                 .buttonStyle(.plain)
                 
-                Button {
-                    selection = .planningProjects
-                } label: {
+                Button { selection = .planningProjects } label: {
                     Label("Projects", systemImage: "folder")
                 }
                 .buttonStyle(.plain)
@@ -512,9 +499,7 @@ private struct RootSidebar: View {
             
             // Section 4: System
             Section("System") {
-                Button {
-                    selection = .settings
-                } label: {
+                Button { selection = .settings } label: {
                     Label("Settings", systemImage: "gear")
                 }
                 .buttonStyle(.plain)

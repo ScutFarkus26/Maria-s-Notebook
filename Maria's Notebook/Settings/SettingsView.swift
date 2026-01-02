@@ -23,68 +23,70 @@ struct SettingsView: View {
     @Query private var presentations: [Presentation]
     @Query private var notes: [Note]
     @Query private var meetings: [StudentMeeting]
+    
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    private let overviewColumns: [GridItem] = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
-    ]
+    private var overviewColumns: [GridItem] {
+        // Use 2 columns on iPhone (compact), 4 columns on iPad (regular)
+        let columnCount = horizontalSizeClass == .regular ? 4 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 16), count: columnCount)
+    }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // MARK: - School Configuration Section
-                    schoolConfigurationSection
+        // FIX: Removed NavigationStack wrapper. This view is presented within an existing
+        // NavigationStack (More Menu) or NavigationSplitView Detail (iPad), so it should
+        // not create its own stack.
+        ScrollView {
+            VStack(spacing: 24) {
+                // MARK: - School Configuration Section
+                schoolConfigurationSection
+                
+                // MARK: - Students Section
+                studentsSection
+                
+                // MARK: - Attendance Section
+                attendanceSection
+                
+                // MARK: - Reminders Section
+                remindersSection
+                
+                // MARK: - Data Management Section
+                dataManagementSection
+                
+                // MARK: - Overview Section
+                SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
+                    // Row 1: Core (Existing)
+                    OverviewStatsGrid(
+                        studentsCount: studentsTotal,
+                        lessonsCount: lessonsTotal,
+                        plannedCount: plannedTotal,
+                        givenCount: givenTotal,
+                        columns: overviewColumns
+                    )
                     
-                    // MARK: - Students Section
-                    studentsSection
+                    Divider()
                     
-                    // MARK: - Attendance Section
-                    attendanceSection
-                    
-                    // MARK: - Reminders Section
-                    remindersSection
-                    
-                    // MARK: - Data Management Section
-                    dataManagementSection
-                    
-                    // MARK: - Overview Section
-                    SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
-                        // Row 1: Core (Existing)
-                        OverviewStatsGrid(
-                            studentsCount: studentsTotal,
-                            lessonsCount: lessonsTotal,
-                            plannedCount: plannedTotal,
-                            givenCount: givenTotal,
-                            columns: overviewColumns
-                        )
-                        
-                        Divider()
-                        
-                        // Row 2: Detail (New)
-                        LazyVGrid(columns: overviewColumns, spacing: 16) {
-                            StatCard(title: "Work Items", value: "\(workContracts.count)", subtitle: "Assigned", systemImage: "doc.text.fill")
-                            StatCard(title: "Presentations", value: "\(presentations.count)", subtitle: "History", systemImage: "easel.fill")
-                            StatCard(title: "Observations", value: "\(notes.count)", subtitle: "Notes", systemImage: "note.text")
-                            StatCard(title: "Meetings", value: "\(meetings.count)", subtitle: "Records", systemImage: "person.2.fill")
-                        }
+                    // Row 2: Detail (New)
+                    LazyVGrid(columns: overviewColumns, spacing: 16) {
+                        StatCard(title: "Work Items", value: "\(workContracts.count)", subtitle: "Assigned", systemImage: "doc.text.fill")
+                        StatCard(title: "Presentations", value: "\(presentations.count)", subtitle: "History", systemImage: "easel.fill")
+                        StatCard(title: "Observations", value: "\(notes.count)", subtitle: "Notes", systemImage: "note.text")
+                        StatCard(title: "Meetings", value: "\(meetings.count)", subtitle: "Records", systemImage: "person.2.fill")
                     }
-                    
-                    // MARK: - iCloud Status Section
-                    iCloudStatusSection
                 }
-                .frame(maxWidth: 900)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .frame(maxWidth: .infinity)
+                
+                // MARK: - iCloud Status Section
+                iCloudStatusSection
             }
-            .navigationTitle("Settings")
-#if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-#endif
+            .frame(maxWidth: 900)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity)
         }
+        .navigationTitle("Settings")
+#if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+#endif
         .onAppear {
             #if DEBUG
             PerformanceLogger.logScreenLoad(

@@ -110,6 +110,17 @@ struct ProjectsRootView: View {
                 )
             }
         }
+        .navigationDestination(for: UUID.self) { clubID in
+            if let club = clubs.first(where: { $0.id == clubID }) {
+                ProjectDetailView(club: club)
+                    .id(club.id)
+            } else {
+                ContentUnavailableView(
+                    "Project Not Found",
+                    systemImage: "exclamationmark.triangle"
+                )
+            }
+        }
         .sheet(isPresented: $showNewSheet) {
             ProjectEditorSheet(club: nil)
         }

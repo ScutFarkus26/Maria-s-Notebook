@@ -14,6 +14,7 @@ struct PresentationsInboxView: View {
     @Binding var missWindowRaw: String
     @Binding var selectedStudentLessonForDetail: StudentLesson?
     @Binding var isInboxTargeted: Bool
+    @Binding var isCalendarMinimized: Bool
     
     @Environment(\.modelContext) private var modelContext
     
@@ -29,6 +30,21 @@ struct PresentationsInboxView: View {
                 Text("Presentations")
                     .font(.headline)
                 Spacer()
+                
+                #if os(iOS)
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isCalendarMinimized.toggle()
+                    }
+                } label: {
+                    Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                        .background(Color.primary.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                #endif
                 
                 Picker("Missed", selection: Binding(
                     get: { missWindow },

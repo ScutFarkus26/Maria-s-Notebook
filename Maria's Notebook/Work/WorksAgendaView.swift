@@ -26,6 +26,7 @@ struct WorksAgendaView: View {
     @State private var sortMode: WorkAgendaSortMode = .lesson
     @State private var searchText: String = ""
     @State private var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
+    @State private var isCalendarMinimized: Bool = false
 
     @State private var selectedContractID: UUID? = nil
 
@@ -99,7 +100,7 @@ struct WorksAgendaView: View {
             } else {
                 GeometryReader { geo in
                     VStack(spacing: 0) {
-                        // Top ~68%: Open Work grid
+                        // Top: Open Work grid
                         VStack(alignment: .leading, spacing: 8) {
                             header
                             Divider()
@@ -113,23 +114,26 @@ struct WorksAgendaView: View {
                                 onScheduleToday: scheduleToday
                             )
                         }
-                        .frame(height: geo.size.height * (1 - calendarHeightRatio))
+                        .frame(height: geo.size.height * (isCalendarMinimized ? 1.0 : (1 - calendarHeightRatio)))
 
-                        Divider()
+                        if !isCalendarMinimized {
+                            Divider()
 
-                        // Bottom ~32%: Calendar pane
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Planning Calendar").font(.title3.weight(.semibold))
-                                Spacer()
-                                Button("Today") { /* optional hook if needed */ }
+                            // Bottom: Calendar pane
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Planning Calendar").font(.title3.weight(.semibold))
+                                    Spacer()
+                                    Button("Today") { /* optional hook if needed */ }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
+                                WorkAgendaCalendarPane(startDate: Date(), daysCount: 10)
+                                    .frame(maxHeight: .infinity)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                            WorkAgendaCalendarPane(startDate: Date(), daysCount: 10)
-                                .frame(maxHeight: .infinity)
+                            .frame(height: geo.size.height * calendarHeightRatio)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
-                        .frame(height: geo.size.height * calendarHeightRatio)
                     }
                 }
                 .navigationTitle("Work Agenda")
@@ -171,6 +175,20 @@ struct WorksAgendaView: View {
             HStack(spacing: 12) {
                 Text("Open Work").font(.title3.weight(.semibold))
                 Spacer()
+                #if os(iOS)
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isCalendarMinimized.toggle()
+                    }
+                } label: {
+                    Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                        .background(Color.primary.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                #endif
                 Picker("Sort", selection: $sortMode) {
                     ForEach(WorkAgendaSortMode.allCases) { m in Text(m.rawValue).tag(m) }
                 }

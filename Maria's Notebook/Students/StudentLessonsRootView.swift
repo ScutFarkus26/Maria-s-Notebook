@@ -19,12 +19,19 @@ private enum CompletionFilter: String {
 
 struct StudentLessonsRootView: View {
     @Environment(\.appRouter) private var appRouter
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    #endif
+
     @Query private var studentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
     @Query private var students: [Student]
 
     @State private var selectedLessonID: UUID? = nil
     @State private var quickActionsLessonID: UUID? = nil
+    
+    // State for iPhone/Compact filter sheet
+    @State private var showFilterSheet: Bool = false
 
     @SceneStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
     @SceneStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
@@ -65,7 +72,6 @@ struct StudentLessonsRootView: View {
     private func applySubjectFilter(_ base: [StudentLesson]) -> [StudentLesson] {
         if let subject = selectedSubject {
             return base.filter { sl in
-                // CloudKit compatibility: Convert String lessonID to UUID for lookup
                 if let lessonIDUUID = UUID(uuidString: sl.lessonID),
                    let l = lessonMap[lessonIDUUID] {
                     return l.subject.caseInsensitiveCompare(subject) == .orderedSame
@@ -79,7 +85,6 @@ struct StudentLessonsRootView: View {
     private var hiddenUndated: [StudentLesson] {
         var base = studentLessons.filter { $0.isGiven && $0.givenAt == nil }
         base = applySubjectFilter(base)
-        // Most recent created first for visibility
         return base.sorted { $0.createdAt > $1.createdAt }
     }
 
@@ -88,14 +93,10 @@ struct StudentLessonsRootView: View {
         base = applySubjectFilter(base)
         return base.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
-            case let (l?, r?):
-                return l < r
-            case (nil, nil):
-                return lhs.createdAt < rhs.createdAt
-            case (nil, _?):
-                return false
-            case (_?, nil):
-                return true
+            case let (l?, r?): return l < r
+            case (nil, nil): return lhs.createdAt < rhs.createdAt
+            case (nil, _?): return false
+            case (_?, nil): return true
             }
         }
     }
@@ -115,27 +116,20 @@ struct StudentLessonsRootView: View {
         let startTime = Date()
         #endif
         
-        // Apply completion filter first
         var base: [StudentLesson]
         switch filter {
-        case .all:
-            base = studentLessons
-        case .completed:
-            base = studentLessons.filter { $0.isGiven && $0.givenAt != nil }
-        case .notCompleted:
-            base = studentLessons.filter { !$0.isGiven }
-        case .hiddenUndated:
-            base = studentLessons.filter { $0.isGiven && $0.givenAt == nil }
+        case .all: base = studentLessons
+        case .completed: base = studentLessons.filter { $0.isGiven && $0.givenAt != nil }
+        case .notCompleted: base = studentLessons.filter { !$0.isGiven }
+        case .hiddenUndated: base = studentLessons.filter { $0.isGiven && $0.givenAt == nil }
         }
 
         if filter != .hiddenUndated {
             base = base.filter { !($0.isGiven && $0.givenAt == nil) }
         }
 
-        // Subject filter (using referenced Lesson)
         if let subject = selectedSubject {
             base = base.filter { sl in
-                // CloudKit compatibility: Convert String lessonID to UUID for lookup
                 if let lessonIDUUID = CloudKitUUID.uuid(from: sl.lessonID),
                    let l = lessonMap[lessonIDUUID] {
                     return l.subject.caseInsensitiveCompare(subject) == .orderedSame
@@ -144,23 +138,18 @@ struct StudentLessonsRootView: View {
             }
         }
 
-        // Sorting
         let result: [StudentLesson]
         switch sort {
         case .presentThenGiven:
-            let upcoming: [StudentLesson] = base.filter { !$0.isGiven }.sorted { lhs, rhs in
+            let upcoming = base.filter { !$0.isGiven }.sorted { lhs, rhs in
                 switch (lhs.scheduledFor, rhs.scheduledFor) {
-                case let (l?, r?):
-                    return l < r
-                case (nil, nil):
-                    return lhs.createdAt < rhs.createdAt
-                case (nil, _?):
-                    return false
-                case (_?, nil):
-                    return true
+                case let (l?, r?): return l < r
+                case (nil, nil): return lhs.createdAt < rhs.createdAt
+                case (nil, _?): return false
+                case (_?, nil): return true
                 }
             }
-            let given: [StudentLesson] = base.filter { $0.isGiven }.sorted { lhs, rhs in
+            let given = base.filter { $0.isGiven }.sorted { lhs, rhs in
                 let l = lhs.givenAt ?? .distantPast
                 let r = rhs.givenAt ?? .distantPast
                 return l > r
@@ -171,16 +160,10 @@ struct StudentLessonsRootView: View {
         case .dateGiven:
             result = base.sorted { lhs, rhs in
                 switch (lhs.givenAt, rhs.givenAt) {
-                case let (l?, r?):
-                    return l > r
-                case (nil, nil):
-                    // If neither has a givenAt, fall back to createdAt
-                    return lhs.createdAt > rhs.createdAt
-                case (nil, _?):
-                    // Place undated (not yet given) after those with dates
-                    return false
-                case (_?, nil):
-                    return true
+                case let (l?, r?): return l > r
+                case (nil, nil): return lhs.createdAt > rhs.createdAt
+                case (nil, _?): return false
+                case (_?, nil): return true
                 }
             }
         }
@@ -202,10 +185,46 @@ struct StudentLessonsRootView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            Divider()
-            content
+        Group {
+            #if os(iOS)
+            if horizontalSizeClass == .compact {
+                // iPhone/Compact: Content only, filters in sheet
+                content
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Filters", systemImage: "line.3.horizontal.decrease.circle") {
+                                showFilterSheet = true
+                            }
+                        }
+                    }
+                    .sheet(isPresented: $showFilterSheet) {
+                        NavigationStack {
+                            sidebar
+                                .navigationTitle("Filters")
+                                .toolbar {
+                                    ToolbarItem(placement: .cancellationAction) {
+                                        Button("Done") { showFilterSheet = false }
+                                    }
+                                }
+                        }
+                        .presentationDetents([.medium, .large])
+                    }
+            } else {
+                // iPad/Regular: Sidebar + Content
+                HStack(spacing: 0) {
+                    sidebar
+                    Divider()
+                    content
+                }
+            }
+            #else
+            // macOS: Sidebar + Content
+            HStack(spacing: 0) {
+                sidebar
+                Divider()
+                content
+            }
+            #endif
         }
         .sheet(isPresented: Binding(get: { selectedLessonID != nil }, set: { if !$0 { selectedLessonID = nil } })) {
             if let id = selectedLessonID, let sl = studentLessons.first(where: { $0.id == id }) {
@@ -227,7 +246,6 @@ struct StudentLessonsRootView: View {
         }
         .onChange(of: appRouter.navigationDestination) { _, destination in
             if case .quickActions = destination {
-                // If there is at least one student lesson, open quick actions for the first upcoming
                 if let first = studentLessons.first { quickActionsLessonID = first.id }
                 appRouter.clearNavigation()
             }
@@ -244,119 +262,113 @@ struct StudentLessonsRootView: View {
             )
             #endif
         }
-        .onChange(of: studentLessons.count) { _, newCount in
-            #if DEBUG
-            PerformanceLogger.log(
-                screenName: "StudentLessonsRootView - Query Update",
-                itemCount: newCount,
-                duration: 0
-            )
-            #endif
-        }
     }
 
     // MARK: - Sidebar
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Filters")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.top, 8)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Filters")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 8)
 
-            SidebarFilterButton(
-                icon: "line.3.horizontal.decrease.circle",
-                title: CompletionFilter.all.rawValue,
-                color: .accentColor,
-                isSelected: filter == .all
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentLessonsFilterRaw = "all"
-                }
-            }
-
-            SidebarFilterButton(
-                icon: "checkmark.circle.fill",
-                title: CompletionFilter.completed.rawValue,
-                color: .green,
-                isSelected: filter == .completed
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentLessonsFilterRaw = "completed"
-                }
-            }
-
-            SidebarFilterButton(
-                icon: "circle.dashed",
-                title: CompletionFilter.notCompleted.rawValue,
-                color: .orange,
-                isSelected: filter == .notCompleted
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentLessonsFilterRaw = "notCompleted"
-                }
-            }
-
-            Text("Subject")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.top, 8)
-
-            // Clear subject filter
-            SidebarFilterButton(
-                icon: "rectangle.3.group",
-                title: "All Subjects",
-                color: .accentColor,
-                isSelected: selectedSubject == nil
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    studentLessonsSubjectRaw = ""
-                }
-            }
-
-            ForEach(subjects, id: \.self) { subject in
                 SidebarFilterButton(
-                    icon: "folder.fill",
-                    title: subject,
-                    color: AppColors.color(forSubject: subject),
-                    isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
+                    icon: "line.3.horizontal.decrease.circle",
+                    title: CompletionFilter.all.rawValue,
+                    color: .accentColor,
+                    isSelected: filter == .all
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        studentLessonsSubjectRaw = subject
+                        studentLessonsFilterRaw = "all"
                     }
                 }
-            }
 
-            Divider()
-
-            SidebarFilterButton(
-                icon: "eye.slash.fill",
-                title: CompletionFilter.hiddenUndated.rawValue,
-                color: .gray,
-                isSelected: filter == .hiddenUndated
-            ) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    if filter == .hiddenUndated {
-                        // Tapping Hidden again: restore the previous filter (default to All)
-                        studentLessonsFilterRaw = previousStudentLessonsFilterRaw ?? "all"
-                    } else {
-                        // Entering Hidden: remember the current filter to allow toggling back
-                        previousStudentLessonsFilterRaw = studentLessonsFilterRaw
-                        studentLessonsFilterRaw = "hidden"
+                SidebarFilterButton(
+                    icon: "checkmark.circle.fill",
+                    title: CompletionFilter.completed.rawValue,
+                    color: .green,
+                    isSelected: filter == .completed
+                ) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                        studentLessonsFilterRaw = "completed"
                     }
                 }
-            }
 
-            Spacer(minLength: 0)
+                SidebarFilterButton(
+                    icon: "circle.dashed",
+                    title: CompletionFilter.notCompleted.rawValue,
+                    color: .orange,
+                    isSelected: filter == .notCompleted
+                ) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                        studentLessonsFilterRaw = "notCompleted"
+                    }
+                }
+
+                Text("Subject")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 8)
+
+                // Clear subject filter
+                SidebarFilterButton(
+                    icon: "rectangle.3.group",
+                    title: "All Subjects",
+                    color: .accentColor,
+                    isSelected: selectedSubject == nil
+                ) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                        studentLessonsSubjectRaw = ""
+                    }
+                }
+
+                ForEach(subjects, id: \.self) { subject in
+                    SidebarFilterButton(
+                        icon: "folder.fill",
+                        title: subject,
+                        color: AppColors.color(forSubject: subject),
+                        isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
+                    ) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                            studentLessonsSubjectRaw = subject
+                        }
+                    }
+                }
+
+                Divider()
+
+                SidebarFilterButton(
+                    icon: "eye.slash.fill",
+                    title: CompletionFilter.hiddenUndated.rawValue,
+                    color: .gray,
+                    isSelected: filter == .hiddenUndated
+                ) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                        if filter == .hiddenUndated {
+                            studentLessonsFilterRaw = previousStudentLessonsFilterRaw ?? "all"
+                        } else {
+                            previousStudentLessonsFilterRaw = studentLessonsFilterRaw
+                            studentLessonsFilterRaw = "hidden"
+                        }
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 16)
+            .padding(.leading, 16)
         }
-        .padding(.vertical, 16)
-        .padding(.leading, 16)
-        .frame(width: 200, alignment: .topLeading)
+        .frame(minWidth: 200, maxWidth: .infinity, alignment: .topLeading) // FIX: Allow flexible width in sheet
+        #if os(macOS)
+        .frame(width: 200)
+        #endif
         .background(Color.gray.opacity(0.08))
     }
 
-    // MARK: - Content
+    // MARK: - Content (Unchanged)
     private var content: some View {
         Group {
             if sort == .presentThenGiven {

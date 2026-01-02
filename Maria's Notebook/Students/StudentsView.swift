@@ -10,6 +10,9 @@ struct StudentsView<WorkloadContent: View>: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) private var calendar
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     
     // OPTIMIZATION: Students always needed in roster mode, so keep @Query
     @Query private var students: [Student]
@@ -369,6 +372,84 @@ struct StudentsView<WorkloadContent: View>: View {
     
     @ToolbarContentBuilder
     private var fullScreenModeToolbar: some ToolbarContent {
+        #if os(iOS)
+        if horizontalSizeClass == .compact {
+            // iPhone layout: Use menu instead of segmented picker
+            ToolbarItem(placement: .principal) {
+                Menu {
+                    Button {
+                        withAnimation { mode = .roster }
+                    } label: {
+                        Label("Roster", systemImage: "person.3")
+                        if mode == .roster {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .age }
+                    } label: {
+                        Label("Age", systemImage: "calendar")
+                        if mode == .age {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .birthday }
+                    } label: {
+                        Label("Birthday", systemImage: "gift")
+                        if mode == .birthday {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .lastLesson }
+                    } label: {
+                        Label("Last Lesson", systemImage: "clock.badge.exclamationmark")
+                        if mode == .lastLesson {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .workOverview }
+                    } label: {
+                        Label("Workload", systemImage: "doc.text")
+                        if mode == .workOverview {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .observationHeatmap }
+                    } label: {
+                        Label("Observations", systemImage: "chart.bar.fill")
+                        if mode == .observationHeatmap {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(mode.rawValue)
+                            .font(.system(size: 17, weight: .semibold))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                }
+            }
+        } else {
+            // iPad layout: Use segmented picker
+            ToolbarItem(placement: .automatic) {
+                Picker("Mode", selection: $mode) {
+                    Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
+                    Label("Age", systemImage: "calendar").tag(StudentMode.age)
+                    Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
+                    Label("Last Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
+                    Label("Workload", systemImage: "doc.text").tag(StudentMode.workOverview)
+                    Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+        #else
+        // macOS layout: Use segmented picker
         ToolbarItem(placement: .automatic) {
             Picker("Mode", selection: $mode) {
                 Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
@@ -380,13 +461,232 @@ struct StudentsView<WorkloadContent: View>: View {
             }
             .pickerStyle(.segmented)
         }
+        #endif
     }
     
     // MARK: - Toolbar Content
     
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        // Mode switcher
+        #if os(iOS)
+        if horizontalSizeClass == .compact {
+            // iPhone layout: Use menus instead of segmented picker
+            ToolbarItem(placement: .principal) {
+                Menu {
+                    Button {
+                        withAnimation { mode = .roster }
+                    } label: {
+                        Label("Roster", systemImage: "person.3")
+                        if mode == .roster {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .age }
+                    } label: {
+                        Label("Age", systemImage: "calendar")
+                        if mode == .age {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .birthday }
+                    } label: {
+                        Label("Birthday", systemImage: "gift")
+                        if mode == .birthday {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .lastLesson }
+                    } label: {
+                        Label("Last Lesson", systemImage: "clock.badge.exclamationmark")
+                        if mode == .lastLesson {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .workOverview }
+                    } label: {
+                        Label("Workload", systemImage: "doc.text")
+                        if mode == .workOverview {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    Button {
+                        withAnimation { mode = .observationHeatmap }
+                    } label: {
+                        Label("Observations", systemImage: "chart.bar.fill")
+                        if mode == .observationHeatmap {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(mode.rawValue)
+                            .font(.system(size: 17, weight: .semibold))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                }
+            }
+            
+            // Sort and Filter combined menu for iPhone
+            if mode == .roster {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Section("Sort") {
+                            Button {
+                                withAnimation { studentsSortOrderRaw = "alphabetical" }
+                            } label: {
+                                Label("A–Z", systemImage: "textformat.abc")
+                                if effectiveSortOrder == .alphabetical {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                            Button {
+                                withAnimation { studentsSortOrderRaw = "manual" }
+                            } label: {
+                                Label("Manual", systemImage: "arrow.up.arrow.down")
+                                if effectiveSortOrder == .manual {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                        
+                        Section("Filter") {
+                            Button {
+                                withAnimation { studentsFilterRaw = "all" }
+                            } label: {
+                                Label("All", systemImage: "person.3.fill")
+                                if selectedFilter == .all {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                            Button {
+                                withAnimation { studentsFilterRaw = "presentNow" }
+                            } label: {
+                                Label("Present Now", systemImage: "checkmark.circle.fill")
+                                if selectedFilter == .presentNow {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                            Button {
+                                withAnimation { studentsFilterRaw = "upper" }
+                            } label: {
+                                Label("Upper", systemImage: "circle.fill")
+                                if selectedFilter == .upper {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                            Button {
+                                withAnimation { studentsFilterRaw = "lower" }
+                            } label: {
+                                Label("Lower", systemImage: "circle.fill")
+                                if selectedFilter == .lower {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Options", systemImage: "ellipsis.circle")
+                    }
+                }
+                
+                if effectiveSortOrder == .manual {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        EditButton()
+                    }
+                }
+            }
+        } else {
+            // iPad layout: Use segmented picker
+            ToolbarItem(placement: .automatic) {
+                Picker("Mode", selection: $mode) {
+                    Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
+                    Label("Age", systemImage: "calendar").tag(StudentMode.age)
+                    Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
+                    Label("Last Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
+                    Label("Workload", systemImage: "doc.text").tag(StudentMode.workOverview)
+                    Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
+                }
+                .pickerStyle(.segmented)
+            }
+            
+            // Sort Order Menu (only show in roster mode, not age/birthday/lastLesson modes)
+            if mode == .roster {
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Button {
+                            withAnimation { studentsSortOrderRaw = "alphabetical" }
+                        } label: {
+                            Label("A–Z", systemImage: "textformat.abc")
+                            if effectiveSortOrder == .alphabetical {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                        Button {
+                            withAnimation { studentsSortOrderRaw = "manual" }
+                        } label: {
+                            Label("Manual", systemImage: "arrow.up.arrow.down")
+                            if effectiveSortOrder == .manual {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    } label: {
+                        Label("Sort", systemImage: "arrow.up.arrow.down")
+                    }
+                }
+                
+                // Filter Menu (show in roster/age/birthday/lastLesson modes)
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Button {
+                            withAnimation { studentsFilterRaw = "all" }
+                        } label: {
+                            Label("All", systemImage: "person.3.fill")
+                            if selectedFilter == .all {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                        Button {
+                            withAnimation { studentsFilterRaw = "presentNow" }
+                        } label: {
+                            Label("Present Now", systemImage: "checkmark.circle.fill")
+                            if selectedFilter == .presentNow {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                        Button {
+                            withAnimation { studentsFilterRaw = "upper" }
+                        } label: {
+                            Label("Upper", systemImage: "circle.fill")
+                            if selectedFilter == .upper {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                        Button {
+                            withAnimation { studentsFilterRaw = "lower" }
+                        } label: {
+                            Label("Lower", systemImage: "circle.fill")
+                            if selectedFilter == .lower {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    } label: {
+                        Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+                    }
+                }
+                
+                if effectiveSortOrder == .manual {
+                    ToolbarItem(placement: .automatic) {
+                        EditButton()
+                    }
+                }
+            }
+        }
+        #else
+        // macOS layout: Use segmented picker
         ToolbarItem(placement: .automatic) {
             Picker("Mode", selection: $mode) {
                 Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
@@ -463,15 +763,8 @@ struct StudentsView<WorkloadContent: View>: View {
                     Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
                 }
             }
-            
-            #if os(iOS)
-            if effectiveSortOrder == .manual {
-                ToolbarItem(placement: .automatic) {
-                    EditButton()
-                }
-            }
-            #endif
         }
+        #endif
         
         // Add Student button (show in roster/age/birthday/lastLesson modes)
         if mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson {

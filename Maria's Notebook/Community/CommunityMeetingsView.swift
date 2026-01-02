@@ -98,24 +98,24 @@ struct CommunityMeetingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                header
-                Divider()
-                content
-            }
-            .navigationTitle("Community Meetings")
-            .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    Menu {
-                        Button("Export Resolved (Markdown)", systemImage: "doc.plaintext") {
-                            let topicsToExport = self.filteredResolvedTopics
-                            let exported: [String] = topicsToExport.map { MarkdownExporter.markdown(for: $0) }
-                            let md: String = exported.joined(separator: "\n\n---\n\n")
-                            MarkdownExporter.presentShare(md)
-                        }
-                    } label: { Image(systemName: "square.and.arrow.up") }
-                }
+        // FIX: Removed NavigationStack wrapper because this view is already presented 
+        // inside a NavigationSplitView (iPad) or More Menu NavigationStack (iPhone).
+        VStack(spacing: 0) {
+            header
+            Divider()
+            content
+        }
+        .navigationTitle("Community Meetings")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    Button("Export Resolved (Markdown)", systemImage: "doc.plaintext") {
+                        let topicsToExport = self.filteredResolvedTopics
+                        let exported: [String] = topicsToExport.map { MarkdownExporter.markdown(for: $0) }
+                        let md: String = exported.joined(separator: "\n\n---\n\n")
+                        MarkdownExporter.presentShare(md)
+                    }
+                } label: { Image(systemName: "square.and.arrow.up") }
             }
         }
         .sheet(isPresented: $showingAdd) {
@@ -134,7 +134,6 @@ struct CommunityMeetingsView: View {
                     _ = saveCoordinator.save(modelContext, reason: "Update community topic")
                 }
             } else {
-                // Fallback empty view if selection became nil before presentation
                 EmptyView()
             }
         }

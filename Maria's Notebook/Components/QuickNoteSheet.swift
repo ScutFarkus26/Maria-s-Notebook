@@ -41,6 +41,7 @@ struct QuickNoteSheet: View {
     @State private var imagePath: String? = nil
     
     var body: some View {
+        #if os(macOS)
         VStack(alignment: .leading, spacing: 20) {
             headerView
             mainContentCard
@@ -56,7 +57,40 @@ struct QuickNoteSheet: View {
         .onChange(of: selectedPhoto) { _, newItem in
             handlePhotoChange(newItem)
         }
-        #if os(iOS)
+        #else
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    mainContentCard
+                }
+                .padding(24)
+            }
+            .navigationTitle("Quick Note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveNote()
+                    }
+                    .disabled(!canSave)
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .onAppear {
+            if let initialID = initialStudentID {
+                selectedStudentID = initialID
+            }
+        }
+        .onChange(of: selectedPhoto) { _, newItem in
+            handlePhotoChange(newItem)
+        }
         .sheet(isPresented: $showingCamera) {
             CameraPicker(image: Binding(
                 get: { nil },

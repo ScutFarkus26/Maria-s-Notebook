@@ -86,21 +86,68 @@ struct TodayView: View {
             } else {
                 NavigationStack {
                     VStack(spacing: 0) {
+                        #if os(macOS)
                         header
                         Divider()
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 20) {
+                        #endif
+                        
+                        List {
+                            Section {
                                 attendanceStrip
-                                remindersSection
-                                lessonsSection
-                                checkInsSection
-                                inProgressSection
-                                completedSection
+                                    .listRowInsets(EdgeInsets())
+                                    .listRowBackground(Color.clear)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            
+                            remindersListSection
+                            
+                            lessonsListSection
+                            
+                            checkInsListSection
+                            
+                            inProgressListSection
+                            
+                            completedListSection
+                        }
+                        #if os(iOS)
+                        .listStyle(.insetGrouped)
+                        #endif
+                    }
+                    .navigationTitle("Today")
+                    #if os(iOS)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .topBarTrailing) {
+                            Picker("Level", selection: $viewModel.levelFilter) {
+                                ForEach(TodayViewModel.LevelFilter.allCases, id: \.self) { f in
+                                    Text(f.rawValue).tag(f)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(maxWidth: 200)
+                            
+                            Button {
+                                let prev = viewModel.previousDayWithLessons(before: viewModel.date)
+                                viewModel.date = AppCalendar.startOfDay(prev)
+                            } label: { Image(systemName: "chevron.left") }
+                            
+                            DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
+                                let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+                                viewModel.date = AppCalendar.startOfDay(coerced)
+                            }), displayedComponents: .date)
+                            .datePickerStyle(.compact)
+                            
+                            Button {
+                                let next = viewModel.nextDayWithLessons(after: viewModel.date)
+                                viewModel.date = AppCalendar.startOfDay(next)
+                            } label: { Image(systemName: "chevron.right") }
+                            
+                            Button("Today") {
+                                let today = Date()
+                                let coerced = SchoolCalendar.nearestSchoolDay(to: today, using: modelContext)
+                                viewModel.date = AppCalendar.startOfDay(coerced)
+                            }
                         }
                     }
+                    #endif
                 }
             }
         }
@@ -241,6 +288,46 @@ struct TodayView: View {
                     }
                 }
             }
+        }
+    }
+    
+    // MARK: - Reminders List Section (for List view)
+    private var remindersListSection: some View {
+        Section {
+            if viewModel.overdueReminders.isEmpty && viewModel.todaysReminders.isEmpty {
+                ContentUnavailableView("No reminders", systemImage: "bell.slash")
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                if !viewModel.overdueReminders.isEmpty {
+                    ForEach(viewModel.overdueReminders) { reminder in
+                        ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    toggleReminder(reminder)
+                                } label: {
+                                    Label("Complete", systemImage: "checkmark")
+                                }
+                                .tint(.green)
+                            }
+                    }
+                }
+                if !viewModel.todaysReminders.isEmpty {
+                    ForEach(viewModel.todaysReminders) { reminder in
+                        ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    toggleReminder(reminder)
+                                } label: {
+                                    Label("Complete", systemImage: "checkmark")
+                                }
+                                .tint(.green)
+                            }
+                    }
+                }
+            }
+        } header: {
+            Label("Reminders", systemImage: "bell.fill")
         }
     }
     
@@ -413,6 +500,110 @@ struct TodayView: View {
                     }
                 }
             }
+        }
+    }
+    
+    // MARK: - List Sections (for List view)
+    
+    private var lessonsListSection: some View {
+        Section {
+            if viewModel.todaysLessons.isEmpty {
+                ContentUnavailableView("No lessons scheduled today", systemImage: "calendar")
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                ForEach(viewModel.todaysLessons, id: \.id) { sl in
+                    LessonListRow(
+                        lessonName: nameForLesson(sl.resolvedLessonID),
+                        studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
+                        isPresented: sl.isGiven
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedStudentLesson = sl
+                    }
+                }
+            }
+        } header: {
+            Label("Lessons for Today", systemImage: "text.book.closed")
+        }
+    }
+    
+    private var checkInsListSection: some View {
+        Section {
+            if viewModel.overdueSchedule.isEmpty && viewModel.todaysSchedule.isEmpty {
+                ContentUnavailableView("No check-ins due", systemImage: "checkmark.circle")
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                if !viewModel.overdueSchedule.isEmpty {
+                    ForEach(viewModel.overdueSchedule) { item in
+                        ContractScheduleListRow(item: item,
+                                              studentName: resolveStudentName(for: item.contract),
+                                              lessonName: resolveLessonName(for: item.contract),
+                                              onTap: {
+                            selectedContractID = item.contract.id
+                        })
+                    }
+                }
+                if !viewModel.todaysSchedule.isEmpty {
+                    ForEach(viewModel.todaysSchedule) { item in
+                        ContractScheduleListRow(item: item,
+                                              studentName: resolveStudentName(for: item.contract),
+                                              lessonName: resolveLessonName(for: item.contract),
+                                              onTap: {
+                            selectedContractID = item.contract.id
+                        })
+                    }
+                }
+            }
+        } header: {
+            Label("Scheduled Check-Ins", systemImage: "bell")
+        }
+    }
+    
+    private var inProgressListSection: some View {
+        Section {
+            if viewModel.staleFollowUps.isEmpty {
+                ContentUnavailableView("No follow-ups due", systemImage: "checkmark.circle")
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                ForEach(viewModel.staleFollowUps) { item in
+                    ContractFollowUpListRow(item: item,
+                                          studentName: resolveStudentName(for: item.contract),
+                                          lessonName: resolveLessonName(for: item.contract),
+                                          onTap: {
+                        selectedContractID = item.contract.id
+                    })
+                }
+            }
+        } header: {
+            Label("Follow-Ups Due", systemImage: "bolt")
+        }
+    }
+    
+    private var completedListSection: some View {
+        Section {
+            if viewModel.completedContracts.isEmpty {
+                ContentUnavailableView("No completions yet", systemImage: "clock")
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                ForEach(viewModel.completedContracts) { contract in
+                    CompletionListRow(
+                        studentName: resolveStudentName(for: contract),
+                        lessonName: resolveLessonName(for: contract),
+                        contract: contract
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedContractID = contract.id
+                    }
+                }
+            }
+        } header: {
+            Label("Completed Today", systemImage: "checkmark.circle")
         }
     }
     
@@ -593,6 +784,166 @@ private struct ReminderRow: View {
             .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
         }
         .buttonStyle(.plain)
+        .sensoryFeedback(.success, trigger: reminder.isCompleted)
+    }
+}
+
+// MARK: - List Row Components (for List view)
+
+private struct ReminderListRow: View {
+    let reminder: Reminder
+    var onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 10) {
+                Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(reminder.isCompleted ? .green : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(reminder.title)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .strikethrough(reminder.isCompleted)
+                    if let dueDate = reminder.dueDate {
+                        Text(dueDate, style: .time)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    if let notes = reminder.notes, !notes.isEmpty {
+                        Text(notes)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.success, trigger: reminder.isCompleted)
+    }
+}
+
+private struct LessonListRow: View {
+    let lessonName: String
+    let studentNames: String
+    let isPresented: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "text.book.closed").foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 2) {
+                if !studentNames.trimmed().isEmpty {
+                    Text(studentNames)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                }
+                Text(lessonName)
+                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if isPresented {
+                Text("Presented")
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.green.opacity(0.12)))
+            }
+        }
+    }
+}
+
+private struct ContractScheduleListRow: View {
+    let item: ContractScheduleItem
+    let studentName: String
+    let lessonName: String
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: item.planItem.reason?.icon ?? "bell").foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(studentName)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(lessonName)
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    
+                    HStack(spacing: 4) {
+                        Text(item.planItem.reason?.label ?? "Check-In")
+                        if let note = item.planItem.note, !note.isEmpty {
+                            Text("• \(note)")
+                        }
+                    }
+                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(item.planItem.scheduledDate, style: .date)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.orange.opacity(0.12)))
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ContractFollowUpListRow: View {
+    let item: ContractFollowUpItem
+    let studentName: String
+    let lessonName: String
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.clockwise").foregroundStyle(.purple)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(studentName)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(lessonName)
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text("\(item.daysSinceTouch) days since update")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct CompletionListRow: View {
+    let studentName: String
+    let lessonName: String
+    let contract: WorkContract
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(studentName)
+                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text(lessonName)
+                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if let note = contract.completionNote, !note.trimmed().isEmpty {
+                Image(systemName: "note.text")
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

@@ -71,24 +71,20 @@ struct SchoolCalendarSettingsView: View {
                 .padding(.vertical, 8)
             
             // Florida Grade Guidelines
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
                     Image(systemName: "graduationcap.fill")
                         .foregroundStyle(.secondary)
+                        .font(.title3)
                     Text("Florida Grade Guidelines")
                         .font(.headline)
                 }
                 
-                Text("Grade assignments based on student age as of September 1st:")
-                    .font(.footnote)
+                Text("Grade assignments based on student age as of September 1st")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                 
-                LazyVGrid(columns: [
-                    GridItem(.flexible(), alignment: .leading),
-                    GridItem(.flexible(), alignment: .leading),
-                    GridItem(.flexible(), alignment: .leading),
-                    GridItem(.flexible(), alignment: .leading)
-                ], alignment: .leading, spacing: 6) {
+                VStack(spacing: 10) {
                     GradeGuidelineRow(age: "Under 6", grade: "Kindergarten")
                     GradeGuidelineRow(age: "Age 6", grade: "1st Grade")
                     GradeGuidelineRow(age: "Age 7", grade: "2nd Grade")
@@ -98,7 +94,6 @@ struct SchoolCalendarSettingsView: View {
                     GradeGuidelineRow(age: "Age 11", grade: "6th Grade")
                     GradeGuidelineRow(age: "Age 12+", grade: "Graduated")
                 }
-                .padding(.top, 4)
             }
             .padding(.top, 8)
         }
@@ -163,16 +158,23 @@ private struct GradeGuidelineRow: View {
     let grade: String
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             Text(age)
-                .font(.system(.caption, design: .monospaced))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .frame(width: 55, alignment: .leading)
-            Text("→")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+                .frame(minWidth: 70, alignment: .leading)
+            
             Text(grade)
-                .font(.caption)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            
+            Spacer()
         }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(uiColor: .secondarySystemBackground))
+        )
     }
 }

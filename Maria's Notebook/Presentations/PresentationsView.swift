@@ -25,6 +25,7 @@ enum PresentationsMissWindow: String, CaseIterable {
 struct PresentationsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -82,6 +83,13 @@ struct PresentationsView: View {
     @State private var startDate: Date = Date()
     @State private var selectedStudentLessonForDetail: StudentLesson? = nil
     @State private var isInboxTargeted: Bool = false
+    @State private var isCalendarMinimized: Bool = false
+    @State private var mobileViewSelection: MobileViewMode = .inbox
+    
+    enum MobileViewMode: String, CaseIterable {
+        case inbox = "Inbox"
+        case calendar = "Calendar"
+    }
     
     // OPTIMIZATION: Use ViewModel to cache expensive computations
     @StateObject private var viewModel = PresentationsViewModel()
@@ -135,35 +143,84 @@ struct PresentationsView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            VStack(spacing: 0) {
-                // Top: Inbox (~50% height)
-                PresentationsInboxView(
-                    readyLessons: readyLessons,
-                    blockedLessons: blockedLessons,
-                    getBlockingContracts: getBlockingContracts,
-                    filteredSnapshot: filteredSnapshot,
-                    missWindow: missWindow,
-                    missWindowRaw: $missWindowRaw,
-                    selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
-                    isInboxTargeted: $isInboxTargeted
-                )
-                .frame(height: proxy.size.height * 0.5)
-                Divider()
-                // Bottom: Calendar strip (~50% height)
-                PresentationsCalendarStrip(
-                    days: days,
-                    startDate: $startDate,
-                    isNonSchool: isNonSchool,
-                    onClear: { sl in
-                        sl.scheduledFor = nil
-                        try? modelContext.save()
-                    },
-                    onSelect: { sl in
-                        selectedStudentLessonForDetail = sl
+        Group {
+            if horizontalSizeClass == .compact {
+                // iPhone Layout: Segmented Control approach
+                VStack(spacing: 0) {
+                    Picker("View", selection: $mobileViewSelection) {
+                        ForEach(MobileViewMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
                     }
-                )
-                .frame(height: proxy.size.height * 0.5)
+                    .pickerStyle(.segmented)
+                    .padding()
+
+                    switch mobileViewSelection {
+                    case .inbox:
+                        PresentationsInboxView(
+                            readyLessons: readyLessons,
+                            blockedLessons: blockedLessons,
+                            getBlockingContracts: getBlockingContracts,
+                            filteredSnapshot: filteredSnapshot,
+                            missWindow: missWindow,
+                            missWindowRaw: $missWindowRaw,
+                            selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
+                            isInboxTargeted: $isInboxTargeted,
+                            isCalendarMinimized: .constant(false) // Always expanded in this mode
+                        )
+                    case .calendar:
+                        PresentationsCalendarStrip(
+                            days: days,
+                            startDate: $startDate,
+                            isNonSchool: isNonSchool,
+                            onClear: { sl in
+                                sl.scheduledFor = nil
+                                try? modelContext.save()
+                            },
+                            onSelect: { sl in
+                                selectedStudentLessonForDetail = sl
+                            }
+                        )
+                    }
+                }
+            } else {
+                // macOS / iPad Layout: Existing Split View
+                GeometryReader { proxy in
+                    VStack(spacing: 0) {
+                        // Top: Inbox
+                        PresentationsInboxView(
+                            readyLessons: readyLessons,
+                            blockedLessons: blockedLessons,
+                            getBlockingContracts: getBlockingContracts,
+                            filteredSnapshot: filteredSnapshot,
+                            missWindow: missWindow,
+                            missWindowRaw: $missWindowRaw,
+                            selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
+                            isInboxTargeted: $isInboxTargeted,
+                            isCalendarMinimized: $isCalendarMinimized
+                        )
+                        .frame(height: proxy.size.height * (isCalendarMinimized ? 1.0 : 0.5))
+
+                        if !isCalendarMinimized {
+                            Divider()
+                            // Bottom: Calendar strip
+                            PresentationsCalendarStrip(
+                                days: days,
+                                startDate: $startDate,
+                                isNonSchool: isNonSchool,
+                                onClear: { sl in
+                                    sl.scheduledFor = nil
+                                    try? modelContext.save()
+                                },
+                                onSelect: { sl in
+                                    selectedStudentLessonForDetail = sl
+                                }
+                            )
+                            .frame(height: proxy.size.height * 0.5)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        }
+                    }
+                }
             }
         }
         .onAppear {
