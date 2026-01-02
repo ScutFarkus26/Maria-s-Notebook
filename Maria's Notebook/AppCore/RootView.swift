@@ -346,9 +346,9 @@ private struct RootDetailContent: View {
             case .planningWork:
                 WorksAgendaView()
             case .planningProjects:
-                NavigationStack {
-                    ProjectsRootView()
-                }
+                // FIX: Removed NavigationStack wrapper to avoid nested stacks in More menu (iPhone)
+                // ProjectsRootView now handles its own split view layout
+                ProjectsRootView()
             case .community:
                 CommunityMeetingsView()
             case .logs:

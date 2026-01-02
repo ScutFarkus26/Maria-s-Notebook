@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if os(iOS)
+import UIKit
+#endif
 
 struct ProjectsRootView: View {
     @Environment(\.modelContext) private var modelContext
@@ -20,13 +23,16 @@ struct ProjectsRootView: View {
     @State private var clubToDelete: Project?
     @State private var showDeleteAlert: Bool = false
 
-    private var selectedClubID: UUID? {
-        get { UUID(uuidString: selectedClubIDString) }
-        nonmutating set { selectedClubIDString = newValue?.uuidString ?? "" }
+    private var selectedClubID: Binding<UUID?> {
+        Binding {
+            UUID(uuidString: selectedClubIDString)
+        } set: { newValue in
+            selectedClubIDString = newValue?.uuidString ?? ""
+        }
     }
 
     private var selectedClub: Project? {
-        clubs.first { $0.id == selectedClubID }
+        clubs.first { $0.id.uuidString == selectedClubIDString }
     }
 
     private var filteredClubs: [Project] {
@@ -43,50 +49,18 @@ struct ProjectsRootView: View {
 
     // MARK: - Body
     var body: some View {
-        HStack(spacing: 0) {
+        NavigationSplitView {
             // MARK: Sidebar
-            VStack(alignment: .leading, spacing: 0) {
-                // Header
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("Projects")
-                            .font(.system(.title3, design: .rounded, weight: .bold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Button {
-                            showNewSheet = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(Color.accentColor)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    // Search
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                        TextField("Search", text: $searchText)
-                            .textFieldStyle(.plain)
-                    }
-                    .padding(8)
-                    .background(Color.primary.opacity(0.05))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .padding(16)
-
-                // List with Swipe Actions
-                List {
+            List(selection: selectedClubID) {
+                // Header (Section for consistent grouping)
+                Section {
                     ForEach(filteredClubs) { club in
-                        ProjectSidebarRow(
-                            club: club,
-                            isSelected: club.id == selectedClubID,
-                            lastSessionDate: lastSessionDate(for: club)
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedClubIDString = club.id.uuidString
+                        NavigationLink(value: club.id) {
+                            ProjectSidebarRow(
+                                club: club,
+                                isSelected: club.id.uuidString == selectedClubIDString,
+                                lastSessionDate: lastSessionDate(for: club)
+                            )
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
@@ -96,34 +70,45 @@ struct ProjectsRootView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                        .listRowBackground(Color.clear)
+                    }
+                } header: {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                            TextField("Search", text: $searchText)
+                                .textFieldStyle(.plain)
+                        }
+                        .padding(8)
+                        .background(Color.primary.opacity(0.05))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(.bottom, 8)
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(Color.gray.opacity(0.05))
             }
-            .frame(width: 260)
-            .background(Color.gray.opacity(0.05))
-            
-            Divider()
-            
-            // MARK: Detail Area
-            ZStack {
-                if let club = selectedClub {
-                    ProjectDetailView(club: club)
-                        .id(club.id) // Force recreation when selection changes
-                } else {
-                    ContentUnavailableView(
-                        "No Selection",
-                        systemImage: "book",
-                        description: Text("Select a project from the sidebar to view details.")
-                    )
+            .listStyle(.sidebar)
+            .navigationTitle("Projects")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showNewSheet = true
+                    } label: {
+                        Label("Add Project", systemImage: "plus")
+                    }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } detail: {
+            // MARK: Detail Area
+            if let club = selectedClub {
+                ProjectDetailView(club: club)
+                    .id(club.id) // Force recreation when selection changes
+            } else {
+                ContentUnavailableView(
+                    "No Selection",
+                    systemImage: "book",
+                    description: Text("Select a project from the sidebar to view details.")
+                )
+            }
         }
         .sheet(isPresented: $showNewSheet) {
             ProjectEditorSheet(club: nil)
@@ -139,9 +124,18 @@ struct ProjectsRootView: View {
             Text("Are you sure you want to delete \"\(club.title)\"? This will permanently remove all sessions, deliverables, and assignments associated with this project.")
         }
         .onAppear {
+            // Auto-select first if none selected on iPad
+            #if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                if selectedClubIDString.isEmpty, let first = clubs.first {
+                    selectedClubIDString = first.id.uuidString
+                }
+            }
+            #else
             if selectedClubIDString.isEmpty, let first = clubs.first {
                 selectedClubIDString = first.id.uuidString
             }
+            #endif
         }
     }
 
@@ -207,7 +201,7 @@ struct ProjectsRootView: View {
         modelContext.delete(club)
         
         // Clear selection if needed
-        if selectedClubID == club.id {
+        if selectedClubIDString == club.id.uuidString {
             selectedClubIDString = ""
         }
         
@@ -226,13 +220,13 @@ struct ProjectSidebarRow: View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: "book.closed.fill")
                 .font(.title3)
-                .foregroundStyle(isSelected ? .white : AppColors.color(forSubject: "Reading"))
+                .foregroundStyle(AppColors.color(forSubject: "Reading"))
                 .frame(width: 32)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(club.title)
                     .font(.system(.body, design: .rounded, weight: .semibold))
-                    .foregroundStyle(isSelected ? .white : .primary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 
                 let memberCount = club.memberStudentIDs.count
@@ -240,17 +234,12 @@ struct ProjectSidebarRow: View {
                 
                 Text("\(memberCount) member\(memberCount == 1 ? "" : "s")\(dateStr != nil ? " • " + dateStr! : "")")
                     .font(.caption)
-                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer()
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(isSelected ? Color.accentColor : Color.clear)
-        )
+        .padding(.vertical, 4)
     }
 }
 

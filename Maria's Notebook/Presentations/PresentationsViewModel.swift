@@ -127,8 +127,7 @@ final class PresentationsViewModel: ObservableObject {
         #endif
         
         // 4. Fetch only active/review contracts (already optimized)
-        let contracts: [WorkContract]
-        do {
+        let contracts: [WorkContract] = {
             #if DEBUG
             let startTime = Date()
             #endif
@@ -140,18 +139,17 @@ final class PresentationsViewModel: ObservableObject {
             )
             let active = modelContext.safeFetch(activeDesc)
             let review = modelContext.safeFetch(reviewDesc)
-            contracts = active + review
+            let result = active + review
             #if DEBUG
             let duration = Date().timeIntervalSince(startTime)
             PerformanceLogger.log(
                 screenName: "PresentationsViewModel - Fetch Contracts",
-                itemCount: contracts.count,
+                itemCount: result.count,
                 duration: duration
             )
             #endif
-        } catch {
-            contracts = []
-        }
+            return result
+        }()
         
         // Check if data actually changed
         let studentLessonsIDs = Set(studentLessons.map { $0.id })

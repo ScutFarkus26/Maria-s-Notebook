@@ -8,6 +8,9 @@ struct LessonsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    #endif
     
     // OPTIMIZATION: Use lightweight query for studentLessons change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -27,6 +30,7 @@ struct LessonsRootView: View {
     @State private var importAlert: ImportAlert? = nil
     @State private var showingLessonCSVImporter: Bool = false
     @State private var groupsCache: [String: [String]] = [:]
+    @State private var showFilterSheet: Bool = false
 
     @SceneStorage("Lessons.selectedSubject") private var lessonsSelectedSubjectRaw: String = ""
     @SceneStorage("Lessons.selectedGroup") private var lessonsSelectedGroupRaw: String = ""
@@ -190,17 +194,51 @@ struct LessonsRootView: View {
     }
 
     private var rootLayout: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                sidebar
-
-                Divider()
-
+        #if os(iOS)
+        if horizontalSizeClass == .compact {
+            return AnyView(
                 contentArea
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+                    .navigationTitle("Lessons")
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Filters", systemImage: "line.3.horizontal.decrease.circle") {
+                                showFilterSheet = true
+                            }
+                        }
+                        ToolbarItem(placement: .primaryAction) {
+                            plusMenuOverlay
+                        }
+                    }
+                    .sheet(isPresented: $showFilterSheet) {
+                        NavigationStack {
+                            sidebar
+                                .navigationTitle("Filters")
+                                .toolbar {
+                                    ToolbarItem(placement: .cancellationAction) {
+                                        Button("Done") { showFilterSheet = false }
+                                    }
+                                }
+                        }
+                        .presentationDetents([.medium, .large])
+                    }
+            )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
+        
+        return AnyView(
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    sidebar
+
+                    Divider()
+
+                    contentArea
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        )
     }
 
     private var parsingOverlay: some View {
@@ -314,14 +352,27 @@ struct LessonsRootView: View {
     private var mainContentOverlay: some View {
         lessonsMainContent
             .safeAreaInset(edge: .top) {
+                #if os(iOS)
+                if horizontalSizeClass == .compact {
+                    EmptyView() // Toolbar handled in rootLayout
+                } else {
+                    ZStack {
+                        HStack { Spacer(); toolbarContent }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(.bar)
+                    .overlay(alignment: .bottom) { Divider() }
+                }
+                #else
                 ZStack {
-                    // Align controls to the trailing edge
                     HStack { Spacer(); toolbarContent }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 .background(.bar)
                 .overlay(alignment: .bottom) { Divider() }
+                #endif
             }
     }
     
