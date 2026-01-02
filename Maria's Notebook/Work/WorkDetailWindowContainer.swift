@@ -10,7 +10,9 @@ struct WorkDetailWindowContainer: View {
             FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == workID })
         ).first {
             WorkContractDetailSheet(contract: contract)
+                #if os(macOS)
                 .frame(minWidth: 500, minHeight: 400)
+                #endif
         } else if let legacyWork = try? modelContext.fetch(
             FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
         ).first {
@@ -24,10 +26,14 @@ struct WorkDetailWindowContainer: View {
                     }
                 }
             }
+            #if os(macOS)
             .frame(minWidth: 400, minHeight: 200)
+            #endif
         } else {
             ContentUnavailableView("Work not found", systemImage: "doc.questionmark")
+                #if os(macOS)
                 .frame(minWidth: 400, minHeight: 200)
+                #endif
         }
     }
 }
