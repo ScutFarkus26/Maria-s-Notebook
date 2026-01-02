@@ -156,7 +156,7 @@ struct DataManagementGrid: View {
                         } label: {
                             Image(systemName: "ellipsis.circle")
                                 .font(.title3)
-                                .foregroundStyle(.accentColor)
+                                .foregroundStyle(Color.accentColor)
                         }
                         .menuStyle(.borderlessButton)
                     }
