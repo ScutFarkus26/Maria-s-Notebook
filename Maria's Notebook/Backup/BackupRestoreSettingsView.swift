@@ -237,8 +237,8 @@ struct BackupRestoreSettingsView: View {
                 .font(.headline)
             
             Toggle(isOn: Binding(
-                get: { UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass") },
-                set: { UserDefaults.standard.set($0, forKey: "Backup.allowChecksumBypass") }
+                get: { UserDefaults.standard.bool(forKey: UserDefaultsKeys.backupAllowChecksumBypass) },
+                set: { UserDefaults.standard.set($0, forKey: UserDefaultsKeys.backupAllowChecksumBypass) }
             )) {
                 Text("Allow checksum bypass")
             }

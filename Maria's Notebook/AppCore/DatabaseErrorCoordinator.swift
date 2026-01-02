@@ -48,8 +48,8 @@ final class DatabaseErrorCoordinator: ObservableObject {
         MariasToolboxApp.initError = nil
         
         // Clear error flags
-        UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-        UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
+        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
         
         print("✅ DatabaseErrorCoordinator: Local database reset successfully. CloudKit data preserved.")
     }
@@ -132,11 +132,11 @@ final class DatabaseErrorCoordinator: ObservableObject {
         diagnostics.append("")
         diagnostics.append("=== UserDefaults Flags ===")
         diagnostics.append("")
-        diagnostics.append("Ephemeral Session: \(UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey))")
-        diagnostics.append("CloudKit Enabled: \(UserDefaults.standard.bool(forKey: MariasToolboxApp.enableCloudKitKey))")
-        diagnostics.append("CloudKit Active: \(UserDefaults.standard.bool(forKey: MariasToolboxApp.cloudKitActiveKey))")
+        diagnostics.append("Ephemeral Session: \(UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag))")
+        diagnostics.append("CloudKit Enabled: \(UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync))")
+        diagnostics.append("CloudKit Active: \(UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive))")
         
-        if let lastError = UserDefaults.standard.string(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey) {
+        if let lastError = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStoreErrorDescription) {
             diagnostics.append("Last Error: \(lastError)")
         }
         

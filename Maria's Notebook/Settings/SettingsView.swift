@@ -99,8 +99,8 @@ struct SettingsView: View {
             )
             #endif
             // If we are no longer in an ephemeral session (i.e., persistent container opened), clear any stale message.
-            if !UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
-                UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+            if !UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
             }
         }
     }

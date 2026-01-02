@@ -55,7 +55,7 @@ enum DataMigrations {
         for (_, group) in groups {
             guard group.count > 1 else { continue }
             // Choose canonical: earliest createdAt
-            let canonical = group.min(by: { $0.createdAt < $1.createdAt })!
+            guard let canonical = group.min(by: { $0.createdAt < $1.createdAt }) else { continue }
             let duplicates = group.filter { $0.id != canonical.id }
 
             // Merge flags conservatively

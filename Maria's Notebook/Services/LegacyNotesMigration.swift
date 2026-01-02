@@ -9,7 +9,7 @@ enum LegacyNotesMigration {
 
     static func runIfNeeded(modelContext: ModelContext) {
         // Skip flag setting during ephemeral/in-memory sessions
-        if UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
+        if UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {
             return
         }
         

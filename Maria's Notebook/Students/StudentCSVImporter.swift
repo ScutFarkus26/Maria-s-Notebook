@@ -95,81 +95,16 @@ enum StudentCSVImporter {
 
     // MARK: - Public API
     static func parse(data: Data, mapping: Mapping?, existingStudents: [Student]) throws -> Parsed {
-        guard let csv = CSVParser.parse(data: data) else {
-            throw ImportError.encoding("Unsupported text encoding; please use UTF-8.")
-        }
-        let headers = csv.headers
-        let useMap = mapping ?? detectMapping(headers: headers)
-        // Require either First+Last or Full Name
-        let hasFirstLast = (useMap.firstName != nil) && (useMap.lastName != nil)
-        let hasFull = (useMap.fullName != nil)
-        if !hasFirstLast && !hasFull { throw ImportError.needsMapping }
-
         // Existing keys for duplicate detection
         let existingKeys: Set<String> = Set(existingStudents.map { duplicateKey(for: $0) })
         let existingNameKeys: Set<String> = Set(existingStudents.map { ("\($0.firstName) \($0.lastName)".normalizedNameKey()) })
-
-        var rows: [Row] = []
-        var potentialDupNames: [String] = []
-        var warnings: [String] = []
-
-        for (i, rawRow) in csv.rows.enumerated() {
-            // Extract text safely
-            func value(_ idx: Int?) -> String {
-                guard let idx, idx >= 0, idx < rawRow.count else { return "" }
-                return rawRow[idx].trimmed()
-            }
-
-            var first = ""
-            var last = ""
-            if hasFirstLast {
-                first = value(useMap.firstName)
-                last = value(useMap.lastName)
-            } else if hasFull {
-                let full = value(useMap.fullName)
-                let parts = full.split(separator: Character(useMap.splitFullNameOn), omittingEmptySubsequences: true)
-                if parts.count > 0 { first = String(parts[0]) }
-                if parts.count > 1 { last = parts.dropFirst().joined(separator: " ") }
-            }
-            first = first.trimmed()
-            last = last.trimmed()
-            if first.isEmpty || last.isEmpty {
-                warnings.append("Row \(i + 2): Missing first or last name; row skipped.")
-                continue
-            }
-
-            let bdayStr = value(useMap.birthday)
-            let startStr = value(useMap.startDate)
-            let levelStr = value(useMap.level)
-
-            let bday = DateParser.parse(bdayStr)
-            let start = DateParser.parse(startStr)
-            let lvl = parseLevel(from: levelStr)
-
-            let row = Row(firstName: first, lastName: last, birthday: bday, dateStarted: start, level: lvl)
-            rows.append(row)
-
-            let key = duplicateKey(first: first, last: last, birthday: bday)
-            var isPotentialDuplicate = false
-            if existingKeys.contains(key) {
-                isPotentialDuplicate = true
-            } else if bday == nil {
-                let nameKey = "\(first) \(last)".normalizedNameKey()
-                if existingNameKeys.contains(nameKey) {
-                    isPotentialDuplicate = true
-                }
-            }
-            if isPotentialDuplicate {
-                let display = "\(first) \(last)"
-                potentialDupNames.append(display)
-            }
-        }
-
-        // Deduplicate duplicate names for display while preserving order
-        var seen: Set<String> = []
-        let dedupedPotential = potentialDupNames.filter { seen.insert($0).inserted }
-
-        return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: dedupedPotential, warnings: warnings)
+        
+        return try parse(
+            data: data,
+            mapping: mapping,
+            existingFullKeys: existingKeys,
+            existingNameKeys: existingNameKeys
+        )
     }
 
     /// Parse CSV into rows and detect potential duplicates using precomputed keys.
@@ -190,29 +125,27 @@ enum StudentCSVImporter {
         var warnings: [String] = []
 
         for (i, rawRow) in csv.rows.enumerated() {
+            // Extract text safely
             func value(_ idx: Int?) -> String {
                 guard let idx, idx >= 0, idx < rawRow.count else { return "" }
                 return rawRow[idx].trimmed()
             }
 
-            var first = ""
-            var last = ""
-            if hasFirstLast {
-                first = value(useMap.firstName)
-                last = value(useMap.lastName)
-            } else if hasFull {
-                let full = value(useMap.fullName)
-                let parts = full.split(separator: Character(useMap.splitFullNameOn), omittingEmptySubsequences: true)
-                if parts.count > 0 { first = String(parts[0]) }
-                if parts.count > 1 { last = parts.dropFirst().joined(separator: " ") }
-            }
-            first = first.trimmed()
-            last = last.trimmed()
-            if first.isEmpty || last.isEmpty {
+            // Parse name fields
+            let (first, last) = parseNameFields(
+                from: rawRow,
+                mapping: useMap,
+                hasFirstLast: hasFirstLast,
+                hasFull: hasFull,
+                value: value
+            )
+            
+            guard !first.isEmpty && !last.isEmpty else {
                 warnings.append("Row \(i + 2): Missing first or last name; row skipped.")
                 continue
             }
 
+            // Parse other fields
             let bdayStr = value(useMap.birthday)
             let startStr = value(useMap.startDate)
             let levelStr = value(useMap.level)
@@ -224,17 +157,8 @@ enum StudentCSVImporter {
             let row = Row(firstName: first, lastName: last, birthday: bday, dateStarted: start, level: lvl)
             rows.append(row)
 
-            let key = duplicateKey(first: first, last: last, birthday: bday)
-            var isPotentialDuplicate = false
-            if existingFullKeys.contains(key) {
-                isPotentialDuplicate = true
-            } else if bday == nil {
-                let nameKey = "\(first) \(last)".normalizedNameKey()
-                if existingNameKeys.contains(nameKey) {
-                    isPotentialDuplicate = true
-                }
-            }
-            if isPotentialDuplicate {
+            // Check for duplicates
+            if isDuplicate(first: first, last: last, birthday: bday, existingFullKeys: existingFullKeys, existingNameKeys: existingNameKeys) {
                 potentialDupNames.append("\(first) \(last)")
             }
         }
@@ -244,6 +168,55 @@ enum StudentCSVImporter {
         let dedupedPotential = potentialDupNames.filter { seen.insert($0).inserted }
 
         return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: dedupedPotential, warnings: warnings)
+    }
+    
+    // MARK: - Private Helpers
+    
+    /// Parses first and last name from CSV row based on mapping configuration.
+    private static func parseNameFields(
+        from rawRow: [String],
+        mapping: Mapping,
+        hasFirstLast: Bool,
+        hasFull: Bool,
+        value: (Int?) -> String
+    ) -> (first: String, last: String) {
+        var first = ""
+        var last = ""
+        
+        if hasFirstLast {
+            first = value(mapping.firstName)
+            last = value(mapping.lastName)
+        } else if hasFull {
+            let full = value(mapping.fullName)
+            let parts = full.split(separator: Character(mapping.splitFullNameOn), omittingEmptySubsequences: true)
+            if parts.count > 0 { first = String(parts[0]) }
+            if parts.count > 1 { last = parts.dropFirst().joined(separator: " ") }
+        }
+        
+        first = first.trimmed()
+        last = last.trimmed()
+        
+        return (first, last)
+    }
+    
+    /// Checks if a student row is a potential duplicate based on existing keys.
+    private static func isDuplicate(
+        first: String,
+        last: String,
+        birthday: Date?,
+        existingFullKeys: Set<String>,
+        existingNameKeys: Set<String>
+    ) -> Bool {
+        let key = duplicateKey(first: first, last: last, birthday: birthday)
+        if existingFullKeys.contains(key) {
+            return true
+        } else if birthday == nil {
+            let nameKey = "\(first) \(last)".normalizedNameKey()
+            if existingNameKeys.contains(nameKey) {
+                return true
+            }
+        }
+        return false
     }
 
     static func commit(parsed: Parsed, into context: ModelContext, existingStudents: [Student]) throws -> Summary {

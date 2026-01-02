@@ -687,7 +687,7 @@ public final class BackupService {
         progress(0.20, "Validating checksum…")
         // Checksum validation: enforced for format version 5+, optional bypass for older versions
         let isNewFormat = envelope.formatVersion >= BackupFile.checksumEnforcedVersion
-        let bypassEnabled = UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass")
+        let bypassEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.backupAllowChecksumBypass)
         let shouldValidateChecksum = isNewFormat || !bypassEnabled
         
         if shouldValidateChecksum && !envelope.manifest.sha256.isEmpty {
@@ -877,7 +877,7 @@ public final class BackupService {
         progress(0.20, "Validating checksum…")
         // Checksum validation: enforced for format version 5+, optional bypass for older versions
         let isNewFormat = envelope.formatVersion >= BackupFile.checksumEnforcedVersion
-        let bypassEnabled = UserDefaults.standard.bool(forKey: "Backup.allowChecksumBypass")
+        let bypassEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.backupAllowChecksumBypass)
         let shouldValidateChecksum = isNewFormat || !bypassEnabled
         
         if shouldValidateChecksum && !envelope.manifest.sha256.isEmpty {

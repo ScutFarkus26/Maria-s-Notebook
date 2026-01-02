@@ -15,12 +15,19 @@ import AppKit
 
 @main
 struct MariasToolboxApp: App {
-    static let useInMemoryFlagKey = "UseInMemoryStoreOnce"
-    static let ephemeralSessionFlagKey = "SwiftDataEphemeralSession"
-    static let lastStoreErrorDescriptionKey = "SwiftDataLastErrorDescription"
-    static let allowLocalStoreFallbackKey = "AllowLocalStoreFallback"
-    static let enableCloudKitKey = "EnableCloudKitSync"
-    static let cloudKitActiveKey = "CloudKitActive" // Tracks if CloudKit is actually running (not just enabled)
+    // MARK: - UserDefaults Keys (deprecated - use UserDefaultsKeys instead)
+    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
+    static let useInMemoryFlagKey = UserDefaultsKeys.useInMemoryStoreOnce
+    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
+    static let ephemeralSessionFlagKey = UserDefaultsKeys.ephemeralSessionFlag
+    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
+    static let lastStoreErrorDescriptionKey = UserDefaultsKeys.lastStoreErrorDescription
+    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
+    static let allowLocalStoreFallbackKey = UserDefaultsKeys.allowLocalStoreFallback
+    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
+    static let enableCloudKitKey = UserDefaultsKeys.enableCloudKitSync
+    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
+    static let cloudKitActiveKey = UserDefaultsKeys.cloudKitActive
     
     /// Returns the CloudKit container identifier from entitlements
     /// This must match the container ID in the entitlements file
@@ -32,10 +39,72 @@ struct MariasToolboxApp: App {
     
     /// Returns a summary of CloudKit sync status
     static func getCloudKitStatus() -> (enabled: Bool, active: Bool, containerID: String) {
-        let enabled = UserDefaults.standard.bool(forKey: enableCloudKitKey)
-        let active = UserDefaults.standard.bool(forKey: cloudKitActiveKey)
+        let enabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
+        let active = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
         let containerID = getCloudKitContainerID() ?? "Unknown"
         return (enabled: enabled, active: active, containerID: containerID)
+    }
+    
+    // MARK: - Error Handling Helpers
+    
+    /// Centralized error handling for database initialization failures.
+    /// Sets error state, updates UserDefaults, and notifies DatabaseErrorCoordinator.
+    /// - Parameters:
+    ///   - error: The error that occurred
+    ///   - description: Optional custom error description. If nil, uses error.localizedDescription
+    static func handleDatabaseInitError(_ error: Error, description: String? = nil) {
+        let errorDescription = description ?? ((error as NSError?)?.localizedDescription ?? String(describing: error))
+        let nsError = error as NSError? ?? NSError(
+            domain: "MariasNotebook",
+            code: 5000,
+            userInfo: [NSLocalizedDescriptionKey: errorDescription]
+        )
+        
+        MariasToolboxApp.initError = nsError
+        DatabaseErrorCoordinator.shared.setError(nsError)
+        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        UserDefaults.standard.set(errorDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
+    }
+    
+    /// Handles critical database initialization failure with multiple error contexts.
+    /// Used when multiple errors occur in sequence (e.g., original error + fallback error).
+    /// - Parameters:
+    ///   - originalError: The first error that occurred
+    ///   - finalError: The final error (e.g., from fallback attempt)
+    ///   - emptyContainerError: Optional error from attempting to create empty container
+    ///   - errorCode: Custom error code (default: 5002)
+    static func handleCriticalDatabaseInitError(
+        originalError: Error,
+        finalError: Error? = nil,
+        emptyContainerError: Error? = nil,
+        errorCode: Int = 5002
+    ) {
+        let originalDesc = (originalError as NSError?)?.localizedDescription ?? String(describing: originalError)
+        let finalDesc = (finalError as NSError?)?.localizedDescription ?? "N/A"
+        let emptyErrorDesc = (emptyContainerError as NSError?)?.localizedDescription ?? "N/A"
+        
+        let errorMessage: String
+        if emptyContainerError != nil {
+            errorMessage = "Critical database initialization failure. Failed to create even an empty container. This indicates a severe system issue. Original: \(originalDesc). Final: \(finalDesc). Empty container error: \(emptyErrorDesc). Please try resetting the database or reinstalling the app."
+        } else if finalError != nil {
+            errorMessage = "Critical database initialization failure. The app cannot create a database container. Original: \(originalDesc). Final: \(finalDesc). Please try resetting the database or reinstalling the app."
+        } else {
+            errorMessage = "Critical database initialization failure. Original: \(originalDesc). Please try resetting the database or reinstalling the app."
+        }
+        
+        let criticalError = NSError(
+            domain: "MariasNotebook",
+            code: errorCode,
+            userInfo: [NSLocalizedDescriptionKey: errorMessage]
+        )
+        
+        MariasToolboxApp.initError = criticalError
+        let details = emptyContainerError != nil 
+            ? "Original: \(originalDesc). Final: \(finalDesc). Empty container error: \(emptyErrorDesc)"
+            : "Original: \(originalDesc). Final: \(finalDesc)"
+        DatabaseErrorCoordinator.shared.setError(criticalError, details: details)
+        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        UserDefaults.standard.set(criticalError.localizedDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
     }
     
     // Track initialization errors to show in the UI
@@ -101,9 +170,9 @@ struct MariasToolboxApp: App {
         try resetPersistentStore()
         
         // Clear error state flags
-        UserDefaults.standard.removeObject(forKey: lastStoreErrorDescriptionKey)
-        UserDefaults.standard.set(false, forKey: ephemeralSessionFlagKey)
-        UserDefaults.standard.set(false, forKey: useInMemoryFlagKey)
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
+        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
         
         // Clear error state
         initError = nil
@@ -151,11 +220,11 @@ struct MariasToolboxApp: App {
         try resetPersistentStore()
         
         // Ensure CloudKit is enabled
-        UserDefaults.standard.set(true, forKey: enableCloudKitKey)
+        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.enableCloudKitSync)
         
         // Clear any error flags
-        UserDefaults.standard.removeObject(forKey: lastStoreErrorDescriptionKey)
-        UserDefaults.standard.set(false, forKey: ephemeralSessionFlagKey)
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
+        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
         
         #if DEBUG
         print("SwiftData: Local database reset and CloudKit sync enabled. App restart required.")
@@ -230,8 +299,8 @@ struct MariasToolboxApp: App {
         print("SwiftData: Schema accessed successfully")
         #endif
         
-        let useInMemory = UserDefaults.standard.bool(forKey: MariasToolboxApp.useInMemoryFlagKey)
-        let _ = UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey)
+        let useInMemory = UserDefaults.standard.bool(forKey: UserDefaultsKeys.useInMemoryStoreOnce)
+        let _ = UserDefaults.standard.bool(forKey: UserDefaultsKeys.allowLocalStoreFallback)
         
         // Helper to create container with defensive error handling
         func makeContainer(inMemory: Bool, url: URL? = nil, cloud: Bool = false) throws -> ModelContainer {
@@ -266,7 +335,7 @@ struct MariasToolboxApp: App {
                         #endif
                         let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
                         let container = try ModelContainer(for: schema, configurations: config)
-                        UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
                         return container
                     }
 
@@ -287,7 +356,7 @@ struct MariasToolboxApp: App {
                             print("SwiftData: Note: CoreData+CloudKit error messages about 'store was removed' are expected")
                             print("SwiftData:   and harmless - they occur during SwiftData's internal initialization.")
                             #endif
-                            UserDefaults.standard.set(true, forKey: MariasToolboxApp.cloudKitActiveKey)
+                            UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
                             return container
                         } catch {
                             // CloudKit initialization failed - log detailed error and fall back to local store
@@ -302,7 +371,7 @@ struct MariasToolboxApp: App {
                             // Fall back to local store
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
                             let container = try ModelContainer(for: schema, configurations: config)
-                            UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
                             return container
                         }
                     } else {
@@ -325,7 +394,7 @@ struct MariasToolboxApp: App {
                             print("SwiftData: Note: CoreData+CloudKit error messages about 'store was removed' are expected")
                             print("SwiftData:   and harmless - they occur during SwiftData's internal initialization.")
                             #endif
-                            UserDefaults.standard.set(true, forKey: MariasToolboxApp.cloudKitActiveKey)
+                            UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
                             return container
                         } catch {
                             // CloudKit initialization failed - log detailed error and fall back to local store
@@ -340,7 +409,7 @@ struct MariasToolboxApp: App {
                             // Fall back to local store
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
                             let container = try ModelContainer(for: schema, configurations: config)
-                            UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
                             return container
                         }
                     } else {
@@ -353,7 +422,7 @@ struct MariasToolboxApp: App {
                         url: url ?? MariasToolboxApp.storeFileURL(),
                         cloudKitDatabase: .none
                     )
-                    UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                    UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
                     return try ModelContainer(for: schema, configurations: config)
                 }
             } catch {
@@ -374,9 +443,9 @@ struct MariasToolboxApp: App {
                 #endif
                 // We already validated the schema, so this should work
                 let container = try makeContainer(inMemory: true)
-                UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                UserDefaults.standard.set("Using temporary in-memory store on next launch.", forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
-                UserDefaults.standard.set(false, forKey: MariasToolboxApp.useInMemoryFlagKey)
+                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+                UserDefaults.standard.set("Using temporary in-memory store on next launch.", forKey: UserDefaultsKeys.lastStoreErrorDescription)
+                UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
                 #if DEBUG
                 print("SwiftData: Using in-memory store.")
                 #endif
@@ -405,24 +474,24 @@ struct MariasToolboxApp: App {
                 
                 // CloudKit compatibility: All model fixes are complete. Enable CloudKit by default.
                 // Users can disable it via the settings toggle if needed.
-                let enableCloudKit = UserDefaults.standard.object(forKey: enableCloudKitKey) as? Bool ?? true
+                let enableCloudKit = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
                 #if DEBUG
                 if enableCloudKit {
                     print("SwiftData: Creating CloudKit-enabled container...")
                 } else {
-                    print("SwiftData: Creating local storage container (CloudKit disabled - set '\(enableCloudKitKey)' UserDefaults flag to enable)...")
+                    print("SwiftData: Creating local storage container (CloudKit disabled - set '\(UserDefaultsKeys.enableCloudKitSync)' UserDefaults flag to enable)...")
                 }
                 #endif
                 let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
-                UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 if enableCloudKit {
                     // cloudKitActiveKey is set in makeContainer when CloudKit is successfully initialized
                     #if DEBUG
                     print("SwiftData: ✅ Using CloudKit-enabled storage.")
                     #endif
                 } else {
-                    UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                    UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
                     #if DEBUG
                     print("SwiftData: Using local storage.")
                     #endif
@@ -459,10 +528,10 @@ struct MariasToolboxApp: App {
                             #endif
                             // Retry creating the container with the fresh store
                             // Preserve CloudKit setting - don't disable it during recovery
-                            let enableCloudKit = UserDefaults.standard.object(forKey: enableCloudKitKey) as? Bool ?? true
+                            let enableCloudKit = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
                             let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
-                            UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                            UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+                            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
                             #if DEBUG
                             print("SwiftData: Successfully opened store after reset.")
                             #endif
@@ -476,28 +545,16 @@ struct MariasToolboxApp: App {
                                     NSLocalizedDescriptionKey: "Database schema migration required. The AttendanceRecord.studentID property needs to be migrated from UUID to String format. Automatic reset failed. Please use 'Reset Local Database' manually to resolve this."
                                 ]
                             )
-                            MariasToolboxApp.initError = migrationError
-                            DatabaseErrorCoordinator.shared.setError(migrationError)
-                            UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                            UserDefaults.standard.set(migrationError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                            MariasToolboxApp.handleDatabaseInitError(migrationError)
                         }
                     } else {
-                        MariasToolboxApp.initError = error
-                        DatabaseErrorCoordinator.shared.setError(error)
-                        UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                        UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                        MariasToolboxApp.handleDatabaseInitError(error)
                     }
                 } else {
-                    MariasToolboxApp.initError = error
-                    DatabaseErrorCoordinator.shared.setError(error)
-                    UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                    UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                    MariasToolboxApp.handleDatabaseInitError(error)
                 }
             } else {
-                MariasToolboxApp.initError = error
-                DatabaseErrorCoordinator.shared.setError(error)
-                UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                UserDefaults.standard.set(error.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                MariasToolboxApp.handleDatabaseInitError(error)
             }
             
             // As a last resort, try to create an in-memory container
@@ -512,10 +569,10 @@ struct MariasToolboxApp: App {
                 #if DEBUG
                 print("SwiftData: Successfully created fallback in-memory container")
                 #endif
-                UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                 // Use safe string representation
                 let errorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
-                UserDefaults.standard.set("Persistent storage failed. Using temporary in-memory container. Original error: \(errorDesc)", forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+                UserDefaults.standard.set("Persistent storage failed. Using temporary in-memory container. Original error: \(errorDesc)", forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 return fallbackContainer
             } catch let finalError {
                 // Log comprehensive error information
@@ -528,20 +585,11 @@ struct MariasToolboxApp: App {
                 }
                 
                 // Set the error so the UI can display it
-                // Use safe string representations to avoid any potential assertion
-                let originalDesc = (error as NSError?)?.localizedDescription ?? "Unknown error"
-                let finalDesc = (finalError as NSError?)?.localizedDescription ?? "Unknown error"
-                let criticalError = NSError(
-                    domain: "MariasNotebook",
-                    code: 5001,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: "Critical database initialization failure. The app cannot create a database container. Original: \(originalDesc). Final: \(finalDesc). Please try resetting the database or reinstalling the app."
-                    ]
+                MariasToolboxApp.handleCriticalDatabaseInitError(
+                    originalError: error,
+                    finalError: finalError,
+                    errorCode: 5001
                 )
-                MariasToolboxApp.initError = criticalError
-                DatabaseErrorCoordinator.shared.setError(criticalError, details: "Original: \(originalDesc). Final: \(finalDesc)")
-                UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                UserDefaults.standard.set(criticalError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                 
                 // At this point, we cannot create a container with the actual schema.
                 // As an absolute last resort, try to create an empty container just so the app can show the error UI.
@@ -558,33 +606,30 @@ struct MariasToolboxApp: App {
                     print("SwiftData: Created minimal empty container for error UI")
                     #endif
                     
-                    // Set the error so the UI can display it (reuse criticalError from outer scope)
-                    MariasToolboxApp.initError = criticalError
-                    DatabaseErrorCoordinator.shared.setError(criticalError, details: "Original: \(originalDesc). Final: \(finalDesc)")
-                    UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                    UserDefaults.standard.set(criticalError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                    // Set the error so the UI can display it
+                    MariasToolboxApp.handleCriticalDatabaseInitError(
+                        originalError: error,
+                        finalError: finalError,
+                        errorCode: 5001
+                    )
                     
                     return emptyContainer
                 } catch let emptyContainerError {
                     // Even creating an empty container failed - this should never happen
                     // Set error state instead of crashing so user can recover
-                    let originalErrorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
-                    let finalErrorDesc = (finalError as NSError?)?.localizedDescription ?? String(describing: finalError)
-                    let emptyErrorDesc = (emptyContainerError as NSError?)?.localizedDescription ?? String(describing: emptyContainerError)
-                    let criticalError = NSError(
-                        domain: "MariasNotebook",
-                        code: 5002,
-                        userInfo: [
-                            NSLocalizedDescriptionKey: "Critical database initialization failure. Failed to create even an empty container. This indicates a severe system issue. Original: \(originalErrorDesc). Final: \(finalErrorDesc). Empty container error: \(emptyErrorDesc). Please try resetting the database or reinstalling the app."
-                        ]
+                    MariasToolboxApp.handleCriticalDatabaseInitError(
+                        originalError: error,
+                        finalError: finalError,
+                        emptyContainerError: emptyContainerError,
+                        errorCode: 5002
                     )
-                    MariasToolboxApp.initError = criticalError
-                    DatabaseErrorCoordinator.shared.setError(criticalError, details: "Original: \(originalErrorDesc). Final: \(finalErrorDesc). Empty container error: \(emptyErrorDesc)")
-                    UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                    UserDefaults.standard.set(criticalError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                     // We still need to return something, so rethrow and let the caller handle it
                     // The caller (sharedModelContainer) will catch this and handle it
-                    throw criticalError
+                    if let criticalError = MariasToolboxApp.initError as NSError? {
+                        throw criticalError
+                    } else {
+                        throw emptyContainerError
+                    }
                 }
             }
         }
@@ -641,8 +686,8 @@ struct MariasToolboxApp: App {
                 let emptySchema = Schema([])
                 let emptyConfig = ModelConfiguration(isStoredInMemoryOnly: true)
                 let emptyContainer = try ModelContainer(for: emptySchema, configurations: emptyConfig)
-                UserDefaults.standard.set(true, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
-                UserDefaults.standard.set(unexpectedError.localizedDescription, forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
+                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+                UserDefaults.standard.set(unexpectedError.localizedDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 return emptyContainer
             } catch {
                 // If even this fails, we have no choice but to crash
@@ -672,7 +717,7 @@ struct MariasToolboxApp: App {
         #if DEBUG
         // TEST: Simulate database initialization failure for testing recovery flow
         // Set this UserDefaults key to trigger a simulated failure
-        if UserDefaults.standard.bool(forKey: "DEBUG_SimulateDatabaseInitFailure") {
+        if UserDefaults.standard.bool(forKey: UserDefaultsKeys.debugSimulateDatabaseInitFailure) {
             let testError = NSError(
                 domain: "MariasNotebook",
                 code: 9999,
@@ -834,17 +879,17 @@ struct MariasToolboxApp: App {
                 Menu("Troubleshooting") {
                     #if os(macOS)
                     Toggle("Allow Local Store Fallback", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: MariasToolboxApp.allowLocalStoreFallbackKey) },
-                        set: { UserDefaults.standard.set($0, forKey: MariasToolboxApp.allowLocalStoreFallbackKey) }
+                        get: { UserDefaults.standard.bool(forKey: UserDefaultsKeys.allowLocalStoreFallback) },
+                        set: { UserDefaults.standard.set($0, forKey: UserDefaultsKeys.allowLocalStoreFallback) }
                     ))
                     Toggle("Enable CloudKit Sync", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: MariasToolboxApp.enableCloudKitKey) },
-                        set: { UserDefaults.standard.set($0, forKey: MariasToolboxApp.enableCloudKitKey) }
+                        get: { UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync) },
+                        set: { UserDefaults.standard.set($0, forKey: UserDefaultsKeys.enableCloudKitSync) }
                     ))
                     #endif
                     
                     Button("Use In-Memory Store Next Launch") {
-                        UserDefaults.standard.set(true, forKey: MariasToolboxApp.useInMemoryFlagKey)
+                        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
                     }
                     
                     #if DEBUG

@@ -153,7 +153,7 @@ struct RootView: View {
         if let legacyRaw = selectedTabRaw, let legacyTab = Tab(rawValue: legacyRaw) {
             // Special handling for planning tab: check stored mode first
             if legacyTab == .planning {
-                if let modeRaw = UserDefaults.standard.string(forKey: "PlanningRootView.mode") {
+                if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
                     switch modeRaw {
                     case "Open Work": return .planningWork
                     case "Projects": return .planningProjects
@@ -175,7 +175,7 @@ struct RootView: View {
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
-            if UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
+            if UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {
                 EphemeralStoreWarningBanner()
             }
 
@@ -221,7 +221,7 @@ struct RootView: View {
                     if let navItem = NavigationItem(fromLegacyTab: legacyTab) {
                         // For planning, check stored mode
                         if legacyTab == .planning {
-                            if let modeRaw = UserDefaults.standard.string(forKey: "PlanningRootView.mode") {
+                            if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
                                 switch modeRaw {
                                 case "Open Work": selectedNavItemRaw = NavigationItem.planningWork.rawValue
                                 case "Projects": selectedNavItemRaw = NavigationItem.planningProjects.rawValue
@@ -627,7 +627,7 @@ private struct EphemeralStoreWarningBanner: View {
     @Environment(\.appRouter) private var appRouter
     
     private var reason: String {
-        UserDefaults.standard.string(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey) 
+        UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStoreErrorDescription) 
         ?? "The persistent store could not be opened. Data will not persist this session."
     }
     

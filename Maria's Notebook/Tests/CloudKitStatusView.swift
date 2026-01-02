@@ -25,11 +25,11 @@ struct CloudKitStatusView: View {
     @Query private var communityTopics: [CommunityTopic]
     
     private var isCloudKitEnabled: Bool {
-        UserDefaults.standard.bool(forKey: MariasToolboxApp.enableCloudKitKey)
+        UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
     }
     
     private var isCloudKitActive: Bool {
-        UserDefaults.standard.bool(forKey: MariasToolboxApp.cloudKitActiveKey)
+        UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
     }
     
     private var containerID: String {
