@@ -21,5 +21,21 @@ extension Array {
     func grouped<Key: Hashable>(by key: (Element) -> Key) -> [Key: [Element]] {
         Dictionary(grouping: self, by: key)
     }
+    
+    /// Removes duplicates while preserving order.
+    /// Elements are compared using their hash value.
+    /// - Returns: An array with duplicates removed, preserving the original order
+    func removingDuplicates() -> [Element] where Element: Hashable {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
+    }
+    
+    /// Removes duplicates based on a key extractor while preserving order.
+    /// - Parameter key: A function that extracts a key from each element
+    /// - Returns: An array with duplicates removed (keeping first occurrence), preserving order
+    func removingDuplicates<Key: Hashable>(by key: (Element) -> Key) -> [Element] {
+        var seen = Set<Key>()
+        return filter { seen.insert(key($0)).inserted }
+    }
 }
 

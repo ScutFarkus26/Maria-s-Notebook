@@ -71,6 +71,6 @@ private struct PreviewContainer<Content: View>: View {
 
     var body: some View {
         content
-            .modelContainer(try! ModelContainer(for: Schema([WorkCompletionRecord.self]), configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+            .modelContainer(PreviewEnvironment.previewContainer(for: [WorkCompletionRecord.self]))
     }
 }

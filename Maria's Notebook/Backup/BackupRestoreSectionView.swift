@@ -151,7 +151,7 @@ struct BackupRestoreSectionView: View {
         } message: {
             Text(viewModel.importError ?? "Unknown error")
         }
-        .sheet(item: $viewModel.operationSummary) { summary in
+        .sheet(item: $viewModel.operationSummary) { (summary: BackupOperationSummary) in
             BackupSummaryView(summary: summary)
         }
         .sheet(isPresented: isRestorePreviewPresented) {

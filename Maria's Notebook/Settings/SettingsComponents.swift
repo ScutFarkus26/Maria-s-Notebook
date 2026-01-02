@@ -28,25 +28,8 @@ struct StatCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(12)
         .frame(maxWidth: .infinity, minHeight: 120)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(cardBackgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.06))
-        )
-        .shadow(color: Color.black.opacity(0.06), radius: 3, x: 0, y: 1)
-    }
-
-    private var cardBackgroundColor: Color {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemBackground)
-        #endif
+        .cardStyle()
     }
 }
 

@@ -69,55 +69,46 @@ final class PresentationsViewModel: ObservableObject {
         //    This cannot be optimized without changing the algorithm semantics.
         //
         // 1. Fetch all StudentLessons (needed for blocking logic and days-since calculations)
-        let studentLessons: [StudentLesson]
-        do {
+        let studentLessons: [StudentLesson] = {
             #if DEBUG
-            studentLessons = try PerformanceLogger.measure(
+            return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch StudentLessons",
                 operation: {
-                    try modelContext.fetch(FetchDescriptor<StudentLesson>())
+                    modelContext.safeFetch(FetchDescriptor<StudentLesson>())
                 }
             )
             #else
-            studentLessons = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+            return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
             #endif
-        } catch {
-            studentLessons = []
-        }
+        }()
         
         // 2. Fetch all Lessons (needed for grouping and blocking logic - requires full group structure)
-        let lessons: [Lesson]
-        do {
+        let lessons: [Lesson] = {
             #if DEBUG
-            lessons = try PerformanceLogger.measure(
+            return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch Lessons",
                 operation: {
-                    try modelContext.fetch(FetchDescriptor<Lesson>())
+                    modelContext.safeFetch(FetchDescriptor<Lesson>())
                 }
             )
             #else
-            lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+            return modelContext.safeFetch(FetchDescriptor<Lesson>())
             #endif
-        } catch {
-            lessons = []
-        }
+        }()
         
         // 3. Fetch all Students (needed for filtering and calculations)
-        let students: [Student]
-        do {
+        let students: [Student] = {
             #if DEBUG
-            students = try PerformanceLogger.measure(
+            return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch Students",
                 operation: {
-                    try modelContext.fetch(FetchDescriptor<Student>())
+                    modelContext.safeFetch(FetchDescriptor<Student>())
                 }
             )
             #else
-            students = try modelContext.fetch(FetchDescriptor<Student>())
+            return modelContext.safeFetch(FetchDescriptor<Student>())
             #endif
-        } catch {
-            students = []
-        }
+        }()
         
         #if DEBUG
         PerformanceLogger.log(
@@ -147,8 +138,8 @@ final class PresentationsViewModel: ObservableObject {
             let reviewDesc = FetchDescriptor<WorkContract>(
                 predicate: #Predicate { $0.statusRaw == "review" }
             )
-            let active = try modelContext.fetch(activeDesc)
-            let review = try modelContext.fetch(reviewDesc)
+            let active = modelContext.safeFetch(activeDesc)
+            let review = modelContext.safeFetch(reviewDesc)
             contracts = active + review
             #if DEBUG
             let duration = Date().timeIntervalSince(startTime)

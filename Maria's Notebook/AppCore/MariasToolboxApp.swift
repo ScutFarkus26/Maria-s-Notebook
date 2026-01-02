@@ -233,7 +233,11 @@ struct MariasToolboxApp: App {
 
     static func storeFileURL() -> URL {
         let fm = FileManager.default
-        let appSupport = try! fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        // Application support directory should always be available, but handle gracefully if not
+        guard let appSupport = try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
+            // Fallback to temporary directory if application support is unavailable
+            return fm.temporaryDirectory.appendingPathComponent("SwiftData.store", isDirectory: false)
+        }
         let bundleID = Bundle.main.bundleIdentifier ?? "MariasNotebook"
         let containerDir = appSupport.appendingPathComponent(bundleID, isDirectory: true)
         try? fm.createDirectory(at: containerDir, withIntermediateDirectories: true)

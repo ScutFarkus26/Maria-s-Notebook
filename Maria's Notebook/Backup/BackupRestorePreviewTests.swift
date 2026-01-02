@@ -199,7 +199,11 @@ import Testing
     func makeManifest(payload: TestPayload) -> RestoreEnvelope.Manifest {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        let data = try! encoder.encode(payload)
+        // Encoding should always succeed for valid payloads, but handle gracefully
+        guard let data = try? encoder.encode(payload) else {
+            // Return manifest with empty checksum if encoding fails (test will fail appropriately)
+            return RestoreEnvelope.Manifest(version: 1, date: Date(), checksum: "")
+        }
         let digest = SHA256.hash(data: data)
         let checksum = digest.compactMap { String(format: "%02x", $0) }.joined()
         return RestoreEnvelope.Manifest(version: 1, date: Date(), checksum: checksum)

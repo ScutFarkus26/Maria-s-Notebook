@@ -89,7 +89,7 @@ struct LessonsRootView: View {
 
     private var lessonNeedsCounts: [UUID: Int] {
         // OPTIMIZATION: Use cached studentLessons (only for filtered lessons) instead of all studentLessons
-        let grouped: [UUID: [StudentLesson]] = Dictionary(grouping: cachedStudentLessons, by: { (sl: StudentLesson) in sl.resolvedLessonID })
+        let grouped: [UUID: [StudentLesson]] = cachedStudentLessons.grouped { $0.resolvedLessonID }
         let counts: [UUID: Int] = grouped.mapValues { (list: [StudentLesson]) in
             list.filter { !$0.isGiven }.count
         }
@@ -107,12 +107,18 @@ struct LessonsRootView: View {
         let base = rootLayout
         let withSelected = base.overlay { selectedLessonOverlay }
         let withParsing = withSelected.overlay { parsingOverlay }
-        let withSheet = withParsing.sheet(item: $presentedSheet) { sheet in
-            viewForSheet(sheet)
+        // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
+        let withSheet = withParsing.sheet(isPresented: Binding(
+            get: { presentedSheet != nil },
+            set: { if !$0 { presentedSheet = nil } }
+        )) {
+            if let sheet = presentedSheet {
+                viewForSheet(sheet)
+            }
         }
         let withImporter = withSheet.fileImporter(
             isPresented: $showingLessonCSVImporter,
-            allowedContentTypes: [.commaSeparatedText, .plainText]
+            allowedContentTypes: [UTType.commaSeparatedText, UTType.plainText]
         ) { result in
             handleFileImportResult(result)
         }
@@ -166,11 +172,11 @@ struct LessonsRootView: View {
                 recomputeFilteredLessons()
             }
             .onChange(of: filterState.selectedSubject) { _, newValue in
-                lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                lessonsSelectedSubjectRaw = newValue?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
                 recomputeFilteredLessons()
             }
             .onChange(of: filterState.selectedGroup) { _, newValue in
-                lessonsSelectedGroupRaw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                lessonsSelectedGroupRaw = newValue?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
                 recomputeFilteredLessons()
             }
             .onChange(of: filterState.searchText) { _, newValue in
@@ -337,7 +343,7 @@ struct LessonsRootView: View {
                     }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                    Text(LessonFormatter.titleOrFallback(lesson.name))
                         .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
 
                     let subtitle: String = {

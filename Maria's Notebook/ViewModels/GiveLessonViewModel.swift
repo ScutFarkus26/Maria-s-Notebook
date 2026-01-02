@@ -340,15 +340,11 @@ final class LessonPickerViewModel: ObservableObject {
     // MARK: - Sorting
     
     private static func sortLessons(_ lessons: [Lesson]) -> [Lesson] {
-        lessons.sorted { lhs, rhs in
-            let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-            if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
-            let subjectOrder = lhs.subject.localizedCaseInsensitiveCompare(rhs.subject)
-            if subjectOrder != .orderedSame { return subjectOrder == .orderedAscending }
-            let groupOrder = lhs.group.localizedCaseInsensitiveCompare(rhs.group)
-            if groupOrder != .orderedSame { return groupOrder == .orderedAscending }
-            return lhs.id.uuidString < rhs.id.uuidString
-        }
+        StringSorting.sortByMultipleLocalizedCaseInsensitive(
+            items: lessons,
+            keyPaths: [\.name, \.subject, \.group],
+            fallback: { $0.id.uuidString < $1.id.uuidString }
+        )
     }
     
     private static func sortStudents(_ students: [Student]) -> [Student] {
@@ -369,17 +365,11 @@ final class LessonPickerViewModel: ObservableObject {
     }
 
     func lessonDisplayTitle(for lesson: Lesson) -> String {
-        let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
-        var suffix = ""
-        if !subject.isEmpty && !group.isEmpty {
-            suffix = " • \(subject) • \(group)"
-        } else if !subject.isEmpty {
-            suffix = " • \(subject)"
-        } else if !group.isEmpty {
-            suffix = " • \(group)"
-        }
-        return lesson.name + suffix
+        LessonFormatter.displayTitle(
+            name: lesson.name,
+            subject: lesson.subject,
+            group: lesson.group
+        )
     }
 }
 

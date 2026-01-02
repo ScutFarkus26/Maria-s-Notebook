@@ -12,7 +12,7 @@ struct OpenWorkListView: View {
     @Query private var studentLessons: [StudentLesson]
 
     @State private var selectedWork: WorkModel? = nil
-
+    
     private var lessonsByID: [UUID: Lesson] {
         Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
     }
@@ -67,6 +67,19 @@ struct OpenWorkListView: View {
         return dateString
     }
 
+    @ViewBuilder
+    private func workDetailSheetContent(for work: WorkModel) -> some View {
+        WorkDetailContainerView(workID: work.id) {
+            selectedWork = nil
+        }
+        #if os(macOS)
+        .frame(minWidth: 720, minHeight: 640)
+        #else
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        #endif
+    }
+
     var body: some View {
         NavigationStack {
             List(openWorks) { work in
@@ -102,16 +115,14 @@ struct OpenWorkListView: View {
             }
             .navigationTitle("Open Work")
         }
-        .sheet(item: $selectedWork) { work in
-            WorkDetailContainerView(workID: work.id) {
-                selectedWork = nil
+        // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
+        .sheet(isPresented: Binding(
+            get: { selectedWork != nil },
+            set: { if !$0 { selectedWork = nil } }
+        )) {
+            if let work = selectedWork {
+                workDetailSheetContent(for: work)
             }
-            #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
         }
     }
 }

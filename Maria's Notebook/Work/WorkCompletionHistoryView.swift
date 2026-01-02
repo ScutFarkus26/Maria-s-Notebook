@@ -88,10 +88,10 @@ struct WorkCompletionHistoryView: View {
             }
             // Fallback direct fetch.
             // CloudKit compatibility: Convert UUIDs to strings for comparison
-            let workIDString = workID.uuidString
+            let workIDString = workID.cloudKitString
             let predicate: Predicate<WorkCompletionRecord>
             if let studentID {
-                let studentIDString = studentID.uuidString
+                let studentIDString = studentID.cloudKitString
                 predicate = #Predicate { $0.workID == workIDString && $0.studentID == studentIDString }
             } else {
                 predicate = #Predicate { $0.workID == workIDString }
@@ -100,9 +100,7 @@ struct WorkCompletionHistoryView: View {
                 predicate: predicate,
                 sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
             )
-            self.records = try modelContext.fetch(descriptor)
-        } catch {
-            self.errorMessage = error.localizedDescription
+            self.records = modelContext.safeFetch(descriptor)
         }
     }
 
@@ -176,6 +174,6 @@ private struct PreviewContainer<Content: View>: View {
 
     var body: some View {
         content
-            .modelContainer(try! ModelContainer(for: Schema([WorkCompletionRecord.self]), configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+            .modelContainer(ModelContainer.previewContainer(for: Schema([WorkCompletionRecord.self])))
     }
 }

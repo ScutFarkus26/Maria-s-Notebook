@@ -71,8 +71,5 @@ struct WorksLogView: View {
 
 #Preview {
     WorksLogView()
-        .modelContainer(try! ModelContainer(
-            for: WorkContract.self, Lesson.self, Student.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        ))
+        .modelContainer(PreviewEnvironment.previewContainer(for: [WorkContract.self, Lesson.self, Student.self]))
 }

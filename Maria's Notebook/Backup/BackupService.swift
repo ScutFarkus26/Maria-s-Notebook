@@ -749,8 +749,21 @@ public final class BackupService {
             assign("ProjectWeekRoleAssignment", ins: payload.projectWeekRoleAssignments.count, del: count(ProjectWeekRoleAssignment.self))
         } else {
             // Merge: compute inserts vs. skips
-            assign("Student", ins: payload.students.filter { !exists(Student.self, $0.id) }.count, sk: payload.students.filter { exists(Student.self, $0.id) }.count)
-            assign("Lesson", ins: payload.lessons.filter { !exists(Lesson.self, $0.id) }.count, sk: payload.lessons.filter { exists(Lesson.self, $0.id) }.count)
+            let studentCounts = BackupCountHelpers.countInsertAndSkip(
+                items: payload.students,
+                type: Student.self,
+                modelContext: modelContext,
+                exists: { exists(Student.self, $0.id) }
+            )
+            assign("Student", ins: studentCounts.insert, sk: studentCounts.skip)
+            
+            let lessonCounts = BackupCountHelpers.countInsertAndSkip(
+                items: payload.lessons,
+                type: Lesson.self,
+                modelContext: modelContext,
+                exists: { exists(Lesson.self, $0.id) }
+            )
+            assign("Lesson", ins: lessonCounts.insert, sk: lessonCounts.skip)
 
             let lessonsInStore = Set(((try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []).map { $0.id })
             let lessonsInPayload = Set(payload.lessons.map { $0.id })
@@ -771,17 +784,28 @@ public final class BackupService {
                 warnings.append("\(studentLessonAnalysis.missingLesson) StudentLesson records reference missing Lessons and will be skipped.")
             }
 
-            assign("WorkContract", ins: payload.workContracts.filter { !exists(WorkContract.self, $0.id) }.count, sk: payload.workContracts.filter { exists(WorkContract.self, $0.id) }.count)
-            assign("WorkPlanItem", ins: payload.workPlanItems.filter { !exists(WorkPlanItem.self, $0.id) }.count, sk: payload.workPlanItems.filter { exists(WorkPlanItem.self, $0.id) }.count)
-            assign("ScopedNote", ins: payload.scopedNotes.filter { !exists(ScopedNote.self, $0.id) }.count, sk: payload.scopedNotes.filter { exists(ScopedNote.self, $0.id) }.count)
-            assign("Note", ins: payload.notes.filter { !exists(Note.self, $0.id) }.count, sk: payload.notes.filter { exists(Note.self, $0.id) }.count)
-            assign("NonSchoolDay", ins: payload.nonSchoolDays.filter { !exists(NonSchoolDay.self, $0.id) }.count, sk: payload.nonSchoolDays.filter { exists(NonSchoolDay.self, $0.id) }.count)
-            assign("SchoolDayOverride", ins: payload.schoolDayOverrides.filter { !exists(SchoolDayOverride.self, $0.id) }.count, sk: payload.schoolDayOverrides.filter { exists(SchoolDayOverride.self, $0.id) }.count)
-            assign("StudentMeeting", ins: payload.studentMeetings.filter { !exists(StudentMeeting.self, $0.id) }.count, sk: payload.studentMeetings.filter { exists(StudentMeeting.self, $0.id) }.count)
-            assign("Presentation", ins: payload.presentations.filter { !exists(Presentation.self, $0.id) }.count, sk: payload.presentations.filter { exists(Presentation.self, $0.id) }.count)
-            assign("CommunityTopic", ins: payload.communityTopics.filter { !exists(CommunityTopic.self, $0.id) }.count, sk: payload.communityTopics.filter { exists(CommunityTopic.self, $0.id) }.count)
-            assign("ProposedSolution", ins: payload.proposedSolutions.filter { !exists(ProposedSolution.self, $0.id) }.count, sk: payload.proposedSolutions.filter { exists(ProposedSolution.self, $0.id) }.count)
-            assign("MeetingNote", ins: payload.meetingNotes.filter { !exists(MeetingNote.self, $0.id) }.count, sk: payload.meetingNotes.filter { exists(MeetingNote.self, $0.id) }.count)
+            // Use helper for repeated filter/count patterns
+            func assignCounts<T>(_ key: String, items: [T], type: any PersistentModel.Type, idExtractor: (T) -> UUID) {
+                let counts = BackupCountHelpers.countInsertAndSkip(
+                    items: items,
+                    type: type,
+                    modelContext: modelContext,
+                    exists: { exists(type, idExtractor($0)) }
+                )
+                assign(key, ins: counts.insert, sk: counts.skip)
+            }
+            
+            assignCounts("WorkContract", items: payload.workContracts, type: WorkContract.self) { $0.id }
+            assignCounts("WorkPlanItem", items: payload.workPlanItems, type: WorkPlanItem.self) { $0.id }
+            assignCounts("ScopedNote", items: payload.scopedNotes, type: ScopedNote.self) { $0.id }
+            assignCounts("Note", items: payload.notes, type: Note.self) { $0.id }
+            assignCounts("NonSchoolDay", items: payload.nonSchoolDays, type: NonSchoolDay.self) { $0.id }
+            assignCounts("SchoolDayOverride", items: payload.schoolDayOverrides, type: SchoolDayOverride.self) { $0.id }
+            assignCounts("StudentMeeting", items: payload.studentMeetings, type: StudentMeeting.self) { $0.id }
+            assignCounts("Presentation", items: payload.presentations, type: Presentation.self) { $0.id }
+            assignCounts("CommunityTopic", items: payload.communityTopics, type: CommunityTopic.self) { $0.id }
+            assignCounts("ProposedSolution", items: payload.proposedSolutions, type: ProposedSolution.self) { $0.id }
+            assignCounts("MeetingNote", items: payload.meetingNotes, type: MeetingNote.self) { $0.id }
             assign("CommunityAttachment", ins: payload.communityAttachments.filter { !exists(CommunityAttachment.self, $0.id) }.count, sk: payload.communityAttachments.filter { exists(CommunityAttachment.self, $0.id) }.count)
             assign("AttendanceRecord", ins: payload.attendance.filter { !exists(AttendanceRecord.self, $0.id) }.count, sk: payload.attendance.filter { exists(AttendanceRecord.self, $0.id) }.count)
             assign("WorkCompletionRecord", ins: payload.workCompletions.filter { !exists(WorkCompletionRecord.self, $0.id) }.count, sk: payload.workCompletions.filter { exists(WorkCompletionRecord.self, $0.id) }.count)

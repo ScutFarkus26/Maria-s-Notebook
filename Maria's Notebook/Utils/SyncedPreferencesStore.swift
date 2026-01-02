@@ -296,32 +296,19 @@ public struct SyncedAppStorage<T>: DynamicProperty {
             // Check if key exists first
             let existingValue = store.get(key: key)
             
-            if T.self == Bool.self {
-                if let boolValue = existingValue as? Bool {
-                    return boolValue as! T
-                }
-                return defaultValue
-            } else if T.self == Int.self {
-                if let intValue = existingValue as? Int {
-                    return intValue as! T
-                }
-                return defaultValue
-            } else if T.self == Double.self {
-                if let doubleValue = existingValue as? Double {
-                    return doubleValue as! T
-                }
-                return defaultValue
-            } else if T.self == String.self {
-                if let stringValue = existingValue as? String {
-                    return stringValue as! T
-                }
-                return defaultValue
-            } else {
-                if let value = existingValue as? T {
-                    return value
-                }
-                return defaultValue
+            // Use conditional casts for type safety
+            if T.self == Bool.self, let boolValue = existingValue as? Bool {
+                return boolValue as? T ?? defaultValue
+            } else if T.self == Int.self, let intValue = existingValue as? Int {
+                return intValue as? T ?? defaultValue
+            } else if T.self == Double.self, let doubleValue = existingValue as? Double {
+                return doubleValue as? T ?? defaultValue
+            } else if T.self == String.self, let stringValue = existingValue as? String {
+                return stringValue as? T ?? defaultValue
+            } else if let value = existingValue as? T {
+                return value
             }
+            return defaultValue
         }
         nonmutating set {
             store.set(newValue as Any?, forKey: key)

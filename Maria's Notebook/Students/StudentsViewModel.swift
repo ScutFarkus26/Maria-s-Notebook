@@ -11,21 +11,11 @@ struct StudentsViewModel {
         testStudentNames: String = ""
     ) -> [Student] {
         // Pre-filter: hide test students by name if requested
-        let normalizedHiddenNames: Set<String> = {
-            guard showTestStudents == false else { return [] }
-            let lower = testStudentNames.lowercased()
-            let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
-            let tokens = parts.map { String($0).trimmed() }.filter { !$0.isEmpty }
-            return Set(tokens)
-        }()
-
-        let visibleStudents: [Student] = {
-            guard !normalizedHiddenNames.isEmpty else { return students }
-            return students.filter { s in
-                let name = s.fullName.trimmed().lowercased()
-                return !normalizedHiddenNames.contains(name)
-            }
-        }()
+        let visibleStudents = TestStudentsFiltering.filterVisible(
+            students: students,
+            showTestStudents: showTestStudents,
+            testStudentNames: testStudentNames
+        )
 
         let base: [Student]
         switch filter {
@@ -37,16 +27,16 @@ struct StudentsViewModel {
             base = visibleStudents.filter { $0.level == .lower }
         case .presentNow:
             let ids = presentNowIDs ?? []
-            base = visibleStudents.filter { ids.contains($0.id) }
+            base = ArrayFiltering.filterByIDs(items: visibleStudents, ids: ids, idExtractor: { $0.id })
         }
 
         switch sortOrder {
         case .alphabetical:
-            return base.sorted { (lhs: Student, rhs: Student) -> Bool in
-                let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
-                if nameOrder == .orderedSame { return lhs.manualOrder < rhs.manualOrder }
-                return nameOrder == .orderedAscending
-            }
+            return StringSorting.sortByLocalizedCaseInsensitive(
+                items: base,
+                keyPath: \.fullName,
+                fallback: { $0.manualOrder < $1.manualOrder }
+            )
         case .age:
             // Sort by birthday (younger first): later birthday comes first
             return base.sorted { (lhs: Student, rhs: Student) -> Bool in

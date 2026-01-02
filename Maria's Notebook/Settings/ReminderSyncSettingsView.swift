@@ -14,9 +14,15 @@ public struct ReminderSyncSettingsView: View {
     public init() {
         // Create a temporary context for initialization, will be updated in onAppear
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: AppSchema.schema, configurations: config)
-        let tempContext = container.mainContext
-        _syncService = StateObject(wrappedValue: ReminderSyncService(modelContext: tempContext))
+        // In-memory containers should always succeed, but handle gracefully
+        if let container = try? ModelContainer(for: AppSchema.schema, configurations: config) {
+            let tempContext = container.mainContext
+            _syncService = StateObject(wrappedValue: ReminderSyncService(modelContext: tempContext))
+        } else {
+            // Fallback: create service with a nil context (will be set in onAppear)
+            // This should never happen for in-memory containers, but prevents crashes
+            _syncService = StateObject(wrappedValue: ReminderSyncService(modelContext: PreviewEnvironment.previewContainer.mainContext))
+        }
     }
     
     private var needsAuthorization: Bool {

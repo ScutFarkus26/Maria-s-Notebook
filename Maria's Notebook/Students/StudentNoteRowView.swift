@@ -146,11 +146,7 @@ struct StudentNoteRowView: View {
     }
 
     private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.doesRelativeDateFormatting = true
-        return formatter.string(from: date)
+        DateFormatters.mediumDateTimeRelative.string(from: date)
     }
     
     @ViewBuilder

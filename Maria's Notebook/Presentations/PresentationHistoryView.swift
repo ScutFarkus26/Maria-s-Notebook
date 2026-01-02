@@ -79,8 +79,7 @@ struct PresentationHistoryView: View {
         // Build lesson title cache (prefer name)
         var lTitles: [UUID: String] = [:]
         for l in lessons {
-            let t = l.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            lTitles[l.id] = t.isEmpty ? "Lesson" : t
+            lTitles[l.id] = LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
         }
         lessonTitleCache = lTitles
         #if DEBUG
@@ -91,10 +90,11 @@ struct PresentationHistoryView: View {
 
     // Resolve title: prefer lessonTitleSnapshot else lookup lesson by ID
     private func title(for p: Presentation) -> String {
-        let snap = (p.lessonTitleSnapshot ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !snap.isEmpty { return snap }
-        if let lid = UUID(uuidString: p.lessonID), let t = lessonTitleCache[lid], !t.isEmpty {
-            return t
+        if let snap = p.lessonTitleSnapshot?.trimmed(), !snap.isEmpty {
+            return snap
+        }
+        if let lid = CloudKitUUID.uuid(from: p.lessonID), let t = lessonTitleCache[lid] {
+            return LessonFormatter.titleOrFallback(t, fallback: "Lesson")
         }
         return "Lesson"
     }

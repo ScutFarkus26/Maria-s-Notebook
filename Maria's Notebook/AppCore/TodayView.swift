@@ -130,28 +130,24 @@ struct TodayView: View {
             viewModel.reload()
         }
         // Sheet for Contract Details
-        .sheet(isPresented: Binding(get: { selectedContractID != nil }, set: { if !$0 { selectedContractID = nil } })) {
-            if let id = selectedContractID {
-                WorkDetailContainerView(workID: id) {
-                    selectedContractID = nil
-                    viewModel.reload()
-                }
+        .sheet(id: $selectedContractID) { id in
+            WorkDetailContainerView(workID: id) {
+                selectedContractID = nil
+                viewModel.reload()
             }
         }
         // Sheet for Student Lesson Details
-        .sheet(isPresented: Binding(get: { selectedStudentLesson != nil }, set: { if !$0 { selectedStudentLesson = nil } })) {
-            if let sl = selectedStudentLesson {
-                StudentLessonDetailView(studentLesson: sl) {
-                    selectedStudentLesson = nil
-                }
-#if os(macOS)
-                .frame(minWidth: 720, minHeight: 640)
-                .presentationSizingFitted()
-#else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-#endif
+        .sheet(item: $selectedStudentLesson) { sl in
+            StudentLessonDetailView(studentLesson: sl) {
+                selectedStudentLesson = nil
             }
+#if os(macOS)
+            .frame(minWidth: 720, minHeight: 640)
+            .presentationSizingFitted()
+#else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+#endif
         }
     }
 
@@ -163,7 +159,7 @@ struct TodayView: View {
                     .font(.system(size: AppTheme.FontSize.titleMedium, weight: .bold, design: .rounded))
                 Spacer()
                 Picker("Level", selection: $viewModel.levelFilter) {
-                    ForEach(TodayViewModel.LevelFilter.allCases) { f in
+                    ForEach(TodayViewModel.LevelFilter.allCases, id: \.self) { f in
                         Text(f.rawValue).tag(f)
                     }
                 }
@@ -272,7 +268,7 @@ struct TodayView: View {
             if !(viewModel.absentToday.isEmpty && viewModel.leftEarlyToday.isEmpty) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        ForEach(viewModel.absentToday.sorted { displayNameForID($0).localizedCaseInsensitiveCompare(displayNameForID($1)) == .orderedAscending }, id: \.self) { sid in
+                        ForEach(StringSorting.sortByLocalizedCaseInsensitive(items: viewModel.absentToday, extractor: displayNameForID), id: \.self) { sid in
                             let name = displayNameForID(sid)
                             if !name.trimmed().isEmpty {
                                 studentPill(name, color: .red)
@@ -281,7 +277,7 @@ struct TodayView: View {
                         if !viewModel.absentToday.isEmpty && !viewModel.leftEarlyToday.isEmpty {
                             Color.clear.frame(width: 8)
                         }
-                        ForEach(viewModel.leftEarlyToday.sorted { displayNameForID($0).localizedCaseInsensitiveCompare(displayNameForID($1)) == .orderedAscending }, id: \.self) { sid in
+                        ForEach(StringSorting.sortByLocalizedCaseInsensitive(items: viewModel.leftEarlyToday, extractor: displayNameForID), id: \.self) { sid in
                             let name = displayNameForID(sid)
                             if !name.trimmed().isEmpty {
                                 studentPill(name, color: .purple)
@@ -599,3 +595,4 @@ private struct ReminderRow: View {
         .buttonStyle(.plain)
     }
 }
+

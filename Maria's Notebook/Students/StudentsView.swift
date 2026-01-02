@@ -285,15 +285,16 @@ struct StudentsView<WorkloadContent: View>: View {
                     handleMappingConfirm(mapping)
                 })
             }
-            .sheet(item: $pendingParsedImport, onDismiss: { pendingFileURL = nil }) { parsed in
+            .sheet(item: $pendingParsedImport, onDismiss: {}) { (parsed: StudentCSVImporter.Parsed) in
                 StudentImportPreviewView(parsed: parsed, onCancel: {
                     pendingParsedImport = nil
+                    pendingFileURL = nil
                 }, onConfirm: { filtered in
                     handleImportCommit(filtered)
                 })
                 .frame(minWidth: 620, minHeight: 520)
             }
-            .sheet(item: $selectedStudentForSheet) { student in
+            .sheet(item: $selectedStudentForSheet, onDismiss: {}) { (student: Student) in
                 StudentDetailView(student: student)
                 #if os(macOS)
                     .frame(minWidth: 860, minHeight: 640)

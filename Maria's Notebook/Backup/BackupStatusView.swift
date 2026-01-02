@@ -111,7 +111,7 @@ struct BackupStatusView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             InfoRow(label: "File Name", value: info.fileName)
                             InfoRow(label: "File Size", value: info.formattedFileSize)
-                            InfoRow(label: "Created", value: DateFormatter.mediumDateTime.string(from: info.createdAt))
+                            InfoRow(label: "Created", value: DateFormatters.mediumDateTime.string(from: info.createdAt))
                             InfoRow(label: "Format Version", value: "\(info.formatVersion)")
                             InfoRow(label: "App Version", value: "\(info.appVersion) (\(info.appBuild))")
                             InfoRow(label: "Encrypted", value: info.isEncrypted ? "Yes" : "No")
@@ -190,14 +190,7 @@ private struct InfoRow: View {
     }
 }
 
-extension DateFormatter {
-    static let mediumDateTime: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
-}
+// DateFormatter extension moved to Utils/DateFormatters.swift for centralized management
 
 #Preview {
     BackupStatusView()

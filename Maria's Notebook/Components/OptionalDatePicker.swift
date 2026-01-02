@@ -32,10 +32,10 @@ public struct OptionalDatePicker: View {
                     if newValue {
                         if date == nil {
                             if let hour = defaultHour {
-                                let base = calendar.startOfDay(for: Date())
-                                date = calendar.date(byAdding: .hour, value: hour, to: base) ?? base
+                                let base = DateCalculations.startOfDay(Date(), calendar: calendar)
+                                date = DateCalculations.addingHours(hour, to: base, calendar: calendar)
                             } else {
-                                date = calendar.startOfDay(for: Date())
+                                date = DateCalculations.startOfDay(Date(), calendar: calendar)
                             }
                         }
                     } else {

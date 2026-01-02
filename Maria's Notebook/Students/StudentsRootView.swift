@@ -37,7 +37,7 @@ struct StudentsRootView: View {
     // FIX: Add 'nonmutating' to the setter
     private var mode: StudentMode {
         get { StudentMode(rawValue: modeRaw) ?? .roster }
-        nonmutating set { modeRaw = newValue.rawValue }
+        set { modeRaw = newValue.rawValue }
     }
 
     // Workload specific state
@@ -54,22 +54,26 @@ struct StudentsRootView: View {
 
     var body: some View {
         StudentsView(
-            mode: Binding(get: { mode }, set: { mode = $0 }),
+            mode: Binding(get: { mode }, set: { newValue in modeRaw = newValue.rawValue }),
             workloadContent: {
                 workOverviewContent
             }
         )
-        // Global sheets that might apply to multiple contexts (like opening a contract detail)
-        .sheet(item: $selectedContract) { contract in
-            WorkContractDetailSheet(contract: contract) {
-                selectedContract = nil
+        .sheet(isPresented: Binding(
+            get: { selectedContract != nil },
+            set: { if !$0 { selectedContract = nil } }
+        )) {
+            if let contract = selectedContract {
+                WorkContractDetailSheet(contract: contract) {
+                    selectedContract = nil
+                }
+                #if os(macOS)
+                .frame(minWidth: 500, minHeight: 720)
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
             }
-            #if os(macOS)
-            .frame(minWidth: 500, minHeight: 720)
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
         }
     }
 
@@ -135,39 +139,22 @@ struct StudentsRootView: View {
         // Fetch only needed students
         var studentsByID: [UUID: Student] = [:]
         if !neededStudentIDs.isEmpty {
-            do {
-                let studentsDescriptor = FetchDescriptor<Student>(
-                    predicate: #Predicate { neededStudentIDs.contains($0.id) }
-                )
-                let fetchedStudents = try modelContext.fetch(studentsDescriptor)
-                let visibleStudents = TestStudentsFilter.filterVisible(fetchedStudents)
-                studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
-            } catch {
-                // Fallback: safe fetch
-                let allStudents = modelContext.safeFetch(FetchDescriptor<Student>())
-                let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
-                for student in visibleStudents where neededStudentIDs.contains(student.id) {
-                    studentsByID[student.id] = student
-                }
-            }
+            let studentsDescriptor = FetchDescriptor<Student>(
+                predicate: #Predicate { neededStudentIDs.contains($0.id) }
+            )
+            let fetchedStudents = modelContext.safeFetch(studentsDescriptor)
+            let visibleStudents = TestStudentsFilter.filterVisible(fetchedStudents)
+            studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
         }
         
         // Fetch only needed lessons
         var lessonsByID: [UUID: Lesson] = [:]
         if !neededLessonIDs.isEmpty {
-            do {
-                let lessonsDescriptor = FetchDescriptor<Lesson>(
-                    predicate: #Predicate { neededLessonIDs.contains($0.id) }
-                )
-                let fetchedLessons = try modelContext.fetch(lessonsDescriptor)
-                lessonsByID = Dictionary(uniqueKeysWithValues: fetchedLessons.map { ($0.id, $0) })
-            } catch {
-                // Fallback: safe fetch
-                let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
-                for lesson in allLessons where neededLessonIDs.contains(lesson.id) {
-                    lessonsByID[lesson.id] = lesson
-                }
-            }
+            let lessonsDescriptor = FetchDescriptor<Lesson>(
+                predicate: #Predicate { neededLessonIDs.contains($0.id) }
+            )
+            let fetchedLessons = modelContext.safeFetch(lessonsDescriptor)
+            lessonsByID = Dictionary(uniqueKeysWithValues: fetchedLessons.map { ($0.id, $0) })
         }
         
         // Update cache
@@ -241,3 +228,4 @@ private struct WorkloadContentView: View {
         )
     }
 }
+

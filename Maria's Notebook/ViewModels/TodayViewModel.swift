@@ -275,7 +275,7 @@ final class TodayViewModel: ObservableObject {
                 predicate: #Predicate { contractIDStrings.contains($0.workID) }
             )
             let planItems = try context.fetch(planDescriptor)
-            let planItemsByContract = Dictionary(grouping: planItems, by: { $0.workID.asUUIDOrNew })
+            let planItemsByContract = planItems.grouped { CloudKitUUID.uuid(from: $0.workID) ?? UUID() }
             
             // Fetch Notes that have a workContractID matching our contracts
             let notesDescriptor = FetchDescriptor<ScopedNote>(
@@ -287,7 +287,7 @@ final class TodayViewModel: ObservableObject {
                 guard let contractIDString = note.workContractID else { return false }
                 return contractIDStrings.contains(contractIDString)
             }
-            let notesByContract = Dictionary(grouping: notes, by: { $0.workContractID.flatMap { $0.asUUID } ?? UUID() })
+            let notesByContract = notes.grouped { $0.workContractID.flatMap(CloudKitUUID.uuid) ?? UUID() }
             
             // Process contracts to build schedule items
             let (overdue, today, stale) = processContracts(

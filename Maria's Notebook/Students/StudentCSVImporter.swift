@@ -68,28 +68,25 @@ enum StudentCSVImporter {
 
     static func detectMapping(headers: [String]) -> Mapping {
         var map = Mapping()
-        let lower = headers.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-
-        func find(_ candidates: [String]) -> Int? {
-            for c in candidates {
-                if let idx = lower.firstIndex(of: c) { return idx }
-            }
-            return nil
-        }
-
-        let firstSyn = ["first name", "firstname", "given name", "givenname", "first"]
-        let lastSyn = ["last name", "lastname", "family name", "surname", "last"]
-        let fullSyn = ["name", "full name", "fullname", "student", "student name"]
-        let dobSyn = ["birthday", "birth date", "birthdate", "dob", "date of birth"]
-        let startSyn = ["start date", "date started", "start", "started"]
-        let levelSyn = ["level", "grade", "class"]
-
-        map.firstName = find(firstSyn)
-        map.lastName = find(lastSyn)
-        map.fullName = find(fullSyn)
-        map.birthday = find(dobSyn)
-        map.startDate = find(startSyn)
-        map.level = find(levelSyn)
+        
+        let synonymMap: [String: [String]] = [
+            "firstName": ["first name", "firstname", "given name", "givenname", "first"],
+            "lastName": ["last name", "lastname", "family name", "surname", "last"],
+            "fullName": ["name", "full name", "fullname", "student", "student name"],
+            "birthday": ["birthday", "birth date", "birthdate", "dob", "date of birth"],
+            "startDate": ["start date", "date started", "start", "started"],
+            "level": ["level", "grade", "class"]
+        ]
+        
+        let headerMapping = CSVHeaderMapping.buildMapping(headers: headers, synonymMap: synonymMap)
+        
+        map.firstName = headerMapping["firstName"]
+        map.lastName = headerMapping["lastName"]
+        map.fullName = headerMapping["fullName"]
+        map.birthday = headerMapping["birthday"]
+        map.startDate = headerMapping["startDate"]
+        map.level = headerMapping["level"]
+        
         return map
     }
 
@@ -164,8 +161,7 @@ enum StudentCSVImporter {
         }
 
         // Deduplicate duplicate names for display while preserving order
-        var seen: Set<String> = []
-        let dedupedPotential = potentialDupNames.filter { seen.insert($0).inserted }
+        let dedupedPotential = potentialDupNames.removingDuplicates()
 
         return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: dedupedPotential, warnings: warnings)
     }
@@ -189,7 +185,7 @@ enum StudentCSVImporter {
         } else if hasFull {
             let full = value(mapping.fullName)
             let parts = full.split(separator: Character(mapping.splitFullNameOn), omittingEmptySubsequences: true)
-            if parts.count > 0 { first = String(parts[0]) }
+            if !parts.isEmpty { first = String(parts[0]) }
             if parts.count > 1 { last = parts.dropFirst().joined(separator: " ") }
         }
         
@@ -207,16 +203,15 @@ enum StudentCSVImporter {
         existingFullKeys: Set<String>,
         existingNameKeys: Set<String>
     ) -> Bool {
-        let key = duplicateKey(first: first, last: last, birthday: birthday)
-        if existingFullKeys.contains(key) {
-            return true
-        } else if birthday == nil {
-            let nameKey = "\(first) \(last)".normalizedNameKey()
-            if existingNameKeys.contains(nameKey) {
-                return true
-            }
-        }
-        return false
+        let fullKey = duplicateKey(first: first, last: last, birthday: birthday)
+        let nameKey = "\(first) \(last)".normalizedNameKey()
+        return CSVDuplicateDetection.isDuplicate(
+            fullKey: fullKey,
+            nameKey: nameKey,
+            existingFullKeys: existingFullKeys,
+            existingNameKeys: existingNameKeys,
+            hasFullKey: birthday != nil
+        )
     }
 
     static func commit(parsed: Parsed, into context: ModelContext, existingStudents: [Student]) throws -> Summary {

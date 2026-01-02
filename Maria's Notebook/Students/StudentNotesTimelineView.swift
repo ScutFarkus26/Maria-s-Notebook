@@ -57,9 +57,7 @@ private struct StudentNotesTimelineList: View {
     // Group items by month and year
     private var groupedItems: [(key: String, items: [UnifiedNoteItem])] {
         let items = filteredItems
-        let grouped = Dictionary(grouping: items) { item -> String in
-            monthYearKey(for: item.date)
-        }
+        let grouped = items.grouped { monthYearKey(for: $0.date) }
         .mapValues { items in
             items.sorted { $0.date > $1.date } // Sort items within each group (newest first)
         }
@@ -97,9 +95,7 @@ private struct StudentNotesTimelineList: View {
             return key
         }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: date)
+        return DateFormatters.monthYear.string(from: date)
     }
 
     var body: some View {

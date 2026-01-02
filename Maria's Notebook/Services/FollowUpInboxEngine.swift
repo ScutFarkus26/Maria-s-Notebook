@@ -164,9 +164,8 @@ struct FollowUpInboxEngine {
                 }
 
                 let lessonTitle: String = {
-                    if let lessonUUID = UUID(uuidString: sl.lessonID), let l = lessonsByID[lessonUUID] {
-                        let t = l.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                        return t.isEmpty ? "Lesson" : t
+                    if let lessonUUID = CloudKitUUID.uuid(from: sl.lessonID), let l = lessonsByID[lessonUUID] {
+                        return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
                     }
                     return "Lesson"
                 }()
@@ -198,11 +197,10 @@ struct FollowUpInboxEngine {
         }
 
         // Pre-group planItems and notes for work aging
-        let itemsByWorkID: [UUID: [WorkPlanItem]] = Dictionary(grouping: planItems, by: { UUID(uuidString: $0.workID) ?? UUID() })
-        let notesByWorkID: [UUID: [ScopedNote]] = Dictionary(grouping: notes, by: { note in
-            if let raw = note.workContractID, let id = UUID(uuidString: raw) { return id }
-            return UUID() // unmatched bucket
-        })
+        let itemsByWorkID: [UUID: [WorkPlanItem]] = planItems.grouped { CloudKitUUID.uuid(from: $0.workID) ?? UUID() }
+        let notesByWorkID: [UUID: [ScopedNote]] = notes.grouped { note in
+            note.workContractID.flatMap(CloudKitUUID.uuid) ?? UUID() // unmatched bucket
+        }
 
         var addedContractIDs: Set<UUID> = []
 
@@ -234,9 +232,8 @@ struct FollowUpInboxEngine {
                 return "Student"
             }()
             let lessonTitle: String = {
-                if let lid = UUID(uuidString: c.lessonID), let l = lessonsByID[lid] {
-                    let t = l.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return t.isEmpty ? "Lesson" : t
+                if let lid = CloudKitUUID.uuid(from: c.lessonID), let l = lessonsByID[lid] {
+                    return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
                 }
                 return "Lesson"
             }()
@@ -295,9 +292,8 @@ struct FollowUpInboxEngine {
                 return "Student"
             }()
             let lessonTitle: String = {
-                if let lid = UUID(uuidString: c.lessonID), let l = lessonsByID[lid] {
-                    let t = l.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return t.isEmpty ? "Lesson" : t
+                if let lid = CloudKitUUID.uuid(from: c.lessonID), let l = lessonsByID[lid] {
+                    return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
                 }
                 return "Lesson"
             }()

@@ -38,20 +38,32 @@ struct WorkAgendaCalendarPane: View {
                 .frame(height: proxy.size.height, alignment: .top)
             }
         }
-        .sheet(item: $prompt) { p in
-            PlanPromptSheetView(prompt: p) { prompt = nil } onSave: { reason, note in
-                savePlan(workID: p.workID, date: p.date, reason: reason, note: note)
-                prompt = nil
+        // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
+        .sheet(isPresented: Binding(
+            get: { prompt != nil },
+            set: { if !$0 { prompt = nil } }
+        )) {
+            if let p = prompt {
+                PlanPromptSheetView(prompt: p, onCancel: { prompt = nil }, onSave: { reason, note in
+                    savePlan(workID: p.workID, date: p.date, reason: reason, note: note)
+                    prompt = nil
+                })
             }
         }
-        .sheet(item: $selected, onDismiss: { selected = nil }) { token in
-            let id = token.contractID
-            let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-            if let c = try? modelContext.fetch(fetch).first {
-                WorkContractDetailSheet(contract: c) { selected = nil }
-                    .id(token.id)
-            } else {
-                ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+        // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
+        .sheet(isPresented: Binding(
+            get: { selected != nil },
+            set: { if !$0 { selected = nil } }
+        )) {
+            if let token = selected {
+                let id = token.contractID
+                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
+                if let c = try? modelContext.fetch(fetch).first {
+                    WorkContractDetailSheet(contract: c) { selected = nil }
+                        .id(token.id)
+                } else {
+                    ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+                }
             }
         }
     }

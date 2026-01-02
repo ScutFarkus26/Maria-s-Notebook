@@ -6,8 +6,33 @@ extension ModelContainer {
     static let preview: ModelContainer = {
         let schema = AppSchema.schema
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        return try! ModelContainer(for: schema, configurations: configuration)
+        // In-memory containers should always succeed, but provide fallback
+        guard let container = try? ModelContainer(for: schema, configurations: configuration) else {
+            fatalError("Failed to create preview ModelContainer - this should never happen for in-memory containers")
+        }
+        return container
     }()
+    
+    /// Creates a preview container with a specific schema.
+    /// Use this for previews that need a subset of the full schema.
+    static func previewContainer(for schema: Schema) -> ModelContainer {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        guard let container = try? ModelContainer(for: schema, configurations: configuration) else {
+            fatalError("Failed to create preview ModelContainer for schema - this should never happen for in-memory containers")
+        }
+        return container
+    }
+}
+
+/// Helper utilities for creating preview containers.
+enum PreviewEnvironment {
+    /// Creates a preview container for an array of model types.
+    /// - Parameter types: Array of PersistentModel types
+    /// - Returns: A ModelContainer configured for previews
+    static func previewContainer(for types: [any PersistentModel.Type]) -> ModelContainer {
+        let schema = Schema(types)
+        return ModelContainer.previewContainer(for: schema)
+    }
 }
 
 public extension View {

@@ -26,24 +26,8 @@ struct InteractiveCard<Content: View>: View {
             Spacer(minLength: 0)
             content
         }
-        .padding(12)
         .frame(maxWidth: .infinity, minHeight: 140)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(cardBackgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.06))
-        )
-    }
-    
-    private var cardBackgroundColor: Color {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemBackground)
-        #endif
+        .cardStyle()
     }
 }
 

@@ -45,10 +45,9 @@ enum DataMigrations {
 
         // Group by (lessonID + sorted studentIDs)
         // CloudKit compatibility: lessonID is now String, no conversion needed
-        let groups = Dictionary(grouping: candidates) { sl -> String in
+        let groups = candidates.grouped { sl -> String in
             let sortedIDs = sl.studentIDs.sorted()
-            let key = sl.lessonID + "|" + sortedIDs.joined(separator: ",")
-            return key
+            return sl.lessonID + "|" + sortedIDs.joined(separator: ",")
         }
 
         var changed = false

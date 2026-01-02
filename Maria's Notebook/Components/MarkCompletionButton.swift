@@ -72,6 +72,6 @@ private struct PreviewContainer<Content: View>: View {
     var body: some View {
         content
             .padding()
-            .modelContainer(try! ModelContainer(for: Schema([WorkCompletionRecord.self]), configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+            .modelContainer(ModelContainer.previewContainer(for: Schema([WorkCompletionRecord.self])))
     }
 }

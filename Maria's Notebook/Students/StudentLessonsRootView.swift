@@ -49,7 +49,7 @@ struct StudentLessonsRootView: View {
     }
 
     private var selectedSubject: String? {
-        studentLessonsSubjectRaw.isEmpty ? nil : studentLessonsSubjectRaw
+        StringFallbacks.valueOrNil(studentLessonsSubjectRaw)
     }
 
     private let lessonsVM = LessonsViewModel()
@@ -136,7 +136,7 @@ struct StudentLessonsRootView: View {
         if let subject = selectedSubject {
             base = base.filter { sl in
                 // CloudKit compatibility: Convert String lessonID to UUID for lookup
-                if let lessonIDUUID = UUID(uuidString: sl.lessonID),
+                if let lessonIDUUID = CloudKitUUID.uuid(from: sl.lessonID),
                    let l = lessonMap[lessonIDUUID] {
                     return l.subject.caseInsensitiveCompare(subject) == .orderedSame
                 }

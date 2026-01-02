@@ -186,7 +186,9 @@ struct OpenWorkGrid: View {
     let previewData: (ModelContainer, Student, Lesson, WorkContract, WorkContract) = {
         let schema = AppSchema.schema
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: schema, configurations: configuration)
+        guard let container = try? ModelContainer(for: schema, configurations: configuration) else {
+            fatalError("Failed to create preview container - this should never happen for in-memory containers")
+        }
         let ctx = container.mainContext
         let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
         let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")

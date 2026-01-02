@@ -123,18 +123,13 @@ enum LessonCSVImporter {
 
             let key = duplicateKey(name: name, subject: subject, group: group)
             if existingKeys.contains(key) {
-                let title = group.isEmpty ? "\(name) — \(subject)" : "\(name) — \(subject) • \(group)"
+                let title = LessonFormatter.duplicateDetectionTitle(name: name, subject: subject, group: group)
                 potentialDupTitles.append(title)
             }
         }
 
         // Deduplicate potentialDupTitles preserving order
-        var seenTitles = Set<String>()
-        let uniquePotentialDupTitles = potentialDupTitles.filter {
-            if seenTitles.contains($0) { return false }
-            seenTitles.insert($0)
-            return true
-        }
+        let uniquePotentialDupTitles = potentialDupTitles.removingDuplicates()
 
         return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: uniquePotentialDupTitles, warnings: warnings)
     }
@@ -202,18 +197,13 @@ enum LessonCSVImporter {
 
             let key = duplicateKey(name: name, subject: subject, group: group)
             if existingLessonKeys.contains(key) {
-                let title = group.isEmpty ? "\(name) — \(subject)" : "\(name) — \(subject) • \(group)"
+                let title = LessonFormatter.duplicateDetectionTitle(name: name, subject: subject, group: group)
                 potentialDupTitles.append(title)
             }
         }
 
         // Deduplicate potentialDupTitles preserving order
-        var seenTitles = Set<String>()
-        let uniquePotentialDupTitles = potentialDupTitles.filter {
-            if seenTitles.contains($0) { return false }
-            seenTitles.insert($0)
-            return true
-        }
+        let uniquePotentialDupTitles = potentialDupTitles.removingDuplicates()
 
         return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: uniquePotentialDupTitles, warnings: warnings)
     }
@@ -330,25 +320,14 @@ enum LessonCSVImporter {
 
     /// Map header names to canonical keys using synonyms; requires name and subject.
     private static func mapHeaders(_ header: [String], synonyms: [String: [String]]) throws -> [String: Int] {
-        var lowerMap: [String: Int] = [:]
-        for (i, h) in header.enumerated() { lowerMap[h.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()] = i }
-
-        func findIndex(for keys: [String]) -> Int? {
-            for k in keys { if let idx = lowerMap[k.lowercased()] { return idx } }
-            return nil
-        }
-
-        guard let nameIndex = findIndex(for: synonyms["name"] ?? []),
-              let subjectIndex = findIndex(for: synonyms["subject"] ?? []) else {
+        let mapping = CSVHeaderMapping.buildMapping(headers: header, synonymMap: synonyms)
+        
+        // Validate required headers
+        guard mapping["name"] != nil, mapping["subject"] != nil else {
             throw ImportError.missingHeader("Name/Subject")
         }
-
-        var result: [String: Int] = ["name": nameIndex, "subject": subjectIndex]
-        if let idx = findIndex(for: synonyms["group"] ?? []) { result["group"] = idx }
-        if let idx = findIndex(for: synonyms["subheading"] ?? []) { result["subheading"] = idx }
-        if let idx = findIndex(for: synonyms["writeup"] ?? []) { result["writeup"] = idx }
-        if let idx = findIndex(for: synonyms["grouporder"] ?? []) { result["grouporder"] = idx }
-        return result
+        
+        return mapping
     }
 
     /// Normalize and combine name, subject, group to form a duplicate detection key.

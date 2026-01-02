@@ -90,8 +90,8 @@ struct FollowUpInboxView: View {
     private var itemsFiltered: [FollowUpInboxItem] {
         switch filter {
         case .all: return items
-        case .overdue: return items.filter { $0.bucket == .overdue }
-        case .today: return items.filter { $0.bucket == .dueToday }
+        case .overdue: return ArrayFiltering.filterByEnum(items: items, value: FollowUpInboxItem.Bucket.overdue, extractor: { $0.bucket })
+        case .today: return ArrayFiltering.filterByEnum(items: items, value: FollowUpInboxItem.Bucket.dueToday, extractor: { $0.bucket })
         }
     }
 

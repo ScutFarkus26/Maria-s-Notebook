@@ -55,7 +55,7 @@ struct LessonsCardsGridView: View {
     private var idList: [UUID] { lessons.map { $0.id } }
 
     private var groupedByGroup: [(key: String, value: [Lesson])] {
-        let dict = Dictionary(grouping: lessons) { $0.group.trimmed() }
+        let dict = lessons.grouped { $0.group.trimmed() }
         let mapped = dict
             .map { (key: $0.key, value: $0.value.sorted { lhs, rhs in
                 if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
