@@ -5,6 +5,9 @@ import UniformTypeIdentifiers
 // Public enum so both views can see it
 enum StudentMode: String, CaseIterable, Identifiable {
     case roster = "Roster"
+    case age = "Age"
+    case birthday = "Birthday"
+    case lastLesson = "Last Lesson"
     case workOverview = "Workload"
     case observationHeatmap = "Observations"
     var id: String { rawValue }

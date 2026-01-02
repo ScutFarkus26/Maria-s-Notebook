@@ -32,6 +32,11 @@ struct StudentNoteRowView: View {
 
             // 2. Center Content
             VStack(alignment: .leading, spacing: 6) {
+                // Reporter header (if not from guide)
+                if !isReportedByGuide {
+                    reporterHeader
+                }
+                
                 HStack(alignment: .firstTextBaseline) {
                     Text(item.contextText)
                         .font(.headline)
@@ -61,7 +66,50 @@ struct StudentNoteRowView: View {
             }
         }
         .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(isReportedByGuide ? Color.clear : Color(white: 0.98))
         .contentShape(Rectangle()) // Ensures the whole row is tappable
+    }
+    
+    // MARK: - Reporter Info
+    
+    private var isReportedByGuide: Bool {
+        // If reportedBy is nil or "guide", consider it from the guide
+        guard let reportedBy = item.reportedBy else { return true }
+        return reportedBy.lowercased() == "guide" || reportedBy.isEmpty
+    }
+    
+    @ViewBuilder
+    private var reporterHeader: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "person.bubble.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            
+            Text(reporterDisplayText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(Color.secondary.opacity(0.1))
+        )
+    }
+    
+    private var reporterDisplayText: String {
+        if let reporterName = item.reporterName, !reporterName.isEmpty {
+            if let reportedBy = item.reportedBy, !reportedBy.isEmpty, reportedBy.lowercased() != "guide" {
+                let role = reportedBy.capitalized
+                return "\(role): \(reporterName)"
+            }
+            return reporterName
+        } else if let reportedBy = item.reportedBy, !reportedBy.isEmpty, reportedBy.lowercased() != "guide" {
+            let role = reportedBy.capitalized
+            return "From \(role)"
+        }
+        return "From Assistant"
     }
 
     // MARK: - Helpers
@@ -152,7 +200,9 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 associatedID: nil,
                 category: .academic,
                 includeInReport: false,
-                imagePath: nil
+                imagePath: nil,
+                reportedBy: nil,
+                reporterName: nil
             ))
             
             StudentNoteRowView(item: UnifiedNoteItem(
@@ -165,7 +215,24 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 associatedID: nil,
                 category: .academic,
                 includeInReport: true,
-                imagePath: nil
+                imagePath: nil,
+                reportedBy: nil,
+                reporterName: nil
+            ))
+            
+            StudentNoteRowView(item: UnifiedNoteItem(
+                id: UUID(),
+                date: Date().addingTimeInterval(-172800),
+                body: "Parent mentioned that student was very excited about the math lesson.",
+                source: .general,
+                contextText: "General Note",
+                color: .blue,
+                associatedID: nil,
+                category: .general,
+                includeInReport: false,
+                imagePath: nil,
+                reportedBy: "parent",
+                reporterName: "Mom"
             ))
         }
     }

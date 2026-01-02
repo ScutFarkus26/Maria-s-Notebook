@@ -158,8 +158,25 @@ struct StudentsView<WorkloadContent: View>: View {
         return result
     }
 
+    // Computed property to get effective sort order based on mode
+    private var effectiveSortOrder: SortOrder {
+        switch mode {
+        case .age:
+            return .age
+        case .birthday:
+            return .birthday
+        case .lastLesson:
+            return .lastLesson
+        case .roster:
+            return sortOrder
+        case .workOverview, .observationHeatmap:
+            return .alphabetical // Not used in these modes
+        }
+    }
+    
     private var filteredStudents: [Student] {
-        if sortOrder == .lastLesson {
+        let currentSortOrder = effectiveSortOrder
+        if currentSortOrder == .lastLesson {
             let base = viewModel.filteredStudents(
                 students: students,
                 filter: selectedFilter,
@@ -184,7 +201,7 @@ struct StudentsView<WorkloadContent: View>: View {
             return viewModel.filteredStudents(
                 students: students,
                 filter: selectedFilter,
-                sortOrder: sortOrder,
+                sortOrder: currentSortOrder,
                 presentNowIDs: presentNowIDs,
                 showTestStudents: showTestStudents,
                 testStudentNames: testStudentNamesRaw
@@ -214,8 +231,8 @@ struct StudentsView<WorkloadContent: View>: View {
                             fullScreenModeToolbar
                         }
                 }
-            } else if mode == .roster && shouldUseGridView {
-                // Full-screen grid view for age/birthday/lastLesson sort orders
+            } else if shouldUseGridView {
+                // Full-screen grid view for age/birthday modes or lastLesson sort order
                 NavigationStack {
                     rosterGridContent
                         .navigationTitle("Students")
@@ -237,12 +254,12 @@ struct StudentsView<WorkloadContent: View>: View {
     // MARK: - Grid View Support
     
     private var shouldUseGridView: Bool {
-        mode == .roster && (sortOrder == .age || sortOrder == .birthday || sortOrder == .lastLesson)
+        mode == .age || mode == .birthday || mode == .lastLesson
     }
 
-    var body: some View {
+    // Helper to break up complex view builder expression
+    private var contentWithSheetsAndAlerts: some View {
         mainContent
-            // Sheets and Alerts
             .sheet(isPresented: $showingAddStudent) {
                 AddStudentView()
             }
@@ -254,7 +271,6 @@ struct StudentsView<WorkloadContent: View>: View {
             .alert(item: $importAlert) { alert in
                 Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
             }
-            // CSV Importer Logic
             .fileImporter(
                 isPresented: $showingStudentCSVImporter,
                 allowedContentTypes: [.commaSeparatedText, .plainText]
@@ -269,50 +285,39 @@ struct StudentsView<WorkloadContent: View>: View {
                     handleMappingConfirm(mapping)
                 })
             }
-        .sheet(item: $pendingParsedImport, onDismiss: { pendingFileURL = nil }) { parsed in
-            StudentImportPreviewView(parsed: parsed, onCancel: {
-                pendingParsedImport = nil
-            }, onConfirm: { filtered in
-                handleImportCommit(filtered)
-            })
-            .frame(minWidth: 620, minHeight: 520)
-        }
-        .sheet(item: $selectedStudentForSheet) { student in
-            StudentDetailView(student: student)
-            #if os(macOS)
-                .frame(minWidth: 860, minHeight: 640)
-                .presentationSizingFitted()
-            #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-            #endif
-        }
+            .sheet(item: $pendingParsedImport, onDismiss: { pendingFileURL = nil }) { parsed in
+                StudentImportPreviewView(parsed: parsed, onCancel: {
+                    pendingParsedImport = nil
+                }, onConfirm: { filtered in
+                    handleImportCommit(filtered)
+                })
+                .frame(minWidth: 620, minHeight: 520)
+            }
+            .sheet(item: $selectedStudentForSheet) { student in
+                StudentDetailView(student: student)
+                #if os(macOS)
+                    .frame(minWidth: 860, minHeight: 640)
+                    .presentationSizingFitted()
+                #else
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                #endif
+            }
+    }
+    
+    var body: some View {
+        contentWithSheetsAndAlerts
             .onChange(of: appRouter.navigationDestination) { _, destination in
-                if case .newStudent = destination {
-                    mode = .roster
-                    showingAddStudent = true
-                    appRouter.clearNavigation()
-                } else if case .importStudents = destination {
-                    mode = .roster
-                    showingStudentCSVImporter = true
-                    appRouter.clearNavigation()
-                } else if case .openStudentDetail(let studentID) = destination {
-                    mode = .roster
-                    selectedStudentID = studentID
-                    appRouter.clearNavigation()
-                }
+                handleNavigationDestinationChange(destination)
             }
             .onAppear { 
                 ensureInitialManualOrderIfNeeded()
-                // Load data on-demand based on mode
                 Task { @MainActor in
                     await loadDataOnDemand()
                 }
             }
-            .onChange(of: mode) { _, _ in
-                Task { @MainActor in
-                    await loadDataOnDemand()
-                }
+            .onChange(of: mode) { oldMode, newMode in
+                handleModeChange(oldMode: oldMode, newMode: newMode)
             }
             .onChange(of: studentsSortOrderRaw) { _, _ in
                 Task { @MainActor in
@@ -366,6 +371,9 @@ struct StudentsView<WorkloadContent: View>: View {
         ToolbarItem(placement: .automatic) {
             Picker("Mode", selection: $mode) {
                 Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
+                Label("Age", systemImage: "calendar").tag(StudentMode.age)
+                Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
+                Label("Last Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
                 Label("Workload", systemImage: "doc.text").tag(StudentMode.workOverview)
                 Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
             }
@@ -381,13 +389,16 @@ struct StudentsView<WorkloadContent: View>: View {
         ToolbarItem(placement: .automatic) {
             Picker("Mode", selection: $mode) {
                 Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
+                Label("Age", systemImage: "calendar").tag(StudentMode.age)
+                Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
+                Label("Last Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
                 Label("Workload", systemImage: "doc.text").tag(StudentMode.workOverview)
                 Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
             }
             .pickerStyle(.segmented)
         }
         
-        // Sort Order Menu (only show in roster mode)
+        // Sort Order Menu (only show in roster mode, not age/birthday/lastLesson modes)
         if mode == .roster {
             ToolbarItem(placement: .automatic) {
                 Menu {
@@ -395,31 +406,7 @@ struct StudentsView<WorkloadContent: View>: View {
                         withAnimation { studentsSortOrderRaw = "alphabetical" }
                     } label: {
                         Label("A–Z", systemImage: "textformat.abc")
-                        if sortOrder == .alphabetical {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { studentsSortOrderRaw = "age" }
-                    } label: {
-                        Label("Age", systemImage: "calendar")
-                        if sortOrder == .age {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { studentsSortOrderRaw = "birthday" }
-                    } label: {
-                        Label("Birthday", systemImage: "gift")
-                        if sortOrder == .birthday {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { studentsSortOrderRaw = "lastLesson" }
-                    } label: {
-                        Label("Last Lesson", systemImage: "clock.badge.exclamationmark")
-                        if sortOrder == .lastLesson {
+                        if effectiveSortOrder == .alphabetical {
                             Image(systemName: "checkmark")
                         }
                     }
@@ -427,7 +414,7 @@ struct StudentsView<WorkloadContent: View>: View {
                         withAnimation { studentsSortOrderRaw = "manual" }
                     } label: {
                         Label("Manual", systemImage: "arrow.up.arrow.down")
-                        if sortOrder == .manual {
+                        if effectiveSortOrder == .manual {
                             Image(systemName: "checkmark")
                         }
                     }
@@ -436,7 +423,7 @@ struct StudentsView<WorkloadContent: View>: View {
                 }
             }
             
-            // Filter Menu (only show in roster mode)
+            // Filter Menu (show in roster/age/birthday/lastLesson modes)
             ToolbarItem(placement: .automatic) {
                 Menu {
                     Button {
@@ -477,7 +464,7 @@ struct StudentsView<WorkloadContent: View>: View {
             }
             
             #if os(iOS)
-            if sortOrder == .manual {
+            if effectiveSortOrder == .manual {
                 ToolbarItem(placement: .automatic) {
                     EditButton()
                 }
@@ -485,8 +472,8 @@ struct StudentsView<WorkloadContent: View>: View {
             #endif
         }
         
-        // Add Student button (only show in roster mode)
-        if mode == .roster {
+        // Add Student button (show in roster/age/birthday/lastLesson modes)
+        if mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showingAddStudent = true
@@ -605,9 +592,9 @@ struct StudentsView<WorkloadContent: View>: View {
             } else {
                 StudentsCardsGridView(
                     students: filteredStudents,
-                    isBirthdayMode: sortOrder == .birthday,
-                    isAgeMode: sortOrder == .age,
-                    isLastLessonMode: sortOrder == .lastLesson,
+                    isBirthdayMode: effectiveSortOrder == .birthday,
+                    isAgeMode: effectiveSortOrder == .age,
+                    isLastLessonMode: effectiveSortOrder == .lastLesson,
                     lastLessonDays: daysSinceLastLessonByStudent,
                     isManualMode: false,
                     onTapStudent: { student in
@@ -648,7 +635,7 @@ struct StudentsView<WorkloadContent: View>: View {
                     ForEach(filteredStudents, id: \.id) { student in
                         StudentListRow(
                             student: student,
-                            sortOrder: sortOrder,
+                            sortOrder: effectiveSortOrder,
                             daysSinceLastLesson: daysSinceLastLessonByStudent[student.id]
                         )
                         .tag(student.id)
@@ -695,7 +682,7 @@ struct StudentsView<WorkloadContent: View>: View {
     /// Loads data on-demand based on current mode and filters
     @MainActor
     private func loadDataOnDemand() async {
-        guard mode == .roster else {
+        guard mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson else {
             // Clear caches when not in roster mode
             cachedAttendanceRecords = []
             cachedStudentLessons = []
@@ -722,7 +709,7 @@ struct StudentsView<WorkloadContent: View>: View {
         }
         
         // Load studentLessons and lessons only if sortOrder == .lastLesson
-        if sortOrder == .lastLesson {
+        if effectiveSortOrder == .lastLesson {
             // Fetch all studentLessons (needed for lastLesson calculation)
             do {
                 let descriptor = FetchDescriptor<StudentLesson>(
@@ -770,7 +757,7 @@ struct StudentsView<WorkloadContent: View>: View {
     }
     
     private func handleManualReorder(from source: IndexSet, to destination: Int) {
-        guard sortOrder == .manual, let fromIndex = source.first else { return }
+        guard effectiveSortOrder == .manual, let fromIndex = source.first else { return }
         let movingStudent = filteredStudents[fromIndex]
         let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(
             movingID: movingStudent.id,
@@ -789,6 +776,44 @@ struct StudentsView<WorkloadContent: View>: View {
         case .lower: studentsFilterRaw = "lower"
         case .presentNow: studentsFilterRaw = "presentNow"
         case .all: studentsFilterRaw = "all"
+        }
+    }
+
+    // MARK: - Navigation and Lifecycle Helpers
+    
+    private func handleNavigationDestinationChange(_ destination: AppRouter.NavigationDestination?) {
+        guard let destination = destination else { return }
+        if case .newStudent = destination {
+            mode = .roster
+            showingAddStudent = true
+            appRouter.clearNavigation()
+        } else if case .importStudents = destination {
+            mode = .roster
+            showingStudentCSVImporter = true
+            appRouter.clearNavigation()
+        } else if case .openStudentDetail(let studentID) = destination {
+            mode = .roster
+            selectedStudentID = studentID
+            appRouter.clearNavigation()
+        }
+    }
+    
+    private func handleModeChange(oldMode: StudentMode, newMode: StudentMode) {
+        // Automatically set sort order when switching to age/birthday/lastLesson modes
+        if newMode == .age {
+            studentsSortOrderRaw = "age"
+        } else if newMode == .birthday {
+            studentsSortOrderRaw = "birthday"
+        } else if newMode == .lastLesson {
+            studentsSortOrderRaw = "lastLesson"
+        } else if (oldMode == .age || oldMode == .birthday || oldMode == .lastLesson) && newMode == .roster {
+            // When switching back to roster from age/birthday/lastLesson, default to alphabetical
+            if studentsSortOrderRaw == "age" || studentsSortOrderRaw == "birthday" || studentsSortOrderRaw == "lastLesson" {
+                studentsSortOrderRaw = "alphabetical"
+            }
+        }
+        Task { @MainActor in
+            await loadDataOnDemand()
         }
     }
 

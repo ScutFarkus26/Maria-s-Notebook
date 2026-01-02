@@ -94,6 +94,10 @@ final class Note: Identifiable {
     var includeInReport: Bool = false
     var imagePath: String? = nil
     
+    // Reporter information
+    var reportedBy: String? = nil // e.g., "guide", "assistant", "parent"
+    var reporterName: String? = nil // e.g., "Mom", "Assistant", etc.
+    
     // Computed property for category enum
     var category: NoteCategory {
         get { NoteCategory(rawValue: categoryRaw) ?? .general }
@@ -125,7 +129,9 @@ final class Note: Identifiable {
         includeInReport: Bool = false,
         lesson: Lesson? = nil,
         work: WorkModel? = nil,
-        imagePath: String? = nil
+        imagePath: String? = nil,
+        reportedBy: String? = nil,
+        reporterName: String? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -137,6 +143,8 @@ final class Note: Identifiable {
         self.lesson = lesson
         self.work = work
         self.imagePath = imagePath
+        self.reportedBy = reportedBy
+        self.reporterName = reporterName
         self.scopeBlob = try? JSONEncoder().encode(scope)
     }
 

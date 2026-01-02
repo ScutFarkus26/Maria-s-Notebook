@@ -6,6 +6,7 @@ import PhotosUI
 import AppKit
 #else
 import UIKit
+import AVFoundation
 #endif
 
 struct QuickNoteSheet: View {
@@ -29,6 +30,9 @@ struct QuickNoteSheet: View {
     @State private var includeInReport: Bool = false
     @State private var showingStudentPicker: Bool = false
     @State private var selectedPhoto: PhotosPickerItem? = nil
+    #if os(iOS)
+    @State private var showingCamera: Bool = false
+    #endif
     #if os(macOS)
     @State private var selectedImage: NSImage? = nil
     #else
@@ -52,6 +56,18 @@ struct QuickNoteSheet: View {
         .onChange(of: selectedPhoto) { _, newItem in
             handlePhotoChange(newItem)
         }
+        #if os(iOS)
+        .sheet(isPresented: $showingCamera) {
+            CameraPicker(image: Binding(
+                get: { nil },
+                set: { newImage in
+                    if let newImage = newImage {
+                        handleCameraImage(newImage)
+                    }
+                }
+            ))
+        }
+        #endif
     }
     
     private var headerView: some View {
@@ -212,15 +228,40 @@ struct QuickNoteSheet: View {
     
     private var photoPickerSection: some View {
         HStack(spacing: 12) {
+            #if os(iOS)
+            cameraButton
+            #endif
             photoPickerButton
             photoPreview
             Spacer()
         }
     }
     
+    #if os(iOS)
+    private var cameraButton: some View {
+        Button {
+            showingCamera = true
+        } label: {
+            Label("Take Photo", systemImage: "camera.fill")
+                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(cardBackgroundColor)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+        }
+    }
+    #endif
+    
     private var photoPickerButton: some View {
         PhotosPicker(selection: $selectedPhoto, matching: .images) {
-            Label("Add Photo", systemImage: "camera.fill")
+            Label("Choose Photo", systemImage: "photo.on.rectangle")
                 .font(.system(size: AppTheme.FontSize.body, design: .rounded))
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12)
@@ -328,15 +369,7 @@ struct QuickNoteSheet: View {
                     }
                     #else
                     if let image = UIImage(data: data) {
-                        selectedImage = image
-                        // Save the image and get the filename
-                        do {
-                            imagePath = try PhotoStorageService.saveImage(image)
-                        } catch {
-                            print("Error saving image: \(error)")
-                            selectedImage = nil
-                            selectedPhoto = nil
-                        }
+                        handleCameraImage(image)
                     }
                     #endif
                 }
@@ -346,6 +379,19 @@ struct QuickNoteSheet: View {
             }
         }
     }
+    
+    #if os(iOS)
+    private func handleCameraImage(_ image: UIImage) {
+        selectedImage = image
+        // Save the image and get the filename
+        do {
+            imagePath = try PhotoStorageService.saveImage(image)
+        } catch {
+            print("Error saving image: \(error)")
+            selectedImage = nil
+        }
+    }
+    #endif
     
     private var cardBackgroundColor: Color {
         #if os(macOS)
@@ -386,4 +432,45 @@ struct QuickNoteSheet: View {
     QuickNoteSheet()
         .previewEnvironment()
 }
+
+#if os(iOS)
+/// Camera picker wrapper for UIImagePickerController
+struct CameraPicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.dismiss) private var dismiss
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .camera
+        picker.allowsEditing = false
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPicker
+        
+        init(_ parent: CameraPicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.image = image
+            }
+            parent.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
+}
+#endif
 

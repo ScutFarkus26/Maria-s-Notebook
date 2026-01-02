@@ -25,6 +25,8 @@ public struct UnifiedNoteItem: Identifiable {
     public let category: NoteCategory
     public let includeInReport: Bool
     public let imagePath: String?
+    public let reportedBy: String?
+    public let reporterName: String?
 }
 
 // MARK: - View Model
@@ -74,7 +76,9 @@ final class StudentNotesViewModel: ObservableObject {
                 associatedID: note.id, // link back to the Note as the source object
                 category: note.category,
                 includeInReport: note.includeInReport,
-                imagePath: note.imagePath
+                imagePath: note.imagePath,
+                reportedBy: note.reportedBy,
+                reporterName: note.reporterName
             )
         }
         aggregated.append(contentsOf: generalItems)
@@ -115,7 +119,9 @@ final class StudentNotesViewModel: ObservableObject {
                     associatedID: assoc,
                     category: .general, // ScopedNote doesn't have category, default to .general
                     includeInReport: false, // ScopedNote doesn't have includeInReport, default to false
-                    imagePath: nil // ScopedNote doesn't support images
+                    imagePath: nil, // ScopedNote doesn't support images
+                    reportedBy: nil, // ScopedNote doesn't have reporter info
+                    reporterName: nil
                 )
             }
             aggregated.append(contentsOf: workItems)
@@ -185,7 +191,9 @@ final class StudentNotesViewModel: ObservableObject {
                 associatedID: assoc,
                 category: .general, // ScopedNote doesn't have category, default to .general
                 includeInReport: false, // ScopedNote doesn't have includeInReport, default to false
-                imagePath: nil // ScopedNote doesn't support images
+                imagePath: nil, // ScopedNote doesn't support images
+                reportedBy: nil, // ScopedNote doesn't have reporter info
+                reporterName: nil
             )
         }
         aggregated.append(contentsOf: presentationItems)
@@ -216,7 +224,9 @@ final class StudentNotesViewModel: ObservableObject {
                     associatedID: meeting.id,
                     category: .general,
                     includeInReport: false,
-                    imagePath: nil // StudentMeeting doesn't support images
+                    imagePath: nil, // StudentMeeting doesn't support images
+                    reportedBy: nil, // StudentMeeting doesn't have reporter info
+                    reporterName: nil
                 ))
             }
             if !meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -230,7 +240,9 @@ final class StudentNotesViewModel: ObservableObject {
                     associatedID: meeting.id,
                     category: .general,
                     includeInReport: false,
-                    imagePath: nil // StudentMeeting doesn't support images
+                    imagePath: nil, // StudentMeeting doesn't support images
+                    reportedBy: nil, // StudentMeeting doesn't have reporter info
+                    reporterName: nil
                 ))
             }
             if !meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -244,7 +256,9 @@ final class StudentNotesViewModel: ObservableObject {
                     associatedID: meeting.id,
                     category: .general,
                     includeInReport: false,
-                    imagePath: nil // StudentMeeting doesn't support images
+                    imagePath: nil, // StudentMeeting doesn't support images
+                    reportedBy: nil, // StudentMeeting doesn't have reporter info
+                    reporterName: nil
                 ))
             }
             if !meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -258,7 +272,9 @@ final class StudentNotesViewModel: ObservableObject {
                     associatedID: meeting.id,
                     category: .general,
                     includeInReport: false,
-                    imagePath: nil // StudentMeeting doesn't support images
+                    imagePath: nil, // StudentMeeting doesn't support images
+                    reportedBy: nil, // StudentMeeting doesn't have reporter info
+                    reporterName: nil
                 ))
             }
             

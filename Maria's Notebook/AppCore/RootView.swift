@@ -12,8 +12,10 @@ struct RootView: View {
     enum NavigationItem: String, Hashable, Identifiable {
         case today
         case attendance
+        case note
         case students
         case lessons // Previously "Albums"
+        case more
         
         // Planning Sub-items (Promoted from PlanningRootView pills)
         case planningChecklist
@@ -31,8 +33,10 @@ struct RootView: View {
             switch self {
             case .today: return "Today"
             case .attendance: return "Attendance"
+            case .note: return "Note"
             case .students: return "Students"
             case .lessons: return "Lessons"
+            case .more: return "More"
             case .planningChecklist: return "Checklist"
             case .planningAgenda: return "Presentations"
             case .planningWork: return "Open Work"
@@ -47,8 +51,10 @@ struct RootView: View {
             switch self {
             case .today: return "sun.max"
             case .attendance: return "checklist"
+            case .note: return "square.and.pencil"
             case .students: return "person.3"
             case .lessons: return "book"
+            case .more: return "ellipsis.circle"
             case .planningChecklist: return "list.clipboard"
             case .planningAgenda: return "calendar"
             case .planningWork: return "tray.full"
@@ -73,13 +79,25 @@ struct RootView: View {
             }
         }
         
+        // Check if this item should be in the More menu on iPhone
+        var isInMoreMenu: Bool {
+            switch self {
+            case .lessons, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .logs, .settings:
+                return true
+            default:
+                return false
+            }
+        }
+        
         // Helper to convert legacy Tab for backward compatibility
         var legacyTab: Tab? {
             switch self {
             case .today: return .today
             case .attendance: return .attendance
+            case .note: return nil // Note is a new feature, no legacy tab
             case .students: return .students
             case .lessons: return .albums
+            case .more: return nil // More is a new feature, no legacy tab
             case .planningChecklist, .planningAgenda, .planningWork, .planningProjects: return .planning
             case .community: return .community
             case .logs: return .logs
@@ -268,9 +286,18 @@ struct RootView: View {
             }
         }
         .saveErrorAlert()
+        #if os(iOS)
+        .overlay(alignment: .bottomTrailing) {
+            // Only show floating button on iPad (non-compact)
+            if horizontalSizeClass != .compact {
+                quickNoteButton
+            }
+        }
+        #else
         .overlay(alignment: .bottomTrailing) {
             quickNoteButton
         }
+        #endif
         .sheet(isPresented: $isShowingQuickNote) {
             QuickNoteSheet()
         }
@@ -448,6 +475,8 @@ struct RootView: View {
 private struct RootDetailContent: View {
     let selectedNavItem: RootView.NavigationItem
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
+    @State private var isShowingQuickNote = false
 
     var body: some View {
         Group {
@@ -456,8 +485,24 @@ private struct RootDetailContent: View {
                 TodayView(context: modelContext)
             case .attendance:
                 AttendanceView()
+            case .note:
+                // Note tab opens QuickNoteSheet immediately when selected
+                Color.clear
+                    .onAppear {
+                        // Always show the sheet when note tab is selected
+                        isShowingQuickNote = true
+                    }
+                    .sheet(isPresented: $isShowingQuickNote) {
+                        QuickNoteSheet()
+                            .onDisappear {
+                                // Navigate to Today tab after sheet is dismissed
+                                appRouter.navigateTo(.today)
+                            }
+                    }
             case .students:
                 StudentsRootView()
+            case .more:
+                MoreMenuView()
             case .lessons:
                 LessonsMenuRootView()
             case .planningChecklist:
@@ -649,9 +694,9 @@ private struct RootSidebar: View {
 private struct RootCompactTabs: View {
     @Binding var selectedNavItem: RootView.NavigationItem
 
-    private var navItems: [RootView.NavigationItem] {
-        // Order: Daily, Classroom, Planning, System
-        [.today, .attendance, .students, .lessons, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .logs, .settings]
+    // Main tabs shown in bottom tab bar: Attendance, Today, Note, Students
+    private var mainTabs: [RootView.NavigationItem] {
+        [.attendance, .today, .note, .students, .more]
     }
 
     var body: some View {
@@ -659,12 +704,60 @@ private struct RootCompactTabs: View {
             get: { selectedNavItem.rawValue },
             set: { if let item = RootView.NavigationItem(rawValue: $0) { selectedNavItem = item } }
         )) {
-            ForEach(navItems) { item in
+            ForEach(mainTabs) { item in
                 RootDetailContent(selectedNavItem: item)
                     .tabItem {
                         Label(item.displayName, systemImage: item.icon)
                     }
                     .tag(item.rawValue)
+            }
+        }
+    }
+}
+
+/// More menu view for iPhone that shows additional navigation items
+private struct MoreMenuView: View {
+    @State private var selectedItem: RootView.NavigationItem?
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Classroom") {
+                    NavigationLink(value: RootView.NavigationItem.lessons) {
+                        Label("Lessons", systemImage: RootView.NavigationItem.lessons.icon)
+                    }
+                    NavigationLink(value: RootView.NavigationItem.community) {
+                        Label("Community Meetings", systemImage: RootView.NavigationItem.community.icon)
+                    }
+                    NavigationLink(value: RootView.NavigationItem.logs) {
+                        Label("Logs", systemImage: RootView.NavigationItem.logs.icon)
+                    }
+                }
+                
+                Section("Planning") {
+                    NavigationLink(value: RootView.NavigationItem.planningChecklist) {
+                        Label("Checklist", systemImage: RootView.NavigationItem.planningChecklist.icon)
+                    }
+                    NavigationLink(value: RootView.NavigationItem.planningAgenda) {
+                        Label("Presentations", systemImage: RootView.NavigationItem.planningAgenda.icon)
+                    }
+                    NavigationLink(value: RootView.NavigationItem.planningWork) {
+                        Label("Open Work", systemImage: RootView.NavigationItem.planningWork.icon)
+                    }
+                    NavigationLink(value: RootView.NavigationItem.planningProjects) {
+                        Label("Projects", systemImage: RootView.NavigationItem.planningProjects.icon)
+                    }
+                }
+                
+                Section("System") {
+                    NavigationLink(value: RootView.NavigationItem.settings) {
+                        Label("Settings", systemImage: RootView.NavigationItem.settings.icon)
+                    }
+                }
+            }
+            .navigationTitle("More")
+            .navigationDestination(for: RootView.NavigationItem.self) { item in
+                RootDetailContent(selectedNavItem: item)
             }
         }
     }
