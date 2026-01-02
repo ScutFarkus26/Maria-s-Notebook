@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct LessonAgeSettingsView: View {
-    @AppStorage("LessonAge.warningDays") private var warningDays: Int = LessonAgeDefaults.warningDays
-    @AppStorage("LessonAge.overdueDays") private var overdueDays: Int = LessonAgeDefaults.overdueDays
-    @AppStorage("LessonAge.freshColorHex") private var freshHex: String = LessonAgeDefaults.freshColorHex
-    @AppStorage("LessonAge.warningColorHex") private var warningHex: String = LessonAgeDefaults.warningColorHex
-    @AppStorage("LessonAge.overdueColorHex") private var overdueHex: String = LessonAgeDefaults.overdueColorHex
+    @SyncedAppStorage("LessonAge.warningDays") private var warningDays: Int = LessonAgeDefaults.warningDays
+    @SyncedAppStorage("LessonAge.overdueDays") private var overdueDays: Int = LessonAgeDefaults.overdueDays
+    @SyncedAppStorage("LessonAge.freshColorHex") private var freshHex: String = LessonAgeDefaults.freshColorHex
+    @SyncedAppStorage("LessonAge.warningColorHex") private var warningHex: String = LessonAgeDefaults.warningColorHex
+    @SyncedAppStorage("LessonAge.overdueColorHex") private var overdueHex: String = LessonAgeDefaults.overdueColorHex
 
     @State private var freshColor: Color = ColorUtils.color(from: LessonAgeDefaults.freshColorHex)
     @State private var warningColor: Color = ColorUtils.color(from: LessonAgeDefaults.warningColorHex)
@@ -69,11 +69,11 @@ struct LessonAgeSettingsView: View {
 }
 
 struct WorkAgeSettingsView: View {
-    @AppStorage("WorkAge.warningDays") private var warningDays: Int = WorkAgeDefaults.warningDays
-    @AppStorage("WorkAge.overdueDays") private var overdueDays: Int = WorkAgeDefaults.overdueDays
-    @AppStorage("WorkAge.freshColorHex") private var freshHex: String = WorkAgeDefaults.freshColorHex
-    @AppStorage("WorkAge.warningColorHex") private var warningHex: String = WorkAgeDefaults.warningColorHex
-    @AppStorage("WorkAge.overdueColorHex") private var overdueHex: String = WorkAgeDefaults.overdueColorHex
+    @SyncedAppStorage("WorkAge.warningDays") private var warningDays: Int = WorkAgeDefaults.warningDays
+    @SyncedAppStorage("WorkAge.overdueDays") private var overdueDays: Int = WorkAgeDefaults.overdueDays
+    @SyncedAppStorage("WorkAge.freshColorHex") private var freshHex: String = WorkAgeDefaults.freshColorHex
+    @SyncedAppStorage("WorkAge.warningColorHex") private var warningHex: String = WorkAgeDefaults.warningColorHex
+    @SyncedAppStorage("WorkAge.overdueColorHex") private var overdueHex: String = WorkAgeDefaults.overdueColorHex
 
     @State private var freshColor: Color = ColorUtils.color(from: WorkAgeDefaults.freshColorHex)
     @State private var warningColor: Color = ColorUtils.color(from: WorkAgeDefaults.warningColorHex)

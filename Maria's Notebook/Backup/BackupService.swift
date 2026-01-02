@@ -1745,10 +1745,19 @@ public final class BackupService {
     ]
 
     private func buildPreferencesDTO() -> PreferencesDTO {
+        let syncedStore = SyncedPreferencesStore.shared
         let defaults = UserDefaults.standard
         var map: [String: PreferenceValueDTO] = [:]
         for key in Self.preferenceKeys {
-            if let obj = defaults.object(forKey: key) {
+            // Use synced store for synced keys, UserDefaults for local keys
+            let obj: Any?
+            if syncedStore.isSynced(key: key) {
+                obj = syncedStore.get(key: key)
+            } else {
+                obj = defaults.object(forKey: key)
+            }
+            
+            if let obj = obj {
                 switch obj {
                 case let b as Bool: map[key] = .bool(b)
                 case let i as Int: map[key] = .int(i)
@@ -1766,15 +1775,33 @@ public final class BackupService {
     }
 
     private func applyPreferencesDTO(_ dto: PreferencesDTO) {
+        let syncedStore = SyncedPreferencesStore.shared
         let defaults = UserDefaults.standard
         for (key, value) in dto.values {
-            switch value {
-            case .bool(let b): defaults.set(b, forKey: key)
-            case .int(let i): defaults.set(i, forKey: key)
-            case .double(let d): defaults.set(d, forKey: key)
-            case .string(let s): defaults.set(s, forKey: key)
-            case .data(let data): defaults.set(data, forKey: key)
-            case .date(let date): defaults.set(date, forKey: key)
+            // Use synced store for synced keys, UserDefaults for local keys
+            // Note: KVS supports Bool, Int, Double, String, and Data. Dates should be stored as Double (timeIntervalSinceReferenceDate).
+            // For our current synced keys, we only use Bool, Int, String (no dates or data), so this is safe.
+            if syncedStore.isSynced(key: key) {
+                switch value {
+                case .bool(let b): syncedStore.set(b, forKey: key)
+                case .int(let i): syncedStore.set(i, forKey: key)
+                case .double(let d): syncedStore.set(d, forKey: key)
+                case .string(let s): syncedStore.set(s, forKey: key)
+                case .data(let data): syncedStore.set(data as Any?, forKey: key)
+                case .date(let date):
+                    // Dates not directly supported in KVS - store as Double (timeIntervalSinceReferenceDate)
+                    syncedStore.set(date.timeIntervalSinceReferenceDate, forKey: key)
+                }
+            } else {
+                // Local keys go to UserDefaults (supports all types including Date)
+                switch value {
+                case .bool(let b): defaults.set(b, forKey: key)
+                case .int(let i): defaults.set(i, forKey: key)
+                case .double(let d): defaults.set(d, forKey: key)
+                case .string(let s): defaults.set(s, forKey: key)
+                case .data(let data): defaults.set(data, forKey: key)
+                case .date(let date): defaults.set(date, forKey: key)
+                }
             }
         }
     }

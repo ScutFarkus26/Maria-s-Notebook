@@ -62,13 +62,13 @@ public struct AttendanceEmailReport {
 /// Includes platform-aware availability checks.
 public enum AttendanceEmail {
     public static func storedToAddress() -> String? {
-        let s = UserDefaults.standard.string(forKey: AttendanceEmailPrefs.toKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.toKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let s, !s.isEmpty else { return nil }
         return s
     }
 
     public static func storedFromAddress() -> String? {
-        let s = UserDefaults.standard.string(forKey: AttendanceEmailPrefs.fromKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.fromKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let s, !s.isEmpty else { return nil }
         return s
     }
@@ -177,9 +177,9 @@ public enum AttendanceEmail {
 /// Settings form for configuring Attendance Email behavior.
 /// - Note: The "Preferred 'From' Address" applies to iOS only; macOS always uses the default Mail account.
 public struct AttendanceEmailSettingsView: View {
-    @AppStorage(AttendanceEmailPrefs.enabledKey) private var enabled: Bool = true
-    @AppStorage(AttendanceEmailPrefs.toKey) private var toAddress: String = ""
-    @AppStorage(AttendanceEmailPrefs.fromKey) private var fromAddress: String = ""
+    @SyncedAppStorage(AttendanceEmailPrefs.enabledKey) private var enabled: Bool = true
+    @SyncedAppStorage(AttendanceEmailPrefs.toKey) private var toAddress: String = ""
+    @SyncedAppStorage(AttendanceEmailPrefs.fromKey) private var fromAddress: String = ""
 
     public init() {}
 

@@ -17,7 +17,7 @@ struct BackupRestoreSectionView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @StateObject private var viewModel = SettingsViewModel()
-    @AppStorage("Backup.encrypt") private var encryptBackups: Bool = false
+    @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
 
     // Export / Import state
     @State private var showingExporter = false

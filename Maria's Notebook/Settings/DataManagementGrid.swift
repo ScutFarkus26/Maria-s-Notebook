@@ -13,7 +13,7 @@ struct DataManagementGrid: View {
     @StateObject private var viewModel = SettingsViewModel()
     
     // Persisted Settings
-    @AppStorage("Backup.encrypt") private var encryptBackups: Bool = false
+    @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
     @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true
     @AppStorage("AutoBackup.retentionCount") private var autoBackupRetention = 10
     @AppStorage("Backup.allowChecksumBypass") private var allowChecksumBypass = false

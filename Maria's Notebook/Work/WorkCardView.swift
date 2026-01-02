@@ -12,11 +12,11 @@ struct WorkCardView: View {
     let onMarkCompleted: (WorkContract) -> Void
     let onScheduleToday: (WorkContract) -> Void
 
-    @AppStorage("WorkAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
-    @AppStorage("WorkAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
-    @AppStorage("WorkAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
-    @AppStorage("WorkAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
-    @AppStorage("WorkAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
+    @SyncedAppStorage("WorkAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
+    @SyncedAppStorage("WorkAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
+    @SyncedAppStorage("WorkAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
+    @SyncedAppStorage("WorkAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
+    @SyncedAppStorage("WorkAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
 
     private var ageStatus: LessonAgeStatus {
         if ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }

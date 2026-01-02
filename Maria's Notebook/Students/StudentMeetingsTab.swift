@@ -44,7 +44,7 @@ struct StudentMeetingsTab: View {
     @State private var editGuideNotes: String = ""
 
     // Work snapshot settings
-    @AppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14
+    @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14
 
     private var todayString: String {
         DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none)

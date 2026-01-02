@@ -21,9 +21,9 @@ struct AttendanceView: View {
 
     @StateObject private var viewModel = AttendanceViewModel()
 
-    @AppStorage("AttendanceEmail.enabled") private var emailEnabled: Bool = true
-    @AppStorage("AttendanceEmail.to") private var emailTo: String = ""
-    @AppStorage("AttendanceEmail.from") private var emailFrom: String = ""
+    @SyncedAppStorage("AttendanceEmail.enabled") private var emailEnabled: Bool = true
+    @SyncedAppStorage("AttendanceEmail.to") private var emailTo: String = ""
+    @SyncedAppStorage("AttendanceEmail.from") private var emailFrom: String = ""
 
     @State private var showMailSheet = false
     @State private var toastMessage: String? = nil
