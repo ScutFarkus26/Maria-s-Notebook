@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "MT icon.png",
+      "filename" : "Icon-1024.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "MT icon 1.png",
+      "filename" : "Icon-1024 1.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -25,67 +25,67 @@
           "value" : "tinted"
         }
       ],
-      "filename" : "MT icon 2.png",
+      "filename" : "Icon-1024 2.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
     },
     {
-      "filename" : "MT Icon-iOS-Default-16x16@1x.png",
+      "filename" : "Icon-16.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "16x16"
     },
     {
-      "filename" : "MT Icon-iOS-Default-16x16@2x.png",
+      "filename" : "Icon-32 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "16x16"
     },
     {
-      "filename" : "MT Icon-iOS-Default-32x32@1x.png",
+      "filename" : "Icon-32.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "32x32"
     },
     {
-      "filename" : "MT Icon-iOS-Default-32x32@2x.png",
+      "filename" : "Icon-64.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "32x32"
     },
     {
-      "filename" : "MT Icon-iOS-Default-128x128@1x.png",
+      "filename" : "Icon-128.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "128x128"
     },
     {
-      "filename" : "MT Icon-iOS-Default-128x128@2x.png",
+      "filename" : "Icon-256 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "128x128"
     },
     {
-      "filename" : "MT Icon-iOS-Default-256x256@1x.png",
+      "filename" : "Icon-256.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "256x256"
     },
     {
-      "filename" : "MT Icon-iOS-Default-256x256@2x.png",
+      "filename" : "Icon-512 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "256x256"
     },
     {
-      "filename" : "MT Icon-iOS-Default-512x512@1x.png",
+      "filename" : "Icon-512.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "512x512"
     },
     {
-      "filename" : "MT Icon-iOS-Default-1024x1024@1x.png",
+      "filename" : "Icon-1024 3.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "512x512"
