@@ -106,8 +106,42 @@ For developers, you can verify CloudKit activity in the CloudKit Console:
 - ❌ Console shows CloudKit errors
 - ❌ Toggle is off in settings
 
+### 9. Mac-Specific Sync Issues
+
+**If data syncs between iPhone and iPad but NOT to Mac:**
+
+1. **Verify Container ID matches:**
+   - On Mac: Open Settings → iCloud Status → Check "Container ID"
+   - On iPhone/iPad: Open Settings → iCloud Status → Check "Container ID"
+   - **They must be identical!** If different, the bundle IDs don't match.
+
+2. **Check Mac Console Logs:**
+   - Launch Mac app from Xcode
+   - Look for: `SwiftData: ✅ CloudKit container created successfully!`
+   - If you see `SwiftData: Using local storage`, CloudKit is disabled on Mac
+
+3. **Verify Mac iCloud Settings:**
+   - System Settings → Apple ID → iCloud
+   - Ensure iCloud Drive is enabled
+   - Ensure you're signed into the same iCloud account as iPhone/iPad
+
+4. **Check Bundle ID:**
+   - Mac and iOS apps must have the same bundle ID
+   - Container ID is derived from: `iCloud.{BundleID}`
+   - If bundle IDs differ, they'll use different CloudKit containers
+
+5. **Force CloudKit Re-initialization on Mac:**
+   - Quit the Mac app completely
+   - Delete the local store (Settings → Data Management → Reset Local Database)
+   - Restart the app (it will re-sync from iCloud)
+
+6. **Verify Mac OS Version:**
+   - CloudKit with SwiftData requires macOS 14.0 (Sonoma) or later
+   - Check: Apple menu → About This Mac
+
 ---
 
 **Remember**: After enabling CloudKit, you **must restart the app** for the change to take effect!
+
 
 

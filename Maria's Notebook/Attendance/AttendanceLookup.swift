@@ -24,6 +24,7 @@ extension ModelContext {
 
     /// Returns a dictionary of attendance statuses keyed by student ID for the given date.
     /// This performs a single fetch for the day and filters in-memory for the provided IDs.
+    /// Handles duplicate records by keeping the first occurrence for each student ID.
     func attendanceStatuses(for studentIDs: [UUID], on date: Date) -> [UUID: AttendanceStatus] {
         guard !studentIDs.isEmpty else { return [:] }
         let day = date.normalizedDay()
@@ -34,11 +35,15 @@ extension ModelContext {
         )
         do {
             let recs: [AttendanceRecord] = try fetch(descriptor)
-            return Dictionary(uniqueKeysWithValues: recs.compactMap { rec in
+            // Build dictionary safely, handling potential duplicates by keeping the first occurrence
+            var result: [UUID: AttendanceStatus] = [:]
+            for rec in recs {
                 guard requestedStrings.contains(rec.studentID),
-                      let studentIDUUID = UUID(uuidString: rec.studentID) else { return nil }
-                return (studentIDUUID, rec.status)
-            })
+                      let studentIDUUID = UUID(uuidString: rec.studentID),
+                      result[studentIDUUID] == nil else { continue }
+                result[studentIDUUID] = rec.status
+            }
+            return result
         } catch {
             return [:]
         }

@@ -360,6 +360,7 @@ public final class BackupService {
                 studentID: studentIDUUID,
                 date: a.date,
                 status: a.status.rawValue,
+                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue,
                 note: a.note
             )
         }
@@ -1261,7 +1262,8 @@ public final class BackupService {
         // Attendance
         for dto in payload.attendance {
             if (try? fetchOne(AttendanceRecord.self, id: dto.id, using: modelContext)) != nil { continue }
-            let a = AttendanceRecord(id: dto.id, studentID: dto.studentID, date: dto.date, status: AttendanceStatus(rawValue: dto.status) ?? .unmarked, note: dto.note)
+            let absenceReason = dto.absenceReason.flatMap { AbsenceReason(rawValue: $0) } ?? .none
+            let a = AttendanceRecord(id: dto.id, studentID: dto.studentID, date: dto.date, status: AttendanceStatus(rawValue: dto.status) ?? .unmarked, absenceReason: absenceReason, note: dto.note)
             modelContext.insert(a)
         }
 

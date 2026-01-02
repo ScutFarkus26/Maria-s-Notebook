@@ -43,6 +43,11 @@ public final class SyncedPreferencesStore: ObservableObject {
         "Backup.encrypt",
     ]
     
+    /// Key prefixes that should sync across devices (for dynamic keys like per-date locks)
+    private static let syncedKeyPrefixes: [String] = [
+        "Attendance.locked."
+    ]
+    
     private var changeObserver: NSObjectProtocol?
     
     private init() {
@@ -74,12 +79,30 @@ public final class SyncedPreferencesStore: ObservableObject {
         logger.info("Migrating preferences from UserDefaults to iCloud Key-Value Storage...")
         var migratedCount = 0
         
+        // Migrate exact keys
         for key in Self.syncedKeys {
             // Check if value exists in UserDefaults but not in KVS
             if let value = userDefaults.object(forKey: key), kvStore.object(forKey: key) == nil {
                 kvStore.set(value, forKey: key)
                 migratedCount += 1
                 logger.debug("Migrated key: \(key)")
+            }
+        }
+        
+        // Migrate prefix-based keys (e.g., attendance lock keys)
+        let allUserDefaultsKeys = userDefaults.dictionaryRepresentation().keys
+        for key in allUserDefaultsKeys {
+            // Check if this key matches any synced prefix
+            for prefix in Self.syncedKeyPrefixes {
+                if key.hasPrefix(prefix) {
+                    // Check if value exists in UserDefaults but not in KVS
+                    if let value = userDefaults.object(forKey: key), kvStore.object(forKey: key) == nil {
+                        kvStore.set(value, forKey: key)
+                        migratedCount += 1
+                        logger.debug("Migrated key: \(key)")
+                    }
+                    break
+                }
             }
         }
         
@@ -130,7 +153,7 @@ public final class SyncedPreferencesStore: ObservableObject {
     
     /// Gets a value from synced storage (KVS) with fallback to UserDefaults
     public func get(key: String) -> Any? {
-        if Self.syncedKeys.contains(key) {
+        if isSynced(key: key) {
             // Try KVS first
             if let value = kvStore.object(forKey: key) {
                 return value
@@ -146,7 +169,7 @@ public final class SyncedPreferencesStore: ObservableObject {
     /// Sets a value in synced storage (KVS) for synced keys, UserDefaults otherwise
     @discardableResult
     public func set(_ value: Any?, forKey key: String) -> Bool {
-        if Self.syncedKeys.contains(key) {
+        if isSynced(key: key) {
             // Store in KVS
             if let value = value {
                 kvStore.set(value, forKey: key)
@@ -187,9 +210,19 @@ public final class SyncedPreferencesStore: ObservableObject {
         set(nil, forKey: key)
     }
     
-    /// Checks if a key is configured to sync
+    /// Checks if a key is configured to sync (exact match or prefix match)
     public func isSynced(key: String) -> Bool {
-        return Self.syncedKeys.contains(key)
+        // Check exact match first
+        if Self.syncedKeys.contains(key) {
+            return true
+        }
+        // Check prefix match for dynamic keys
+        for prefix in Self.syncedKeyPrefixes {
+            if key.hasPrefix(prefix) {
+                return true
+            }
+        }
+        return false
     }
     
     // MARK: - Type-Safe Convenience Methods

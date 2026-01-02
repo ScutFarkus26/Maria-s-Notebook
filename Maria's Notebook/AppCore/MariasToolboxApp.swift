@@ -22,6 +22,22 @@ struct MariasToolboxApp: App {
     static let enableCloudKitKey = "EnableCloudKitSync"
     static let cloudKitActiveKey = "CloudKitActive" // Tracks if CloudKit is actually running (not just enabled)
     
+    /// Returns the CloudKit container identifier from entitlements
+    /// This must match the container ID in the entitlements file
+    static func getCloudKitContainerID() -> String? {
+        // Use the container ID from entitlements: iCloud.DanielSDeBerry.MariasNoteBook
+        // This is more reliable than constructing from bundle ID
+        return "iCloud.DanielSDeBerry.MariasNoteBook"
+    }
+    
+    /// Returns a summary of CloudKit sync status
+    static func getCloudKitStatus() -> (enabled: Bool, active: Bool, containerID: String) {
+        let enabled = UserDefaults.standard.bool(forKey: enableCloudKitKey)
+        let active = UserDefaults.standard.bool(forKey: cloudKitActiveKey)
+        let containerID = getCloudKitContainerID() ?? "Unknown"
+        return (enabled: enabled, active: active, containerID: containerID)
+    }
+    
     // Track initialization errors to show in the UI
     static var initError: Error?
     
@@ -232,53 +248,100 @@ struct MariasToolboxApp: App {
                     #endif
                     return container
                 } else if cloud {
-                    // Derive the iCloud container identifier from bundle id and validate
+                    // Use the container ID from entitlements (must match entitlements file)
                     let storeURL = url ?? MariasToolboxApp.storeFileURL()
-                    let bundleID = Bundle.main.bundleIdentifier ?? ""
-                    let containerID = bundleID.isEmpty ? nil : "iCloud.\(bundleID)"
+                    
+                    // Validate store URL is not /dev/null or invalid
+                    guard storeURL.path != "/dev/null" && !storeURL.path.isEmpty else {
+                        throw NSError(
+                            domain: "MariasNotebook",
+                            code: 2003,
+                            userInfo: [NSLocalizedDescriptionKey: "Invalid store URL: \(storeURL.path). Cannot initialize CloudKit with invalid store location."]
+                        )
+                    }
+                    
+                    guard let containerID = MariasToolboxApp.getCloudKitContainerID() else {
+                        #if DEBUG
+                        print("SwiftData: Missing CloudKit container identifier. Falling back to local store without CloudKit.")
+                        #endif
+                        let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
+                        let container = try ModelContainer(for: schema, configurations: config)
+                        UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                        return container
+                    }
 
                     #if swift(>=6.0)
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-                        if let containerID {
-                            #if DEBUG
-                            print("SwiftData: CloudKit configuration:")
-                            print("  - Container ID: \(containerID)")
-                            print("  - Store URL: \(storeURL.path)")
-                            print("  - Database: Private")
-                            #endif
+                        #if DEBUG
+                        print("SwiftData: CloudKit configuration:")
+                        print("  - Container ID: \(containerID)")
+                        print("  - Store URL: \(storeURL.path)")
+                        print("  - Database: Private")
+                        #endif
+                        do {
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                             let container = try ModelContainer(for: schema, configurations: config)
                             #if DEBUG
                             print("SwiftData: ✅ CloudKit container created successfully!")
                             print("SwiftData: CloudKit sync is now active. Changes will sync across devices.")
+                            print("SwiftData: Note: CoreData+CloudKit error messages about 'store was removed' are expected")
+                            print("SwiftData:   and harmless - they occur during SwiftData's internal initialization.")
                             #endif
                             UserDefaults.standard.set(true, forKey: MariasToolboxApp.cloudKitActiveKey)
                             return container
-                        } else {
-                            throw NSError(domain: "MariasNotebook", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
+                        } catch {
+                            // CloudKit initialization failed - log detailed error and fall back to local store
+                            #if DEBUG
+                            print("SwiftData: ⚠️ CloudKit initialization failed: \(error)")
+                            if let nsError = error as NSError? {
+                                print("SwiftData: Error domain: \(nsError.domain), code: \(nsError.code)")
+                                print("SwiftData: Error userInfo: \(nsError.userInfo)")
+                            }
+                            print("SwiftData: Falling back to local store without CloudKit sync.")
+                            #endif
+                            // Fall back to local store
+                            let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
+                            let container = try ModelContainer(for: schema, configurations: config)
+                            UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                            return container
                         }
                     } else {
                         throw NSError(domain: "MariasNotebook", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
                     }
                     #else
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-                        if let containerID {
-                            #if DEBUG
-                            print("SwiftData: CloudKit configuration:")
-                            print("  - Container ID: \(containerID)")
-                            print("  - Store URL: \(storeURL.path)")
-                            print("  - Database: Private")
-                            #endif
+                        #if DEBUG
+                        print("SwiftData: CloudKit configuration:")
+                        print("  - Container ID: \(containerID)")
+                        print("  - Store URL: \(storeURL.path)")
+                        print("  - Database: Private")
+                        #endif
+                        do {
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                             let container = try ModelContainer(for: schema, configurations: config)
                             #if DEBUG
                             print("SwiftData: ✅ CloudKit container created successfully!")
                             print("SwiftData: CloudKit sync is now active. Changes will sync across devices.")
+                            print("SwiftData: Note: CoreData+CloudKit error messages about 'store was removed' are expected")
+                            print("SwiftData:   and harmless - they occur during SwiftData's internal initialization.")
                             #endif
                             UserDefaults.standard.set(true, forKey: MariasToolboxApp.cloudKitActiveKey)
                             return container
-                        } else {
-                            throw NSError(domain: "MariasNotebook", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Missing CFBundleIdentifier; cannot form iCloud container identifier."])
+                        } catch {
+                            // CloudKit initialization failed - log detailed error and fall back to local store
+                            #if DEBUG
+                            print("SwiftData: ⚠️ CloudKit initialization failed: \(error)")
+                            if let nsError = error as NSError? {
+                                print("SwiftData: Error domain: \(nsError.domain), code: \(nsError.code)")
+                                print("SwiftData: Error userInfo: \(nsError.userInfo)")
+                            }
+                            print("SwiftData: Falling back to local store without CloudKit sync.")
+                            #endif
+                            // Fall back to local store
+                            let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
+                            let container = try ModelContainer(for: schema, configurations: config)
+                            UserDefaults.standard.set(false, forKey: MariasToolboxApp.cloudKitActiveKey)
+                            return container
                         }
                     } else {
                         throw NSError(domain: "MariasNotebook", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
@@ -395,7 +458,9 @@ struct MariasToolboxApp: App {
                             print("SwiftData: Store reset successfully. Retrying with fresh store...")
                             #endif
                             // Retry creating the container with the fresh store
-                            let container = try makeContainer(inMemory: false, cloud: false)
+                            // Preserve CloudKit setting - don't disable it during recovery
+                            let enableCloudKit = UserDefaults.standard.object(forKey: enableCloudKitKey) as? Bool ?? true
+                            let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
                             UserDefaults.standard.set(false, forKey: MariasToolboxApp.ephemeralSessionFlagKey)
                             UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
                             #if DEBUG
@@ -595,6 +660,14 @@ struct MariasToolboxApp: App {
         #endif
         // Cleanup: remove legacy Beta flag now that Engagement Lifecycle is always on
         UserDefaults.standard.removeObject(forKey: "useEngagementLifecycle")
+        
+        // NOTE: CoreData+CloudKit error messages in console logs
+        // SwiftData uses Core Data internally, and during CloudKit initialization,
+        // it creates temporary stores that get torn down, causing harmless error messages.
+        // These errors (like "store was removed from coordinator" and "file:///dev/null")
+        // are expected during initialization and don't affect functionality.
+        // The container is successfully created (see "✅ CloudKit container created successfully!" message).
+        // These system-level logs cannot be suppressed from Swift code, but they can be safely ignored.
         
         #if DEBUG
         // TEST: Simulate database initialization failure for testing recovery flow

@@ -44,6 +44,9 @@ struct SettingsView: View {
                     // MARK: - Attendance Section
                     attendanceSection
                     
+                    // MARK: - Reminders Section
+                    remindersSection
+                    
                     // MARK: - Data Management Section
                     dataManagementSection
                     
@@ -135,6 +138,16 @@ struct SettingsView: View {
             SettingsCategoryHeader(title: "Attendance")
             SettingsGroup(title: "Attendance Email", systemImage: "envelope") {
                 AttendanceEmailSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+    
+    private var remindersSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "Reminders")
+            SettingsGroup(title: "Reminder Sync", systemImage: "bell.fill") {
+                ReminderSyncSettingsView()
                     .frame(maxWidth: .infinity)
             }
         }

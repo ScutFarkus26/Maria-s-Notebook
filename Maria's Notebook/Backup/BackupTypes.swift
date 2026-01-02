@@ -480,7 +480,32 @@ public struct AttendanceRecordDTO: Codable {
     public var studentID: UUID
     public var date: Date
     public var status: String
+    public var absenceReason: String?
     public var note: String?
+    
+    // For backward compatibility with old backups that don't have absenceReason
+    enum CodingKeys: String, CodingKey {
+        case id, studentID, date, status, absenceReason, note
+    }
+    
+    public init(id: UUID, studentID: UUID, date: Date, status: String, absenceReason: String? = nil, note: String? = nil) {
+        self.id = id
+        self.studentID = studentID
+        self.date = date
+        self.status = status
+        self.absenceReason = absenceReason
+        self.note = note
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        studentID = try container.decode(UUID.self, forKey: .studentID)
+        date = try container.decode(Date.self, forKey: .date)
+        status = try container.decode(String.self, forKey: .status)
+        absenceReason = try container.decodeIfPresent(String.self, forKey: .absenceReason)
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+    }
 }
 
 public struct WorkCompletionRecordDTO: Codable {

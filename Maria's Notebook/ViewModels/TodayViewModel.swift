@@ -77,6 +77,10 @@ final class TodayViewModel: ObservableObject {
     // Updated: Now holds WorkContract instead of legacy WorkCompletionRecord
     @Published var completedContracts: [WorkContract] = []
     
+    // Reminders for today
+    @Published var todaysReminders: [Reminder] = []
+    @Published var overdueReminders: [Reminder] = []
+    
     @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
     @Published var absentToday: [UUID] = []
     @Published var leftEarlyToday: [UUID] = []
@@ -130,6 +134,9 @@ final class TodayViewModel: ObservableObject {
         
         // Load completed contracts
         reloadCompletedContracts(day: day, nextDay: nextDay)
+        
+        // Load reminders
+        reloadReminders(day: day, nextDay: nextDay)
         
         // Load attendance
         reloadAttendance(day: day, nextDay: nextDay)
@@ -387,6 +394,47 @@ final class TodayViewModel: ObservableObject {
             }
         } catch {
             completedContracts = []
+        }
+    }
+    
+    private func reloadReminders(day: Date, nextDay: Date) {
+        do {
+            let startOfToday = Date().startOfDay
+            let startOfDay = day.startOfDay
+            
+            // Fetch all incomplete reminders
+            let incompleteDescriptor = FetchDescriptor<Reminder>(
+                predicate: #Predicate { r in r.isCompleted == false }
+            )
+            let allReminders = try context.fetch(incompleteDescriptor)
+            
+            // Separate into overdue and due today
+            var overdue: [Reminder] = []
+            var today: [Reminder] = []
+            
+            for reminder in allReminders {
+                guard let dueDate = reminder.dueDate else { continue }
+                let dueDay = dueDate.startOfDay
+                
+                if dueDay < startOfToday {
+                    // Overdue
+                    overdue.append(reminder)
+                } else if dueDay >= startOfDay && dueDay < nextDay {
+                    // Due today
+                    today.append(reminder)
+                }
+            }
+            
+            // Sort by due date
+            overdue.sort { ($0.dueDate ?? Date.distantPast) < ($1.dueDate ?? Date.distantPast) }
+            today.sort { ($0.dueDate ?? Date.distantPast) < ($1.dueDate ?? Date.distantPast) }
+            
+            self.overdueReminders = overdue
+            self.todaysReminders = today
+            
+        } catch {
+            self.overdueReminders = []
+            self.todaysReminders = []
         }
     }
     

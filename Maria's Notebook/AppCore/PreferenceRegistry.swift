@@ -37,7 +37,8 @@ public enum PreferenceRegistry {
         PreferenceDefinition(key: "lastBackupTimeInterval", type: .double),
         PreferenceDefinition(key: "Backup.encrypt", type: .bool),
         PreferenceDefinition(key: "General.showTestStudents", type: .bool, defaultValue: .bool(false)),
-        PreferenceDefinition(key: "General.testStudentNames", type: .string, defaultValue: .string("Danny De Berry,Lil Dan D"))
+        PreferenceDefinition(key: "General.testStudentNames", type: .string, defaultValue: .string("Danny De Berry,Lil Dan D")),
+        PreferenceDefinition(key: "ReminderSync.syncListName", type: .string)
         // Attendance locks handled dynamically: keys "Attendance.locked.<yyyy-MM-dd>"
     ]
 
@@ -51,7 +52,8 @@ public enum PreferenceRegistry {
         "WorkAge.",
         "StudentDetailView.",
         "Backup.",
-        "Attendance.locked."
+        "Attendance.locked.",
+        "ReminderSync."
     ]
 }
 

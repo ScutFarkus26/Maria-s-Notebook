@@ -100,6 +100,18 @@ final class AttendanceViewModel: ObservableObject {
         }
     }
 
+    func updateAbsenceReason(for student: Student, reason: AbsenceReason, modelContext: ModelContext) {
+        // CloudKit compatibility: Convert UUID to String for lookup
+        let studentIDString = student.id.uuidString
+        guard let rec = recordsByStudent[studentIDString] else { return }
+        // Only allow setting absence reason if status is absent
+        guard rec.status == .absent else { return }
+        let store = AttendanceStore(context: modelContext)
+        if store.updateAbsenceReason(rec, to: reason) {
+            recordsByStudent[studentIDString]?.absenceReason = reason
+        }
+    }
+
     func markAllPresent(students: [Student], modelContext: ModelContext) {
         let store = AttendanceStore(context: modelContext)
         do {

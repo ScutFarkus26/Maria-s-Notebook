@@ -23,6 +23,12 @@ struct BackupEntityRegistry {
         CommunityAttachment.self,
         AttendanceRecord.self,
         WorkCompletionRecord.self,
+        // Work tracking models
+        WorkModel.self,
+        WorkCheckIn.self,
+        WorkParticipantEntity.self,
+        WorkNote.self,
+        // Project models
         Project.self,
         ProjectAssignmentTemplate.self,
         ProjectSession.self,

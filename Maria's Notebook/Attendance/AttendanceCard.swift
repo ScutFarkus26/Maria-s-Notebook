@@ -15,12 +15,14 @@ struct AttendanceCard: View {
     let isEditing: Bool
     let onTap: () -> Void
     let onEditNote: (String?) -> Void
+    let onSetAbsenceReason: ((AbsenceReason) -> Void)?
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showingNoteEditor = false
     @State private var draftNote: String = ""
 
     private var status: AttendanceStatus { record?.status ?? .unmarked }
+    private var absenceReason: AbsenceReason { record?.absenceReason ?? .none }
 
     private var statusLabel: String { status.displayName }
 
@@ -63,15 +65,22 @@ struct AttendanceCard: View {
             }
         }
 
-        // Compact status pill
-        Text(statusLabel)
-            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-            .foregroundStyle(accentColor)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(
-                Capsule().fill(accentColor.opacity(0.12))
-            )
+        // Compact status pill with absence reason indicator
+        HStack(spacing: 6) {
+            Text(statusLabel)
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .foregroundStyle(accentColor)
+            if status == .absent && absenceReason != .none {
+                Image(systemName: absenceReason.icon)
+                    .font(.system(size: 10))
+                    .foregroundStyle(accentColor)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            Capsule().fill(accentColor.opacity(0.12))
+        )
 
         // Clicking the note opens the editor only if editing, otherwise static display
         if hasNote {
@@ -142,15 +151,22 @@ struct AttendanceCard: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    // Compact status pill
-                    Text(statusLabel)
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                        .foregroundStyle(accentColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule().fill(accentColor.opacity(0.12))
-                        )
+                    // Compact status pill with absence reason indicator
+                    HStack(spacing: 6) {
+                        Text(statusLabel)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                            .foregroundStyle(accentColor)
+                        if status == .absent && absenceReason != .none {
+                            Image(systemName: absenceReason.icon)
+                                .font(.system(size: 10))
+                                .foregroundStyle(accentColor)
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule().fill(accentColor.opacity(0.12))
+                    )
 
                     // Spacer to push note section to bottom
                     Spacer(minLength: 4)
@@ -231,6 +247,31 @@ struct AttendanceCard: View {
                     showingNoteEditor = true
                 } label: {
                     Label("Note…", systemImage: "square.and.pencil")
+                }
+                
+                // Absence reason options (only show when status is absent)
+                if status == .absent, let onSetAbsenceReason = onSetAbsenceReason {
+                    Divider()
+                    
+                    Button {
+                        onSetAbsenceReason(.sick)
+                    } label: {
+                        Label("Mark as Sick", systemImage: "cross.case.fill")
+                    }
+                    
+                    Button {
+                        onSetAbsenceReason(.vacation)
+                    } label: {
+                        Label("Mark as Vacation", systemImage: "beach.umbrella.fill")
+                    }
+                    
+                    if absenceReason != .none {
+                        Button {
+                            onSetAbsenceReason(.none)
+                        } label: {
+                            Label("Clear Reason", systemImage: "xmark.circle")
+                        }
+                    }
                 }
             }
         }

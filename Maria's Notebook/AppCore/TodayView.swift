@@ -1,5 +1,5 @@
 // TodayView.swift
-// Today hub showing lessons, scheduled check-ins (WorkPlanItem), follow-ups (Stale Contracts), and completions.
+// Today hub showing reminders, lessons, scheduled check-ins (WorkPlanItem), follow-ups (Stale Contracts), and completions.
 // Updated to use WorkContract and WorkPlanItem instead of legacy WorkCheckIn.
 
 import SwiftUI
@@ -91,6 +91,7 @@ struct TodayView: View {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 20) {
                                 attendanceStrip
+                                remindersSection
                                 lessonsSection
                                 checkInsSection
                                 inProgressSection
@@ -213,6 +214,54 @@ struct TodayView: View {
         .padding(.vertical, 10)
     }
 
+    // MARK: - Reminders
+    private var remindersSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeader(title: "Reminders", systemImage: "bell.fill")
+            if viewModel.overdueReminders.isEmpty && viewModel.todaysReminders.isEmpty {
+                ContentUnavailableView("No reminders", systemImage: "bell.slash")
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    if !viewModel.overdueReminders.isEmpty {
+                        Text("Overdue")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.red)
+                        ForEach(viewModel.overdueReminders) { reminder in
+                            ReminderRow(reminder: reminder) {
+                                toggleReminder(reminder)
+                            }
+                        }
+                    }
+                    if !viewModel.todaysReminders.isEmpty {
+                        Text("Due Today")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                        ForEach(viewModel.todaysReminders) { reminder in
+                            ReminderRow(reminder: reminder) {
+                                toggleReminder(reminder)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func toggleReminder(_ reminder: Reminder) {
+        if reminder.isCompleted {
+            reminder.markIncomplete()
+        } else {
+            reminder.markCompleted()
+        }
+        do {
+            try modelContext.save()
+            viewModel.reload()
+        } catch {
+            print("Error toggling reminder: \(error)")
+        }
+    }
+    
     // MARK: - Attendance Strip
     private var attendanceStrip: some View {
         HStack(spacing: 12) {
@@ -513,5 +562,40 @@ private struct CompletionRow: View {
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
+    }
+}
+
+private struct ReminderRow: View {
+    let reminder: Reminder
+    var onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 10) {
+                Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(reminder.isCompleted ? .green : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(reminder.title)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .strikethrough(reminder.isCompleted)
+                    if let dueDate = reminder.dueDate {
+                        Text(dueDate, style: .time)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    if let notes = reminder.notes, !notes.isEmpty {
+                        Text(notes)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
+        }
+        .buttonStyle(.plain)
     }
 }

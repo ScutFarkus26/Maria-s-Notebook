@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Combine
 import UniformTypeIdentifiers
 #if os(iOS)
 import MessageUI
@@ -58,6 +59,8 @@ struct AttendanceView: View {
         df.dateFormat = "yyyy-MM-dd"
         return df
     }()
+    
+    private let syncedStore = SyncedPreferencesStore.shared
 
     private func lockKey(for date: Date) -> String {
         let day = date.normalizedDay()
@@ -66,15 +69,15 @@ struct AttendanceView: View {
     }
 
     private func isLocked(for date: Date) -> Bool {
-        UserDefaults.standard.bool(forKey: lockKey(for: date))
+        syncedStore.bool(forKey: lockKey(for: date))
     }
 
     private func setLocked(_ locked: Bool, for date: Date) {
         let key = lockKey(for: date)
         if locked {
-            UserDefaults.standard.set(true, forKey: key)
+            syncedStore.set(true, forKey: key)
         } else {
-            UserDefaults.standard.removeObject(forKey: key)
+            syncedStore.remove(key: key)
         }
     }
 
@@ -112,6 +115,16 @@ struct AttendanceView: View {
             // Defer the update to avoid publishing during view updates
             DispatchQueue.main.async {
                 viewModel.sortKey = newValue
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .syncedPreferencesDidChange)) { notification in
+            // Update lock status when it changes from another device
+            if let changedKeys = notification.userInfo?["changedKeys"] as? [String] {
+                let currentLockKey = lockKey(for: viewModel.selectedDate)
+                if changedKeys.contains(currentLockKey) {
+                    // Lock status for current date changed, update editing state
+                    isEditing = !isLocked(for: viewModel.selectedDate)
+                }
             }
         }
 #if os(iOS)
@@ -317,11 +330,12 @@ struct AttendanceView: View {
 
                 // Breakdown chips (secondary)
                 HStack(spacing: 12) {
-                    breakdownChip(title: "Present", count: viewModel.countPresent, color: .green)
                     breakdownChip(title: "Tardy", count: viewModel.countTardy, color: .blue)
                     breakdownChip(title: "Absent", count: viewModel.countAbsent, color: .red)
                     breakdownChip(title: "Left Early", count: viewModel.countLeftEarly, color: .purple)
-                    breakdownChip(title: "Unmarked", count: viewModel.countUnmarked, color: .gray)
+                    if viewModel.countUnmarked > 0 {
+                        breakdownChip(title: "Unmarked", count: viewModel.countUnmarked, color: .gray)
+                    }
                 }
 
                 if emailEnabled {
@@ -426,11 +440,12 @@ struct AttendanceView: View {
                     }
 
                     // Breakdown chips
-                    breakdownChip(title: "Present", count: viewModel.countPresent, color: .green)
                     breakdownChip(title: "Tardy", count: viewModel.countTardy, color: .blue)
                     breakdownChip(title: "Absent", count: viewModel.countAbsent, color: .red)
                     breakdownChip(title: "Left Early", count: viewModel.countLeftEarly, color: .purple)
-                    breakdownChip(title: "Unmarked", count: viewModel.countUnmarked, color: .gray)
+                    if viewModel.countUnmarked > 0 {
+                        breakdownChip(title: "Unmarked", count: viewModel.countUnmarked, color: .gray)
+                    }
                 }
                 .padding(.vertical, 2)
             }
@@ -491,6 +506,10 @@ struct AttendanceView: View {
                         onEditNote: { newNote in
                             viewModel.updateNote(for: student, note: newNote, modelContext: modelContext)
                             _ = saveCoordinator.save(modelContext, reason: "Update attendance note")
+                        },
+                        onSetAbsenceReason: { reason in
+                            viewModel.updateAbsenceReason(for: student, reason: reason, modelContext: modelContext)
+                            _ = saveCoordinator.save(modelContext, reason: "Update absence reason")
                         }
                     )
                 }

@@ -12,6 +12,10 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera to take photos for notes.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>We need access to your reminders to sync reminders from a specific list to your Today view.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

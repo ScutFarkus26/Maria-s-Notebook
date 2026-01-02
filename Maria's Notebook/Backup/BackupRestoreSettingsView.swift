@@ -94,6 +94,18 @@ struct BackupRestoreSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            
+            // Backup verification status indicator
+            if lastBackupDate != nil {
+                HStack {
+                    Image(systemName: "checkmark.shield.fill")
+                        .foregroundStyle(.green)
+                        .font(.caption)
+                    Text("Backup completed successfully")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
     

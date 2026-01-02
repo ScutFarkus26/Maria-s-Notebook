@@ -32,6 +32,30 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
     }
 }
 
+// MARK: - Absence Reason
+
+enum AbsenceReason: String, Codable, CaseIterable, Sendable {
+    case none
+    case sick
+    case vacation
+
+    var displayName: String {
+        switch self {
+        case .none: return ""
+        case .sick: return "Sick"
+        case .vacation: return "Vacation"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .none: return ""
+        case .sick: return "cross.case.fill"
+        case .vacation: return "beach.umbrella.fill"
+        }
+    }
+}
+
 // MARK: - SwiftData Model
 
 @Model
@@ -42,12 +66,25 @@ final class AttendanceRecord: Identifiable {
     var studentID: String = ""
     var date: Date = Date()          // normalized to start-of-day (local calendar)
     private var statusRaw: String = "unmarked"
+    private var absenceReasonRaw: String = "none"
     var note: String? = nil
 
     // Computed enum mapping for convenient UI usage
     var status: AttendanceStatus {
         get { AttendanceStatus(rawValue: statusRaw) ?? .unmarked }
-        set { statusRaw = newValue.rawValue }
+        set { 
+            statusRaw = newValue.rawValue
+            // Clear absence reason if status is not absent
+            if newValue != .absent {
+                absenceReasonRaw = AbsenceReason.none.rawValue
+            }
+        }
+    }
+    
+    // Computed property for absence reason
+    var absenceReason: AbsenceReason {
+        get { AbsenceReason(rawValue: absenceReasonRaw) ?? .none }
+        set { absenceReasonRaw = newValue.rawValue }
     }
     
     // Computed property for backward compatibility with UUID
@@ -61,6 +98,7 @@ final class AttendanceRecord: Identifiable {
         studentID: UUID,
         date: Date,
         status: AttendanceStatus = .unmarked,
+        absenceReason: AbsenceReason = .none,
         note: String? = nil
     ) {
         self.id = id
@@ -68,6 +106,7 @@ final class AttendanceRecord: Identifiable {
         self.studentID = studentID.uuidString
         self.date = date
         self.statusRaw = status.rawValue
+        self.absenceReasonRaw = absenceReason.rawValue
         self.note = note
     }
 }
@@ -119,7 +158,7 @@ struct AttendanceStore {
         var didInsert = false
         for student in students {
             if existingByStudent[student.id.uuidString] == nil {
-                let rec = AttendanceRecord(studentID: student.id, date: day, status: .unmarked, note: nil)
+                let rec = AttendanceRecord(studentID: student.id, date: day, status: .unmarked, absenceReason: .none, note: nil)
                 context.insert(rec)
                 existing.append(rec)
                 existingByStudent[student.id.uuidString] = rec
@@ -147,6 +186,16 @@ struct AttendanceStore {
         return old != newVal
     }
 
+    /// Update a record's absence reason and return whether it changed.
+    @discardableResult
+    func updateAbsenceReason(_ record: AttendanceRecord, to newReason: AbsenceReason) -> Bool {
+        // Only allow setting absence reason if status is absent
+        guard record.status == .absent else { return false }
+        let old = record.absenceReason
+        record.absenceReason = newReason
+        return old != newReason
+    }
+
     /// Convenience: Mark all students present for the date, creating missing records.
     @discardableResult
     func markAllPresent(for date: Date, students: [Student]) throws -> [AttendanceRecord] {
@@ -159,7 +208,11 @@ struct AttendanceStore {
     @discardableResult
     func resetDay(for date: Date, students: [Student]) throws -> [AttendanceRecord] {
         let result = try loadOrCreateRecords(for: date, students: students)
-        for rec in result.records { rec.status = .unmarked; rec.note = nil }
+        for rec in result.records { 
+            rec.status = .unmarked
+            rec.note = nil
+            rec.absenceReason = .none
+        }
         return result.records
     }
 }
