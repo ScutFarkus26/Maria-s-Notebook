@@ -38,7 +38,7 @@ struct AttendanceView: View {
     private var columns: [GridItem] {
     #if os(iOS)
         if hSizeClass == .compact {
-            return [GridItem(.flexible(minimum: 0), spacing: 12)]
+            return [GridItem(.flexible(minimum: 0), spacing: 12), GridItem(.flexible(minimum: 0), spacing: 12)]
         }
     #endif
         return [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 16)]
