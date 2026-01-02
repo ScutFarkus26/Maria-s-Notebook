@@ -138,10 +138,6 @@ struct RootView: View {
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
-    @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
-    @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
-    @AppStorage("Backfill.scheduledForDay.v1") private var didBackfillScheduledForDay: Bool = false
     @State private var isShowingQuickNote = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -218,13 +214,6 @@ struct RootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             #endif
         }
-        .task {
-            // Run backfill operations asynchronously to avoid blocking UI
-            // These are one-time migrations that must complete, but don't need to block the view
-            await backfillRelationshipsIfNeeded()
-            await backfillIsPresentedIfNeeded()
-            await backfillScheduledForDayIfNeeded()
-        }
         .onAppear {
             // Migration: Convert legacy selectedTab to selectedNavItem if needed
             if selectedNavItemRaw == nil, let legacyRaw = selectedTabRaw {
@@ -257,12 +246,7 @@ struct RootView: View {
             }
         }
         .onChange(of: appRouter.navigationDestination) { _, destination in
-            if case .backfillIsPresented = destination {
-                Task {
-                    await backfillIsPresentedIfNeeded()
-                }
-                appRouter.clearNavigation()
-            } else if case .openAttendance = destination {
+            if case .openAttendance = destination {
                 selectedNavItemRaw = NavigationItem.attendance.rawValue
                 appRouter.clearNavigation()
             }
@@ -318,156 +302,6 @@ struct RootView: View {
         .padding()
     }
 
-    // MARK: - Backfill
-    
-    // These backfill operations are one-time migrations that preserve all functionality.
-    // Made async to avoid blocking UI, but they still complete fully.
-
-    private func backfillRelationshipsIfNeeded() async {
-        guard !didBackfillRelationships else { return }
-        // Run on main actor since we're using modelContext (SwiftData requirement)
-        await MainActor.run {
-            do {
-                // OPTIMIZATION: Fetch all data once (these are relatively small lookups)
-                let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
-                let students = try modelContext.fetch(FetchDescriptor<Student>())
-                let lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
-                let studentsByID = students.toDictionary(by: \.id)
-                let lessonsByID = lessons.toDictionary(by: \.id)
-
-                // OPTIMIZATION: Process in batches and save periodically to avoid memory pressure
-                // For large datasets, process in chunks of 1000
-                let batchSize = 1000
-                var changed = false
-                var processed = 0
-                
-                for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
-                    let batchEnd = min(batchStart + batchSize, sls.count)
-                    let batch = Array(sls[batchStart..<batchEnd])
-                    
-                    for sl in batch {
-                        // CloudKit compatibility: Convert String lessonID to UUID for lookup
-                        guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else { continue }
-                        let targetLesson = lessonsByID[lessonIDUUID]
-                        let targetStudents: [Student] = sl.studentIDs.compactMap { idString in
-                            guard let id = UUID(uuidString: idString) else { return nil }
-                            return studentsByID[id]
-                        }
-                        if sl.lesson?.id != targetLesson?.id { sl.lesson = targetLesson; changed = true }
-                        let currentIDs = Set(sl.students.map { $0.id })
-                        let targetIDs = Set(targetStudents.map { $0.id })
-                        if currentIDs != targetIDs {
-                            sl.students = targetStudents
-                            changed = true
-                        }
-                        if changed {
-                            sl.syncSnapshotsFromRelationships()
-                        }
-                    }
-                    
-                    processed += batch.count
-                    // Save periodically to avoid holding too many changes in memory
-                    if changed && processed % batchSize == 0 {
-                        _ = saveCoordinator.save(modelContext, reason: "Backfill data migration (batch)")
-                        changed = false // Reset for next batch
-                    }
-                }
-                
-                // Final save if there are remaining changes
-                if changed {
-                    _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
-                }
-                didBackfillRelationships = true
-            } catch {
-                // If backfill fails, skip and try again next launch
-            }
-        }
-    }
-
-    private func backfillIsPresentedIfNeeded() async {
-        await MainActor.run {
-            do {
-                // OPTIMIZATION: Process in batches for large datasets
-                let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
-                let batchSize = 1000
-                var changed = false
-                
-                for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
-                    let batchEnd = min(batchStart + batchSize, sls.count)
-                    let batch = Array(sls[batchStart..<batchEnd])
-                    
-                    for sl in batch {
-                        if sl.givenAt != nil && sl.isPresented == false {
-                            sl.isPresented = true
-                            changed = true
-                        }
-                    }
-                    
-                    // Save periodically
-                    if changed && (batchEnd % batchSize == 0 || batchEnd == sls.count) {
-                        _ = saveCoordinator.save(modelContext, reason: "Backfill data migration (batch)")
-                        changed = false
-                    }
-                }
-                
-                // Final save if needed
-                if changed {
-                    _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
-                }
-            } catch {
-                // If backfill fails, skip and try again next launch
-            }
-        }
-    }
-    
-    private func backfillScheduledForDayIfNeeded() async {
-        guard !didBackfillScheduledForDay else { return }
-        await MainActor.run {
-            do {
-                // OPTIMIZATION: Process in batches for large datasets
-                let sls = try modelContext.fetch(FetchDescriptor<StudentLesson>())
-                let batchSize = 1000
-                var fixed = 0
-                var needsSave = false
-                
-                for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
-                    let batchEnd = min(batchStart + batchSize, sls.count)
-                    let batch = Array(sls[batchStart..<batchEnd])
-                    
-                    for sl in batch {
-                        let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
-                        if sl.scheduledForDay != correct {
-                            sl.scheduledForDay = correct
-                            fixed += 1
-                            needsSave = true
-                        }
-                    }
-                    
-                    // Save periodically
-                    if needsSave && (batchEnd % batchSize == 0 || batchEnd == sls.count) {
-                        _ = saveCoordinator.save(modelContext, reason: "Backfill data migration (batch)")
-                        needsSave = false
-                    }
-                }
-                
-                if fixed > 0 {
-        #if DEBUG
-                    print("Backfill.scheduledForDay: fixed \(fixed) records")
-        #endif
-                    if needsSave {
-                        _ = saveCoordinator.save(modelContext, reason: "Backfill data migration")
-                    }
-                }
-                didBackfillScheduledForDay = true
-            } catch {
-                didBackfillScheduledForDay = true
-        #if DEBUG
-                print("Backfill.scheduledForDay: fixed 0 records due to error")
-        #endif
-            }
-        }
-    }
-    
     // MARK: - State
 }
 
@@ -717,42 +551,66 @@ private struct RootCompactTabs: View {
 
 /// More menu view for iPhone that shows additional navigation items
 private struct MoreMenuView: View {
-    @State private var selectedItem: RootView.NavigationItem?
+    @State private var navigationPath = NavigationPath()
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             List {
                 Section("Classroom") {
-                    NavigationLink(value: RootView.NavigationItem.lessons) {
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.lessons)
+                    } label: {
                         Label("Lessons", systemImage: RootView.NavigationItem.lessons.icon)
                     }
-                    NavigationLink(value: RootView.NavigationItem.community) {
+                    .buttonStyle(.plain)
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.community)
+                    } label: {
                         Label("Community Meetings", systemImage: RootView.NavigationItem.community.icon)
                     }
-                    NavigationLink(value: RootView.NavigationItem.logs) {
+                    .buttonStyle(.plain)
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.logs)
+                    } label: {
                         Label("Logs", systemImage: RootView.NavigationItem.logs.icon)
                     }
+                    .buttonStyle(.plain)
                 }
                 
                 Section("Planning") {
-                    NavigationLink(value: RootView.NavigationItem.planningChecklist) {
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.planningChecklist)
+                    } label: {
                         Label("Checklist", systemImage: RootView.NavigationItem.planningChecklist.icon)
                     }
-                    NavigationLink(value: RootView.NavigationItem.planningAgenda) {
+                    .buttonStyle(.plain)
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.planningAgenda)
+                    } label: {
                         Label("Presentations", systemImage: RootView.NavigationItem.planningAgenda.icon)
                     }
-                    NavigationLink(value: RootView.NavigationItem.planningWork) {
+                    .buttonStyle(.plain)
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.planningWork)
+                    } label: {
                         Label("Open Work", systemImage: RootView.NavigationItem.planningWork.icon)
                     }
-                    NavigationLink(value: RootView.NavigationItem.planningProjects) {
+                    .buttonStyle(.plain)
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.planningProjects)
+                    } label: {
                         Label("Projects", systemImage: RootView.NavigationItem.planningProjects.icon)
                     }
+                    .buttonStyle(.plain)
                 }
                 
                 Section("System") {
-                    NavigationLink(value: RootView.NavigationItem.settings) {
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.settings)
+                    } label: {
                         Label("Settings", systemImage: RootView.NavigationItem.settings.icon)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .navigationTitle("More")

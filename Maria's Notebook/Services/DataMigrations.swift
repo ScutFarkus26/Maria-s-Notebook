@@ -252,4 +252,141 @@ enum DataMigrations {
             print("DataMigrations: Cleaned orphaned student IDs from \(cleaned) StudentLesson records")
         }
     }
+    
+    // MARK: - Legacy Backfill Migrations
+    
+    /// Backfill StudentLesson relationships from legacy studentIDs and lessonID strings.
+    /// One-time migration that ensures relationship arrays are populated from denormalized ID fields.
+    /// Idempotent: guarded by a UserDefaults flag.
+    static func backfillRelationshipsIfNeeded(using context: ModelContext) {
+        let flagKey = "Backfill.relationships.v1"
+        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+            // OPTIMIZATION: Fetch all data once (these are relatively small lookups)
+            let sls = context.safeFetch(FetchDescriptor<StudentLesson>())
+            let students = context.safeFetch(FetchDescriptor<Student>())
+            let lessons = context.safeFetch(FetchDescriptor<Lesson>())
+            let studentsByID = students.toDictionary(by: \.id)
+            let lessonsByID = lessons.toDictionary(by: \.id)
+
+            // OPTIMIZATION: Process in batches and save periodically to avoid memory pressure
+            // For large datasets, process in chunks of 1000
+            let batchSize = 1000
+            var changed = false
+            var processed = 0
+            
+            for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
+                let batchEnd = min(batchStart + batchSize, sls.count)
+                let batch = Array(sls[batchStart..<batchEnd])
+                
+                for sl in batch {
+                    // CloudKit compatibility: Convert String lessonID to UUID for lookup
+                    guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else { continue }
+                    let targetLesson = lessonsByID[lessonIDUUID]
+                    let targetStudents: [Student] = sl.studentIDs.compactMap { idString in
+                        guard let id = UUID(uuidString: idString) else { return nil }
+                        return studentsByID[id]
+                    }
+                    if sl.lesson?.id != targetLesson?.id { sl.lesson = targetLesson; changed = true }
+                    let currentIDs = Set(sl.students.map { $0.id })
+                    let targetIDs = Set(targetStudents.map { $0.id })
+                    if currentIDs != targetIDs {
+                        sl.students = targetStudents
+                        changed = true
+                    }
+                    if changed {
+                        sl.syncSnapshotsFromRelationships()
+                    }
+                }
+                
+                processed += batch.count
+                // Save periodically to avoid holding too many changes in memory
+                if changed && processed % batchSize == 0 {
+                    context.safeSave()
+                    changed = false // Reset for next batch
+                }
+            }
+            
+            // Final save if there are remaining changes
+            if changed {
+                context.safeSave()
+            }
+            print("DataMigrations: Backfilled relationships for StudentLesson records")
+        }
+    }
+
+    /// Backfill isPresented flag from givenAt field.
+    /// One-time migration: if givenAt is set, isPresented should be true.
+    /// Idempotent: guarded by a UserDefaults flag.
+    static func backfillIsPresentedIfNeeded(using context: ModelContext) {
+        let flagKey = "Backfill.isPresentedFromGivenAt.v1"
+        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+            // OPTIMIZATION: Process in batches for large datasets
+            let sls = context.safeFetch(FetchDescriptor<StudentLesson>())
+            let batchSize = 1000
+            var changed = false
+            var updated = 0
+            
+            for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
+                let batchEnd = min(batchStart + batchSize, sls.count)
+                let batch = Array(sls[batchStart..<batchEnd])
+                
+                for sl in batch {
+                    if sl.givenAt != nil && sl.isPresented == false {
+                        sl.isPresented = true
+                        changed = true
+                        updated += 1
+                    }
+                }
+                
+                // Save periodically
+                if changed && (batchEnd % batchSize == 0 || batchEnd == sls.count) {
+                    context.safeSave()
+                    changed = false
+                }
+            }
+            
+            if updated > 0 {
+                print("DataMigrations: Backfilled isPresented flag for \(updated) StudentLesson records")
+            }
+        }
+    }
+    
+    /// Backfill scheduledForDay field from scheduledFor.
+    /// One-time migration that ensures scheduledForDay matches scheduledFor for all records.
+    /// Idempotent: guarded by a UserDefaults flag.
+    /// Note: This is a one-time migration. Use repairDenormalizedScheduledForDay for ongoing repairs.
+    static func backfillScheduledForDayIfNeeded(using context: ModelContext) {
+        let flagKey = "Backfill.scheduledForDay.v1"
+        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+            // OPTIMIZATION: Process in batches for large datasets
+            let sls = context.safeFetch(FetchDescriptor<StudentLesson>())
+            let batchSize = 1000
+            var fixed = 0
+            var needsSave = false
+            
+            for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
+                let batchEnd = min(batchStart + batchSize, sls.count)
+                let batch = Array(sls[batchStart..<batchEnd])
+                
+                for sl in batch {
+                    let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+                    if sl.scheduledForDay != correct {
+                        sl.scheduledForDay = correct
+                        fixed += 1
+                        needsSave = true
+                    }
+                }
+                
+                // Save periodically
+                if needsSave && (batchEnd % batchSize == 0 || batchEnd == sls.count) {
+                    context.safeSave()
+                    needsSave = false
+                }
+            }
+            
+            if fixed > 0 {
+                print("DataMigrations: Backfilled scheduledForDay for \(fixed) StudentLesson records")
+            }
+        }
+    }
 }

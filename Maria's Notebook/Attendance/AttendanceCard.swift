@@ -16,6 +16,7 @@ struct AttendanceCard: View {
     let onTap: () -> Void
     let onEditNote: (String?) -> Void
 
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showingNoteEditor = false
     @State private var draftNote: String = ""
 
@@ -36,6 +37,73 @@ struct AttendanceCard: View {
     private var hasNote: Bool {
         let t = record?.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return !t.isEmpty
+    }
+
+    // Original layout: note icon next to name (macOS and iOS regular)
+    @ViewBuilder
+    private var originalLayout: some View {
+        HStack(spacing: 8) {
+            Text(student.fullName)
+                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .medium, design: .rounded))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+            // Small note icon at far right (only when no note exists and editing)
+            if !hasNote && isEditing {
+                Button {
+                    draftNote = record?.note ?? ""
+                    showingNoteEditor = true
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .imageScale(.medium)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Add Note")
+                }
+                .buttonStyle(.plain)
+            }
+        }
+
+        // Compact status pill
+        Text(statusLabel)
+            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            .foregroundStyle(accentColor)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                Capsule().fill(accentColor.opacity(0.12))
+            )
+
+        // Clicking the note opens the editor only if editing, otherwise static display
+        if hasNote {
+            if isEditing {
+                Button {
+                    draftNote = record?.note ?? ""
+                    showingNoteEditor = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "note.text")
+                            .foregroundStyle(.secondary)
+                        Text(record?.note ?? "")
+                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help("Edit note")
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "note.text")
+                        .foregroundStyle(.secondary)
+                    Text(record?.note ?? "")
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+        }
     }
 
     private var background: some View {
@@ -65,44 +133,66 @@ struct AttendanceCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 2))
 
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
+#if os(iOS)
+                if hSizeClass == .compact {
+                    // iPhone compact layout: name on separate row, note at bottom
+                    // Name on its own row, can wrap to 2 lines
                     Text(student.fullName)
                         .font(.system(size: AppTheme.FontSize.titleSmall, weight: .medium, design: .rounded))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Spacer(minLength: 0)
-                    // Small note icon at far right (only when no note exists and editing)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    // Compact status pill
+                    Text(statusLabel)
+                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                        .foregroundStyle(accentColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule().fill(accentColor.opacity(0.12))
+                        )
+
+                    // Spacer to push note section to bottom
+                    Spacer(minLength: 4)
+
+                    // Note section at bottom: either add note icon or note text
                     if !hasNote && isEditing {
+                        // Add note icon button
                         Button {
                             draftNote = record?.note ?? ""
                             showingNoteEditor = true
                         } label: {
-                            Image(systemName: "square.and.pencil")
-                                .imageScale(.medium)
-                                .foregroundStyle(.secondary)
-                                .accessibilityLabel("Add Note")
+                            HStack(spacing: 6) {
+                                Image(systemName: "square.and.pencil")
+                                    .imageScale(.medium)
+                                    .foregroundStyle(.secondary)
+                                Text("Add Note")
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .buttonStyle(.plain)
-                    }
-                }
-
-                // Compact status pill
-                Text(statusLabel)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                    .foregroundStyle(accentColor)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(
-                        Capsule().fill(accentColor.opacity(0.12))
-                    )
-
-                // Clicking the note opens the editor only if editing, otherwise static display
-                if hasNote {
-                    if isEditing {
-                        Button {
-                            draftNote = record?.note ?? ""
-                            showingNoteEditor = true
-                        } label: {
+                        .accessibilityLabel("Add Note")
+                    } else if hasNote {
+                        // Note text display
+                        if isEditing {
+                            Button {
+                                draftNote = record?.note ?? ""
+                                showingNoteEditor = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "note.text")
+                                        .foregroundStyle(.secondary)
+                                    Text(record?.note ?? "")
+                                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .help("Edit note")
+                        } else {
                             HStack(spacing: 6) {
                                 Image(systemName: "note.text")
                                     .foregroundStyle(.secondary)
@@ -113,20 +203,15 @@ struct AttendanceCard: View {
                                     .truncationMode(.tail)
                             }
                         }
-                        .buttonStyle(.plain)
-                        .help("Edit note")
-                    } else {
-                        HStack(spacing: 6) {
-                            Image(systemName: "note.text")
-                                .foregroundStyle(.secondary)
-                            Text(record?.note ?? "")
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
                     }
+                } else {
+                    // iOS regular layout: original layout (same as macOS)
+                    originalLayout
                 }
+#else
+                // macOS: original layout
+                originalLayout
+#endif
             }
             .padding(10)
         }
