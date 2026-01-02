@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 enum StudentMode: String, CaseIterable, Identifiable {
     case roster = "Roster"
     case workOverview = "Workload"
+    case observationHeatmap = "Observations"
     var id: String { rawValue }
 }
 

@@ -108,7 +108,13 @@ struct AttendanceStore {
     func loadOrCreateRecords(for date: Date, students: [Student]) throws -> (records: [AttendanceRecord], didInsert: Bool) {
         let day = date.normalizedDay(using: calendar)
         var existing = try fetchRecords(for: day)
-        let existingByStudent = Dictionary(uniqueKeysWithValues: existing.map { ($0.studentID, $0) })
+        // Build dictionary safely, handling potential duplicates by keeping the first occurrence
+        var existingByStudent: [String: AttendanceRecord] = [:]
+        for record in existing {
+            if existingByStudent[record.studentID] == nil {
+                existingByStudent[record.studentID] = record
+            }
+        }
 
         var didInsert = false
         for student in students {
@@ -116,6 +122,7 @@ struct AttendanceStore {
                 let rec = AttendanceRecord(studentID: student.id, date: day, status: .unmarked, note: nil)
                 context.insert(rec)
                 existing.append(rec)
+                existingByStudent[student.id.uuidString] = rec
                 didInsert = true
             }
         }

@@ -538,6 +538,7 @@ public struct NoteDTO: Codable {
     public var scope: String // serialized enum value
     public var lessonID: UUID?
     public var workID: UUID?
+    public var imagePath: String?
 }
 
 public struct NonSchoolDayDTO: Codable {

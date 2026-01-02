@@ -49,6 +49,7 @@ struct StudentsView<WorkloadContent: View>: View {
     // MARK: - State for Roster Mode
     @State private var showingAddStudent = false
     @State private var selectedStudentID: UUID? = nil
+    @State private var selectedStudentForSheet: Student? = nil
     @State private var isShowingSaveError: Bool = false
     @State private var saveErrorMessage: String = ""
     
@@ -192,40 +193,82 @@ struct StudentsView<WorkloadContent: View>: View {
     }
 
     // MARK: - Body
+    
+    private var mainContent: some View {
+        Group {
+            if mode == .observationHeatmap {
+                // Full-screen dashboard view - no split needed
+                NavigationStack {
+                    ObservationHeatmapView()
+                        .navigationTitle("Observations")
+                        .toolbar {
+                            fullScreenModeToolbar
+                        }
+                }
+            } else if mode == .workOverview {
+                // Full-screen dashboard view - no split needed
+                NavigationStack {
+                    workloadContent
+                        .navigationTitle("Workload")
+                        .toolbar {
+                            fullScreenModeToolbar
+                        }
+                }
+            } else if mode == .roster && shouldUseGridView {
+                // Full-screen grid view for age/birthday/lastLesson sort orders
+                NavigationStack {
+                    rosterGridContent
+                        .navigationTitle("Students")
+                        .toolbar {
+                            toolbarContent
+                        }
+                }
+            } else {
+                // List-detail view - use split view (for Roster mode with alphabetical/manual sort)
+                NavigationSplitView {
+                    sidebarContent
+                } detail: {
+                    detailContent
+                }
+            }
+        }
+    }
+    
+    // MARK: - Grid View Support
+    
+    private var shouldUseGridView: Bool {
+        mode == .roster && (sortOrder == .age || sortOrder == .birthday || sortOrder == .lastLesson)
+    }
 
     var body: some View {
-        NavigationSplitView {
-            sidebarContent
-        } detail: {
-            detailContent
-        }
-        // Sheets and Alerts
-        .sheet(isPresented: $showingAddStudent) {
-            AddStudentView()
-        }
-        .alert("Save Failed", isPresented: $isShowingSaveError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(saveErrorMessage)
-        }
-        .alert(item: $importAlert) { alert in
-            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
-        }
-        // CSV Importer Logic
-        .fileImporter(
-            isPresented: $showingStudentCSVImporter,
-            allowedContentTypes: [.commaSeparatedText, .plainText]
-        ) { result in
-            handleFileImport(result)
-        }
-        .sheet(isPresented: $showingMappingSheet) {
-            StudentCSVMappingView(headers: mappingHeaders, onCancel: {
-                showingMappingSheet = false
-                pendingFileURL = nil
-            }, onConfirm: { mapping in
-                handleMappingConfirm(mapping)
-            })
-        }
+        mainContent
+            // Sheets and Alerts
+            .sheet(isPresented: $showingAddStudent) {
+                AddStudentView()
+            }
+            .alert("Save Failed", isPresented: $isShowingSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(saveErrorMessage)
+            }
+            .alert(item: $importAlert) { alert in
+                Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
+            }
+            // CSV Importer Logic
+            .fileImporter(
+                isPresented: $showingStudentCSVImporter,
+                allowedContentTypes: [.commaSeparatedText, .plainText]
+            ) { result in
+                handleFileImport(result)
+            }
+            .sheet(isPresented: $showingMappingSheet) {
+                StudentCSVMappingView(headers: mappingHeaders, onCancel: {
+                    showingMappingSheet = false
+                    pendingFileURL = nil
+                }, onConfirm: { mapping in
+                    handleMappingConfirm(mapping)
+                })
+            }
         .sheet(item: $pendingParsedImport, onDismiss: { pendingFileURL = nil }) { parsed in
             StudentImportPreviewView(parsed: parsed, onCancel: {
                 pendingParsedImport = nil
@@ -234,82 +277,99 @@ struct StudentsView<WorkloadContent: View>: View {
             })
             .frame(minWidth: 620, minHeight: 520)
         }
-        .onChange(of: appRouter.navigationDestination) { _, destination in
-            if case .newStudent = destination {
-                mode = .roster
-                showingAddStudent = true
-                appRouter.clearNavigation()
-            } else if case .importStudents = destination {
-                mode = .roster
-                showingStudentCSVImporter = true
-                appRouter.clearNavigation()
-            } else if case .openStudentDetail(let studentID) = destination {
-                mode = .roster
-                selectedStudentID = studentID
-                appRouter.clearNavigation()
-            }
+        .sheet(item: $selectedStudentForSheet) { student in
+            StudentDetailView(student: student)
+            #if os(macOS)
+                .frame(minWidth: 860, minHeight: 640)
+                .presentationSizingFitted()
+            #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            #endif
         }
-        .onAppear { 
-            ensureInitialManualOrderIfNeeded()
-            // Load data on-demand based on mode
-            Task { @MainActor in
-                await loadDataOnDemand()
+            .onChange(of: appRouter.navigationDestination) { _, destination in
+                if case .newStudent = destination {
+                    mode = .roster
+                    showingAddStudent = true
+                    appRouter.clearNavigation()
+                } else if case .importStudents = destination {
+                    mode = .roster
+                    showingStudentCSVImporter = true
+                    appRouter.clearNavigation()
+                } else if case .openStudentDetail(let studentID) = destination {
+                    mode = .roster
+                    selectedStudentID = studentID
+                    appRouter.clearNavigation()
+                }
             }
-        }
-        .onChange(of: mode) { _, _ in
-            Task { @MainActor in
-                await loadDataOnDemand()
+            .onAppear { 
+                ensureInitialManualOrderIfNeeded()
+                // Load data on-demand based on mode
+                Task { @MainActor in
+                    await loadDataOnDemand()
+                }
             }
-        }
-        .onChange(of: studentsSortOrderRaw) { _, _ in
-            Task { @MainActor in
-                await loadDataOnDemand()
+            .onChange(of: mode) { _, _ in
+                Task { @MainActor in
+                    await loadDataOnDemand()
+                }
             }
-        }
-        .onChange(of: studentsFilterRaw) { _, _ in
-            Task { @MainActor in
-                await loadDataOnDemand()
+            .onChange(of: studentsSortOrderRaw) { _, _ in
+                Task { @MainActor in
+                    await loadDataOnDemand()
+                }
             }
-        }
-        .onChange(of: attendanceRecordIDs) { _, _ in
-            Task { @MainActor in
-                await loadDataOnDemand()
+            .onChange(of: studentsFilterRaw) { _, _ in
+                Task { @MainActor in
+                    await loadDataOnDemand()
+                }
             }
-        }
-        .onChange(of: studentLessonIDs) { _, _ in
-            Task { @MainActor in
-                await loadDataOnDemand()
+            .onChange(of: attendanceRecordIDs) { _, _ in
+                Task { @MainActor in
+                    await loadDataOnDemand()
+                }
             }
-        }
-        .onChange(of: lessonIDs) { _, _ in
-            Task { @MainActor in
-                await loadDataOnDemand()
+            .onChange(of: studentLessonIDs) { _, _ in
+                Task { @MainActor in
+                    await loadDataOnDemand()
+                }
             }
-        }
-        .onChange(of: students.map { $0.id }) { _, _ in
-            ensureInitialManualOrderIfNeeded()
-            if viewModel.repairManualOrderUniquenessIfNeeded(students) {
-                try? modelContext.save()
+            .onChange(of: lessonIDs) { _, _ in
+                Task { @MainActor in
+                    await loadDataOnDemand()
+                }
             }
-        }
+            .onChange(of: students.map { $0.id }) { _, _ in
+                ensureInitialManualOrderIfNeeded()
+                if viewModel.repairManualOrderUniquenessIfNeeded(students) {
+                    try? modelContext.save()
+                }
+            }
     }
 
     // MARK: - Sidebar Content
     
     private var sidebarContent: some View {
         NavigationStack {
-            Group {
-                switch mode {
-                case .roster:
-                    rosterListContent
-                case .workOverview:
-                    workloadContent
+            rosterListContent
+                .navigationTitle("Students")
+                .toolbar {
+                    toolbarContent
                 }
+        }
+    }
+    
+    // MARK: - Full-Screen Mode Toolbar
+    
+    @ToolbarContentBuilder
+    private var fullScreenModeToolbar: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            Picker("Mode", selection: $mode) {
+                Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
+                Label("Workload", systemImage: "doc.text").tag(StudentMode.workOverview)
+                Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
             }
-            .navigationTitle("Students")
-            .toolbar {
-                toolbarContent
-            }
+            .pickerStyle(.segmented)
         }
     }
     
@@ -322,6 +382,7 @@ struct StudentsView<WorkloadContent: View>: View {
             Picker("Mode", selection: $mode) {
                 Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
                 Label("Workload", systemImage: "doc.text").tag(StudentMode.workOverview)
+                Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
             }
             .pickerStyle(.segmented)
         }
@@ -524,6 +585,47 @@ struct StudentsView<WorkloadContent: View>: View {
         }
     }
 
+    // MARK: - Roster Grid Content
+    
+    private var rosterGridContent: some View {
+        Group {
+            if filteredStudents.isEmpty {
+                ContentUnavailableView {
+                    Label("No students yet", systemImage: "person.3")
+                } description: {
+                    Text("Click the plus button to add your first student.")
+                } actions: {
+                    Button {
+                        showingAddStudent = true
+                    } label: {
+                        Label("Add Student", systemImage: "plus.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            } else {
+                StudentsCardsGridView(
+                    students: filteredStudents,
+                    isBirthdayMode: sortOrder == .birthday,
+                    isAgeMode: sortOrder == .age,
+                    isLastLessonMode: sortOrder == .lastLesson,
+                    lastLessonDays: daysSinceLastLessonByStudent,
+                    isManualMode: false,
+                    onTapStudent: { student in
+                        selectedStudentForSheet = student
+                    },
+                    onReorder: { movingStudent, fromIndex, toIndex, subset in
+                        // Reordering not supported in grid view modes
+                    }
+                )
+            }
+        }
+        .overlay {
+            ParsingOverlay(isParsing: $isParsing) {
+                parsingTask?.cancel()
+            }
+        }
+    }
+    
     // MARK: - Roster Content (List View)
     
     private var rosterListContent: some View {

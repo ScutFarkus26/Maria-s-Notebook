@@ -150,9 +150,9 @@ struct AttendanceView: View {
             }
         }
 #if os(iOS)
-        .toolbar {
+        .safeAreaInset(edge: .bottom) {
             if hSizeClass == .compact {
-                ToolbarItemGroup(placement: .bottomBar) {
+                HStack(spacing: 12) {
                     if emailEnabled {
                         Button {
                             prepareAttendanceEmail()
@@ -171,7 +171,10 @@ struct AttendanceView: View {
                         _ = saveCoordinator.save(modelContext, reason: "Mark all present")
                     }
                     .disabled(isNonSchoolDay || !isEditing)
+                    Spacer()
                 }
+                .padding()
+                .background(.bar)
             }
         }
 #endif

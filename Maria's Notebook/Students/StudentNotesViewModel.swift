@@ -24,6 +24,7 @@ public struct UnifiedNoteItem: Identifiable {
     public let associatedID: UUID?
     public let category: NoteCategory
     public let includeInReport: Bool
+    public let imagePath: String?
 }
 
 // MARK: - View Model
@@ -72,7 +73,8 @@ final class StudentNotesViewModel: ObservableObject {
                 color: .blue, // Blue for general
                 associatedID: note.id, // link back to the Note as the source object
                 category: note.category,
-                includeInReport: note.includeInReport
+                includeInReport: note.includeInReport,
+                imagePath: note.imagePath
             )
         }
         aggregated.append(contentsOf: generalItems)
@@ -112,7 +114,8 @@ final class StudentNotesViewModel: ObservableObject {
                     color: .orange, // Orange for work
                     associatedID: assoc,
                     category: .general, // ScopedNote doesn't have category, default to .general
-                    includeInReport: false // ScopedNote doesn't have includeInReport, default to false
+                    includeInReport: false, // ScopedNote doesn't have includeInReport, default to false
+                    imagePath: nil // ScopedNote doesn't support images
                 )
             }
             aggregated.append(contentsOf: workItems)
@@ -131,11 +134,25 @@ final class StudentNotesViewModel: ObservableObject {
         
         // Fetch all presentations to build a lookup
         let allPresentations: [Presentation] = (try? modelContext.fetch(FetchDescriptor<Presentation>())) ?? []
-        let presentationsByID: [String: Presentation] = Dictionary(uniqueKeysWithValues: allPresentations.map { ($0.id.uuidString, $0) })
+        // Build dictionary safely, handling potential duplicates by keeping the first occurrence
+        var presentationsByID: [String: Presentation] = [:]
+        for presentation in allPresentations {
+            let key = presentation.id.uuidString
+            if presentationsByID[key] == nil {
+                presentationsByID[key] = presentation
+            }
+        }
         
         // Fetch all lessons for context lookup
         let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
-        let lessonsByID: [String: Lesson] = Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id.uuidString, $0) })
+        // Build dictionary safely, handling potential duplicates by keeping the first occurrence
+        var lessonsByID: [String: Lesson] = [:]
+        for lesson in allLessons {
+            let key = lesson.id.uuidString
+            if lessonsByID[key] == nil {
+                lessonsByID[key] = lesson
+            }
+        }
         
         let presentationItems: [UnifiedNoteItem] = presentationScopedNotes.compactMap { note in
             guard let presentationID = note.presentationID,
@@ -167,7 +184,8 @@ final class StudentNotesViewModel: ObservableObject {
                 color: .purple, // Purple for presentations
                 associatedID: assoc,
                 category: .general, // ScopedNote doesn't have category, default to .general
-                includeInReport: false // ScopedNote doesn't have includeInReport, default to false
+                includeInReport: false, // ScopedNote doesn't have includeInReport, default to false
+                imagePath: nil // ScopedNote doesn't support images
             )
         }
         aggregated.append(contentsOf: presentationItems)
@@ -197,7 +215,8 @@ final class StudentNotesViewModel: ObservableObject {
                     color: .green, // Green for meetings
                     associatedID: meeting.id,
                     category: .general,
-                    includeInReport: false
+                    includeInReport: false,
+                    imagePath: nil // StudentMeeting doesn't support images
                 ))
             }
             if !meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -210,7 +229,8 @@ final class StudentNotesViewModel: ObservableObject {
                     color: .green,
                     associatedID: meeting.id,
                     category: .general,
-                    includeInReport: false
+                    includeInReport: false,
+                    imagePath: nil // StudentMeeting doesn't support images
                 ))
             }
             if !meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -223,7 +243,8 @@ final class StudentNotesViewModel: ObservableObject {
                     color: .green,
                     associatedID: meeting.id,
                     category: .general,
-                    includeInReport: false
+                    includeInReport: false,
+                    imagePath: nil // StudentMeeting doesn't support images
                 ))
             }
             if !meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -236,7 +257,8 @@ final class StudentNotesViewModel: ObservableObject {
                     color: .green,
                     associatedID: meeting.id,
                     category: .general,
-                    includeInReport: false
+                    includeInReport: false,
+                    imagePath: nil // StudentMeeting doesn't support images
                 ))
             }
             
@@ -319,7 +341,13 @@ final class StudentNotesViewModel: ObservableObject {
         // so we fetch all lessons and filter. This is still better than fetching all contracts/notes.
         let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
         let lessons = allLessons.filter { lessonIDs.contains($0.id) }
-        let byID: [UUID: Lesson] = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        // Build dictionary safely, handling potential duplicates by keeping the first occurrence
+        var byID: [UUID: Lesson] = [:]
+        for lesson in lessons {
+            if byID[lesson.id] == nil {
+                byID[lesson.id] = lesson
+            }
+        }
 
         var map: [String: String] = [:]
         for c in contracts {

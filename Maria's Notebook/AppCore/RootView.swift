@@ -124,6 +124,7 @@ struct RootView: View {
     @AppStorage("Backfill.relationships.v1") private var didBackfillRelationships: Bool = false
     @AppStorage("Backfill.isPresentedFromGivenAt.v1") private var didBackfillIsPresented: Bool = false
     @AppStorage("Backfill.scheduledForDay.v1") private var didBackfillScheduledForDay: Bool = false
+    @State private var isShowingQuickNote = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -267,9 +268,27 @@ struct RootView: View {
             }
         }
         .saveErrorAlert()
+        .overlay(alignment: .bottomTrailing) {
+            quickNoteButton
+        }
+        .sheet(isPresented: $isShowingQuickNote) {
+            QuickNoteSheet()
+        }
     #if os(macOS)
         .background(EnsureResizableWindow(minSize: NSSize(width: 900, height: 600)))
     #endif
+    }
+    
+    // MARK: - Quick Note Button
+    
+    private var quickNoteButton: some View {
+        Button {
+            isShowingQuickNote = true
+        } label: {
+            Label("Note", systemImage: "square.and.pencil")
+        }
+        .buttonStyle(.borderedProminent)
+        .padding()
     }
 
     // MARK: - Backfill

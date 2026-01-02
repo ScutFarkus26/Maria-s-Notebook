@@ -92,6 +92,7 @@ final class Note: Identifiable {
     // Store category as raw string for SwiftData/CloudKit compatibility
     private var categoryRaw: String = NoteCategory.general.rawValue
     var includeInReport: Bool = false
+    var imagePath: String? = nil
     
     // Computed property for category enum
     var category: NoteCategory {
@@ -123,7 +124,8 @@ final class Note: Identifiable {
         category: NoteCategory = .general,
         includeInReport: Bool = false,
         lesson: Lesson? = nil,
-        work: WorkModel? = nil
+        work: WorkModel? = nil,
+        imagePath: String? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -134,6 +136,7 @@ final class Note: Identifiable {
         self.includeInReport = includeInReport
         self.lesson = lesson
         self.work = work
+        self.imagePath = imagePath
         self.scopeBlob = try? JSONEncoder().encode(scope)
     }
 

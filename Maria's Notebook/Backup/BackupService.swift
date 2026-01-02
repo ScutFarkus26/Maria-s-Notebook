@@ -265,7 +265,8 @@ public final class BackupService {
                 body: n.body,
                 isPinned: n.isPinned,
                 scope: scopeString,
-                lessonID: n.lesson?.id
+                lessonID: n.lesson?.id,
+                imagePath: n.imagePath
             )
         }
 
@@ -1168,7 +1169,8 @@ public final class BackupService {
                 id: dto.id,
                 createdAt: dto.createdAt,
                 updatedAt: dto.updatedAt,
-                body: dto.body
+                body: dto.body,
+                imagePath: dto.imagePath
             )
             n.isPinned = dto.isPinned
             

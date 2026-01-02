@@ -54,7 +54,14 @@ final class AttendanceViewModel: ObservableObject {
             // CloudKit compatibility: Convert UUIDs to Strings for comparison
             let allowed = Set(students.map { $0.id.uuidString })
             let filtered = records.filter { allowed.contains($0.studentID) }
-            self.recordsByStudent = Dictionary(uniqueKeysWithValues: filtered.map { ($0.studentID, $0) })
+            // Build dictionary safely, handling potential duplicates by keeping the first occurrence
+            var recordsByStudent: [String: AttendanceRecord] = [:]
+            for record in filtered {
+                if recordsByStudent[record.studentID] == nil {
+                    recordsByStudent[record.studentID] = record
+                }
+            }
+            self.recordsByStudent = recordsByStudent
         } catch {
             // For now, ignore errors; UI will simply show unmarked
         }

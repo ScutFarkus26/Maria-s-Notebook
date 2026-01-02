@@ -8,6 +8,12 @@
 
 import SwiftUI
 
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
+
 struct StudentNoteRowView: View {
     let item: UnifiedNoteItem
 
@@ -25,7 +31,7 @@ struct StudentNoteRowView: View {
             }
 
             // 2. Center Content
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(item.contextText)
                         .font(.headline)
@@ -37,6 +43,9 @@ struct StudentNoteRowView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                
+                // Category badge
+                categoryBadge(item.category)
 
                 Text(item.body)
                     .font(.body)
@@ -44,6 +53,11 @@ struct StudentNoteRowView: View {
                     .lineLimit(4)
                     .truncationMode(.tail)
                     .fixedSize(horizontal: false, vertical: true) // Ensures text wraps properly
+                
+                // Display image if available
+                if let imagePath = item.imagePath {
+                    imageView(for: imagePath)
+                }
             }
         }
         .padding(.vertical, 8)
@@ -51,6 +65,27 @@ struct StudentNoteRowView: View {
     }
 
     // MARK: - Helpers
+    
+    @ViewBuilder
+    private func imageView(for imagePath: String) -> some View {
+        if let image = PhotoStorageService.loadImage(filename: imagePath) {
+            #if os(macOS)
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: 300, maxHeight: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.top, 8)
+            #else
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: 300, maxHeight: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.top, 8)
+            #endif
+        }
+    }
 
     private func iconName(for source: UnifiedNoteItem.Source) -> String {
         switch source {
@@ -69,6 +104,37 @@ struct StudentNoteRowView: View {
         formatter.doesRelativeDateFormatting = true
         return formatter.string(from: date)
     }
+    
+    @ViewBuilder
+    private func categoryBadge(_ category: NoteCategory) -> some View {
+        let color = categoryColor(for: category)
+        Text(category.rawValue.capitalized)
+            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(color.opacity(0.15))
+            )
+    }
+    
+    private func categoryColor(for category: NoteCategory) -> Color {
+        switch category {
+        case .academic:
+            return .blue
+        case .behavioral:
+            return .orange
+        case .social:
+            return .green
+        case .emotional:
+            return .pink
+        case .health:
+            return .red
+        case .general:
+            return .gray
+        }
+    }
 }
 
 // MARK: - Preview
@@ -85,7 +151,8 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 color: .green,
                 associatedID: nil,
                 category: .academic,
-                includeInReport: false
+                includeInReport: false,
+                imagePath: nil
             ))
             
             StudentNoteRowView(item: UnifiedNoteItem(
@@ -97,7 +164,8 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 color: .orange,
                 associatedID: nil,
                 category: .academic,
-                includeInReport: true
+                includeInReport: true,
+                imagePath: nil
             ))
         }
     }
