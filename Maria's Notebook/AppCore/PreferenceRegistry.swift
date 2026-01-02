@@ -19,7 +19,6 @@ public struct PreferenceDefinition: Sendable {
 public enum PreferenceRegistry {
     // Fill with real keys in use
     public static let definitions: [PreferenceDefinition] = [
-        PreferenceDefinition(key: "StudentsView.presentNow.excludedNames", type: .string),
         PreferenceDefinition(key: "PlanningInbox.order", type: .string),
         PreferenceDefinition(key: "AttendanceEmail.enabled", type: .bool),
         PreferenceDefinition(key: "AttendanceEmail.to", type: .string),
@@ -46,7 +45,6 @@ public enum PreferenceRegistry {
 
     public static let knownPrefixes: [String] = [
         "General.",
-        "StudentsView.presentNow.",
         "PlanningInbox.",
         "AttendanceEmail.",
         "LessonAge.",

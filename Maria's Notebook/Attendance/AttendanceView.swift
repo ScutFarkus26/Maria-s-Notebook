@@ -28,6 +28,7 @@ struct AttendanceView: View {
     @State private var showMailSheet = false
     @State private var toastMessage: String? = nil
     @State private var isEditing: Bool = true
+    @State private var localSortKey: AttendanceViewModel.SortKey = .lastName
 
     private var filteredStudents: [Student] {
         let visible = viewModel.visibleStudents(from: allStudents)
@@ -90,6 +91,7 @@ struct AttendanceView: View {
             viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
             _ = saveCoordinator.save(modelContext, reason: "Ensure attendance records exist for selected day")
             isEditing = !isLocked(for: viewModel.selectedDate)
+            localSortKey = viewModel.sortKey
         }
         .onChange(of: viewModel.selectedDate) { _, newValue in
             let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
@@ -105,6 +107,12 @@ struct AttendanceView: View {
             // If students change (added/removed), ensure records exist
             viewModel.load(for: viewModel.selectedDate, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
             _ = saveCoordinator.save(modelContext, reason: "Ensure attendance records exist for selected day")
+        }
+        .onChange(of: localSortKey) { _, newValue in
+            // Defer the update to avoid publishing during view updates
+            DispatchQueue.main.async {
+                viewModel.sortKey = newValue
+            }
         }
 #if os(iOS)
         .sheet(isPresented: $showMailSheet) {
@@ -260,7 +268,7 @@ struct AttendanceView: View {
             // Row 2: Sort filter
             HStack(spacing: 16) {
                 // Sort picker
-                Picker("Sort", selection: $viewModel.sortKey) {
+                Picker("Sort", selection: $localSortKey) {
                     Text("First").tag(AttendanceViewModel.SortKey.firstName)
                     Text("Last").tag(AttendanceViewModel.SortKey.lastName)
                 }
@@ -426,7 +434,7 @@ struct AttendanceView: View {
 
             // Row 3: Sort filter
             HStack(spacing: 12) {
-                Picker("Sort", selection: $viewModel.sortKey) {
+                Picker("Sort", selection: $localSortKey) {
                     Text("First").tag(AttendanceViewModel.SortKey.firstName)
                     Text("Last").tag(AttendanceViewModel.SortKey.lastName)
                 }

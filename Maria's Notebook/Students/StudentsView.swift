@@ -43,7 +43,6 @@ struct StudentsView<WorkloadContent: View>: View {
     // MARK: - App Storage for Roster Mode
     @AppStorage("StudentsView.sortOrder") private var studentsSortOrderRaw: String = "alphabetical"
     @AppStorage("StudentsView.selectedFilter") private var studentsFilterRaw: String = "all"
-    @AppStorage("StudentsView.presentNow.excludedNames") private var presentNowExcludedNamesRaw: String = "danny de berry,lil dan d"
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
@@ -94,22 +93,6 @@ struct StudentsView<WorkloadContent: View>: View {
     private var levelFilters: [StudentsFilter] { [.upper, .lower] }
 
     // Logic helpers
-    private var excludedPresentNowNames: Set<String> {
-        let lower = presentNowExcludedNamesRaw.lowercased()
-        let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
-        let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        return Set(tokens)
-    }
-
-    private var excludedPresentNowIDs: Set<UUID> {
-        let names = excludedPresentNowNames
-        let ids = students.compactMap { s -> UUID? in
-            let name = s.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            return names.contains(name) ? s.id : nil
-        }
-        return Set(ids)
-    }
-
     private var hiddenTestStudentIDs: Set<UUID> {
         guard showTestStudents == false else { return [] }
         let lower = testStudentNamesRaw.lowercased()
@@ -133,7 +116,6 @@ struct StudentsView<WorkloadContent: View>: View {
         // CloudKit compatibility: Convert String studentIDs to UUIDs
         var ids = Set(todays.compactMap { UUID(uuidString: $0.studentID) })
         ids.subtract(hiddenTestStudentIDs)
-        ids.subtract(excludedPresentNowIDs)
         return ids
     }
     

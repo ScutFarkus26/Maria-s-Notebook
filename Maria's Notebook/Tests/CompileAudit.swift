@@ -78,7 +78,6 @@ struct CompileAudit {
         touchType(_AuditSettingsGroup.self);       touchBody(_AuditSettingsGroup.self)
         // Subsections
         touchType(SchoolCalendarSettingsView.self); touchBody(SchoolCalendarSettingsView.self)
-        touchType(PresentNowSettingsView.self);     touchBody(PresentNowSettingsView.self)
         touchType(LessonAgeSettingsView.self);      touchBody(LessonAgeSettingsView.self)
         touchType(WorkAgeSettingsView.self);        touchBody(WorkAgeSettingsView.self)
     }

@@ -66,6 +66,41 @@ struct SchoolCalendarSettingsView: View {
             Text("These dates will be treated as non-school days across planning and attendance.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            
+            Divider()
+                .padding(.vertical, 8)
+            
+            // Florida Grade Guidelines
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "graduationcap.fill")
+                        .foregroundStyle(.secondary)
+                    Text("Florida Grade Guidelines")
+                        .font(.headline)
+                }
+                
+                Text("Grade assignments based on student age as of September 1st:")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading)
+                ], alignment: .leading, spacing: 6) {
+                    GradeGuidelineRow(age: "Under 6", grade: "Kindergarten")
+                    GradeGuidelineRow(age: "Age 6", grade: "1st Grade")
+                    GradeGuidelineRow(age: "Age 7", grade: "2nd Grade")
+                    GradeGuidelineRow(age: "Age 8", grade: "3rd Grade")
+                    GradeGuidelineRow(age: "Age 9", grade: "4th Grade")
+                    GradeGuidelineRow(age: "Age 10", grade: "5th Grade")
+                    GradeGuidelineRow(age: "Age 11", grade: "6th Grade")
+                    GradeGuidelineRow(age: "Age 12+", grade: "Graduated")
+                }
+                .padding(.top, 4)
+            }
+            .padding(.top, 8)
         }
         .onAppear { reload() }
     }
@@ -120,5 +155,24 @@ struct SchoolCalendarSettingsView: View {
         }
         try? modelContext.save()
         reload()
+    }
+}
+
+private struct GradeGuidelineRow: View {
+    let age: String
+    let grade: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(age)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .frame(width: 55, alignment: .leading)
+            Text("→")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+            Text(grade)
+                .font(.caption)
+        }
     }
 }

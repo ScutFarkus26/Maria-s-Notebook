@@ -1739,7 +1739,6 @@ public final class BackupService {
         "WorkAge.freshColorHex",
         "WorkAge.warningColorHex",
         "WorkAge.overdueColorHex",
-        "StudentsView.presentNow.excludedNames",
         "Backup.encrypt",
         "LastBackupTimeInterval",
         "lastBackupTimeInterval"

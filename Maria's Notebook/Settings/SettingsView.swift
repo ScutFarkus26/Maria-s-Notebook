@@ -22,16 +22,7 @@ struct SettingsView: View {
     @Query private var workContracts: [WorkContract]
     @Query private var presentations: [Presentation]
     @Query private var notes: [Note]
-    @Query private var attendance: [AttendanceRecord]
-
-    // New state properties for Advanced / Debug section
-    @State private var showDannyResetConfirm = false
-    @State private var showPurgeLegacyWorkConfirm = false
-    @State private var dannyResetSummary: String? = nil
-    @State private var seedSummary: String? = nil
-
-    @State private var maintenanceAlert: (title: String, message: String)? = nil
-    @State private var showingDuplicatesPreview = false
+    @Query private var meetings: [StudentMeeting]
 
     private let overviewColumns: [GridItem] = [
         GridItem(.flexible(), spacing: 16),
@@ -44,6 +35,18 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    // MARK: - School Configuration Section
+                    schoolConfigurationSection
+                    
+                    // MARK: - Students Section
+                    studentsSection
+                    
+                    // MARK: - Attendance Section
+                    attendanceSection
+                    
+                    // MARK: - Data Management Section
+                    dataManagementSection
+                    
                     // MARK: - Overview Section
                     SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
                         // Row 1: Core (Existing)
@@ -62,24 +65,12 @@ struct SettingsView: View {
                             StatCard(title: "Work Items", value: "\(workContracts.count)", subtitle: "Assigned", systemImage: "doc.text.fill")
                             StatCard(title: "Presentations", value: "\(presentations.count)", subtitle: "History", systemImage: "easel.fill")
                             StatCard(title: "Observations", value: "\(notes.count)", subtitle: "Notes", systemImage: "note.text")
-                            StatCard(title: "Attendance", value: "\(attendance.count)", subtitle: "Days", systemImage: "calendar")
+                            StatCard(title: "Meetings", value: "\(meetings.count)", subtitle: "Records", systemImage: "person.2.fill")
                         }
                     }
                     
-                    // MARK: - Attendance Section
-                    attendanceSection
-                    
-                    // MARK: - School Configuration Section
-                    schoolConfigurationSection
-                    
-                    // MARK: - Data Management Section
-                    dataManagementSection
-                    
-                    // MARK: - Maintenance Section
-                    maintenanceSection
-                    
-                    // MARK: - Advanced / Debug Section
-                    advancedDebugSection
+                    // MARK: - iCloud Status Section
+                    iCloudStatusSection
                 }
                 .frame(maxWidth: 900)
                 .padding(.horizontal, 24)
@@ -104,69 +95,6 @@ struct SettingsView: View {
                 ]
             )
             #endif
-        }
-        .alert(isPresented: isMaintenanceAlertPresented) {
-            Alert(
-                title: Text(maintenanceAlert?.title ?? "Maintenance"),
-                message: Text(maintenanceAlert?.message ?? ""),
-                dismissButton: .default(Text("OK"))
-            )
-        }
-        .alert("Delete History?", isPresented: $showDannyResetConfirm) {
-            Button("Delete", role: .destructive) {
-                Task { @MainActor in
-                    do {
-                        let summary = try StudentDataWiper.wipeDannyAndLilDanD(using: modelContext)
-                        dannyResetSummary = summary
-                        _ = SaveCoordinator().save(modelContext, reason: "Admin wipe Danny + Lil Dan D history")
-                    } catch {
-                        dannyResetSummary = "Failed to delete history: \(error.localizedDescription)"
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This action will permanently delete all lesson and work history for the students named “Danny de Berry” and “Lil Dan D”. This cannot be undone.")
-        }
-        .alert("Purge Legacy WorkModel Data?", isPresented: $showPurgeLegacyWorkConfirm) {
-            Button("Purge", role: .destructive) {
-                Task { @MainActor in
-                    do {
-                        // Delete all legacy WorkModel-related entities
-                        try modelContext.delete(model: WorkCheckIn.self)
-                        try modelContext.delete(model: WorkNote.self)
-                        try modelContext.delete(model: WorkParticipantEntity.self)
-                        try modelContext.delete(model: WorkModel.self)
-                        try modelContext.save()
-                        maintenanceAlert = (title: "Purge Complete", message: "All WorkModel, WorkParticipantEntity, WorkNote, and WorkCheckIn records have been deleted.")
-                    } catch {
-                        maintenanceAlert = (title: "Purge Failed", message: error.localizedDescription)
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will permanently delete all legacy WorkModel data and related entities. This cannot be undone.")
-        }
-        // New alert showing completion summary
-        .alert("History Deleted", isPresented: isDannyResetSummaryPresented) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(dannyResetSummary ?? "")
-        }
-        // Alert for seed/scan summary
-        .alert("Operation Complete", isPresented: isSeedSummaryPresented) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(seedSummary ?? "")
-        }
-        .sheet(isPresented: $showingDuplicatesPreview) {
-            DuplicateStudentsPreviewView { summary in
-                let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
-                maintenanceAlert = (title: "Merge Complete", message: message)
-            }
-        }
-        .onAppear {
             // If we are no longer in an ephemeral session (i.e., persistent container opened), clear any stale message.
             if !UserDefaults.standard.bool(forKey: MariasToolboxApp.ephemeralSessionFlagKey) {
                 UserDefaults.standard.removeObject(forKey: MariasToolboxApp.lastStoreErrorDescriptionKey)
@@ -175,45 +103,21 @@ struct SettingsView: View {
     }
 
     // Extracted sections to reduce type-checker complexity
+    private var studentsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "Students")
+            SettingsGroup(title: "Test Students", systemImage: "person.2.slash") {
+                TestStudentsSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
     private var dataManagementSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Data Management")
             DataManagementGrid()
         }
-    }
-
-    private var maintenanceSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Maintenance")
-            maintenancePane
-        }
-    }
-
-    private var maintenancePane: some View {
-        MaintenanceSettingsView(
-            maintenanceAlert: $maintenanceAlert,
-            onMergeDuplicates: {
-                do {
-                    let summary = try StudentDuplicatesCleaner.mergeDuplicates(using: modelContext)
-                    let message = "Groups of Students considered: \(summary.groupsConsidered)\nGroups of Students merged: \(summary.groupsMerged)\nStudents deleted: \(summary.studentsDeleted)\nReferences updated: \(summary.referencesUpdated)"
-                    maintenanceAlert = (title: "Merge Duplicate Students", message: message)
-                } catch {
-                    maintenanceAlert = (title: "Merge Failed", message: error.localizedDescription)
-                }
-            },
-            onPreviewDuplicates: {
-                showingDuplicatesPreview = true
-            },
-            onCleanupZeroStudentLessons: {
-                do {
-                    let summary = try StudentLessonCleaner.removeZeroStudentLessons(using: modelContext)
-                    let msg = "Zero-student lessons found: \(summary.totalFound)\nDeleted: \(summary.deleted)\nWork links cleared: \(summary.worksCleared)"
-                    maintenanceAlert = (title: "Remove Zero-Student Lessons", message: msg)
-                } catch {
-                    maintenanceAlert = (title: "Cleanup Failed", message: error.localizedDescription)
-                }
-            }
-        )
     }
 
     private var schoolConfigurationSection: some View {
@@ -229,75 +133,21 @@ struct SettingsView: View {
     private var attendanceSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Attendance")
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 24),
-                GridItem(.flexible(), spacing: 24)
-            ], spacing: 24) {
-                SettingsGroup(title: "Present Now", systemImage: "line.3.horizontal.decrease.circle") {
-                    PresentNowSettingsView()
-                        .frame(maxWidth: .infinity)
-                }
-                .frame(maxWidth: .infinity)
-
-                SettingsGroup(title: "Attendance Email", systemImage: "envelope") {
-                    AttendanceEmailSettingsView()
-                        .frame(maxWidth: .infinity)
-                }
-                .frame(maxWidth: .infinity)
+            SettingsGroup(title: "Attendance Email", systemImage: "envelope") {
+                AttendanceEmailSettingsView()
+                    .frame(maxWidth: .infinity)
             }
         }
     }
-
-    private var advancedDebugSection: some View {
+    
+    private var iCloudStatusSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Advanced / Debug")
-            DebugToolsView(
-                showDannyResetConfirm: $showDannyResetConfirm,
-                showPurgeLegacyWorkConfirm: $showPurgeLegacyWorkConfirm,
-                onScanAndQueue: {
-                    Task { @MainActor in
-                        do {
-                            let result = try scanAndBackfillBlockedLessonsGrouped(modelContext: modelContext)
-                            seedSummary = result
-                        } catch {
-                            seedSummary = "Error: \(error.localizedDescription)"
-                        }
-                    }
-                },
-                onConsolidate: {
-                    Task { @MainActor in
-                        do {
-                            let result = try consolidateOnDeckLessons(modelContext: modelContext)
-                            seedSummary = result
-                        } catch {
-                            seedSummary = "Error: \(error.localizedDescription)"
-                        }
-                    }
-                }
-            )
+            SettingsCategoryHeader(title: "iCloud")
+            SettingsGroup(title: "iCloud Status", systemImage: "icloud.fill") {
+                CloudKitStatusSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
         }
-    }
-
-    // Extracted Bindings to reduce type-checker complexity
-    private var isMaintenanceAlertPresented: Binding<Bool> {
-        Binding<Bool>(
-            get: { maintenanceAlert != nil },
-            set: { if !$0 { maintenanceAlert = nil } }
-        )
-    }
-
-    private var isDannyResetSummaryPresented: Binding<Bool> {
-        Binding<Bool>(
-            get: { dannyResetSummary != nil },
-            set: { if !$0 { dannyResetSummary = nil } }
-        )
-    }
-
-    private var isSeedSummaryPresented: Binding<Bool> {
-        Binding<Bool>(
-            get: { seedSummary != nil },
-            set: { if !$0 { seedSummary = nil } }
-        )
     }
 
     private var studentsTotal: Int { students.count }
