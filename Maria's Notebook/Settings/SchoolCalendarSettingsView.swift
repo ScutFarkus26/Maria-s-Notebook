@@ -77,6 +77,34 @@ struct SchoolCalendarSettingsView: View {
                 .padding(.vertical, 8)
             
             // Florida Grade Guidelines
+            #if os(macOS)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "graduationcap.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text("Florida Grade Guidelines")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading)
+                ], spacing: 4) {
+                    GradeGuidelineRowCompact(age: "Under 6", grade: "Kindergarten")
+                    GradeGuidelineRowCompact(age: "Age 6", grade: "1st Grade")
+                    GradeGuidelineRowCompact(age: "Age 7", grade: "2nd Grade")
+                    GradeGuidelineRowCompact(age: "Age 8", grade: "3rd Grade")
+                    GradeGuidelineRowCompact(age: "Age 9", grade: "4th Grade")
+                    GradeGuidelineRowCompact(age: "Age 10", grade: "5th Grade")
+                    GradeGuidelineRowCompact(age: "Age 11", grade: "6th Grade")
+                    GradeGuidelineRowCompact(age: "Age 12+", grade: "Graduated")
+                }
+                .padding(.top, 4)
+            }
+            .padding(.top, 4)
+            #else
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
                     Image(systemName: "graduationcap.fill")
@@ -102,6 +130,7 @@ struct SchoolCalendarSettingsView: View {
                 }
             }
             .padding(.top, 8)
+            #endif
         }
         .onAppear { reload() }
     }
@@ -192,3 +221,25 @@ private struct GradeGuidelineRow: View {
         )
     }
 }
+
+#if os(macOS)
+private struct GradeGuidelineRowCompact: View {
+    let age: String
+    let grade: String
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(age)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("→")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            Text(grade)
+                .font(.caption)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+#endif
