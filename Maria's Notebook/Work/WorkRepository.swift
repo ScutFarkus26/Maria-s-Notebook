@@ -6,12 +6,105 @@ struct WorkRepository {
     let context: ModelContext
 
     // MARK: - Fetch
-    func fetchWork(id: UUID) -> WorkModel? {
+    /// Fetch a single WorkContract by ID
+    func fetchWork(id: UUID) -> WorkContract? {
+        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
+        return (try? context.fetch(descriptor))?.first
+    }
+    
+    /// Fetch multiple WorkContract entities
+    /// - Parameters:
+    ///   - predicate: Optional predicate to filter contracts. If nil, fetches all contracts.
+    ///   - sortBy: Optional sort descriptors. Defaults to sorting by createdAt descending.
+    /// - Returns: Array of WorkContract entities matching the criteria
+    func fetchWorkContracts(
+        predicate: Predicate<WorkContract>? = nil,
+        sortBy: [SortDescriptor<WorkContract>] = [SortDescriptor(\.createdAt, order: .reverse)]
+    ) -> [WorkContract] {
+        var descriptor = FetchDescriptor<WorkContract>()
+        if let predicate = predicate {
+            descriptor.predicate = predicate
+        }
+        descriptor.sortBy = sortBy
+        return (try? context.fetch(descriptor)) ?? []
+    }
+    
+    /// Legacy method: Fetch WorkModel by ID (kept for backward compatibility with legacy data)
+    @available(*, deprecated, message: "Use fetchWork(id:) to fetch WorkContract instead")
+    func fetchWorkModel(id: UUID) -> WorkModel? {
         let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
         return (try? context.fetch(descriptor))?.first
     }
 
-    // MARK: - Create
+    // MARK: - Create (WorkContract)
+    /// Create a new WorkContract for a single student
+    @discardableResult
+    func createWorkContract(
+        studentID: UUID,
+        lessonID: UUID,
+        title: String? = nil,
+        kind: WorkKind? = nil,
+        presentationID: UUID? = nil,
+        scheduledDate: Date? = nil
+    ) throws -> WorkContract {
+        let contract = WorkContract(
+            id: UUID(),
+            createdAt: Date(),
+            studentID: studentID.uuidString,
+            lessonID: lessonID.uuidString,
+            presentationID: presentationID?.uuidString,
+            title: title,
+            status: .active,
+            scheduledDate: scheduledDate,
+            completedAt: nil,
+            legacyStudentLessonID: nil,
+            kind: kind
+        )
+        context.insert(contract)
+        try context.save()
+        return contract
+    }
+    
+    // MARK: - Update (WorkContract)
+    /// Mark a WorkContract as completed
+    func markContractCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) throws {
+        guard let contract = fetchWork(id: id) else { return }
+        contract.status = .complete
+        contract.completedAt = Date()
+        if let outcome = outcome {
+            contract.completionOutcome = outcome
+        }
+        if let note = note {
+            contract.completionNote = note
+        }
+        try context.save()
+    }
+    
+    /// Update a WorkContract's status
+    func updateContractStatus(id: UUID, status: WorkStatus) throws {
+        guard let contract = fetchWork(id: id) else { return }
+        contract.status = status
+        try context.save()
+    }
+
+    // MARK: - Delete (WorkContract)
+    func deleteWork(id: UUID) throws {
+        guard let contract = fetchWork(id: id) else { return }
+        // Resolve attributes that UI might still touch briefly
+        _ = contract.title
+        _ = contract.createdAt
+        _ = contract.completedAt
+        _ = contract.status
+        _ = contract.studentID
+        _ = contract.lessonID
+
+        context.delete(contract)
+        try context.save()
+    }
+    
+    // MARK: - Legacy Methods (WorkModel) - Deprecated
+    /// Legacy method: Create WorkModel (deprecated in favor of WorkContract)
+    @available(*, deprecated, message: "Use createWorkContract instead. WorkModel is deprecated in favor of WorkContract.")
     @discardableResult
     func createWork(title: String,
                     studentIDs: [UUID],
@@ -57,31 +150,15 @@ struct WorkRepository {
         return work
     }
 
-    // MARK: - Toggle Completion (per student)
+    /// Legacy method: Toggle completion for WorkModel (deprecated)
+    @available(*, deprecated, message: "WorkModel is deprecated. Use WorkContract status updates instead.")
     func toggleCompletion(workID: UUID, studentID: UUID) throws {
-        guard let work = fetchWork(id: workID) else { return }
+        guard let work = fetchWorkModel(id: workID) else { return }
         if work.isStudentCompleted(studentID) {
             work.markStudent(studentID, completedAt: nil)
         } else {
             work.markStudent(studentID, completedAt: Date())
         }
-        try context.save()
-    }
-
-    // MARK: - Delete
-    func deleteWork(id: UUID) throws {
-        guard let work = fetchWork(id: id) else { return }
-        // Resolve attributes that UI might still touch briefly
-        _ = work.title
-        _ = work.notes
-        _ = work.createdAt
-        _ = work.completedAt
-        _ = work.workType
-        _ = work.studentLessonID
-        for p in (work.participants ?? []) { _ = p.studentID; _ = p.completedAt }
-        for ci in (work.checkIns ?? []) { _ = ci.id; _ = ci.date; _ = ci.status; _ = ci.purpose; _ = ci.note }
-
-        context.delete(work)
         try context.save()
     }
 }

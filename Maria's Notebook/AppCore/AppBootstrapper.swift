@@ -54,10 +54,7 @@ final class AppBootstrapper: ObservableObject {
         // Clean orphaned student IDs from StudentLesson records
         DataMigrations.cleanOrphanedStudentIDs(using: context)
         
-        // 4. Legacy Data (Run asynchronously without awaiting if it's safe, or await if dependent)
-        LegacyNotesMigration.runIfNeeded(modelContext: context)
-        
-        // 5. Signal UI
+        // 4. Signal UI
         AppRouter.shared.refreshPlanningInbox()
         
         print("AppBootstrapper: Startup checks complete.")
