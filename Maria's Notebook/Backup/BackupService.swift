@@ -1559,6 +1559,78 @@ public final class BackupService {
     }
 
     // MARK: - Helpers
+    
+    // MARK: - Deep Verification
+    
+    /// Performs a full integrity check on a backup file immediately after creation.
+    /// Decrypts, decompresses, and validates the checksum of the payload.
+    private func verifyExport(at url: URL, password: String?) throws {
+        let data = try Data(contentsOf: url)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        
+        // 1. Decode Envelope
+        let envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        
+        // 2. Resolve Payload (Decrypt/Decompress)
+        let payloadBytes: Data
+        
+        if let enc = envelope.encryptedPayload {
+            // It's encrypted - verify password works
+            guard let password = password, !password.isEmpty else {
+                throw NSError(domain: "BackupService", code: 1301, userInfo: [NSLocalizedDescriptionKey: "Verification failed: Backup is encrypted but no password provided for verification."])
+            }
+            
+            // Extract Salt & Ciphertext
+            guard enc.count > 32 else {
+                throw NSError(domain: "BackupService", code: 1302, userInfo: [NSLocalizedDescriptionKey: "Verification failed: Encrypted data is too short."])
+            }
+            
+            let salt = enc.prefix(32)
+            let ciphertext = enc.dropFirst(32)
+            let key = deriveKey(password: password, salt: Data(salt))
+            
+            // Attempt Decrypt
+            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
+            let decryptedBytes = try AES.GCM.open(sealedBox, using: key)
+            
+            // Handle Compression inside Encryption
+            if envelope.manifest.compression != nil {
+                payloadBytes = try decompressData(decryptedBytes)
+            } else {
+                payloadBytes = decryptedBytes
+            }
+            
+        } else if let compressed = envelope.compressedPayload {
+            // It's compressed but not encrypted
+            payloadBytes = try decompressData(compressed)
+            
+        } else if let rawPayload = envelope.payload {
+            // Legacy/Plain format - re-encode to check
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            encoder.outputFormatting = .sortedKeys
+            payloadBytes = try encoder.encode(rawPayload)
+        } else {
+             throw NSError(domain: "BackupService", code: 1303, userInfo: [NSLocalizedDescriptionKey: "Verification failed: No payload found in backup."])
+        }
+        
+        // 3. Verify Checksum (Integrity)
+        if !envelope.manifest.sha256.isEmpty {
+            let calculatedSha = sha256Hex(payloadBytes)
+            guard calculatedSha == envelope.manifest.sha256 else {
+                throw NSError(domain: "BackupService", code: 1304, userInfo: [
+                    NSLocalizedDescriptionKey: "Verification failed: Integrity check failed.",
+                    NSLocalizedFailureReasonErrorKey: "The data written to disk does not match the manifest checksum. The file may be corrupted."
+                ])
+            }
+        }
+        
+        // 4. Verify Payload decoding
+        // We don't need to map the whole object graph, just ensure it decodes to the struct
+        let _ = try decoder.decode(BackupPayload.self, from: payloadBytes)
+    }
+    
     private func safeFetch<T: PersistentModel>(_ type: T.Type, using context: ModelContext) -> [T] {
         let descriptor = FetchDescriptor<T>()
         return (try? context.fetch(descriptor)) ?? []

@@ -793,13 +793,22 @@ struct MariasToolboxApp: App {
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
-        .defaultSize(width: 1000, height: 700)
+        .defaultSize(width: 800, height: 700)
         #endif
         .modelContainer(sharedModelContainer)
         .commands {
             // 1. STANDARD "NEW" ITEMS (File > New)
             // Consolidates all creation actions into the standard location
             CommandGroup(replacing: .newItem) {
+                #if os(macOS)
+                Button("New Window") {
+                    // Create a new window by requesting a new scene session activation
+                    NSApplication.shared.requestSceneSessionActivation(nil, userActivity: nil, options: nil, errorHandler: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift, .option])
+                Divider()
+                #endif
+                
                 Button("New Lesson") { appRouter.requestNewLesson() }
                     .keyboardShortcut("n", modifiers: [.command])
                 
