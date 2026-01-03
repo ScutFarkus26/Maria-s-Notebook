@@ -202,6 +202,9 @@ struct StudentsView<WorkloadContent: View>: View {
                         .toolbar {
                             fullScreenModeToolbar
                         }
+#if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+#endif
                 }
             } else if mode == .workOverview {
                 // Full-screen dashboard view - no split needed
@@ -211,6 +214,9 @@ struct StudentsView<WorkloadContent: View>: View {
                         .toolbar {
                             fullScreenModeToolbar
                         }
+#if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+#endif
                 }
             } else if shouldUseGridView {
                 // Full-screen grid view for age/birthday modes or lastLesson sort order
@@ -220,14 +226,40 @@ struct StudentsView<WorkloadContent: View>: View {
                         .toolbar {
                             toolbarContent
                         }
+#if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+#endif
+                }
+            } else if mode == .roster {
+                // Full-screen list view for Roster mode
+                NavigationStack {
+                    rosterListContent
+                        .navigationTitle("Students")
+                        .toolbar {
+                            toolbarContent
+                        }
+#if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+#endif
+                        .listStyle(.plain)
                 }
             } else {
-                // List-detail view - use split view (for Roster mode with alphabetical/manual sort)
+                // Fallback: List-detail split (kept for safety)
                 NavigationSplitView {
                     sidebarContent
                 } detail: {
-                    detailContent
+                    NavigationStack {
+                        detailContent
+                            .navigationTitle("Students")
+                            .toolbar {
+                                toolbarContent
+                            }
+#if os(iOS)
+                            .navigationBarTitleDisplayMode(.inline)
+#endif
+                    }
                 }
+                .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 420)
             }
         }
     }
@@ -342,10 +374,11 @@ struct StudentsView<WorkloadContent: View>: View {
         NavigationStack {
             rosterListContent
                 .navigationTitle("Students")
-                .toolbar {
-                    toolbarContent
-                }
+#if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+#endif
         }
+        .listStyle(.sidebar)
     }
     
     // MARK: - Full-Screen Mode Toolbar
@@ -426,6 +459,7 @@ struct StudentsView<WorkloadContent: View>: View {
                     Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
                 }
                 .pickerStyle(.segmented)
+                .controlSize(.regular)
             }
         }
         #else
@@ -591,6 +625,7 @@ struct StudentsView<WorkloadContent: View>: View {
                     Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
                 }
                 .pickerStyle(.segmented)
+                .controlSize(.regular)
             }
             
             // Sort Order Menu (only show in roster mode, not age/birthday/lastLesson modes)
@@ -616,6 +651,7 @@ struct StudentsView<WorkloadContent: View>: View {
                     } label: {
                         Label("Sort", systemImage: "arrow.up.arrow.down")
                     }
+                    .controlSize(.regular)
                 }
                 
                 // Filter Menu (show in roster/age/birthday/lastLesson modes)
@@ -656,6 +692,7 @@ struct StudentsView<WorkloadContent: View>: View {
                     } label: {
                         Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
                     }
+                    .controlSize(.regular)
                 }
                 
                 if effectiveSortOrder == .manual {
@@ -910,12 +947,14 @@ struct StudentsView<WorkloadContent: View>: View {
                             daysSinceLastLesson: daysSinceLastLessonByStudent[student.id]
                         )
                         .tag(student.id)
+                        .onTapGesture {
+                            selectedStudentForSheet = student
+                        }
                     }
                     .onMove { source, destination in
                         handleManualReorder(from: source, to: destination)
                     }
                 }
-                .listStyle(.sidebar)
             }
         }
         .overlay {
@@ -1139,3 +1178,4 @@ struct SidebarNavButton: View {
         .padding(.horizontal, 8)
     }
 }
+

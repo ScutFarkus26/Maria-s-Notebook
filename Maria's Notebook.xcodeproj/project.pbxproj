@@ -6,8 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		51BA136A2F08C763004C2888 /* MakeNewWindowCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51BA13692F08C763004C2888 /* MakeNewWindowCommands.swift */; };
+		51BA13892F08C789004C2888 /* AppKitSceneActivationShim.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51BA13882F08C789004C2888 /* AppKitSceneActivationShim.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Notebook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Notebook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		51BA13692F08C763004C2888 /* MakeNewWindowCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeNewWindowCommands.swift; sourceTree = "<group>"; };
+		51BA13882F08C789004C2888 /* AppKitSceneActivationShim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKitSceneActivationShim.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -47,6 +54,8 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Notebook */,
 				5141E7F62ED77B0F004F918F /* Products */,
+				51BA13692F08C763004C2888 /* MakeNewWindowCommands.swift */,
+				51BA13882F08C789004C2888 /* AppKitSceneActivationShim.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -132,6 +141,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				51BA13892F08C789004C2888 /* AppKitSceneActivationShim.swift in Sources */,
+				51BA136A2F08C763004C2888 /* MakeNewWindowCommands.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

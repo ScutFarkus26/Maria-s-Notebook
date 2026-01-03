@@ -29,6 +29,7 @@ struct QuickNoteSheet: View {
     init(initialStudentID: UUID? = nil) {
         self.initialStudentID = initialStudentID
     }
+
     @State private var category: NoteCategory = .general
     @State private var bodyText: String = ""
     @State private var includeInReport: Bool = false
@@ -43,12 +44,30 @@ struct QuickNoteSheet: View {
     @State private var selectedImage: UIImage? = nil
     #endif
     @State private var imagePath: String? = nil
-    
+
+    // Removed:
+    // @AppStorage("QuickNote.nameDisplayStyle") private var noteNameDisplayStyleRaw: String = "firstLastInitial"
+    // private enum NoteNameDisplayStyle: String { case initials, firstLastInitial }
+    // private var noteNameDisplayStyle: NoteNameDisplayStyle { NoteNameDisplayStyle(rawValue: noteNameDisplayStyleRaw) ?? .firstLastInitial }
+
+    // Helper for displaying student names in chips based on the chosen style
+    private func displayName(for student: Student) -> String {
+        let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let last = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let li = last.first.map { String($0).uppercased() } ?? ""
+        return li.isEmpty ? first : "\(first) \(li)."
+    }
+
+    @State private var nameDetectionTask: Task<Void, Never>? = nil
+
     var body: some View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 20) {
             headerView
-            mainContentCard
+            ScrollView {
+                mainContentCard
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             actionButtons
         }
         .padding(24)
@@ -60,7 +79,12 @@ struct QuickNoteSheet: View {
             }
         }
         .onChange(of: bodyText) { _, newText in
-            analyzeTextForNames(newText)
+            nameDetectionTask?.cancel()
+            nameDetectionTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                if Task.isCancelled { return }
+                analyzeTextForNames(newText)
+            }
         }
         .onChange(of: selectedPhoto) { _, newItem in
             handlePhotoChange(newItem)
@@ -97,7 +121,12 @@ struct QuickNoteSheet: View {
             }
         }
         .onChange(of: bodyText) { _, newText in
-            analyzeTextForNames(newText)
+            nameDetectionTask?.cancel()
+            nameDetectionTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                if Task.isCancelled { return }
+                analyzeTextForNames(newText)
+            }
         }
         .onChange(of: selectedPhoto) { _, newItem in
             handlePhotoChange(newItem)
@@ -147,47 +176,53 @@ struct QuickNoteSheet: View {
     
     @ViewBuilder
     private var surfacingBanner: some View {
-        if !detectedStudentIDs.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
                 Text("Detected Names")
                     .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(Array(detectedStudentIDs), id: \.self) { studentID in
-                            if let student = students.first(where: { $0.id == studentID }) {
-                                Button {
-                                    if selectedStudentIDs.contains(studentID) {
-                                        selectedStudentIDs.remove(studentID)
-                                    } else {
-                                        selectedStudentIDs.insert(studentID)
-                                    }
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Text(StudentFormatter.displayName(for: student))
-                                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                                        if selectedStudentIDs.contains(studentID) {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .font(.system(size: 12, weight: .semibold))
-                                        }
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .foregroundColor(selectedStudentIDs.contains(studentID) ? .accentColor : .primary)
-                                    .background(
-                                        Capsule()
-                                            .fill(selectedStudentIDs.contains(studentID) ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
-                                    )
+                Spacer()
+                // Removed Menu for name display style
+            }
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(detectedStudentIDs), id: \.self) { studentID in
+                        if let student = students.first(where: { $0.id == studentID }) {
+                            Button {
+                                if selectedStudentIDs.contains(studentID) {
+                                    selectedStudentIDs.remove(studentID)
+                                } else {
+                                    selectedStudentIDs.insert(studentID)
                                 }
-                                .buttonStyle(.plain)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(displayName(for: student))
+                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                    if selectedStudentIDs.contains(studentID) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 12, weight: .semibold))
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .foregroundColor(selectedStudentIDs.contains(studentID) ? .accentColor : .primary)
+                                .background(
+                                    Capsule()
+                                        .fill(selectedStudentIDs.contains(studentID) ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
+                                )
                             }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 2)
                 }
+                .padding(.vertical, 2)
             }
         }
+        .frame(minHeight: 44)
+        .opacity(detectedStudentIDs.isEmpty ? 0 : 1)
+        .animation(.easeInOut(duration: 0.2), value: detectedStudentIDs)
+        .accessibilityHidden(detectedStudentIDs.isEmpty)
     }
     
     private var studentSelectionSection: some View {
@@ -202,7 +237,7 @@ struct QuickNoteSheet: View {
                         ForEach(Array(selectedStudentIDs), id: \.self) { studentID in
                             if let student = students.first(where: { $0.id == studentID }) {
                                 HStack(spacing: 4) {
-                                    Text(StudentFormatter.displayName(for: student))
+                                    Text(displayName(for: student))
                                         .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
                                     Button {
                                         selectedStudentIDs.remove(studentID)
@@ -296,6 +331,11 @@ struct QuickNoteSheet: View {
             
             noteTextEditor
             
+            HStack {
+                expandInitialsButton
+                Spacer()
+            }
+            
             photoPickerSection
         }
     }
@@ -353,6 +393,26 @@ struct QuickNoteSheet: View {
     private var photoPickerButton: some View {
         PhotosPicker(selection: $selectedPhoto, matching: .images) {
             Label("Choose Photo", systemImage: "photo.on.rectangle")
+                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(cardBackgroundColor)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+        }
+    }
+
+    private var expandInitialsButton: some View {
+        Button {
+            expandInitialsInBodyText()
+        } label: {
+            Label("Expand Initials", systemImage: "textformat.abc")
                 .font(.system(size: AppTheme.FontSize.body, design: .rounded))
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12)
@@ -502,37 +562,234 @@ struct QuickNoteSheet: View {
     
     private func analyzeTextForNames(_ text: String) {
         detectedStudentIDs.removeAll()
-        
         guard !text.isEmpty else { return }
-        
+
+        // Normalize the full text for manual scanning
+        let haystack = text
+            .folding(options: .diacriticInsensitive, locale: .current)
+            .lowercased()
+
+        // Precompute name maps for uniqueness checks
+        var firstNameCounts: [String: Int] = [:]
+        var nicknameCounts: [String: Int] = [:]
+        var fullNameCounts: [String: Int] = [:]
+        var initialsMap: [String: [UUID]] = [:]
+
+        for s in students {
+            let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            firstNameCounts[first, default: 0] += 1
+            if let nickRaw = s.nickname, !nickRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let nick = nickRaw.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                nicknameCounts[nick, default: 0] += 1
+            }
+            let full = (first + " " + last).trimmingCharacters(in: .whitespacesAndNewlines)
+            fullNameCounts[full, default: 0] += 1
+            if let fi = first.first, let li = last.first {
+                let key = String(fi) + String(li)
+                initialsMap[key, default: []].append(s.id)
+            }
+        }
+
+        var autoSelectCandidates: Set<UUID> = []
+
+        // Pass 1: NLTagger over detected personal-name tokens
         tagger.string = text
         let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .joinNames]
-        
+
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { tag, tokenRange in
             if tag == .personalName {
-                let detectedName = String(text[tokenRange])
-                // Check if this name matches any student using fuzzy matching
+                let token = String(text[tokenRange])
+                let normToken = token.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                let lettersOnly = normToken.filter { $0.isLetter }
+
+                // Detection (fuzzy and structured)
                 for student in students {
-                    // 1. Check First Name (Typo-tolerant)
-                    if detectedName.isFuzzyMatch(to: student.firstName) {
+                    if matches(student: student, with: token) {
                         detectedStudentIDs.insert(student.id)
-                        continue 
                     }
-                    
-                    // 2. Check Nickname (if exists)
-                    if let nickname = student.nickname, detectedName.isFuzzyMatch(to: nickname) {
-                        detectedStudentIDs.insert(student.id)
-                        continue
+                }
+
+                // Auto-select: unique initials, unique exact first, unique exact nickname, unique exact full name
+                if lettersOnly.count == 2 {
+                    let key = String(lettersOnly)
+                    if let ids = initialsMap[key], ids.count == 1, let only = ids.first {
+                        autoSelectCandidates.insert(only)
                     }
-                    
-                    // 3. Check Last Name (Optional)
-                    if detectedName.isFuzzyMatch(to: student.lastName) {
-                        detectedStudentIDs.insert(student.id)
+                } else {
+                    for s in students {
+                        let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                        let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                        let nick = (s.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                        let full = (first + " " + last)
+
+                        if normToken == full, fullNameCounts[full] == 1 { autoSelectCandidates.insert(s.id); continue }
+                        if !nick.isEmpty, normToken == nick, nicknameCounts[nick] == 1 { autoSelectCandidates.insert(s.id); continue }
+                        if normToken == first, firstNameCounts[first] == 1 { autoSelectCandidates.insert(s.id); continue }
                     }
                 }
             }
             return true
         }
+
+        // Pass 2: Manual scan of the full text to catch patterns not tagged by NLTagger
+        for s in students {
+            let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let nick = (s.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let full = first + " " + last
+
+            // Nickname word
+            if !nick.isEmpty, containsWord(haystack, word: nick) {
+                detectedStudentIDs.insert(s.id)
+                if nicknameCounts[nick] == 1 { autoSelectCandidates.insert(s.id) }
+                continue
+            }
+            // First name word
+            if containsWord(haystack, word: first) {
+                detectedStudentIDs.insert(s.id)
+                if firstNameCounts[first] == 1 { autoSelectCandidates.insert(s.id) }
+                continue
+            }
+            // Full name words
+            if containsFirstAndLast(haystack, first: first, last: last) {
+                detectedStudentIDs.insert(s.id)
+                if fullNameCounts[full] == 1 { autoSelectCandidates.insert(s.id) }
+                continue
+            }
+            // Compact or punctuated initials
+            if let fi = first.first, let li = last.first, containsInitials(haystack, firstInitial: fi, lastInitial: li) {
+                detectedStudentIDs.insert(s.id)
+                let key = String(fi) + String(li)
+                if let ids = initialsMap[key], ids.count == 1 { autoSelectCandidates.insert(s.id) }
+                continue
+            }
+            // First + last initial (e.g., "ashira b" or "ashira b.")
+            if containsFirstAndLastInitial(haystack, first: first, lastInitial: last.prefix(1)) {
+                detectedStudentIDs.insert(s.id)
+                continue
+            }
+        }
+
+        // Apply auto-selection without overriding user choices
+        selectedStudentIDs.formUnion(autoSelectCandidates)
+    }
+
+    private func matches(student: Student, with detectedToken: String) -> Bool {
+        func norm(_ s: String) -> String {
+            s.folding(options: .diacriticInsensitive, locale: .current)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let token = norm(detectedToken).lowercased()
+        let first = norm(student.firstName).lowercased()
+        let last = norm(student.lastName).lowercased()
+        let nick = norm(student.nickname ?? "").lowercased()
+
+        // Handle compact two-letter initials like "ab" (no punctuation/space)
+        let lettersOnly = token.filter { $0.isLetter }
+        if lettersOnly.count == 2 {
+            if let sfi = first.first, let sli = last.first {
+                let fi = Character(String(sfi).lowercased())
+                let li = Character(String(sli).lowercased())
+                if lettersOnly.first == fi && lettersOnly.last == li {
+                    return true
+                }
+            }
+        }
+
+        // Split token on whitespace/punctuation to handle "First Last" or "First L."
+        let parts = token.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation })
+        if parts.count >= 2 {
+            let firstPart = String(parts[0])
+            let lastPart = String(parts[1])
+
+            // First name or nickname fuzzy match (abbreviation supported via isFuzzyMatch)
+            let firstMatches = firstPart.isFuzzyMatch(to: first) || (!nick.isEmpty && firstPart.isFuzzyMatch(to: nick))
+            // Last name or last initial
+            let lastInitial = lastPart.replacingOccurrences(of: ".", with: "").prefix(1)
+            let lastMatches = lastPart.isFuzzyMatch(to: last) || (!lastInitial.isEmpty && last.lowercased().hasPrefix(lastInitial.lowercased()))
+            return firstMatches && lastMatches
+        } else {
+            // Single token: compare against first, nickname, or last with fuzzy match
+            return token.isFuzzyMatch(to: first)
+                || (!nick.isEmpty && token.isFuzzyMatch(to: nick))
+                || token.isFuzzyMatch(to: last)
+        }
+    }
+
+    private func containsWord(_ text: String, word: String) -> Bool {
+        guard !word.isEmpty else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private func containsFirstAndLastInitial(_ text: String, first: String, lastInitial: Substring) -> Bool {
+        guard !first.isEmpty, let li = lastInitial.first else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: String(li)) + "\\.?\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private func containsFirstAndLast(_ text: String, first: String, last: String) -> Bool {
+        guard !first.isEmpty, !last.isEmpty else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: last) + "\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private func containsInitials(_ text: String, firstInitial: Character, lastInitial: Character) -> Bool {
+        let fi = String(firstInitial).lowercased()
+        let li = String(lastInitial).lowercased()
+        // Matches: "a b", "a.b.", "ab" with word boundaries
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: fi) + "\\.?\\s*" + NSRegularExpression.escapedPattern(for: li) + "\\.?\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private func expandInitialsInBodyText() {
+        let text = bodyText
+        guard !text.isEmpty else { return }
+
+        // Build a map from lowercase initials (e.g., "dd") to students
+        var initialsMap: [String: [Student]] = [:]
+        for s in students {
+            let first = s.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let last = s.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let fi = first.first, let li = last.first else { continue }
+            let key = String(fi).lowercased() + String(li).lowercased()
+            initialsMap[key, default: []].append(s)
+        }
+
+        // Match uppercase two-letter initials with optional dots/spaces: "DD", "D.D.", "D D", "D. D"
+        let pattern = "\\b([A-Z])\\.?\\s*([A-Z])\\.?\\b"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return }
+
+        let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
+        var newText = text
+        var delta = 0
+
+        regex.enumerateMatches(in: text, options: [], range: nsrange) { match, _, _ in
+            guard let match = match, match.numberOfRanges >= 3,
+                  let r1 = Range(match.range(at: 1), in: text),
+                  let r2 = Range(match.range(at: 2), in: text) else { return }
+
+            let l1 = String(text[r1]).lowercased()
+            let l2 = String(text[r2]).lowercased()
+            let key = l1 + l2
+
+            guard let candidates = initialsMap[key], candidates.count == 1, let student = candidates.first else { return }
+
+            let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lastInitial = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines).first.map { String($0).uppercased() } ?? ""
+            let replacement = lastInitial.isEmpty ? first : "\(first) \(lastInitial)"
+
+            // Apply replacement in the accumulating newText using adjusted range
+            let loc = match.range.location + delta
+            let len = match.range.length
+            let startIdx = newText.index(newText.startIndex, offsetBy: loc)
+            let endIdx = newText.index(startIdx, offsetBy: len)
+            newText.replaceSubrange(startIdx..<endIdx, with: replacement)
+            delta += replacement.count - len
+        }
+
+        bodyText = newText
     }
     
     private func saveNote() {

@@ -80,10 +80,14 @@ final class TodayViewModel: ObservableObject {
     // Reminders for today
     @Published var todaysReminders: [Reminder] = []
     @Published var overdueReminders: [Reminder] = []
-    
+
     @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
     @Published var absentToday: [UUID] = []
     @Published var leftEarlyToday: [UUID] = []
+    
+    // New Published Outputs for recent notes and their students
+    @Published var recentNotes: [Note] = []
+    @Published var recentNoteStudentsByID: [UUID: Student] = [:]
 
     // MARK: - Caches
     @Published private(set) var studentsByID: [UUID: Student] = [:]
@@ -140,6 +144,9 @@ final class TodayViewModel: ObservableObject {
         
         // Load attendance
         reloadAttendance(day: day, nextDay: nextDay)
+
+        // Load recent notes and their students
+        reloadRecentNotes()
     }
     
     // MARK: - Private Reload Methods
@@ -492,6 +499,51 @@ final class TodayViewModel: ObservableObject {
         }
     }
 
+    /// Loads recent notes from the last 7 days and their associated students
+    private func reloadRecentNotes() {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date().addingTimeInterval(-7*24*3600)
+        do {
+            let descriptor = FetchDescriptor<Note>(
+                predicate: #Predicate { $0.createdAt >= cutoff }
+            )
+            var fetchedNotes = try context.fetch(descriptor)
+            fetchedNotes.sort { $0.createdAt > $1.createdAt }
+            let limitedNotes = Array(fetchedNotes.prefix(10))
+            self.recentNotes = limitedNotes
+            
+            // Extract all student IDs referenced in these notes
+            var noteStudentIDs = Set<UUID>()
+            for note in limitedNotes {
+                noteStudentIDs.formUnion(studentIDs(for: note))
+            }
+            
+            // Determine missing student IDs that are not in recentNoteStudentsByID
+            let missingIDs = noteStudentIDs.subtracting(recentNoteStudentsByID.keys)
+            guard !missingIDs.isEmpty else { return }
+            
+            // Fetch missing students
+            let studentsDescriptor = FetchDescriptor<Student>(
+                predicate: #Predicate { missingIDs.contains($0.id) }
+            )
+            let fetchedStudents = try context.fetch(studentsDescriptor)
+            for student in fetchedStudents {
+                recentNoteStudentsByID[student.id] = student
+            }
+        } catch {
+            self.recentNotes = []
+            self.recentNoteStudentsByID = [:]
+        }
+    }
+    
+    /// Helper to extract student IDs from a Note's scope
+    private func studentIDs(for note: Note) -> [UUID] {
+        switch note.scope {
+        case .all: return []
+        case .student(let id): return [id]
+        case .students(let ids): return ids
+        }
+    }
+
     // MARK: - Helpers
     private func filterByLevelIfNeeded(_ lessons: [StudentLesson], studentsByID: [UUID: Student]) -> [StudentLesson] {
         guard levelFilter != .all else {
@@ -615,3 +667,4 @@ final class TodayViewModel: ObservableObject {
         return SchoolCalendar.previousSchoolDay(before: date, using: context)
     }
 }
+

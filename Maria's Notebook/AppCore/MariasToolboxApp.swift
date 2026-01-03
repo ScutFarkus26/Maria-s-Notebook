@@ -802,10 +802,11 @@ struct MariasToolboxApp: App {
             CommandGroup(replacing: .newItem) {
                 #if os(macOS)
                 Button("New Window") {
-                    // Create a new window by requesting a new scene session activation
-                    NSApplication.shared.requestSceneSessionActivation(nil, userActivity: nil, options: nil, errorHandler: nil)
+                    if let windowMenu = NSApp.mainMenu?.item(withTitle: "Window"),
+                       let newWindowItem = windowMenu.submenu?.item(withTitle: "New Window") {
+                        _ = newWindowItem.target?.perform(newWindowItem.action, with: nil)
+                    }
                 }
-                .keyboardShortcut("n", modifiers: [.command, .shift, .option])
                 Divider()
                 #endif
                 

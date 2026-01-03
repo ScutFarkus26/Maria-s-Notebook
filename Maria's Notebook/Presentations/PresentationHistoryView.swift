@@ -31,6 +31,24 @@ struct PresentationHistoryView: View {
     @State private var lessonTitleCache: [UUID: String] = [:]
     @State private var hasBuiltCachesOnce: Bool = false
 
+    @AppStorage("PresentationHistory.nameDisplayStyle") private var nameDisplayStyleRaw: String = "firstLastInitial"
+    private enum NameDisplayStyle: String { case initials, firstLastInitial }
+    private var nameDisplayStyle: NameDisplayStyle { NameDisplayStyle(rawValue: nameDisplayStyleRaw) ?? .firstLastInitial }
+
+    private func displayName(for s: Student) -> String {
+        let first = s.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let last = s.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch nameDisplayStyle {
+        case .initials:
+            let fi = first.first.map { String($0).uppercased() } ?? ""
+            let li = last.first.map { String($0).uppercased() } ?? ""
+            return fi + li
+        case .firstLastInitial:
+            let li = last.first.map { String($0).uppercased() } ?? ""
+            return li.isEmpty ? first : "\(first) \(li)."
+        }
+    }
+
     // Maps for quick lookup
     private var lessonsByID: [UUID: Lesson] {
         Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
@@ -116,7 +134,7 @@ struct PresentationHistoryView: View {
         // Build student name cache
         var sNames: [UUID: String] = [:]
         for s in students {
-            sNames[s.id] = StudentFormatter.displayName(for: s)
+            sNames[s.id] = displayName(for: s)
         }
         studentNameCache = sNames
         // Build lesson title cache (prefer name)
@@ -154,7 +172,7 @@ struct PresentationHistoryView: View {
         }
     }
 
-    var body: some View {
+    private var mainContent: some View {
         Group {
             if loadedPresentations.isEmpty {
                 ContentUnavailableView(
@@ -164,65 +182,96 @@ struct PresentationHistoryView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(Array(groupedByDay.enumerated()), id: \.element.day) { dayIndex, entry in
-                            Section {
-                                ForEach(Array(entry.items.enumerated()), id: \.element.id) { itemIndex, p in
-                                    row(for: p)
-                                        .onTapGesture { selectedPresentation = p }
-                                        .onAppear {
-                                            // Load more when near the end
-                                            if dayIndex == groupedByDay.count - 1,
-                                               itemIndex >= entry.items.count - 5 {
-                                                loadMorePresentations()
-                                            }
-                                        }
-                                }
-                            } header: {
-                                Text(Self.dayFormatter.string(from: entry.day))
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                    .padding(.top, 12)
-                            }
-                        }
-                    }
-                    .padding(16)
+                presentationsList
+            }
+        }
+    }
+    
+    private var presentationsList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(groupedByDay.enumerated()), id: \.element.day) { dayIndex, entry in
+                    daySection(dayIndex: dayIndex, entry: entry)
                 }
             }
+            .padding(16)
         }
-        .sheet(item: $selectedPresentation) { p in
-            PresentationDetailSheet(presentationID: p.id) {
-                selectedPresentation = nil
+    }
+    
+    @ViewBuilder
+    private func daySection(dayIndex: Int, entry: (day: Date, items: [Presentation])) -> some View {
+        Section {
+            ForEach(Array(entry.items.enumerated()), id: \.element.id) { itemIndex, p in
+                row(for: p)
+                    .onTapGesture { selectedPresentation = p }
+                    .onAppear {
+                        // Load more when near the end
+                        if dayIndex == groupedByDay.count - 1,
+                           itemIndex >= entry.items.count - 5 {
+                            loadMorePresentations()
+                        }
+                    }
             }
+        } header: {
+            Text(Self.dayFormatter.string(from: entry.day))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.top, 12)
         }
-        .task {
-            #if DEBUG
-            let t0 = Date()
-            #endif
-            loadPresentations(limit: Self.initialLoadCount)
-            if !hasBuiltCachesOnce {
+    }
+
+    var body: some View {
+        mainContent
+            .sheet(item: $selectedPresentation) { p in
+                PresentationDetailSheet(presentationID: p.id) {
+                    selectedPresentation = nil
+                }
+            }
+            .task {
+                #if DEBUG
+                let t0 = Date()
+                #endif
+                loadPresentations(limit: Self.initialLoadCount)
+                if !hasBuiltCachesOnce {
+                    buildCaches()
+                    hasBuiltCachesOnce = true
+                }
+                #if DEBUG
+                let dt = Date().timeIntervalSince(t0) * 1000
+                print("[DEBUG] PresentationHistoryView initial load took \(Int(dt)) ms")
+                #endif
+            }
+            .onChange(of: presentationIDs) { _, _ in
+                // Reload when presentations change
+                loadPresentations(limit: loadedPresentations.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
+            }
+            .onChange(of: allPresentationNotes.map(\.id)) { _, _ in
                 buildCaches()
-                hasBuiltCachesOnce = true
             }
-            #if DEBUG
-            let dt = Date().timeIntervalSince(t0) * 1000
-            print("[DEBUG] PresentationHistoryView initial load took \(Int(dt)) ms")
-            #endif
-        }
-        .onChange(of: presentationIDs) { _, _ in
-            // Reload when presentations change
-            loadPresentations(limit: loadedPresentations.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
-        }
-        .onChange(of: allPresentationNotes.map(\.id)) { _, _ in
-            buildCaches()
-        }
-        .onChange(of: lessons.map(\.id)) { _, _ in
-            buildCaches()
-        }
-        .onChange(of: students.map(\.id)) { _, _ in
-            buildCaches()
-        }
+            .onChange(of: lessons.map(\.id)) { _, _ in
+                buildCaches()
+            }
+            .onChange(of: students.map(\.id)) { _, _ in
+                buildCaches()
+            }
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Button {
+                            nameDisplayStyleRaw = NameDisplayStyle.firstLastInitial.rawValue
+                        } label: {
+                            Label("First name + Last initial", systemImage: nameDisplayStyle == .firstLastInitial ? "checkmark" : "")
+                        }
+                        Button {
+                            nameDisplayStyleRaw = NameDisplayStyle.initials.rawValue
+                        } label: {
+                            Label("Initials (AB)", systemImage: nameDisplayStyle == .initials ? "checkmark" : "")
+                        }
+                    } label: {
+                        Label("Names", systemImage: "textformat.abc")
+                    }
+                }
+            }
     }
 
     @ViewBuilder

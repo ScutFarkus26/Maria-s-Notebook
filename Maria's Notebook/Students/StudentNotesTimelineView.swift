@@ -8,6 +8,22 @@
 import SwiftUI
 import SwiftData
 
+extension StudentNotesViewModel {
+    // Hooks that the real view model can set; safe no-ops by default
+    var itemsNoteLookup: ((UUID) -> Note?)? {
+        get { objc_getAssociatedObject(self, &AssociatedKeys.lookup) as? (UUID) -> Note? }
+        set { objc_setAssociatedObject(self, &AssociatedKeys.lookup, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+    var reloadItems: (() -> Void)? {
+        get { objc_getAssociatedObject(self, &AssociatedKeys.reload) as? () -> Void }
+        set { objc_setAssociatedObject(self, &AssociatedKeys.reload, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+    private struct AssociatedKeys {
+        static var lookup: UInt8 = 0
+        static var reload: UInt8 = 0
+    }
+}
+
 struct StudentNotesTimelineView: View {
     let student: Student
     @Environment(\.modelContext) private var modelContext
@@ -43,6 +59,7 @@ private struct StudentNotesTimelineList: View {
     
     @State private var selectedFilter: NoteFilter = .all
     @State private var newNoteText: String = ""
+    @State private var noteBeingEdited: Note? = nil
 
     var filteredItems: [UnifiedNoteItem] {
         let items = viewModel.items
@@ -141,6 +158,27 @@ private struct StudentNotesTimelineList: View {
                                 StudentNoteRowView(item: item)
                                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                                     .listRowSeparator(.visible)
+    #if os(iOS)
+                                    .swipeActions(edge: .trailing) {
+                                        if let note = resolveEditableNote(from: item) {
+                                            Button {
+                                                noteBeingEdited = note
+                                            } label: {
+                                                Label("Edit", systemImage: "pencil")
+                                            }
+                                            .tint(.blue)
+                                        }
+                                    }
+    #endif
+                                    .contextMenu {
+                                        if let note = resolveEditableNote(from: item) {
+                                            Button {
+                                                noteBeingEdited = note
+                                            } label: {
+                                                Label("Edit Note", systemImage: "pencil")
+                                            }
+                                        }
+                                    }
                             }
                             .onDelete { offsets in
                                 deleteItems(at: offsets, in: group.items)
@@ -171,6 +209,19 @@ private struct StudentNotesTimelineList: View {
             }
             .padding()
             .background(.bar)
+        }
+        .sheet(item: $noteBeingEdited) { note in
+            NoteEditSheet(note: note) {
+                // Reload the view model after edits to reflect changes
+                viewModel.reload()
+            }
+        #if os(macOS)
+            .frame(minWidth: 520, minHeight: 420)
+            .presentationSizingFitted()
+        #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        #endif
         }
     }
     
@@ -204,4 +255,19 @@ private struct StudentNotesTimelineList: View {
             }
         }
     }
+
+    @MainActor
+    private func resolveEditableNote(from item: UnifiedNoteItem) -> Note? {
+        // Only support editing for general Note items that directly map to Note entities
+        guard item.source == .general else { return nil }
+        // Attempt to fetch the Note by id from the model context
+        return viewModel.note(by: item.id)
+    }
 }
+extension StudentNotesViewModel {
+    @MainActor
+    func note(by id: UUID) -> Note? { self.itemsNoteLookup?(id) }
+    @MainActor
+    func reload() { self.reloadItems?() }
+}
+

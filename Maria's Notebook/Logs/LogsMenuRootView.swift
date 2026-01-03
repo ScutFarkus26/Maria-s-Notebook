@@ -5,6 +5,7 @@ struct LogsMenuRootView: View {
         case lessons = "Lessons Log"
         case presentations = "Presentation History"
         case works = "Works Log"
+        case observations = "Observations"
         // Future: add other logs here
         var id: String { rawValue }
     }
@@ -26,6 +27,7 @@ struct LogsMenuRootView: View {
                             PillButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
                             PillButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
                             PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            PillButton(title: Mode.observations.rawValue, isSelected: mode == .observations) { modeRaw = Mode.observations.rawValue }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -39,6 +41,7 @@ struct LogsMenuRootView: View {
                             PillButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
                             PillButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
                             PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                            PillButton(title: Mode.observations.rawValue, isSelected: mode == .observations) { modeRaw = Mode.observations.rawValue }
                         }
                         Spacer()
                     }
@@ -53,6 +56,7 @@ struct LogsMenuRootView: View {
                     PillButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
                     PillButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
                     PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
+                    PillButton(title: Mode.observations.rawValue, isSelected: mode == .observations) { modeRaw = Mode.observations.rawValue }
                 }
                 Spacer()
             }
@@ -70,6 +74,8 @@ struct LogsMenuRootView: View {
                     PresentationHistoryView()
                 case .works:
                     WorksLogView()
+                case .observations:
+                    ObservationsView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

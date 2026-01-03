@@ -17,6 +17,8 @@ struct TodayView: View {
     // Navigation state
     @State private var selectedContractID: UUID? = nil
     @State private var selectedStudentLesson: StudentLesson? = nil
+    @State private var isShowingQuickNote = false
+    @State private var noteBeingEdited: Note? = nil
 
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Only fetch IDs to detect changes, not full objects - significantly reduces memory usage
@@ -58,6 +60,18 @@ struct TodayView: View {
         let names = ids.map { displayNameForID($0) }
         return names.joined(separator: ", ")
     } }
+    
+    private func studentNames(for note: Note) -> String {
+        switch note.scope {
+        case .all: return ""
+        case .student(let id):
+            if let _ = viewModel.recentNoteStudentsByID[id] { return displayNameForID(id) }
+            return ""
+        case .students(let ids):
+            let names = ids.compactMap { sid in viewModel.recentNoteStudentsByID[sid].map { _ in displayNameForID(sid) } }
+            return names.prefix(3).joined(separator: ", ")
+        }
+    }
 
     @ViewBuilder
     private func studentPill(_ name: String, color: Color) -> some View {
@@ -107,6 +121,8 @@ struct TodayView: View {
                             inProgressListSection
                             
                             completedListSection
+                            
+                            recentObservationsSection
                         }
                         #if os(iOS)
                         .listStyle(.insetGrouped)
@@ -144,6 +160,12 @@ struct TodayView: View {
                                 let today = Date()
                                 let coerced = SchoolCalendar.nearestSchoolDay(to: today, using: modelContext)
                                 viewModel.date = AppCalendar.startOfDay(coerced)
+                            }
+                            
+                            Button {
+                                isShowingQuickNote = true
+                            } label: {
+                                Label("Note", systemImage: "square.and.pencil")
                             }
                         }
                     }
@@ -195,6 +217,82 @@ struct TodayView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
 #endif
+        }
+        .sheet(isPresented: $isShowingQuickNote) {
+            QuickNoteSheet()
+        }
+        .sheet(item: $noteBeingEdited) { note in
+            NoteEditSheet(note: note) {
+                viewModel.reload()
+            }
+#if os(macOS)
+            .frame(minWidth: 520, minHeight: 420)
+            .presentationSizingFitted()
+#else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+#endif
+        }
+    }
+    
+    private var recentObservationsSection: some View {
+        Section {
+            if viewModel.recentNotes.isEmpty {
+                ContentUnavailableView("No recent observations", systemImage: "note.text")
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                ForEach(viewModel.recentNotes, id: \.id) { note in
+                    Button {
+                        switch note.scope {
+                        case .student(let id):
+                            appRouter.requestOpenStudentDetail(id)
+                        case .all, .students:
+                            break
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "note.text").foregroundStyle(.tint)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(note.body.split(separator: "\n").first.map(String.init) ?? "")
+                                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                let names = studentNames(for: note)
+                                if !names.isEmpty {
+                                    Text(names)
+                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Text(note.createdAt, style: note.createdAt > Date().addingTimeInterval(-3600*24*3) ? .relative : .date)
+                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(10)
+                    }
+                    .buttonStyle(.plain)
+#if os(iOS)
+                    .swipeActions(edge: .trailing) {
+                        Button {
+                            noteBeingEdited = note
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(.blue)
+                    }
+#endif
+                    .contextMenu {
+                        Button {
+                            noteBeingEdited = note
+                        } label: {
+                            Label("Edit Note", systemImage: "pencil")
+                        }
+                    }
+                }
+            }
+        } header: {
+            Label("Recent Observations", systemImage: "note.text")
         }
     }
 
@@ -516,7 +614,7 @@ struct TodayView: View {
                     LessonListRow(
                         lessonName: nameForLesson(sl.resolvedLessonID),
                         studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
-                        isPresented: sl.isGiven
+                        isPresented: sl.isPresented
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {
