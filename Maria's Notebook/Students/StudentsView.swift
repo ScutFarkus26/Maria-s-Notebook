@@ -79,7 +79,6 @@ struct StudentsView<WorkloadContent: View>: View {
         case "manual": return .manual
         case "age": return .age
         case "birthday": return .birthday
-        case "lastLesson": return .lastLesson
         default: return .alphabetical
         }
     }
@@ -169,7 +168,8 @@ struct StudentsView<WorkloadContent: View>: View {
         case .birthday:
             return .birthday
         case .lastLesson:
-            return .lastLesson
+            // Last lesson mode removed - fallback to alphabetical
+            return .alphabetical
         case .roster:
             return sortOrder
         case .workOverview, .observationHeatmap:
@@ -179,37 +179,15 @@ struct StudentsView<WorkloadContent: View>: View {
     
     private var filteredStudents: [Student] {
         let currentSortOrder = effectiveSortOrder
-        if currentSortOrder == .lastLesson {
-            let base = viewModel.filteredStudents(
-                students: students,
-                filter: selectedFilter,
-                sortOrder: .alphabetical,
-                presentNowIDs: presentNowIDs,
-                showTestStudents: showTestStudents,
-                testStudentNames: testStudentNamesRaw
-            )
-            let daysMap = daysSinceLastLessonByStudent
-            return base.sorted { lhs, rhs in
-                let l = daysMap[lhs.id] ?? -1
-                let r = daysMap[rhs.id] ?? -1
-                let lNo = l < 0
-                let rNo = r < 0
-                if lNo != rNo { return lNo && !rNo }
-                if l != r { return l > r }
-                let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
-                if nameOrder == .orderedSame { return lhs.manualOrder < rhs.manualOrder }
-                return nameOrder == .orderedAscending
-            }
-        } else {
-            return viewModel.filteredStudents(
-                students: students,
-                filter: selectedFilter,
-                sortOrder: currentSortOrder,
-                presentNowIDs: presentNowIDs,
-                showTestStudents: showTestStudents,
-                testStudentNames: testStudentNamesRaw
-            )
-        }
+        return viewModel.filteredStudents(
+            modelContext: modelContext,
+            filter: selectedFilter,
+            sortOrder: currentSortOrder,
+            searchString: "", // Search not yet implemented in UI
+            presentNowIDs: presentNowIDs,
+            showTestStudents: showTestStudents,
+            testStudentNames: testStudentNamesRaw
+        )
     }
 
     // MARK: - Body
@@ -826,9 +804,6 @@ struct StudentsView<WorkloadContent: View>: View {
                         SidebarFilterButton(icon: "gift", title: "Birthday", color: .accentColor, isSelected: sortOrder == .birthday) {
                             withAnimation { studentsSortOrderRaw = "birthday" }
                         }
-                        SidebarFilterButton(icon: "clock.badge.exclamationmark", title: "Last Lesson", color: .accentColor, isSelected: sortOrder == .lastLesson) {
-                            withAnimation { studentsSortOrderRaw = "lastLesson" }
-                        }
                         SidebarFilterButton(icon: "arrow.up.arrow.down", title: "Manual", color: .accentColor, isSelected: sortOrder == .manual) {
                             withAnimation { studentsSortOrderRaw = "manual" }
                         }
@@ -888,8 +863,8 @@ struct StudentsView<WorkloadContent: View>: View {
                     students: filteredStudents,
                     isBirthdayMode: effectiveSortOrder == .birthday,
                     isAgeMode: effectiveSortOrder == .age,
-                    isLastLessonMode: effectiveSortOrder == .lastLesson,
-                    lastLessonDays: daysSinceLastLessonByStudent,
+                    isLastLessonMode: false,
+                    lastLessonDays: [:],
                     isManualMode: false,
                     onTapStudent: { student in
                         selectedStudentForSheet = student
@@ -1002,38 +977,9 @@ struct StudentsView<WorkloadContent: View>: View {
                 .filter { cal.isDate($0.date, inSameDayAs: today) }
         }
         
-        // Load studentLessons and lessons only if sortOrder == .lastLesson
-        if effectiveSortOrder == .lastLesson {
-            // Fetch all studentLessons (needed for lastLesson calculation)
-            do {
-                let descriptor = FetchDescriptor<StudentLesson>(
-                    sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-                )
-                cachedStudentLessons = try modelContext.fetch(descriptor)
-            } catch {
-                cachedStudentLessons = modelContext.safeFetch(FetchDescriptor<StudentLesson>())
-            }
-            
-            // Fetch lessons referenced by studentLessons
-            let neededLessonIDs = Set(cachedStudentLessons.map { $0.resolvedLessonID })
-            if !neededLessonIDs.isEmpty {
-                do {
-                    let descriptor = FetchDescriptor<Lesson>(
-                        predicate: #Predicate { neededLessonIDs.contains($0.id) }
-                    )
-                    let fetched = try modelContext.fetch(descriptor)
-                    cachedLessons = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
-                } catch {
-                    let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
-                    cachedLessons = Dictionary(uniqueKeysWithValues: allLessons.filter { neededLessonIDs.contains($0.id) }.map { ($0.id, $0) })
-                }
-            } else {
-                cachedLessons = [:]
-            }
-        } else {
-            cachedStudentLessons = []
-            cachedLessons = [:]
-        }
+        // Clear studentLessons cache (no longer needed for lastLesson mode)
+        cachedStudentLessons = []
+        cachedLessons = [:]
     }
 
     private func ensureInitialManualOrderIfNeeded() {
@@ -1099,7 +1045,8 @@ struct StudentsView<WorkloadContent: View>: View {
         } else if newMode == .birthday {
             studentsSortOrderRaw = "birthday"
         } else if newMode == .lastLesson {
-            studentsSortOrderRaw = "lastLesson"
+            // Last lesson mode removed - use alphabetical as fallback
+            studentsSortOrderRaw = "alphabetical"
         } else if (oldMode == .age || oldMode == .birthday || oldMode == .lastLesson) && newMode == .roster {
             // When switching back to roster from age/birthday/lastLesson, default to alphabetical
             if studentsSortOrderRaw == "age" || studentsSortOrderRaw == "birthday" || studentsSortOrderRaw == "lastLesson" {

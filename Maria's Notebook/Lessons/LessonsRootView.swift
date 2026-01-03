@@ -543,7 +543,7 @@ struct LessonsRootView: View {
         let key = cacheKey(for: subject)
         if let cached = groupsCache[key] { return cached }
         let scoped = viewModel.filteredLessons(
-            lessons: lessons,
+            modelContext: modelContext,
             sourceFilter: filterState.sourceFilter,
             personalKindFilter: filterState.personalKindFilter,
             searchText: "",
@@ -612,7 +612,7 @@ struct LessonsRootView: View {
     }
 
     private func recomputeFilteredLessons() {
-        vm.recomputeFilteredLessons(all: lessons, filterState: filterState, using: viewModel)
+        vm.recomputeFilteredLessons(modelContext: modelContext, filterState: filterState, using: viewModel)
         // Update cached studentLessons after filtering
         updateCachedStudentLessons()
     }

@@ -1,6 +1,12 @@
 import SwiftUI
 import SwiftData
 
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
+
 struct SchoolCalendarSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
@@ -157,6 +163,14 @@ private struct GradeGuidelineRow: View {
     let age: String
     let grade: String
     
+    private var backgroundColor: Color {
+        #if os(macOS)
+        return Color(nsColor: .controlBackgroundColor)
+        #else
+        return Color(uiColor: .secondarySystemBackground)
+        #endif
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
             Text(age)
@@ -174,7 +188,7 @@ private struct GradeGuidelineRow: View {
         .padding(.horizontal, 12)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(uiColor: .secondarySystemBackground))
+                .fill(backgroundColor)
         )
     }
 }

@@ -2,6 +2,7 @@
 // Helpers for ordering and filtering lessons by subject/group. No behavior changes.
 
 import Foundation
+import SwiftData
 
 /// Provides filtering and ordering utilities for Lessons screens.
 /// Methods here are pure functions and do not mutate external state.
@@ -50,49 +51,175 @@ struct LessonsViewModel {
         return cache[key]?[norm(group)] ?? Int.max
     }
 
-    // MARK: - Sorting Pipelines
-
-    // Main filter/sort pipeline extracted from LessonsRootView
-    func filteredLessons(lessons: [Lesson], sourceFilter: LessonSource?, personalKindFilter: PersonalLessonKind?, searchText: String, selectedSubject: String?, selectedGroup: String?) -> [Lesson] {
+    // MARK: - Predicate Building
+    
+    /// Builds a SwiftData predicate for filtering lessons based on source, personalKind, subject, and group.
+    /// Note: Search text filtering is done in-memory as SwiftData predicates don't support string contains operations well.
+    func buildLessonPredicate(
+        sourceFilter: LessonSource?,
+        personalKindFilter: PersonalLessonKind?,
+        selectedSubject: String?,
+        selectedGroup: String?,
+        searchText: String
+    ) -> Predicate<Lesson>? {
         let query = searchText.trimmed()
-        var scoped = lessons
         
-        // Only apply scope filters if NOT searching. Search should be global ("Search all lessons").
-        if query.isEmpty {
-            if let sourceFilter {
-                scoped = scoped.filter { $0.source == sourceFilter }
-            }
-            if (sourceFilter == .personal) || (sourceFilter == nil) {
-                if let kind = personalKindFilter {
-                    scoped = scoped.filter { $0.source == .personal && $0.personalKind == kind }
+        // If searching, don't apply scope filters (search is global)
+        // We'll filter by search text in-memory after fetch
+        guard query.isEmpty else {
+            // For search, we can still apply source/personalKind filters if they exist
+            // But subject/group filters are ignored during search
+            return buildSourceAndKindPredicate(sourceFilter: sourceFilter, personalKindFilter: personalKindFilter)
+        }
+        
+        // Extract raw values before creating predicate (predicates can't access enum cases directly)
+        let sourceFilterRaw = sourceFilter?.rawValue
+        let personalKindFilterRaw = personalKindFilter?.rawValue
+        let personalRawValue = "personal" // LessonSource.personal.rawValue
+        let personalKindPersonalRaw = "personal" // PersonalLessonKind.personal.rawValue
+        let trimmedSubject = selectedSubject?.trimmed()
+        let trimmedGroup = selectedGroup?.trimmed()
+        let hasSubject = trimmedSubject.map { !$0.isEmpty } ?? false
+        let hasGroup = trimmedGroup.map { !$0.isEmpty } ?? false
+        let isPersonalSourceFilter = sourceFilter == .personal || sourceFilter == nil
+        let hasPersonalKindFilter = personalKindFilterRaw != nil && isPersonalSourceFilter
+        
+        // Build combined predicate for non-search case
+        // Combine all conditions in a single expression using && operators
+        return #Predicate<Lesson> { lesson in
+            // Source filter: if sourceFilterRaw is nil, match all; otherwise match the raw value
+            (sourceFilterRaw == nil || lesson.sourceRaw == sourceFilterRaw!) &&
+            // PersonalKind filter: if no filter or not personal source, always match; otherwise check personal kind
+            (!hasPersonalKindFilter || (lesson.sourceRaw == personalRawValue && (lesson.personalKindRaw == personalKindFilterRaw || (lesson.personalKindRaw == nil && personalKindFilterRaw == personalKindPersonalRaw)))) &&
+            // Subject filter: if no subject filter, match all; otherwise match the subject
+            (!hasSubject || lesson.subject == trimmedSubject!) &&
+            // Group filter: if no group filter, match all; otherwise match the group
+            (!hasGroup || lesson.group == trimmedGroup!)
+        }
+    }
+    
+    /// Builds a predicate for source and personalKind only (used during search)
+    private func buildSourceAndKindPredicate(
+        sourceFilter: LessonSource?,
+        personalKindFilter: PersonalLessonKind?
+    ) -> Predicate<Lesson>? {
+        // Extract raw values before creating predicate (predicates can't access enum cases directly)
+        let personalRawValue = "personal" // LessonSource.personal.rawValue
+        let personalKindPersonalRaw = "personal" // PersonalLessonKind.personal.rawValue
+        
+        guard let sourceFilter = sourceFilter else {
+            if let personalKindFilterRaw = personalKindFilter?.rawValue {
+                return #Predicate<Lesson> {
+                    $0.sourceRaw == personalRawValue &&
+                    ($0.personalKindRaw == personalKindFilterRaw || ($0.personalKindRaw == nil && personalKindFilterRaw == personalKindPersonalRaw))
                 }
             }
+            return nil
         }
+        
+        let sourceFilterRaw = sourceFilter.rawValue
+        let isPersonalSourceFilter = sourceFilter == .personal
+        
+        if let personalKindFilterRaw = personalKindFilter?.rawValue, isPersonalSourceFilter {
+            return #Predicate<Lesson> {
+                $0.sourceRaw == personalRawValue &&
+                ($0.personalKindRaw == personalKindFilterRaw || ($0.personalKindRaw == nil && personalKindFilterRaw == personalKindPersonalRaw))
+            }
+        }
+        
+        return #Predicate<Lesson> { $0.sourceRaw == sourceFilterRaw }
+    }
 
-        var base: [Lesson]
+    // MARK: - Sorting Pipelines
+
+    // Main filter/sort pipeline using SwiftData predicates for database-level filtering
+    func filteredLessons(
+        modelContext: ModelContext,
+        sourceFilter: LessonSource?,
+        personalKindFilter: PersonalLessonKind?,
+        searchText: String,
+        selectedSubject: String?,
+        selectedGroup: String?
+    ) -> [Lesson] {
+        let query = searchText.trimmed()
+        
+        // Build predicate for database-level filtering
+        let predicate = buildLessonPredicate(
+            sourceFilter: sourceFilter,
+            personalKindFilter: personalKindFilter,
+            selectedSubject: selectedSubject,
+            selectedGroup: selectedGroup,
+            searchText: searchText
+        )
+        
+        // Build sort descriptors for database-level sorting
+        // Note: Complex custom ordering (subject/group indices) still requires in-memory sorting
+        let sortDescriptors: [SortDescriptor<Lesson>] = {
+            if selectedGroup != nil {
+                // When a group is selected, sort by orderInGroup, then name
+                return [
+                    SortDescriptor(\.orderInGroup),
+                    SortDescriptor(\.name)
+                ]
+            } else {
+                // Default: sort by subject, group, orderInGroup, then name
+                // This provides a basic database-level sort, but we'll refine with custom ordering in-memory
+                return [
+                    SortDescriptor(\.subject),
+                    SortDescriptor(\.group),
+                    SortDescriptor(\.orderInGroup),
+                    SortDescriptor(\.name)
+                ]
+            }
+        }()
+        
+        // Execute fetch with predicate and sort descriptors
+        var descriptor = FetchDescriptor<Lesson>()
+        if let predicate = predicate {
+            descriptor.predicate = predicate
+        }
+        descriptor.sortBy = sortDescriptors
+        
+        var fetched = modelContext.safeFetch(descriptor)
+        
+        // Apply in-memory filters that can't be done in predicates:
+        // 1. Case-insensitive subject/group matching (predicates are case-sensitive)
+        if let subject = selectedSubject?.trimmed(), !subject.isEmpty, query.isEmpty {
+            fetched = fetched.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
+        }
+        if let group = selectedGroup?.trimmed(), !group.isEmpty, query.isEmpty {
+            fetched = fetched.filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
+        }
+        
+        // 2. Search text filtering (SwiftData predicates don't support string contains well)
         if !query.isEmpty {
-            base = scoped.filter { l in
+            fetched = fetched.filter { l in
                 l.name.localizedCaseInsensitiveContains(query)
                 || l.subject.localizedCaseInsensitiveContains(query)
                 || l.group.localizedCaseInsensitiveContains(query)
                 || l.subheading.localizedCaseInsensitiveContains(query)
                 || l.writeUp.localizedCaseInsensitiveContains(query)
             }
-        } else {
-            base = scoped
-            if let subject = selectedSubject {
-                base = base.filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
-            }
-            if let group = selectedGroup {
-                base = base.filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
-            }
         }
-
+        
+        // Get scoped lessons for custom ordering (needed for subject/group index maps)
+        // We need all lessons matching the source/personalKind filters for ordering context
+        let scopedPredicate = buildSourceAndKindPredicate(
+            sourceFilter: sourceFilter,
+            personalKindFilter: personalKindFilter
+        )
+        var scopedDescriptor = FetchDescriptor<Lesson>()
+        if let scopedPredicate = scopedPredicate {
+            scopedDescriptor.predicate = scopedPredicate
+        }
+        let scoped = modelContext.safeFetch(scopedDescriptor)
+        
         let subjectIndex = subjectIndexMap(from: scoped)
         var groupIndexCache: [String: [String: Int]] = [:]
 
+        // Apply in-memory sorting with custom ordering logic
         if !query.isEmpty {
-            return base.sorted { lhs, rhs in
+            return fetched.sorted { lhs, rhs in
                 let ls = subjectIndex[norm(lhs.subject)] ?? Int.max
                 let rs = subjectIndex[norm(rhs.subject)] ?? Int.max
                 if ls == rs {
@@ -111,7 +238,8 @@ struct LessonsViewModel {
                 return ls < rs
             }
         } else if selectedGroup != nil {
-            return base.sorted { lhs, rhs in
+            // Already sorted by database (orderInGroup, name), but refine with custom name comparison
+            return fetched.sorted { lhs, rhs in
                 if lhs.orderInGroup == rhs.orderInGroup {
                     let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
                     if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
@@ -120,7 +248,7 @@ struct LessonsViewModel {
                 return lhs.orderInGroup < rhs.orderInGroup
             }
         } else if let subject = selectedSubject {
-            return base.sorted { lhs, rhs in
+            return fetched.sorted { lhs, rhs in
                 let lg = indexForGroup(lhs.group, inSubject: subject, cache: &groupIndexCache, lessons: scoped)
                 let rg = indexForGroup(rhs.group, inSubject: subject, cache: &groupIndexCache, lessons: scoped)
                 if lg == rg {
@@ -134,7 +262,7 @@ struct LessonsViewModel {
                 return lg < rg
             }
         } else {
-            return base.sorted { lhs, rhs in
+            return fetched.sorted { lhs, rhs in
                 let ls = subjectIndex[norm(lhs.subject)] ?? Int.max
                 let rs = subjectIndex[norm(rhs.subject)] ?? Int.max
                 if ls == rs {

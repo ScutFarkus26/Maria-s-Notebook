@@ -9,9 +9,9 @@ final class LessonsRootViewModel: ObservableObject {
     
     init() { }
     
-    func recomputeFilteredLessons(all lessons: [Lesson], filterState: LessonsFilterState, using filterer: LessonsViewModel) {
+    func recomputeFilteredLessons(modelContext: ModelContext, filterState: LessonsFilterState, using filterer: LessonsViewModel) {
         self.filteredLessons = filterer.filteredLessons(
-            lessons: lessons,
+            modelContext: modelContext,
             sourceFilter: filterState.sourceFilter,
             personalKindFilter: filterState.personalKindFilter,
             searchText: filterState.searchText,

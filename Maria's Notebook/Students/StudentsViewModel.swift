@@ -1,67 +1,126 @@
 import Foundation
+import SwiftData
 
 struct StudentsViewModel {
     func filteredStudents(
-        students: [Student],
+        modelContext: ModelContext,
         filter: StudentsFilter,
         sortOrder: SortOrder,
+        searchString: String = "",
         today: Date = Date(),
         presentNowIDs: Set<UUID>? = nil,
         showTestStudents: Bool = true,
         testStudentNames: String = ""
     ) -> [Student] {
-        // Pre-filter: hide test students by name if requested
-        let visibleStudents = TestStudentsFiltering.filterVisible(
-            students: students,
+        // Build predicate for database-level filtering
+        // Note: level filtering is done in-memory because levelRaw is private
+        let predicate: Predicate<Student>? = {
+            switch filter {
+            case .all, .upper, .lower:
+                // Level filtering will be done in-memory after fetch
+                // (levelRaw is private, so can't be used in predicates)
+                return nil
+            case .presentNow:
+                // Filter by IDs in the presentNow set
+                let ids = presentNowIDs ?? []
+                guard !ids.isEmpty else {
+                    // Return predicate that matches nothing (always false condition)
+                    return #Predicate<Student> { student in student.id != student.id }
+                }
+                return #Predicate<Student> { ids.contains($0.id) }
+            }
+        }()
+        
+        // Build sort descriptors for database-level sorting where possible
+        let sortDescriptors: [SortDescriptor<Student>] = {
+            switch sortOrder {
+            case .manual:
+                return [SortDescriptor(\.manualOrder)]
+            case .alphabetical:
+                // Sort by firstName, then lastName, then manualOrder as tiebreaker
+                return [
+                    SortDescriptor(\.firstName),
+                    SortDescriptor(\.lastName),
+                    SortDescriptor(\.manualOrder)
+                ]
+            case .age:
+                // Sort by birthday descending (younger first), then manualOrder
+                return [
+                    SortDescriptor(\.birthday, order: .reverse),
+                    SortDescriptor(\.manualOrder)
+                ]
+            case .birthday:
+                // Complex sorts that require calculations - will sort in-memory
+                // Use manualOrder as initial sort to maintain some order
+                return [SortDescriptor(\.manualOrder)]
+            }
+        }()
+        
+        // Execute fetch with predicate and sort descriptors
+        var descriptor = FetchDescriptor<Student>()
+        if let predicate = predicate {
+            descriptor.predicate = predicate
+        }
+        descriptor.sortBy = sortDescriptors
+        
+        var fetched = modelContext.safeFetch(descriptor)
+        
+        // Apply in-memory filters that can't be done in predicates:
+        // 1. Level filtering (levelRaw is private, so can't be used in predicates)
+        switch filter {
+        case .all:
+            break // No level filter needed
+        case .upper:
+            fetched = fetched.filter { $0.level == .upper }
+        case .lower:
+            fetched = fetched.filter { $0.level == .lower }
+        case .presentNow:
+            break // Already filtered by predicate
+        }
+        
+        // 2. Test student filtering (requires checking against a set of names)
+        fetched = TestStudentsFiltering.filterVisible(
+            students: fetched,
             showTestStudents: showTestStudents,
             testStudentNames: testStudentNames
         )
-
-        let base: [Student]
-        switch filter {
-        case .all:
-            base = visibleStudents
-        case .upper:
-            base = visibleStudents.filter { $0.level == .upper }
-        case .lower:
-            base = visibleStudents.filter { $0.level == .lower }
-        case .presentNow:
-            let ids = presentNowIDs ?? []
-            base = ArrayFiltering.filterByIDs(items: visibleStudents, ids: ids, idExtractor: { $0.id })
-        }
-
-        switch sortOrder {
-        case .alphabetical:
-            return StringSorting.sortByLocalizedCaseInsensitive(
-                items: base,
-                keyPath: \.fullName,
-                fallback: { $0.manualOrder < $1.manualOrder }
-            )
-        case .age:
-            // Sort by birthday (younger first): later birthday comes first
-            return base.sorted { (lhs: Student, rhs: Student) -> Bool in
-                if lhs.birthday == rhs.birthday { return lhs.manualOrder < rhs.manualOrder }
-                return lhs.birthday > rhs.birthday
+        
+        // 3. Search string filtering (SwiftData predicates don't support string contains well)
+        if !searchString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let query = searchString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            fetched = fetched.filter { student in
+                let firstName = student.firstName.lowercased()
+                let lastName = student.lastName.lowercased()
+                let fullName = student.fullName.lowercased()
+                return firstName.contains(query) || lastName.contains(query) || fullName.contains(query)
             }
+        }
+        
+        // Apply in-memory sorting for complex sorts
+        switch sortOrder {
+        case .manual, .alphabetical, .age:
+            // Already sorted by database, but may need refinement for alphabetical
+            if sortOrder == .alphabetical {
+                // Refine alphabetical sort using fullName for proper localized comparison
+                return fetched.sorted { lhs, rhs in
+                    let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
+                    if nameOrder == .orderedSame {
+                        return lhs.manualOrder < rhs.manualOrder
+                    }
+                    return nameOrder == .orderedAscending
+                }
+            }
+            // For manual and age, database sort is sufficient (with manualOrder tiebreaker)
+            return fetched
         case .birthday:
+            // Sort by next birthday (requires calculation)
             let todayStart = Calendar.current.startOfDay(for: today)
-            return base.sorted { (lhs: Student, rhs: Student) -> Bool in
+            return fetched.sorted { (lhs: Student, rhs: Student) -> Bool in
                 let l = nextBirthday(from: lhs.birthday, relativeTo: todayStart)
                 let r = nextBirthday(from: rhs.birthday, relativeTo: todayStart)
                 if l == r { return lhs.manualOrder < rhs.manualOrder }
                 return l < r
             }
-        case .lastLesson:
-            return base.sorted { lhs, rhs in
-                let l = daysSinceLastLesson(for: lhs)
-                let r = daysSinceLastLesson(for: rhs)
-                if l != r { return l > r } // largest first
-                let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
-                if nameOrder == .orderedSame { return lhs.manualOrder < rhs.manualOrder }
-                return nameOrder == .orderedAscending
-            }
-        case .manual:
-            return base.sorted { $0.manualOrder < $1.manualOrder }
         }
     }
 
@@ -168,11 +227,129 @@ struct StudentsViewModel {
         }
     }
 
-    private func daysSinceLastLesson(for student: Student) -> Int {
-        // This helper is a fallback used only when the view cannot provide context-aware counts.
-        // Note: studentLessons relationship was removed because StudentLesson.students is @Transient.
-        // This fallback now returns 0 - views should provide their own student lessons context.
-        return 0
+    /// Computes days since last lesson for multiple students efficiently.
+    /// Fetches all student lessons once and filters in memory to avoid repeated queries.
+    private func computeDaysSinceLastLessonCache(
+        for students: [Student],
+        using modelContext: ModelContext,
+        calendar: Calendar
+    ) -> [UUID: Int] {
+        // Fetch all student lessons once, sorted by date descending for efficiency
+        let descriptor = FetchDescriptor<StudentLesson>(
+            sortBy: [
+                SortDescriptor(\StudentLesson.givenAt, order: .reverse),
+                SortDescriptor(\StudentLesson.scheduledFor, order: .reverse),
+                SortDescriptor(\StudentLesson.createdAt, order: .reverse)
+            ]
+        )
+        let allStudentLessons = modelContext.safeFetch(descriptor)
+        
+        // Fetch lessons to exclude (parsha lessons)
+        let lessonsDescriptor = FetchDescriptor<Lesson>()
+        let allLessons = modelContext.safeFetch(lessonsDescriptor)
+        let excludedLessonIDs: Set<UUID> = {
+            func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            let ids = allLessons.filter { l in
+                let s = norm(l.subject)
+                let g = norm(l.group)
+                return s == "parsha" || g == "parsha"
+            }.map { $0.id }
+            return Set(ids)
+        }()
+        
+        // Filter to only given lessons that aren't excluded
+        let givenLessons = allStudentLessons.filter { 
+            $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) 
+        }
+        
+        // Build a map of student ID to most recent lesson date
+        var lastDateByStudent: [UUID: Date] = [:]
+        for sl in givenLessons {
+            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+            for sid in sl.resolvedStudentIDs {
+                if let existing = lastDateByStudent[sid] {
+                    if when > existing {
+                        lastDateByStudent[sid] = when
+                    }
+                } else {
+                    lastDateByStudent[sid] = when
+                }
+            }
+        }
+        
+        // Compute days since last lesson for each student
+        var result: [UUID: Int] = [:]
+        for student in students {
+            if let lastDate = lastDateByStudent[student.id] {
+                // Use LessonAgeHelper to compute school days since last lesson
+                result[student.id] = LessonAgeHelper.schoolDaysSinceCreation(
+                    createdAt: lastDate,
+                    asOf: Date(),
+                    using: modelContext,
+                    calendar: calendar
+                )
+            } else {
+                // No lesson found - return -1 to indicate no lesson
+                result[student.id] = -1
+            }
+        }
+        
+        return result
+    }
+    
+    /// Computes days since last lesson for a single student.
+    /// This is a convenience method that queries SwiftData directly.
+    /// For multiple students, use computeDaysSinceLastLessonCache instead.
+    func daysSinceLastLesson(
+        for student: Student,
+        using modelContext: ModelContext,
+        calendar: Calendar = .current
+    ) -> Int {
+        // Fetch all student lessons sorted by date descending
+        // We fetch all because SwiftData predicates can't easily query JSON-encoded arrays
+        let descriptor = FetchDescriptor<StudentLesson>(
+            sortBy: [
+                SortDescriptor(\StudentLesson.givenAt, order: .reverse),
+                SortDescriptor(\StudentLesson.scheduledFor, order: .reverse),
+                SortDescriptor(\StudentLesson.createdAt, order: .reverse)
+            ]
+        )
+        let allStudentLessons = modelContext.safeFetch(descriptor)
+        
+        // Fetch lessons to exclude (parsha lessons)
+        let lessonsDescriptor = FetchDescriptor<Lesson>()
+        let allLessons = modelContext.safeFetch(lessonsDescriptor)
+        let excludedLessonIDs: Set<UUID> = {
+            func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            let ids = allLessons.filter { l in
+                let s = norm(l.subject)
+                let g = norm(l.group)
+                return s == "parsha" || g == "parsha"
+            }.map { $0.id }
+            return Set(ids)
+        }()
+        
+        // Find the most recent given lesson for this student
+        let studentID = student.id
+        let relevantLessons = allStudentLessons.filter { sl in
+            sl.isGiven 
+            && !excludedLessonIDs.contains(sl.resolvedLessonID)
+            && sl.resolvedStudentIDs.contains(studentID)
+        }
+        
+        guard let mostRecent = relevantLessons.first else {
+            return -1 // No lesson found
+        }
+        
+        let lastDate = mostRecent.givenAt ?? mostRecent.scheduledFor ?? mostRecent.createdAt
+        
+        // Calculate school days since last lesson
+        return LessonAgeHelper.schoolDaysSinceCreation(
+            createdAt: lastDate,
+            asOf: Date(),
+            using: modelContext,
+            calendar: calendar
+        )
     }
 }
 

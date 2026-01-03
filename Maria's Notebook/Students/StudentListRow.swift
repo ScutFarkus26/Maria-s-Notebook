@@ -97,38 +97,6 @@ struct StudentListRow: View {
             Text(ageDisplayString)
                 .font(.system(size: AppTheme.FontSize.titleSmall, weight: .black, design: .rounded))
                 .foregroundStyle(.primary)
-        case .lastLesson:
-            if let days = daysSinceLastLesson {
-                if days < 0 {
-                    Text("—")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.primary.opacity(0.1)))
-                } else {
-                    // Traffic light color logic (simplified - green for fresh, yellow for warning, red for overdue)
-                    // Using default thresholds: green < 7, yellow 7-14, red > 14
-                    let badgeColor: Color = {
-                        if days < 7 {
-                            return .green
-                        } else if days < 14 {
-                            return .orange
-                        } else {
-                            return .red
-                        }
-                    }()
-                    
-                    Text("\(days)d")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(badgeColor))
-                }
-            } else {
-                EmptyView()
-            }
         case .alphabetical, .manual:
             // No trailing badge for default modes (level shown as secondary text)
             EmptyView()
@@ -140,14 +108,6 @@ struct StudentListRow: View {
     @ViewBuilder
     private var secondaryText: some View {
         switch sortOrder {
-        case .lastLesson:
-            if daysSinceLastLesson != nil {
-                Text("days since last lesson")
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
-            } else {
-                EmptyView()
-            }
         case .birthday, .age:
             // No secondary text for these modes (the trailing badge shows the info)
             EmptyView()
@@ -213,8 +173,8 @@ struct StudentListRow: View {
     
     List {
         StudentListRow(student: student, sortOrder: .alphabetical, daysSinceLastLesson: nil)
-        StudentListRow(student: student, sortOrder: .lastLesson, daysSinceLastLesson: 5)
-        StudentListRow(student: student, sortOrder: .lastLesson, daysSinceLastLesson: -1)
+        StudentListRow(student: student, sortOrder: .birthday, daysSinceLastLesson: nil)
+        StudentListRow(student: student, sortOrder: .age, daysSinceLastLesson: nil)
     }
     .modelContainer(container)
 }
