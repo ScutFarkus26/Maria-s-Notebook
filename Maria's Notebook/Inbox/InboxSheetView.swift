@@ -263,7 +263,15 @@ public struct InboxSheetView: View {
                     .position(x: proxy.size.width / 2, y: yTop)
                     .transition(.opacity.combined(with: .scale))
                 } else {
-                  let y: CGFloat = (idx < frames.count) ? frames[idx].1.minY : (frames.last!.1.maxY)
+                  let y: CGFloat = {
+                    if idx < frames.count {
+                      return frames[idx].1.minY
+                    } else if let lastFrame = frames.last {
+                      return lastFrame.1.maxY
+                    } else {
+                      return 10
+                    }
+                  }()
                   let placeholderY = y + placeholderHeight / 2
 
                   // Spacer behind placeholder to reserve vertical space

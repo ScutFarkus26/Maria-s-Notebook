@@ -20,8 +20,8 @@ enum PlanningActions {
         }
         .sorted { $0.orderInGroup < $1.orderInGroup }
 
-        guard let idx = candidates.firstIndex(where: { $0.id == currentLesson.id }), idx + 1 < candidates.count else { return }
-        let next = candidates[idx + 1]
+        guard let idx = candidates.firstIndex(where: { $0.id == currentLesson.id }),
+              let next = candidates[safe: idx + 1] else { return }
 
         let sameStudents = Set(sl.resolvedStudentIDs)
         let exists = studentLessons.contains { existing in

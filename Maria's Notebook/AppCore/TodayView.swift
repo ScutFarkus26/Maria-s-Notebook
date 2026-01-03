@@ -125,7 +125,7 @@ struct TodayView: View {
                             .frame(maxWidth: 200)
                             
                             Button {
-                                let prev = viewModel.previousDayWithLessons(before: viewModel.date)
+                                let prev = SchoolCalendar.previousSchoolDay(before: viewModel.date, using: modelContext)
                                 viewModel.date = AppCalendar.startOfDay(prev)
                             } label: { Image(systemName: "chevron.left") }
                             
@@ -136,7 +136,7 @@ struct TodayView: View {
                             .datePickerStyle(.compact)
                             
                             Button {
-                                let next = viewModel.nextDayWithLessons(after: viewModel.date)
+                                let next = SchoolCalendar.nextSchoolDay(after: viewModel.date, using: modelContext)
                                 viewModel.date = AppCalendar.startOfDay(next)
                             } label: { Image(systemName: "chevron.right") }
                             
@@ -215,7 +215,7 @@ struct TodayView: View {
             }
             HStack(spacing: 12) {
                 Button {
-                    let prev = viewModel.previousDayWithLessons(before: viewModel.date)
+                    let prev = SchoolCalendar.previousSchoolDay(before: viewModel.date, using: modelContext)
                     viewModel.date = AppCalendar.startOfDay(prev)
                 } label: { Image(systemName: "chevron.left") }
                 .buttonStyle(.plain)
@@ -231,7 +231,7 @@ struct TodayView: View {
 #endif
 
                 Button {
-                    let next = viewModel.nextDayWithLessons(after: viewModel.date)
+                    let next = SchoolCalendar.nextSchoolDay(after: viewModel.date, using: modelContext)
                     viewModel.date = AppCalendar.startOfDay(next)
                 } label: { Image(systemName: "chevron.right") }
                 .buttonStyle(.plain)

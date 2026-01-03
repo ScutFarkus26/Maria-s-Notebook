@@ -89,7 +89,15 @@ struct AgendaSlot: View {
                                 .position(x: proxy.size.width / 2, y: 12)
                         } else {
                             // Show indicator at insertion position
-                            let y: CGFloat = (idx < frames.count) ? frames[idx].1.minY : (frames.last!.1.maxY + 8)
+                            let y: CGFloat = {
+                                if idx < frames.count {
+                                    return frames[idx].1.minY
+                                } else if let lastFrame = frames.last {
+                                    return lastFrame.1.maxY + 8
+                                } else {
+                                    return 12
+                                }
+                            }()
                             Capsule()
                                 .fill(Color.accentColor)
                                 .frame(width: proxy.size.width - 24, height: 3)
