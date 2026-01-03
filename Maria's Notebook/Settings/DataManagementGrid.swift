@@ -98,8 +98,27 @@ struct DataManagementGrid: View {
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
+                        
+                        // Checksum Bypass Toggle
+                        Toggle(isOn: $allowChecksumBypass) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                                Text("Skip Checksum Validation")
+                                    .font(.caption)
+                            }
+                        }
+                        .toggleStyle(.switch)
+                        .help("Allow restoring backups with checksum mismatches. Use only if you trust the file.")
 
-                        Button(action: { showingImporter = true }) {
+                        Button(action: {
+                            #if os(macOS)
+                            presentMacFilePicker()
+                            #else
+                            showingImporter = true
+                            #endif
+                        }) {
                             Label("Import File…", systemImage: "square.and.arrow.down")
                                 .frame(maxWidth: .infinity)
                         }
@@ -199,8 +218,11 @@ struct DataManagementGrid: View {
                 UTType(filenameExtension: "mbk") ?? .data
             ]
         ) { result in
-            if let url = try? result.get() {
+            switch result {
+            case .success(let url):
                 Task { await viewModel.previewImportedURL(modelContext: modelContext, url: url) }
+            case .failure(let error):
+                viewModel.importError = "Failed to select backup file: \(error.localizedDescription)"
             }
         }
         .fileExporter(
@@ -227,6 +249,16 @@ struct DataManagementGrid: View {
             RestorePreviewView(preview: preview, onCancel: { viewModel.restorePreviewData = nil }, onConfirm: {
                 Task { await viewModel.performImportConfirmed(modelContext: modelContext) }
             })
+        }
+        .alert("Error", isPresented: Binding(
+            get: { viewModel.importError != nil },
+            set: { if !$0 { viewModel.importError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let error = viewModel.importError {
+                Text(error)
+            }
         }
         .onAppear {
             viewModel.loadDefaultFolderName()
@@ -258,6 +290,31 @@ struct DataManagementGrid: View {
         BackupDestination.clearDefaultFolder()
         viewModel.loadDefaultFolderName()
     }
+    
+    #if os(macOS)
+    private func presentMacFilePicker() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        if #available(macOS 12.0, *) {
+            panel.allowedContentTypes = [
+                UTType(exportedAs: "com.marias-toolbox.backup"),
+                UTType(filenameExtension: "mbk") ?? .data
+            ]
+        } else {
+            panel.allowedFileTypes = ["mbk"]
+        }
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                Task { @MainActor in
+                    await viewModel.previewImportedURL(modelContext: modelContext, url: url)
+                }
+            }
+        }
+    }
+    #endif
 }
 
 // Ensure RestorePreview is Identifiable for sheets

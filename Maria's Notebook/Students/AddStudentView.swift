@@ -8,6 +8,7 @@ struct AddStudentView: View {
 
     @State private var firstName = ""
     @State private var lastName = ""
+    @State private var nickname = ""
     @State private var birthday = Date()
     @State private var startDate = Date()
     @State private var level: Student.Level = .lower
@@ -22,6 +23,7 @@ struct AddStudentView: View {
                 Section {
                     TextField("First Name", text: $firstName)
                     TextField("Last Name", text: $lastName)
+                    TextField("Nickname (Optional)", text: $nickname)
                 }
 
                 Section {
@@ -53,6 +55,7 @@ struct AddStudentView: View {
                         firstName: firstName,
                         lastName: lastName,
                         birthday: birthday,
+                        nickname: nickname.isEmpty ? nil : nickname,
                         level: level,
                         dateStarted: startDate
                     )

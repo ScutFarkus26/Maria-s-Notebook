@@ -243,6 +243,7 @@ struct StudentsView<WorkloadContent: View>: View {
         mainContent
             .sheet(isPresented: $showingAddStudent) {
                 AddStudentView()
+                    .presentationSizingFitted()
             }
             .alert("Save Failed", isPresented: $isShowingSaveError) {
                 Button("OK", role: .cancel) {}
@@ -277,6 +278,7 @@ struct StudentsView<WorkloadContent: View>: View {
             }
             .sheet(item: $selectedStudentForSheet, onDismiss: {}) { (student: Student) in
                 StudentDetailView(student: student)
+                    .id(student.id) // <--- Add this safety check
                 #if os(macOS)
                     .frame(minWidth: 860, minHeight: 640)
                     .presentationSizingFitted()
@@ -931,6 +933,7 @@ struct StudentsView<WorkloadContent: View>: View {
                 HStack(alignment: .top, spacing: 0) {
                     StudentDetailView(student: student)
                         .frame(maxWidth: 700)
+                        .id(student.id) // <--- Force recreation when student changes
                     Spacer()
                 }
             } else {

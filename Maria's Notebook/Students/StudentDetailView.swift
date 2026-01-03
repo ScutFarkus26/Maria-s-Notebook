@@ -25,6 +25,7 @@ struct StudentDetailView: View {
     @State private var isEditing = false
     @State private var draftFirstName = ""
     @State private var draftLastName = ""
+    @State private var draftNickname = ""
     @State private var draftBirthday = Date()
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
@@ -124,6 +125,7 @@ struct StudentDetailView: View {
                 isEditing: isEditing,
                 draftFirstName: $draftFirstName,
                 draftLastName: $draftLastName,
+                draftNickname: $draftNickname,
                 draftBirthday: $draftBirthday,
                 draftLevel: $draftLevel,
                 draftStartDate: $draftStartDate,
@@ -256,8 +258,10 @@ struct StudentDetailView: View {
             let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
             let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !fn.isEmpty, !ln.isEmpty else { return }
+            let nick = draftNickname.trimmingCharacters(in: .whitespacesAndNewlines)
             student.firstName = fn
             student.lastName = ln
+            student.nickname = nick.isEmpty ? nil : nick
             student.birthday = draftBirthday
             student.level = draftLevel
             student.dateStarted = draftStartDate
@@ -275,6 +279,7 @@ struct StudentDetailView: View {
             Button("Edit") {
                 draftFirstName = student.firstName
                 draftLastName = student.lastName
+                draftNickname = student.nickname ?? ""
                 draftBirthday = student.birthday
                 draftLevel = student.level
                 draftStartDate = student.dateStarted ?? Date()

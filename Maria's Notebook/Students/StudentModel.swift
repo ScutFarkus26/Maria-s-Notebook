@@ -18,6 +18,7 @@ final class Student: Identifiable {
     var id: UUID = UUID()
     var firstName: String = ""
     var lastName: String = ""
+    var nickname: String? = nil
     var birthday: Date = Date()
     // Store level as raw string for CloudKit compatibility (SwiftData doesn't support enum defaults)
     private var levelRaw: String = Level.lower.rawValue
@@ -45,6 +46,7 @@ final class Student: Identifiable {
         firstName: String,
         lastName: String,
         birthday: Date,
+        nickname: String? = nil,
         level: Level = .lower,
         dateStarted: Date? = nil,
         nextLessons: [UUID] = [],
@@ -53,6 +55,7 @@ final class Student: Identifiable {
         self.id = id
         self.firstName = firstName
         self.lastName = lastName
+        self.nickname = nickname
         self.birthday = birthday
         self.levelRaw = level.rawValue
         self.dateStarted = dateStarted

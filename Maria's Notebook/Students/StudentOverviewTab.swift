@@ -9,6 +9,7 @@ struct StudentOverviewTab: View {
     let isEditing: Bool
     @Binding var draftFirstName: String
     @Binding var draftLastName: String
+    @Binding var draftNickname: String
     @Binding var draftBirthday: Date
     @Binding var draftLevel: Student.Level
     @Binding var draftStartDate: Date
@@ -35,6 +36,7 @@ struct StudentOverviewTab: View {
                 StudentEditForm(
                     draftFirstName: $draftFirstName,
                     draftLastName: $draftLastName,
+                    draftNickname: $draftNickname,
                     draftBirthday: $draftBirthday,
                     draftLevel: $draftLevel,
                     draftStartDate: $draftStartDate

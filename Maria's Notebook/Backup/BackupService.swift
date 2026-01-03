@@ -629,8 +629,44 @@ public final class BackupService {
 
         progress(0.05, "Reading file…")
         let data = try Data(contentsOf: url)
-        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-        let envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        
+        // Validate file is not empty
+        guard !data.isEmpty else {
+            throw NSError(domain: "BackupService", code: 1105, userInfo: [NSLocalizedDescriptionKey: "Backup file is empty or could not be read."])
+        }
+        
+        // Check if file appears to be JSON (starts with { or [)
+        let dataString = String(data: data.prefix(100), encoding: .utf8) ?? ""
+        guard dataString.trimmingCharacters(in: .whitespaces).hasPrefix("{") || dataString.trimmingCharacters(in: .whitespaces).hasPrefix("[") else {
+            throw NSError(domain: "BackupService", code: 1106, userInfo: [
+                NSLocalizedDescriptionKey: "Backup file does not appear to be a valid JSON file. The file may be corrupted or in an unsupported format.",
+                NSLocalizedFailureReasonErrorKey: "Expected JSON format starting with '{' or '[', but file starts with: \(dataString.prefix(50))"
+            ])
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let envelope: BackupEnvelope
+        do {
+            envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        } catch let decodingError as DecodingError {
+            let errorMessage: String
+            switch decodingError {
+            case .dataCorrupted(let context):
+                errorMessage = "Backup file is corrupted or invalid JSON. \(context.debugDescription)"
+            case .keyNotFound(let key, let context):
+                errorMessage = "Backup file is missing required field '\(key.stringValue)'. \(context.debugDescription)"
+            case .typeMismatch(let type, let context):
+                errorMessage = "Backup file has invalid data type. Expected \(type), but found: \(context.debugDescription)"
+            case .valueNotFound(let type, let context):
+                errorMessage = "Backup file is missing required value of type \(type). \(context.debugDescription)"
+            @unknown default:
+                errorMessage = "Backup file format error: \(decodingError.localizedDescription)"
+            }
+            throw NSError(domain: "BackupService", code: 1107, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        } catch {
+            throw NSError(domain: "BackupService", code: 1107, userInfo: [NSLocalizedDescriptionKey: "Failed to read backup file: \(error.localizedDescription)"])
+        }
 
         // Resolve payload bytes
         let payloadBytes: Data
@@ -685,10 +721,9 @@ public final class BackupService {
         }
 
         progress(0.20, "Validating checksum…")
-        // Checksum validation: enforced for format version 5+, optional bypass for older versions
-        let isNewFormat = envelope.formatVersion >= BackupFile.checksumEnforcedVersion
+        // Checksum validation: can be bypassed for all format versions when setting is enabled
         let bypassEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.backupAllowChecksumBypass)
-        let shouldValidateChecksum = isNewFormat || !bypassEnabled
+        let shouldValidateChecksum = !bypassEnabled
         
         if shouldValidateChecksum && !envelope.manifest.sha256.isEmpty {
             let sha = sha256Hex(payloadBytes)
@@ -703,8 +738,50 @@ public final class BackupService {
             }
         }
 
+        // Validate payload bytes before decoding
+        guard !payloadBytes.isEmpty else {
+            throw NSError(domain: "BackupService", code: 1109, userInfo: [NSLocalizedDescriptionKey: "Backup payload is empty. The backup file may be corrupted or incomplete."])
+        }
+        
+        // Check if payload bytes appear to be valid JSON
+        let payloadPreview = String(data: payloadBytes.prefix(200), encoding: .utf8) ?? ""
+        let trimmedPreview = payloadPreview.trimmingCharacters(in: .whitespaces)
+        let isValidJSONStart = trimmedPreview.hasPrefix("{") || trimmedPreview.hasPrefix("[")
+        
         // Decode payload
-        let payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
+        let payload: BackupPayload
+        do {
+            payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
+        } catch let decodingError as DecodingError {
+            let errorMessage: String
+            var diagnosticInfo = ""
+            
+            // Add diagnostic information
+            if !isValidJSONStart {
+                diagnosticInfo = " Payload does not appear to be valid JSON (starts with: \(payloadPreview.prefix(100))). "
+            }
+            diagnosticInfo += "Format version: \(envelope.formatVersion), Compressed: \(isCompressed), Encrypted: \(envelope.encryptedPayload != nil), Payload size: \(payloadBytes.count) bytes."
+            
+            switch decodingError {
+            case .dataCorrupted(let context):
+                errorMessage = "Backup payload is corrupted or invalid JSON. \(context.debugDescription).\(diagnosticInfo)"
+            case .keyNotFound(let key, let context):
+                errorMessage = "Backup payload is missing required field '\(key.stringValue)'. \(context.debugDescription).\(diagnosticInfo)"
+            case .typeMismatch(let type, let context):
+                errorMessage = "Backup payload has invalid data type. Expected \(type), but found: \(context.debugDescription).\(diagnosticInfo)"
+            case .valueNotFound(let type, let context):
+                errorMessage = "Backup payload is missing required value of type \(type). \(context.debugDescription).\(diagnosticInfo)"
+            @unknown default:
+                errorMessage = "Backup payload format error: \(decodingError.localizedDescription).\(diagnosticInfo)"
+            }
+            throw NSError(domain: "BackupService", code: 1108, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        } catch {
+            var diagnosticInfo = "Format version: \(envelope.formatVersion), Compressed: \(isCompressed), Encrypted: \(envelope.encryptedPayload != nil), Payload size: \(payloadBytes.count) bytes."
+            if !isValidJSONStart {
+                diagnosticInfo = "Payload does not appear to be valid JSON (starts with: \(payloadPreview.prefix(100))). " + diagnosticInfo
+            }
+            throw NSError(domain: "BackupService", code: 1108, userInfo: [NSLocalizedDescriptionKey: "Failed to decode backup payload: \(error.localizedDescription). \(diagnosticInfo)"])
+        }
 
         progress(0.50, "Analyzing…")
         func count<T: PersistentModel>(_ type: T.Type) -> Int { ((try? modelContext.fetch(FetchDescriptor<T>())) ?? []).count }
@@ -846,9 +923,44 @@ public final class BackupService {
 
         progress(0.05, "Reading file…")
         let data = try Data(contentsOf: url)
+        
+        // Validate file is not empty
+        guard !data.isEmpty else {
+            throw NSError(domain: "BackupService", code: 1105, userInfo: [NSLocalizedDescriptionKey: "Backup file is empty or could not be read."])
+        }
+        
+        // Check if file appears to be JSON (starts with { or [)
+        let dataString = String(data: data.prefix(100), encoding: .utf8) ?? ""
+        guard dataString.trimmingCharacters(in: .whitespaces).hasPrefix("{") || dataString.trimmingCharacters(in: .whitespaces).hasPrefix("[") else {
+            throw NSError(domain: "BackupService", code: 1106, userInfo: [
+                NSLocalizedDescriptionKey: "Backup file does not appear to be a valid JSON file. The file may be corrupted or in an unsupported format.",
+                NSLocalizedFailureReasonErrorKey: "Expected JSON format starting with '{' or '[', but file starts with: \(dataString.prefix(50))"
+            ])
+        }
+        
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        let envelope: BackupEnvelope
+        do {
+            envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        } catch let decodingError as DecodingError {
+            let errorMessage: String
+            switch decodingError {
+            case .dataCorrupted(let context):
+                errorMessage = "Backup file is corrupted or invalid JSON. \(context.debugDescription)"
+            case .keyNotFound(let key, let context):
+                errorMessage = "Backup file is missing required field '\(key.stringValue)'. \(context.debugDescription)"
+            case .typeMismatch(let type, let context):
+                errorMessage = "Backup file has invalid data type. Expected \(type), but found: \(context.debugDescription)"
+            case .valueNotFound(let type, let context):
+                errorMessage = "Backup file is missing required value of type \(type). \(context.debugDescription)"
+            @unknown default:
+                errorMessage = "Backup file format error: \(decodingError.localizedDescription)"
+            }
+            throw NSError(domain: "BackupService", code: 1107, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        } catch {
+            throw NSError(domain: "BackupService", code: 1107, userInfo: [NSLocalizedDescriptionKey: "Failed to read backup file: \(error.localizedDescription)"])
+        }
 
         // Resolve payload bytes
         let payloadBytes: Data
@@ -868,7 +980,17 @@ public final class BackupService {
         } else if let compressed = envelope.compressedPayload {
             // Compressed but unencrypted backup (format version 6+)
             progress(0.15, "Decompressing data…")
-            payloadBytes = try decompressData(compressed)
+            do {
+                payloadBytes = try decompressData(compressed)
+            } catch {
+                throw NSError(
+                    domain: "BackupService",
+                    code: 1110,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Failed to decompress backup payload. \(error.localizedDescription) Compressed payload size: \(compressed.count) bytes."
+                    ]
+                )
+            }
         } else if let enc = envelope.encryptedPayload {
             // Encrypted backup (may also be compressed)
             guard let password = password, !password.isEmpty else {
@@ -889,7 +1011,17 @@ public final class BackupService {
             // Decompress if compressed
             if isCompressed {
                 progress(0.17, "Decompressing data…")
-                payloadBytes = try decompressData(decryptedBytes)
+                do {
+                    payloadBytes = try decompressData(decryptedBytes)
+                } catch {
+                    throw NSError(
+                        domain: "BackupService",
+                        code: 1110,
+                        userInfo: [
+                            NSLocalizedDescriptionKey: "Failed to decompress encrypted backup payload. \(error.localizedDescription) Decrypted data size: \(decryptedBytes.count) bytes."
+                        ]
+                    )
+                }
             } else {
                 payloadBytes = decryptedBytes
             }
@@ -899,10 +1031,9 @@ public final class BackupService {
         }
 
         progress(0.20, "Validating checksum…")
-        // Checksum validation: enforced for format version 5+, optional bypass for older versions
-        let isNewFormat = envelope.formatVersion >= BackupFile.checksumEnforcedVersion
+        // Checksum validation: can be bypassed for all format versions when setting is enabled
         let bypassEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.backupAllowChecksumBypass)
-        let shouldValidateChecksum = isNewFormat || !bypassEnabled
+        let shouldValidateChecksum = !bypassEnabled
         
         if shouldValidateChecksum && !envelope.manifest.sha256.isEmpty {
             let sha = sha256Hex(payloadBytes)
@@ -917,8 +1048,50 @@ public final class BackupService {
             }
         }
 
+        // Validate payload bytes before decoding
+        guard !payloadBytes.isEmpty else {
+            throw NSError(domain: "BackupService", code: 1109, userInfo: [NSLocalizedDescriptionKey: "Backup payload is empty. The backup file may be corrupted or incomplete."])
+        }
+        
+        // Check if payload bytes appear to be valid JSON
+        let payloadPreview = String(data: payloadBytes.prefix(200), encoding: .utf8) ?? ""
+        let trimmedPreview = payloadPreview.trimmingCharacters(in: .whitespaces)
+        let isValidJSONStart = trimmedPreview.hasPrefix("{") || trimmedPreview.hasPrefix("[")
+        
         // Decode payload
-        let payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
+        let payload: BackupPayload
+        do {
+            payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
+        } catch let decodingError as DecodingError {
+            let errorMessage: String
+            var diagnosticInfo = ""
+            
+            // Add diagnostic information
+            if !isValidJSONStart {
+                diagnosticInfo = " Payload does not appear to be valid JSON (starts with: \(payloadPreview.prefix(100))). "
+            }
+            diagnosticInfo += "Format version: \(envelope.formatVersion), Compressed: \(isCompressed), Encrypted: \(envelope.encryptedPayload != nil), Payload size: \(payloadBytes.count) bytes."
+            
+            switch decodingError {
+            case .dataCorrupted(let context):
+                errorMessage = "Backup payload is corrupted or invalid JSON. \(context.debugDescription).\(diagnosticInfo)"
+            case .keyNotFound(let key, let context):
+                errorMessage = "Backup payload is missing required field '\(key.stringValue)'. \(context.debugDescription).\(diagnosticInfo)"
+            case .typeMismatch(let type, let context):
+                errorMessage = "Backup payload has invalid data type. Expected \(type), but found: \(context.debugDescription).\(diagnosticInfo)"
+            case .valueNotFound(let type, let context):
+                errorMessage = "Backup payload is missing required value of type \(type). \(context.debugDescription).\(diagnosticInfo)"
+            @unknown default:
+                errorMessage = "Backup payload format error: \(decodingError.localizedDescription).\(diagnosticInfo)"
+            }
+            throw NSError(domain: "BackupService", code: 1108, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        } catch {
+            var diagnosticInfo = "Format version: \(envelope.formatVersion), Compressed: \(isCompressed), Encrypted: \(envelope.encryptedPayload != nil), Payload size: \(payloadBytes.count) bytes."
+            if !isValidJSONStart {
+                diagnosticInfo = "Payload does not appear to be valid JSON (starts with: \(payloadPreview.prefix(100))). " + diagnosticInfo
+            }
+            throw NSError(domain: "BackupService", code: 1108, userInfo: [NSLocalizedDescriptionKey: "Failed to decode backup payload: \(error.localizedDescription). \(diagnosticInfo)"])
+        }
 
         // Validation: duplicate IDs for all entity types
         var duplicateErrors: [String] = []
@@ -1694,25 +1867,30 @@ public final class BackupService {
     }
 
     /// Compresses data using LZFSE algorithm
+    /// Compresses data using LZFSE algorithm
     private func compressData(_ data: Data) throws -> Data {
         let bufferSize = data.count + (data.count / 10) + 64 // Add overhead for compression
         let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
         defer { destinationBuffer.deallocate() }
         
-        let sourceBuffer = data.withUnsafeBytes { $0.bindMemory(to: UInt8.self).baseAddress! }
-        
-        let compressedSize = compression_encode_buffer(
-            destinationBuffer, bufferSize,
-            sourceBuffer, data.count,
-            nil,
-            COMPRESSION_LZFSE
-        )
-        
-        guard compressedSize > 0 else {
-            throw NSError(domain: "BackupService", code: 1200, userInfo: [NSLocalizedDescriptionKey: "Compression failed"])
+        return try data.withUnsafeBytes { sourceRawBuffer in
+            guard let sourceBuffer = sourceRawBuffer.bindMemory(to: UInt8.self).baseAddress else {
+                throw NSError(domain: "BackupService", code: 1200, userInfo: [NSLocalizedDescriptionKey: "Compression failed: could not access source memory"])
+            }
+            
+            let compressedSize = compression_encode_buffer(
+                destinationBuffer, bufferSize,
+                sourceBuffer, data.count,
+                nil,
+                COMPRESSION_LZFSE
+            )
+            
+            guard compressedSize > 0 else {
+                throw NSError(domain: "BackupService", code: 1200, userInfo: [NSLocalizedDescriptionKey: "Compression failed"])
+            }
+            
+            return Data(bytes: destinationBuffer, count: compressedSize)
         }
-        
-        return Data(bytes: destinationBuffer, count: compressedSize)
     }
     
     /// Decompresses data using LZFSE algorithm
@@ -1723,29 +1901,35 @@ public final class BackupService {
         let maxAttempts = 3
         var attempt = 0
         
-        while attempt < maxAttempts {
-            let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-            defer { destinationBuffer.deallocate() }
-            
-            let sourceBuffer = data.withUnsafeBytes { $0.bindMemory(to: UInt8.self).baseAddress! }
-            
-            let decompressedSize = compression_decode_buffer(
-                destinationBuffer, bufferSize,
-                sourceBuffer, data.count,
-                nil,
-                COMPRESSION_LZFSE
-            )
-            
-            if decompressedSize > 0 {
-                return Data(bytes: destinationBuffer, count: decompressedSize)
+        return try data.withUnsafeBytes { sourceRawBuffer in
+            guard let sourceBuffer = sourceRawBuffer.bindMemory(to: UInt8.self).baseAddress else {
+                throw NSError(domain: "BackupService", code: 1201, userInfo: [NSLocalizedDescriptionKey: "Decompression failed: could not access source memory"])
             }
             
-            // Buffer too small, try larger size
-            bufferSize *= 2
-            attempt += 1
+            while attempt < maxAttempts {
+                let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+                defer { destinationBuffer.deallocate() }
+                
+                let decompressedSize = compression_decode_buffer(
+                    destinationBuffer, bufferSize,
+                    sourceBuffer, data.count,
+                    nil,
+                    COMPRESSION_LZFSE
+                )
+                
+                // If decompressedSize == bufferSize, it's likely truncated. We need a larger buffer.
+                // We only accept the result if it fit comfortably (strictly less than buffer size)
+                if decompressedSize > 0 && decompressedSize < bufferSize {
+                    return Data(bytes: destinationBuffer, count: decompressedSize)
+                }
+                
+                // Buffer too small, try larger size
+                bufferSize *= 2
+                attempt += 1
+            }
+            
+            throw NSError(domain: "BackupService", code: 1201, userInfo: [NSLocalizedDescriptionKey: "Decompression failed: buffer size insufficient"])
         }
-        
-        throw NSError(domain: "BackupService", code: 1201, userInfo: [NSLocalizedDescriptionKey: "Decompression failed: buffer size insufficient"])
     }
     
     /// Derives a symmetric encryption key from a password and salt using HKDF.

@@ -54,10 +54,7 @@ final class StudentNotesViewModel: ObservableObject {
         ]
         let noteDesc = FetchDescriptor<Note>(sortBy: noteSort)
         let allNotes: [Note] = (try? modelContext.fetch(noteDesc)) ?? []
-        let visibleNotes = allNotes.filter { note in
-            if case .student(let id) = note.scope { return id == student.id }
-            return false
-        }
+        let visibleNotes = allNotes.filter { $0.scope.applies(to: student.id) }
         let generalItems: [UnifiedNoteItem] = visibleNotes.map { note in
             let context: String = {
                 if let lesson = note.lesson {

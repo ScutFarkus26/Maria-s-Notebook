@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import NaturalLanguage
 
 #if os(macOS)
 import AppKit
@@ -20,7 +21,10 @@ struct QuickNoteSheet: View {
     
     let initialStudentID: UUID?
     
-    @State private var selectedStudentID: UUID? = nil
+    @State private var selectedStudentIDs: Set<UUID> = []
+    @State private var detectedStudentIDs: Set<UUID> = []
+    
+    private let tagger = NLTagger(tagSchemes: [.nameType])
     
     init(initialStudentID: UUID? = nil) {
         self.initialStudentID = initialStudentID
@@ -49,10 +53,14 @@ struct QuickNoteSheet: View {
         }
         .padding(24)
         .frame(width: 480, height: 560)
+        .presentationSizingFitted()
         .onAppear {
             if let initialID = initialStudentID {
-                selectedStudentID = initialID
+                selectedStudentIDs.insert(initialID)
             }
+        }
+        .onChange(of: bodyText) { _, newText in
+            analyzeTextForNames(newText)
         }
         .onChange(of: selectedPhoto) { _, newItem in
             handlePhotoChange(newItem)
@@ -85,8 +93,11 @@ struct QuickNoteSheet: View {
         .presentationDragIndicator(.visible)
         .onAppear {
             if let initialID = initialStudentID {
-                selectedStudentID = initialID
+                selectedStudentIDs.insert(initialID)
             }
+        }
+        .onChange(of: bodyText) { _, newText in
+            analyzeTextForNames(newText)
         }
         .onChange(of: selectedPhoto) { _, newItem in
             handlePhotoChange(newItem)
@@ -114,6 +125,7 @@ struct QuickNoteSheet: View {
     
     private var mainContentCard: some View {
         VStack(alignment: .leading, spacing: 16) {
+            surfacingBanner
             studentSelectionSection
             categorySelectionSection
             noteBodySection
@@ -133,53 +145,108 @@ struct QuickNoteSheet: View {
             .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
     
+    @ViewBuilder
+    private var surfacingBanner: some View {
+        if !detectedStudentIDs.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Detected Names")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(detectedStudentIDs), id: \.self) { studentID in
+                            if let student = students.first(where: { $0.id == studentID }) {
+                                Button {
+                                    if selectedStudentIDs.contains(studentID) {
+                                        selectedStudentIDs.remove(studentID)
+                                    } else {
+                                        selectedStudentIDs.insert(studentID)
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(StudentFormatter.displayName(for: student))
+                                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                        if selectedStudentIDs.contains(studentID) {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 12, weight: .semibold))
+                                        }
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .foregroundColor(selectedStudentIDs.contains(studentID) ? .accentColor : .primary)
+                                    .background(
+                                        Capsule()
+                                            .fill(selectedStudentIDs.contains(studentID) ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+    }
+    
     private var studentSelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Student")
+            Text("Selected Students")
                 .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
             
-            studentPickerButton
-        }
-    }
-    
-    private var studentPickerButton: some View {
-        Button {
-            showingStudentPicker = true
-        } label: {
-            HStack {
-                studentDisplayText
-                Spacer()
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(cardBackgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: $showingStudentPicker, arrowEdge: .top) {
-            studentPickerPopover
-        }
-    }
-    
-    private var studentDisplayText: some View {
-        Group {
-            if let studentID = selectedStudentID,
-               let student = students.first(where: { $0.id == studentID }) {
-                Text(StudentFormatter.displayName(for: student))
-                    .foregroundStyle(.primary)
-            } else {
-                Text("Select student...")
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(selectedStudentIDs), id: \.self) { studentID in
+                            if let student = students.first(where: { $0.id == studentID }) {
+                                HStack(spacing: 4) {
+                                    Text(StudentFormatter.displayName(for: student))
+                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                    Button {
+                                        selectedStudentIDs.remove(studentID)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 12, weight: .semibold))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(.secondary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .foregroundColor(.primary)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.accentColor.opacity(0.15))
+                                )
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                
+                Button {
+                    showingStudentPicker = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Add")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .foregroundColor(.accentColor)
+                    .background(
+                        Capsule()
+                            .fill(Color.accentColor.opacity(0.15))
+                    )
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showingStudentPicker, arrowEdge: .top) {
+                    studentPickerPopover
+                }
             }
         }
     }
@@ -187,17 +254,7 @@ struct QuickNoteSheet: View {
     private var studentPickerPopover: some View {
         StudentPickerPopover(
             students: students,
-            selectedIDs: Binding(
-                get: {
-                    if let id = selectedStudentID {
-                        return [id]
-                    }
-                    return []
-                },
-                set: { newValue in
-                    selectedStudentID = newValue.first
-                }
-            ),
+            selectedIDs: $selectedStudentIDs,
             onDone: {
                 showingStudentPicker = false
             }
@@ -382,7 +439,7 @@ struct QuickNoteSheet: View {
     }
     
     private var canSave: Bool {
-        selectedStudentID != nil && !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !selectedStudentIDs.isEmpty && !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     private func handlePhotoChange(_ newItem: PhotosPickerItem?) {
@@ -443,12 +500,55 @@ struct QuickNoteSheet: View {
         #endif
     }
     
+    private func analyzeTextForNames(_ text: String) {
+        detectedStudentIDs.removeAll()
+        
+        guard !text.isEmpty else { return }
+        
+        tagger.string = text
+        let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .joinNames]
+        
+        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { tag, tokenRange in
+            if tag == .personalName {
+                let detectedName = String(text[tokenRange])
+                // Check if this name matches any student using fuzzy matching
+                for student in students {
+                    // 1. Check First Name (Typo-tolerant)
+                    if detectedName.isFuzzyMatch(to: student.firstName) {
+                        detectedStudentIDs.insert(student.id)
+                        continue 
+                    }
+                    
+                    // 2. Check Nickname (if exists)
+                    if let nickname = student.nickname, detectedName.isFuzzyMatch(to: nickname) {
+                        detectedStudentIDs.insert(student.id)
+                        continue
+                    }
+                    
+                    // 3. Check Last Name (Optional)
+                    if detectedName.isFuzzyMatch(to: student.lastName) {
+                        detectedStudentIDs.insert(student.id)
+                    }
+                }
+            }
+            return true
+        }
+    }
+    
     private func saveNote() {
-        guard let studentID = selectedStudentID else { return }
+        guard !selectedStudentIDs.isEmpty else { return }
         let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedBody.isEmpty else { return }
         
-        let scope: NoteScope = .student(studentID)
+        let scope: NoteScope
+        if selectedStudentIDs.isEmpty {
+            scope = .all
+        } else if selectedStudentIDs.count == 1 {
+            scope = .student(selectedStudentIDs.first!)
+        } else {
+            scope = .students(Array(selectedStudentIDs))
+        }
+        
         let note = Note(
             body: trimmedBody,
             scope: scope,

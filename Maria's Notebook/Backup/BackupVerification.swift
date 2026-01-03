@@ -24,7 +24,27 @@ public struct BackupVerification {
             // Decode envelope
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            let envelope = try decoder.decode(BackupEnvelope.self, from: data)
+            let envelope: BackupEnvelope
+            do {
+                envelope = try decoder.decode(BackupEnvelope.self, from: data)
+            } catch let decodingError as DecodingError {
+                let errorMessage: String
+                switch decodingError {
+                case .dataCorrupted(let context):
+                    errorMessage = "Backup file is corrupted or invalid JSON. \(context.debugDescription)"
+                case .keyNotFound(let key, let context):
+                    errorMessage = "Backup file is missing required field '\(key.stringValue)'. \(context.debugDescription)"
+                case .typeMismatch(let type, let context):
+                    errorMessage = "Backup file has invalid data type. Expected \(type), but found: \(context.debugDescription)"
+                case .valueNotFound(let type, let context):
+                    errorMessage = "Backup file is missing required value of type \(type). \(context.debugDescription)"
+                @unknown default:
+                    errorMessage = "Backup file format error: \(decodingError.localizedDescription)"
+                }
+                throw NSError(domain: "BackupVerification", code: 2, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+            } catch {
+                throw NSError(domain: "BackupVerification", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to decode backup file: \(error.localizedDescription)"])
+            }
             
             // Get file attributes
             let attributes = try FileManager.default.attributesOfItem(atPath: url.path)

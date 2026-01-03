@@ -44,6 +44,7 @@ struct ContractRow: View {
 struct StudentEditForm: View {
     @Binding var draftFirstName: String
     @Binding var draftLastName: String
+    @Binding var draftNickname: String
     @Binding var draftBirthday: Date
     @Binding var draftLevel: Student.Level
     @Binding var draftStartDate: Date
@@ -56,6 +57,8 @@ struct StudentEditForm: View {
                 TextField("Last Name", text: $draftLastName)
                     .textFieldStyle(.roundedBorder)
             }
+            TextField("Nickname", text: $draftNickname)
+                .textFieldStyle(.roundedBorder)
             DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
             DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
             Picker("Level", selection: $draftLevel) {
@@ -95,6 +98,7 @@ struct StudentInfoRows: View {
 
     var body: some View {
         VStack(spacing: 14) {
+            InfoRowView(icon: "person", title: "Nickname", value: student.nickname ?? "-")
             InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
             if let ds = student.dateStarted {
                 InfoRowView(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))

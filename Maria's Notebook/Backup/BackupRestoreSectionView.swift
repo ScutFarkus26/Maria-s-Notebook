@@ -40,37 +40,10 @@ struct BackupRestoreSectionView: View {
             estimatedBackupSize: viewModel.estimatedBackupSize,
             performExport: { Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) } },
             presentImporter: {
-#if os(macOS)
-                let panel = NSOpenPanel()
-                panel.canChooseFiles = true
-                panel.canChooseDirectories = false
-                panel.allowsMultipleSelection = false
-                panel.canCreateDirectories = false
-                if #available(macOS 12.0, *) {
-                    panel.allowedContentTypes = [UTType(filenameExtension: BackupFile.fileExtension) ?? .data]
-                } else {
-                    panel.allowedFileTypes = [BackupFile.fileExtension]
-                }
-                if panel.runModal() == .OK, let url = panel.url {
-                    Task { await viewModel.previewImportedURL(modelContext: modelContext, url: url) }
-                }
-#else
                 showingImporter = true
-#endif
             },
             chooseDefaultFolder: {
-#if os(macOS)
-                let panel = NSOpenPanel()
-                panel.canChooseFiles = false
-                panel.canChooseDirectories = true
-                panel.canCreateDirectories = true
-                if panel.runModal() == .OK, let url = panel.url {
-                    try? BackupDestination.setDefaultFolder(url)
-                    viewModel.loadDefaultFolderName()
-                }
-#else
                 showingFolderImporter = true
-#endif
             },
             openDefaultFolder: {
 #if os(macOS)
