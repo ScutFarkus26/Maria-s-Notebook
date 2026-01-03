@@ -12,8 +12,11 @@ struct WorkContractDetailSheet: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     
-    @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
+    // OPTIMIZATION: Load only related lessons and students instead of all
+    @State private var relatedLesson: Lesson? = nil
+    @State private var relatedLessons: [Lesson] = [] // For NextLessonResolver - same subject/group
+    @State private var relatedStudent: Student? = nil
+    
     @Query private var workNotes: [ScopedNote]
     @Query private var presentations: [Presentation]
     @Query private var planItems: [WorkPlanItem]
@@ -39,16 +42,14 @@ struct WorkContractDetailSheet: View {
     @State private var newPlanReason: WorkPlanItem.Reason = .progressCheck
     @State private var newPlanNote: String = ""
 
-    private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
-    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
-
     private var scheduleDates: WorkScheduleDates {
         WorkScheduleDateLogic.compute(for: contract, allPlanItems: planItems)
     }
     
     private var likelyNextLesson: Lesson? {
-        guard let currentLessonID = UUID(uuidString: contract.lessonID) else { return nil }
-        return NextLessonResolver.resolveNextLesson(from: currentLessonID, lessons: lessons)
+        guard let currentLessonID = UUID(uuidString: contract.lessonID),
+              relatedLessons.first(where: { $0.id == currentLessonID }) != nil else { return nil }
+        return NextLessonResolver.resolveNextLesson(from: currentLessonID, lessons: relatedLessons)
     }
 
     init(contract: WorkContract, onDone: (() -> Void)? = nil) {
@@ -93,12 +94,13 @@ struct WorkContractDetailSheet: View {
             }.padding(16).background(.bar)
         }
         .onAppear {
+            loadRelatedData()
             #if DEBUG
             PerformanceLogger.logScreenLoad(
                 screenName: "WorkContractDetailSheet",
                 itemCounts: [
-                    "lessons": lessons.count,
-                    "students": students.count,
+                    "lessons": relatedLessons.count,
+                    "students": relatedStudent != nil ? 1 : 0,
                     "workNotes": workNotes.count,
                     "presentations": presentations.count,
                     "planItems": planItems.count,
@@ -192,7 +194,7 @@ struct WorkContractDetailSheet: View {
         contract.kind = workKind
         contract.completionOutcome = completionOutcome
         contract.completionNote = completionNote
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Saving work contract")
         close()
     }
 
@@ -200,22 +202,60 @@ struct WorkContractDetailSheet: View {
     
     private func deleteContract() {
         modelContext.delete(contract)
+        saveCoordinator.save(modelContext, reason: "Deleting work contract")
         close()
     }
 
     private func addPlan() {
         let item = WorkPlanItem(workID: contract.id, scheduledDate: newPlanDate, reason: newPlanReason)
         modelContext.insert(item)
+        saveCoordinator.save(modelContext, reason: "Adding plan item")
     }
 
+    /// OPTIMIZATION: Load only related lessons and students on demand
+    private func loadRelatedData() {
+        // Load the specific lesson
+        if let lessonID = UUID(uuidString: contract.lessonID) {
+            let lessonDescriptor = FetchDescriptor<Lesson>(
+                predicate: #Predicate<Lesson> { $0.id == lessonID }
+            )
+            relatedLesson = modelContext.safeFetchFirst(lessonDescriptor)
+            
+            // If we found the lesson, load lessons in the same subject/group for NextLessonResolver
+            if let lesson = relatedLesson {
+                let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !subject.isEmpty, !group.isEmpty else { return }
+                
+                // Load all lessons and filter in memory (predicates don't support trimmingCharacters or caseInsensitiveCompare)
+                let allLessonsDescriptor = FetchDescriptor<Lesson>(
+                    sortBy: [SortDescriptor(\.orderInGroup)]
+                )
+                let allLessons = modelContext.safeFetch(allLessonsDescriptor)
+                relatedLessons = allLessons.filter { l in
+                    let lSubject = l.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let lGroup = l.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return lSubject.caseInsensitiveCompare(subject) == .orderedSame &&
+                           lGroup.caseInsensitiveCompare(group) == .orderedSame
+                }
+            }
+        }
+        
+        // Load the specific student
+        if let studentID = UUID(uuidString: contract.studentID) {
+            let studentDescriptor = FetchDescriptor<Student>(
+                predicate: #Predicate<Student> { $0.id == studentID }
+            )
+            relatedStudent = modelContext.safeFetchFirst(studentDescriptor)
+        }
+    }
+    
     private func studentName() -> String {
-        guard let sid = UUID(uuidString: contract.studentID), let s = studentsByID[sid] else { return "Student" }
-        return s.firstName
+        return relatedStudent?.firstName ?? "Student"
     }
 
     private func lessonTitle() -> String {
-        guard let lid = UUID(uuidString: contract.lessonID), let l = lessonsByID[lid] else { return "Lesson" }
-        return l.name
+        return relatedLesson?.name ?? "Lesson"
     }
 
     private func resolvePresentationID() -> UUID? {

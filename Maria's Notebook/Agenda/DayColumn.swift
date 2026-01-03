@@ -6,8 +6,11 @@ struct DayColumn: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
-    @Query private var studentLessons: [StudentLesson]
+    
+    // OPTIMIZATION: Load only studentLessons for this day instead of all
+    @State private var dayStudentLessons: [StudentLesson] = []
     @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)]) private var allStudents: [Student]
+    
     let day: Date
     let availableHeight: CGFloat
     let onSelectLesson: (StudentLesson) -> Void
@@ -45,14 +48,14 @@ struct DayColumn: View {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 0) {
                         periodChip(title: "Morning", tint: .blue)
-                        DropZone(allStudentLessons: studentLessons, day: day, period: PlanningDayPeriod.morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                        DropZone(allStudentLessons: dayStudentLessons, day: day, period: PlanningDayPeriod.morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
                             .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     periodChip(title: "Afternoon", tint: .orange)
                         .padding(.top, UIConstants.dayColumnSpacing)
-                    DropZone(allStudentLessons: studentLessons, day: day, period: PlanningDayPeriod.afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                    DropZone(allStudentLessons: dayStudentLessons, day: day, period: PlanningDayPeriod.afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
                         .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -70,6 +73,10 @@ struct DayColumn: View {
         }
         .onAppear {
             AppCalendar.adopt(timeZoneFrom: calendar)
+            loadDayStudentLessons()
+        }
+        .onChange(of: day) { _, _ in
+            loadDayStudentLessons()
         }
         .padding(.bottom, 12)
     }
@@ -79,10 +86,26 @@ struct DayColumn: View {
     
     private var normalizedDay: Date { AppCalendar.startOfDay(day) }
 
+    /// OPTIMIZATION: Load only studentLessons for this day using predicate
+    private func loadDayStudentLessons() {
+        let (start, end) = AppCalendar.dayRange(for: normalizedDay)
+        
+        // Filter by scheduledForDay (denormalized) or scheduledFor for this specific day
+        // This significantly reduces memory usage compared to loading all studentLessons
+        let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate<StudentLesson> { sl in
+                // Match either the denormalized day field or the exact scheduled time
+                (sl.scheduledForDay >= start && sl.scheduledForDay < end) ||
+                (sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end)
+            }
+        )
+        dayStudentLessons = modelContext.safeFetch(descriptor)
+    }
+    
     private var plannedStudentIDs: Set<UUID> {
         let (start, end) = AppCalendar.dayRange(for: normalizedDay)
         var acc: [UUID] = []
-        for sl in studentLessons {
+        for sl in dayStudentLessons {
             guard !sl.isGiven else { continue }
             // Prefer denormalized day if available; fall back to exact scheduled time.
             if sl.scheduledForDay >= start && sl.scheduledForDay < end {

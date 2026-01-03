@@ -257,9 +257,11 @@ enum DataMigrations {
     /// Backfill StudentLesson relationships from legacy studentIDs and lessonID strings.
     /// One-time migration that ensures relationship arrays are populated from denormalized ID fields.
     /// Idempotent: guarded by a UserDefaults flag.
-    static func backfillRelationshipsIfNeeded(using context: ModelContext) {
+    /// Backfill relationships asynchronously to avoid blocking UI
+    /// Yields periodically to allow UI updates during large migrations
+    static func backfillRelationshipsIfNeeded(using context: ModelContext) async {
         let flagKey = "Backfill.relationships.v1"
-        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+        await MigrationFlag.runIfNeeded(key: flagKey) {
             // OPTIMIZATION: Fetch all data once (these are relatively small lookups)
             let sls = context.safeFetch(FetchDescriptor<StudentLesson>())
             let students = context.safeFetch(FetchDescriptor<Student>())
@@ -274,6 +276,11 @@ enum DataMigrations {
             var processed = 0
             
             for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
+                // Yield periodically to prevent blocking UI
+                if batchStart % (batchSize * 5) == 0 {
+                    await Task.yield()
+                }
+                
                 let batchEnd = min(batchStart + batchSize, sls.count)
                 let batch = Array(sls[batchStart..<batchEnd])
                 
@@ -316,9 +323,10 @@ enum DataMigrations {
     /// Backfill isPresented flag from givenAt field.
     /// One-time migration: if givenAt is set, isPresented should be true.
     /// Idempotent: guarded by a UserDefaults flag.
-    static func backfillIsPresentedIfNeeded(using context: ModelContext) {
+    /// Backfill isPresented asynchronously to avoid blocking UI
+    static func backfillIsPresentedIfNeeded(using context: ModelContext) async {
         let flagKey = "Backfill.isPresentedFromGivenAt.v1"
-        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+        await MigrationFlag.runIfNeeded(key: flagKey) {
             // OPTIMIZATION: Process in batches for large datasets
             let sls = context.safeFetch(FetchDescriptor<StudentLesson>())
             let batchSize = 1000
@@ -326,6 +334,11 @@ enum DataMigrations {
             var updated = 0
             
             for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
+                // Yield periodically to prevent blocking UI
+                if batchStart % (batchSize * 5) == 0 {
+                    await Task.yield()
+                }
+                
                 let batchEnd = min(batchStart + batchSize, sls.count)
                 let batch = Array(sls[batchStart..<batchEnd])
                 
@@ -354,9 +367,10 @@ enum DataMigrations {
     /// One-time migration that ensures scheduledForDay matches scheduledFor for all records.
     /// Idempotent: guarded by a UserDefaults flag.
     /// Note: This is a one-time migration. Use repairDenormalizedScheduledForDay for ongoing repairs.
-    static func backfillScheduledForDayIfNeeded(using context: ModelContext) {
+    /// Backfill scheduledForDay asynchronously to avoid blocking UI
+    static func backfillScheduledForDayIfNeeded(using context: ModelContext) async {
         let flagKey = "Backfill.scheduledForDay.v1"
-        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+        await MigrationFlag.runIfNeeded(key: flagKey) {
             // OPTIMIZATION: Process in batches for large datasets
             let sls = context.safeFetch(FetchDescriptor<StudentLesson>())
             let batchSize = 1000
@@ -364,6 +378,11 @@ enum DataMigrations {
             var needsSave = false
             
             for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
+                // Yield periodically to prevent blocking UI
+                if batchStart % (batchSize * 5) == 0 {
+                    await Task.yield()
+                }
+                
                 let batchEnd = min(batchStart + batchSize, sls.count)
                 let batch = Array(sls[batchStart..<batchEnd])
                 

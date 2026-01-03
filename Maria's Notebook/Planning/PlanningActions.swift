@@ -54,9 +54,11 @@ enum PlanningActions {
     ///   - calendar: Calendar used to compute day boundaries and preserve time-of-day.
     ///   - context: ModelContext for fetching and saving.
     static func pushLessonsWithAbsentStudents(in days: [Date], calendar: Calendar, context: ModelContext) {
-        guard !days.isEmpty else { return }
-        let start = calendar.startOfDay(for: days.first!)
-        let end = calendar.startOfDay(for: (days.last.map { calendar.date(byAdding: .day, value: 1, to: $0) } ?? nil) ?? days.first!)
+        guard let firstDay = days.first else { return }
+        let start = calendar.startOfDay(for: firstDay)
+        let lastDay = days.last ?? firstDay
+        let endDate = calendar.date(byAdding: .day, value: 1, to: lastDay) ?? lastDay
+        let end = calendar.startOfDay(for: endDate)
         // Fetch scheduled, un-given lessons within range
         let descriptor = FetchDescriptor<StudentLesson>(
             predicate: #Predicate { sl in
@@ -111,9 +113,11 @@ enum PlanningActions {
     ///   - calendar: Calendar used to compute day boundaries and preserve time-of-day.
     ///   - context: ModelContext for fetching and saving.
     static func pushAllLessonsByOneDay(in days: [Date], calendar: Calendar, context: ModelContext) {
-        guard !days.isEmpty else { return }
-        let start = calendar.startOfDay(for: days.first!)
-        let end = calendar.startOfDay(for: (days.last.map { calendar.date(byAdding: .day, value: 1, to: $0) } ?? nil) ?? days.first!)
+        guard let firstDay = days.first else { return }
+        let start = calendar.startOfDay(for: firstDay)
+        let lastDay = days.last ?? firstDay
+        let endDate = calendar.date(byAdding: .day, value: 1, to: lastDay) ?? lastDay
+        let end = calendar.startOfDay(for: endDate)
         let descriptor = FetchDescriptor<StudentLesson>(
             predicate: #Predicate { sl in
                 sl.isPresented == false && sl.givenAt == nil && sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end

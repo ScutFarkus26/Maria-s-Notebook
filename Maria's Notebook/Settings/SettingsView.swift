@@ -7,22 +7,9 @@ import Foundation
 // MARK: - SettingsView styled like the reference app, adapted to this app's data
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
-
-    // Live data for stats
-    @Query private var students: [Student]
-    @Query private var lessons: [Lesson]
-    @Query private var studentLessons: [StudentLesson]
-
-    @Query(filter: #Predicate<StudentLesson> { $0.givenAt == nil })
-    private var plannedLessons: [StudentLesson]
-
-    @Query(filter: #Predicate<StudentLesson> { $0.givenAt != nil })
-    private var givenLessons: [StudentLesson]
     
-    @Query private var workContracts: [WorkContract]
-    @Query private var presentations: [Presentation]
-    @Query private var notes: [Note]
-    @Query private var meetings: [StudentMeeting]
+    // OPTIMIZATION: Use ViewModel for efficient statistics loading instead of loading entire tables
+    @StateObject private var statsViewModel = SettingsStatsViewModel()
     
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -57,10 +44,10 @@ struct SettingsView: View {
                 SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
                     // Row 1: Core (Existing)
                     OverviewStatsGrid(
-                        studentsCount: studentsTotal,
-                        lessonsCount: lessonsTotal,
-                        plannedCount: plannedTotal,
-                        givenCount: givenTotal,
+                        studentsCount: statsViewModel.studentsCount,
+                        lessonsCount: statsViewModel.lessonsCount,
+                        plannedCount: statsViewModel.plannedCount,
+                        givenCount: statsViewModel.givenCount,
                         columns: overviewColumns
                     )
                     
@@ -68,10 +55,10 @@ struct SettingsView: View {
                     
                     // Row 2: Detail (New)
                     LazyVGrid(columns: overviewColumns, spacing: 16) {
-                        StatCard(title: "Work Items", value: "\(workContracts.count)", subtitle: "Assigned", systemImage: "doc.text.fill")
-                        StatCard(title: "Presentations", value: "\(presentations.count)", subtitle: "History", systemImage: "easel.fill")
-                        StatCard(title: "Observations", value: "\(notes.count)", subtitle: "Notes", systemImage: "note.text")
-                        StatCard(title: "Meetings", value: "\(meetings.count)", subtitle: "Records", systemImage: "person.2.fill")
+                        StatCard(title: "Work Items", value: "\(statsViewModel.workContractsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
+                        StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "easel.fill")
+                        StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
+                        StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
                     }
                 }
                 
@@ -88,15 +75,18 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
 #endif
         .onAppear {
+            // OPTIMIZATION: Load statistics efficiently via ViewModel
+            statsViewModel.loadCounts(context: modelContext)
+            
             #if DEBUG
             PerformanceLogger.logScreenLoad(
                 screenName: "SettingsView",
                 itemCounts: [
-                    "students": students.count,
-                    "lessons": lessons.count,
-                    "studentLessons": studentLessons.count,
-                    "plannedLessons": plannedLessons.count,
-                    "givenLessons": givenLessons.count
+                    "students": statsViewModel.studentsCount,
+                    "lessons": statsViewModel.lessonsCount,
+                    "studentLessons": statsViewModel.studentLessonsCount,
+                    "plannedLessons": statsViewModel.plannedCount,
+                    "givenLessons": statsViewModel.givenCount
                 ]
             )
             #endif
@@ -165,10 +155,6 @@ struct SettingsView: View {
         }
     }
 
-    private var studentsTotal: Int { students.count }
-    private var lessonsTotal: Int { lessons.count }
-    private var plannedTotal: Int { plannedLessons.count }
-    private var givenTotal: Int { givenLessons.count }
 }
 
 #Preview {

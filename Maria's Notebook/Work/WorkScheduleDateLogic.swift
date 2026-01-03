@@ -121,7 +121,10 @@ enum WorkScheduleDateLogic {
         if let first = upcoming.first { return (first.1, first.0.reason.map(reasonDisplayLabel(for:)) ?? "Scheduled") }
         let past = normalized.filter { $0.1 < today }.sorted { $0.1 > $1.1 }
         if let latestPast = past.first { return (latestPast.1, latestPast.0.reason.map(reasonDisplayLabel(for:)) ?? "Scheduled") }
-        let any = normalized.sorted { $0.1 < $1.1 }.first!
+        guard let first = normalized.sorted(by: { $0.1 < $1.1 }).first else {
+            return nil
+        }
+        let any = first
         return (any.1, any.0.reason.map(reasonDisplayLabel(for:)) ?? "Scheduled")
     }
 
