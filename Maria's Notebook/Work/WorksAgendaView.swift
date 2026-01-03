@@ -11,10 +11,19 @@ struct WorksAgendaView: View {
     @Query(filter: #Predicate<WorkContract> { $0.statusRaw == "active" || $0.statusRaw == "review" }) 
     private var openContracts: [WorkContract]
     
-    // MEMORY OPTIMIZATION: Use lightweight queries for change detection only
-    // The actual data is loaded on-demand when needed
-    @Query private var lessonIDs: [Lesson]
-    @Query private var studentIDs: [Student]
+    // MEMORY OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
+    // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
+    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
+    @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
+    
+    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
+    private var lessonIDs: [UUID] {
+        lessonsForChangeDetection.map { $0.id }
+    }
+    
+    private var studentIDs: [UUID] {
+        studentsForChangeDetection.map { $0.id }
+    }
     
     // Lazy-loaded caches (only populated when needed)
     @State private var lessonsByIDCache: [UUID: Lesson] = [:]
@@ -25,6 +34,8 @@ struct WorksAgendaView: View {
 
     @State private var sortMode: WorkAgendaSortMode = .lesson
     @State private var searchText: String = ""
+    @State private var debouncedSearchText: String = ""
+    @State private var searchDebounceTask: Task<Void, Never>? = nil
     @State private var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
     @State private var isCalendarMinimized: Bool = false
 
@@ -156,10 +167,10 @@ struct WorksAgendaView: View {
             // Reload when contracts change
             loadLessonsAndStudentsIfNeeded()
         }
-        .onChange(of: lessonIDs.map { $0.id }) { _, _ in
+        .onChange(of: lessonIDs) { _, _ in
             loadLessonsAndStudentsIfNeeded()
         }
-        .onChange(of: studentIDs.map { $0.id }) { _, _ in
+        .onChange(of: studentIDs) { _, _ in
             loadLessonsAndStudentsIfNeeded()
         }
         .onChange(of: showTestStudents) { _, _ in
@@ -201,12 +212,24 @@ struct WorksAgendaView: View {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField("Search students or lessons", text: $searchText)
                     .textFieldStyle(.plain)
+                    .onSubmit {
+                        searchDebounceTask?.cancel()
+                        debouncedSearchText = searchText
+                    }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(Color.primary.opacity(0.04))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
+            .onChange(of: searchText) { _, newValue in
+                searchDebounceTask?.cancel()
+                searchDebounceTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 250_000_000) // 250ms debounce
+                    guard !Task.isCancelled else { return }
+                    debouncedSearchText = newValue
+                }
+            }
         }
     }
 
@@ -218,9 +241,9 @@ struct WorksAgendaView: View {
             if let sid = UUID(uuidString: c.studentID) { return studentsByID[sid] != nil }
             return false
         }
-        // Optional search
-        if !searchText.trimmed().isEmpty {
-            let query = searchText.lowercased()
+        // Optional search (use debounced text for filtering)
+        if !debouncedSearchText.trimmed().isEmpty {
+            let query = debouncedSearchText.lowercased()
             works = works.filter { c in
                 var hay: [String] = []
                 hay.append(lessonTitle(forLessonID: c.lessonID))

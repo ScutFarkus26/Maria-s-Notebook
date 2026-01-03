@@ -4,6 +4,7 @@ import SwiftData
 struct AddStudentView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @State private var firstName = ""
     @State private var lastName = ""
@@ -56,7 +57,9 @@ struct AddStudentView: View {
                         dateStarted: startDate
                     )
                     modelContext.insert(newStudent)
-                    dismiss()
+                    if saveCoordinator.save(modelContext, reason: "Adding student") {
+                        dismiss()
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(firstName.isEmpty || lastName.isEmpty)
@@ -64,5 +67,6 @@ struct AddStudentView: View {
         }
         .padding(24)
         .frame(width: 420, height: 420)
+        .saveErrorAlert()
     }
 }

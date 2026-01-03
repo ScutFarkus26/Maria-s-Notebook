@@ -8,6 +8,7 @@ struct AddLessonView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @State private var name: String = ""
     @State private var subject: String = ""
@@ -88,7 +89,9 @@ struct AddLessonView: View {
                         newLesson.personalKind = nil
                     }
                     modelContext.insert(newLesson)
-                    dismiss()
+                    if saveCoordinator.save(modelContext, reason: "Adding lesson") {
+                        dismiss()
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -114,6 +117,7 @@ struct AddLessonView: View {
             if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let d = defaultSubject, !d.isEmpty { subject = d }
             if group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let g = defaultGroup, !g.isEmpty { group = g }
         }
+        .saveErrorAlert()
     }
 }
 

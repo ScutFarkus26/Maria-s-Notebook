@@ -5,17 +5,25 @@ struct PresentationHistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
-    // Fetch Presentations sorted by presentedAt descending
-    @Query(sort: [
-        SortDescriptor(\Presentation.presentedAt, order: .reverse),
-        SortDescriptor(\Presentation.createdAt, order: .reverse)
-    ]) private var presentations: [Presentation]
-    // Fetch Lessons
+    // PAGINATION: Load presentations in batches instead of all at once
+    private static let initialLoadCount = 50
+    private static let loadMoreCount = 50
+    
+    @State private var loadedPresentations: [Presentation] = []
+    @State private var hasLoadedMore = false
+    // Fetch Lessons (for lookup)
     @Query private var lessons: [Lesson]
-    // Fetch Students
+    // Fetch Students (for lookup)
     @Query private var students: [Student]
-    // Fetch all ScopedNotes with non-nil presentationID
+    // Fetch all ScopedNotes with non-nil presentationID (for counts)
     @Query(filter: #Predicate<ScopedNote> { $0.presentationID != nil }) private var allPresentationNotes: [ScopedNote]
+    
+    // Use @Query for change detection only
+    @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)]) private var allPresentationsForChangeDetection: [Presentation]
+    
+    private var presentationIDs: [UUID] {
+        allPresentationsForChangeDetection.map { $0.id }
+    }
 
     @State private var selectedPresentation: Presentation? = nil
     @State private var notesCountCache: [String: Int] = [:]
@@ -37,12 +45,47 @@ struct PresentationHistoryView: View {
     }
 
     private var groupedByDay: [(day: Date, items: [Presentation])] {
-        let dict = Dictionary(grouping: presentations) { p in
+        let dict = Dictionary(grouping: loadedPresentations) { p in
             dayKey(p.presentedAt)
         }
         .mapValues { arr in arr.sorted { lhs, rhs in lhs.presentedAt > rhs.presentedAt } }
         let days = dict.keys.sorted(by: >)
         return days.map { ($0, dict[$0] ?? []) }
+    }
+    
+    private func loadPresentations(limit: Int? = nil) {
+        var descriptor = FetchDescriptor<Presentation>(
+            sortBy: [
+                SortDescriptor(\Presentation.presentedAt, order: .reverse),
+                SortDescriptor(\Presentation.createdAt, order: .reverse)
+            ]
+        )
+        if let limit = limit {
+            descriptor.fetchLimit = limit
+        }
+        loadedPresentations = modelContext.safeFetch(descriptor)
+        // If we requested a limit and got fewer results, we've loaded all available
+        if let limit = limit {
+            hasLoadedMore = loadedPresentations.count < limit
+        } else {
+            hasLoadedMore = false // No limit means we loaded everything
+        }
+    }
+    
+    private func loadMorePresentations() {
+        guard !hasLoadedMore else { return }
+        let currentCount = loadedPresentations.count
+        var descriptor = FetchDescriptor<Presentation>(
+            sortBy: [
+                SortDescriptor(\Presentation.presentedAt, order: .reverse),
+                SortDescriptor(\Presentation.createdAt, order: .reverse)
+            ]
+        )
+        descriptor.fetchLimit = currentCount + Self.loadMoreCount
+        let newResults = modelContext.safeFetch(descriptor)
+        loadedPresentations = newResults
+        // If we got fewer results than requested, we've loaded all available
+        hasLoadedMore = newResults.count < currentCount + Self.loadMoreCount
     }
 
     // Date formatters
@@ -113,7 +156,7 @@ struct PresentationHistoryView: View {
 
     var body: some View {
         Group {
-            if presentations.isEmpty {
+            if loadedPresentations.isEmpty {
                 ContentUnavailableView(
                     "No Presentations Yet",
                     systemImage: "clock.arrow.circlepath",
@@ -123,11 +166,18 @@ struct PresentationHistoryView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(groupedByDay, id: \.day) { entry in
+                        ForEach(Array(groupedByDay.enumerated()), id: \.element.day) { dayIndex, entry in
                             Section {
-                                ForEach(entry.items, id: \.id) { p in
+                                ForEach(Array(entry.items.enumerated()), id: \.element.id) { itemIndex, p in
                                     row(for: p)
                                         .onTapGesture { selectedPresentation = p }
+                                        .onAppear {
+                                            // Load more when near the end
+                                            if dayIndex == groupedByDay.count - 1,
+                                               itemIndex >= entry.items.count - 5 {
+                                                loadMorePresentations()
+                                            }
+                                        }
                                 }
                             } header: {
                                 Text(Self.dayFormatter.string(from: entry.day))
@@ -150,6 +200,7 @@ struct PresentationHistoryView: View {
             #if DEBUG
             let t0 = Date()
             #endif
+            loadPresentations(limit: Self.initialLoadCount)
             if !hasBuiltCachesOnce {
                 buildCaches()
                 hasBuiltCachesOnce = true
@@ -158,6 +209,10 @@ struct PresentationHistoryView: View {
             let dt = Date().timeIntervalSince(t0) * 1000
             print("[DEBUG] PresentationHistoryView initial load took \(Int(dt)) ms")
             #endif
+        }
+        .onChange(of: presentationIDs) { _, _ in
+            // Reload when presentations change
+            loadPresentations(limit: loadedPresentations.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
         }
         .onChange(of: allPresentationNotes.map(\.id)) { _, _ in
             buildCaches()
