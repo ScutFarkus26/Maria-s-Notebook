@@ -34,6 +34,9 @@ import SwiftData
         get { UUID(uuidString: studentID) }
         set { studentID = newValue?.uuidString ?? "" }
     }
+    
+    // Inverse relationship for Note.workCompletionRecord
+    @Relationship(deleteRule: .cascade, inverse: \Note.workCompletionRecord) var notes: [Note]? = []
 
     // MARK: - Init
     init(

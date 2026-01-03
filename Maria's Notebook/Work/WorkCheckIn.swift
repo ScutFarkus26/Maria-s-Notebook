@@ -32,6 +32,9 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
         set { workID = newValue?.uuidString ?? "" }
     }
     
+    // Inverse relationship for Note.workCheckIn
+    @Relationship(deleteRule: .cascade, inverse: \Note.workCheckIn) var notes: [Note]? = []
+    
     init(id: UUID = UUID(), workID: UUID, date: Date = Date(), status: WorkCheckInStatus = .scheduled, purpose: String = "", note: String = "", work: WorkModel? = nil) {
         self.id = id
         // CloudKit compatibility: Store UUID as string

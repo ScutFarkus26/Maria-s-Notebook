@@ -45,6 +45,8 @@ final class Presentation: Identifiable {
     
     // Inverse relationship for ScopedNote.presentation (CloudKit compatibility)
     @Relationship(inverse: \ScopedNote.presentation) var scopedNotes: [ScopedNote]? = []
+    // Inverse relationship for Note.presentation
+    @Relationship(deleteRule: .cascade, inverse: \Note.presentation) var notes: [Note]? = []
 }
 
 #if DEBUG

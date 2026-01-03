@@ -77,6 +77,9 @@ final class WorkPlanItem: Identifiable {
         get { UUID(uuidString: workID) }
         set { workID = newValue?.uuidString ?? "" }
     }
+    
+    // Inverse relationship for Note.workPlanItem
+    @Relationship(deleteRule: .cascade, inverse: \Note.workPlanItem) var notes: [Note]? = []
 }
 
 #if DEBUG

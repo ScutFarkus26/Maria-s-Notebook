@@ -30,6 +30,8 @@ final class CommunityTopic: Identifiable {
     // CloudKit compatibility: Relationship arrays must be optional
     @Relationship(deleteRule: .cascade, inverse: \ProposedSolution.topic) var proposedSolutions: [ProposedSolution]? = []
     @Relationship(deleteRule: .cascade, inverse: \MeetingNote.topic) var notes: [MeetingNote]? = []
+    // Inverse relationship for Note.communityTopic
+    @Relationship(deleteRule: .cascade, inverse: \Note.communityTopic) var noteItems: [Note]? = []
 
     /// Freeform tags for filtering (e.g., Safety, Environment, Curriculum)
     /// 
@@ -90,6 +92,7 @@ final class CommunityTopic: Identifiable {
         self.resolution = resolution
         self.proposedSolutions = []
         self.notes = []
+        self.noteItems = []
         self.attachments = []
         self._tagsData = try? JSONEncoder().encode([String]())
     }

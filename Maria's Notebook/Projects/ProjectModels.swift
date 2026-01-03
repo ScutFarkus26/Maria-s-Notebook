@@ -128,6 +128,10 @@ final class ProjectSession: Identifiable {
         get { templateWeekID.flatMap { UUID(uuidString: $0) } }
         set { templateWeekID = newValue?.uuidString }
     }
+    
+    // Inverse relationship for Note.projectSession
+    // Note: 'notes' is a String field, so we use 'noteItems' for the relationship array
+    @Relationship(deleteRule: .cascade, inverse: \Note.projectSession) var noteItems: [Note]? = []
 
     init(
         id: UUID = UUID(),

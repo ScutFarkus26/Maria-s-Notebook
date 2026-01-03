@@ -276,48 +276,21 @@ struct AttendanceCard: View {
             }
         }
         .sheet(isPresented: $showingNoteEditor) {
-            NoteEditorSheet(initialNote: record?.note ?? "") { newNote in
-                onEditNote(newNote)
-                showingNoteEditor = false
-            } onCancel: {
-                showingNoteEditor = false
+            if let record = record {
+                UnifiedNoteEditor(
+                    context: .attendance(record),
+                    initialNote: nil,
+                    onSave: { _ in
+                        // Note is automatically saved via relationship
+                        showingNoteEditor = false
+                    },
+                    onCancel: {
+                        showingNoteEditor = false
+                    }
+                )
             }
-#if os(macOS)
-            .frame(minWidth: 420, minHeight: 220)
-            .presentationSizingFitted()
-#endif
         }
     }
 }
 
-// MARK: - Note Editor
-private struct NoteEditorSheet: View {
-    @State private var text: String
-    let onSave: (String?) -> Void
-    let onCancel: () -> Void
-
-    init(initialNote: String, onSave: @escaping (String?) -> Void, onCancel: @escaping () -> Void) {
-        _text = State(initialValue: initialNote)
-        self.onSave = onSave
-        self.onCancel = onCancel
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Edit Note")
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-            TextField("Optional note", text: $text, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-            Spacer(minLength: 0)
-            HStack {
-                Button("Cancel") { onCancel() }
-                Spacer()
-                Button("Save") { onSave(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(16)
-    }
-}
 

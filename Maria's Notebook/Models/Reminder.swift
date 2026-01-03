@@ -39,6 +39,10 @@ final class Reminder: Identifiable {
     /// When this reminder was last synced from EventKit
     var lastSyncedAt: Date? = nil
     
+    // Inverse relationship for Note.reminder
+    // Note: 'notes' is a String field, so we use 'noteItems' for the relationship array
+    @Relationship(deleteRule: .cascade, inverse: \Note.reminder) var noteItems: [Note]? = []
+    
     init(
         id: UUID = UUID(),
         title: String,

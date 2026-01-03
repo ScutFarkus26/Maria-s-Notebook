@@ -92,6 +92,9 @@ final class AttendanceRecord: Identifiable {
         get { UUID(uuidString: studentID) }
         set { studentID = newValue?.uuidString ?? "" }
     }
+    
+    // Inverse relationship for Note.attendanceRecord
+    @Relationship(deleteRule: .cascade, inverse: \Note.attendanceRecord) var notes: [Note]? = []
 
     init(
         id: UUID = UUID(),

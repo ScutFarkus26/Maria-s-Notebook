@@ -107,14 +107,45 @@ final class Note: Identifiable {
     // Persisted scope storage (JSON-encoded) kept small; no external storage needed
     private var scopeBlob: Data?
 
-    // Relationships (optional). Inverse to Lesson.notes only; WorkModel inverse added later.
+    // Relationships - All possible contexts (only one should be set per note)
     @Relationship var lesson: Lesson?
     @Relationship var work: WorkModel?
+    @Relationship var studentLesson: StudentLesson?
+    @Relationship var presentation: Presentation?
+    @Relationship var workContract: WorkContract?
+    @Relationship var attendanceRecord: AttendanceRecord?
+    @Relationship var workCheckIn: WorkCheckIn?
+    @Relationship var workCompletionRecord: WorkCompletionRecord?
+    @Relationship var workPlanItem: WorkPlanItem?
+    @Relationship var studentMeeting: StudentMeeting?
+    @Relationship var projectSession: ProjectSession?
+    @Relationship var communityTopic: CommunityTopic?
+    @Relationship var reminder: Reminder?
+    @Relationship var schoolDayOverride: SchoolDayOverride?
 
     // Computed, Codable scope
     @MainActor var scope: NoteScope {
         get { decodeScope() ?? .all }
         set { scopeBlob = try? JSONEncoder().encode(newValue) }
+    }
+    
+    // Helper to identify which context this note belongs to
+    var attachedTo: String {
+        if lesson != nil { return "lesson" }
+        if work != nil { return "work" }
+        if studentLesson != nil { return "studentLesson" }
+        if presentation != nil { return "presentation" }
+        if workContract != nil { return "workContract" }
+        if attendanceRecord != nil { return "attendance" }
+        if workCheckIn != nil { return "workCheckIn" }
+        if workCompletionRecord != nil { return "workCompletion" }
+        if workPlanItem != nil { return "workPlanItem" }
+        if studentMeeting != nil { return "studentMeeting" }
+        if projectSession != nil { return "projectSession" }
+        if communityTopic != nil { return "communityTopic" }
+        if reminder != nil { return "reminder" }
+        if schoolDayOverride != nil { return "schoolDayOverride" }
+        return "general"
     }
 
     // Initializer with defaults
@@ -129,6 +160,18 @@ final class Note: Identifiable {
         includeInReport: Bool = false,
         lesson: Lesson? = nil,
         work: WorkModel? = nil,
+        studentLesson: StudentLesson? = nil,
+        presentation: Presentation? = nil,
+        workContract: WorkContract? = nil,
+        attendanceRecord: AttendanceRecord? = nil,
+        workCheckIn: WorkCheckIn? = nil,
+        workCompletionRecord: WorkCompletionRecord? = nil,
+        workPlanItem: WorkPlanItem? = nil,
+        studentMeeting: StudentMeeting? = nil,
+        projectSession: ProjectSession? = nil,
+        communityTopic: CommunityTopic? = nil,
+        reminder: Reminder? = nil,
+        schoolDayOverride: SchoolDayOverride? = nil,
         imagePath: String? = nil,
         reportedBy: String? = nil,
         reporterName: String? = nil
@@ -142,6 +185,18 @@ final class Note: Identifiable {
         self.includeInReport = includeInReport
         self.lesson = lesson
         self.work = work
+        self.studentLesson = studentLesson
+        self.presentation = presentation
+        self.workContract = workContract
+        self.attendanceRecord = attendanceRecord
+        self.workCheckIn = workCheckIn
+        self.workCompletionRecord = workCompletionRecord
+        self.workPlanItem = workPlanItem
+        self.studentMeeting = studentMeeting
+        self.projectSession = projectSession
+        self.communityTopic = communityTopic
+        self.reminder = reminder
+        self.schoolDayOverride = schoolDayOverride
         self.imagePath = imagePath
         self.reportedBy = reportedBy
         self.reporterName = reporterName
