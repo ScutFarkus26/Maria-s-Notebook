@@ -106,6 +106,11 @@ final class Note: Identifiable {
 
     // Persisted scope storage (JSON-encoded) kept small; no external storage needed
     private var scopeBlob: Data?
+    
+    // Search index attributes for database-level filtering
+    // These are maintained automatically when scope changes
+    var searchIndexStudentID: UUID? = nil
+    var scopeIsAll: Bool = false
 
     // Relationships - All possible contexts (only one should be set per note)
     @Relationship var lesson: Lesson?
@@ -125,8 +130,32 @@ final class Note: Identifiable {
 
     // Computed, Codable scope
     @MainActor var scope: NoteScope {
-        get { decodeScope() ?? .all }
-        set { scopeBlob = try? JSONEncoder().encode(newValue) }
+        get { 
+            let decoded = decodeScope() ?? .all
+            // Ensure search index is synced (for existing notes that may not have it set)
+            syncSearchIndex(with: decoded)
+            return decoded
+        }
+        set { 
+            scopeBlob = try? JSONEncoder().encode(newValue)
+            // Update search index attributes for database-level filtering
+            syncSearchIndex(with: newValue)
+        }
+    }
+    
+    // Helper to sync search index attributes with scope
+    @MainActor private func syncSearchIndex(with scope: NoteScope) {
+        switch scope {
+        case .all:
+            scopeIsAll = true
+            searchIndexStudentID = nil
+        case .student(let id):
+            scopeIsAll = false
+            searchIndexStudentID = id
+        case .students:
+            scopeIsAll = false
+            searchIndexStudentID = nil
+        }
     }
     
     // Helper to identify which context this note belongs to
@@ -201,6 +230,18 @@ final class Note: Identifiable {
         self.reportedBy = reportedBy
         self.reporterName = reporterName
         self.scopeBlob = try? JSONEncoder().encode(scope)
+        // Initialize search index attributes based on scope
+        switch scope {
+        case .all:
+            self.scopeIsAll = true
+            self.searchIndexStudentID = nil
+        case .student(let id):
+            self.scopeIsAll = false
+            self.searchIndexStudentID = id
+        case .students:
+            self.scopeIsAll = false
+            self.searchIndexStudentID = nil
+        }
     }
 
     // MARK: - Private helpers

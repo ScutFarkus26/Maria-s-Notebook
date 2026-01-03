@@ -48,13 +48,36 @@ final class StudentNotesViewModel: ObservableObject {
         var aggregated: [UnifiedNoteItem] = []
 
         // 1) General (Note) objects where scope matches .student(student.id)
+        // OPTIMIZATION: Use database-level predicates instead of fetching all notes
         let noteSort: [SortDescriptor<Note>] = [
             SortDescriptor(\Note.updatedAt, order: .reverse),
             SortDescriptor(\Note.createdAt, order: .reverse)
         ]
-        let noteDesc = FetchDescriptor<Note>(sortBy: noteSort)
-        let allNotes: [Note] = (try? modelContext.fetch(noteDesc)) ?? []
-        let visibleNotes = allNotes.filter { $0.scope.applies(to: student.id) }
+        
+        // Fetch notes that match at database level: scopeIsAll OR searchIndexStudentID matches
+        let studentID = student.id
+        let primaryFetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { note in
+                note.scopeIsAll == true || note.searchIndexStudentID == studentID
+            },
+            sortBy: noteSort
+        )
+        let primaryNotes: [Note] = (try? modelContext.fetch(primaryFetch)) ?? []
+        
+        // Also fetch notes with .students([UUID]) scope (searchIndexStudentID == nil && scopeIsAll == false)
+        // These need in-memory filtering, but should be a much smaller set
+        let multiStudentFetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { note in
+                note.scopeIsAll == false && note.searchIndexStudentID == nil
+            },
+            sortBy: noteSort
+        )
+        let multiStudentNotes: [Note] = (try? modelContext.fetch(multiStudentFetch)) ?? []
+        // Filter in memory for .students([UUID]) scope
+        let filteredMultiStudentNotes = multiStudentNotes.filter { $0.scope.applies(to: student.id) }
+        
+        // Combine results
+        let visibleNotes = primaryNotes + filteredMultiStudentNotes
         let generalItems: [UnifiedNoteItem] = visibleNotes.map { note in
             let context: String = {
                 if let lesson = note.lesson {
