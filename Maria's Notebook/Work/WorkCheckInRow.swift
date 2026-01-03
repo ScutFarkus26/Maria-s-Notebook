@@ -13,7 +13,7 @@ struct WorkCheckInRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 checkInHeader
                 
-                if !checkIn.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if hasNotes {
                     checkInNote
                 }
             }
@@ -67,15 +67,42 @@ struct WorkCheckInRow: View {
     }
     
     private var checkInNote: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text("Notes:")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-            Text(checkIn.note)
-                .font(.system(size: AppTheme.FontSize.caption))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            // Show notes from the relationship (new system)
+            if let notes = checkIn.notes, !notes.isEmpty {
+                ForEach(notes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("Notes:")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                        Text(note.body)
+                            .font(.system(size: AppTheme.FontSize.caption))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    .padding(.top, 2)
+                }
+            }
+            // Fallback to legacy string field for backward compatibility
+            else if !checkIn.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("Notes:")
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text(checkIn.note)
+                        .font(.system(size: AppTheme.FontSize.caption))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 2)
+            }
         }
-        .padding(.top, 2)
+    }
+    
+    private var hasNotes: Bool {
+        if let notes = checkIn.notes, !notes.isEmpty {
+            return true
+        }
+        return !checkIn.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     private var actionsMenu: some View {

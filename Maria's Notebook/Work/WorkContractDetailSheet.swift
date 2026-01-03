@@ -17,7 +17,8 @@ struct WorkContractDetailSheet: View {
     @State private var relatedLessons: [Lesson] = [] // For NextLessonResolver - same subject/group
     @State private var relatedStudent: Student? = nil
     
-    @Query private var workNotes: [ScopedNote]
+    @Query private var workNotes: [ScopedNote] // Legacy notes
+    @Query private var contractNotes: [Note] // New unified notes
     @Query private var presentations: [Presentation]
     @Query private var planItems: [WorkPlanItem]
     @Query private var peerContracts: [WorkContract]
@@ -26,7 +27,8 @@ struct WorkContractDetailSheet: View {
     @State private var presentationNotes: [ScopedNote] = []
     @State private var showPresentationNotes: Bool = true
     @State private var showAddNoteSheet: Bool = false
-    @State private var newNoteText: String = ""
+    @State private var noteBeingEdited: Note? = nil
+    @State private var scopedNoteBeingEdited: ScopedNote? = nil
     @State private var showScheduleSheet: Bool = false
     @State private var showPlannedBanner: Bool = false
     @State private var showDeleteAlert: Bool = false
@@ -64,6 +66,8 @@ struct WorkContractDetailSheet: View {
         let contractID = contract.id
         let workID = contractID.uuidString
         _workNotes = Query(filter: #Predicate<ScopedNote> { $0.workContractID == workID })
+        // Query for new unified notes attached to this contract
+        _contractNotes = Query(filter: #Predicate<Note> { $0.workContract?.id == contractID })
         // CloudKit compatibility: workID is now String, so use workID string
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workID })
         let lessonID = contract.lessonID
@@ -113,6 +117,45 @@ struct WorkContractDetailSheet: View {
         }
         .sheet(isPresented: $showScheduleSheet) {
             ScheduleNextLessonSheet(contract: contract) { showPlannedBanner = true }
+        }
+        .sheet(isPresented: $showAddNoteSheet) {
+            UnifiedNoteEditor(
+                context: .workContract(contract),
+                initialNote: nil,
+                onSave: { _ in
+                    // Note is automatically saved via relationship
+                    showAddNoteSheet = false
+                },
+                onCancel: {
+                    showAddNoteSheet = false
+                }
+            )
+        }
+        .sheet(item: $noteBeingEdited) { note in
+            UnifiedNoteEditor(
+                context: .workContract(contract),
+                initialNote: note,
+                onSave: { _ in
+                    noteBeingEdited = nil
+                },
+                onCancel: {
+                    noteBeingEdited = nil
+                }
+            )
+        }
+        .sheet(item: $scopedNoteBeingEdited) { scopedNote in
+            LegacyNoteEditor(
+                title: "Edit Note",
+                text: scopedNote.body,
+                onSave: { newText in
+                    scopedNote.body = newText
+                    try? modelContext.save()
+                    scopedNoteBeingEdited = nil
+                },
+                onCancel: {
+                    scopedNoteBeingEdited = nil
+                }
+            )
         }
         .alert("Delete?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) { deleteContract() }
@@ -179,11 +222,78 @@ struct WorkContractDetailSheet: View {
     @ViewBuilder private func notesSection() -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Text("Notes").font(.headline); Spacer(); Button("+") { showAddNoteSheet = true } }
-            ForEach(workNotes) { note in
-                VStack(alignment: .leading) {
-                    Text(note.body).font(.body)
-                    Text(note.createdAt, style: .date).font(.caption).foregroundStyle(.secondary)
-                }.padding(8).background(Color.primary.opacity(0.04)).cornerRadius(8)
+            
+            // Show new unified notes first
+            ForEach(contractNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                noteRow(note)
+            }
+            
+            // Show legacy ScopedNote objects for backward compatibility
+            ForEach(workNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { scopedNote in
+                scopedNoteRow(scopedNote)
+            }
+            
+            if contractNotes.isEmpty && workNotes.isEmpty {
+                Text("No notes yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func noteRow(_ note: Note) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(note.body)
+                .font(.body)
+            HStack {
+                if note.category != .general {
+                    Text(note.category.rawValue.capitalized)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color.secondary.opacity(0.1))
+                        )
+                }
+                Text(note.createdAt, style: .date)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+        }
+        .padding(8)
+        .background(Color.primary.opacity(0.04))
+        .cornerRadius(8)
+        .contextMenu {
+            Button {
+                noteBeingEdited = note
+            } label: {
+                Label("Edit Note", systemImage: "pencil")
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func scopedNoteRow(_ scopedNote: ScopedNote) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(scopedNote.body)
+                .font(.body)
+            Text(scopedNote.createdAt, style: .date)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(8)
+        .background(Color.primary.opacity(0.04))
+        .cornerRadius(8)
+        .contextMenu {
+            Button {
+                scopedNoteBeingEdited = scopedNote
+            } label: {
+                Label("Edit Note", systemImage: "pencil")
             }
         }
     }

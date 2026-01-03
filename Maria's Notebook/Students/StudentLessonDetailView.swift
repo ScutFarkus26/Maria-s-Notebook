@@ -237,7 +237,13 @@ struct StudentLessonDetailContentView: View {
     }
     
     private var notesSection: some View {
-        NotesSectionView(notes: $vm.notes)
+        StudentLessonNotesSectionUnified(
+            studentLesson: vm.studentLesson,
+            legacyNotes: $vm.notes,
+            onLegacyNotesChange: { newNotes in
+                vm.notes = newNotes
+            }
+        )
     }
     
     private var lessonPickerSection: some View {
