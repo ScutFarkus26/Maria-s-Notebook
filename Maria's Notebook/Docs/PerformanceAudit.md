@@ -9,16 +9,21 @@
 
 This audit identifies **25+ locations** with unfiltered queries loading entire tables. The highest-risk areas are:
 
-1. **Tests/CloudKitStatusView.swift** - Loads ALL 14 model types (HIGH)
-2. **Settings/SettingsView.swift** - Multiple unfiltered queries (HIGH)
-3. **Inbox/FollowUpInboxView.swift** - 7 unfiltered queries (HIGH)
-4. **Work/WorkContractDetailSheet.swift** - 6 unfiltered queries (HIGH)
-5. **Students/StudentLessonsRootView.swift** - 3 large join tables (HIGH)
-6. **Planning/PlanningWeekView.swift** - 3 large join tables (HIGH)
-7. **Presentations/PresentationsViewModel.swift** - Loads all StudentLesson, Lesson, Student (HIGH)
-8. **AppCore/RootView.swift** - Backfill operations load all records (HIGH)
-9. **Backup/BackupService.swift** - Multiple unfiltered fetches for backup (MED - expected)
-10. **Services/DataMigrations.swift** - Unfiltered fetches for migrations (MED - expected)
+**✅ COMPLETED OPTIMIZATIONS:**
+1. ✅ **Settings/SettingsView.swift** - **OPTIMIZED** - Now uses `SettingsStatsViewModel` for efficient statistics loading
+2. ✅ **AppCore/RootView.swift** - **OPTIMIZED** - Backfill operations moved to `AppBootstrapper` and are now async with batch processing
+3. ✅ **Work/WorksAgendaView.swift** - **OPTIMIZED** - Uses filtered queries, lazy loading, and lightweight change detection
+4. ✅ **Presentations/PresentationHistoryView.swift** - **OPTIMIZED** - Implements pagination (loads 50 at a time)
+
+**⚠️ REMAINING HIGH-RISK AREAS:**
+1. **Tests/CloudKitStatusView.swift** - Loads ALL 14 model types (HIGH) - Test/debug view, lower priority
+2. **Inbox/FollowUpInboxView.swift** - 7 unfiltered queries (HIGH)
+3. **Work/WorkContractDetailSheet.swift** - 6 unfiltered queries (HIGH)
+4. **Students/StudentLessonsRootView.swift** - 3 large join tables (HIGH)
+5. **Planning/PlanningWeekView.swift** - 3 large join tables (HIGH)
+6. **Presentations/PresentationsViewModel.swift** - Loads all StudentLesson, Lesson, Student (HIGH) - Algorithmic requirement
+7. **Backup/BackupService.swift** - Multiple unfiltered fetches for backup (MED - expected)
+8. **Services/DataMigrations.swift** - Unfiltered fetches for migrations (MED - expected, now async with batching)
 
 ---
 
@@ -47,13 +52,10 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 
 #### Settings/SettingsView.swift
 - **Symbol:** `SettingsView` (View)
-- **Queries:**
-  - `@Query private var students: [Student]` (unfiltered)
-  - `@Query private var lessons: [Lesson]` (unfiltered)
-  - `@Query private var studentLessons: [StudentLesson]` (unfiltered)
-  - `@Query(filter: #Predicate<StudentLesson> { $0.givenAt == nil }) private var plannedLessons: [StudentLesson]` (filtered)
-  - `@Query(filter: #Predicate<StudentLesson> { $0.givenAt != nil }) private var givenLessons: [StudentLesson]` (filtered)
-- **Risk:** **HIGH** - Loads entire Student, Lesson, and StudentLesson tables just for counts. Only needs counts, not full data.
+- **Status:** ✅ **OPTIMIZED**
+- **Implementation:** Now uses `SettingsStatsViewModel` which loads counts efficiently using `FetchDescriptor` with `includesPendingChanges: false` for read-only analytics queries
+- **Queries:** No longer uses unfiltered @Query for statistics - uses ViewModel with targeted fetches
+- **Risk:** ✅ **RESOLVED** - Statistics are now loaded efficiently without loading entire tables
 
 #### Inbox/FollowUpInboxView.swift
 - **Symbol:** `FollowUpInboxView` (View)
@@ -152,12 +154,17 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 
 #### Presentations/PresentationHistoryView.swift
 - **Symbol:** `PresentationHistoryView` (View)
+- **Status:** ✅ **OPTIMIZED** - Implements pagination
+- **Implementation:** 
+  - Loads presentations in batches (initial: 50, load more: 50)
+  - Uses `FetchDescriptor` with `fetchLimit` for pagination
+  - Uses lightweight `@Query` for change detection only (extracts IDs)
 - **Queries:**
-  - `@Query(sort: [...]) private var presentations: [Presentation]` (filtered by date range, sorted)
-  - `@Query private var lessons: [Lesson]` (unfiltered)
-  - `@Query private var students: [Student]` (unfiltered)
-  - `@Query(filter: #Predicate<ScopedNote> { $0.presentationID != nil }) private var allPresentationNotes: [ScopedNote]` (filtered)
-- **Risk:** **MED-HIGH** - Loads all Lessons and Students. Should fetch only related items.
+  - Paginated `FetchDescriptor<Presentation>` (loads 50 at a time)
+  - `@Query` for change detection only (extracts IDs, doesn't retain full objects)
+  - `@Query private var lessons: [Lesson]` (unfiltered) - Still loads all for lookup
+  - `@Query private var students: [Student]` (unfiltered) - Still loads all for lookup
+- **Risk:** **MED** - Pagination implemented for presentations. Lessons and Students still loaded for lookup (may be acceptable for small datasets).
 
 #### Presentations/PresentationsCalendarStrip.swift
 - **Symbol:** `PresentationsCalendarStrip` (View)
@@ -202,11 +209,18 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 
 #### Work/WorksAgendaView.swift
 - **Symbol:** `WorksAgendaView` (View)
+- **Status:** ✅ **OPTIMIZED**
+- **Implementation:**
+  - Uses filtered `@Query` for open contracts only (active/review status)
+  - Lightweight change detection queries (extracts IDs only, doesn't retain full objects)
+  - Lazy-loads lessons and students on-demand based on displayed contracts
+  - Caches loaded data to avoid repeated fetches
+  - Added debouncing to search field (250ms delay)
 - **Queries:**
-  - `@Query(filter: #Predicate<WorkContract> { $0.statusRaw == "active" || $0.statusRaw == "review" }) private var openContracts: [WorkContract]` (filtered) - GOOD
-  - `@Query private var lessonIDs: [Lesson]` (unfiltered) - Used for change detection
-  - `@Query private var studentIDs: [Student]` (unfiltered) - Used for change detection
-- **Risk:** **MED** - Uses lazy loading pattern but still loads full objects for change detection. Could optimize change detection.
+  - `@Query(filter: #Predicate<WorkContract> { $0.statusRaw == "active" || $0.statusRaw == "review" })` - ✅ Filtered
+  - `@Query(sort: [SortDescriptor(\Lesson.id)])` - ✅ Change detection only (extracts IDs)
+  - `@Query(sort: [SortDescriptor(\Student.id)])` - ✅ Change detection only (extracts IDs)
+- **Risk:** ✅ **RESOLVED** - Optimized with filtered queries, lazy loading, and lightweight change detection.
 
 #### Students/StudentMeetingsTab.swift
 - **Symbol:** `StudentMeetingsTab` (View)
@@ -289,14 +303,20 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
   - `FetchDescriptor<WorkContract>(...)` - filtered (active/review only) - GOOD
 - **Risk:** **HIGH** - ViewModel loads ALL StudentLesson, Lesson, and Student in init. Comments indicate algorithmic requirement (blocking logic, days-since calculations), but this is still problematic.
 
-#### AppCore/RootView.swift
-- **Symbol:** `RootView` (View)
-- **Location:** Backfill operations (lines 286-288, 345, 382)
+#### AppCore/AppBootstrapper.swift
+- **Symbol:** `AppBootstrapper` (Service)
+- **Status:** ✅ **OPTIMIZED** - Backfill operations moved from RootView to AppBootstrapper
+- **Location:** `AppBootstrapper.bootstrap()` method (lines 46-50)
+- **Implementation:**
+  - All three backfill functions are now `async`
+  - Process in batches (1000 items per batch) to reduce memory spikes
+  - Use `await Task.yield()` periodically to prevent UI blocking
+  - Run during app bootstrap, not blocking UI
 - **Fetches:**
-  - `FetchDescriptor<StudentLesson>()` - unfiltered (3 times in different backfill functions)
-  - `FetchDescriptor<Student>()` - unfiltered
-  - `FetchDescriptor<Lesson>()` - unfiltered
-- **Risk:** **HIGH** - Backfill operations run on app launch and load all records. These are migration operations but block UI. Already has optimization guide noting this issue.
+  - `FetchDescriptor<StudentLesson>()` - unfiltered (for migrations, but now async with batching)
+  - `FetchDescriptor<Student>()` - unfiltered (for migrations, but now async with batching)
+  - `FetchDescriptor<Lesson>()` - unfiltered (for migrations, but now async with batching)
+- **Risk:** ✅ **RESOLVED** - Operations are async and don't block UI. Batch processing reduces memory spikes.
 
 #### ViewModels/TodayViewModel.swift
 - **Symbol:** `TodayViewModel` (ViewModel)
@@ -405,10 +425,10 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 - **Reason:** Loads ALL 14 model types with unfiltered @Query
 - **Impact:** Memory usage and load time will scale with total records across all tables
 
-### 2. Settings/SettingsView.swift
-- **Risk:** HIGH
-- **Reason:** 3 unfiltered queries (Student, Lesson, StudentLesson) just for counts
-- **Impact:** Loads entire core tables on every settings view access
+### 2. ✅ Settings/SettingsView.swift - OPTIMIZED
+- **Risk:** ✅ RESOLVED
+- **Reason:** Now uses `SettingsStatsViewModel` with efficient count queries
+- **Impact:** ✅ Statistics load efficiently without loading entire tables
 
 ### 3. Inbox/FollowUpInboxView.swift
 - **Risk:** HIGH
@@ -454,11 +474,11 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 
 ## 4. Top 5 Optimization Targets
 
-### Target 1: Settings/SettingsView.swift
-**Priority:** HIGH  
-**Impact:** High - Settings is accessed frequently  
-**Effort:** Low - Only needs counts, not full data  
-**Strategy:** Replace @Query with FetchDescriptor count queries or use ModelContext metadata
+### Target 1: ✅ Settings/SettingsView.swift - COMPLETED
+**Priority:** ✅ COMPLETED  
+**Impact:** ✅ High - Settings is accessed frequently  
+**Effort:** ✅ Low - Only needs counts, not full data  
+**Strategy:** ✅ Implemented - Uses `SettingsStatsViewModel` with `FetchDescriptor` and `includesPendingChanges: false`
 
 ### Target 2: Students/StudentLessonsRootView.swift
 **Priority:** HIGH  
@@ -498,10 +518,13 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 
 ### Good Patterns Found
 
-1. **WorksAgendaView** - Uses filtered @Query for contracts, lazy loading for related items
-2. **TodayViewModel** - Uses targeted FetchDescriptor with predicates (main path)
-3. **StudentsRootView** - Loads only open contracts, then fetches related students/lessons by ID
-4. **PresentationsView** - Uses change detection queries with ID extraction (though still loads full objects initially)
+1. ✅ **WorksAgendaView** - Uses filtered @Query for contracts, lazy loading for related items, lightweight change detection
+2. ✅ **TodayViewModel** - Uses targeted FetchDescriptor with predicates (main path)
+3. ✅ **SettingsStatsViewModel** - Efficient statistics loading with caching and optimized FetchDescriptors
+4. ✅ **PresentationHistoryView** - Implements pagination for large datasets
+5. ✅ **AppBootstrapper** - Async backfill operations with batch processing
+6. **StudentsRootView** - Loads only open contracts, then fetches related students/lessons by ID
+7. **PresentationsView** - Uses change detection queries with ID extraction (though still loads full objects initially)
 
 ---
 
