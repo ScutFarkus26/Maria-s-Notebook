@@ -132,10 +132,26 @@ This document summarizes the performance, stability, and sync health optimizatio
 
 ---
 
-#### 4. Enforce Strict Enum Raw Values for CloudKit
-**Status:** Pending
+#### 4. ✅ Enforce Strict Enum Raw Values for CloudKit
+**Status:** Completed - All models verified compliant
 
-**Recommendation:** Review all `@Model` classes to ensure Enum properties are explicitly backed by `String` or `Int` and conform to `Codable`.
+**Audit Results:**
+- Reviewed all `@Model` classes with enum properties
+- All enums are properly backed by `String` or `Int` raw values
+- All enums conform to `Codable`
+- All follow the established pattern: stored as `*Raw: String` with computed property accessors
+- Created `ENUM_CLOUDKIT_COMPATIBILITY_AUDIT.md` documenting compliance
+
+**Verified Models:**
+- Student (Level enum)
+- Lesson (LessonSource, PersonalLessonKind, WorkKind)
+- WorkContract (WorkStatus, WorkKind, CompletionOutcome, ScheduledReason, WorkSourceContextType)
+- WorkPlanItem (Reason enum)
+- WorkModel (WorkType enum)
+- WorkCheckIn (WorkCheckInStatus enum)
+- AttendanceRecord (AttendanceStatus, AbsenceReason)
+
+**Conclusion:** No changes needed - codebase already follows CloudKit best practices.
 
 ---
 
@@ -160,25 +176,41 @@ This document summarizes the performance, stability, and sync health optimizatio
 
 ---
 
-#### 3. Monitor Local Storage Fallback
-**Status:** Partial (logging exists, no UI warning)
+#### 3. ✅ Monitor Local Storage Fallback
+**Files Modified:**
+- `Settings/CloudKitStatusSettingsView.swift`
 
-**Current State:**
-- Code already logs when CloudKit fails and falls back to local storage
-- `UserDefaultsKeys.cloudKitActive` is set to `false` when fallback occurs
-- No visible UI warning shown to users
+**Changes:**
+- Enhanced status description to check for error descriptions when CloudKit is enabled but not active
+- Added warning message: "⚠️ CloudKit sync failed to initialize. Your data is stored locally and will NOT sync across devices."
+- Warns users when CloudKit initialization failed and fell back to local storage
 
-**Recommendation:** Add a visible warning in Settings UI when `cloudKitActive` is `false` but CloudKit is enabled, indicating data won't sync.
+**Impact:** Users are now warned when their data is not syncing due to CloudKit initialization failure
+
+---
+
+#### 5. Duplicate ID Validation in CSV Imports
+**Status:** Not Applicable
+
+**Finding:**
+- CSV imports create new records with auto-generated UUIDs (not imported from CSV)
+- Duplicate detection is already implemented based on business logic:
+  - Lessons: name+subject+group combination
+  - Students: name+birthday combination
+- Backup restoration (which does use IDs from backup files) already has ID validation
+
+**Conclusion:** CSV imports don't require ID-based validation since IDs are auto-generated. The existing duplicate detection based on business logic is appropriate.
 
 ---
 
 ## Summary
 
-**Completed:** 7 optimizations
+**Completed:** 9 optimizations
 - 4 Performance optimizations
-- 3 Stability/Verification items
+- 4 Stability/Verification items (including enum audit)
+- 1 Sync Health improvement
 
-**Remaining:** 6 opportunities identified
+**Remaining:** 4 opportunities identified (1 marked as not applicable)
 - These can be addressed in future iterations based on priority and user feedback
 
 ---

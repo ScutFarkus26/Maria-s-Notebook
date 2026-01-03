@@ -54,7 +54,13 @@ struct CloudKitStatusSettingsView: View {
         if isCloudKitActive {
             return "Your data is syncing with iCloud. Changes will sync across your devices."
         } else if isCloudKitEnabled {
-            return "iCloud sync is enabled but requires an app restart to take effect."
+            // Check if there's an error description indicating a fallback occurred
+            if let errorDescription = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStoreErrorDescription),
+               !errorDescription.isEmpty {
+                return "⚠️ CloudKit sync failed to initialize. Your data is stored locally and will NOT sync across devices. Check your iCloud account and network connection, then restart the app."
+            } else {
+                return "iCloud sync is enabled but requires an app restart to take effect."
+            }
         } else {
             return "Your data is stored locally on this device only. Enable iCloud sync to keep your data synchronized across devices."
         }
