@@ -105,7 +105,7 @@ struct CommunityMeetingsView: View {
             Divider()
             content
         }
-        .navigationTitle("Community Meetings")
+        .navigationTitle("Community")
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Menu {

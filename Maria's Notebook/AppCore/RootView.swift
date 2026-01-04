@@ -41,7 +41,7 @@ struct RootView: View {
             case .planningAgenda: return "Presentations"
             case .planningWork: return "Open Work"
             case .planningProjects: return "Projects"
-            case .community: return "Community Meetings"
+            case .community: return "Community"
             case .logs: return "Logs"
             case .settings: return "Settings"
             }
@@ -114,7 +114,7 @@ struct RootView: View {
         case today = "Today"
         case logs = "Logs"
         case attendance = "Attendance"
-        case community = "Community Meetings"
+        case community = "Community"
         case settings = "Settings"
 
         var id: String { rawValue }
@@ -141,6 +141,9 @@ struct RootView: View {
     @State private var isShowingQuickNote = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var buttonOffset: CGSize = .zero
+    @AppStorage("QuickNoteButton.offsetX") private var savedOffsetX: Double = 0
+    @AppStorage("QuickNoteButton.offsetY") private var savedOffsetY: Double = 0
     #endif
 
     // MARK: - Computed
@@ -177,6 +180,11 @@ struct RootView: View {
         VStack(spacing: 0) {
             if UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {
                 EphemeralStoreWarningBanner()
+            }
+            
+            let cloudStatus = MariasToolboxApp.getCloudKitStatus()
+            if cloudStatus.enabled && !cloudStatus.active {
+                CloudKitSyncWarningBanner()
             }
 
             Divider()
@@ -290,7 +298,65 @@ struct RootView: View {
     // MARK: - Quick Note Button
     
     private var quickNoteButton: some View {
-        Button {
+        #if os(iOS)
+        let longPress = LongPressGesture(minimumDuration: 0.3)
+        let drag = DragGesture(minimumDistance: 10)
+        let combined = longPress.sequenced(before: drag)
+        
+        return Button {
+            isShowingQuickNote = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(.ultraThinMaterial)
+                .overlay(
+                    Circle()
+                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                )
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
+        .offset(buttonOffset)
+        .simultaneousGesture(
+            longPress.sequenced(before: drag)
+                .onChanged { value in
+                    switch value {
+                    case .second(true, let dragValue?):
+                        // Update position immediately without animation for smooth tracking
+                        buttonOffset = CGSize(
+                            width: savedOffsetX + dragValue.translation.width,
+                            height: savedOffsetY + dragValue.translation.height
+                        )
+                    default:
+                        break
+                    }
+                }
+                .onEnded { value in
+                    if case .second(true, let dragValue?) = value {
+                        // Save final position
+                        let finalOffset = CGSize(
+                            width: savedOffsetX + dragValue.translation.width,
+                            height: savedOffsetY + dragValue.translation.height
+                        )
+                        savedOffsetX = finalOffset.width
+                        savedOffsetY = finalOffset.height
+                        
+                        // Smooth spring animation to final position
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)) {
+                            buttonOffset = finalOffset
+                        }
+                    }
+                }
+        )
+        .onAppear {
+            // Restore saved position
+            buttonOffset = CGSize(width: savedOffsetX, height: savedOffsetY)
+        }
+        .padding(20)
+        #else
+        return Button {
             isShowingQuickNote = true
         } label: {
             Image(systemName: "plus")
@@ -302,6 +368,7 @@ struct RootView: View {
                 .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
         }
         .padding(20)
+        #endif
     }
 
     // MARK: - State
@@ -400,7 +467,7 @@ private struct RootSidebar: View {
                     Label("Lessons", systemImage: "book")
                 }
                 NavigationLink(value: RootView.NavigationItem.community) {
-                    Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
+                    Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
                 NavigationLink(value: RootView.NavigationItem.logs) {
                     Label("Logs", systemImage: "list.bullet")
@@ -460,7 +527,7 @@ private struct RootSidebar: View {
                 .buttonStyle(.plain)
                 
                 Button { selection = .community } label: {
-                    Label("Community Meetings", systemImage: "bubble.left.and.bubble.right")
+                    Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
                 .buttonStyle(.plain)
                 
@@ -511,7 +578,7 @@ private struct RootCompactTabs: View {
 
     // Main tabs shown in bottom tab bar: Attendance, Today, Students
     private var mainTabs: [RootView.NavigationItem] {
-        [.attendance, .today, .students, .more]
+        [.attendance, .today, .students, .community]
     }
 
     var body: some View {
@@ -547,7 +614,7 @@ private struct MoreMenuView: View {
                     Button {
                         navigationPath.append(RootView.NavigationItem.community)
                     } label: {
-                        Label("Community Meetings", systemImage: RootView.NavigationItem.community.icon)
+                        Label("Community", systemImage: RootView.NavigationItem.community.icon)
                     }
                     .buttonStyle(.plain)
                     Button {
@@ -672,6 +739,34 @@ private struct EphemeralStoreWarningBanner: View {
             Rectangle()
                 .frame(height: 1)
                 .foregroundStyle(borderColor),
+            alignment: .bottom
+        )
+    }
+}
+
+/// Warning banner displayed when CloudKit sync is enabled but not active.
+private struct CloudKitSyncWarningBanner: View {
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "icloud.slash")
+                .foregroundStyle(.yellow)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("⚠️ iCloud Sync Issue")
+                    .font(.callout)
+                    .fontWeight(.bold)
+                Text("Sync is enabled but not currently active.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.yellow.opacity(0.12))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundStyle(Color.yellow.opacity(0.3)),
             alignment: .bottom
         )
     }

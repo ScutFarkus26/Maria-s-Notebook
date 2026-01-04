@@ -221,24 +221,26 @@ struct StudentsView<WorkloadContent: View>: View {
             } else if shouldUseGridView {
                 // Full-screen grid view for age/birthday modes or lastLesson sort order
                 NavigationStack {
-                    #if os(iOS)
-                    if horizontalSizeClass == .compact {
-                        // iPhone: Show placeholder views
-                        placeholderContentForMode
-                    } else {
-                        // iPad: Show grid view
-                        rosterGridContent
-                    }
-                    #else
-                    // macOS: Show grid view
-                    rosterGridContent
-                    #endif
-                        .navigationTitle("Students")
-                        .toolbar {
-                            toolbarContent
+                    Group {
+                        #if os(iOS)
+                        if horizontalSizeClass == .compact {
+                            // iPhone: Show placeholder views
+                            placeholderContentForMode
+                        } else {
+                            // iPad: Show grid view
+                            rosterGridContent
                         }
+                        #else
+                        // macOS: Show grid view
+                        rosterGridContent
+                        #endif
+                    }
+                    .navigationTitle("Students")
+                    .toolbar {
+                        toolbarContent
+                    }
 #if os(iOS)
-                        .navigationBarTitleDisplayMode(.inline)
+                    .navigationBarTitleDisplayMode(.inline)
 #endif
                 }
             } else if mode == .roster {
@@ -356,6 +358,11 @@ struct StudentsView<WorkloadContent: View>: View {
             .onChange(of: appRouter.navigationDestination) { _, destination in
                 handleNavigationDestinationChange(destination)
             }
+#if os(iOS)
+            .onAppear {
+                if horizontalSizeClass == .compact { mode = .roster }
+            }
+#endif
             .onAppear { 
                 ensureInitialManualOrderIfNeeded()
                 Task { @MainActor in
@@ -416,68 +423,7 @@ struct StudentsView<WorkloadContent: View>: View {
     @ToolbarContentBuilder
     private var fullScreenModeToolbar: some ToolbarContent {
         #if os(iOS)
-        if horizontalSizeClass == .compact {
-            // iPhone layout: Use menu instead of segmented picker
-            ToolbarItem(placement: .principal) {
-                Menu {
-                    Button {
-                        withAnimation { mode = .roster }
-                    } label: {
-                        Label("Roster", systemImage: "person.3")
-                        if mode == .roster {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .age }
-                    } label: {
-                        Label("Age", systemImage: "calendar")
-                        if mode == .age {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .birthday }
-                    } label: {
-                        Label("Birthday", systemImage: "gift")
-                        if mode == .birthday {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .lastLesson }
-                    } label: {
-                        Label("Last Lesson", systemImage: "clock.badge.exclamationmark")
-                        if mode == .lastLesson {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .workOverview }
-                    } label: {
-                        Label("Workload", systemImage: "doc.text")
-                        if mode == .workOverview {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .observationHeatmap }
-                    } label: {
-                        Label("Observations", systemImage: "chart.bar.fill")
-                        if mode == .observationHeatmap {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(mode.rawValue)
-                            .font(.system(size: 17, weight: .semibold))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                }
-            }
-        } else {
+        if horizontalSizeClass != .compact {
             // iPad layout: Use segmented picker
             ToolbarItem(placement: .automatic) {
                 Picker("Mode", selection: $mode) {
@@ -515,65 +461,7 @@ struct StudentsView<WorkloadContent: View>: View {
         #if os(iOS)
         if horizontalSizeClass == .compact {
             // iPhone layout: Use menus instead of segmented picker
-            ToolbarItem(placement: .principal) {
-                Menu {
-                    Button {
-                        withAnimation { mode = .roster }
-                    } label: {
-                        Label("Roster", systemImage: "person.3")
-                        if mode == .roster {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .age }
-                    } label: {
-                        Label("Age", systemImage: "calendar")
-                        if mode == .age {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .birthday }
-                    } label: {
-                        Label("Birthday", systemImage: "gift")
-                        if mode == .birthday {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .lastLesson }
-                    } label: {
-                        Label("Last Lesson", systemImage: "clock.badge.exclamationmark")
-                        if mode == .lastLesson {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .workOverview }
-                    } label: {
-                        Label("Workload", systemImage: "doc.text")
-                        if mode == .workOverview {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { mode = .observationHeatmap }
-                    } label: {
-                        Label("Observations", systemImage: "chart.bar.fill")
-                        if mode == .observationHeatmap {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(mode.rawValue)
-                            .font(.system(size: 17, weight: .semibold))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                }
-            }
+            // REMOVED mode switch menu per instructions
             
             // Sort and Filter combined menu for iPhone
             if mode == .roster {

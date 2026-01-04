@@ -165,7 +165,6 @@ struct StudentsRootView: View {
 }
 
 // MARK: - Workload Content View
-
 private struct WorkloadContentView: View {
     let openContracts: [WorkContract]
     let studentsByID: [UUID: Student]
@@ -228,4 +227,5 @@ private struct WorkloadContentView: View {
         )
     }
 }
+
 

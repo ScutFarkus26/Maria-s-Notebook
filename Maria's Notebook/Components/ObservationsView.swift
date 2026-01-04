@@ -1,6 +1,31 @@
 import SwiftUI
 import SwiftData
 
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+import FoundationModels
+
+@available(macOS 26.0, *)
+@Generable(description: "A concise digest for observations")
+struct NotesDigest {
+    @Guide(description: "3–6 bullet points highlighting notable observations", .count(3...6))
+    var keyPoints: [String]
+
+    @Guide(description: "Actionable follow-ups for guides/assistants (0–5)", .count(0...5))
+    var followUps: [String]
+
+    @Guide(description: "Overall tone/sentiment (e.g., positive, neutral, concerned)")
+    var sentiment: String
+}
+#endif
+
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+@Generable(description: "A concise narrative summary of observations")
+struct NotesNarrative {
+    @Guide(description: "A single concise paragraph narrative")
+    var narrative: String
+}
+#endif
+
 // Unified note item for displaying all note types
 private struct UnifiedObservationItem: Identifiable {
     let id: UUID
@@ -31,6 +56,14 @@ struct ObservationsView: View {
     // Loaded items (unfiltered) - now includes all note types
     @State private var loadedItems: [UnifiedObservationItem] = []
     @State private var isLoading: Bool = false
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    @State private var isSummarizing: Bool = false
+    @State private var showingSummarySheet: Bool = false
+    @State private var summaryMode: SummaryMode = .digest
+    @State private var summaryPartialDigest: PartiallyGenerated<NotesDigest>? = nil
+    @State private var summaryPartialNarrative: PartiallyGenerated<NotesNarrative>? = nil
+    @State private var summaryTask: Task<Void, Never>? = nil
+#endif
     @State private var hasMore: Bool = true
     @State private var lastCursorDate: Date? = nil // fetch notes where createdAt < lastCursorDate
 
@@ -39,6 +72,10 @@ struct ObservationsView: View {
     @State private var selectedCategory: NoteCategory? = nil
     @State private var selectedScope: ScopeFilter = .all
     @State private var searchText: String = ""
+    // Selection state for multi-select summarize
+    @State private var isSelecting: Bool = false
+    @State private var selectedItemIDs: Set<UUID> = []
+    
     @State private var noteBeingEdited: Note? = nil
     @State private var scopedNoteBeingEdited: ScopedNote? = nil
     @State private var workNoteBeingEdited: WorkNote? = nil
@@ -49,113 +86,208 @@ struct ObservationsView: View {
 
     private let pageSize: Int = 50
 
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    private enum SummaryMode { case digest, narrative }
+#endif
+
     var body: some View {
+        mainContentView
+            .searchable(text: $searchText)
+            .onAppear { loadFirstPageIfNeeded() }
+            .onChange(of: loadedItems.map { $0.id }) { _, _ in
+                loadStudentsIfNeeded(for: filteredItems)
+            }
+            .onChange(of: selectedCategory) { _, _ in
+                // Category is filtered in-memory; keep pages as-is
+                loadStudentsIfNeeded(for: filteredItems)
+            }
+            .onChange(of: selectedScope) { _, _ in
+                loadStudentsIfNeeded(for: filteredItems)
+            }
+            .onChange(of: searchText) { _, _ in
+                loadStudentsIfNeeded(for: filteredItems)
+            }
+            .sheet(isPresented: $isShowingComposer) {
+                QuickNoteSheet()
+            }
+            .sheet(item: $noteBeingEdited) { note in
+                UnifiedNoteEditor(
+                    context: contextForNote(note),
+                    initialNote: note,
+                    onSave: { _ in
+                        noteBeingEdited = nil
+                        reloadAllNotes()
+                    },
+                    onCancel: {
+                        noteBeingEdited = nil
+                    }
+                )
+            }
+            .sheet(item: $scopedNoteBeingEdited) { scopedNote in
+                LegacyNoteEditor(
+                    title: "Edit Note",
+                    text: scopedNote.body,
+                    onSave: { newText in
+                        scopedNote.body = newText
+                        try? modelContext.save()
+                        scopedNoteBeingEdited = nil
+                        reloadAllNotes()
+                    },
+                    onCancel: {
+                        scopedNoteBeingEdited = nil
+                    }
+                )
+            }
+            .sheet(item: $workNoteBeingEdited) { workNote in
+                LegacyNoteEditor(
+                    title: "Edit Note",
+                    text: workNote.text,
+                    onSave: { newText in
+                        workNote.text = newText
+                        try? modelContext.save()
+                        workNoteBeingEdited = nil
+                        reloadAllNotes()
+                    },
+                    onCancel: {
+                        workNoteBeingEdited = nil
+                    }
+                )
+            }
+            .sheet(item: $meetingNoteBeingEdited) { meetingNote in
+                LegacyNoteEditor(
+                    title: "Edit Meeting Note",
+                    text: meetingNote.content,
+                    onSave: { newText in
+                        meetingNote.content = newText
+                        try? modelContext.save()
+                        meetingNoteBeingEdited = nil
+                        reloadAllNotes()
+                    },
+                    onCancel: {
+                        meetingNoteBeingEdited = nil
+                    }
+                )
+            }
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+            .sheet(isPresented: $showingSummarySheet) {
+                ObservationsSummarySheet(
+                    mode: summaryMode,
+                    isSummarizing: $isSummarizing,
+                    partialDigest: summaryPartialDigest,
+                    partialNarrative: summaryPartialNarrative,
+                    onCancel: {
+                        summaryTask?.cancel()
+                        summaryTask = nil
+                        isSummarizing = false
+                    }
+                )
+            }
+#endif
+    }
+    
+    private var mainContentView: some View {
         NavigationStack {
             VStack(spacing: 8) {
                 // Filters
                 filterBar
                 
                 // List
-                List {
-                    if filteredItems.isEmpty, !isLoading {
-                        ContentUnavailableView("No observations", systemImage: "note.text")
-                            .listRowBackground(Color.clear)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else {
-                        ForEach(filteredItems, id: \.id) { item in
-                            row(for: item)
-                        }
-                    }
-                }
-                .listStyle(.inset)
+                observationsList
             }
             .navigationTitle("Observations")
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isShowingComposer = true
-                    } label: {
-                        Label("New Note", systemImage: "square.and.pencil")
-                    }
+                toolbarContent
+            }
+        }
+    }
+    
+    private var observationsList: some View {
+        List {
+            if filteredItems.isEmpty, !isLoading {
+                ContentUnavailableView("No observations", systemImage: "note.text")
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                ForEach(filteredItems, id: \.id) { item in
+                    observationRow(for: item)
                 }
             }
         }
-        .searchable(text: $searchText)
-        .onAppear { loadFirstPageIfNeeded() }
-        .onChange(of: loadedItems.map { $0.id }) { _, _ in
-            loadStudentsIfNeeded(for: filteredItems)
-        }
-        .onChange(of: selectedCategory) { _, _ in
-            // Category is filtered in-memory; keep pages as-is
-            loadStudentsIfNeeded(for: filteredItems)
-        }
-        .onChange(of: selectedScope) { _, _ in
-            loadStudentsIfNeeded(for: filteredItems)
-        }
-        .onChange(of: searchText) { _, _ in
-            loadStudentsIfNeeded(for: filteredItems)
-        }
-        .sheet(isPresented: $isShowingComposer) {
-            QuickNoteSheet()
-        }
-        .sheet(item: $noteBeingEdited) { note in
-            UnifiedNoteEditor(
-                context: contextForNote(note),
-                initialNote: note,
-                onSave: { _ in
-                    noteBeingEdited = nil
-                    reloadAllNotes()
-                },
-                onCancel: {
-                    noteBeingEdited = nil
+        .listStyle(.inset)
+    }
+    
+    @ViewBuilder
+    private func observationRow(for item: UnifiedObservationItem) -> some View {
+        row(for: item)
+            .contentShape(Rectangle())
+            .overlay(alignment: .trailing) {
+                if isSelecting {
+                    Image(systemName: selectedItemIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(selectedItemIDs.contains(item.id) ? Color.accentColor : .secondary)
                 }
-            )
-        }
-        .sheet(item: $scopedNoteBeingEdited) { scopedNote in
-            LegacyNoteEditor(
-                title: "Edit Note",
-                text: scopedNote.body,
-                onSave: { newText in
-                    scopedNote.body = newText
-                    try? modelContext.save()
-                    scopedNoteBeingEdited = nil
-                    reloadAllNotes()
-                },
-                onCancel: {
-                    scopedNoteBeingEdited = nil
+            }
+            .onTapGesture {
+                if isSelecting {
+                    if selectedItemIDs.contains(item.id) {
+                        selectedItemIDs.remove(item.id)
+                    } else {
+                        selectedItemIDs.insert(item.id)
+                    }
+                } else {
+                    editItem(item)
                 }
-            )
+            }
+    }
+    
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                isShowingComposer = true
+            } label: {
+                Label("New Note", systemImage: "square.and.pencil")
+            }
         }
-        .sheet(item: $workNoteBeingEdited) { workNote in
-            LegacyNoteEditor(
-                title: "Edit Note",
-                text: workNote.text,
-                onSave: { newText in
-                    workNote.text = newText
-                    try? modelContext.save()
-                    workNoteBeingEdited = nil
-                    reloadAllNotes()
-                },
-                onCancel: {
-                    workNoteBeingEdited = nil
+        ToolbarItem(placement: .automatic) {
+            Button(isSelecting ? "Done" : "Select") {
+                withAnimation {
+                    if isSelecting { selectedItemIDs.removeAll() }
+                    isSelecting.toggle()
                 }
-            )
+            }
         }
-        .sheet(item: $meetingNoteBeingEdited) { meetingNote in
-            LegacyNoteEditor(
-                title: "Edit Meeting Note",
-                text: meetingNote.content,
-                onSave: { newText in
-                    meetingNote.content = newText
-                    try? modelContext.save()
-                    meetingNoteBeingEdited = nil
-                    reloadAllNotes()
-                },
-                onCancel: {
-                    meetingNoteBeingEdited = nil
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        if isSelecting && !selectedItemIDs.isEmpty {
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    Button {
+                        summarizeSelected(as: .digest)
+                    } label: {
+                        Label("Key Points", systemImage: "list.bullet")
+                    }
+                    Button {
+                        summarizeSelected(as: .narrative)
+                    } label: {
+                        Label("Narrative", systemImage: "text.justify")
+                    }
+                } label: {
+                    Label("Summarize Selected", systemImage: "sparkles")
                 }
-            )
+            }
         }
+#endif
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        ToolbarItem(placement: .automatic) {
+            if #available(macOS 26.0, *) {
+                Button {
+                    startStreamingSummary(mode: .digest)
+                } label: {
+                    Label("Summarize", systemImage: isSummarizing ? "sparkles.rectangle.stack" : "sparkles")
+                }
+                .disabled(isSummarizing || loadedItems.isEmpty)
+            }
+        }
+#endif
     }
 
     // MARK: - Filters UI
@@ -645,5 +777,176 @@ struct ObservationsView: View {
         }
         return .general
     }
+
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    @MainActor
+    private func startStreamingSummary(bodies overrideBodies: [String]? = nil, mode: SummaryMode = .digest) {
+        guard !isSummarizing else { return }
+        let sourceBodies: [String]
+        if let overrideBodies, !overrideBodies.isEmpty {
+            sourceBodies = overrideBodies
+        } else {
+            sourceBodies = filteredItems.prefix(50).map { "- \($0.body)" }
+        }
+        guard !sourceBodies.isEmpty else { return }
+        let joined = (mode == .digest ? sourceBodies.joined(separator: "\n") : sourceBodies.map { $0.replacingOccurrences(of: "^- ", with: "", options: .regularExpression) }.joined(separator: "\n"))
+
+        showingSummarySheet = true
+        isSummarizing = true
+        summaryMode = mode
+        summaryPartialDigest = nil
+        summaryPartialNarrative = nil
+
+        let instructions = """
+        You summarize Montessori classroom observations for staff.
+        Be concise, factual, and avoid speculation.
+        """
+
+        let session = LanguageModelSession(instructions: instructions)
+        summaryTask?.cancel()
+        summaryTask = Task { @MainActor in
+            do {
+                switch mode {
+                case .digest:
+                    let stream = session.streamResponse(
+                        to: "Summarize the following notes as key points, follow-ups, and sentiment:\n\(joined)",
+                        generating: NotesDigest.self
+                    )
+                    for try await partial in stream {
+                        summaryPartialDigest = partial
+                    }
+                case .narrative:
+                    let stream = session.streamResponse(
+                        to: "Write a single concise narrative paragraph summarizing these observations:\n\(joined)",
+                        generating: NotesNarrative.self
+                    )
+                    for try await partial in stream {
+                        summaryPartialNarrative = partial
+                    }
+                }
+            } catch {
+                // Ignore errors for now; user can dismiss the sheet
+            }
+            isSummarizing = false
+            summaryTask = nil
+        }
+    }
+
+    private func summarizeSelected(as mode: SummaryMode) {
+        let bodies = filteredItems.filter { selectedItemIDs.contains($0.id) }.map { $0.body }
+        startStreamingSummary(bodies: bodies, mode: mode)
+    }
+#endif
+
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    private struct ObservationsSummarySheet: View {
+        let mode: SummaryMode
+        @Binding var isSummarizing: Bool
+        let partialDigest: PartiallyGenerated<NotesDigest>?
+        let partialNarrative: PartiallyGenerated<NotesNarrative>?
+        let onCancel: () -> Void
+
+        var body: some View {
+            #if os(macOS)
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                content
+                footer
+            }
+            .padding(20)
+            .frame(minWidth: 420, minHeight: 360)
+            .presentationSizingFitted()
+            #else
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 16) {
+                    content
+                }
+                .padding(20)
+                .navigationTitle("Summary")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(isSummarizing ? "Stop" : "Close") { onCancel() }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            #endif
+        }
+
+        @ViewBuilder
+        private var header: some View {
+            HStack {
+                Text("Summary")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                Spacer()
+                Button(isSummarizing ? "Stop" : "Close") { onCancel() }
+            }
+        }
+
+        @ViewBuilder
+        private var content: some View {
+            switch mode {
+            case .digest:
+                if partialDigest == nil {
+                    ProgressView("Generating…")
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if let points = partialDigest?.keyPoints, !points.isEmpty {
+                            Text("Key Points").font(.headline)
+                            ForEach(points, id: \.self) { p in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "circle.fill").font(.system(size: 6))
+                                    Text(p)
+                                }
+                            }
+                        }
+                        if let actions = partialDigest?.followUps, !actions.isEmpty {
+                            Divider().padding(.vertical, 8)
+                            Text("Follow Ups").font(.headline)
+                            ForEach(actions, id: \.self) { a in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "checkmark.circle").foregroundStyle(.green)
+                                    Text(a)
+                                }
+                            }
+                        }
+                        if let sentiment = partialDigest?.sentiment, !sentiment.isEmpty {
+                            Divider().padding(.vertical, 8)
+                            HStack {
+                                Image(systemName: "face.smiling")
+                                Text("Sentiment: \(sentiment)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            case .narrative:
+                if partialNarrative == nil {
+                    ProgressView("Generating…")
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if let text = partialNarrative?.narrative, !text.isEmpty {
+                            Text(text)
+                                .font(.body)
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                }
+            }
+        }
+
+        @ViewBuilder
+        private var footer: some View {
+            HStack {
+                Spacer()
+                Button(isSummarizing ? "Stop" : "Close") { onCancel() }
+                    .buttonStyle(.bordered)
+            }
+        }
+    }
+#endif
 }
 

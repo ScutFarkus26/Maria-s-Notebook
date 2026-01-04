@@ -10,6 +10,19 @@ import UIKit
 import AVFoundation
 #endif
 
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+import FoundationModels
+
+@Generable(description: "Classification for a single note")
+struct NoteClassificationSuggestion {
+    @Guide(description: "One of: academic, behavioral, social, emotional, health, general")
+    var category: String
+
+    @Guide(description: "IDs or names indicating student-specific scope; empty means all")
+    var studentIdentifiers: [String]
+}
+#endif
+
 /// A unified note editor that works for all note types in the app
 /// Based on QuickNoteSheet but supports all contexts
 struct UnifiedNoteEditor: View {
@@ -62,6 +75,16 @@ struct UnifiedNoteEditor: View {
     @State private var selectedImage: UIImage? = nil
     #endif
     @State private var imagePath: String? = nil
+    
+    #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    @State private var isSuggesting: Bool = false
+    @State private var showingSuggestionSheet: Bool = false
+    @State private var proposedCategory: NoteCategory? = nil
+    @State private var proposedStudentIDs: [UUID] = []
+    #endif
+    
+    // AI / Smart Editor State
+    @State private var aiTriggerCounter: Int = 0
     
     private let tagger = NLTagger(tagSchemes: [.nameType])
     @State private var nameDetectionTask: Task<Void, Never>? = nil
@@ -166,6 +189,23 @@ struct UnifiedNoteEditor: View {
             .presentationDragIndicator(.visible)
             #endif
         }
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        .sheet(isPresented: $showingSuggestionSheet) {
+            SuggestionPreviewSheet(
+                proposedCategory: proposedCategory,
+                proposedStudentIDs: proposedStudentIDs,
+                allStudents: students,
+                onApply: {
+                    if let cat = proposedCategory { self.category = cat }
+                    if !proposedStudentIDs.isEmpty { self.selectedStudentIDs = Set(proposedStudentIDs) }
+                    showingSuggestionSheet = false
+                },
+                onCancel: {
+                    showingSuggestionSheet = false
+                }
+            )
+        }
+#endif
         .onAppear {
             setupInitialState()
         }
@@ -378,9 +418,25 @@ struct UnifiedNoteEditor: View {
     
     private var categorySelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Category")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
+            HStack {
+                Text("Category")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Spacer()
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+                if !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button {
+                        Task { await suggestCategoryAndScope() }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "wand.and.stars")
+                            Text(isSuggesting ? "Suggesting…" : "Suggest")
+                        }
+                    }
+                    .disabled(isSuggesting)
+                }
+#endif
+            }
             
             Picker("Category", selection: $category) {
                 ForEach(NoteCategory.allCases, id: \.self) { cat in
@@ -403,11 +459,50 @@ struct UnifiedNoteEditor: View {
     
     private var noteBodySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Note")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
+            HStack {
+                Text("Note")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                
+                // THE "AI TOOLS" BUTTON
+                if !bodyText.isEmpty {
+                    if #available(iOS 18.0, macOS 15.0, *) {
+                        Button {
+                            // Triggers the Select All + Invoke logic
+                            aiTriggerCounter += 1
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles")
+                                Text("Writing Tools")
+                            }
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.purple)
+                        #if os(iOS)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.purple.opacity(0.1))
+                        .clipShape(Capsule())
+                        #endif
+                    }
+                }
+            }
             
-            noteTextEditor
+            // USE CUSTOM SMART EDITOR
+            SmartTextEditor(text: $bodyText, triggerTool: $aiTriggerCounter)
+                .frame(minHeight: 120)
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(notesBackgroundColor)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
             
             HStack {
                 expandInitialsButton
@@ -416,23 +511,6 @@ struct UnifiedNoteEditor: View {
             
             photoPickerSection
         }
-    }
-    
-    private var noteTextEditor: some View {
-        TextEditor(text: $bodyText)
-            .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
-            .frame(minHeight: 120)
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(notesBackgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-            )
     }
     
     private var photoPickerSection: some View {
@@ -881,6 +959,131 @@ struct UnifiedNoteEditor: View {
         bodyText = newText
     }
     
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    @MainActor
+    private func suggestCategoryAndScope() async {
+        guard !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        isSuggesting = true
+        defer { isSuggesting = false }
+
+        let session = LanguageModelSession(
+            instructions: """
+            Classify notes for a Montessori classroom.
+            Only use categories: academic, behavioral, social, emotional, health, general.
+            If specific students are clearly mentioned, include their names; otherwise leave the list empty.
+            """
+        )
+        do {
+            let response = try await session.respond(
+                to: "Classify this note:\n\(bodyText)",
+                generating: NoteClassificationSuggestion.self,
+                options: .init(temperature: 0.2)
+            )
+            let content = response.content
+            // Category
+            let proposedCat = NoteCategory(rawValue: content.category.lowercased()) ?? .general
+            // Map names/identifiers to IDs by matching first name, nickname, or full name (case-insensitive)
+            let ids: [UUID] = content.studentIdentifiers.compactMap { ident in
+                let token = ident.folding(options: .diacriticInsensitive, locale: .current).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return students.first(where: { s in
+                    let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                    let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                    let nick = (s.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                    let full = (first + " " + last)
+                    return token == full || token == first || (!nick.isEmpty && token == nick)
+                })?.id
+            }
+            self.proposedCategory = proposedCat
+            self.proposedStudentIDs = Array(Set(ids))
+            self.showingSuggestionSheet = true
+        } catch {
+            // Swallow errors for now; could surface an alert later
+        }
+    }
+
+    // A small sheet to preview and apply suggestions
+    private struct SuggestionPreviewSheet: View {
+        let proposedCategory: NoteCategory?
+        let proposedStudentIDs: [UUID]
+        let allStudents: [Student]
+        let onApply: () -> Void
+        let onCancel: () -> Void
+
+        private func name(for id: UUID) -> String {
+            if let s = allStudents.first(where: { $0.id == id }) {
+                let first = s.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let lastI = s.lastName.first.map { String($0).uppercased() } ?? ""
+                return lastI.isEmpty ? first : "\(first) \(lastI)."
+            }
+            return "Unknown"
+        }
+
+        var body: some View {
+            #if os(macOS)
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Suggested Classification")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                if let cat = proposedCategory {
+                    HStack {
+                        Text("Category:").bold()
+                        Text(cat.rawValue.capitalized)
+                    }
+                }
+                if !proposedStudentIDs.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Scope:").bold()
+                        ForEach(proposedStudentIDs, id: \.self) { id in
+                            Text(name(for: id))
+                        }
+                    }
+                } else {
+                    HStack { Text("Scope:").bold(); Text("All Students") }
+                }
+                HStack {
+                    Spacer()
+                    Button("Cancel") { onCancel() }
+                    Button("Apply") { onApply() }.buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(20)
+            .frame(minWidth: 420)
+            .presentationSizingFitted()
+            #else
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let cat = proposedCategory {
+                        HStack {
+                            Text("Category:").bold()
+                            Text(cat.rawValue.capitalized)
+                        }
+                    }
+                    if !proposedStudentIDs.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Scope:").bold()
+                            ForEach(proposedStudentIDs, id: \.self) { id in
+                                Text(name(for: id))
+                            }
+                        }
+                    } else {
+                        HStack { Text("Scope:").bold(); Text("All Students") }
+                    }
+                    Spacer()
+                }
+                .padding(20)
+                .navigationTitle("Suggested Classification")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { onCancel() } }
+                    ToolbarItem(placement: .confirmationAction) { Button("Apply") { onApply() } }
+                }
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            #endif
+        }
+    }
+#endif
+    
     private func saveNote() {
         let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedBody.isEmpty else { return }
@@ -957,4 +1160,94 @@ struct UnifiedNoteEditor: View {
         dismiss()
     }
 }
+
+// MARK: - Smart Text Editor (The Magic Sauce)
+#if os(iOS)
+struct SmartTextEditor: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var triggerTool: Int // Change this to trigger actions
+    
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.backgroundColor = .clear
+        textView.font = UIFont.preferredFont(forTextStyle: .body)
+        textView.delegate = context.coordinator
+        
+        // Enable Apple Intelligence
+        if #available(iOS 18.0, *) {
+            textView.writingToolsBehavior = .complete
+        }
+        return textView
+    }
+    
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        if uiView.text != text { uiView.text = text }
+        
+        if context.coordinator.lastTrigger != triggerTool {
+            // Trigger Action: Select All + Activate
+            uiView.becomeFirstResponder()
+            uiView.selectAll(nil)
+            context.coordinator.lastTrigger = triggerTool
+            // On iOS, selection automatically brings up the toolbar.
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    
+    class Coordinator: NSObject, UITextViewDelegate {
+        var parent: SmartTextEditor
+        var lastTrigger = 0
+        init(_ parent: SmartTextEditor) { self.parent = parent }
+        func textViewDidChange(_ textView: UITextView) { parent.text = textView.text }
+    }
+}
+#elseif os(macOS)
+struct SmartTextEditor: NSViewRepresentable {
+    @Binding var text: String
+    @Binding var triggerTool: Int // Change this to trigger actions
+    
+    func makeNSView(context: Context) -> NSTextView {
+        let textView = NSTextView()
+        textView.isRichText = false
+        textView.font = NSFont.preferredFont(forTextStyle: .body)
+        textView.backgroundColor = .clear
+        textView.delegate = context.coordinator
+        textView.drawsBackground = false
+        
+        // Enable Apple Intelligence
+        if #available(macOS 15.0, *) {
+            textView.writingToolsBehavior = .complete
+        }
+        return textView
+    }
+    
+    func updateNSView(_ nsView: NSTextView, context: Context) {
+        if nsView.string != text { nsView.string = text }
+        
+        if context.coordinator.lastTrigger != triggerTool {
+            nsView.window?.makeFirstResponder(nsView)
+            nsView.selectAll(nil)
+            
+            if #available(macOS 15.2, *) {
+                // Try to invoke the system selector directly
+                NSApp.sendAction(#selector(NSTextView.showWritingTools(_:)), to: nil, from: nil)
+            }
+            
+            context.coordinator.lastTrigger = triggerTool
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    
+    class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: SmartTextEditor
+        var lastTrigger = 0
+        init(_ parent: SmartTextEditor) { self.parent = parent }
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            parent.text = textView.string
+        }
+    }
+}
+#endif
 
