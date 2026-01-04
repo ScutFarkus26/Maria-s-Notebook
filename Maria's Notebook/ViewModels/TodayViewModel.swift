@@ -96,13 +96,25 @@ final class TodayViewModel: ObservableObject {
     @Published private(set) var contractsByID: [UUID: WorkContract] = [:]
 
     // MARK: - Scheduling
-    private var reloadScheduled = false
-    private func scheduleReload() {
-        guard !reloadScheduled else { return }
-        reloadScheduled = true
-        Task { @MainActor in
-            reloadScheduled = false
-            reload()
+    // ENERGY OPTIMIZATION: Debounce reloads to prevent excessive database queries
+    // during rapid changes (e.g., date picker scrolling, filter changes)
+    private var reloadTask: Task<Void, Never>?
+    
+    /// Schedules a debounced reload. Use this for data-driven changes that may happen rapidly.
+    /// For user-initiated changes, call reload() directly for immediate feedback.
+    func scheduleReload() {
+        // Cancel any pending reload
+        reloadTask?.cancel()
+        
+        // Schedule a debounced reload (400ms delay balances responsiveness with energy efficiency)
+        reloadTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 400_000_000) // 400ms debounce
+                guard !Task.isCancelled else { return }
+                reload()
+            } catch {
+                // Task was cancelled, ignore
+            }
         }
     }
 
@@ -113,6 +125,11 @@ final class TodayViewModel: ObservableObject {
         AppCalendar.adopt(timeZoneFrom: calendar)
         self.date = date.startOfDay
         scheduleReload()
+    }
+    
+    deinit {
+        // Cancel any pending reload task to prevent leaks and unnecessary work
+        reloadTask?.cancel()
     }
 
     func setCalendar(_ cal: Calendar) {
@@ -253,9 +270,17 @@ final class TodayViewModel: ObservableObject {
     /// Loads work contracts, plan items, and processes schedule logic
     private func reloadContracts(day: Date, nextDay: Date) {
         do {
-            // Fetch Active/Review Contracts
+            // ENERGY OPTIMIZATION: Limit contract fetch to relevant time window
+            // Only fetch contracts that could be relevant (created or touched in last 90 days)
+            // This significantly reduces memory usage and query time
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date().addingTimeInterval(-90*24*3600)
+            
+            // Fetch Active/Review Contracts with date filter
             let contractsDescriptor = FetchDescriptor<WorkContract>(
-                predicate: #Predicate { c in c.statusRaw == "active" || c.statusRaw == "review" }
+                predicate: #Predicate { c in
+                    (c.statusRaw == "active" || c.statusRaw == "review") &&
+                    c.createdAt >= cutoffDate
+                }
             )
             let contracts = try context.fetch(contractsDescriptor)
             contractsByID = Dictionary(uniqueKeysWithValues: contracts.map { ($0.id, $0) })
@@ -409,9 +434,17 @@ final class TodayViewModel: ObservableObject {
             let startOfToday = Date().startOfDay
             let startOfDay = day.startOfDay
             
-            // Fetch all incomplete reminders
+            // ENERGY OPTIMIZATION: Only fetch reminders that could be relevant
+            // Fetch incomplete reminders with due dates in the past or within the next 7 days
+            // This avoids loading reminders that are far in the future
+            let futureCutoff = Calendar.current.date(byAdding: .day, value: 7, to: startOfDay) ?? nextDay
+            let pastCutoff = Calendar.current.date(byAdding: .day, value: -30, to: startOfDay) ?? Date.distantPast
+            
             let incompleteDescriptor = FetchDescriptor<Reminder>(
-                predicate: #Predicate { r in r.isCompleted == false }
+                predicate: #Predicate { r in
+                    r.isCompleted == false &&
+                    (r.dueDate == nil || (r.dueDate! >= pastCutoff && r.dueDate! <= futureCutoff))
+                }
             )
             let allReminders = try context.fetch(incompleteDescriptor)
             

@@ -13,6 +13,7 @@ import AVFoundation
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
 
+@available(macOS 26.0, *)
 @Generable(description: "Classification for a single note")
 struct NoteClassificationSuggestion {
     @Guide(description: "One of: academic, behavioral, social, emotional, health, general")

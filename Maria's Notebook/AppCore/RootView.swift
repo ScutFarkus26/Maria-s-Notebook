@@ -141,9 +141,6 @@ struct RootView: View {
     @State private var isShowingQuickNote = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var buttonOffset: CGSize = .zero
-    @AppStorage("QuickNoteButton.offsetX") private var savedOffsetX: Double = 0
-    @AppStorage("QuickNoteButton.offsetY") private var savedOffsetY: Double = 0
     #endif
 
     // MARK: - Computed
@@ -285,7 +282,7 @@ struct RootView: View {
         }
         .saveErrorAlert()
         .overlay(alignment: .bottomTrailing) {
-            quickNoteButton
+            QuickNoteGlassButton(isShowingSheet: $isShowingQuickNote)
         }
         .sheet(isPresented: $isShowingQuickNote) {
             QuickNoteSheet()
@@ -294,17 +291,23 @@ struct RootView: View {
         .background(EnsureResizableWindow(minSize: NSSize(width: 900, height: 600)))
     #endif
     }
+}
+
+// MARK: - Quick Note Glass Button
+
+/// Isolated component to prevent RootView re-renders during drag
+struct QuickNoteGlassButton: View {
+    @Binding var isShowingSheet: Bool
     
-    // MARK: - Quick Note Button
+    // Move state inside this view so updates don't trigger the whole app to redraw
+    @State private var offset: CGSize = .zero
+    @AppStorage("QuickNoteButton.offsetX") private var savedOffsetX: Double = 0
+    @AppStorage("QuickNoteButton.offsetY") private var savedOffsetY: Double = 0
     
-    private var quickNoteButton: some View {
+    var body: some View {
         #if os(iOS)
-        let longPress = LongPressGesture(minimumDuration: 0.3)
-        let drag = DragGesture(minimumDistance: 10)
-        let combined = longPress.sequenced(before: drag)
-        
-        return Button {
-            isShowingQuickNote = true
+        let buttonView = Button {
+            isShowingSheet = true
         } label: {
             Image(systemName: "plus")
                 .font(.system(size: 24, weight: .semibold))
@@ -318,46 +321,9 @@ struct RootView: View {
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
         }
-        .offset(buttonOffset)
-        .simultaneousGesture(
-            longPress.sequenced(before: drag)
-                .onChanged { value in
-                    switch value {
-                    case .second(true, let dragValue?):
-                        // Update position immediately without animation for smooth tracking
-                        buttonOffset = CGSize(
-                            width: savedOffsetX + dragValue.translation.width,
-                            height: savedOffsetY + dragValue.translation.height
-                        )
-                    default:
-                        break
-                    }
-                }
-                .onEnded { value in
-                    if case .second(true, let dragValue?) = value {
-                        // Save final position
-                        let finalOffset = CGSize(
-                            width: savedOffsetX + dragValue.translation.width,
-                            height: savedOffsetY + dragValue.translation.height
-                        )
-                        savedOffsetX = finalOffset.width
-                        savedOffsetY = finalOffset.height
-                        
-                        // Smooth spring animation to final position
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)) {
-                            buttonOffset = finalOffset
-                        }
-                    }
-                }
-        )
-        .onAppear {
-            // Restore saved position
-            buttonOffset = CGSize(width: savedOffsetX, height: savedOffsetY)
-        }
-        .padding(20)
         #else
-        return Button {
-            isShowingQuickNote = true
+        let buttonView = Button {
+            isShowingSheet = true
         } label: {
             Image(systemName: "plus")
                 .font(.system(size: 24, weight: .semibold))
@@ -367,11 +333,47 @@ struct RootView: View {
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
         }
-        .padding(20)
         #endif
-    }
 
-    // MARK: - State
+        return buttonView
+            .offset(offset)
+            .padding(20) // Initial padding from edge
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.3)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
+                    .onChanged { value in
+                        switch value {
+                        case .second(true, let dragValue?):
+                            // Update local state only - smooth 60fps
+                            self.offset = CGSize(
+                                width: savedOffsetX + dragValue.translation.width,
+                                height: savedOffsetY + dragValue.translation.height
+                            )
+                        default:
+                            break
+                        }
+                    }
+                    .onEnded { value in
+                        if case .second(true, let dragValue?) = value {
+                            let finalOffset = CGSize(
+                                width: savedOffsetX + dragValue.translation.width,
+                                height: savedOffsetY + dragValue.translation.height
+                            )
+                            // Save to persistence
+                            savedOffsetX = finalOffset.width
+                            savedOffsetY = finalOffset.height
+                            
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                self.offset = finalOffset
+                            }
+                        }
+                    }
+            )
+            .onAppear {
+                // Initialize from storage once
+                self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
+            }
+    }
 }
 
 /// Extracted detail content for RootView. Routes based on NavigationItem selection.

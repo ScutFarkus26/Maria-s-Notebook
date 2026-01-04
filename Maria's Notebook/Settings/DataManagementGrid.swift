@@ -147,7 +147,7 @@ struct DataManagementGrid: View {
                         // Last Backup Time
                         Group {
                             if let date = viewModel.lastBackupDate {
-                                Text("Last: ") + Text(date, style: .relative)
+                                Text("Last: \(date, style: .relative)")
                             } else {
                                 Text("Last: Never")
                             }

@@ -19,6 +19,7 @@ struct NotesDigest {
 #endif
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+@available(macOS 26.0, *)
 @Generable(description: "A concise narrative summary of observations")
 struct NotesNarrative {
     @Guide(description: "A single concise paragraph narrative")
@@ -60,8 +61,8 @@ struct ObservationsView: View {
     @State private var isSummarizing: Bool = false
     @State private var showingSummarySheet: Bool = false
     @State private var summaryMode: SummaryMode = .digest
-    @State private var summaryPartialDigest: PartiallyGenerated<NotesDigest>? = nil
-    @State private var summaryPartialNarrative: PartiallyGenerated<NotesNarrative>? = nil
+    @State private var summaryPartialDigest: NotesDigest.PartiallyGenerated? = nil
+    @State private var summaryPartialNarrative: NotesNarrative.PartiallyGenerated? = nil
     @State private var summaryTask: Task<Void, Never>? = nil
 #endif
     @State private var hasMore: Bool = true
@@ -813,7 +814,7 @@ struct ObservationsView: View {
                         generating: NotesDigest.self
                     )
                     for try await partial in stream {
-                        summaryPartialDigest = partial
+                        summaryPartialDigest = partial.content
                     }
                 case .narrative:
                     let stream = session.streamResponse(
@@ -821,7 +822,7 @@ struct ObservationsView: View {
                         generating: NotesNarrative.self
                     )
                     for try await partial in stream {
-                        summaryPartialNarrative = partial
+                        summaryPartialNarrative = partial.content
                     }
                 }
             } catch {
@@ -842,8 +843,8 @@ struct ObservationsView: View {
     private struct ObservationsSummarySheet: View {
         let mode: SummaryMode
         @Binding var isSummarizing: Bool
-        let partialDigest: PartiallyGenerated<NotesDigest>?
-        let partialNarrative: PartiallyGenerated<NotesNarrative>?
+        let partialDigest: NotesDigest.PartiallyGenerated?
+        let partialNarrative: NotesNarrative.PartiallyGenerated?
         let onCancel: () -> Void
 
         var body: some View {

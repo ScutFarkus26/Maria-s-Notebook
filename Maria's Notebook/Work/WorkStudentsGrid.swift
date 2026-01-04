@@ -25,9 +25,19 @@ struct WorkStudentsGrid: View {
     let onTapStudent: (Student) -> Void
     let onTapContract: (WorkContract) -> Void
 
-    private let columns: [GridItem] = [
-        GridItem(.adaptive(minimum: 260, maximum: 340), spacing: 24)
-    ]
+    // Check size class to determine layout
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    
+    private var columns: [GridItem] {
+        // iPhone/Compact: Allow smaller cards (approx 160pt wide) to fit 2 columns
+        // iPad/Regular: Keep the original 260pt minimum for wider cards
+        let minWidth: CGFloat = sizeClass == .compact ? 155 : 260
+        let spacing: CGFloat = sizeClass == .compact ? 16 : 24
+        
+        return [
+            GridItem(.adaptive(minimum: minWidth, maximum: 320), spacing: spacing)
+        ]
+    }
 
     var body: some View {
         ScrollView {

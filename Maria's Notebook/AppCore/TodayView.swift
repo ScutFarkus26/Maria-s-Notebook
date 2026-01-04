@@ -193,9 +193,12 @@ struct TodayView: View {
                 viewModel.date = AppCalendar.startOfDay(coerced)
             }
         }
-        .onChange(of: studentLessonIDs) { _, _ in viewModel.reload() }
-        .onChange(of: planItemIDs) { _, _ in viewModel.reload() }
+        // ENERGY OPTIMIZATION: Debounce onChange handlers to prevent rapid successive reloads
+        // Use debounced reload instead of immediate reload for data-driven changes
+        .onChange(of: studentLessonIDs) { _, _ in viewModel.scheduleReload() }
+        .onChange(of: planItemIDs) { _, _ in viewModel.scheduleReload() }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
+            // Planning inbox refresh is user-initiated, so reload immediately
             viewModel.reload()
         }
         // Sheet for Contract Details

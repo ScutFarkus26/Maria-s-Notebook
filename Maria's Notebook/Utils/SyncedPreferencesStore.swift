@@ -2,6 +2,9 @@ import Foundation
 import Combine
 import OSLog
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 /// Manages preferences that sync across devices via iCloud Key-Value Storage.
 /// 
@@ -50,6 +53,11 @@ public final class SyncedPreferencesStore: ObservableObject {
     
     private var changeObserver: NSObjectProtocol?
     
+    // ENERGY OPTIMIZATION: Batch sync operations to reduce network activity
+    // Instead of syncing immediately on every set(), we debounce and batch multiple changes
+    private var syncTask: Task<Void, Never>?
+    private var pendingSyncKeys: Set<String> = []
+    
     private init() {
         // Migrate existing UserDefaults values to KVS on first launch
         migrateFromUserDefaultsIfNeeded()
@@ -59,6 +67,19 @@ public final class SyncedPreferencesStore: ObservableObject {
         
         // Sync changes to KVS
         synchronize()
+        
+        // Set up app lifecycle observers to ensure sync on backgrounding
+        #if os(iOS)
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.flushPendingSync()
+            }
+        }
+        #endif
     }
     
     deinit {
@@ -167,26 +188,23 @@ public final class SyncedPreferencesStore: ObservableObject {
     }
     
     /// Sets a value in synced storage (KVS) for synced keys, UserDefaults otherwise
+    /// ENERGY OPTIMIZATION: Batches sync operations instead of syncing immediately
     @discardableResult
     public func set(_ value: Any?, forKey key: String) -> Bool {
         if isSynced(key: key) {
-            // Store in KVS
+            // Store in KVS immediately (local storage)
             if let value = value {
                 kvStore.set(value, forKey: key)
             } else {
                 kvStore.removeObject(forKey: key)
             }
-            let synced = synchronize()
-            if !synced {
-                logger.warning("Failed to sync preference '\(key)' to iCloud, storing in UserDefaults as fallback")
-                // Fallback to UserDefaults if sync fails
-                if let value = value {
-                    userDefaults.set(value, forKey: key)
-                } else {
-                    userDefaults.removeObject(forKey: key)
-                }
-                return false
-            }
+            
+            // Track this key for batched sync
+            pendingSyncKeys.insert(key)
+            
+            // Schedule a debounced sync (1.5 seconds - balances responsiveness with energy efficiency)
+            scheduleBatchedSync()
+            
             return true
         } else {
             // Not a synced key, use UserDefaults
@@ -196,6 +214,40 @@ public final class SyncedPreferencesStore: ObservableObject {
                 userDefaults.removeObject(forKey: key)
             }
             return true
+        }
+    }
+    
+    /// Schedules a batched sync operation after a delay
+    private func scheduleBatchedSync() {
+        // Cancel any pending sync task
+        syncTask?.cancel()
+        
+        // Schedule a new batched sync
+        syncTask = Task { @MainActor in
+            do {
+                // Wait 1.5 seconds to batch multiple rapid changes
+                try await Task.sleep(nanoseconds: 1_500_000_000)
+                guard !Task.isCancelled else { return }
+                flushPendingSync()
+            } catch {
+                // Task was cancelled, ignore
+            }
+        }
+    }
+    
+    /// Immediately syncs all pending keys to iCloud
+    private func flushPendingSync() {
+        syncTask?.cancel()
+        syncTask = nil
+        
+        guard !pendingSyncKeys.isEmpty else { return }
+        
+        let synced = synchronize()
+        if synced {
+            pendingSyncKeys.removeAll()
+        } else {
+            logger.warning("Failed to sync \(self.pendingSyncKeys.count) preferences to iCloud, will retry on next change")
+            // Keep pending keys to retry later
         }
     }
     
