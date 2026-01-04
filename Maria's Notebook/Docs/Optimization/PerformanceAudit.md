@@ -58,16 +58,13 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 - **Risk:** ✅ **RESOLVED** - Statistics are now loaded efficiently without loading entire tables
 
 #### Inbox/FollowUpInboxView.swift
-- **Symbol:** `FollowUpInboxView` (View)
+- **Status:** ✅ **OPTIMIZED**
+- **Implementation:** Now uses `InboxDataLoader` pattern with targeted data loading
 - **Queries:**
-  - `@Query private var lessons: [Lesson]` (unfiltered)
-  - `@Query private var students: [Student]` (unfiltered)
-  - `@Query private var studentLessons: [StudentLesson]` (unfiltered)
-  - `@Query private var contracts: [WorkContract]` (unfiltered)
-  - `@Query private var planItems: [WorkPlanItem]` (unfiltered)
-  - `@Query private var notes: [ScopedNote]` (unfiltered)
+  - Uses lightweight change detection queries (extracts IDs only)
+  - Data loaded via `InboxDataLoader` which fetches only needed subsets
   - `@Query(filter: #Predicate<WorkNote> { $0.isLessonToGive == true }, sort: [...]) private var lessonReminderNotes: [WorkNote]` (filtered)
-- **Risk:** **HIGH** - Loads 6 entire tables. Used for filtering/follow-up logic, but likely only needs subsets.
+- **Risk:** ✅ **RESOLVED** - No longer loads entire tables, uses efficient data loader pattern
 
 #### Work/WorkContractDetailSheet.swift
 - **Symbol:** `WorkContractDetailSheet` (View)

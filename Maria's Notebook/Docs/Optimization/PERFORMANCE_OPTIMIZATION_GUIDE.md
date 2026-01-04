@@ -325,6 +325,7 @@ AsyncImage(url: imageURL) { phase in
    - ✅ Optimized TodayViewModel.reload() to fetch only needed data
    - ✅ Optimized SettingsView statistics queries (uses SettingsStatsViewModel)
    - ✅ Optimized WorksAgendaView (filtered queries, lazy loading, change detection)
+   - ✅ Optimized FollowUpInboxView (uses InboxDataLoader pattern, lightweight change detection)
    - ✅ Implemented pagination for PresentationHistoryView
    - ✅ Added debouncing to WorksAgendaView search
 

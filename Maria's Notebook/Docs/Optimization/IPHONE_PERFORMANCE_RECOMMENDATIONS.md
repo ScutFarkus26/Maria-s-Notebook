@@ -12,10 +12,11 @@ Several views still load entire tables into memory using unfiltered `@Query` pro
 
 ### High-Impact Targets (from PerformanceAudit.md):
 
-#### a) **FollowUpInboxView** (7 unfiltered queries)
-- Currently loads ALL: `Lesson`, `Student`, `StudentLesson`, `WorkContract`, `WorkPlanItem`, `ScopedNote`
-- **Solution:** Use the existing `InboxDataLoader` pattern more extensively (already partially implemented)
-- **Expected Impact:** 70-90% memory reduction, 60-80% faster load time
+#### a) **FollowUpInboxView** ✅ **OPTIMIZED**
+- **Status:** ✅ **COMPLETED** - Now uses `InboxDataLoader` pattern
+- **Implementation:** Replaced unfiltered queries with lightweight change detection queries (IDs only)
+- Data loaded via `InboxDataLoader` which fetches only needed subsets efficiently
+- **Impact Achieved:** ✅ Memory reduction and faster load time (as expected)
 
 #### b) **WorkContractDetailSheet** (6 unfiltered queries)  
 - Detail sheet loads entire tables just to show one contract

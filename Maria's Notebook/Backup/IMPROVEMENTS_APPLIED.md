@@ -53,8 +53,9 @@ This document summarizes the improvements that have been applied to the backup a
 ### 7. Updated Format Version
 - **Status**: ✅ Complete
 - **Changes**: 
-  - Format version increased to 5
-  - Documents that version 5+ enforces checksum validation with deterministic JSON encoding
+  - Format version increased to 6 (compression support added in version 6)
+  - Version 5+ enforces checksum validation with deterministic JSON encoding
+  - Version 6+ adds compression support (LZFSE)
   - Maintains backward compatibility with older format versions
 - **Files Modified**: `BackupTypes.swift`
 
@@ -139,9 +140,11 @@ The checksum validation uses the following logic:
 This provides security for new backups while maintaining compatibility with older backups that may have been created before deterministic JSON encoding was guaranteed.
 
 ### Format Version Compatibility
-- New backups are created with format version 5
-- Old backups (version 4 and earlier) can still be restored
-- Checksum validation respects the bypass setting for old format versions
+- New backups are created with format version 6 (includes compression)
+- Old backups (version 5 and earlier) can still be restored
+- Version 5+ enforces checksum validation
+- Version 6+ includes compression (LZFSE)
+- Checksum validation respects the bypass setting for old format versions (< 5)
 
 ### Entity Registry
 The `BackupEntityRegistry` serves as the single source of truth for:

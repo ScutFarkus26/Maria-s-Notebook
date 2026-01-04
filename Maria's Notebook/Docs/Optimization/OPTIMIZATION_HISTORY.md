@@ -4,8 +4,8 @@ This document provides a comprehensive history of all performance, stability, an
 
 ## 📊 Overall Statistics
 
-**Total Optimizations Completed:** 11+
-- ✅ 4+ Performance optimizations
+**Total Optimizations Completed:** 12+
+- ✅ 5+ Performance optimizations
 - ✅ 5+ Stability improvements  
 - ✅ 2+ Sync Health improvements
 
@@ -100,7 +100,22 @@ This document provides a comprehensive history of all performance, stability, an
 
 ---
 
-### 7. TodayView and TodayViewModel Optimizations ✅
+### 7. Optimized FollowUpInboxView ✅
+**Files Modified:**
+- `Inbox/FollowUpInboxView.swift`
+- `Services/InboxDataLoader.swift` (uses existing loader)
+
+**Changes:**
+- Replaced 7 unfiltered `@Query` properties with lightweight change detection queries (IDs only)
+- Uses `InboxDataLoader` pattern to fetch only needed data subsets
+- Loads data on-demand instead of loading entire tables
+- Significantly reduces memory usage in inbox view
+
+**Expected Impact:** 70-90% reduction in memory usage, 60-80% faster load time
+
+---
+
+### 8. TodayView and TodayViewModel Optimizations ✅
 **Files Modified:**
 - `AppCore/TodayView.swift`
 - `ViewModels/TodayViewModel.swift`
