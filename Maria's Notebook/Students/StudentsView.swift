@@ -193,7 +193,7 @@ struct StudentsView<WorkloadContent: View>: View {
     // MARK: - Body
     
     private var mainContent: some View {
-        Group {
+        return Group {
             if mode == .observationHeatmap {
                 // Full-screen dashboard view - no split needed
                 NavigationStack {
@@ -244,18 +244,52 @@ struct StudentsView<WorkloadContent: View>: View {
 #endif
                 }
             } else if mode == .roster {
-                // Full-screen list view for Roster mode
-                NavigationStack {
-                    rosterListContent
+                // Three-pane layout for Roster mode
+                #if os(iOS)
+                if horizontalSizeClass == .compact {
+                    // iPhone: Use single pane with sheet for details
+                    NavigationStack {
+                        rosterListContent
+                            .navigationTitle("Students")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .listStyle(.plain)
+                            .toolbar {
+                                toolbarContent
+                            }
+                    }
+                } else {
+                    // iPad: Use two-pane layout (student list + detail)
+                    NavigationStack {
+                        HStack(spacing: 0) {
+                            threePaneSidebar
+                                .frame(width: 360)
+                            Divider()
+                            threePaneContent
+                                .frame(maxWidth: .infinity)
+                        }
                         .navigationTitle("Students")
+                        .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
                             toolbarContent
                         }
-#if os(iOS)
-                        .navigationBarTitleDisplayMode(.inline)
-#endif
-                        .listStyle(.plain)
+                    }
                 }
+                #else
+                // macOS: Use two-pane layout (student list + detail)
+                NavigationStack {
+                    HStack(spacing: 0) {
+                        threePaneSidebar
+                            .frame(width: 360)
+                        Divider()
+                        threePaneContent
+                            .frame(maxWidth: .infinity)
+                    }
+                    .navigationTitle("Students")
+                    .toolbar {
+                        toolbarContent
+                    }
+                }
+                #endif
             } else {
                 // Fallback: List-detail split (kept for safety)
                 NavigationSplitView {
@@ -418,6 +452,136 @@ struct StudentsView<WorkloadContent: View>: View {
         .listStyle(.sidebar)
     }
     
+    // MARK: - Three-Pane Layout Content
+    
+    private var threePaneSidebar: some View {
+        VStack(spacing: 0) {
+            // Sort and Filter controls at the top
+            if mode == .roster {
+                rosterSortFilterControls
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(.bar)
+                Divider()
+            }
+            
+            // Student list
+            NavigationStack {
+                rosterListContent
+                    .navigationTitle("Students")
+#if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+#endif
+            }
+            .listStyle(.sidebar)
+        }
+    }
+    
+    private var threePaneContent: some View {
+        NavigationStack {
+            if let id = selectedStudentID, let student = students.first(where: { $0.id == id }) {
+                StudentDetailView(student: student)
+                    .id(student.id)
+                    .navigationTitle(student.fullName)
+#if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+#endif
+            } else {
+                ContentUnavailableView {
+                    Label("Select a Student", systemImage: "person.circle")
+                } description: {
+                    Text("Choose a student from the list to view their details.")
+                }
+            }
+        }
+    }
+    
+    private var rosterSortFilterControls: some View {
+        HStack(spacing: 12) {
+            // Sort Order Picker
+            Menu {
+                Button {
+                    withAnimation { studentsSortOrderRaw = "alphabetical" }
+                } label: {
+                    Label("A–Z", systemImage: "textformat.abc")
+                    if effectiveSortOrder == .alphabetical {
+                        Image(systemName: "checkmark")
+                    }
+                }
+                Button {
+                    withAnimation { studentsSortOrderRaw = "manual" }
+                } label: {
+                    Label("Manual", systemImage: "arrow.up.arrow.down")
+                    if effectiveSortOrder == .manual {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.arrow.down")
+                    Text("Sort")
+                }
+                .font(.system(size: 13, weight: .medium))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            
+            // Filter Picker
+            Menu {
+                Button {
+                    withAnimation { studentsFilterRaw = "all" }
+                } label: {
+                    Label("All", systemImage: "person.3.fill")
+                    if selectedFilter == .all {
+                        Image(systemName: "checkmark")
+                    }
+                }
+                Button {
+                    withAnimation { studentsFilterRaw = "presentNow" }
+                } label: {
+                    Label("Present Now", systemImage: "checkmark.circle.fill")
+                    if selectedFilter == .presentNow {
+                        Image(systemName: "checkmark")
+                    }
+                }
+                Button {
+                    withAnimation { studentsFilterRaw = "upper" }
+                } label: {
+                    Label("Upper", systemImage: "circle.fill")
+                    if selectedFilter == .upper {
+                        Image(systemName: "checkmark")
+                    }
+                }
+                Button {
+                    withAnimation { studentsFilterRaw = "lower" }
+                } label: {
+                    Label("Lower", systemImage: "circle.fill")
+                    if selectedFilter == .lower {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                    Text("Filter")
+                }
+                .font(.system(size: 13, weight: .medium))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            
+            Spacer()
+            
+            // Edit button (only show in manual sort mode, iOS only)
+            #if os(iOS)
+            if effectiveSortOrder == .manual {
+                EditButton()
+                    .controlSize(.small)
+            }
+            #endif
+        }
+    }
+    
     // MARK: - Full-Screen Mode Toolbar
     
     @ToolbarContentBuilder
@@ -463,8 +627,9 @@ struct StudentsView<WorkloadContent: View>: View {
             // iPhone layout: Use menus instead of segmented picker
             // REMOVED mode switch menu per instructions
             
-            // Sort and Filter combined menu for iPhone
-            if mode == .roster {
+            // Sort and Filter controls moved to top of second pane in roster mode
+            // (iPhone compact layout still uses single pane, so controls remain in toolbar for now)
+            if mode == .roster && horizontalSizeClass == .compact {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Section("Sort") {
@@ -546,79 +711,8 @@ struct StudentsView<WorkloadContent: View>: View {
                 .controlSize(.regular)
             }
             
-            // Sort Order Menu (only show in roster mode, not age/birthday/lastLesson modes)
-            if mode == .roster {
-                ToolbarItem(placement: .automatic) {
-                    Menu {
-                        Button {
-                            withAnimation { studentsSortOrderRaw = "alphabetical" }
-                        } label: {
-                            Label("A–Z", systemImage: "textformat.abc")
-                            if effectiveSortOrder == .alphabetical {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                        Button {
-                            withAnimation { studentsSortOrderRaw = "manual" }
-                        } label: {
-                            Label("Manual", systemImage: "arrow.up.arrow.down")
-                            if effectiveSortOrder == .manual {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    } label: {
-                        Label("Sort", systemImage: "arrow.up.arrow.down")
-                    }
-                    .controlSize(.regular)
-                }
-                
-                // Filter Menu (show in roster/age/birthday/lastLesson modes)
-                ToolbarItem(placement: .automatic) {
-                    Menu {
-                        Button {
-                            withAnimation { studentsFilterRaw = "all" }
-                        } label: {
-                            Label("All", systemImage: "person.3.fill")
-                            if selectedFilter == .all {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                        Button {
-                            withAnimation { studentsFilterRaw = "presentNow" }
-                        } label: {
-                            Label("Present Now", systemImage: "checkmark.circle.fill")
-                            if selectedFilter == .presentNow {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                        Button {
-                            withAnimation { studentsFilterRaw = "upper" }
-                        } label: {
-                            Label("Upper", systemImage: "circle.fill")
-                            if selectedFilter == .upper {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                        Button {
-                            withAnimation { studentsFilterRaw = "lower" }
-                        } label: {
-                            Label("Lower", systemImage: "circle.fill")
-                            if selectedFilter == .lower {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    } label: {
-                        Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-                    }
-                    .controlSize(.regular)
-                }
-                
-                if effectiveSortOrder == .manual {
-                    ToolbarItem(placement: .automatic) {
-                        EditButton()
-                    }
-                }
-            }
+            // Sort and Filter controls moved to top of second pane in roster mode
+            // Edit button also moved there
         }
         #else
         // macOS layout: Use segmented picker
@@ -634,71 +728,7 @@ struct StudentsView<WorkloadContent: View>: View {
             .pickerStyle(.segmented)
         }
         
-        // Sort Order Menu (only show in roster mode, not age/birthday/lastLesson modes)
-        if mode == .roster {
-            ToolbarItem(placement: .automatic) {
-                Menu {
-                    Button {
-                        withAnimation { studentsSortOrderRaw = "alphabetical" }
-                    } label: {
-                        Label("A–Z", systemImage: "textformat.abc")
-                        if effectiveSortOrder == .alphabetical {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { studentsSortOrderRaw = "manual" }
-                    } label: {
-                        Label("Manual", systemImage: "arrow.up.arrow.down")
-                        if effectiveSortOrder == .manual {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                } label: {
-                    Label("Sort", systemImage: "arrow.up.arrow.down")
-                }
-            }
-            
-            // Filter Menu (show in roster/age/birthday/lastLesson modes)
-            ToolbarItem(placement: .automatic) {
-                Menu {
-                    Button {
-                        withAnimation { studentsFilterRaw = "all" }
-                    } label: {
-                        Label("All", systemImage: "person.3.fill")
-                        if selectedFilter == .all {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { studentsFilterRaw = "presentNow" }
-                    } label: {
-                        Label("Present Now", systemImage: "checkmark.circle.fill")
-                        if selectedFilter == .presentNow {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { studentsFilterRaw = "upper" }
-                    } label: {
-                        Label("Upper", systemImage: "circle.fill")
-                        if selectedFilter == .upper {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                    Button {
-                        withAnimation { studentsFilterRaw = "lower" }
-                    } label: {
-                        Label("Lower", systemImage: "circle.fill")
-                        if selectedFilter == .lower {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                } label: {
-                    Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-                }
-            }
-        }
+        // Sort and Filter controls moved to top of second pane in roster mode
         #endif
         
         // Add Student button (show in roster/age/birthday/lastLesson modes)
@@ -865,9 +895,18 @@ struct StudentsView<WorkloadContent: View>: View {
                             daysSinceLastLesson: daysSinceLastLessonByStudent[student.id]
                         )
                         .tag(student.id)
+                        #if os(iOS)
                         .onTapGesture {
-                            selectedStudentForSheet = student
+                            // On compact devices, still use sheet; on regular, use three-pane
+                            if horizontalSizeClass == .compact {
+                                selectedStudentForSheet = student
+                            } else {
+                                selectedStudentID = student.id
+                            }
                         }
+                        #else
+                        // macOS: selection binding handles it automatically
+                        #endif
                     }
                     .onMove { source, destination in
                         handleManualReorder(from: source, to: destination)

@@ -409,7 +409,9 @@ public struct InboxSheetView: View {
     }()
 
     // 2) Remove the student from the source scheduled StudentLesson; delete it if empty
-    if let src = studentLessons.first(where: { $0.id == sourceStudentLessonID }) {
+    // ✅ OPTIMIZATION: Fetch on-demand since source might be scheduled (not in inboxLessons)
+    let sourceDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceStudentLessonID })
+    if let src = try? modelContext.fetch(sourceDescriptor).first {
       let studentIDString = studentID.uuidString
       src.studentIDs.removeAll { $0 == studentIDString }
       src.students.removeAll { $0.id == studentID }
@@ -437,7 +439,9 @@ public struct InboxSheetView: View {
   }
 
   private func dropReceived(droppedId: UUID, location: CGPoint) {
-    guard let sl = studentLessons.first(where: { $0.id == droppedId }) else { return }
+    // ✅ OPTIMIZATION: Fetch on-demand since dropped lesson might be scheduled (not in inboxLessons)
+    let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == droppedId })
+    guard let sl = (try? modelContext.fetch(descriptor).first) ?? studentLessons.first(where: { $0.id == droppedId }) else { return }
     let currentOrder = orderedUnscheduledLessons.map(\.id)
     var framesByID: [UUID: CGRect] = [:]
     for id in currentOrder {

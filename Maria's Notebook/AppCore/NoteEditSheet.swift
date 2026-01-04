@@ -1,9 +1,15 @@
 import SwiftUI
 import SwiftData
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct NoteEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @FocusState private var isTextEditorFocused: Bool
 
     let note: Note
     var onSaved: (() -> Void)? = nil
@@ -22,91 +28,152 @@ struct NoteEditSheet: View {
 
     var body: some View {
         #if os(macOS)
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Edit Note")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-
-            formContent
-
+        VStack(spacing: 0) {
+            // Header
             HStack {
+                Text("Note")
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
                 Spacer()
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Save") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canSave)
+                HStack(spacing: 12) {
+                    Button("Cancel") { dismiss() }
+                        .keyboardShortcut(.cancelAction)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    Button("Save") { save() }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!canSave)
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 20)
+            .background(Color(NSColor.controlBackgroundColor))
+            
+            Divider()
+            
+            // Content
+            formContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(minWidth: 600, minHeight: 500)
+        .presentationSizingFitted()
+        .onAppear {
+            // Auto-focus text editor on macOS
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                isTextEditorFocused = true
             }
         }
-        .padding(20)
-        .frame(minWidth: 480, minHeight: 380)
-        .presentationSizingFitted()
         #else
         NavigationStack {
             formContent
-                .navigationTitle("Edit Note")
+                .navigationTitle("Note")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { dismiss() }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") { save() }.disabled(!canSave)
+                        Button("Save") { save() }
+                            .fontWeight(.semibold)
+                            .disabled(!canSave)
                     }
                 }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            // Auto-focus text editor on iOS
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                isTextEditorFocused = true
+            }
+        }
         #endif
     }
 
     private var formContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // Category
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Category")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    Picker("Category", selection: $category) {
-                        ForEach(NoteCategory.allCases, id: \.self) { cat in
-                            Text(cat.rawValue.capitalized).tag(cat)
+            VStack(alignment: .leading, spacing: 0) {
+                // Main text editor - the star of the show
+                TextEditor(text: $bodyText)
+                    .focused($isTextEditorFocused)
+                    .font(.system(size: 18, design: .default))
+                    .lineSpacing(6)
+                    .frame(minHeight: 300)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 24)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
+                
+                Divider()
+                    .padding(.horizontal, 28)
+                
+                // Metadata section - subtle and compact
+                VStack(alignment: .leading, spacing: 20) {
+                    // Category picker as elegant chips
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Category")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(NoteCategory.allCases, id: \.self) { cat in
+                                    CategoryChip(
+                                        category: cat,
+                                        isSelected: category == cat
+                                    ) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                            category = cat
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 2)
                         }
                     }
-                    .pickerStyle(.menu)
-                }
-
-                // Body
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Note")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    TextEditor(text: $bodyText)
-                        .font(.system(size: 17, design: .rounded))
-                        .frame(minHeight: 160)
-                        .padding(8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.primary.opacity(0.05))
-                        )
-                }
-
-                // Include in report
-                Toggle("Flag for Report", isOn: $includeInReport)
-                    .font(.system(size: 17, design: .rounded))
-
-                if let path = note.imagePath, !path.isEmpty {
-                    HStack(spacing: 8) {
-                        Image(systemName: "photo")
+                    
+                    // Toggle and image indicator in a row
+                    HStack(spacing: 20) {
+                        Toggle(isOn: $includeInReport) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "flag.fill")
+                                    .font(.system(size: 12))
+                                Text("Flag for Report")
+                                    .font(.system(size: 15, design: .rounded))
+                            }
+                        }
+                        .toggleStyle(.switch)
+                        
+                        if let path = note.imagePath, !path.isEmpty {
+                            HStack(spacing: 6) {
+                                Image(systemName: "photo.fill")
+                                    .font(.system(size: 12))
+                                Text("Photo attached")
+                                    .font(.system(size: 15, design: .rounded))
+                            }
                             .foregroundStyle(.secondary)
-                        Text("This note has an attached photo")
-                            .font(.system(size: 13, design: .rounded))
-                            .foregroundStyle(.secondary)
+                        }
+                        
+                        Spacer()
                     }
                 }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 20)
+                #if os(macOS)
+                .background(Color(NSColor.textBackgroundColor))
+                #else
+                .background(Color(uiColor: .systemBackground))
+                #endif
             }
-            .padding(16)
         }
+        #if os(macOS)
+        .background(Color(NSColor.textBackgroundColor))
+        #else
+        .background(Color(uiColor: .systemBackground))
+        #endif
     }
 
     private var canSave: Bool {
@@ -128,6 +195,49 @@ struct NoteEditSheet: View {
         }
         onSaved?()
         dismiss()
+    }
+}
+
+// MARK: - Category Chip
+
+struct CategoryChip: View {
+    let category: NoteCategory
+    let isSelected: Bool
+    let action: () -> Void
+    
+    private var categoryColor: Color {
+        switch category {
+        case .academic: return .blue
+        case .behavioral: return .orange
+        case .social: return .purple
+        case .emotional: return .pink
+        case .health: return .green
+        case .general: return .gray
+        }
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(categoryColor)
+                    .frame(width: 8, height: 8)
+                Text(category.rawValue.capitalized)
+                    .font(.system(size: 14, weight: isSelected ? .semibold : .regular, design: .rounded))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(isSelected ? categoryColor.opacity(0.15) : Color.secondary.opacity(0.1))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(isSelected ? categoryColor.opacity(0.4) : Color.clear, lineWidth: 1.5)
+            }
+            .foregroundStyle(isSelected ? categoryColor : .primary)
+        }
+        .buttonStyle(.plain)
     }
 }
 

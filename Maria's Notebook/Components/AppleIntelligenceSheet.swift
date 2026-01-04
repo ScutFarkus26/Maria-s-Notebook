@@ -1,10 +1,15 @@
 import SwiftUI
 import SwiftData
 
+// Only import if the flag is enabled (see ENABLE_FOUNDATION_MODELS.md)
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+import FoundationModels
+#endif
+
 // MARK: - Main View
 struct AppleIntelligenceSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Query private var students: [Student] 
+    @Query private var students: [Student]
     
     let notes: [Note]
     
@@ -13,6 +18,10 @@ struct AppleIntelligenceSheet: View {
     @State private var isAnonymized: Bool = false
     @FocusState private var isFocused: Bool
     @State private var aiTriggerCounter: Int = 0
+    
+    // AI State
+    @State private var isGenerating: Bool = false
+    @State private var generationError: String? = nil
     
     // UI State
     @State private var currentTemplate: PromptTemplate? = nil
@@ -25,60 +34,32 @@ struct AppleIntelligenceSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // 1. Control Bar
-                HStack(spacing: 12) {
-                    Toggle(isOn: $isAnonymized) {
-                        Label("Anonymize", systemImage: isAnonymized ? "eye.slash.fill" : "eye.fill")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    .toggleStyle(.button)
-                    .tint(.secondary)
-                    .onChange(of: isAnonymized) { _, _ in regenerateContent() }
-                    
-                    Spacer()
-                    
-                    Menu {
-                        Section("Context Generators") {
-                            Button { applyTemplate(.raw) } label: { Label("Raw Data Context", systemImage: "doc.text") }
-                        }
-                        Section("AI Instructions") {
-                            ForEach(PromptTemplate.allCases.filter { $0 != .raw }, id: \.self) { template in
-                                Button { applyTemplate(template) } label: { Label(template.rawValue, systemImage: template.icon) }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(currentTemplate?.rawValue ?? "Select Template")
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption)
-                        }
-                        .font(.subheadline.weight(.medium))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.accentColor.opacity(0.1))
-                        .clipShape(Capsule())
-                        .foregroundStyle(Color.accentColor)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                .background(Material.bar)
+                controlBar
                 
                 Divider()
                 
-                // 2. Editor with Magic Button
+                // 2. Editor Area
                 ZStack(alignment: .bottomTrailing) {
-                    if editorText.isEmpty {
+                    if editorText.isEmpty && !isGenerating {
                         ContentUnavailableView("Processing Data...", systemImage: "arrow.triangle.2.circlepath")
                     } else {
-                        // Use the SmartTextEditor from UnifiedNoteEditor.swift
+                        // Main Editor
                         SmartTextEditor(text: $editorText, triggerTool: $aiTriggerCounter)
                             .padding()
                             .background(editorBackgroundColor)
+                            .disabled(isGenerating) // Lock input while generating
+                            .opacity(isGenerating ? 0.6 : 1.0)
                     }
                     
-                    // Floating "Sparkles" Action Button
-                    if #available(iOS 18.0, macOS 15.0, *) {
+                    // Loading Indicator or Magic Button
+                    if isGenerating {
+                        ProgressView("Drafting...")
+                            .padding()
+                            .background(.regularMaterial)
+                            .cornerRadius(12)
+                            .padding()
+                    } else if #available(iOS 18.0, macOS 15.0, *) {
+                         // System Writing Tools Trigger (Fallback or Polish)
                          Button {
                              aiTriggerCounter += 1
                          } label: {
@@ -114,28 +95,136 @@ struct AppleIntelligenceSheet: View {
         }
     }
     
+    // MARK: - Subviews
+    
+    private var controlBar: some View {
+        HStack(spacing: 12) {
+            Toggle(isOn: $isAnonymized) {
+                Label("Anonymize", systemImage: isAnonymized ? "eye.slash.fill" : "eye.fill")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .toggleStyle(.button)
+            .tint(.secondary)
+            .onChange(of: isAnonymized) { _, _ in regenerateContent() }
+            
+            Spacer()
+            
+            Menu {
+                Section("Context Generators") {
+                    Button { applyTemplate(.raw) } label: { Label("Raw Data Context", systemImage: "doc.text") }
+                }
+                Section("AI Instructions") {
+                    ForEach(PromptTemplate.allCases.filter { $0 != .raw }, id: \.self) { template in
+                        Button {
+                            applyTemplate(template)
+                        } label: {
+                            Label(template.rawValue, systemImage: template.icon)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(currentTemplate?.rawValue ?? "Select Template")
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption)
+                }
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.accentColor.opacity(0.1))
+                .clipShape(Capsule())
+                .foregroundStyle(Color.accentColor)
+            }
+            .disabled(isGenerating)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .background(Material.bar)
+    }
+    
     // MARK: - Logic Helpers
     
     private func regenerateContent() {
         let formatter = SmartNoteFormatter(students: students, anonymize: isAnonymized)
         let rawContext = formatter.generateContext(from: notes)
         
-        if let template = currentTemplate, template != .raw {
-            editorText = template.instruction + "\n\n" + rawContext
-        } else {
+        // Reset to raw data if we aren't using a template or just toggled anonymization
+        if currentTemplate == nil || currentTemplate == .raw {
             editorText = rawContext
             currentTemplate = .raw
+        } else {
+            // If we have a template active, re-apply it (re-generate) with new settings
+            if let template = currentTemplate {
+                applyTemplate(template)
+            }
         }
     }
     
     private func applyTemplate(_ template: PromptTemplate) {
         currentTemplate = template
-        regenerateContent()
-        // Delay slightly to allow text to update, then invoke tools
+        let formatter = SmartNoteFormatter(students: students, anonymize: isAnonymized)
+        let rawContext = formatter.generateContext(from: notes)
+        
+        if template == .raw {
+            editorText = rawContext
+            return
+        }
+
+        // Logic split: Use FoundationModels if available, otherwise fallback to system tools text prep
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        Task {
+            await generateWithFoundationModel(template: template, context: rawContext)
+        }
+        #else
+        // Fallback: Prepend instructions and trigger system tools
+        editorText = template.instruction + "\n\n" + rawContext
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             aiTriggerCounter += 1
         }
+        #endif
     }
+    
+    #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    @MainActor
+    private func generateWithFoundationModel(template: PromptTemplate, context: String) async {
+        isGenerating = true
+        generationError = nil
+        
+        // Set up the session with specific persona based on template
+        let systemPrompt = """
+        You are a highly experienced Montessori guide assistant.
+        Your tone is professional, observant, and supportive.
+        Use the provided student observation data to draft content.
+        Do not invent observations not present in the data.
+        """
+        
+        let session = LanguageModelSession(instructions: systemPrompt)
+        
+        do {
+            let prompt = """
+            \(template.instruction)
+            
+            DATA:
+            \(context)
+            """
+            
+            // Generate unstructured text
+            let response = try await session.respond(to: prompt, options: .init(temperature: 0.7))
+            
+            // Animate the text in (simple replacement for now)
+            withAnimation {
+                editorText = response.content
+            }
+        } catch {
+            generationError = error.localizedDescription
+            // Fallback to raw context + error note
+            editorText = context + "\n\n[Error generating draft: \(error.localizedDescription)]"
+        }
+        
+        isGenerating = false
+    }
+    #endif
     
     private var editorBackgroundColor: Color {
         #if os(macOS)
@@ -216,6 +305,7 @@ enum PromptTemplate: String, CaseIterable {
     case parentEmail = "Parent Email"
     case reportCard = "Report Card"
     case actionPlan = "Action Plan"
+    case summary = "Weekly Summary"
     
     var icon: String {
         switch self {
@@ -223,16 +313,21 @@ enum PromptTemplate: String, CaseIterable {
         case .parentEmail: return "envelope.fill"
         case .reportCard: return "list.clipboard.fill"
         case .actionPlan: return "checklist"
+        case .summary: return "text.alignleft"
         }
     }
     
     var instruction: String {
         switch self {
         case .raw: return ""
-        case .parentEmail: return "INSTRUCTION: Draft a supportive, professional email to the parents summarizing the progress shown below. Highlight achievements and 1 area for growth."
-        case .reportCard: return "INSTRUCTION: Summarize the following observations into a formal paragraph for a semester report card."
-        case .actionPlan: return "INSTRUCTION: Analyze the observations below and list 3 specific follow-up actions."
+        case .parentEmail:
+            return "Task: Draft a supportive, professional email to the parents. Summarize the progress shown in the data. Highlight achievements and gently mention 1 area for growth if applicable."
+        case .reportCard:
+            return "Task: Summarize the observations into a formal paragraph suitable for a semester report card. Focus on observed behaviors and academic progress."
+        case .actionPlan:
+            return "Task: Analyze the observations and list 3 specific, actionable follow-up steps for the teacher. Format as a checklist."
+        case .summary:
+            return "Task: Provide a concise bulleted summary of the key themes found in these notes."
         }
     }
 }
-

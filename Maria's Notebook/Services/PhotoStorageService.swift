@@ -12,7 +12,7 @@ public enum PhotoStorageService {
     /// Returns the directory URL where note photos are stored.
     /// Uses the app's Documents directory.
     /// Ensures the directory exists before returning.
-    public static func photosDirectory() throws -> URL {
+    nonisolated public static func photosDirectory() throws -> URL {
         let fm = FileManager.default
         
         let documentsURL = try fm.url(
@@ -52,7 +52,7 @@ public enum PhotoStorageService {
     /// Loads an image from the photos directory using a filename.
     /// - Parameter filename: The filename returned from saveImage
     /// - Returns: The NSImage if found, nil otherwise
-    public static func loadImage(filename: String) -> NSImage? {
+    nonisolated public static func loadImage(filename: String) -> NSImage? {
         guard let photosDir = try? photosDirectory() else {
             return nil
         }
@@ -83,7 +83,7 @@ public enum PhotoStorageService {
     /// Loads an image from the photos directory using a filename.
     /// - Parameter filename: The filename returned from saveImage
     /// - Returns: The UIImage if found, nil otherwise
-    public static func loadImage(filename: String) -> UIImage? {
+    nonisolated public static func loadImage(filename: String) -> UIImage? {
         guard let photosDir = try? photosDirectory() else {
             return nil
         }
@@ -112,7 +112,7 @@ public enum PhotoStorageService {
     
     // MARK: - Private Helpers
     
-    private static func createDirectoryIfNeeded(at url: URL) throws {
+    nonisolated private static func createDirectoryIfNeeded(at url: URL) throws {
         let fm = FileManager.default
         var isDir: ObjCBool = false
         if fm.fileExists(atPath: url.path, isDirectory: &isDir) {

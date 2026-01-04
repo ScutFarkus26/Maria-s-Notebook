@@ -116,23 +116,11 @@ struct StudentNoteRowView: View {
     
     @ViewBuilder
     private func imageView(for imagePath: String) -> some View {
-        if let image = PhotoStorageService.loadImage(filename: imagePath) {
-            #if os(macOS)
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: 300, maxHeight: 300)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .padding(.top, 8)
-            #else
-            Image(uiImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: 300, maxHeight: 300)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .padding(.top, 8)
-            #endif
-        }
+        // Use the new async component instead of direct PhotoStorageService calls
+        AsyncCachedImage(filename: imagePath)
+            .frame(maxWidth: 300, maxHeight: 300)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.top, 8)
     }
 
     private func iconName(for source: UnifiedNoteItem.Source) -> String {
