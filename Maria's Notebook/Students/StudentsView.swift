@@ -221,7 +221,18 @@ struct StudentsView<WorkloadContent: View>: View {
             } else if shouldUseGridView {
                 // Full-screen grid view for age/birthday modes or lastLesson sort order
                 NavigationStack {
+                    #if os(iOS)
+                    if horizontalSizeClass == .compact {
+                        // iPhone: Show placeholder views
+                        placeholderContentForMode
+                    } else {
+                        // iPad: Show grid view
+                        rosterGridContent
+                    }
+                    #else
+                    // macOS: Show grid view
                     rosterGridContent
+                    #endif
                         .navigationTitle("Students")
                         .toolbar {
                             toolbarContent
@@ -269,6 +280,25 @@ struct StudentsView<WorkloadContent: View>: View {
     private var shouldUseGridView: Bool {
         mode == .age || mode == .birthday || mode == .lastLesson
     }
+    
+    // MARK: - iPhone Placeholder Views
+    
+    #if os(iOS)
+    private var placeholderContentForMode: some View {
+        Group {
+            switch mode {
+            case .birthday:
+                BirthdayModePlaceholderView()
+            case .age:
+                AgeModePlaceholderView()
+            case .lastLesson:
+                LastLessonModePlaceholderView()
+            default:
+                rosterGridContent
+            }
+        }
+    }
+    #endif
 
     // Helper to break up complex view builder expression
     private var contentWithSheetsAndAlerts: some View {

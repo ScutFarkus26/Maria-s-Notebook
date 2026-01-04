@@ -276,18 +276,9 @@ struct RootView: View {
             }
         }
         .saveErrorAlert()
-        #if os(iOS)
-        .overlay(alignment: .bottomTrailing) {
-            // Only show floating button on iPad (non-compact)
-            if horizontalSizeClass != .compact {
-                quickNoteButton
-            }
-        }
-        #else
         .overlay(alignment: .bottomTrailing) {
             quickNoteButton
         }
-        #endif
         .sheet(isPresented: $isShowingQuickNote) {
             QuickNoteSheet()
         }
@@ -302,10 +293,15 @@ struct RootView: View {
         Button {
             isShowingQuickNote = true
         } label: {
-            Label("Note", systemImage: "square.and.pencil")
+            Image(systemName: "plus")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Color.accentColor)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
         }
-        .buttonStyle(.borderedProminent)
-        .padding()
+        .padding(20)
     }
 
     // MARK: - State
@@ -513,9 +509,9 @@ private struct RootSidebar: View {
 private struct RootCompactTabs: View {
     @Binding var selectedNavItem: RootView.NavigationItem
 
-    // Main tabs shown in bottom tab bar: Attendance, Today, Note, Students
+    // Main tabs shown in bottom tab bar: Attendance, Today, Students
     private var mainTabs: [RootView.NavigationItem] {
-        [.attendance, .today, .note, .students, .more]
+        [.attendance, .today, .students, .more]
     }
 
     var body: some View {
