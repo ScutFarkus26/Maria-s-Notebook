@@ -43,6 +43,9 @@ class QuickNoteViewModel: ObservableObject {
     private let tagger = StudentTagger()
     let initialStudentID: UUID?
     
+    // MARK: - Debouncing
+    private var analysisTask: Task<Void, Never>? = nil
+    
     // MARK: - Initialization
     
     init(initialStudentID: UUID? = nil) {
@@ -62,9 +65,26 @@ class QuickNoteViewModel: ObservableObject {
     }
     
     func analyzeText(_ text: String, students: [Student]) {
-        let studentData = getStudentData(from: students)
-        Task {
+        // Cancel previous analysis task
+        analysisTask?.cancel()
+        
+        // If we're in the middle of typing a word (not at word boundary), clear suggestions
+        // This prevents showing suggestions for incomplete words like "Mar" when typing "Maria"
+        if !isAtWordBoundary(text) && !text.isEmpty {
+            detectedCandidateIDs = []
+        }
+        
+        // Debounce the analysis to wait for complete words
+        analysisTask = Task {
+            // Wait for a delay to allow the user to finish typing the complete word
+            try? await Task.sleep(for: .milliseconds(300))
+            
+            // Check if task was cancelled
+            guard !Task.isCancelled else { return }
+            
+            let studentData = getStudentData(from: students)
             let result = await tagger.findStudentMatches(in: text, studentData: studentData)
+            
             // Auto-add exact matches that are not already selected
             let newExacts = result.exact.subtracting(self.selectedStudentIDs)
             if !newExacts.isEmpty {
@@ -81,7 +101,7 @@ class QuickNoteViewModel: ObservableObject {
                 }
             }
             
-            // Suggest fuzzy matches that are not already selected
+            // Only suggest fuzzy matches that are not already selected
             self.detectedCandidateIDs = result.fuzzy.subtracting(self.selectedStudentIDs)
         }
     }
@@ -178,6 +198,15 @@ class QuickNoteViewModel: ObservableObject {
                 nickname: student.nickname
             )
         }
+    }
+    
+    /// Checks if the text ends at a word boundary (space, punctuation, or end of text)
+    /// Returns true if the last character is whitespace, punctuation, or if text is empty
+    private func isAtWordBoundary(_ text: String) -> Bool {
+        guard !text.isEmpty else { return true }
+        
+        let lastChar = text.last!
+        return lastChar.isWhitespace || lastChar.isPunctuation
     }
     
     // MARK: - Apple Intelligence

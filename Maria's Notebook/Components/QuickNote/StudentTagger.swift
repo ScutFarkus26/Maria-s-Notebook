@@ -200,6 +200,30 @@ actor StudentTagger {
                 return true
             }
             
+            // ENHANCED CONFLICT RESOLUTION:
+            // Check if the text contains a disambiguating pattern (like "First LastInitial") for
+            // any student matching this token. If so, skip this token entirely to avoid adding
+            // standalone first name matches when a more specific pattern exists.
+            var hasDisambiguatingPattern = false
+            for candidateID in tokenExactCandidates {
+                if let student = studentData.first(where: { $0.id == candidateID }) {
+                    let f = student.firstName.lowercased()
+                    let firstInitial = student.lastName.prefix(1).lowercased()
+                    // Check if text contains "FirstName LastInitial" or "FirstName LastInitial."
+                    let pattern1 = "\\b\(f) \(firstInitial)\\b"
+                    let pattern2 = "\\b\(f) \(firstInitial)\\.\\b"
+                    if self.containsWithBoundary(source: lowerText, pattern: pattern1) ||
+                       self.containsWithBoundary(source: lowerText, pattern: pattern2) {
+                        hasDisambiguatingPattern = true
+                        break
+                    }
+                }
+            }
+            // If we found a disambiguating pattern, skip this token entirely
+            if hasDisambiguatingPattern {
+                return true
+            }
+            
             // AMBIGUITY LOGIC:
             if tokenExactCandidates.count > 1 {
                 // Ambiguous (e.g. "Sara" matches 2 Saras) -> Suggest all, Select none
@@ -218,6 +242,21 @@ actor StudentTagger {
         
         // PHASE 3: Manual scan of the full text to catch patterns not tagged by NLTagger
         // This is the "Pass 2" logic from UnifiedNoteEditor that catches edge cases
+        
+        // Pre-compute: Check if any first names have disambiguating patterns (FirstName LastInitial)
+        // If "Sarah Z" exists, we shouldn't add standalone "Sarah" matches
+        var firstNamesWithDisambiguatingPatterns: Set<String> = []
+        for student in studentData {
+            let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let firstInitial = student.lastName.prefix(1).lowercased()
+            let pattern1 = "\\b\(first) \(firstInitial)\\b"
+            let pattern2 = "\\b\(first) \(firstInitial)\\.\\b"
+            if containsWithBoundary(source: lowerText, pattern: pattern1) ||
+               containsWithBoundary(source: lowerText, pattern: pattern2) {
+                firstNamesWithDisambiguatingPatterns.insert(first)
+            }
+        }
+        
         for student in studentData {
             let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
             let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
@@ -239,6 +278,13 @@ actor StudentTagger {
             }
             // First name word
             if containsWord(haystack, word: first) {
+                // If there's a disambiguating pattern (like "Sarah Z") for this first name,
+                // skip adding standalone first name matches entirely
+                if firstNamesWithDisambiguatingPatterns.contains(first) {
+                    continue
+                }
+                
+                // Only add standalone first name if it's unique
                 exact.insert(student.id)
                 if firstNameCounts[first] == 1 {
                     autoSelect.insert(student.id)

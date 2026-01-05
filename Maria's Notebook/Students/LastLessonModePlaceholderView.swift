@@ -15,3 +15,4 @@ struct LastLessonModePlaceholderView: View {
     LastLessonModePlaceholderView()
 }
 
+
