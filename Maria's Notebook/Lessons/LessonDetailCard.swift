@@ -241,7 +241,9 @@ struct LessonDetailCard: View {
                     }
                 }
             } catch {
-                importError = error.localizedDescription
+                Task { @MainActor in
+                    importError = error.localizedDescription
+                }
             }
         }
         .alert("Import Failed", isPresented: Binding(

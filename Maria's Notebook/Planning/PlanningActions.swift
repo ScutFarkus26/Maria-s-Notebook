@@ -53,7 +53,7 @@ enum PlanningActions {
     ///   - days: School days to consider (start-of-day dates). Lessons scheduled on these days will be evaluated.
     ///   - calendar: Calendar used to compute day boundaries and preserve time-of-day.
     ///   - context: ModelContext for fetching and saving.
-    static func pushLessonsWithAbsentStudents(in days: [Date], calendar: Calendar, context: ModelContext) {
+    static func pushLessonsWithAbsentStudents(in days: [Date], calendar: Calendar, context: ModelContext) async {
         guard let firstDay = days.first else { return }
         let start = calendar.startOfDay(for: firstDay)
         let lastDay = days.last ?? firstDay
@@ -97,7 +97,7 @@ enum PlanningActions {
             guard anyAbsent else { continue }
 
             // Compute next school day and preserve time components
-            let nextDay = SchoolCalendar.nextSchoolDay(after: day, using: context)
+            let nextDay = await SchoolCalendar.nextSchoolDay(after: day, using: context)
             let comps = calendar.dateComponents([.hour, .minute, .second], from: when)
             if let newDate = calendar.date(bySettingHour: comps.hour ?? 9, minute: comps.minute ?? 0, second: comps.second ?? 0, of: nextDay) {
                 sl.setScheduledFor(newDate, using: AppCalendar.shared)
@@ -112,7 +112,7 @@ enum PlanningActions {
     ///   - days: School days to consider (start-of-day dates). Only lessons scheduled on these days are moved.
     ///   - calendar: Calendar used to compute day boundaries and preserve time-of-day.
     ///   - context: ModelContext for fetching and saving.
-    static func pushAllLessonsByOneDay(in days: [Date], calendar: Calendar, context: ModelContext) {
+    static func pushAllLessonsByOneDay(in days: [Date], calendar: Calendar, context: ModelContext) async {
         guard let firstDay = days.first else { return }
         let start = calendar.startOfDay(for: firstDay)
         let lastDay = days.last ?? firstDay
@@ -129,7 +129,7 @@ enum PlanningActions {
         for sl in scheduled {
             guard let when = sl.scheduledFor else { continue }
             let day = calendar.startOfDay(for: when)
-            let nextDay = SchoolCalendar.nextSchoolDay(after: day, using: context)
+            let nextDay = await SchoolCalendar.nextSchoolDay(after: day, using: context)
             let comps = calendar.dateComponents([.hour, .minute, .second], from: when)
             if let newDate = calendar.date(bySettingHour: comps.hour ?? 9, minute: comps.minute ?? 0, second: comps.second ?? 0, of: nextDay) {
                 sl.setScheduledFor(newDate, using: AppCalendar.shared)

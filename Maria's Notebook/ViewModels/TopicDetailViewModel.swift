@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+@preconcurrency import SwiftData
 import Combine
 
 @MainActor
@@ -95,6 +95,8 @@ final class TopicDetailViewModel: ObservableObject {
     }
 
     func load(context: ModelContext, topicID: UUID) async {
+        // ModelContext is not Sendable, but this function is @MainActor isolated
+        // so it's safe to use the context here
         isLoading = true
         defer { isLoading = false }
 
@@ -115,13 +117,10 @@ final class TopicDetailViewModel: ObservableObject {
             let noteDesc = Self.descriptorForNotes(topicID: topicID)
             let attDesc = Self.descriptorForAttachments(topicID: topicID)
 
-            async let solutions = try context.fetch(solDesc)
-            async let notes = try context.fetch(noteDesc)
-            async let attachments = try context.fetch(attDesc)
-
-            self.proposedSolutions = try await solutions
-            self.notes = try await notes
-            self.attachments = try await attachments
+            // ModelContext is not Sendable, so fetch sequentially
+            self.proposedSolutions = try context.fetch(solDesc)
+            self.notes = try context.fetch(noteDesc)
+            self.attachments = try context.fetch(attDesc)
         } catch {
         }
     }

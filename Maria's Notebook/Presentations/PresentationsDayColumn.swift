@@ -26,6 +26,11 @@ struct PresentationsDayColumn: View {
         }
         .sorted { ($0.scheduledFor ?? .distantPast) < ($1.scheduledFor ?? .distantPast) }
     }
+    
+    private var uniqueStudentCount: Int {
+        let allStudentIDs = scheduledLessonsForDay.flatMap { $0.studentIDs }
+        return Set(allStudentIDs).count
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -35,6 +40,14 @@ struct PresentationsDayColumn: View {
                     .font(.caption.weight(.semibold))
                 Text(day.formatted(Date.FormatStyle().day()))
                     .font(.headline.weight(.semibold))
+                if uniqueStudentCount > 0 {
+                    Text("\(uniqueStudentCount)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.primary.opacity(0.1)))
+                }
                 Spacer()
             }
             .padding(.horizontal, 6)

@@ -30,9 +30,9 @@ import SwiftData
         self.id = id
         // CloudKit compatibility: Store UUID as string
         self.studentID = studentID.uuidString
-        let cal = AppCalendar.shared
+        // Use Calendar.current to avoid MainActor constraints during initialization
+        let cal = Calendar.current
         self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.work = work
     }
 }
-

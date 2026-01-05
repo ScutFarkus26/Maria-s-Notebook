@@ -3,14 +3,14 @@ import SwiftData
 
 // MARK: - JSON Helpers
 struct JSONStringList {
-    static func encode(_ arr: [String]) -> String {
+    nonisolated static func encode(_ arr: [String]) -> String {
         guard !arr.isEmpty else { return "" }
         if let data = try? JSONEncoder().encode(arr), let s = String(data: data, encoding: .utf8) {
             return s
         }
         return ""
     }
-    static func decode(_ s: String) -> [String] {
+    nonisolated static func decode(_ s: String) -> [String] {
         let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return [] }
         if let arr = try? JSONDecoder().decode([String].self, from: data) { return arr }
@@ -104,12 +104,12 @@ final class ProjectTemplateWeek: Identifiable {
         
     }
 
-    var agendaItems: [String] {
+    nonisolated var agendaItems: [String] {
         get { JSONStringList.decode(agendaItemsJSON) }
         set { agendaItemsJSON = JSONStringList.encode(newValue) }
     }
     
-    var linkedLessonIDs: [String] {
+    nonisolated var linkedLessonIDs: [String] {
         get { JSONStringList.decode(linkedLessonIDsJSON) }
         set { linkedLessonIDsJSON = JSONStringList.encode(newValue) }
     }

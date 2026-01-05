@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+
 @Model final class StudentLesson: Identifiable {
     var id: UUID = UUID()
     // CloudKit compatibility: Store UUIDs as strings
@@ -41,7 +42,8 @@ import SwiftData
     var scheduledFor: Date? {
         didSet {
             if let date = scheduledFor {
-                scheduledForDay = AppCalendar.startOfDay(date)
+                // Use Calendar.current to avoid MainActor isolation issues
+                scheduledForDay = Calendar.current.startOfDay(for: date)
             } else {
                 scheduledForDay = Date.distantPast
             }
@@ -92,7 +94,8 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
-        self.scheduledForDay = scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+        // Use Calendar.current to avoid MainActor isolation
+        self.scheduledForDay = scheduledFor.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -126,7 +129,8 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
-        self.scheduledForDay = scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+        // Use Calendar.current to avoid MainActor isolation
+        self.scheduledForDay = scheduledFor.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -174,7 +178,8 @@ import SwiftData
     
     func normalizeDenormalizedFields() {
         if let s = scheduledFor {
-            scheduledForDay = AppCalendar.startOfDay(s)
+            // Use Calendar.current to avoid MainActor isolation
+            scheduledForDay = Calendar.current.startOfDay(for: s)
         } else {
             scheduledForDay = Date.distantPast
         }
@@ -184,7 +189,8 @@ import SwiftData
     func setScheduledFor(_ date: Date?, using calendar: Calendar) {
         if let date {
             self.scheduledFor = date
-            self.scheduledForDay = AppCalendar.startOfDay(date)
+            // Use the passed-in calendar instead of AppCalendar
+            self.scheduledForDay = calendar.startOfDay(for: date)
         } else {
             self.scheduledFor = nil
             self.scheduledForDay = Date.distantPast
@@ -208,4 +214,3 @@ struct StudentLessonSnapshot: Identifiable {
     var isScheduled: Bool { scheduledFor != nil }
     var isGiven: Bool { isPresented || givenAt != nil }
 }
-

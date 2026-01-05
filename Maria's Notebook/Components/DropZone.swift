@@ -21,7 +21,37 @@ struct DropZone: View {
     let onQuickActions: (StudentLesson) -> Void
     let onPlanNext: (StudentLesson) -> Void
 
-    private var isNonSchool: Bool { SchoolCalendar.isNonSchoolDay(day, using: modelContext) }
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    private func isNonSchoolDaySync(_ date: Date) -> Bool {
+        let day = AppCalendar.startOfDay(date)
+        let cal = AppCalendar.shared
+
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = cal.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
+    }
+    
+    private var isNonSchool: Bool { isNonSchoolDaySync(day) }
 
     private var scheduledLessonsForSlot: [StudentLesson] {
         allStudentLessons.filter { sl in

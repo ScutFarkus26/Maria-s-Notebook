@@ -1,6 +1,8 @@
 import Foundation
 import SwiftData
 
+// WorkCompletionService is @MainActor, so we must isolate these convenience methods to MainActor as well.
+@MainActor
 extension WorkModel {
     /// Returns all completion records for this work (optionally filtered by student).
     func completionRecords(for studentID: UUID? = nil, in context: ModelContext) throws -> [WorkCompletionRecord] {

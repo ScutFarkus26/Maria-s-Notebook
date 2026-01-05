@@ -100,8 +100,36 @@ struct PlanningWeekViewiOS: View {
     
     // MARK: - Helpers
     
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Rules:
+    /// - Explicit NonSchoolDay records mark weekdays as non-school
+    /// - Weekends are non-school by default unless a SchoolDayOverride exists for that date
     private func isNonSchoolDay(_ day: Date) -> Bool {
-        SchoolCalendar.isNonSchoolDay(day, using: modelContext)
+        let day = calendar.startOfDay(for: day)
+
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = calendar.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
     }
     
     private func firstSchoolDay(onOrAfter date: Date) -> Date {

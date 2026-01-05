@@ -18,6 +18,7 @@ struct AppleIntelligenceSheet: View {
     @State private var isAnonymized: Bool = false
     @FocusState private var isFocused: Bool
     @State private var aiTriggerCounter: Int = 0
+    @State private var pendingAITrigger: Bool = false
     
     // AI State
     @State private var isGenerating: Bool = false
@@ -91,6 +92,14 @@ struct AppleIntelligenceSheet: View {
             }
             .onAppear {
                 regenerateContent()
+            }
+            .onChange(of: editorText) { _, newText in
+                // Trigger AI tools after text is set and view is ready
+                if pendingAITrigger && !newText.isEmpty {
+                    pendingAITrigger = false
+                    // onChange fires after the view has updated, so we can trigger immediately
+                    aiTriggerCounter += 1
+                }
             }
         }
     }
@@ -178,10 +187,8 @@ struct AppleIntelligenceSheet: View {
         }
         #else
         // Fallback: Prepend instructions and trigger system tools
+        pendingAITrigger = true
         editorText = template.instruction + "\n\n" + rawContext
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            aiTriggerCounter += 1
-        }
         #endif
     }
     
@@ -192,14 +199,7 @@ struct AppleIntelligenceSheet: View {
         generationError = nil
         
         // Set up the session with specific persona based on template
-        let systemPrompt = """
-        You are a highly experienced Montessori guide assistant.
-        Your tone is professional, observant, and supportive.
-        Use the provided student observation data to draft content.
-        Do not invent observations not present in the data.
-        """
-        
-        let session = LanguageModelSession(instructions: systemPrompt)
+        let session = LanguageModelSession(instructions: AIPrompts.advancedAssistant)
         
         do {
             let prompt = """

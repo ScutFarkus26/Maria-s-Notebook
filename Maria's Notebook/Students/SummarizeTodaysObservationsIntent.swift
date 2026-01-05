@@ -54,9 +54,9 @@ struct SummarySnippetView: View {
 #if canImport(AppIntents)
 @available(iOS 16, macOS 13, *)
 struct SummarizeTodaysObservationsIntent: AppIntent, SnippetIntent {
-    static var title: LocalizedStringResource = "Summarize Today's Observations"
-    static var description = IntentDescription("Provides a summary snippet of today's observations.")
-    static var openAppWhenRun: Bool = false
+    nonisolated(unsafe) static var title: LocalizedStringResource = "Summarize Today's Observations"
+    nonisolated(unsafe) static var description = IntentDescription("Provides a summary snippet of today's observations.")
+    nonisolated(unsafe) static var openAppWhenRun: Bool = false
 
     func perform() async throws -> some IntentResult & ShowsSnippetView {
         .result()

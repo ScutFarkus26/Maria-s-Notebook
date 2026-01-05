@@ -4,7 +4,7 @@ import SwiftData
 // Instance conveniences that forward to WorkContractAging static helpers.
 extension WorkContract {
     // MARK: - Last meaningful touch
-    func lastMeaningfulTouchDate(
+    nonisolated func lastMeaningfulTouchDate(
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,
         presentation: Presentation? = nil
@@ -19,7 +19,7 @@ extension WorkContract {
 
     // MARK: - Days since last touch (calendar days)
     @available(*, deprecated, message: "Prefer school-day overload using ModelContext.")
-    func daysSinceLastTouch(
+    nonisolated func daysSinceLastTouch(
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,
         presentation: Presentation? = nil
@@ -33,7 +33,7 @@ extension WorkContract {
     }
 
     // MARK: - Days since last touch (school days)
-    func daysSinceLastTouch(
+    nonisolated func daysSinceLastTouch(
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,
@@ -50,7 +50,7 @@ extension WorkContract {
 
     // MARK: - Stale checks
     @available(*, deprecated, message: "Prefer school-day overload using ModelContext.")
-    func isStale(
+    nonisolated func isStale(
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,
         presentation: Presentation? = nil
@@ -63,7 +63,7 @@ extension WorkContract {
         )
     }
 
-    func isStale(
+    nonisolated func isStale(
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,

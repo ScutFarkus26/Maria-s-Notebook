@@ -1,0 +1,343 @@
+import Foundation
+import NaturalLanguage
+
+// MARK: - Student Data Structures
+
+struct StudentData: Sendable {
+    let id: UUID
+    let firstName: String
+    let lastName: String
+    let nickname: String?
+}
+
+struct StudentMatchResult: Sendable {
+    var exact: Set<UUID>
+    var fuzzy: Set<UUID>
+    var autoSelect: Set<UUID> // Unique matches that should be auto-selected
+}
+
+// MARK: - Student Tagger Actor
+// Runs heavy regex/NLP off the main thread to keep typing smooth
+
+actor StudentTagger {
+    private let tagger = NLTagger(tagSchemes: [.nameType])
+    
+    // MARK: - Text Formatting (Deterministic)
+    
+    func formatStudentNames(in text: String, studentData: [StudentData]) -> String {
+        var resultText = text
+        
+        struct SearchTerm {
+            let term: String
+            let replacement: String
+        }
+        
+        var terms: [SearchTerm] = []
+        
+        for student in studentData {
+            let lastInitial = student.lastName.first.map { String($0) } ?? ""
+            let replacement = "\(student.firstName) \(lastInitial)."
+            
+            // Full Name
+            let fullName = "\(student.firstName) \(student.lastName)".lowercased()
+            terms.append(SearchTerm(term: fullName, replacement: replacement))
+            
+            // First Name
+            terms.append(SearchTerm(term: student.firstName.lowercased(), replacement: replacement))
+            
+            // Nickname
+            if let nick = student.nickname, !nick.isEmpty {
+                terms.append(SearchTerm(term: nick.lowercased(), replacement: replacement))
+            }
+        }
+        
+        // Sort by length descending to handle overlapping names
+        terms.sort { $0.term.count > $1.term.count }
+        
+        // Perform Replacement
+        for searchTerm in terms {
+            let escapedTerm = NSRegularExpression.escapedPattern(for: searchTerm.term)
+            let pattern = "\\b\(escapedTerm)\\b"
+            
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                let range = NSRange(resultText.startIndex..<resultText.endIndex, in: resultText)
+                resultText = regex.stringByReplacingMatches(in: resultText, options: [], range: range, withTemplate: searchTerm.replacement)
+            }
+        }
+        
+        return resultText
+    }
+
+    // MARK: - Identification Logic
+    
+    func findStudentMatches(in text: String, studentData: [StudentData]) -> StudentMatchResult {
+        var exact = Set<UUID>()
+        var fuzzy = Set<UUID>()
+        var autoSelect = Set<UUID>()
+        
+        guard !text.isEmpty else {
+            return StudentMatchResult(exact: exact, fuzzy: fuzzy, autoSelect: autoSelect)
+        }
+        
+        // Normalize the full text for manual scanning (Pass 2)
+        let haystack = text
+            .folding(options: .diacriticInsensitive, locale: .current)
+            .lowercased()
+        
+        let lowerText = text.lowercased()
+        
+        // Precompute name maps for uniqueness checks
+        var firstNameCounts: [String: Int] = [:]
+        var nicknameCounts: [String: Int] = [:]
+        var fullNameCounts: [String: Int] = [:]
+        var initialsMap: [String: [UUID]] = [:]
+        
+        for student in studentData {
+            let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            firstNameCounts[first, default: 0] += 1
+            if let nick = student.nickname, !nick.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let nickNorm = nick.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                nicknameCounts[nickNorm, default: 0] += 1
+            }
+            let full = (first + " " + last).trimmingCharacters(in: .whitespacesAndNewlines)
+            fullNameCounts[full, default: 0] += 1
+            if let fi = first.first, let li = last.first {
+                let key = String(fi) + String(li)
+                initialsMap[key, default: []].append(student.id)
+            }
+        }
+        
+        // PHASE 1: Scan for "Authoritative" Matches
+        // A. Name Patterns (Full Name, First + Initial)
+        for student in studentData {
+            let f = student.firstName.lowercased()
+            let l = student.lastName.lowercased()
+            let firstInitial = student.lastName.prefix(1).lowercased()
+            
+            let patterns = [
+                "\\b\(f) \(l)\\b",           // "Sara Smith"
+                "\\b\(f) \(firstInitial)\\b", // "Sara S"
+                "\\b\(f) \(firstInitial)\\.\\b" // "Sara S."
+            ]
+            
+            for pattern in patterns {
+                if self.containsWithBoundary(source: lowerText, pattern: pattern) {
+                    exact.insert(student.id)
+                }
+            }
+        }
+        
+        // B. Initials Patterns
+        // 1. Separated Initials (e.g. "J.D.", "J D", "m.a.") - Case Insensitive
+        //    Must have a dot or space between letters.
+        let separatedPattern = "\\b([a-z])(?:\\.|\\s+)([a-z])\\.?\\b"
+        if let regex = try? NSRegularExpression(pattern: separatedPattern, options: .caseInsensitive) {
+            let matches = regex.matches(in: lowerText, range: NSRange(lowerText.startIndex..., in: lowerText))
+            for match in matches {
+                guard match.numberOfRanges >= 3,
+                      let r1 = Range(match.range(at: 1), in: lowerText),
+                      let r2 = Range(match.range(at: 2), in: lowerText) else { continue }
+                
+                let i1 = String(lowerText[r1])
+                let i2 = String(lowerText[r2])
+                
+                for student in studentData {
+                    if student.firstName.prefix(1).lowercased() == i1 &&
+                       student.lastName.prefix(1).lowercased() == i2 {
+                        exact.insert(student.id)
+                    }
+                }
+            }
+        }
+        
+        // 2. Compact Initials (e.g. "JD", "MA") - Case Sensitive (Strict)
+        //    Must be Uppercase to avoid matching "Ma" (Maya) or "to" (Tom O'Neil).
+        let compactPattern = "\\b([A-Z])([A-Z])\\b"
+        if let regex = try? NSRegularExpression(pattern: compactPattern) {
+            // Scan ORIGINAL text to check for Uppercase
+            let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+            for match in matches {
+                guard match.numberOfRanges >= 3,
+                      let r1 = Range(match.range(at: 1), in: text),
+                      let r2 = Range(match.range(at: 2), in: text) else { continue }
+                
+                let i1 = String(text[r1]).lowercased()
+                let i2 = String(text[r2]).lowercased()
+                
+                for student in studentData {
+                    if student.firstName.prefix(1).lowercased() == i1 &&
+                       student.lastName.prefix(1).lowercased() == i2 {
+                        exact.insert(student.id)
+                    }
+                }
+            }
+        }
+        
+        // PHASE 2: Token Scan (NLTagger) for Single Names / Nicknames
+        tagger.string = text
+        let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .joinNames]
+        
+        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { tag, tokenRange in
+            let token = String(text[tokenRange])
+            
+            var tokenExactCandidates = Set<UUID>()
+            var tokenFuzzyCandidates = Set<UUID>()
+            
+            for student in studentData {
+                if self.isExactMatch(token, student: student) {
+                    tokenExactCandidates.insert(student.id)
+                } else if self.isFuzzyMatch(token, student: student) {
+                    tokenFuzzyCandidates.insert(student.id)
+                }
+            }
+            
+            // CONFLICT RESOLUTION:
+            // If this token matches a student already found in Phase 1 (e.g. "Sara" part of "Sara Z."),
+            // we discard it to prevent "Sara Z." from also triggering "Sara Adams".
+            // We check if any of the candidates for this token are already in the `exact` set.
+            if !exact.isDisjoint(with: tokenExactCandidates) {
+                return true
+            }
+            
+            // AMBIGUITY LOGIC:
+            if tokenExactCandidates.count > 1 {
+                // Ambiguous (e.g. "Sara" matches 2 Saras) -> Suggest all, Select none
+                fuzzy.formUnion(tokenExactCandidates)
+                fuzzy.formUnion(tokenFuzzyCandidates)
+            } else if tokenExactCandidates.count == 1 {
+                // Clarified -> Select it
+                exact.formUnion(tokenExactCandidates)
+            } else {
+                // No exact match -> Suggest fuzzies
+                fuzzy.formUnion(tokenFuzzyCandidates)
+            }
+            
+            return true
+        }
+        
+        // PHASE 3: Manual scan of the full text to catch patterns not tagged by NLTagger
+        // This is the "Pass 2" logic from UnifiedNoteEditor that catches edge cases
+        for student in studentData {
+            let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let nick = (student.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let full = first + " " + last
+            
+            // Skip if already found in earlier phases
+            if exact.contains(student.id) || fuzzy.contains(student.id) {
+                continue
+            }
+            
+            // Nickname word
+            if !nick.isEmpty, containsWord(haystack, word: nick) {
+                exact.insert(student.id)
+                if nicknameCounts[nick] == 1 {
+                    autoSelect.insert(student.id)
+                }
+                continue
+            }
+            // First name word
+            if containsWord(haystack, word: first) {
+                exact.insert(student.id)
+                if firstNameCounts[first] == 1 {
+                    autoSelect.insert(student.id)
+                }
+                continue
+            }
+            // Full name words
+            if containsFirstAndLast(haystack, first: first, last: last) {
+                exact.insert(student.id)
+                if fullNameCounts[full] == 1 {
+                    autoSelect.insert(student.id)
+                }
+                continue
+            }
+            // Compact or punctuated initials
+            if let fi = first.first, let li = last.first, containsInitials(haystack, firstInitial: fi, lastInitial: li) {
+                exact.insert(student.id)
+                let key = String(fi) + String(li)
+                if let ids = initialsMap[key], ids.count == 1 {
+                    autoSelect.insert(student.id)
+                }
+                continue
+            }
+            // First + last initial (e.g., "ashira b" or "ashira b.")
+            if containsFirstAndLastInitial(haystack, first: first, lastInitial: last.prefix(1)) {
+                exact.insert(student.id)
+                continue
+            }
+        }
+        
+        // Also check for auto-select candidates from Phase 2 (unique matches)
+        for id in exact {
+            // Check if this exact match is unique for its name pattern
+            if let student = studentData.first(where: { $0.id == id }) {
+                let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                let nick = (student.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                let full = (first + " " + last).trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if firstNameCounts[first] == 1 || (!nick.isEmpty && nicknameCounts[nick] == 1) || fullNameCounts[full] == 1 {
+                    autoSelect.insert(id)
+                }
+                
+                // Check initials
+                if let fi = first.first, let li = last.first {
+                    let key = String(fi) + String(li)
+                    if let ids = initialsMap[key], ids.count == 1 {
+                        autoSelect.insert(id)
+                    }
+                }
+            }
+        }
+        
+        return StudentMatchResult(exact: exact, fuzzy: fuzzy, autoSelect: autoSelect)
+    }
+    
+    // Private Helpers
+    private func containsWithBoundary(source: String, pattern: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+        return regex.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) != nil
+    }
+    
+    private func containsWord(_ text: String, word: String) -> Bool {
+        guard !word.isEmpty else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+    
+    private func containsFirstAndLastInitial(_ text: String, first: String, lastInitial: Substring) -> Bool {
+        guard !first.isEmpty, let li = lastInitial.first else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: String(li)) + "\\.?\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+    
+    private func containsFirstAndLast(_ text: String, first: String, last: String) -> Bool {
+        guard !first.isEmpty, !last.isEmpty else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: last) + "\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+    
+    private func containsInitials(_ text: String, firstInitial: Character, lastInitial: Character) -> Bool {
+        let fi = String(firstInitial).lowercased()
+        let li = String(lastInitial).lowercased()
+        // Matches: "a b", "a.b.", "ab" with word boundaries
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: fi) + "\\.?\\s*" + NSRegularExpression.escapedPattern(for: li) + "\\.?\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+    
+    private func isExactMatch(_ token: String, student: StudentData) -> Bool {
+        let t = token.lowercased()
+        let f = student.firstName.lowercased()
+        let n = (student.nickname ?? "").lowercased()
+        
+        return t == f || (!n.isEmpty && t == n)
+    }
+    
+    private func isFuzzyMatch(_ token: String, student: StudentData) -> Bool {
+        if token.isFuzzyMatch(to: student.firstName) { return true }
+        if let nick = student.nickname, !nick.isEmpty, token.isFuzzyMatch(to: nick) { return true }
+        return false
+    }
+}

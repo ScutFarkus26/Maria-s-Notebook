@@ -79,6 +79,21 @@ class ReminderSyncService: ObservableObject {
         }
     }
     
+    // MARK: - Safe Data Transfer
+    
+    /// A Sendable struct to transport data safely from the non-isolated EventKit closure
+    /// to the MainActor context, avoiding data race errors with EKReminder.
+    private struct ReminderSyncData: Sendable {
+        let title: String
+        let notes: String?
+        let dueDateComponents: DateComponents?
+        let isCompleted: Bool
+        let completionDate: Date?
+        let creationDate: Date?
+        let lastModifiedDate: Date?
+        let calendarItemIdentifier: String
+    }
+    
     /// Sync reminders from the configured Reminders list
     /// This should be called when the user has configured a sync list and wants to pull reminders
     func syncReminders() async throws {
@@ -99,12 +114,33 @@ class ReminderSyncService: ObservableObject {
         
         // Fetch all reminders from the target list
         let predicate = eventStore.predicateForReminders(in: [targetCalendar])
-        let ekReminders = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[EKReminder]?, Error>) in
+        
+        // Use the Sendable DTO to retrieve data safely
+        let ekRemindersData = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[ReminderSyncData]?, Error>) in
             eventStore.fetchReminders(matching: predicate) { reminders in
-                continuation.resume(returning: reminders)
+                guard let reminders = reminders else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                
+                // Map to Sendable struct inside the closure
+                let safeData = reminders.map { reminder in
+                    ReminderSyncData(
+                        title: reminder.title ?? "Untitled",
+                        notes: reminder.notes,
+                        dueDateComponents: reminder.dueDateComponents,
+                        isCompleted: reminder.isCompleted,
+                        completionDate: reminder.completionDate,
+                        creationDate: reminder.creationDate,
+                        lastModifiedDate: reminder.lastModifiedDate,
+                        calendarItemIdentifier: reminder.calendarItemIdentifier
+                    )
+                }
+                continuation.resume(returning: safeData)
             }
         }
-        guard let ekReminders = ekReminders else {
+        
+        guard let syncData = ekRemindersData else {
             return
         }
         
@@ -115,24 +151,23 @@ class ReminderSyncService: ObservableObject {
             return (ekID, rem)
         })
         
-        // Sync each reminder
+        // Sync each reminder using the safe data
         var syncedCount = 0
-        for ekReminder in ekReminders {
-            if let existing = existingByEKID[ekReminder.calendarItemIdentifier] {
+        for data in syncData {
+            if let existing = existingByEKID[data.calendarItemIdentifier] {
                 // Update existing reminder
-                updateReminder(existing, from: ekReminder)
+                updateReminder(existing, from: data)
                 syncedCount += 1
             } else {
                 // Create new reminder
-                let newReminder = createReminder(from: ekReminder, calendarID: targetCalendar.calendarIdentifier)
+                let newReminder = createReminder(from: data, calendarID: targetCalendar.calendarIdentifier)
                 modelContext.insert(newReminder)
                 syncedCount += 1
             }
         }
         
         // Mark reminders that no longer exist in EventKit as deleted
-        // (We'll just skip showing them, or we could add a deleted flag)
-        let currentEKIDs = Set(ekReminders.map { $0.calendarItemIdentifier })
+        let currentEKIDs = Set(syncData.map { $0.calendarItemIdentifier })
         for existing in existingReminders {
             if let ekID = existing.eventKitReminderID,
                !currentEKIDs.contains(ekID),
@@ -168,29 +203,29 @@ class ReminderSyncService: ObservableObject {
         return try modelContext.fetch(descriptor)
     }
     
-    private func createReminder(from ekReminder: EKReminder, calendarID: String) -> Reminder {
+    private func createReminder(from data: ReminderSyncData, calendarID: String) -> Reminder {
         let reminder = Reminder(
-            title: ekReminder.title ?? "Untitled",
-            notes: ekReminder.notes,
-            dueDate: ekReminder.dueDateComponents?.date,
-            isCompleted: ekReminder.isCompleted,
-            completedAt: ekReminder.completionDate,
-            createdAt: ekReminder.creationDate ?? Date(),
-            updatedAt: ekReminder.lastModifiedDate ?? Date(),
-            eventKitReminderID: ekReminder.calendarItemIdentifier,
+            title: data.title,
+            notes: data.notes,
+            dueDate: data.dueDateComponents?.date,
+            isCompleted: data.isCompleted,
+            completedAt: data.completionDate,
+            createdAt: data.creationDate ?? Date(),
+            updatedAt: data.lastModifiedDate ?? Date(),
+            eventKitReminderID: data.calendarItemIdentifier,
             eventKitCalendarID: calendarID,
             lastSyncedAt: Date()
         )
         return reminder
     }
     
-    private func updateReminder(_ reminder: Reminder, from ekReminder: EKReminder) {
-        reminder.title = ekReminder.title ?? "Untitled"
-        reminder.notes = ekReminder.notes
-        reminder.dueDate = ekReminder.dueDateComponents?.date
-        reminder.isCompleted = ekReminder.isCompleted
-        reminder.completedAt = ekReminder.completionDate
-        reminder.updatedAt = ekReminder.lastModifiedDate ?? Date()
+    private func updateReminder(_ reminder: Reminder, from data: ReminderSyncData) {
+        reminder.title = data.title
+        reminder.notes = data.notes
+        reminder.dueDate = data.dueDateComponents?.date
+        reminder.isCompleted = data.isCompleted
+        reminder.completedAt = data.completionDate
+        reminder.updatedAt = data.lastModifiedDate ?? Date()
         reminder.lastSyncedAt = Date()
     }
 }
@@ -211,4 +246,3 @@ enum ReminderSyncError: LocalizedError {
         }
     }
 }
-

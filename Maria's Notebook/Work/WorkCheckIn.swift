@@ -53,21 +53,21 @@ enum WorkCheckInStatus: String, Codable, CaseIterable {
     var isUpcoming: Bool { status == .scheduled && date > Date() }
 
     // Mutating helpers
-    func markCompleted(note: String? = nil, at date: Date = Date(), in _: ModelContext) {
+    nonisolated func markCompleted(note: String? = nil, at date: Date = Date(), in _: ModelContext) {
         self.status = .completed
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
         if let note = note { self.note = note }
     }
 
-    func reschedule(to date: Date, note: String? = nil, in _: ModelContext) {
+    nonisolated func reschedule(to date: Date, note: String? = nil, in _: ModelContext) {
         self.status = .scheduled
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
         if let note = note { self.note = note }
     }
 
-    func skip(note: String? = nil, at date: Date = Date(), in _: ModelContext) {
+    nonisolated func skip(note: String? = nil, at date: Date = Date(), in _: ModelContext) {
         self.status = .skipped
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)

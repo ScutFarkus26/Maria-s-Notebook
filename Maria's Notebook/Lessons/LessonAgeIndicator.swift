@@ -83,6 +83,38 @@ struct ColorUtils {
 
 /// Helper to compute school-day age counts using the app's SchoolCalendar.
 struct LessonAgeHelper {
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Rules:
+    /// - Explicit NonSchoolDay records mark weekdays as non-school
+    /// - Weekends are non-school by default unless a SchoolDayOverride exists for that date
+    private static func isNonSchoolDaySync(_ date: Date, using context: ModelContext, calendar: Calendar) -> Bool {
+        let day = calendar.startOfDay(for: date)
+
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = calendar.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
+    }
+
     /// Compute the number of school days between `createdAt` (start of day) and `today` (start of day),
     /// counting only days that are not marked as non-school by SchoolCalendar.
     /// Returns 0 when `today` is the same start-of-day as `createdAt` or earlier.
@@ -93,7 +125,7 @@ struct LessonAgeHelper {
         var count = 0
         var cursor = start
         while cursor < end {
-            if !SchoolCalendar.isNonSchoolDay(cursor, using: context) {
+            if !isNonSchoolDaySync(cursor, using: context, calendar: calendar) {
                 count += 1
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }

@@ -6,7 +6,9 @@ import Foundation
 enum AppCalendar {
     /// Shared calendar used for all date normalization.
     /// Defaults to Gregorian with the current time zone.
-    static var shared: Calendar = {
+    /// Marked as nonisolated(unsafe) because Calendar is thread-safe for reading,
+    /// and we need to access it from SwiftData model initializers which are nonisolated.
+    nonisolated(unsafe) static var shared: Calendar = {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
         return cal
@@ -14,7 +16,7 @@ enum AppCalendar {
 
     /// Update the shared calendar's time zone to match the provided calendar.
     /// Call this whenever the environment calendar/timezone changes.
-    static func adopt(timeZoneFrom calendar: Calendar) {
+    nonisolated static func adopt(timeZoneFrom calendar: Calendar) {
         var cal = shared
         cal.timeZone = calendar.timeZone
         shared = cal
@@ -23,36 +25,36 @@ enum AppCalendar {
     // MARK: - Canonical helpers
 
     /// Returns the start of day in the device time zone for the given date.
-    static func startOfDay(_ date: Date) -> Date {
+    nonisolated static func startOfDay(_ date: Date) -> Date {
         shared.startOfDay(for: date)
     }
 
     /// Returns the half-open range [startOfDay(date), startOfDay(date)+1day)
     /// used for all day-bound queries.
-    static func dayRange(for date: Date) -> (start: Date, end: Date) {
+    nonisolated static func dayRange(for date: Date) -> (start: Date, end: Date) {
         let start = startOfDay(date)
         let end = shared.date(byAdding: .day, value: 1, to: start) ?? start
         return (start, end)
     }
 
     /// True if two dates are in the same day (device time zone).
-    static func isSameDay(_ a: Date, _ b: Date) -> Bool {
+    nonisolated static func isSameDay(_ a: Date, _ b: Date) -> Bool {
         shared.isDate(a, inSameDayAs: b)
     }
 
     /// Adds whole days to a date using the shared calendar.
-    static func addingDays(_ days: Int, to date: Date) -> Date {
+    nonisolated static func addingDays(_ days: Int, to date: Date) -> Date {
         shared.date(byAdding: .day, value: days, to: date) ?? date
     }
 
     /// A short weekday label (e.g., "Mon", "Tue").
-    static func weekdayLabel(for date: Date) -> String {
+    nonisolated static func weekdayLabel(for date: Date) -> String {
         date.formatted(Date.FormatStyle().weekday(.abbreviated))
     }
 
     /// Stable identifier for a day bucket (start-of-day epoch seconds).
     /// Useful for `id:` values in `ForEach` when you want day-identity rather than full timestamps.
-    static func dayID(_ day: Date) -> String {
+    nonisolated static func dayID(_ day: Date) -> String {
         let start = startOfDay(day)
         return "day_\(Int(start.timeIntervalSince1970))"
     }

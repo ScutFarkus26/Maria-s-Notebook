@@ -14,9 +14,9 @@ enum AgingBucket: Int, Codable, Comparable {
 
 struct AgingPolicy {
     /// First bucket boundary where items start to be considered aging.
-    static var agingDays: Int = 5
+    nonisolated(unsafe) static var agingDays: Int = 5
     /// Second bucket boundary where items are considered stale.
-    static var staleDays: Int = 9
+    nonisolated(unsafe) static var staleDays: Int = 9
 }
 
 // MARK: - Work Aging Computation
@@ -31,7 +31,7 @@ enum WorkContractAging {
     /// 2) Most recent note timestamp (updatedAt, then createdAt)
     /// 3) Most recent status change timestamp (currently only completedAt if present)
     /// 4) Fallback: presentation date (if provided) or the contract's creation date
-    static func lastMeaningfulTouchDate(
+    nonisolated static func lastMeaningfulTouchDate(
         for contract: WorkContract,
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,
@@ -75,7 +75,7 @@ enum WorkContractAging {
 
     /// Calendar day difference between today and the last meaningful touch.
     @available(*, deprecated, message: "Use school-day overload with modelContext for business logic.")
-    static func daysSinceLastTouch(
+    nonisolated static func daysSinceLastTouch(
         for contract: WorkContract,
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,
@@ -98,7 +98,7 @@ enum WorkContractAging {
 
     /// School-day aware difference between today and the last meaningful touch.
     /// This is the authoritative version for business rules.
-    static func daysSinceLastTouch(
+    nonisolated static func daysSinceLastTouch(
         for contract: WorkContract,
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
@@ -111,7 +111,7 @@ enum WorkContractAging {
         var days = 0
         var cursor = startLast
         while cursor < startToday {
-            if !SchoolCalendar.isNonSchoolDay(cursor, using: modelContext) {
+            if !isNonSchoolDaySync(cursor, using: modelContext) {
                 days += 1
             }
             cursor = AppCalendar.addingDays(1, to: cursor)
@@ -120,9 +120,42 @@ enum WorkContractAging {
         return max(0, days)
     }
 
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Rules:
+    /// - Explicit NonSchoolDay records mark weekdays as non-school
+    /// - Weekends are non-school by default unless a SchoolDayOverride exists for that date
+    nonisolated private static func isNonSchoolDaySync(_ date: Date, using context: ModelContext) -> Bool {
+        let cal = AppCalendar.shared
+        let day = AppCalendar.startOfDay(date)
+
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = cal.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
+    }
+
     /// Maps the day difference to an AgingBucket using AgingPolicy thresholds.
     @available(*, deprecated, message: "Use school-day overload with modelContext for business logic.")
-    static func agingBucket(
+    nonisolated static func agingBucket(
         for contract: WorkContract,
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,
@@ -136,7 +169,7 @@ enum WorkContractAging {
 
     /// Maps day difference to an AgingBucket using school days.
     /// This is the authoritative version for business rules.
-    static func agingBucket(
+    nonisolated static func agingBucket(
         for contract: WorkContract,
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
@@ -151,7 +184,7 @@ enum WorkContractAging {
 
     /// Convenience predicate for stale status.
     @available(*, deprecated, message: "Use school-day overload with modelContext for business logic.")
-    static func isStale(
+    nonisolated static func isStale(
         _ contract: WorkContract,
         planItems: [WorkPlanItem],
         notes: [ScopedNote]? = nil,
@@ -162,7 +195,7 @@ enum WorkContractAging {
 
     /// Convenience predicate for stale status using school days.
     /// This is the authoritative version for business rules.
-    static func isStale(
+    nonisolated static func isStale(
         _ contract: WorkContract,
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
@@ -177,7 +210,7 @@ enum WorkContractAging {
     /// - There exists a scheduled date with expectation intent (.progressCheck or .assessment)
     /// - That date is in the past (strictly before today start)
     /// - There has been no meaningful touch since before that scheduled date
-    static func isOverdue(
+    nonisolated static func isOverdue(
         _ contract: WorkContract,
         planItems: [WorkPlanItem],
         lastTouch overrideLastTouch: Date? = nil

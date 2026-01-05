@@ -345,13 +345,13 @@ public struct InboxSheetView: View {
         guard let ns = reading as? NSString else { return }
         let raw = ns as String
         if raw.hasPrefix("STUDENT_TO_INBOX:") {
-          DispatchQueue.main.async {
+          Task { @MainActor in
             handleStudentToInboxDropParsed(payload: raw, location: location)
           }
           return
         }
         if let droppedId = UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
-          DispatchQueue.main.async {
+          Task { @MainActor in
             dropReceived(droppedId: droppedId, location: location)
           }
         }

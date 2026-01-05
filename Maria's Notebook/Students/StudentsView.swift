@@ -397,11 +397,9 @@ struct StudentsView<WorkloadContent: View>: View {
                 if horizontalSizeClass == .compact { mode = .roster }
             }
 #endif
-            .onAppear { 
+            .task {
                 ensureInitialManualOrderIfNeeded()
-                Task { @MainActor in
-                    await loadDataOnDemand()
-                }
+                await loadDataOnDemand()
             }
             .onChange(of: mode) { oldMode, newMode in
                 handleModeChange(oldMode: oldMode, newMode: newMode)

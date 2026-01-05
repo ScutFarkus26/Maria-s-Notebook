@@ -52,6 +52,7 @@ struct MariasToolboxApp: App {
     /// - Parameters:
     ///   - error: The error that occurred
     ///   - description: Optional custom error description. If nil, uses error.localizedDescription
+    @MainActor
     static func handleDatabaseInitError(_ error: Error, description: String? = nil) {
         let errorDescription = description ?? ((error as NSError?)?.localizedDescription ?? String(describing: error))
         let nsError = error as NSError? ?? NSError(
@@ -73,6 +74,7 @@ struct MariasToolboxApp: App {
     ///   - finalError: The final error (e.g., from fallback attempt)
     ///   - emptyContainerError: Optional error from attempting to create empty container
     ///   - errorCode: Custom error code (default: 5002)
+    @MainActor
     static func handleCriticalDatabaseInitError(
         originalError: Error,
         finalError: Error? = nil,
@@ -108,6 +110,7 @@ struct MariasToolboxApp: App {
     }
     
     // Track initialization errors to show in the UI
+    @MainActor
     static var initError: Error?
     
     // Logger for reset operations
@@ -642,8 +645,10 @@ struct MariasToolboxApp: App {
     /// Model container for SwiftData.
     /// Initialized on first access via the static factory method.
     /// If SwiftData asserts internally during schema processing, we cannot catch it.
+    @MainActor
     private static var _sharedModelContainer: ModelContainer?
     
+    @MainActor
     var sharedModelContainer: ModelContainer {
         if let existing = MariasToolboxApp._sharedModelContainer {
             return existing
@@ -737,7 +742,7 @@ struct MariasToolboxApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("") {
+        WindowGroup("", id: "mainWindow") {
             Group {
                 // Show database error view if there's an initialization error
                 if databaseErrorCoordinator.error != nil || MariasToolboxApp.initError != nil {
@@ -789,6 +794,9 @@ struct MariasToolboxApp: App {
                     await bootstrapper.bootstrap(modelContainer: sharedModelContainer)
                 }
             }
+            #if os(macOS)
+            .modifier(OpenWindowOnNotificationModifier())
+            #endif
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
@@ -802,10 +810,7 @@ struct MariasToolboxApp: App {
             CommandGroup(replacing: .newItem) {
                 #if os(macOS)
                 Button("New Window") {
-                    if let windowMenu = NSApp.mainMenu?.item(withTitle: "Window"),
-                       let newWindowItem = windowMenu.submenu?.item(withTitle: "New Window") {
-                        _ = newWindowItem.target?.perform(newWindowItem.action, with: nil)
-                    }
+                    NotificationCenter.default.post(name: .openNewWindow, object: nil)
                 }
                 Divider()
                 #endif

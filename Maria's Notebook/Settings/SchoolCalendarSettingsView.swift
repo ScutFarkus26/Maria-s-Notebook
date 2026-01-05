@@ -132,18 +132,24 @@ struct SchoolCalendarSettingsView: View {
             .padding(.top, 8)
             #endif
         }
-        .onAppear { reload() }
+        .onAppear {
+            Task {
+                await reload()
+            }
+        }
     }
 
-    private func reload() {
+    private func reload() async {
         let range = monthInterval.start ..< monthInterval.end
-        nonSchoolDates = SchoolCalendar.nonSchoolDays(in: range, using: modelContext)
+        nonSchoolDates = await SchoolCalendar.nonSchoolDays(in: range, using: modelContext)
     }
 
     private func shiftMonth(_ delta: Int) {
         if let newDate = calendar.date(byAdding: .month, value: delta, to: currentMonth) {
             currentMonth = newDate
-            reload()
+            Task {
+                await reload()
+            }
         }
     }
 
@@ -164,7 +170,9 @@ struct SchoolCalendarSettingsView: View {
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
         try? modelContext.save()
-        reload()
+        Task {
+            await reload()
+        }
     }
 
     private func markWeekdaysAsSchoolDays() {
@@ -184,7 +192,9 @@ struct SchoolCalendarSettingsView: View {
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
         try? modelContext.save()
-        reload()
+        Task {
+            await reload()
+        }
     }
 }
 

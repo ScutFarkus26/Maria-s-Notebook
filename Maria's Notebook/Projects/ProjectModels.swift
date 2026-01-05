@@ -3,14 +3,14 @@ import SwiftData
 
 // Local JSON helper to avoid cross-file dependency
 struct LocalJSONStringList {
-    static func encode(_ arr: [String]) -> String {
+    nonisolated static func encode(_ arr: [String]) -> String {
         guard !arr.isEmpty else { return "" }
         if let data = try? JSONEncoder().encode(arr), let s = String(data: data, encoding: .utf8) {
             return s
         }
         return ""
     }
-    static func decode(_ s: String) -> [String] {
+    nonisolated static func decode(_ s: String) -> [String] {
         let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return [] }
         if let arr = try? JSONDecoder().decode([String].self, from: data) { return arr }
@@ -154,7 +154,7 @@ final class ProjectSession: Identifiable {
         self.templateWeekID = templateWeekID?.uuidString
     }
 
-    var agendaItems: [String] {
+    nonisolated var agendaItems: [String] {
         get { LocalJSONStringList.decode(agendaItemsJSON) }
         set { agendaItemsJSON = LocalJSONStringList.encode(newValue) }
     }

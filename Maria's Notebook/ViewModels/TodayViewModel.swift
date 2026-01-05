@@ -601,10 +601,67 @@ final class TodayViewModel: ObservableObject {
         }
     }
     
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    private func isNonSchoolDaySync(_ date: Date) -> Bool {
+        let day = AppCalendar.startOfDay(date)
+        let cal = AppCalendar.shared
+
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = cal.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
+    }
+    
+    /// Synchronous helper that returns the next school day strictly after the given date.
+    private func nextSchoolDaySync(after date: Date) -> Date {
+        let cal = AppCalendar.shared
+        var d = cal.startOfDay(for: date)
+        // Start from the following day
+        d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+        // Safety cap to avoid infinite loops in case of data errors
+        for _ in 0..<730 { // up to ~2 years
+            if !isNonSchoolDaySync(d) { return d }
+            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+        }
+        return cal.startOfDay(for: date)
+    }
+    
+    /// Synchronous helper that returns the previous school day strictly before the given date.
+    private func previousSchoolDaySync(before date: Date) -> Date {
+        let cal = AppCalendar.shared
+        var d = cal.startOfDay(for: date)
+        // Start from the previous day
+        d = cal.date(byAdding: .day, value: -1, to: d) ?? d
+        for _ in 0..<730 { // up to ~2 years
+            if !isNonSchoolDaySync(d) { return d }
+            d = cal.date(byAdding: .day, value: -1, to: d) ?? d
+        }
+        return cal.startOfDay(for: date)
+    }
+    
     /// Finds the next day (after the given date) that has lessons scheduled.
     /// Only considers school days and respects the current level filter.
     func nextDayWithLessons(after date: Date) -> Date {
-        var current = SchoolCalendar.nextSchoolDay(after: date, using: context)
+        var current = nextSchoolDaySync(after: date)
         // Safety cap: search up to 2 years forward
         for _ in 0..<730 {
             let (day, nextDay) = AppCalendar.dayRange(for: current)
@@ -640,20 +697,20 @@ final class TodayViewModel: ObservableObject {
             } catch {
                 // If fetch fails, continue to next day
             }
-            current = SchoolCalendar.nextSchoolDay(after: current, using: context)
+            current = nextSchoolDaySync(after: current)
             // Prevent infinite loop if we've wrapped around
             if current <= date {
                 break
             }
         }
         // If no day with lessons found, return the next school day
-        return SchoolCalendar.nextSchoolDay(after: date, using: context)
+        return nextSchoolDaySync(after: date)
     }
     
     /// Finds the previous day (before the given date) that has lessons scheduled.
     /// Only considers school days and respects the current level filter.
     func previousDayWithLessons(before date: Date) -> Date {
-        var current = SchoolCalendar.previousSchoolDay(before: date, using: context)
+        var current = previousSchoolDaySync(before: date)
         // Safety cap: search up to 2 years backward
         for _ in 0..<730 {
             let (day, nextDay) = AppCalendar.dayRange(for: current)
@@ -689,7 +746,7 @@ final class TodayViewModel: ObservableObject {
             } catch {
                 // If fetch fails, continue to next day
             }
-            let prev = SchoolCalendar.previousSchoolDay(before: current, using: context)
+            let prev = previousSchoolDaySync(before: current)
             // Prevent infinite loop if we've wrapped around
             if prev >= date || prev == current {
                 break
@@ -697,7 +754,7 @@ final class TodayViewModel: ObservableObject {
             current = prev
         }
         // If no day with lessons found, return the previous school day
-        return SchoolCalendar.previousSchoolDay(before: date, using: context)
+        return previousSchoolDaySync(before: date)
     }
 }
 

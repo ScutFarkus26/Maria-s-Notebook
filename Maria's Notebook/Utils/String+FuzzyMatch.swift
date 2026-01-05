@@ -2,7 +2,7 @@ import Foundation
 
 extension String {
     /// Calculates the Levenshtein distance to another string.
-    func levenshteinDistance(to destination: String) -> Int {
+    nonisolated func levenshteinDistance(to destination: String) -> Int {
         let sCount = self.count
         let dCount = destination.count
         if sCount == 0 { return dCount }
@@ -28,7 +28,7 @@ extension String {
     }
     
     /// Checks if a string is a "fuzzy match" to a target name.
-    func isFuzzyMatch(to target: String, tolerance: Int = 2) -> Bool {
+    nonisolated func isFuzzyMatch(to target: String, tolerance: Int = 2) -> Bool {
         // 1. Exact match
         if self.localizedCaseInsensitiveCompare(target) == .orderedSame { return true }
         

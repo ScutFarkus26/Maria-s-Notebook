@@ -51,7 +51,9 @@ struct PlanningWeekViewMac: View {
             DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
             
             // Calculate initial start date
-            computeInitialStartDate()
+            Task {
+                await computeInitialStartDate()
+            }
             syncInboxOrderWithCurrentBase()
         }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
@@ -63,19 +65,19 @@ struct PlanningWeekViewMac: View {
     
     // MARK: - Helpers
     
-    private func isNonSchoolDay(_ day: Date) -> Bool {
-        SchoolCalendar.isNonSchoolDay(day, using: modelContext)
+    private func isNonSchoolDay(_ day: Date) async -> Bool {
+        await SchoolCalendar.isNonSchoolDay(day, using: modelContext)
     }
     
-    private func firstSchoolDay(onOrAfter date: Date) -> Date {
+    private func firstSchoolDay(onOrAfter date: Date) async -> Date {
         var cursor = calendar.startOfDay(for: date)
-        while isNonSchoolDay(cursor) {
+        while await isNonSchoolDay(cursor) {
             cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
         }
         return cursor
     }
     
-    private func computeInitialStartDate() {
+    private func computeInitialStartDate() async {
         let today = calendar.startOfDay(for: Date())
         
         // Fetch only future scheduled lessons to find the next one
@@ -88,13 +90,14 @@ struct PlanningWeekViewMac: View {
         if let nextUp = try? modelContext.fetch(descriptor).first,
            let date = nextUp.scheduledFor {
             let start = calendar.startOfDay(for: date)
-            if start >= today && !isNonSchoolDay(start) {
+            let isNonSchool = await isNonSchoolDay(start)
+            if start >= today && !isNonSchool {
                 self.startDate = start
                 return
             }
         }
         
-        self.startDate = firstSchoolDay(onOrAfter: today)
+        self.startDate = await firstSchoolDay(onOrAfter: today)
     }
     
     @MainActor

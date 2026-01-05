@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
-import NaturalLanguage
 
 #if os(macOS)
 import AppKit
@@ -82,12 +81,13 @@ struct UnifiedNoteEditor: View {
     @State private var showingSuggestionSheet: Bool = false
     @State private var proposedCategory: NoteCategory? = nil
     @State private var proposedStudentIDs: [UUID] = []
+    @State private var suggestionError: String? = nil
     #endif
     
     // AI / Smart Editor State
     @State private var aiTriggerCounter: Int = 0
     
-    private let tagger = NLTagger(tagSchemes: [.nameType])
+    private let tagger = StudentTagger()
     @State private var nameDetectionTask: Task<Void, Never>? = nil
     
     // Computed properties for context-specific behavior
@@ -206,6 +206,16 @@ struct UnifiedNoteEditor: View {
                 }
             )
         }
+        .alert("AI Suggestion Error", isPresented: Binding(
+            get: { suggestionError != nil },
+            set: { if !$0 { suggestionError = nil } }
+        )) {
+            Button("OK") { suggestionError = nil }
+        } message: {
+            if let error = suggestionError {
+                Text(error)
+            }
+        }
 #endif
         .onAppear {
             setupInitialState()
@@ -216,7 +226,7 @@ struct UnifiedNoteEditor: View {
                 nameDetectionTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 250_000_000)
                     if Task.isCancelled { return }
-                    analyzeTextForNames(newText)
+                    await analyzeTextForNames(newText)
                 }
             }
         }
@@ -225,14 +235,11 @@ struct UnifiedNoteEditor: View {
         }
         #if os(iOS)
         .sheet(isPresented: $showingCamera) {
-            CameraPicker(image: Binding(
-                get: { nil },
-                set: { newImage in
-                    if let newImage = newImage {
-                        handleCameraImage(newImage)
-                    }
+            CameraView(image: $selectedImage) { img in
+                if let img = img {
+                    handleCameraImage(img)
                 }
-            ))
+            }
         }
         #endif
     }
@@ -728,187 +735,29 @@ struct UnifiedNoteEditor: View {
         #endif
     }
     
-    private func analyzeTextForNames(_ text: String) {
+    private func analyzeTextForNames(_ text: String) async {
         detectedStudentIDs.removeAll()
         guard !text.isEmpty else { return }
-
-        // Normalize the full text for manual scanning
-        let haystack = text
-            .folding(options: .diacriticInsensitive, locale: .current)
-            .lowercased()
-
-        // Precompute name maps for uniqueness checks
-        var firstNameCounts: [String: Int] = [:]
-        var nicknameCounts: [String: Int] = [:]
-        var fullNameCounts: [String: Int] = [:]
-        var initialsMap: [String: [UUID]] = [:]
-
-        for s in students {
-            let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            firstNameCounts[first, default: 0] += 1
-            if let nickRaw = s.nickname, !nickRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let nick = nickRaw.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                nicknameCounts[nick, default: 0] += 1
-            }
-            let full = (first + " " + last).trimmingCharacters(in: .whitespacesAndNewlines)
-            fullNameCounts[full, default: 0] += 1
-            if let fi = first.first, let li = last.first {
-                let key = String(fi) + String(li)
-                initialsMap[key, default: []].append(s.id)
-            }
+        
+        let studentData = students.map { student in
+            StudentData(
+                id: student.id,
+                firstName: student.firstName,
+                lastName: student.lastName,
+                nickname: student.nickname
+            )
         }
-
-        var autoSelectCandidates: Set<UUID> = []
-
-        // Pass 1: NLTagger over detected personal-name tokens
-        tagger.string = text
-        let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .joinNames]
-
-        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { tag, tokenRange in
-            if tag == .personalName {
-                let token = String(text[tokenRange])
-                let normToken = token.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                let lettersOnly = normToken.filter { $0.isLetter }
-
-                // Detection (fuzzy and structured)
-                for student in students {
-                    if matches(student: student, with: token) {
-                        detectedStudentIDs.insert(student.id)
-                    }
-                }
-
-                // Auto-select: unique initials, unique exact first, unique exact nickname, unique exact full name
-                if lettersOnly.count == 2 {
-                    let key = String(lettersOnly)
-                    if let ids = initialsMap[key], ids.count == 1, let only = ids.first {
-                        autoSelectCandidates.insert(only)
-                    }
-                } else {
-                    for s in students {
-                        let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                        let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                        let nick = (s.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                        let full = (first + " " + last)
-
-                        if normToken == full, fullNameCounts[full] == 1 { autoSelectCandidates.insert(s.id); continue }
-                        if !nick.isEmpty, normToken == nick, nicknameCounts[nick] == 1 { autoSelectCandidates.insert(s.id); continue }
-                        if normToken == first, firstNameCounts[first] == 1 { autoSelectCandidates.insert(s.id); continue }
-                    }
-                }
-            }
-            return true
+        
+        let result = await tagger.findStudentMatches(in: text, studentData: studentData)
+        
+        // Populate detected IDs from both exact and fuzzy matches
+        detectedStudentIDs = result.exact.union(result.fuzzy)
+        
+        // Auto-select unique matches without overriding user choices
+        let newAutoSelects = result.autoSelect.subtracting(selectedStudentIDs)
+        if !newAutoSelects.isEmpty {
+            selectedStudentIDs.formUnion(newAutoSelects)
         }
-
-        // Pass 2: Manual scan of the full text to catch patterns not tagged by NLTagger
-        for s in students {
-            let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let nick = (s.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let full = first + " " + last
-
-            // Nickname word
-            if !nick.isEmpty, containsWord(haystack, word: nick) {
-                detectedStudentIDs.insert(s.id)
-                if nicknameCounts[nick] == 1 { autoSelectCandidates.insert(s.id) }
-                continue
-            }
-            // First name word
-            if containsWord(haystack, word: first) {
-                detectedStudentIDs.insert(s.id)
-                if firstNameCounts[first] == 1 { autoSelectCandidates.insert(s.id) }
-                continue
-            }
-            // Full name words
-            if containsFirstAndLast(haystack, first: first, last: last) {
-                detectedStudentIDs.insert(s.id)
-                if fullNameCounts[full] == 1 { autoSelectCandidates.insert(s.id) }
-                continue
-            }
-            // Compact or punctuated initials
-            if let fi = first.first, let li = last.first, containsInitials(haystack, firstInitial: fi, lastInitial: li) {
-                detectedStudentIDs.insert(s.id)
-                let key = String(fi) + String(li)
-                if let ids = initialsMap[key], ids.count == 1 { autoSelectCandidates.insert(s.id) }
-                continue
-            }
-            // First + last initial (e.g., "ashira b" or "ashira b.")
-            if containsFirstAndLastInitial(haystack, first: first, lastInitial: last.prefix(1)) {
-                detectedStudentIDs.insert(s.id)
-                continue
-            }
-        }
-
-        // Apply auto-selection without overriding user choices
-        selectedStudentIDs.formUnion(autoSelectCandidates)
-    }
-
-    private func matches(student: Student, with detectedToken: String) -> Bool {
-        func norm(_ s: String) -> String {
-            s.folding(options: .diacriticInsensitive, locale: .current)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        let token = norm(detectedToken).lowercased()
-        let first = norm(student.firstName).lowercased()
-        let last = norm(student.lastName).lowercased()
-        let nick = norm(student.nickname ?? "").lowercased()
-
-        // Handle compact two-letter initials like "ab" (no punctuation/space)
-        let lettersOnly = token.filter { $0.isLetter }
-        if lettersOnly.count == 2 {
-            if let sfi = first.first, let sli = last.first {
-                let fi = Character(String(sfi).lowercased())
-                let li = Character(String(sli).lowercased())
-                if lettersOnly.first == fi && lettersOnly.last == li {
-                    return true
-                }
-            }
-        }
-
-        // Split token on whitespace/punctuation to handle "First Last" or "First L."
-        let parts = token.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation })
-        if parts.count >= 2 {
-            let firstPart = String(parts[0])
-            let lastPart = String(parts[1])
-
-            // First name or nickname fuzzy match (abbreviation supported via isFuzzyMatch)
-            let firstMatches = firstPart.isFuzzyMatch(to: first) || (!nick.isEmpty && firstPart.isFuzzyMatch(to: nick))
-            // Last name or last initial
-            let lastInitial = lastPart.replacingOccurrences(of: ".", with: "").prefix(1)
-            let lastMatches = lastPart.isFuzzyMatch(to: last) || (!lastInitial.isEmpty && last.lowercased().hasPrefix(lastInitial.lowercased()))
-            return firstMatches && lastMatches
-        } else {
-            // Single token: compare against first, nickname, or last with fuzzy match
-            return token.isFuzzyMatch(to: first)
-                || (!nick.isEmpty && token.isFuzzyMatch(to: nick))
-                || token.isFuzzyMatch(to: last)
-        }
-    }
-
-    private func containsWord(_ text: String, word: String) -> Bool {
-        guard !word.isEmpty else { return false }
-        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b"
-        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
-    }
-
-    private func containsFirstAndLastInitial(_ text: String, first: String, lastInitial: Substring) -> Bool {
-        guard !first.isEmpty, let li = lastInitial.first else { return false }
-        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: String(li)) + "\\.?\\b"
-        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
-    }
-
-    private func containsFirstAndLast(_ text: String, first: String, last: String) -> Bool {
-        guard !first.isEmpty, !last.isEmpty else { return false }
-        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: last) + "\\b"
-        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
-    }
-
-    private func containsInitials(_ text: String, firstInitial: Character, lastInitial: Character) -> Bool {
-        let fi = String(firstInitial).lowercased()
-        let li = String(lastInitial).lowercased()
-        // Matches: "a b", "a.b.", "ab" with word boundaries
-        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: fi) + "\\.?\\s*" + NSRegularExpression.escapedPattern(for: li) + "\\.?\\b"
-        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     private func expandInitialsInBodyText() {
@@ -968,15 +817,11 @@ struct UnifiedNoteEditor: View {
         defer { isSuggesting = false }
 
         let session = LanguageModelSession(
-            instructions: """
-            Classify notes for a Montessori classroom.
-            Only use categories: academic, behavioral, social, emotional, health, general.
-            If specific students are clearly mentioned, include their names; otherwise leave the list empty.
-            """
+            instructions: AIPrompts.noteClassification
         )
         do {
             let response = try await session.respond(
-                to: "Classify this note:\n\(bodyText)",
+                to: AIPrompts.classifyNote(bodyText),
                 generating: NoteClassificationSuggestion.self,
                 options: .init(temperature: 0.2)
             )
@@ -998,7 +843,7 @@ struct UnifiedNoteEditor: View {
             self.proposedStudentIDs = Array(Set(ids))
             self.showingSuggestionSheet = true
         } catch {
-            // Swallow errors for now; could surface an alert later
+            self.suggestionError = error.localizedDescription
         }
     }
 

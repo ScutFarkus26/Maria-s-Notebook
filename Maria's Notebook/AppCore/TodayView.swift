@@ -34,6 +34,78 @@ struct TodayView: View {
         planItemsForChangeDetection.map { $0.id }
     }
     
+    // MARK: - Helpers
+    
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    private func isNonSchoolDaySync(_ date: Date) -> Bool {
+        let day = AppCalendar.startOfDay(date)
+        let cal = AppCalendar.shared
+
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = cal.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
+    }
+    
+    /// Synchronous helper that returns the next school day strictly after the given date.
+    private func nextSchoolDaySync(after date: Date) -> Date {
+        let cal = AppCalendar.shared
+        var d = cal.startOfDay(for: date)
+        // Start from the following day
+        d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+        // Safety cap to avoid infinite loops in case of data errors
+        for _ in 0..<730 { // up to ~2 years
+            if !isNonSchoolDaySync(d) { return d }
+            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+        }
+        return cal.startOfDay(for: date)
+    }
+    
+    /// Synchronous helper that returns the previous school day strictly before the given date.
+    private func previousSchoolDaySync(before date: Date) -> Date {
+        let cal = AppCalendar.shared
+        var d = cal.startOfDay(for: date)
+        // Start from the previous day
+        d = cal.date(byAdding: .day, value: -1, to: d) ?? d
+        for _ in 0..<730 { // up to ~2 years
+            if !isNonSchoolDaySync(d) { return d }
+            d = cal.date(byAdding: .day, value: -1, to: d) ?? d
+        }
+        return cal.startOfDay(for: date)
+    }
+    
+    /// Synchronous helper that coerces the provided date to the nearest school day.
+    private func nearestSchoolDaySync(to date: Date) -> Date {
+        let day = AppCalendar.startOfDay(date)
+        if !isNonSchoolDaySync(day) { return day }
+        let prev = previousSchoolDaySync(before: day)
+        let next = nextSchoolDaySync(after: day)
+        let distPrev = abs(prev.timeIntervalSince(day))
+        let distNext = abs(next.timeIntervalSince(day))
+        if distPrev < distNext { return prev }
+        // On tie or next closer, prefer next
+        return next
+    }
+    
     // Helpers
     private var nameForLesson: (UUID) -> String { { id in viewModel.lessonsByID[id]?.name ?? "Lesson" } }
     
@@ -141,24 +213,24 @@ struct TodayView: View {
                             .frame(maxWidth: 200)
                             
                             Button {
-                                let prev = SchoolCalendar.previousSchoolDay(before: viewModel.date, using: modelContext)
+                                let prev = previousSchoolDaySync(before: viewModel.date)
                                 viewModel.date = AppCalendar.startOfDay(prev)
                             } label: { Image(systemName: "chevron.left") }
                             
                             DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
-                                let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+                                let coerced = nearestSchoolDaySync(to: newValue)
                                 viewModel.date = AppCalendar.startOfDay(coerced)
                             }), displayedComponents: .date)
                             .datePickerStyle(.compact)
                             
                             Button {
-                                let next = SchoolCalendar.nextSchoolDay(after: viewModel.date, using: modelContext)
+                                let next = nextSchoolDaySync(after: viewModel.date)
                                 viewModel.date = AppCalendar.startOfDay(next)
                             } label: { Image(systemName: "chevron.right") }
                             
                             Button("Today") {
                                 let today = Date()
-                                let coerced = SchoolCalendar.nearestSchoolDay(to: today, using: modelContext)
+                                let coerced = nearestSchoolDaySync(to: today)
                                 viewModel.date = AppCalendar.startOfDay(coerced)
                             }
                             
@@ -177,7 +249,7 @@ struct TodayView: View {
             viewModel.setCalendar(calendar)
             AppCalendar.adopt(timeZoneFrom: calendar)
             // Ensure initial date is a school day
-            let coerced = SchoolCalendar.nearestSchoolDay(to: viewModel.date, using: modelContext)
+            let coerced = nearestSchoolDaySync(to: viewModel.date)
             if coerced != viewModel.date {
                 viewModel.date = AppCalendar.startOfDay(coerced)
             }
@@ -188,7 +260,7 @@ struct TodayView: View {
         }
         .onChange(of: viewModel.date) { _, newValue in
             // Ensure date is always a school day
-            let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+            let coerced = nearestSchoolDaySync(to: newValue)
             if coerced != newValue {
                 viewModel.date = AppCalendar.startOfDay(coerced)
             }
@@ -316,13 +388,13 @@ struct TodayView: View {
             }
             HStack(spacing: 12) {
                 Button {
-                    let prev = SchoolCalendar.previousSchoolDay(before: viewModel.date, using: modelContext)
+                    let prev = previousSchoolDaySync(before: viewModel.date)
                     viewModel.date = AppCalendar.startOfDay(prev)
                 } label: { Image(systemName: "chevron.left") }
                 .buttonStyle(.plain)
 
                 DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
-                    let coerced = SchoolCalendar.nearestSchoolDay(to: newValue, using: modelContext)
+                    let coerced = nearestSchoolDaySync(to: newValue)
                     viewModel.date = AppCalendar.startOfDay(coerced)
                 }), displayedComponents: .date)
 #if os(macOS)
@@ -332,14 +404,14 @@ struct TodayView: View {
 #endif
 
                 Button {
-                    let next = SchoolCalendar.nextSchoolDay(after: viewModel.date, using: modelContext)
+                    let next = nextSchoolDaySync(after: viewModel.date)
                     viewModel.date = AppCalendar.startOfDay(next)
                 } label: { Image(systemName: "chevron.right") }
                 .buttonStyle(.plain)
 
                 Button("Today") {
                     let today = Date()
-                    let coerced = SchoolCalendar.nearestSchoolDay(to: today, using: modelContext)
+                    let coerced = nearestSchoolDaySync(to: today)
                     viewModel.date = AppCalendar.startOfDay(coerced)
                 }
                 .buttonStyle(.plain)

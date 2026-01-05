@@ -102,6 +102,10 @@ struct StudentLessonDetailContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @State private var lessonPickerFocused: Bool = false
+    
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     var body: some View {
         VStack(spacing: 0) {
@@ -148,12 +152,14 @@ struct StudentLessonDetailContentView: View {
                     
                     // 6. Progress buttons row
                     progressButtonsRow
-                        .padding(.horizontal, 32)
+                        .padding(.horizontal, progressButtonsHorizontalPadding)
                         .padding(.top, 16)
                 }
             }
         }
+#if os(macOS)
         .frame(minWidth: 720, minHeight: 640)
+#endif
         .safeAreaInset(edge: .bottom) { bottomBar }
         .alert("Delete Presentation?", isPresented: $vm.showDeleteAlert) {
             Button("Delete", role: .destructive) {
@@ -187,6 +193,18 @@ struct StudentLessonDetailContentView: View {
             vm.flushNotesAutosaveIfNeeded()
         }
     }
+    
+    // MARK: - Computed Properties
+    
+    #if os(iOS)
+    private var progressButtonsHorizontalPadding: CGFloat {
+        horizontalSizeClass == .compact ? 16 : 32
+    }
+    #else
+    private var progressButtonsHorizontalPadding: CGFloat {
+        32
+    }
+    #endif
     
     // MARK: - Sections
     
@@ -256,7 +274,115 @@ struct StudentLessonDetailContentView: View {
         }
     }
     
+    @ViewBuilder
     private var progressButtonsRow: some View {
+        #if os(iOS)
+        if horizontalSizeClass == .compact {
+            // iPhone: Stack buttons vertically
+            VStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Button { selectJustPresented() } label: {
+                        StatePill(
+                            title: "Just Presented",
+                            systemImage: "checkmark.circle.fill",
+                            tint: .green,
+                            active: isJustPresentedActive
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+
+                    Button { selectPreviouslyPresented() } label: {
+                        StatePill(
+                            title: "Previously",
+                            systemImage: "clock.badge.checkmark",
+                            tint: .green,
+                            active: isPreviouslyPresentedActive
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                }
+                
+                HStack(spacing: 8) {
+                    Button { selectNeedsAnother() } label: {
+                        StatePill(
+                            title: "Needs Another",
+                            systemImage: "arrow.clockwise.circle.fill",
+                            tint: .orange,
+                            active: isNeedsAnotherActive
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    
+                    Button {
+                        vm.scheduleNextLessonToInbox(
+                            studentsAll: studentsAll,
+                            studentLessonsAll: studentLessonsAll,
+                            lessons: lessons
+                        )
+                    } label: {
+                        Label("Schedule", systemImage: "calendar.badge.plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(vm.nextLessonInGroup(from: lessons) == nil || vm.selectedStudentIDs.isEmpty)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        } else {
+            // iPad: Original horizontal layout
+            HStack(spacing: 12) {
+                Button { selectJustPresented() } label: {
+                    StatePill(
+                        title: "Just Presented",
+                        systemImage: "checkmark.circle.fill",
+                        tint: .green,
+                        active: isJustPresentedActive
+                    )
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+
+                Button { selectPreviouslyPresented() } label: {
+                    StatePill(
+                        title: "Previously Presented",
+                        systemImage: "clock.badge.checkmark",
+                        tint: .green,
+                        active: isPreviouslyPresentedActive
+                    )
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+
+                Button { selectNeedsAnother() } label: {
+                    StatePill(
+                        title: "Needs Another Presentation",
+                        systemImage: "arrow.clockwise.circle.fill",
+                        tint: .orange,
+                        active: isNeedsAnotherActive
+                    )
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                
+                Spacer()
+
+                Button {
+                    vm.scheduleNextLessonToInbox(
+                        studentsAll: studentsAll,
+                        studentLessonsAll: studentLessonsAll,
+                        lessons: lessons
+                    )
+                } label: {
+                    Label("Schedule Next Presentation", systemImage: "calendar.badge.plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(vm.nextLessonInGroup(from: lessons) == nil || vm.selectedStudentIDs.isEmpty)
+            }
+        }
+        #else
+        // macOS: Original horizontal layout
         HStack(spacing: 12) {
             Button { selectJustPresented() } label: {
                 StatePill(
@@ -305,46 +431,130 @@ struct StudentLessonDetailContentView: View {
             .buttonStyle(.borderedProminent)
             .disabled(vm.nextLessonInGroup(from: lessons) == nil || vm.selectedStudentIDs.isEmpty)
         }
+        #endif
     }
     
     private var bottomBar: some View {
         VStack(spacing: 0) {
             Divider()
-            HStack {
-                Button(role: .destructive) {
-                    vm.showDeleteAlert = true
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
+            Group {
+                #if os(iOS)
+                if horizontalSizeClass == .compact {
+                    // iPhone: Stack buttons vertically for better touch targets
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            Button(role: .destructive) {
+                                vm.showDeleteAlert = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .frame(maxWidth: .infinity)
 
-                Spacer()
-
-                Button("Cancel") {
-                    // Cleanup empty drafts if cancelling
-                    if vm.studentLesson.studentIDs.isEmpty {
-                        modelContext.delete(vm.studentLesson)
-                        try? modelContext.save()
+                            Button("Cancel") {
+                                // Cleanup empty drafts if cancelling
+                                if vm.studentLesson.studentIDs.isEmpty {
+                                    modelContext.delete(vm.studentLesson)
+                                    try? modelContext.save()
+                                }
+                                handleDone()
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        
+                        Button("Save") {
+                            vm.save(
+                                studentsAll: studentsAll,
+                                lessons: lessons,
+                                studentLessonsAll: studentLessonsAll,
+                                calendar: calendar
+                            ) {
+                                handleDone()
+                            }
+                        }
+                        .bold()
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+                        .disabled(vm.selectedStudentIDs.isEmpty)
                     }
-                    handleDone()
-                }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                } else {
+                    // iPad: Original horizontal layout
+                    HStack {
+                        Button(role: .destructive) {
+                            vm.showDeleteAlert = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
 
-                Button("Save") {
-                    vm.save(
-                        studentsAll: studentsAll,
-                        lessons: lessons,
-                        studentLessonsAll: studentLessonsAll,
-                        calendar: calendar
-                    ) {
+                        Spacer()
+
+                        Button("Cancel") {
+                            // Cleanup empty drafts if cancelling
+                            if vm.studentLesson.studentIDs.isEmpty {
+                                modelContext.delete(vm.studentLesson)
+                                try? modelContext.save()
+                            }
+                            handleDone()
+                        }
+
+                        Button("Save") {
+                            vm.save(
+                                studentsAll: studentsAll,
+                                lessons: lessons,
+                                studentLessonsAll: studentLessonsAll,
+                                calendar: calendar
+                            ) {
+                                handleDone()
+                            }
+                        }
+                        .bold()
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(vm.selectedStudentIDs.isEmpty)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                }
+                #else
+                // macOS: Original horizontal layout
+                HStack {
+                    Button(role: .destructive) {
+                        vm.showDeleteAlert = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+
+                    Spacer()
+
+                    Button("Cancel") {
+                        // Cleanup empty drafts if cancelling
+                        if vm.studentLesson.studentIDs.isEmpty {
+                            modelContext.delete(vm.studentLesson)
+                            try? modelContext.save()
+                        }
                         handleDone()
                     }
+
+                    Button("Save") {
+                        vm.save(
+                            studentsAll: studentsAll,
+                            lessons: lessons,
+                            studentLessonsAll: studentLessonsAll,
+                            calendar: calendar
+                        ) {
+                            handleDone()
+                        }
+                    }
+                    .bold()
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(vm.selectedStudentIDs.isEmpty)
                 }
-                .bold()
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(vm.selectedStudentIDs.isEmpty)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                #endif
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
             .background(.bar)
         }
     }

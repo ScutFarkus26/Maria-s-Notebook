@@ -1,21 +1,22 @@
 import Foundation
 
 // MARK: - Constants
-public enum BackupFile {
-    public static let fileExtension = "mtbbackup"
+public enum BackupFile: Sendable {
+    /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
+    nonisolated public static let fileExtension = "mtbbackup"
     /// Format version 6: Adds compression support (LZFSE) while maintaining backward compatibility
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
-    public static let formatVersion = 6
+    nonisolated public static let formatVersion = 6
     /// Minimum format version that enforces checksum validation
-    public static let checksumEnforcedVersion = 5
+    nonisolated public static let checksumEnforcedVersion = 5
     /// Format version that introduced compression (backups < this version are uncompressed)
-    public static let compressionIntroducedVersion = 6
+    nonisolated public static let compressionIntroducedVersion = 6
     /// Compression algorithm constant
-    public static let compressionAlgorithm = "lzfse"
+    nonisolated public static let compressionAlgorithm = "lzfse"
 }
 
 // MARK: - Envelope / Manifest / Payload
-public struct BackupEnvelope: Codable {
+public struct BackupEnvelope: Codable, Sendable {
     public var formatVersion: Int
     public var createdAt: Date
     public var appBuild: String
@@ -79,7 +80,7 @@ public struct BackupEnvelope: Codable {
     }
 }
 
-public struct BackupManifest: Codable {
+public struct BackupManifest: Codable, Sendable {
     public var entityCounts: [String: Int]
     public var sha256: String
     public var notes: String?
@@ -179,7 +180,7 @@ public enum PreferenceValueDTO: Codable, Sendable, Equatable {
 }
 
 // MARK: - BackupPayload
-public struct BackupPayload: Codable {
+public struct BackupPayload: Codable, Sendable {
     // Arrays for each entity type as DTOs (IDs only for relationships; exclude file bytes)
     public var items: [ItemDTO]
     public var students: [StudentDTO]
@@ -410,13 +411,13 @@ public struct BackupPayload: Codable {
 }
 
 // MARK: - DTOs (IDs and fields only; exclude file data)
-public struct ItemDTO: Codable {
+public struct ItemDTO: Codable, Sendable {
     public var id: UUID
     public var timestamp: Date
 }
 
-public struct StudentDTO: Codable {
-    public enum Level: String, Codable { case lower, upper }
+public struct StudentDTO: Codable, Sendable {
+    public enum Level: String, Codable, Sendable { case lower, upper }
     public var id: UUID
     public var firstName: String
     public var lastName: String
@@ -429,7 +430,7 @@ public struct StudentDTO: Codable {
     public var updatedAt: Date?
 }
 
-public struct LessonDTO: Codable {
+public struct LessonDTO: Codable, Sendable {
     public var id: UUID
     public var name: String
     public var subject: String
@@ -443,7 +444,7 @@ public struct LessonDTO: Codable {
     public var pagesFileRelativePath: String?
 }
 
-public struct StudentLessonDTO: Codable {
+public struct StudentLessonDTO: Codable, Sendable {
     public var id: UUID
     public var lessonID: UUID
     public var studentIDs: [UUID]
@@ -458,12 +459,12 @@ public struct StudentLessonDTO: Codable {
     public var studentGroupKey: String?
 }
 
-public struct WorkParticipantDTO: Codable {
+public struct WorkParticipantDTO: Codable, Sendable {
     public var studentID: UUID
     public var completedAt: Date?
 }
 
-public struct WorkDTO: Codable {
+public struct WorkDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var studentIDs: [UUID]
@@ -475,7 +476,7 @@ public struct WorkDTO: Codable {
     public var participants: [WorkParticipantDTO]
 }
 
-public struct AttendanceRecordDTO: Codable {
+public struct AttendanceRecordDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: UUID
     public var date: Date
@@ -508,7 +509,7 @@ public struct AttendanceRecordDTO: Codable {
     }
 }
 
-public struct WorkCompletionRecordDTO: Codable {
+public struct WorkCompletionRecordDTO: Codable, Sendable {
     public var id: UUID
     public var workID: UUID
     public var studentID: UUID
@@ -516,7 +517,7 @@ public struct WorkCompletionRecordDTO: Codable {
     public var note: String
 }
 
-public struct WorkContractDTO: Codable {
+public struct WorkContractDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: String
     public var lessonID: String
@@ -533,7 +534,7 @@ public struct WorkContractDTO: Codable {
     public var legacyStudentLessonID: String?
 }
 
-public struct WorkPlanItemDTO: Codable {
+public struct WorkPlanItemDTO: Codable, Sendable {
     public var id: UUID
     public var workID: UUID
     public var scheduledDate: Date
@@ -541,7 +542,7 @@ public struct WorkPlanItemDTO: Codable {
     public var note: String?
 }
 
-public struct ScopedNoteDTO: Codable {
+public struct ScopedNoteDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var updatedAt: Date
@@ -554,7 +555,7 @@ public struct ScopedNoteDTO: Codable {
     public var workContractID: UUID?
 }
 
-public struct NoteDTO: Codable {
+public struct NoteDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var updatedAt: Date
@@ -566,19 +567,19 @@ public struct NoteDTO: Codable {
     public var imagePath: String?
 }
 
-public struct NonSchoolDayDTO: Codable {
+public struct NonSchoolDayDTO: Codable, Sendable {
     public var id: UUID
     public var date: Date
     public var reason: String?
 }
 
-public struct SchoolDayOverrideDTO: Codable {
+public struct SchoolDayOverrideDTO: Codable, Sendable {
     public var id: UUID
     public var date: Date
     public var note: String?
 }
 
-public struct StudentMeetingDTO: Codable {
+public struct StudentMeetingDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: UUID
     public var date: Date
@@ -589,7 +590,7 @@ public struct StudentMeetingDTO: Codable {
     public var guideNotes: String
 }
 
-public struct PresentationDTO: Codable {
+public struct PresentationDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var presentedAt: Date
@@ -600,7 +601,7 @@ public struct PresentationDTO: Codable {
     public var lessonSubtitleSnapshot: String?
 }
 
-public struct CommunityTopicDTO: Codable {
+public struct CommunityTopicDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var issueDescription: String
@@ -611,7 +612,7 @@ public struct CommunityTopicDTO: Codable {
     public var tags: [String]
 }
 
-public struct ProposedSolutionDTO: Codable {
+public struct ProposedSolutionDTO: Codable, Sendable {
     public var id: UUID
     public var topicID: UUID?
     public var title: String
@@ -621,7 +622,7 @@ public struct ProposedSolutionDTO: Codable {
     public var isAdopted: Bool
 }
 
-public struct MeetingNoteDTO: Codable {
+public struct MeetingNoteDTO: Codable, Sendable {
     public var id: UUID
     public var topicID: UUID?
     public var speaker: String
@@ -629,7 +630,7 @@ public struct MeetingNoteDTO: Codable {
     public var createdAt: Date
 }
 
-public struct CommunityAttachmentDTO: Codable {
+public struct CommunityAttachmentDTO: Codable, Sendable {
     public var id: UUID
     public var topicID: UUID?
     public var filename: String
@@ -639,7 +640,7 @@ public struct CommunityAttachmentDTO: Codable {
 }
 
 // MARK: - Project DTOs
-public struct ProjectDTO: Codable {
+public struct ProjectDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var title: String
@@ -729,7 +730,7 @@ private struct BookClubWeekRoleAssignmentDTO: Codable {
     }
 }
 
-public struct ProjectAssignmentTemplateDTO: Codable {
+public struct ProjectAssignmentTemplateDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var projectID: UUID
@@ -739,7 +740,7 @@ public struct ProjectAssignmentTemplateDTO: Codable {
     public var defaultLinkedLessonID: String?
 }
 
-public struct ProjectSessionDTO: Codable {
+public struct ProjectSessionDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var projectID: UUID
@@ -750,7 +751,7 @@ public struct ProjectSessionDTO: Codable {
     public var templateWeekID: UUID?
 }
 
-public struct ProjectRoleDTO: Codable {
+public struct ProjectRoleDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var projectID: UUID
@@ -759,7 +760,7 @@ public struct ProjectRoleDTO: Codable {
     public var instructions: String
 }
 
-public struct ProjectTemplateWeekDTO: Codable {
+public struct ProjectTemplateWeekDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var projectID: UUID
@@ -770,7 +771,7 @@ public struct ProjectTemplateWeekDTO: Codable {
     public var workInstructions: String
 }
 
-public struct ProjectWeekRoleAssignmentDTO: Codable {
+public struct ProjectWeekRoleAssignmentDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var weekID: UUID
@@ -779,7 +780,7 @@ public struct ProjectWeekRoleAssignmentDTO: Codable {
 }
 
 // MARK: - UI Summary Helper
-public struct BackupSummary: Codable, Hashable {
+public struct BackupSummary: Codable, Hashable, Sendable {
     public var totalCount: Int
     public var countsByEntity: [String: Int]
 }
@@ -819,4 +820,3 @@ public struct RestorePreview: Codable, Sendable, Equatable {
         self.warnings = warnings
     }
 }
-

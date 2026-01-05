@@ -25,6 +25,36 @@ struct DayColumn: View {
         self.onPlanNext = onPlanNext
     }
 
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    private func isNonSchoolDaySync(_ date: Date) -> Bool {
+        let day = AppCalendar.startOfDay(date)
+        let cal = AppCalendar.shared
+
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = cal.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -33,7 +63,7 @@ struct DayColumn: View {
                 Text(dayNumber)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                 
-                if SchoolCalendar.isNonSchoolDay(day, using: modelContext) {
+                if isNonSchoolDaySync(day) {
                     Text("No School")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .padding(.horizontal, 6)

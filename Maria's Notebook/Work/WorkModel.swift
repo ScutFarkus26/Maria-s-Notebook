@@ -39,7 +39,8 @@ import SwiftUI
         self.workTypeRaw = workType.rawValue
         self.studentLessonID = studentLessonID
         self.notes = notes
-        let cal = AppCalendar.shared
+        // Use Calendar.current instead of AppCalendar.shared to avoid MainActor isolation in init
+        let cal = Calendar.current
         self.createdAt = cal.startOfDay(for: createdAt)
         self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.participants = participants
@@ -76,7 +77,8 @@ import SwiftUI
 
     // TODO: Consider moving this "action" logic to a Service or ViewModel to avoid Model-layer database insertion.
     func markStudent(_ studentID: UUID, completedAt date: Date?) {
-        let cal = AppCalendar.shared
+        // Use Calendar.current to avoid MainActor constraints
+        let cal = Calendar.current
         let normalized = date.map { cal.startOfDay(for: $0) }
         let studentIDString = studentID.uuidString
         if participants == nil { participants = [] }

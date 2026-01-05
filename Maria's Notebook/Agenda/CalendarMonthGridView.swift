@@ -7,6 +7,7 @@ struct CalendarMonthGridView: View {
     var calendar: Calendar = .current
     var onDateToggled: ((Date, Bool) -> Void)? = nil
     var nonSchoolDates: Set<Date>? = nil
+    @State private var computedNonSchoolDates: Set<Date>? = nil
 
     private var startOfMonth: Date {
         let comps = calendar.dateComponents([.year, .month], from: month)
@@ -54,6 +55,15 @@ struct CalendarMonthGridView: View {
         return head + tail
     }
 
+    private func loadNonSchoolDates() async {
+        // Only compute if not provided by parent
+        guard nonSchoolDates == nil else { return }
+        let start = startOfMonth
+        let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
+        let set = await SchoolCalendar.nonSchoolDays(in: start..<end, using: modelContext)
+        await MainActor.run { computedNonSchoolDates = set }
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             // Weekday headers
@@ -72,15 +82,43 @@ struct CalendarMonthGridView: View {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { _, row in
                     HStack(spacing: 8) {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, date in
-                            DayCell(date: date, calendar: calendar, nonSchoolDates: nonSchoolDates) { d in
-                                let newState = (try? SchoolCalendar.toggleNonSchoolDay(d, using: modelContext)) ?? SchoolCalendar.isNonSchoolDay(d, using: modelContext)
-                                onDateToggled?(d, newState)
+                            DayCell(date: date, calendar: calendar, nonSchoolDates: nonSchoolDates ?? computedNonSchoolDates) { d in
+                                Task {
+                                    let toggleResult = try? await SchoolCalendar.toggleNonSchoolDay(d, using: modelContext)
+                                    let newState: Bool
+                                    if let result = toggleResult {
+                                        newState = result
+                                    } else {
+                                        newState = await SchoolCalendar.isNonSchoolDay(d, using: modelContext)
+                                    }
+                                    await MainActor.run {
+                                        onDateToggled?(d, newState)
+                                    }
+                                    // Refresh local cache after toggle if we're managing it
+                                    if nonSchoolDates == nil {
+                                        let start = startOfMonth
+                                        let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
+                                        let set = await SchoolCalendar.nonSchoolDays(in: start..<end, using: modelContext)
+                                        await MainActor.run { computedNonSchoolDates = set }
+                                    }
+                                }
                             }
                             .frame(maxWidth: .infinity)
                         }
                     }
                 }
             }
+        }
+        .task {
+            if nonSchoolDates == nil {
+                await loadNonSchoolDates()
+            }
+        }
+        .onChange(of: month) { _, _ in
+            Task { if nonSchoolDates == nil { await loadNonSchoolDates() } }
+        }
+        .onChange(of: calendar) { _, _ in
+            Task { if nonSchoolDates == nil { await loadNonSchoolDates() } }
         }
     }
 }
@@ -108,7 +146,7 @@ private struct DayCell: View {
                     if let set = nonSchoolDates {
                         return set.contains(calendar.startOfDay(for: d))
                     } else {
-                        return SchoolCalendar.isNonSchoolDay(d, using: modelContext)
+                        return false
                     }
                 }()
                 Button(action: { onTap(d) }) {

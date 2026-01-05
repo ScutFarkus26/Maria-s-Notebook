@@ -104,6 +104,36 @@ struct FollowUpInboxEngine {
             return (nil, trimmed.isEmpty ? "Student" : "Group")
         }
 
+        // Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches
+        func isNonSchoolDaySync(_ date: Date) -> Bool {
+            let day = AppCalendar.startOfDay(date)
+
+            // 1) Explicit non-school day wins
+            do {
+                let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+                let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+                if !nonSchoolDays.isEmpty { return true }
+            } catch {
+                // On fetch error, fall back to weekend logic below
+            }
+
+            // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+            let cal = AppCalendar.shared
+            let weekday = cal.component(.weekday, from: day)
+            let isWeekend = (weekday == 1 || weekday == 7)
+            guard isWeekend else { return false }
+
+            // 3) Weekend override makes it a school day
+            do {
+                let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+                let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+                if !overrides.isEmpty { return false }
+            } catch {
+                // If override fetch fails, assume weekend remains non-school
+            }
+            return true
+        }
+
         // Helper: count school days between two dates (exclusive of today)
         func schoolDaysSince(_ start: Date) -> Int {
             let startDay = AppCalendar.startOfDay(start)
@@ -111,7 +141,7 @@ struct FollowUpInboxEngine {
             var count = 0
             var cursor = startDay
             while cursor < today {
-                if !SchoolCalendar.isNonSchoolDay(cursor, using: modelContext) { count += 1 }
+                if !isNonSchoolDaySync(cursor) { count += 1 }
                 cursor = AppCalendar.addingDays(1, to: cursor)
                 if count > 36500 { break }
             }

@@ -68,12 +68,45 @@ struct WorkAgendaCalendarPane: View {
         }
     }
 
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Rules:
+    /// - Explicit NonSchoolDay records mark weekdays as non-school
+    /// - Weekends are non-school by default unless a SchoolDayOverride exists for that date
+    private func isNonSchoolDaySync(_ date: Date) -> Bool {
+        let day = AppCalendar.startOfDay(date)
+        let cal = AppCalendar.shared
+
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = cal.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
+    }
+
     private func computeDays() -> [Date] {
         var arr: [Date] = []
         var cursor = AppCalendar.startOfDay(startDate)
         var safety = 0
         while arr.count < daysCount && safety < 1000 {
-            if !SchoolCalendar.isNonSchoolDay(cursor, using: modelContext) {
+            if !isNonSchoolDaySync(cursor) {
                 arr.append(cursor)
             }
             cursor = AppCalendar.addingDays(1, to: cursor)
@@ -204,7 +237,9 @@ struct WorkAgendaCalendarPane: View {
     private func openDetail(workID: UUID) {
         selected = nil
         let token = SelectionToken(id: UUID(), contractID: workID)
-        DispatchQueue.main.async { selected = token }
+        Task { @MainActor in
+            selected = token
+        }
     }
 
     // MARK: - Drop handling

@@ -30,8 +30,15 @@ struct StudentDetailView: View {
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
-    private enum StudentDetailTab { case overview, checklist, history, meetings, notes }
-    @State private var selectedTab: StudentDetailTab = .overview
+    
+    // --- CHANGED CODE START ---
+    // Make enum String-backed to support storage
+    private enum StudentDetailTab: String { case overview, checklist, history, meetings, notes }
+    
+    // Use @AppStorage to persist selection across different students
+    @AppStorage("StudentDetailView.activeTab") private var selectedTab: StudentDetailTab = .overview
+    // --- CHANGED CODE END ---
+    
     @State private var selectedContract: WorkContract? = nil
 
     // NEW: Cache contracts for student in state
@@ -233,19 +240,24 @@ struct StudentDetailView: View {
     
     @ViewBuilder
     private var bottomBarContent: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack {
-                Spacer()
-                if isEditing {
-                    editingButtons
-                } else {
-                    viewingButtons
+        // Hide the bar if we're not editing and not on overview (only "Done" would show, which is redundant on iPad/Mac)
+        if isEditing || selectedTab == .overview {
+            VStack(spacing: 0) {
+                Divider()
+                HStack {
+                    Spacer()
+                    if isEditing {
+                        editingButtons
+                    } else {
+                        viewingButtons
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.bar)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
+        } else {
+            EmptyView()
         }
     }
     
@@ -275,7 +287,8 @@ struct StudentDetailView: View {
     
     @ViewBuilder
     private var viewingButtons: some View {
-        if selectedTab != .checklist {
+        // Only show Profile Edit/Delete controls if we are on the Overview tab
+        if selectedTab == .overview {
             Button("Edit") {
                 draftFirstName = student.firstName
                 draftLastName = student.lastName
@@ -285,10 +298,13 @@ struct StudentDetailView: View {
                 draftStartDate = student.dateStarted ?? Date()
                 isEditing = true
             }
+            
+            Button("Delete", role: .destructive) {
+                showDeleteAlert = true
+            }
         }
-        Button("Delete", role: .destructive) {
-            showDeleteAlert = true
-        }
+        
+        // "Done" is useful for closing the sheet on iPhone/iPad modal
         Button("Done") {
             if let onDone { onDone() } else { dismiss() }
         }

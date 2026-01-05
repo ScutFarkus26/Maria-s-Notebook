@@ -85,6 +85,7 @@ struct PresentationsView: View {
     @State private var isInboxTargeted: Bool = false
     @State private var isCalendarMinimized: Bool = false
     @State private var mobileViewSelection: MobileViewMode = .inbox
+    @State private var cachedNonSchoolDates: Set<Date> = []
     
     enum MobileViewMode: String, CaseIterable {
         case inbox = "Inbox"
@@ -102,7 +103,16 @@ struct PresentationsView: View {
     }
 
     private func isNonSchool(_ day: Date) -> Bool {
-        SchoolCalendar.isNonSchoolDay(day, using: modelContext)
+        let dayStart = calendar.startOfDay(for: day)
+        return cachedNonSchoolDates.contains(dayStart)
+    }
+    
+    private func loadNonSchoolDates() async {
+        let baseDate = calendar.startOfDay(for: startDate)
+        // Load enough dates to cover the days array (14 school days might span ~20 calendar days)
+        let endDate = calendar.date(byAdding: .day, value: 30, to: baseDate) ?? baseDate
+        let set = await SchoolCalendar.nonSchoolDays(in: baseDate..<endDate, using: modelContext)
+        await MainActor.run { cachedNonSchoolDates = set }
     }
 
     // Find the earliest date with a scheduled lesson (using ViewModel's cached data)
@@ -223,7 +233,7 @@ struct PresentationsView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             // Update ViewModel immediately
             updateViewModel()
             
@@ -244,19 +254,27 @@ struct PresentationsView: View {
                     startDate = min(earliest, today)
                 } else {
                     // No lessons? Start at today (adjusted for school days)
+                    // First load non-school dates, then compute initial start date
+                    await loadNonSchoolDates()
                     startDate = AgendaSchoolDayRules.computeInitialStartDate(
                         calendar: calendar,
-                        isNonSchoolDay: { day in SchoolCalendar.isNonSchoolDay(day, using: modelContext) }
+                        isNonSchoolDay: isNonSchool
                     )
                 }
                 startDateRaw = startDate.timeIntervalSinceReferenceDate
             }
+            
+            // Load non-school dates for the current startDate
+            await loadNonSchoolDates()
             
             syncInboxOrderWithCurrentBase()
             syncRecentWindowWithMissWindow()
         }
         .onChange(of: startDate) { _, new in
             startDateRaw = new.timeIntervalSinceReferenceDate
+            Task {
+                await loadNonSchoolDates()
+            }
         }
         .onChange(of: studentLessonIDs) { _, _ in
             syncInboxOrderWithCurrentBase()

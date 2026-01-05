@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+@preconcurrency import Combine
 import OSLog
 import SwiftUI
 #if os(iOS)
@@ -7,7 +7,7 @@ import UIKit
 #endif
 
 /// Manages preferences that sync across devices via iCloud Key-Value Storage.
-/// 
+///
 /// Best Practices:
 /// - Use for user preferences that should sync (settings, colors, thresholds)
 /// - KVS has a 1MB total limit across all keys
@@ -51,7 +51,8 @@ public final class SyncedPreferencesStore: ObservableObject {
         "Attendance.locked."
     ]
     
-    private var changeObserver: NSObjectProtocol?
+    // Marked unsafe to allow access in non-isolated deinit
+    nonisolated(unsafe) private var changeObserver: NSObjectProtocol?
     
     // ENERGY OPTIMIZATION: Batch sync operations to reduce network activity
     // Instead of syncing immediately on every set(), we debounce and batch multiple changes
@@ -83,6 +84,7 @@ public final class SyncedPreferencesStore: ObservableObject {
     }
     
     deinit {
+        // Safe to access because it is nonisolated(unsafe)
         if let observer = changeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -325,7 +327,9 @@ public final class SyncedPreferencesStore: ObservableObject {
 
 extension Notification.Name {
     /// Posted when synced preferences change from another device
-    public static let syncedPreferencesDidChange = Notification.Name("syncedPreferencesDidChange")
+    nonisolated public static let syncedPreferencesDidChange = Notification.Name("syncedPreferencesDidChange")
+    /// Posted to request opening a new window
+    nonisolated static let openNewWindow = Notification.Name("openNewWindow")
 }
 
 // MARK: - Property Wrapper for SwiftUI
@@ -376,4 +380,3 @@ public struct SyncedAppStorage<T>: DynamicProperty {
         )
     }
 }
-

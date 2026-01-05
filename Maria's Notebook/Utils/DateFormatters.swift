@@ -2,6 +2,7 @@ import Foundation
 
 /// Centralized DateFormatter instances for consistent date formatting across the app.
 /// All formatters are thread-safe and can be reused.
+@MainActor
 enum DateFormatters {
     /// Medium date, short time with relative formatting (e.g., "Today, 3:45 PM")
     static let mediumDateTimeRelative: DateFormatter = {

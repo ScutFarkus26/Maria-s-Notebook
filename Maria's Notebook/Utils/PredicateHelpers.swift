@@ -17,8 +17,9 @@ enum PredicateHelpers {
     /// - Parameter studentID: The student UUID
     /// - Returns: A predicate that matches the student ID
     static func studentID(_ studentID: UUID) -> Predicate<StudentLesson> {
-        #Predicate<StudentLesson> { lesson in
-            lesson.studentIDs.contains(studentID.cloudKitString)
+        let idString = studentID.cloudKitString
+        return #Predicate<StudentLesson> { lesson in
+            lesson.studentIDs.contains(idString)
         }
     }
     
@@ -35,10 +36,10 @@ enum PredicateHelpers {
     /// - Parameter lessonID: The lesson UUID
     /// - Returns: A predicate that matches the lesson ID
     static func lessonID(_ lessonID: UUID) -> Predicate<StudentLesson> {
-        #Predicate<StudentLesson> { lesson in
-            lesson.lessonID == lessonID.cloudKitString
+        let idString = lessonID.cloudKitString
+        return #Predicate<StudentLesson> { lesson in
+            lesson.lessonID == idString
         }
     }
 }
-
 

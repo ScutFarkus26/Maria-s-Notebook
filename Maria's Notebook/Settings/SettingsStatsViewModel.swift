@@ -33,54 +33,52 @@ class SettingsStatsViewModel: ObservableObject {
         isLoading = true
         
         Task {
-            // Load counts in parallel where possible
-            async let studentsTask = loadCount(for: Student.self, context: context)
-            async let lessonsTask = loadCount(for: Lesson.self, context: context)
-            async let studentLessonsTask = loadCount(for: StudentLesson.self, context: context)
-            async let workContractsTask = loadCount(for: WorkContract.self, context: context)
-            async let presentationsTask = loadCount(for: Presentation.self, context: context)
-            async let notesTask = loadCount(for: Note.self, context: context)
-            async let meetingsTask = loadCount(for: StudentMeeting.self, context: context)
+            // Load counts serially on the MainActor.
+            // Parallel execution (async let) on a single ModelContext is not thread-safe
+            // and causes Sendable errors because ModelContext is confined to the actor that created it.
+            
+            let students = loadCount(for: Student.self, context: context)
+            let lessons = loadCount(for: Lesson.self, context: context)
+            let studentLessons = loadCount(for: StudentLesson.self, context: context)
+            let contracts = loadCount(for: WorkContract.self, context: context)
+            let presentations = loadCount(for: Presentation.self, context: context)
+            let notes = loadCount(for: Note.self, context: context)
+            let meetings = loadCount(for: StudentMeeting.self, context: context)
             
             // Load filtered counts
-            async let plannedTask = loadFilteredCount(
+            let planned = loadFilteredCount(
                 for: StudentLesson.self,
                 predicate: #Predicate<StudentLesson> { $0.givenAt == nil },
                 context: context
             )
-            async let givenTask = loadFilteredCount(
+            let given = loadFilteredCount(
                 for: StudentLesson.self,
                 predicate: #Predicate<StudentLesson> { $0.givenAt != nil },
                 context: context
             )
             
-            // Await all results
-            let (students, lessons, studentLessons, planned, given, contracts, presentations, notes, meetings) = await (
-                studentsTask, lessonsTask, studentLessonsTask, plannedTask, givenTask,
-                workContractsTask, presentationsTask, notesTask, meetingsTask
-            )
+            // Update state
+            self.studentsCount = students
+            self.lessonsCount = lessons
+            self.studentLessonsCount = studentLessons
+            self.plannedCount = planned
+            self.givenCount = given
+            self.workContractsCount = contracts
+            self.presentationsCount = presentations
+            self.notesCount = notes
+            self.meetingsCount = meetings
             
-            await MainActor.run {
-                self.studentsCount = students
-                self.lessonsCount = lessons
-                self.studentLessonsCount = studentLessons
-                self.plannedCount = planned
-                self.givenCount = given
-                self.workContractsCount = contracts
-                self.presentationsCount = presentations
-                self.notesCount = notes
-                self.meetingsCount = meetings
-                self.lastLoadDate = Date()
-                self.isLoading = false
-            }
+            self.lastLoadDate = Date()
+            self.isLoading = false
         }
     }
     
     /// Load count for a model type
+    /// Note: ModelContext access is assumed to be fast for counts, keeping this synchronous on MainActor is safe.
     private func loadCount<T: PersistentModel>(
         for type: T.Type,
         context: ModelContext
-    ) async -> Int {
+    ) -> Int {
         // ModelContext must be accessed on MainActor
         let descriptor = FetchDescriptor<T>()
         // Note: SwiftData doesn't have direct count, so we fetch and count
@@ -93,10 +91,9 @@ class SettingsStatsViewModel: ObservableObject {
         for type: T.Type,
         predicate: Predicate<T>,
         context: ModelContext
-    ) async -> Int {
+    ) -> Int {
         // ModelContext must be accessed on MainActor
         let descriptor = FetchDescriptor<T>(predicate: predicate)
         return context.safeFetch(descriptor).count
     }
 }
-

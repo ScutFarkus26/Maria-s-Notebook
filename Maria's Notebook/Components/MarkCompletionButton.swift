@@ -41,7 +41,8 @@ struct MarkCompletionButton: View {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 justCompleted = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.5))
                 withAnimation(.easeOut) { justCompleted = false }
             }
         } catch {

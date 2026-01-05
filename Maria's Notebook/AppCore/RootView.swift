@@ -299,16 +299,16 @@ struct RootView: View {
 struct QuickNoteGlassButton: View {
     @Binding var isShowingSheet: Bool
     
-    // Move state inside this view so updates don't trigger the whole app to redraw
     @State private var offset: CGSize = .zero
+    @State private var isPressed: Bool = false // For that native "squish" feel
+    
     @AppStorage("QuickNoteButton.offsetX") private var savedOffsetX: Double = 0
     @AppStorage("QuickNoteButton.offsetY") private var savedOffsetY: Double = 0
     
     var body: some View {
-        #if os(iOS)
-        let buttonView = Button {
-            isShowingSheet = true
-        } label: {
+        // 1. Define the visual look (No Button wrapper, we handle gestures manually)
+        let visualContent = Group {
+            #if os(iOS)
             Image(systemName: "plus")
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.white)
@@ -320,11 +320,7 @@ struct QuickNoteGlassButton: View {
                 )
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-        }
-        #else
-        let buttonView = Button {
-            isShowingSheet = true
-        } label: {
+            #else
             Image(systemName: "plus")
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.white)
@@ -332,45 +328,59 @@ struct QuickNoteGlassButton: View {
                 .background(Color.accentColor)
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+            #endif
         }
-        #endif
 
-        return buttonView
+        return visualContent
+            .scaleEffect(isPressed ? 0.92 : 1.0) // Native "Breathe" animation on touch
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
             .offset(offset)
-            .padding(20) // Initial padding from edge
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.3)
-                    .sequenced(before: DragGesture(minimumDistance: 0))
+            .padding(.trailing, 20)
+            #if os(iOS)
+            .padding(.bottom, 85) // Positioned just above tab bar, inspired by Things' magic button
+            #else
+            .padding(.bottom, 40)
+            #endif
+            // 2. The "Native" Gesture Logic
+            .gesture(
+                DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        switch value {
-                        case .second(true, let dragValue?):
-                            // Update local state only - smooth 60fps
-                            self.offset = CGSize(
-                                width: savedOffsetX + dragValue.translation.width,
-                                height: savedOffsetY + dragValue.translation.height
-                            )
-                        default:
-                            break
-                        }
+                        isPressed = true
+                        
+                        // Immediate 1:1 tracking (Direct Manipulation)
+                        self.offset = CGSize(
+                            width: savedOffsetX + value.translation.width,
+                            height: savedOffsetY + value.translation.height
+                        )
                     }
                     .onEnded { value in
-                        if case .second(true, let dragValue?) = value {
+                        isPressed = false
+                        
+                        // 3. Distinguish Tap vs. Drag
+                        // If moved less than 2 points, it's a Tap.
+                        let distance = hypot(value.translation.width, value.translation.height)
+                        
+                        if distance < 2 {
+                            // TAP ACTION: Reset drift and Open
+                            self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
+                            isShowingSheet = true
+                        } else {
+                            // DRAG ACTION: Save new position
                             let finalOffset = CGSize(
-                                width: savedOffsetX + dragValue.translation.width,
-                                height: savedOffsetY + dragValue.translation.height
+                                width: savedOffsetX + value.translation.width,
+                                height: savedOffsetY + value.translation.height
                             )
-                            // Save to persistence
                             savedOffsetX = finalOffset.width
                             savedOffsetY = finalOffset.height
                             
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            // Native snapping animation (no bounce/wobble)
+                            withAnimation(.snappy(duration: 0.25, extraBounce: 0)) {
                                 self.offset = finalOffset
                             }
                         }
                     }
             )
             .onAppear {
-                // Initialize from storage once
                 self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
             }
     }
