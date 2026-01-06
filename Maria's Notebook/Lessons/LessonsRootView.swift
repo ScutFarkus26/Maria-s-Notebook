@@ -314,7 +314,7 @@ struct LessonsRootView: View {
             presentedSheet = .studentLessonDraft(newSL.id)
         }
 
-        let grid = LessonsCardsGridView(
+        LessonsCardsGridView(
             lessons: filteredLessons,
             isManualMode: isManualMode,
             onTapLesson: onTap,
@@ -324,8 +324,6 @@ struct LessonsRootView: View {
             selectedSubject: filterState.selectedSubject
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-        grid
     }
 
     @ViewBuilder
