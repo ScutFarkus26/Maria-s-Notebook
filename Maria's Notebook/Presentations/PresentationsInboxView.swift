@@ -17,52 +17,73 @@ struct PresentationsInboxView: View {
     @Binding var isCalendarMinimized: Bool
     
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendar) private var calendar
     
     @Query private var studentLessons: [StudentLesson]
+    @Query private var lessons: [Lesson]
+    @Query private var students: [Student]
+    
+    @State private var searchText: String = ""
+    @State private var debouncedSearchText: String = ""
+    @State private var searchDebounceTask: Task<Void, Never>? = nil
+    
+    // Default sorting is by age
+    private let sortMode: PresentationsSortMode = .age
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            HStack(spacing: 8) {
-                Image(systemName: "tray")
-                    .imageScale(.large)
-                    .foregroundStyle(Color.accentColor)
-                Text("Presentations")
-                    .font(.headline)
-                Spacer()
-                
-                #if os(iOS)
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isCalendarMinimized.toggle()
+            VStack(spacing: 8) {
+                HStack(spacing: 12) {
+                    Image(systemName: "tray")
+                        .imageScale(.large)
+                        .foregroundStyle(Color.accentColor)
+                    Text("Presentations")
+                        .font(.title3.weight(.semibold))
+                    Spacer()
+                    
+                    #if os(iOS)
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isCalendarMinimized.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(8)
+                            .background(Color.primary.opacity(0.1))
+                            .clipShape(Circle())
                     }
-                } label: {
-                    Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(8)
-                        .background(Color.primary.opacity(0.1))
-                        .clipShape(Circle())
+                    #endif
                 }
-                #endif
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
                 
-                Picker("Missed", selection: Binding(
-                    get: { missWindow },
-                    set: { missWindowRaw = $0.rawValue }
-                )) {
-                    ForEach(PresentationsMissWindow.allCases, id: \.self) { opt in
-                        Text(opt.label).tag(opt)
+                HStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search students or lessons", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .onSubmit {
+                            searchDebounceTask?.cancel()
+                            debouncedSearchText = searchText
+                        }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.primary.opacity(0.04))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 16)
+                .onChange(of: searchText) { _, newValue in
+                    searchDebounceTask?.cancel()
+                    searchDebounceTask = Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 250_000_000) // 250ms debounce
+                        guard !Task.isCancelled else { return }
+                        debouncedSearchText = newValue
                     }
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 200)
-
-                Text("\(readyLessons.count)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.bottom, 8)
             .background(.regularMaterial)
             
             Divider()
@@ -71,7 +92,7 @@ struct PresentationsInboxView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     
                     // 1. BLOCKED / WAITING SECTION
-                    if !blockedLessons.isEmpty {
+                    if !filteredAndSortedBlockedLessons.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("On Deck (Waiting for Work)", systemImage: "hourglass")
                                 .font(.caption.weight(.bold))
@@ -80,7 +101,7 @@ struct PresentationsInboxView: View {
                             
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    ForEach(blockedLessons, id: \.id) { sl in
+                                    ForEach(filteredAndSortedBlockedLessons, id: \.id) { sl in
                                         inboxRow(sl, blockingContracts: getBlockingContracts(sl))
                                     }
                                 }
@@ -91,8 +112,8 @@ struct PresentationsInboxView: View {
                     }
 
                     // 2. READY SECTION
-                    if readyLessons.isEmpty {
-                        if blockedLessons.isEmpty {
+                    if filteredAndSortedReadyLessons.isEmpty {
+                        if filteredAndSortedBlockedLessons.isEmpty {
                             ContentUnavailableView("All Caught Up", systemImage: "checkmark.circle", description: Text("No unscheduled presentations."))
                                 .padding(.top, 40)
                         } else {
@@ -108,7 +129,7 @@ struct PresentationsInboxView: View {
                             GridItem(.flexible(), spacing: 8),
                             GridItem(.flexible(), spacing: 8)
                         ], alignment: .leading, spacing: 8) {
-                            ForEach(readyLessons, id: \.id) { sl in
+                            ForEach(filteredAndSortedReadyLessons, id: \.id) { sl in
                                 inboxRow(sl)
                             }
                         }
@@ -144,6 +165,68 @@ struct PresentationsInboxView: View {
             studentLessons: studentLessons,
             isTargeted: $isInboxTargeted
         ))
+    }
+    
+    // MARK: - Filtering and Sorting
+    
+    private var lessonsByID: [UUID: Lesson] {
+        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+    }
+    
+    private var studentsByID: [UUID: Student] {
+        Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+    }
+    
+    private func lessonTitle(for sl: StudentLesson) -> String {
+        if let lessonID = UUID(uuidString: sl.lessonID), let lesson = lessonsByID[lessonID] {
+            let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !name.isEmpty { return name }
+        }
+        return "Lesson \(String(sl.lessonID.prefix(6)))"
+    }
+    
+    private func studentNames(for sl: StudentLesson) -> String {
+        let snapshot = filteredSnapshot(sl)
+        let names = snapshot.studentIDs.compactMap { id -> String? in
+            guard let student = studentsByID[id] else { return nil }
+            return StudentFormatter.displayName(for: student)
+        }
+        return names.joined(separator: ", ")
+    }
+    
+    private func matchesSearch(_ sl: StudentLesson) -> Bool {
+        guard !debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return true
+        }
+        let query = debouncedSearchText.lowercased()
+        let lessonTitleLower = lessonTitle(for: sl).lowercased()
+        let studentNamesLower = studentNames(for: sl).lowercased()
+        return lessonTitleLower.contains(query) || studentNamesLower.contains(query)
+    }
+    
+    private func sortedLessons(_ lessons: [StudentLesson]) -> [StudentLesson] {
+        let matched = lessons.filter { matchesSearch($0) }
+        
+        switch sortMode {
+        case .lesson:
+            return matched.sorted { lessonTitle(for: $0).localizedCaseInsensitiveCompare(lessonTitle(for: $1)) == .orderedAscending }
+        case .student:
+            return matched.sorted { studentNames(for: $0).localizedCaseInsensitiveCompare(studentNames(for: $1)) == .orderedAscending }
+        case .age:
+            // Sort by creation date (older first)
+            return matched.sorted { $0.createdAt < $1.createdAt }
+        case .needsAttention:
+            // Sort by creation date (older first, as older lessons need more attention)
+            return matched.sorted { $0.createdAt < $1.createdAt }
+        }
+    }
+    
+    private var filteredAndSortedReadyLessons: [StudentLesson] {
+        sortedLessons(readyLessons)
+    }
+    
+    private var filteredAndSortedBlockedLessons: [StudentLesson] {
+        sortedLessons(blockedLessons)
     }
 
     @ViewBuilder
