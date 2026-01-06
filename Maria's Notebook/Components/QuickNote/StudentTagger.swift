@@ -10,10 +10,16 @@ struct StudentData: Sendable {
     let nickname: String?
 }
 
+struct TextReplacement: Sendable {
+    let originalText: String
+    let replacement: String
+}
+
 struct StudentMatchResult: Sendable {
     var exact: Set<UUID>
     var fuzzy: Set<UUID>
     var autoSelect: Set<UUID> // Unique matches that should be auto-selected
+    var replacements: [TextReplacement] = [] // Text replacements to apply
 }
 
 // MARK: - Student Tagger Actor
@@ -74,9 +80,10 @@ actor StudentTagger {
         var exact = Set<UUID>()
         var fuzzy = Set<UUID>()
         var autoSelect = Set<UUID>()
+        var replacements: [TextReplacement] = []
         
         guard !text.isEmpty else {
-            return StudentMatchResult(exact: exact, fuzzy: fuzzy, autoSelect: autoSelect)
+            return StudentMatchResult(exact: exact, fuzzy: fuzzy, autoSelect: autoSelect, replacements: replacements)
         }
         
         // Normalize the full text for manual scanning (Pass 2)
@@ -338,7 +345,248 @@ actor StudentTagger {
             }
         }
         
-        return StudentMatchResult(exact: exact, fuzzy: fuzzy, autoSelect: autoSelect)
+        // Generate text replacements for exact matches
+        replacements = generateReplacements(for: exact, in: text, studentData: studentData, firstNameCounts: firstNameCounts)
+        
+        return StudentMatchResult(exact: exact, fuzzy: fuzzy, autoSelect: autoSelect, replacements: replacements)
+    }
+    
+    // MARK: - Replacement Generation
+    
+    private func generateReplacements(
+        for exactMatches: Set<UUID>,
+        in text: String,
+        studentData: [StudentData],
+        firstNameCounts: [String: Int]
+    ) -> [TextReplacement] {
+        var replacements: [TextReplacement] = []
+        let lowerText = text.lowercased()
+        
+        // Track what we've already seen to avoid duplicate replacements
+        var seenReplacements: Set<String> = []
+        
+        for studentID in exactMatches {
+            guard let student = studentData.first(where: { $0.id == studentID }) else { continue }
+            
+            let first = student.firstName
+            let last = student.lastName
+            let firstLower = first.lowercased()
+            let lastLower = last.lowercased()
+            let firstInitial = last.prefix(1).lowercased()
+            let nick = (student.nickname ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Determine replacement text (display name format)
+            let replacement: String
+            if firstNameCounts[firstLower] ?? 0 > 1 {
+                // Multiple students with same first name - use "FirstName LastInitial."
+                replacement = "\(first) \(firstInitial.uppercased())."
+            } else {
+                // Unique first name - use just first name
+                replacement = first
+            }
+            
+            // Find and replace patterns in order of specificity (most specific first)
+            var processedRanges: [NSRange] = []
+            
+            // Helper to check if matched text is already in replacement format
+            // This prevents replacing "Sarah Z." with "Sarah Z." (which would add more periods)
+            let isAlreadyReplaced: (String) -> Bool = { matchedText in
+                let matchedTrimmed = matchedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let replacementTrimmed = replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                // Exact match (case-insensitive)
+                if matchedTrimmed.lowercased() == replacementTrimmed.lowercased() {
+                    return true
+                }
+                
+                // For replacements that end with period (like "Sarah Z."), check if the matched text
+                // already follows that exact format - if so, don't replace it
+                if replacementTrimmed.hasSuffix(".") {
+                    // Check if matched text is "FirstName LastInitial." format
+                    let matchedLower = matchedTrimmed.lowercased()
+                    let expectedPattern = "\(firstLower) \(firstInitial)\\."
+                    if let regex = try? NSRegularExpression(pattern: "^\(expectedPattern)$", options: .caseInsensitive) {
+                        let range = NSRange(matchedText.startIndex..., in: matchedText)
+                        if regex.firstMatch(in: matchedText, options: [], range: range) != nil {
+                            return true
+                        }
+                    }
+                }
+                
+                return false
+            }
+            
+            // 1. Full name: "Ora Pardo"
+            let fullNamePattern = "\\b\(NSRegularExpression.escapedPattern(for: firstLower))\\s+\(NSRegularExpression.escapedPattern(for: lastLower))\\b"
+            if let regex = try? NSRegularExpression(pattern: fullNamePattern, options: .caseInsensitive) {
+                let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+                for match in matches {
+                    if !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                        if let range = Range(match.range, in: text) {
+                            let matchedText = String(text[range])
+                            // Skip if already in replacement format
+                            if !isAlreadyReplaced(matchedText) {
+                                replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                processedRanges.append(match.range)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 2. First + Last Initial: "Ora P" or "Ora P."
+            // Only match if we need to replace it (don't match if already in replacement format)
+            // If replacement format is "FirstName LastInitial.", don't match text that already ends with period
+            // FIX: Use (?:\\.|\\b) instead of \\.?\\b to ensure we consume the period if present,
+            // preventing partial matches on "Sarah M." (which would otherwise match "Sarah M" and cause double periods)
+            let firstLastInitialPattern = "\\b\(NSRegularExpression.escapedPattern(for: firstLower))\\s+\(NSRegularExpression.escapedPattern(for: firstInitial))(?:\\.|\\b)"
+            if let regex = try? NSRegularExpression(pattern: firstLastInitialPattern, options: .caseInsensitive) {
+                let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+                for match in matches {
+                    if !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                        if let range = Range(match.range, in: text) {
+                            let matchedText = String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+                            
+                            // Critical check: if replacement format includes a period, and the matched text
+                            // already ends with a period, and it matches the replacement format, skip it entirely
+                            if replacement.hasSuffix(".") && matchedText.hasSuffix(".") {
+                                // Build what the replacement format would look like
+                                let expectedFormat = "\(first) \(firstInitial.uppercased())."
+                                let matchedLower = matchedText.lowercased()
+                                let expectedLower = expectedFormat.lowercased()
+                                
+                                // If they match (case-insensitive), don't generate a replacement
+                                if matchedLower == expectedLower {
+                                    continue // Skip - already in correct format, don't replace
+                                }
+                            }
+                            
+                            // Additional check: if matched text already equals replacement (case-insensitive), skip
+                            if matchedText.lowercased() == replacement.lowercased() {
+                                continue
+                            }
+                            
+                            // Skip if already in replacement format
+                            if !isAlreadyReplaced(matchedText) {
+                                let originalText = String(text[range])
+                                // Additional safeguard: don't create replacement if original already matches replacement
+                                let originalTrimmed = originalText.trimmingCharacters(in: .whitespacesAndNewlines)
+                                let replacementTrimmed = replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+                                
+                                // Skip if original text already matches replacement (case-insensitive)
+                                if originalTrimmed.lowercased() != replacementTrimmed.lowercased() {
+                                    // Create a key to avoid duplicate replacements for the same text
+                                    let replacementKey = "\(originalTrimmed.lowercased())->\(replacementTrimmed.lowercased())"
+                                    if !seenReplacements.contains(replacementKey) {
+                                        replacements.append(TextReplacement(originalText: originalText, replacement: replacement))
+                                        processedRanges.append(match.range)
+                                        seenReplacements.insert(replacementKey)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 3. Initials: "OP", "O.P.", "O P"
+            if let fi = first.first, let li = last.first {
+                let fiLower = String(fi).lowercased()
+                let liLower = String(li).lowercased()
+                
+                // Compact initials: "OP"
+                let compactPattern = "\\b\(fiLower)\(liLower)\\b"
+                if let regex = try? NSRegularExpression(pattern: compactPattern, options: .caseInsensitive) {
+                    let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+                    for match in matches {
+                        // Only match if uppercase in original text
+                        if let range = Range(match.range, in: text) {
+                            let matchedText = String(text[range])
+                            if matchedText == matchedText.uppercased() && matchedText.count == 2 {
+                                if !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                                    // Skip if already in replacement format
+                                    if !isAlreadyReplaced(matchedText) {
+                                        replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                        processedRanges.append(match.range)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Separated initials: "O.P.", "O P", "O P."
+                // FIX: Same fix as above: use (?:\\.|\\b) to ensure we match the trailing period if present
+                let separatedPattern = "\\b\(NSRegularExpression.escapedPattern(for: fiLower))\\.?\\s+\(NSRegularExpression.escapedPattern(for: liLower))(?:\\.|\\b)"
+                if let regex = try? NSRegularExpression(pattern: separatedPattern, options: .caseInsensitive) {
+                    let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+                    for match in matches {
+                        if !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                            if let range = Range(match.range, in: text) {
+                                let matchedText = String(text[range])
+                                // Skip if already in replacement format
+                                if !isAlreadyReplaced(matchedText) {
+                                    replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                    processedRanges.append(match.range)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 4. First name only: "Ora" (if unique)
+            if firstNameCounts[firstLower] ?? 0 == 1 {
+                let firstNamePattern = "\\b\(NSRegularExpression.escapedPattern(for: firstLower))\\b"
+                if let regex = try? NSRegularExpression(pattern: firstNamePattern, options: .caseInsensitive) {
+                    let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+                    for match in matches {
+                        if !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                            if let range = Range(match.range, in: text) {
+                                let matchedText = String(text[range])
+                                // Skip if already in replacement format
+                                if !isAlreadyReplaced(matchedText) {
+                                    replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                    processedRanges.append(match.range)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 5. Nickname: if provided
+            if !nick.isEmpty {
+                let nickLower = nick.lowercased()
+                let nicknamePattern = "\\b\(NSRegularExpression.escapedPattern(for: nickLower))\\b"
+                if let regex = try? NSRegularExpression(pattern: nicknamePattern, options: .caseInsensitive) {
+                    let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+                    for match in matches {
+                        if !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                            if let range = Range(match.range, in: text) {
+                                let matchedText = String(text[range])
+                                // Skip if already in replacement format
+                                if !isAlreadyReplaced(matchedText) {
+                                    replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                    processedRanges.append(match.range)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Sort by position in text (reverse order to replace from end to start)
+        replacements.sort { (r1, r2) in
+            if let range1 = text.range(of: r1.originalText, options: .caseInsensitive),
+               let range2 = text.range(of: r2.originalText, options: .caseInsensitive) {
+                return range1.upperBound > range2.upperBound
+            }
+            return false
+        }
+        
+        return replacements
     }
     
     // Private Helpers

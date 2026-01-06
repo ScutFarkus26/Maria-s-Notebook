@@ -1,6 +1,10 @@
 import SwiftUI
 import SwiftData
 
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+import FoundationModels
+#endif
+
 struct StudentMeetingsTab: View {
     let student: Student
 
@@ -14,6 +18,10 @@ struct StudentMeetingsTab: View {
     // Query all lessons for lookup
     @Query(sort: [SortDescriptor(\Lesson.name)])
     private var lessons: [Lesson]
+
+    // Query all student lessons
+    @Query(sort: [SortDescriptor(\StudentLesson.givenAt, order: .reverse)])
+    private var allStudentLessons: [StudentLesson]
 
     // Query all meetings; we'll filter by studentID
     @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
@@ -33,6 +41,9 @@ struct StudentMeetingsTab: View {
     @State private var guideNotesText: String = ""
 
     @State private var expandedHistoryIDs: Set<UUID> = []
+    @State private var meetingSummaries: [UUID: String] = [:]
+    @State private var aiGeneratedSummaries: Set<UUID> = []
+    @State private var generatingSummaries: Set<UUID> = []
 
     // Editing sheet state
     @State private var editingMeeting: StudentMeeting? = nil
@@ -42,6 +53,9 @@ struct StudentMeetingsTab: View {
     @State private var editFocus: String = ""
     @State private var editRequests: String = ""
     @State private var editGuideNotes: String = ""
+    
+    // Work contract detail sheet
+    @State private var selectedContract: WorkContract? = nil
 
     // Work snapshot settings
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14
@@ -76,14 +90,41 @@ struct StudentMeetingsTab: View {
     private var openContractCountText: String { openContractsForStudent.isEmpty ? "—" : "\(openContractsForStudent.count)" }
     private var overdueContractCountText: String { overdueContractsForStudent.isEmpty ? "—" : "\(overdueContractsForStudent.count)" }
     private var recentlyCompletedContractCountText: String { recentCompletedContractsForStudent.isEmpty ? "—" : "\(recentCompletedContractsForStudent.count)" }
+    
+    // MARK: - Lessons since last meeting
+    
+    private var lastMeetingDate: Date? {
+        meetingItems.first?.date
+    }
+    
+    private var lessonsSinceLastMeetingForStudent: [StudentLesson] {
+        let studentIDString = student.id.uuidString
+        let cutoffDate = lastMeetingDate ?? Date.distantPast
+        
+        return allStudentLessons.filter { studentLesson in
+            // Check if this student is in the lesson
+            guard studentLesson.studentIDs.contains(studentIDString) else { return false }
+            
+            // Check if lesson was given after the last meeting
+            if let givenAt = studentLesson.givenAt {
+                return givenAt > cutoffDate
+            }
+            // Also check if it was marked as presented after the last meeting
+            if studentLesson.isPresented {
+                return studentLesson.createdAt > cutoffDate
+            }
+            
+            return false
+        }
+    }
 
     // MARK: - Body
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            currentMeetingSection
             activeWorkSnapshotSection
+            lessonsSinceLastMeetingSection
             historySection
-            carryForwardSection
+            currentMeetingSection
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
@@ -132,6 +173,9 @@ struct StudentMeetingsTab: View {
 #if os(macOS)
             .frame(minWidth: 420)
 #endif
+        }
+        .sheet(item: $selectedContract) { contract in
+            WorkContractDetailSheet(contract: contract)
         }
     }
 
@@ -193,36 +237,83 @@ struct StudentMeetingsTab: View {
                 Text("Active Work Snapshot")
                     .font(.headline)
                     .foregroundStyle(.primary)
-                VStack(alignment: .leading, spacing: 6) {
-                    rowLine(label: "Open contracts", value: openContractCountText)
-                    if !openContractsForStudent.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(openContractsForStudent.prefix(3)) { contract in
-                                contractRowLine(contract)
+                Grid(alignment: .topLeading, horizontalSpacing: 20, verticalSpacing: 8) {
+                    GridRow {
+                        // Left column
+                        VStack(alignment: .leading, spacing: 6) {
+                            rowLine(label: "Open contracts", value: openContractCountText)
+                            if !openContractsForStudent.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    ForEach(openContractsForStudent.prefix(3)) { contract in
+                                        contractRowLine(contract)
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                selectedContract = contract
+                                            }
+                                    }
+                                }
+                            }
+                            rowLine(label: "Overdue/stuck", value: overdueContractCountText)
+                            if !overdueContractsForStudent.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    ForEach(overdueContractsForStudent.prefix(3)) { contract in
+                                        contractRowLine(contract)
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                selectedContract = contract
+                                            }
+                                    }
+                                }
                             }
                         }
-                    }
-                    rowLine(label: "Overdue/stuck", value: overdueContractCountText)
-                    if !overdueContractsForStudent.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(overdueContractsForStudent.prefix(3)) { contract in
-                                contractRowLine(contract)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        // Right column
+                        VStack(alignment: .leading, spacing: 6) {
+                            rowLine(label: "Recently completed", value: recentlyCompletedContractCountText)
+                            if !recentCompletedContractsForStudent.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    ForEach(recentCompletedContractsForStudent.prefix(3)) { contract in
+                                        contractRowLine(contract, showCompletedDate: true)
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                selectedContract = contract
+                                            }
+                                    }
+                                }
                             }
                         }
-                    }
-                    rowLine(label: "Recently completed", value: recentlyCompletedContractCountText)
-                    if !recentCompletedContractsForStudent.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(recentCompletedContractsForStudent.prefix(3)) { contract in
-                                contractRowLine(contract, showCompletedDate: true)
-                            }
-                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
         }
     }
 
+    private var lessonsSinceLastMeetingSection: some View {
+        card {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Lessons Since Last Meeting")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                let lessonsSinceLastMeeting = lessonsSinceLastMeetingForStudent
+                if lessonsSinceLastMeeting.isEmpty {
+                    Text("No lessons since last meeting.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(lessonsSinceLastMeeting) { studentLesson in
+                            lessonRowLine(studentLesson)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     private var historySection: some View {
         card {
             VStack(alignment: .leading, spacing: 8) {
@@ -238,24 +329,9 @@ struct StudentMeetingsTab: View {
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(meetingItems) { item in
-                            DisclosureGroup(
-                                isExpanded: Binding(
-                                    get: { expandedHistoryIDs.contains(item.id) },
-                                    set: { new in
-                                        if new { expandedHistoryIDs.insert(item.id) } else { expandedHistoryIDs.remove(item.id) }
-                                    }
-                                )
-                            ) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    historyDetailLine(title: "Reflection", text: item.reflection)
-                                    historyDetailLine(title: "Focus", text: item.focus)
-                                    historyDetailLine(title: "Requests", text: item.requests)
-                                    if !item.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                        historyDetailLine(title: "Guide notes", text: item.guideNotes)
-                                    }
-                                }
-                                .padding(.top, 4)
-                            } label: {
+                            let isExpanded = expandedHistoryIDs.contains(item.id)
+                            VStack(alignment: .leading, spacing: 0) {
+                                // Header (always visible)
                                 HStack(spacing: 8) {
                                     Text(Self.dateFormatter.string(from: item.date))
                                         .font(.subheadline)
@@ -263,10 +339,32 @@ struct StudentMeetingsTab: View {
                                     if item.completed { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
                                     Text("•")
                                         .foregroundStyle(.secondary)
-                                    Text(summary(for: item))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.primary)
-                                        .lineLimit(1)
+                                    
+                                    // Summary with AI indicator
+                                    HStack(spacing: 4) {
+                                        if let summary = meetingSummaries[item.id] {
+                                            // Show sparkle only if AI actually generated it
+                                            if aiGeneratedSummaries.contains(item.id) {
+                                                Image(systemName: "sparkles")
+                                                    .foregroundStyle(.purple)
+                                                    .font(.caption2)
+                                            }
+                                            Text(summary)
+                                                .font(.subheadline)
+                                                .foregroundStyle(.primary)
+                                        } else if generatingSummaries.contains(item.id) {
+                                            ProgressView()
+                                                .controlSize(.mini)
+                                            Text("Summarizing...")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text(summary(for: item))
+                                                .font(.subheadline)
+                                                .foregroundStyle(.primary)
+                                        }
+                                    }
+                                    
                                     Spacer()
                                     Menu {
                                         Button("Edit", systemImage: "square.and.pencil") { beginEdit(item) }
@@ -275,8 +373,36 @@ struct StudentMeetingsTab: View {
                                         Image(systemName: "ellipsis.circle").foregroundStyle(.secondary)
                                     }
                                 }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    withAnimation {
+                                        if isExpanded {
+                                            expandedHistoryIDs.remove(item.id)
+                                        } else {
+                                            expandedHistoryIDs.insert(item.id)
+                                        }
+                                    }
+                                }
+                                
+                                // Expanded content
+                                if isExpanded {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        historyDetailLine(title: "Reflection", text: item.reflection)
+                                        historyDetailLine(title: "Focus", text: item.focus)
+                                        historyDetailLine(title: "Requests", text: item.requests)
+                                        if !item.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                            historyDetailLine(title: "Guide notes", text: item.guideNotes)
+                                        }
+                                    }
+                                    .padding(.top, 8)
+                                }
                             }
-                            .disclosureGroupStyle(.automatic)
+                            .task {
+                                // Generate summary when meeting appears
+                                if meetingSummaries[item.id] == nil && !generatingSummaries.contains(item.id) {
+                                    await generateSummary(for: item)
+                                }
+                            }
                             .padding(.vertical, 4)
                         }
                     }
@@ -285,17 +411,6 @@ struct StudentMeetingsTab: View {
         }
     }
 
-    private var carryForwardSection: some View {
-        card {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Carry-forward")
-                    .font(.headline)
-                Text("Carry-forward suggestions (future): unfinished focus items from last week appear here.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
 
     // MARK: - Helpers for Contract display
 
@@ -312,7 +427,9 @@ struct StudentMeetingsTab: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+            Spacer()
         }
+        .padding(.vertical, 2)
     }
 
     private func contractDisplayTitle(_ contract: WorkContract) -> String {
@@ -320,6 +437,37 @@ struct StudentMeetingsTab: View {
             return l.name
         }
         return "Lesson"
+    }
+    
+    private func lessonRowLine(_ studentLesson: StudentLesson) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "book.fill").font(.system(size: 8)).foregroundStyle(.secondary)
+            if let lesson = studentLesson.lesson {
+                Text(lesson.name)
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+            } else if let lessonID = UUID(uuidString: studentLesson.lessonID), let lesson = lessonsByID[lessonID] {
+                Text(lesson.name)
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+            } else {
+                Text("Lesson")
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+            }
+            if let givenAt = studentLesson.givenAt {
+                Text("•").foregroundStyle(.secondary)
+                Text(Self.dateFormatter.string(from: givenAt))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else if studentLesson.isPresented {
+                Text("• Presented")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 2)
     }
 
     // MARK: - Persistence (UserDefaults for current, SwiftData for history)
@@ -507,14 +655,108 @@ struct StudentMeetingsTab: View {
         let guideNotes: String
     }
 
+    private var isAIEnabled: Bool {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        if #available(macOS 26.0, *) {
+            return true
+        }
+        #endif
+        return false
+    }
+    
     private func summary(for item: StudentMeeting) -> String {
+        // Fallback summary when AI hasn't generated one yet
+        return generateFallbackSummary(for: item)
+    }
+    
+    private func generateFallbackSummary(for item: StudentMeeting) -> String {
+        // For single-line display, prefer the most important field first
         let focusTrim = item.focus.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !focusTrim.isEmpty { return focusTrim }
+        if !focusTrim.isEmpty { 
+            return focusTrim.count > 60 ? String(focusTrim.prefix(57)) + "..." : focusTrim
+        }
         let reflTrim = item.reflection.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !reflTrim.isEmpty { return reflTrim }
+        if !reflTrim.isEmpty { 
+            return reflTrim.count > 60 ? String(reflTrim.prefix(57)) + "..." : reflTrim
+        }
         let reqTrim = item.requests.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !reqTrim.isEmpty { return reqTrim }
+        if !reqTrim.isEmpty { 
+            return reqTrim.count > 60 ? String(reqTrim.prefix(57)) + "..." : reqTrim
+        }
+        let guideTrim = item.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !guideTrim.isEmpty { 
+            return guideTrim.count > 60 ? String(guideTrim.prefix(57)) + "..." : guideTrim
+        }
         return "Meeting"
+    }
+    
+    private func generateSummary(for item: StudentMeeting) async {
+        let manualSummary = generateFallbackSummary(for: item)
+        
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        guard #available(macOS 26.0, *) else {
+            setSummary(manualSummary, for: item.id, isAIGenerated: false)
+            return
+        }
+        
+        // Don't burn AI tokens if the content is very short
+        let totalLength = item.reflection.count + item.guideNotes.count + item.focus.count + item.requests.count
+        guard totalLength > 30 else {
+            setSummary(manualSummary, for: item.id, isAIGenerated: false)
+            return
+        }
+        
+        generatingSummaries.insert(item.id)
+        
+        let context = """
+        Student Reflection: \(item.reflection)
+        Focus: \(item.focus)
+        Requests: \(item.requests)
+        Guide Notes: \(item.guideNotes)
+        """
+        
+        let instructions = "You are a Montessori guide assistant. Summarize this student meeting outcomes and sentiment in 2 sentences."
+        let session = LanguageModelSession(instructions: instructions)
+        
+        do {
+            let stream = session.streamResponse(
+                to: "Summarize this meeting:\n\(context)",
+                generating: MeetingSummary.self
+            )
+            
+            var aiGenerated = false
+            for try await partial in stream {
+                if let overview = partial.content.overview, !overview.isEmpty {
+                    setSummary(overview, for: item.id, isAIGenerated: true)
+                    aiGenerated = true
+                }
+            }
+            
+            if !aiGenerated {
+                // If stream completed but no summary was generated, use fallback
+                setSummary(manualSummary, for: item.id, isAIGenerated: false)
+            }
+        } catch {
+            print("AI Summary failed: \(error)")
+            setSummary(manualSummary, for: item.id, isAIGenerated: false)
+        }
+        
+        generatingSummaries.remove(item.id)
+        
+        #else
+        // Fallback: AI disabled
+        setSummary(manualSummary, for: item.id, isAIGenerated: false)
+        #endif
+    }
+    
+    @MainActor
+    private func setSummary(_ text: String, for meetingID: UUID, isAIGenerated: Bool = false) {
+        meetingSummaries[meetingID] = text
+        if isAIGenerated {
+            aiGeneratedSummaries.insert(meetingID)
+        } else {
+            aiGeneratedSummaries.remove(meetingID)
+        }
     }
 
     private static let dateFormatter: DateFormatter = {

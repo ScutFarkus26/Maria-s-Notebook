@@ -45,6 +45,8 @@ class QuickNoteViewModel: ObservableObject {
     
     // MARK: - Debouncing
     private var analysisTask: Task<Void, Never>? = nil
+    private var isApplyingReplacements: Bool = false
+    private var lastReplacementText: String? = nil
     
     // MARK: - Initialization
     
@@ -65,6 +67,15 @@ class QuickNoteViewModel: ObservableObject {
     }
     
     func analyzeText(_ text: String, students: [Student]) {
+        // Don't analyze if we're currently applying replacements to avoid infinite loops
+        guard !isApplyingReplacements else { return }
+        
+        // Don't analyze if this text matches what we just replaced (prevents re-analysis of replacement result)
+        if let lastReplacement = lastReplacementText, text == lastReplacement {
+            lastReplacementText = nil // Clear after one check
+            return
+        }
+        
         // Cancel previous analysis task
         analysisTask?.cancel()
         
@@ -103,6 +114,74 @@ class QuickNoteViewModel: ObservableObject {
             
             // Only suggest fuzzy matches that are not already selected
             self.detectedCandidateIDs = result.fuzzy.subtracting(self.selectedStudentIDs)
+            
+            // Apply text replacements for exact matches
+            if !result.replacements.isEmpty {
+                // Set flag to prevent re-analysis during replacement
+                self.isApplyingReplacements = true
+                
+                var updatedText = self.bodyText
+                var hasChanges = false
+                
+                // Apply replacements from end to start to preserve positions
+                // Process in reverse order to maintain string indices
+                for replacement in result.replacements.reversed() {
+                    // Skip if replacement text is already the same as original (case-insensitive)
+                    let originalTrimmed = replacement.originalText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let replacementTrimmed = replacement.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    if originalTrimmed.lowercased() == replacementTrimmed.lowercased() {
+                        continue
+                    }
+                    
+                    // Only replace if the original text still exists in the current text
+                    // (case-insensitive, whole word match)
+                    let escaped = NSRegularExpression.escapedPattern(for: replacement.originalText)
+                    let pattern = "\\b\(escaped)\\b"
+                    
+                    if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                        let range = NSRange(updatedText.startIndex..., in: updatedText)
+                        let matches = regex.matches(in: updatedText, options: [], range: range)
+                        
+                        if !matches.isEmpty {
+                            // Replace from end to start to preserve indices
+                            for match in matches.reversed() {
+                                if let matchRange = Range(match.range, in: updatedText) {
+                                    let matchedText = String(updatedText[matchRange])
+                                    let matchedTrimmed = matchedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    
+                                    // CRITICAL: Only replace if it's not already the replacement text (case-insensitive)
+                                    // This prevents replacing "Sarah Z." with "Sarah Z." which would cause period repetition
+                                    if matchedTrimmed.lowercased() != replacementTrimmed.lowercased() {
+                                        updatedText.replaceSubrange(matchRange, with: replacement.replacement)
+                                        hasChanges = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Only update if text actually changed
+                if hasChanges {
+                    // Store the updated text to check against in next analysis
+                    let previousText = self.bodyText
+                    self.lastReplacementText = updatedText
+                    
+                    withAnimation {
+                        self.bodyText = updatedText
+                    }
+                    
+                    // Reset flag after a delay to allow onChange to complete
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        self.isApplyingReplacements = false
+                    }
+                } else {
+                    // No changes, reset flag immediately
+                    self.isApplyingReplacements = false
+                }
+            }
         }
     }
     

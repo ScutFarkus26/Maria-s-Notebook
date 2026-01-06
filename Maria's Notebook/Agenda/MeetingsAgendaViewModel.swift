@@ -1,11 +1,15 @@
 import Foundation
 import Observation
+import SwiftData
 
 @Observable
 final class MeetingsAgendaViewModel {
     var startDate: Date = Date()
     var scrollToDay: Date? = nil
     private let calendar = Calendar.current
+    
+    // Add context reference to fetch data
+    var modelContext: ModelContext? = nil
 
     var days: [Date] {
         var result: [Date] = []
@@ -28,5 +32,21 @@ final class MeetingsAgendaViewModel {
 
     func resetToToday() {
         startDate = calendar.startOfDay(for: Date())
+    }
+    
+    // New helper to fetch meetings for a specific day
+    func meetings(for date: Date) -> [StudentMeeting] {
+        guard let modelContext else { return [] }
+        
+        let start = calendar.startOfDay(for: date)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        
+        // Predicate to find meetings in this 24hr window
+        let predicate = #Predicate<StudentMeeting> { meeting in
+            meeting.date >= start && meeting.date < end
+        }
+        
+        let descriptor = FetchDescriptor(predicate: predicate, sortBy: [SortDescriptor(\.date)])
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 }
