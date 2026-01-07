@@ -697,59 +697,83 @@ struct StudentLessonDetailContentView: View {
     
     private func createFollowUpAssignments(_ assignments: [PostPresentationAssignmentsSheet.AssignmentEntry]) {
         let lessonID = (vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID)
-        let lidString = lessonID.uuidString
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
         let followRaw = WorkKind.followUpAssignment.rawValue
 
         for entry in assignments {
-            let sid = entry.studentID.uuidString
-            // Explicit Predicate variables to avoid "Any" errors
-            let predicate = #Predicate<WorkContract> {
-                $0.studentID == sid && $0.lessonID == lidString
-            }
-            let fetchExisting = FetchDescriptor<WorkContract>(predicate: predicate)
-            let existingContracts = (try? modelContext.fetch(fetchExisting)) ?? []
+            let studentUUID = entry.studentID
             
-            let existing = existingContracts.first(where: {
-                ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) && (($0.kindRaw ?? "") == followRaw)
-            })
-
-            let contract: WorkContract
-            if let e = existing {
-                contract = e
-            } else {
-                let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
-                c.kind = WorkKind.followUpAssignment // Explicit Type
-                modelContext.insert(c)
+            // Fetch all WorkModels and filter in memory (no predicates)
+            let allWorkModels = (try? modelContext.fetch(FetchDescriptor<WorkModel>())) ?? []
+            
+            // Find existing WorkModel for this student/lesson with follow-up kind
+            let existingWork = allWorkModels.first { work in
+                // Check if student is a participant
+                let hasStudent = (work.participants ?? []).contains { $0.studentID == studentUUID.uuidString }
+                guard hasStudent else { return false }
                 
-                // Dual-write: Also create WorkModel for migration compatibility
-                let workModel = WorkModel.from(contract: c, in: modelContext)
-                modelContext.insert(workModel)
+                // Check if work is for this lesson (via studentLessonID)
+                guard let slID = work.studentLessonID,
+                      let sl = studentLessonsAll.first(where: { $0.id == slID }),
+                      UUID(uuidString: sl.lessonID) == lessonID else {
+                    return false
+                }
                 
-                contract = c
+                // Check status and kind
+                return (work.statusRaw == activeRaw || work.statusRaw == reviewRaw) &&
+                       (work.kindRaw ?? "") == followRaw
             }
 
+            let work: WorkModel
+            if let existing = existingWork {
+                work = existing
+            } else {
+                // Create new WorkModel
+                let repository = WorkRepository(context: modelContext)
+                guard let created = try? repository.createWork(
+                    studentID: studentUUID,
+                    lessonID: lessonID,
+                    title: nil,
+                    kind: .followUpAssignment,
+                    presentationID: nil,
+                    scheduledDate: nil
+                ) else {
+                    continue
+                }
+                work = created
+            }
+            
+            // Update notes if provided
             let trimmed = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty {
-                contract.scheduledNote = trimmed
+                work.notes = trimmed
             }
 
+            // Schedule check-in if provided
             if let sched = entry.schedule {
                 let normalized = AppCalendar.startOfDay(sched.date)
                 let checkInKind = PostPresentationAssignmentsSheet.ScheduleKind.checkIn
-                let reason: WorkPlanItem.Reason = (sched.kind == checkInKind) ? .progressCheck : .dueDate
                 
-                let workID = contract.id
-                // CloudKit compatibility: Convert UUID to String for comparison
-                let workIDString = workID.uuidString
-                let planPredicate = #Predicate<WorkPlanItem> { $0.workID == workIDString }
-                let planFetch = FetchDescriptor<WorkPlanItem>(predicate: planPredicate)
+                // Check if check-in already exists
+                let existingCheckIns = work.checkIns ?? []
+                let hasCheckIn = existingCheckIns.contains { checkIn in
+                    AppCalendar.startOfDay(checkIn.date) == normalized && checkIn.status == .scheduled
+                }
                 
-                let existingPlans = (try? modelContext.fetch(planFetch)) ?? []
-                if !existingPlans.contains(where: { $0.scheduledDate == normalized }) {
-                    let item = WorkPlanItem(workID: contract.id, scheduledDate: normalized, reason: reason)
-                    modelContext.insert(item)
+                if !hasCheckIn {
+                    let purpose: String = (sched.kind == checkInKind) ? "Progress check" : "Due date"
+                    let checkIn = WorkCheckIn(
+                        workID: work.id,
+                        date: normalized,
+                        status: .scheduled,
+                        purpose: purpose,
+                        note: "",
+                        work: work
+                    )
+                    modelContext.insert(checkIn)
+                    if work.checkIns == nil { work.checkIns = [] }
+                    work.checkIns = (work.checkIns ?? []) + [checkIn]
                 }
             }
         }

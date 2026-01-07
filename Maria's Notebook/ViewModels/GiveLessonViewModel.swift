@@ -280,30 +280,45 @@ final class LessonPickerViewModel: ObservableObject {
             }
         }
 
-        // If planning (not given) and practice is requested, create active practice contracts per student (no presentation link)
+        // If planning (not given) and practice is requested, create active practice work per student (no presentation link)
         if mode == .plan && needsPractice {
-            let sidStrings = selectedIDs.map { $0.uuidString }
-            let lidString = finalLesson.id.uuidString
-            for sid in sidStrings {
-                // De-dupe by (student, lesson, kind=practice) in active/review
-                let activeRaw = WorkStatus.active.rawValue
-                let reviewRaw = WorkStatus.review.rawValue
-                let practiceRaw = WorkKind.practiceLesson.rawValue
-                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
-                    $0.studentID == sid &&
-                    $0.lessonID == lidString &&
-                    ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
-                    ($0.kindRaw ?? "") == practiceRaw
-                })
-                let exists = ((try? context.fetch(fetch)) ?? []).first != nil
+            let lessonID = finalLesson.id
+            // Fetch all WorkModels once and filter in memory (no predicates)
+            let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
+            let activeRaw = WorkStatus.active.rawValue
+            let reviewRaw = WorkStatus.review.rawValue
+            let practiceRaw = WorkKind.practiceLesson.rawValue
+            
+            for studentID in selectedIDs {
+                let sidString = studentID.uuidString
+                // Check if WorkModel already exists for this student/lesson/practice
+                let exists = allWorkModels.contains { work in
+                    // Check if student is a participant
+                    let hasStudent = (work.participants ?? []).contains { $0.studentID == sidString }
+                    guard hasStudent else { return false }
+                    // Check if work is for this lesson (via studentLessonID)
+                    guard let slID = work.studentLessonID else { return false }
+                    let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
+                    guard let sl = allSLs.first(where: { $0.id == slID }),
+                          UUID(uuidString: sl.lessonID) == lessonID else {
+                        return false
+                    }
+                    // Check status and kind
+                    return (work.statusRaw == activeRaw || work.statusRaw == reviewRaw) &&
+                           (work.kindRaw ?? "") == practiceRaw
+                }
+                
                 if !exists {
-                    let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
-                    c.kind = .practiceLesson
-                    context.insert(c)
-                    
-                    // Dual-write: Also create WorkModel for migration compatibility
-                    let workModel = WorkModel.from(contract: c, in: context)
-                    context.insert(workModel)
+                    // Create WorkModel
+                    let repository = WorkRepository(context: context)
+                    _ = try? repository.createWork(
+                        studentID: studentID,
+                        lessonID: lessonID,
+                        title: nil,
+                        kind: .practiceLesson,
+                        presentationID: nil,
+                        scheduledDate: nil
+                    )
                 }
             }
         }
@@ -326,14 +341,20 @@ final class LessonPickerViewModel: ObservableObject {
                 })
                 let exists = ((try? context.fetch(fetch)) ?? []).first != nil
                 if !exists {
-                    let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
-                    c.kind = .followUpAssignment
-                    c.scheduledNote = trimmedFollowUp
-                    context.insert(c)
-                    
-                    // Dual-write: Also create WorkModel for migration compatibility
-                    let workModel = WorkModel.from(contract: c, in: context)
-                    context.insert(workModel)
+                    // Create WorkModel instead of WorkContract
+                    guard let studentUUID = UUID(uuidString: sid),
+                          let lessonUUID = UUID(uuidString: lidString) else { continue }
+                    let repository = WorkRepository(context: context)
+                    let workModel = try? repository.createWork(
+                        studentID: studentUUID,
+                        lessonID: lessonUUID,
+                        title: trimmedFollowUp,
+                        kind: .followUpAssignment,
+                        presentationID: nil,
+                        scheduledDate: nil
+                    )
+                    // Store follow-up text in notes
+                    workModel?.notes = trimmedFollowUp
                 }
             }
         }

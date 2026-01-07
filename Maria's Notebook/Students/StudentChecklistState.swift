@@ -91,15 +91,46 @@ final class StudentChecklistViewModel: ObservableObject {
             return Dictionary(uniqueKeysWithValues: pairs)
         }()
 
-        // Fetch WorkContracts once for this student across lessons
+        // Fetch WorkModels for this student across lessons
+        // WorkContract is now read-only for legacy data
         let studentKey = studentID.uuidString
-        // Removed previous fetch with Contains
-        let wcFetch = FetchDescriptor<WorkContract>(predicate: #Predicate { c in c.studentID == studentKey })
-        let allContractsForStudent: [WorkContract] = (try? context.fetch(wcFetch)) ?? []
+        // Fetch all WorkModels and filter in memory (predicates don't support contains with closures)
+        let workModelFetch = FetchDescriptor<WorkModel>()
+        let allWorkModels: [WorkModel] = (try? context.fetch(workModelFetch)) ?? []
+        
+        // Filter to work models where any participant matches this student
+        let allWorkModelsForStudent = allWorkModels.filter { work in
+            (work.participants ?? []).contains { $0.studentID == studentKey }
+        }
+        
+        // Filter work models by lesson (via studentLessonID)
+        let workModels: [WorkModel] = allWorkModelsForStudent.filter { work in
+            guard let slID = work.studentLessonID,
+                  let sl = allSLsForStudent.first(where: { $0.id == slID }),
+                  let lessonUUID = UUID(uuidString: sl.lessonID) else {
+                return false
+            }
+            return lessonIDs.contains(lessonUUID)
+        }
+        
+        // For backward compatibility, also fetch WorkContracts for contractID mapping
+        // Fetch all WorkContracts and filter in memory to avoid predicate UUID/String issues
+        let wcFetch = FetchDescriptor<WorkContract>()
+        let allContracts: [WorkContract] = (try? context.fetch(wcFetch)) ?? []
+        let allContractsForStudent = allContracts.filter { $0.studentID == studentKey }
         let contracts: [WorkContract] = allContractsForStudent.filter { contract in
             if let lid = UUID(uuidString: contract.lessonID) { return lessonIDs.contains(lid) }
             return false
         }
+        
+        // Map WorkModels by their legacyContractID for backward compatibility
+        var workModelsByContractID: [UUID: WorkModel] = [:]
+        let contractIDs = Set(contracts.map { $0.id })
+        let workModelsWithLegacyID = workModels.filter { $0.legacyContractID != nil }
+        workModelsByContractID = Dictionary(uniqueKeysWithValues: workModelsWithLegacyID.compactMap { work in
+            guard let contractID = work.legacyContractID, contractIDs.contains(contractID) else { return nil }
+            return (contractID, work)
+        })
 
         // Index contracts
         let contractsByLesson: [String: [WorkContract]] = Dictionary(grouping: contracts, by: { $0.lessonID })
@@ -146,42 +177,72 @@ final class StudentChecklistViewModel: ObservableObject {
             // Presentation selection
             let presentation = presentationsByLesson[lessonID]
 
-            // Contracts
+            // WorkModels (primary) or WorkContracts (legacy fallback)
+            // Try to find WorkModel first
+            let workModelForLesson = workModels.first { work in
+                guard let slID = work.studentLessonID,
+                      let sl = allSLsForStudent.first(where: { $0.id == slID }),
+                      sl.lessonID == lessonKey else {
+                    return false
+                }
+                return true
+            }
+            
+            // Fallback to WorkContract for legacy data (read-only)
             let open = openByLesson[lessonKey]
             let completed = completedByLesson[lessonKey]
-            let contractForID = open ?? completed
+            let contractForID = workModelForLesson?.id ?? workModelForLesson?.legacyContractID ?? (open ?? completed)?.id
 
             // lastActivityDate and isStale
+            // Use centralized aging logic from WorkAgingPolicy
             var lastActivity: Date? = nil
             var stale = false
-            if let c = open ?? completed {
-                // latest past scheduled date among plan items for this contract
-                let pastPlanDates: [Date] = (planItemsByContract[c.id] ?? [])
-                    .map { AppCalendar.startOfDay($0.scheduledDate) }
-                    .filter { $0 <= today }
-                let latestPast = pastPlanDates.max()
-                lastActivity = maxDate(latestPast, AppCalendar.startOfDay(c.createdAt))
-                if c.status == .complete {
-                    stale = false
-                } else if let last = lastActivity {
-                    let days = Self.wholeDays(from: last, to: today)
-                    stale = days >= staleThresholdDays
-                } else {
-                    stale = false
-                }
+            
+            // Prefer WorkModel for all calculations
+            if let workModel = workModelForLesson {
+                let checkIns = workModel.checkIns ?? []
+                let notes = workModel.scopedNotes ?? []
+                lastActivity = WorkAgingPolicy.lastMeaningfulTouchDate(
+                    for: workModel,
+                    checkIns: checkIns,
+                    notes: notes
+                )
+                stale = WorkAgingPolicy.isStale(
+                    workModel,
+                    modelContext: context,
+                    checkIns: checkIns,
+                    notes: notes
+                )
+            } else if let c = open ?? completed {
+                // Fallback to WorkContract for legacy data (read-only)
+                // Fetch notes in memory (no predicates)
+                let contractIDString = c.id.uuidString
+                let allNotes = (try? context.fetch(FetchDescriptor<ScopedNote>())) ?? []
+                let workNotes = allNotes.filter { $0.workContractID == contractIDString }
+                lastActivity = WorkContractAging.lastMeaningfulTouchDate(
+                    for: c,
+                    planItems: planItemsByContract[c.id] ?? [],
+                    notes: workNotes
+                )
+                stale = WorkContractAging.isStale(
+                    c,
+                    modelContext: context,
+                    planItems: planItemsByContract[c.id] ?? [],
+                    notes: workNotes
+                )
             }
 
-            // Booleans
+            // Booleans - prefer WorkModel status
             let isScheduled = plannedCandidate != nil
             let isPresented = (presentation != nil)
-            let isActive = (open != nil)
-            let isComplete = (open == nil && completed != nil)
+            let isActive = workModelForLesson?.isOpen ?? (open != nil)
+            let isComplete = (workModelForLesson?.status == .complete) ?? (open == nil && completed != nil)
 
             let state = StudentChecklistRowState(
                 lessonID: lessonID,
                 plannedItemID: plannedCandidate?.id,
                 presentationLogID: presentation?.id,
-                contractID: contractForID?.id,
+                contractID: contractForID,
                 isScheduled: isScheduled,
                 isPresented: isPresented,
                 isActive: isActive,

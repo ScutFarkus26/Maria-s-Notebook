@@ -323,6 +323,10 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         let slDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { lessonIDStrings.contains($0.lessonID) })
         let allSLs = (try? context.fetch(slDescriptor)) ?? []
         
+        // Fetch all WorkModels and filter in memory (no predicates)
+        let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
+        
+        // Also fetch WorkContracts for legacy fallback (read-only)
         let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
         
         var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
@@ -330,7 +334,15 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
             let studentSLs = allSLs.filter { $0.studentIDs.contains(student.id.uuidString) }
-            let studentContracts = allContracts.filter { $0.studentID == student.id.uuidString }
+            let studentIDString = student.id.uuidString
+            
+            // Filter WorkModels for this student
+            let studentWorkModels = allWorkModels.filter { work in
+                (work.participants ?? []).contains { $0.studentID == studentIDString }
+            }
+            
+            // Filter WorkContracts for this student (legacy fallback)
+            let studentContracts = allContracts.filter { $0.studentID == studentIDString }
             
             for lesson in lessons {
                 // CloudKit compatibility: Convert UUID to String for comparison
@@ -343,15 +355,37 @@ class ClassSubjectChecklistViewModel: ObservableObject {
                 
                 let isPresented = slsForLesson.contains { $0.isGiven }
                 
-                let contractsForLesson = studentContracts.filter { $0.lessonID == lesson.id.uuidString }
+                // Find WorkModel for this lesson
+                let workModelForLesson = studentWorkModels.first { work in
+                    guard let slID = work.studentLessonID,
+                          let sl = studentSLs.first(where: { $0.id == slID }),
+                          UUID(uuidString: sl.lessonID) == lesson.id else {
+                        return false
+                    }
+                    return true
+                }
+                
+                // Fallback to WorkContract for legacy data
+                let contractsForLesson = studentContracts.filter { $0.lessonID == lessonIDString }
                 let openContract = contractsForLesson.first { $0.status == .active || $0.status == .review }
                 let completeContract = contractsForLesson.first { $0.status == .complete }
-                let isActive = (openContract != nil)
-                let isComplete = (openContract == nil && completeContract != nil)
+                
+                // Prefer WorkModel status
+                let isActive = workModelForLesson?.isOpen ?? (openContract != nil)
+                let isComplete = (workModelForLesson?.status == .complete) ?? (openContract == nil && completeContract != nil)
+                let contractID = workModelForLesson?.id ?? workModelForLesson?.legacyContractID ?? (openContract ?? completeContract)?.id
                 
                 let state = StudentChecklistRowState(
-                    lessonID: lesson.id, plannedItemID: plannedCandidate?.id, presentationLogID: nil, contractID: (openContract ?? completeContract)?.id,
-                    isScheduled: isScheduled, isPresented: isPresented, isActive: isActive, isComplete: isComplete, lastActivityDate: nil, isStale: false
+                    lessonID: lesson.id,
+                    plannedItemID: plannedCandidate?.id,
+                    presentationLogID: nil,
+                    contractID: contractID,
+                    isScheduled: isScheduled,
+                    isPresented: isPresented,
+                    isActive: isActive,
+                    isComplete: isComplete,
+                    lastActivityDate: nil,
+                    isStale: false
                 )
                 studentRow[lesson.id] = state
             }
@@ -407,9 +441,11 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
-        let contract = findOrCreateContract(student: student, lesson: lesson, context: context)
-        contract.status = .complete; contract.completedAt = Date()
-        context.safeSave(); recomputeMatrix(context: context)
+        guard let work = findOrCreateWork(student: student, lesson: lesson, context: context) else { return }
+        work.status = .complete
+        work.completedAt = Date()
+        context.safeSave()
+        recomputeMatrix(context: context)
     }
     
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
@@ -450,34 +486,80 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
-        let lid = lesson.id; let sid = student.id; let sidString = sid.uuidString
+        let lid = lesson.id
+        let sid = student.id
+        let sidString = sid.uuidString
         // CloudKit compatibility: Convert UUID to String for comparison
         let lidString = lid.uuidString
         let sls = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lidString }))) ?? []
         for sl in sls where sl.studentIDs.contains(sidString) {
-            var newIDs = sl.studentIDs; newIDs.removeAll { $0 == sidString }
+            var newIDs = sl.studentIDs
+            newIDs.removeAll { $0 == sidString }
             if newIDs.isEmpty { context.delete(sl) } else { sl.studentIDs = newIDs }
         }
-        let contracts = fetchContracts(student: student, lesson: lesson, context: context)
-        for c in contracts { context.delete(c) }
-        context.safeSave(); recomputeMatrix(context: context)
+        // Delete WorkModels for this student/lesson
+        let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
+        let workModelsToDelete = allWorkModels.filter { work in
+            // Check if student is a participant
+            let hasStudent = (work.participants ?? []).contains { $0.studentID == sidString }
+            guard hasStudent else { return false }
+            // Check if work is for this lesson (via studentLessonID)
+            guard let slID = work.studentLessonID,
+                  let sl = sls.first(where: { $0.id == slID }),
+                  UUID(uuidString: sl.lessonID) == lid else {
+                return false
+            }
+            return true
+        }
+        for work in workModelsToDelete {
+            context.delete(work)
+        }
+        // Also delete legacy WorkContracts (read-only fallback)
+        let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
+        let contractsToDelete = allContracts.filter { $0.studentID == sidString && $0.lessonID == lidString }
+        for contract in contractsToDelete {
+            context.delete(contract)
+        }
+        context.safeSave()
+        recomputeMatrix(context: context)
     }
     
-    private func fetchContracts(student: Student, lesson: Lesson, context: ModelContext) -> [WorkContract] {
-        let sid = student.id.uuidString; let lid = lesson.id.uuidString
-        return (try? context.fetch(FetchDescriptor<WorkContract>(predicate: #Predicate { $0.studentID == sid && $0.lessonID == lid }))) ?? []
-    }
-    
-    private func findOrCreateContract(student: Student, lesson: Lesson, context: ModelContext) -> WorkContract {
-        if let existing = fetchContracts(student: student, lesson: lesson, context: context).first { return existing }
-        let c = WorkContract(studentID: student.id.uuidString, lessonID: lesson.id.uuidString)
-        context.insert(c)
+    private func findOrCreateWork(student: Student, lesson: Lesson, context: ModelContext) -> WorkModel? {
+        let sid = student.id
+        let lid = lesson.id
         
-        // Dual-write: Also create WorkModel for migration compatibility
-        let workModel = WorkModel.from(contract: c, in: context)
-        context.insert(workModel)
+        // Fetch all WorkModels and filter in memory
+        let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
         
-        return c
+        // Find existing WorkModel for this student/lesson
+        let existingWork = allWorkModels.first { work in
+            // Check if student is a participant
+            let hasStudent = (work.participants ?? []).contains { $0.studentID == sid.uuidString }
+            guard hasStudent else { return false }
+            // Check if work is for this lesson (via studentLessonID)
+            guard let slID = work.studentLessonID else { return false }
+            let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
+            guard let sl = allSLs.first(where: { $0.id == slID }),
+                  UUID(uuidString: sl.lessonID) == lid else {
+                return false
+            }
+            return true
+        }
+        
+        if let existing = existingWork {
+            return existing
+        }
+        
+        // Create new WorkModel
+        let repository = WorkRepository(context: context)
+        return try? repository.createWork(
+            studentID: sid,
+            lessonID: lid,
+            title: nil,
+            kind: nil,
+            presentationID: nil,
+            scheduledDate: nil
+        )
     }
 }
 

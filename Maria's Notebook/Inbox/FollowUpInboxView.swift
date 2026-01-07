@@ -15,7 +15,8 @@ struct FollowUpInboxView: View {
     
     // Lightweight change detection queries (IDs only to detect when to reload)
     @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
-    @Query(sort: [SortDescriptor(\WorkContract.id)]) private var contractsForChangeDetection: [WorkContract]
+    // WorkModel change detection
+    @Query(sort: [SortDescriptor(\WorkModel.id)]) private var workModelsForChangeDetection: [WorkModel]
     
     @Query(filter: #Predicate<WorkNote> { $0.isLessonToGive == true }, sort: [
         SortDescriptor(\WorkNote.createdAt, order: .reverse)
@@ -25,8 +26,8 @@ struct FollowUpInboxView: View {
     private var studentLessonIDs: [UUID] {
         studentLessonsForChangeDetection.map { $0.id }
     }
-    private var contractIDs: [UUID] {
-        contractsForChangeDetection.map { $0.id }
+    private var workModelIDs: [UUID] {
+        workModelsForChangeDetection.map { $0.id }
     }
 
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
@@ -38,21 +39,30 @@ struct FollowUpInboxView: View {
     }
     
     // Computed properties for data access
+    // Engine fetches WorkModel data internally, so contracts/planItems/notes are not needed
     private var lessons: [Lesson] { inboxData?.lessons ?? [] }
     private var students: [Student] { inboxData?.students ?? [] }
     private var studentLessons: [StudentLesson] { inboxData?.studentLessons ?? [] }
-    private var contracts: [WorkContract] { inboxData?.contracts ?? [] }
-    private var planItems: [WorkPlanItem] { inboxData?.planItems ?? [] }
-    private var notes: [ScopedNote] { inboxData?.notes ?? [] }
     
     private func loadData() {
+        // Minimal data loading - engine handles WorkModel fetching internally
+        // Still need students, lessons, and studentLessons for display
         let loader = InboxDataLoader(context: modelContext)
-        inboxData = loader.loadInboxData()
+        let data = loader.loadInboxData()
+        // Create minimal InboxData with only what we need
+        inboxData = InboxData(
+            studentLessons: data.studentLessons,
+            contracts: [], // Not used - engine fetches WorkModel internally
+            planItems: [], // Not used - engine fetches WorkModel internally
+            notes: [], // Not used - engine fetches WorkModel internally
+            students: data.students,
+            lessons: data.lessons
+        )
         
         #if DEBUG
         // Debug logging to verify reduced data fetching
         if let data = inboxData {
-            print("📊 InboxDataLoader: Loaded \(data.studentLessons.count) studentLessons, \(data.contracts.count) contracts, \(data.planItems.count) planItems, \(data.notes.count) notes, \(data.students.count) students, \(data.lessons.count) lessons")
+            print("📊 InboxDataLoader: Loaded \(data.studentLessons.count) studentLessons, \(data.students.count) students, \(data.lessons.count) lessons")
         }
         #endif
     }
@@ -79,9 +89,6 @@ struct FollowUpInboxView: View {
             lessons: lessons,
             students: visibleStudents,
             studentLessons: studentLessons,
-            contracts: contracts,
-            planItems: planItems,
-            notes: notes,
             modelContext: modelContext,
             constants: constants
         )
@@ -146,7 +153,7 @@ struct FollowUpInboxView: View {
         .onChange(of: studentLessonIDs) { _, _ in
             loadData()
         }
-        .onChange(of: contractIDs) { _, _ in
+        .onChange(of: workModelIDs) { _, _ in
             loadData()
         }
         .sheet(item: $selectedSL) { token in
@@ -159,12 +166,21 @@ struct FollowUpInboxView: View {
             }
         }
         .sheet(item: $selectedContract) { token in
+            // Legacy WorkContract support - try to find corresponding WorkModel
             let targetID = token.id
-            let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == targetID })
-            if let c = try? modelContext.fetch(fetch).first {
-                WorkContractDetailSheet(contract: c) { selectedContract = nil }
+            let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == targetID })
+            if let workModel = try? modelContext.fetch(workModelFetch).first {
+                WorkDetailContainerView(workID: workModel.id) {
+                    selectedContract = nil
+                }
             } else {
-                ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+                // Fallback: try WorkContract for legacy data
+                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == targetID })
+                if let c = try? modelContext.fetch(fetch).first {
+                    WorkContractDetailSheet(contract: c) { selectedContract = nil }
+                } else {
+                    ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+                }
             }
         }
         .sheet(item: $selectedWork) { token in
@@ -302,7 +318,8 @@ struct FollowUpInboxView: View {
         case .lessonFollowUp:
             selectedSL = SLToken(id: item.underlyingID)
         case .workCheckIn, .workReview:
-            selectedContract = ContractToken(id: item.underlyingID)
+            // Open WorkModel detail (WorkContract is now read-only for legacy data)
+            selectedWork = WorkToken(id: item.underlyingID)
         }
     }
 }

@@ -6,11 +6,6 @@ struct WorkRepository {
     let context: ModelContext
 
     // MARK: - Fetch
-    /// Fetch a single WorkContract by ID
-    func fetchWork(id: UUID) -> WorkContract? {
-        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-        return (try? context.fetch(descriptor))?.first
-    }
     
     /// Fetch multiple WorkContract entities
     /// - Parameters:
@@ -29,16 +24,101 @@ struct WorkRepository {
         return (try? context.fetch(descriptor)) ?? []
     }
     
-    /// Legacy method: Fetch WorkModel by ID (kept for backward compatibility with legacy data)
-    @available(*, deprecated, message: "Use fetchWork(id:) to fetch WorkContract instead")
+    /// Fetch WorkModel by ID (primary method)
     func fetchWorkModel(id: UUID) -> WorkModel? {
         let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
         return (try? context.fetch(descriptor))?.first
     }
+    
+    /// Legacy method: Fetch WorkContract by ID (deprecated - use fetchWorkModel instead)
+    @available(*, deprecated, message: "Use fetchWorkModel(id:) instead. WorkContract is deprecated in favor of WorkModel.")
+    func fetchWork(id: UUID) -> WorkContract? {
+        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
+        return (try? context.fetch(descriptor))?.first
+    }
 
-    // MARK: - Create (WorkContract)
-    /// Create a new WorkContract for a single student
-    /// Also creates a corresponding WorkModel for migration compatibility.
+    // MARK: - Create (WorkModel)
+    /// Create a new WorkModel for a single student
+    /// This is the primary work creation method. WorkContract is now read-only for legacy data.
+    @discardableResult
+    func createWork(
+        studentID: UUID,
+        lessonID: UUID,
+        title: String? = nil,
+        kind: WorkKind? = nil,
+        presentationID: UUID? = nil,
+        scheduledDate: Date? = nil
+    ) throws -> WorkModel {
+        // Map WorkKind to WorkType
+        let workType: WorkModel.WorkType = {
+            if let kind = kind {
+                switch kind {
+                case .practiceLesson: return .practice
+                case .followUpAssignment: return .followUp
+                case .research: return .research
+                }
+            }
+            // Default based on presentationID presence
+            if presentationID != nil {
+                return .practice
+            }
+            return .followUp
+        }()
+        
+        // Determine studentLessonID from presentationID if available
+        var studentLessonID: UUID? = presentationID
+        
+        // If presentationID is not available, try to find the StudentLesson
+        if studentLessonID == nil {
+            let descriptor = FetchDescriptor<StudentLesson>(
+                predicate: #Predicate { sl in
+                    sl.lessonID == lessonID.uuidString && sl.studentIDs.contains(studentID.uuidString)
+                }
+            )
+            if let sl = (try? context.fetch(descriptor))?.first {
+                studentLessonID = sl.id
+            }
+        }
+        
+        // Create WorkModel
+        let work = WorkModel(
+            id: UUID(),
+            title: title ?? "",
+            workType: workType,
+            studentLessonID: studentLessonID,
+            notes: "",
+            createdAt: Date(),
+            completedAt: nil,
+            participants: [],
+            // Migration-ready fields
+            kind: kind,
+            status: .active,
+            assignedAt: Date(),
+            lastTouchedAt: nil,
+            dueAt: scheduledDate,
+            completionOutcome: nil,
+            legacyContractID: nil
+        )
+        
+        // Create participant for the student
+        let participant = WorkParticipantEntity(
+            studentID: studentID,
+            completedAt: nil,
+            work: work
+        )
+        work.participants = [participant]
+        
+        context.insert(work)
+        try context.save()
+        return work
+    }
+    
+    // MARK: - Legacy Create (WorkContract) - Deprecated
+    /// Legacy method: Create WorkContract (deprecated in favor of createWork)
+    /// WorkContract is now read-only for legacy data. This method now creates WorkModel only.
+    /// Returns the created WorkModel wrapped as a legacy-compatible API.
+    /// Callers should migrate to use createWork directly.
+    @available(*, deprecated, message: "Use createWork instead. WorkContract is deprecated in favor of WorkModel.")
     @discardableResult
     func createWorkContract(
         studentID: UUID,
@@ -47,54 +127,81 @@ struct WorkRepository {
         kind: WorkKind? = nil,
         presentationID: UUID? = nil,
         scheduledDate: Date? = nil
-    ) throws -> WorkContract {
-        let contract = WorkContract(
-            id: UUID(),
-            createdAt: Date(),
-            studentID: studentID.uuidString,
-            lessonID: lessonID.uuidString,
-            presentationID: presentationID?.uuidString,
+    ) throws -> WorkModel {
+        // Create and return WorkModel (WorkContract is read-only for legacy data)
+        return try createWork(
+            studentID: studentID,
+            lessonID: lessonID,
             title: title,
-            status: .active,
-            scheduledDate: scheduledDate,
-            completedAt: nil,
-            legacyStudentLessonID: nil,
-            kind: kind
+            kind: kind,
+            presentationID: presentationID,
+            scheduledDate: scheduledDate
         )
-        context.insert(contract)
-        
-        // Dual-write: Also create WorkModel for migration compatibility
-        let workModel = WorkModel.from(contract: contract, in: context)
-        context.insert(workModel)
-        
-        try context.save()
-        return contract
     }
     
-    // MARK: - Update (WorkContract)
-    /// Mark a WorkContract as completed
-    func markContractCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) throws {
-        guard let contract = fetchWork(id: id) else { return }
-        contract.status = .complete
-        contract.completedAt = Date()
+    // MARK: - Update (WorkModel)
+    /// Mark a WorkModel as completed
+    func markWorkCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) throws {
+        guard let work = fetchWorkModel(id: id) else {
+            // Fallback: try WorkContract for legacy data (read-only)
+            guard let contract = fetchWork(id: id) else { return }
+            contract.status = .complete
+            contract.completedAt = Date()
+            if let outcome = outcome {
+                contract.completionOutcome = outcome
+            }
+            if let note = note {
+                contract.completionNote = note
+            }
+            try context.save()
+            return
+        }
+        work.status = .complete
+        work.completedAt = Date()
         if let outcome = outcome {
-            contract.completionOutcome = outcome
+            work.completionOutcome = outcome
         }
-        if let note = note {
-            contract.completionNote = note
+        if let note = note, !note.isEmpty {
+            work.notes = note
         }
         try context.save()
     }
     
-    /// Update a WorkContract's status
-    func updateContractStatus(id: UUID, status: WorkStatus) throws {
-        guard let contract = fetchWork(id: id) else { return }
-        contract.status = status
+    /// Update a WorkModel's status
+    func updateWorkStatus(id: UUID, status: WorkStatus) throws {
+        guard let work = fetchWorkModel(id: id) else {
+            // Fallback: try WorkContract for legacy data (read-only)
+            guard let contract = fetchWork(id: id) else { return }
+            contract.status = status
+            try context.save()
+            return
+        }
+        work.status = status
         try context.save()
+    }
+    
+    /// Mark a WorkContract as completed (deprecated - use markWorkCompleted)
+    @available(*, deprecated, message: "Use markWorkCompleted instead. WorkContract is deprecated in favor of WorkModel.")
+    func markContractCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) throws {
+        try markWorkCompleted(id: id, outcome: outcome, note: note)
+    }
+    
+    /// Update a WorkContract's status (deprecated - use updateWorkStatus)
+    @available(*, deprecated, message: "Use updateWorkStatus instead. WorkContract is deprecated in favor of WorkModel.")
+    func updateContractStatus(id: UUID, status: WorkStatus) throws {
+        try updateWorkStatus(id: id, status: status)
     }
 
-    // MARK: - Delete (WorkContract)
+    // MARK: - Delete (WorkModel)
     func deleteWork(id: UUID) throws {
+        // Try WorkModel first
+        if let work = fetchWorkModel(id: id) {
+            context.delete(work)
+            try context.save()
+            return
+        }
+        
+        // Fallback: try WorkContract for legacy data (read-only)
         guard let contract = fetchWork(id: id) else { return }
         // Resolve attributes that UI might still touch briefly
         _ = contract.title

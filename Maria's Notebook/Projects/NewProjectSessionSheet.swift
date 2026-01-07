@@ -203,33 +203,45 @@ struct NewProjectSessionSheet: View {
     }
     
     private func createContract(studentID: String, lessonID: UUID, sessionID: UUID, scheduledDate: Date, title: String, instructions: String) {
-        let contract = WorkContract(
-            studentID: studentID,
-            lessonID: lessonID.uuidString,
-            presentationID: nil,
-            status: .active,
-            scheduledDate: scheduledDate,
-            completedAt: nil
-        )
-        contract.sourceContextType = .projectSession
-        contract.sourceContextID = sessionID.uuidString
-        contract.kind = .followUpAssignment
+        // Create WorkModel instead of WorkContract
+        guard let studentUUID = UUID(uuidString: studentID) else { return }
         
-        // Store the "Title" (Role info) in scheduledNote so it appears in lists
-        contract.scheduledNote = title
-        
-        // Note: 'instructions' could be added to a note if WorkContract supported a description field,
-        // or we can insert a ScopedNote if really needed. For now, we rely on the session context.
-        
-        modelContext.insert(contract)
-        
-        // Dual-write: Also create WorkModel for migration compatibility
-        let workModel = WorkModel.from(contract: contract, in: modelContext)
-        modelContext.insert(workModel)
-        
-        // Create a WorkPlanItem (Due Date)
-        let planItem = WorkPlanItem(workID: contract.id, scheduledDate: scheduledDate, reason: .dueDate, note: nil)
-        modelContext.insert(planItem)
+        let repository = WorkRepository(context: modelContext)
+        do {
+            let workModel = try repository.createWork(
+                studentID: studentUUID,
+                lessonID: lessonID,
+                title: title,
+                kind: .followUpAssignment,
+                presentationID: nil,
+                scheduledDate: scheduledDate
+            )
+            
+            // Store session context in notes (WorkModel doesn't have sourceContextType/ID)
+            if !instructions.isEmpty {
+                workModel.notes = instructions
+            }
+            
+            // Create a WorkCheckIn instead of WorkPlanItem (WorkModel uses checkIns)
+            let checkIn = WorkCheckIn(
+                workID: workModel.id,
+                date: scheduledDate,
+                status: .scheduled,
+                purpose: "Due Date",
+                note: "",
+                work: workModel
+            )
+            modelContext.insert(checkIn)
+            if workModel.checkIns == nil { workModel.checkIns = [] }
+            workModel.checkIns = (workModel.checkIns ?? []) + [checkIn]
+        } catch {
+            // WorkModel creation failed - log error but do not create WorkContract
+            // WorkContract is read-only for legacy data
+            #if DEBUG
+            print("⚠️ Failed to create WorkModel for project session: \(error)")
+            #endif
+            // Do not create WorkContract - it is deprecated
+        }
     }
 
     private func resolveGenericProjectLessonID(context: ModelContext) -> UUID {

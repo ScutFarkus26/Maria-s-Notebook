@@ -186,14 +186,19 @@ struct StudentLessonQuickActionsView: View {
                                 })
                                 let exists = modelContext.safeFetchFirst(fetch) != nil
                                 if !exists {
-                                    let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
-                                    c.kind = .followUpAssignment
-                                    c.scheduledNote = trimmed
-                                    modelContext.insert(c)
-                                    
-                                    // Dual-write: Also create WorkModel for migration compatibility
-                                    let workModel = WorkModel.from(contract: c, in: modelContext)
-                                    modelContext.insert(workModel)
+                                    // Create WorkModel instead of WorkContract
+                                    guard let studentUUID = UUID(uuidString: sid),
+                                          let lessonUUID = UUID(uuidString: lidString) else { continue }
+                                    let repository = WorkRepository(context: modelContext)
+                                    let workModel = try? repository.createWork(
+                                        studentID: studentUUID,
+                                        lessonID: lessonUUID,
+                                        title: trimmed,
+                                        kind: .followUpAssignment,
+                                        presentationID: nil,
+                                        scheduledDate: nil
+                                    )
+                                    workModel?.notes = trimmed
                                 }
                             }
                             try? modelContext.save()
@@ -336,14 +341,18 @@ struct StudentLessonQuickActionsView: View {
             })
             let exists = modelContext.safeFetchFirst(fetch) != nil
             if !exists {
-                let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
-                c.kind = .practiceLesson
-                modelContext.insert(c)
-                
-                // Dual-write: Also create WorkModel for migration compatibility
-                let workModel = WorkModel.from(contract: c, in: modelContext)
-                modelContext.insert(workModel)
-                
+                // Create WorkModel instead of WorkContract
+                guard let studentUUID = UUID(uuidString: sid),
+                      let lessonUUID = UUID(uuidString: lidString) else { continue }
+                let repository = WorkRepository(context: modelContext)
+                _ = try? repository.createWork(
+                    studentID: studentUUID,
+                    lessonID: lessonUUID,
+                    title: nil,
+                    kind: .practiceLesson,
+                    presentationID: nil,
+                    scheduledDate: nil
+                )
                 createdAny = true
             }
         }

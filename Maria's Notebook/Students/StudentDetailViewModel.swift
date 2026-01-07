@@ -356,48 +356,71 @@ final class StudentDetailViewModel: ObservableObject {
         return newSL
     }
     
-    /// Ensure a contract exists for a lesson, creating one if needed
-    /// Also creates a corresponding WorkModel for migration compatibility.
-    func ensureContract(for lesson: Lesson, presentationStudentLesson: StudentLesson?, modelContext: ModelContext) -> WorkContract? {
-        let sid = student.id.uuidString
-        let lid = lesson.id.uuidString
+    /// Ensure work exists for a lesson, creating WorkModel if needed
+    /// Returns the WorkModel (WorkContract is read-only for legacy data)
+    func ensureWork(for lesson: Lesson, presentationStudentLesson: StudentLesson?, modelContext: ModelContext) -> WorkModel? {
+        // Check for existing WorkModel first
+        let studentLessonID = presentationStudentLesson?.id
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
-        let predicate = #Predicate<WorkContract> { contract in
-            contract.studentID == sid &&
-            contract.lessonID == lid &&
-            (contract.statusRaw == activeRaw || contract.statusRaw == reviewRaw)
+        
+        // Fetch all WorkModels and filter in memory (no predicates)
+        let allWorkModels = (try? modelContext.fetch(FetchDescriptor<WorkModel>())) ?? []
+        let existingWork = allWorkModels.first { work in
+            work.studentLessonID == studentLessonID &&
+            (work.statusRaw == activeRaw || work.statusRaw == reviewRaw)
         }
-        let descriptor = FetchDescriptor<WorkContract>(predicate: predicate)
-        if let existing = (try? modelContext.fetch(descriptor))?.first {
+        
+        if let existing = existingWork {
             return existing
         }
         
-        let newContract = WorkContract(
-            id: UUID(),
-            createdAt: Date(),
-            studentID: student.id.uuidString,
-            lessonID: lesson.id.uuidString,
-            presentationID: presentationStudentLesson?.id.uuidString,
-            status: .active,
-            scheduledDate: nil,
-            completedAt: nil,
-            legacyStudentLessonID: nil
-        )
-        modelContext.insert(newContract)
-        
-        // Dual-write: Also create WorkModel for migration compatibility
-        let workModel = WorkModel.from(contract: newContract, in: modelContext)
-        modelContext.insert(workModel)
-        
-        try? modelContext.save()
-        return newContract
+        // Create new WorkModel
+        let repository = WorkRepository(context: modelContext)
+        do {
+            return try repository.createWork(
+                studentID: student.id,
+                lessonID: lesson.id,
+                title: nil,
+                kind: nil,
+                presentationID: presentationStudentLesson?.id,
+                scheduledDate: nil
+            )
+        } catch {
+            return nil
+        }
     }
     
-    /// Fetch a contract by ID
-    func fetchContract(by id: UUID, modelContext: ModelContext) -> WorkContract? {
-        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == id })
+    /// Legacy method: Returns WorkContract for backward compatibility (deprecated)
+    /// Uses WorkLegacyAdapter to map to WorkModel if available.
+    @available(*, deprecated, message: "Use ensureWork instead. WorkContract is deprecated in favor of WorkModel.")
+    func ensureContract(for lesson: Lesson, presentationStudentLesson: StudentLesson?, modelContext: ModelContext) -> WorkContract? {
+        guard let workModel = ensureWork(for: lesson, presentationStudentLesson: presentationStudentLesson, modelContext: modelContext) else {
+            return nil
+        }
+        
+        // Use legacy adapter to find WorkContract if it exists
+        let adapter = WorkLegacyAdapter(modelContext: modelContext)
+        if let legacyID = workModel.legacyContractID {
+            // Fetch all WorkContracts and filter in memory (no predicates)
+            let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
+            return allContracts.first { $0.id == legacyID }
+        }
+        return nil
+    }
+    
+    /// Fetch a WorkModel by ID (primary method)
+    func fetchWork(by id: UUID, modelContext: ModelContext) -> WorkModel? {
+        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> { $0.id == id })
         return (try? modelContext.fetch(descriptor))?.first
+    }
+    
+    /// Fetch a contract by ID (legacy - use fetchWork instead)
+    @available(*, deprecated, message: "Use fetchWork instead. WorkContract is deprecated in favor of WorkModel.")
+    func fetchContract(by id: UUID, modelContext: ModelContext) -> WorkContract? {
+        // Fetch all WorkContracts and filter in memory (no predicates)
+        let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
+        return allContracts.first { $0.id == id }
     }
 }
 

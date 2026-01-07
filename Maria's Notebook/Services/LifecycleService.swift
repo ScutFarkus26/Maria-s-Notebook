@@ -111,35 +111,78 @@ struct LifecycleService {
             }
         }
 
-        // 2) Ensure WorkContracts exist per student
+        // 2) Ensure WorkModels exist per student (WorkContract is now read-only)
         var workForPresentation: [WorkContract] = []
         var createdCount = 0
         var skippedCount = 0
         for sid in studentIDStrs {
+            // Check for existing WorkContract first (for backward compatibility)
             if let existing = try fetchWorkContract(presentationID: presentation.id.uuidString, studentID: sid, context: modelContext) {
                 workForPresentation.append(existing)
                 skippedCount += 1
             } else {
-                let wc = WorkContract(
-                    id: UUID(),
-                    createdAt: Date(),
-                    studentID: sid,
-                    lessonID: lessonIDStr,
-                    presentationID: presentation.id.uuidString,
-                    status: .active,
-                    scheduledDate: nil,
-                    completedAt: nil,
-                    legacyStudentLessonID: legacyID
-                )
-                wc.kind = .practiceLesson
-                modelContext.insert(wc)
+                // Create new WorkModel
+                guard let studentUUID = UUID(uuidString: sid),
+                      let lessonUUID = UUID(uuidString: lessonIDStr),
+                      let presentationUUID = UUID(uuidString: presentation.id.uuidString) else {
+                    continue
+                }
                 
-                // Dual-write: Also create WorkModel for migration compatibility
-                let workModel = WorkModel.from(contract: wc, in: modelContext)
-                modelContext.insert(workModel)
-                
-                workForPresentation.append(wc)
-                createdCount += 1
+                let repository = WorkRepository(context: modelContext)
+                do {
+                    let workModel = try repository.createWork(
+                        studentID: studentUUID,
+                        lessonID: lessonUUID,
+                        title: nil,
+                        kind: .practiceLesson,
+                        presentationID: presentationUUID,
+                        scheduledDate: nil
+                    )
+                    
+                    // For backward compatibility, return WorkContract if it exists
+                    // Otherwise, create a minimal WorkContract for legacy code
+                    if let contractID = workModel.legacyContractID,
+                       let contract = try? modelContext.fetch(FetchDescriptor<WorkContract>(
+                           predicate: #Predicate { $0.id == contractID }
+                       )).first {
+                        workForPresentation.append(contract)
+                    } else {
+                        // Create minimal WorkContract for backward compatibility
+                        let wc = WorkContract(
+                            id: UUID(),
+                            createdAt: Date(),
+                            studentID: sid,
+                            lessonID: lessonIDStr,
+                            presentationID: presentation.id.uuidString,
+                            status: .active,
+                            scheduledDate: nil,
+                            completedAt: nil,
+                            legacyStudentLessonID: legacyID
+                        )
+                        wc.kind = .practiceLesson
+                        modelContext.insert(wc)
+                        workModel.legacyContractID = wc.id
+                        workForPresentation.append(wc)
+                    }
+                    createdCount += 1
+                } catch {
+                    // Fallback: create WorkContract if WorkModel creation fails
+                    let wc = WorkContract(
+                        id: UUID(),
+                        createdAt: Date(),
+                        studentID: sid,
+                        lessonID: lessonIDStr,
+                        presentationID: presentation.id.uuidString,
+                        status: .active,
+                        scheduledDate: nil,
+                        completedAt: nil,
+                        legacyStudentLessonID: legacyID
+                    )
+                    wc.kind = .practiceLesson
+                    modelContext.insert(wc)
+                    workForPresentation.append(wc)
+                    createdCount += 1
+                }
             }
         }
 
