@@ -8,7 +8,7 @@ import Combine
 @MainActor
 class ReminderSyncService: ObservableObject {
     private let eventStore = EKEventStore()
-    var modelContext: ModelContext
+    var modelContext: ModelContext?
     
     /// The name of the Reminders list to sync from
     /// If nil, syncing is disabled
@@ -21,7 +21,7 @@ class ReminderSyncService: ObservableObject {
     /// Whether EventKit access has been authorized
     @Published var authorizationStatus: EKAuthorizationStatus = .notDetermined
     
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext? = nil) {
         self.modelContext = modelContext
         self.syncListName = UserDefaults.standard.string(forKey: "ReminderSync.syncListName")
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
@@ -100,6 +100,11 @@ class ReminderSyncService: ObservableObject {
         // Check authorization
         guard hasFullAccess else {
             throw ReminderSyncError.notAuthorized
+        }
+        
+        // Check if modelContext is available
+        guard let modelContext = modelContext else {
+            throw ReminderSyncError.modelContextUnavailable
         }
         
         // Check if sync is configured
@@ -199,6 +204,9 @@ class ReminderSyncService: ObservableObject {
     }
     
     private func fetchAllReminders() throws -> [Reminder] {
+        guard let modelContext = modelContext else {
+            return []
+        }
         let descriptor = FetchDescriptor<Reminder>()
         return try modelContext.fetch(descriptor)
     }
@@ -234,6 +242,7 @@ enum ReminderSyncError: LocalizedError {
     case notAuthorized
     case noSyncListConfigured
     case listNotFound(String)
+    case modelContextUnavailable
     
     var errorDescription: String? {
         switch self {
@@ -243,6 +252,8 @@ enum ReminderSyncError: LocalizedError {
             return "No Reminders list has been configured for syncing."
         case .listNotFound(let name):
             return "Reminders list '\(name)' not found. Please check the list name in settings."
+        case .modelContextUnavailable:
+            return "Database context is not available. Please try again."
         }
     }
 }

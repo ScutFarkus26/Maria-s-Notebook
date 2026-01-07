@@ -12,11 +12,16 @@ public struct ReminderSyncSettingsView: View {
     @State private var lastSyncStatus: String? = nil
     
     public init() {
-        // Create a temporary in-memory container for initialization; real context is set in onAppear
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        // In-memory containers should always succeed for temporary use
-        let container = try! ModelContainer(for: AppSchema.schema, configurations: config)
-        let tempContext = container.mainContext
+        // Initialize without a modelContext; real context is set in onAppear
+        // Using try? to gracefully handle any schema issues that might prevent container creation
+        let tempContext: ModelContext? = {
+            let config = ModelConfiguration(isStoredInMemoryOnly: true)
+            guard let container = try? ModelContainer(for: AppSchema.schema, configurations: config) else {
+                // If container creation fails, we'll use nil and set it properly in onAppear
+                return nil
+            }
+            return container.mainContext
+        }()
         _syncService = StateObject(wrappedValue: ReminderSyncService(modelContext: tempContext))
     }
     

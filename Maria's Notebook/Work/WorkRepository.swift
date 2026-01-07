@@ -114,13 +114,13 @@ struct WorkRepository {
     }
     
     // MARK: - Legacy Create (WorkContract) - Deprecated
-    /// Legacy method: Create WorkContract (deprecated in favor of createWork)
-    /// WorkContract is now read-only for legacy data. This method now creates WorkModel only.
-    /// Returns the created WorkModel wrapped as a legacy-compatible API.
+    /// Legacy compatibility method: Creates WorkModel (WorkContract is read-only for legacy data)
+    /// This method provides a legacy-compatible API that returns WorkModel instead of WorkContract.
     /// Callers should migrate to use createWork directly.
+    /// - Returns: The created WorkModel (never nil - throws on error)
     @available(*, deprecated, message: "Use createWork instead. WorkContract is deprecated in favor of WorkModel.")
     @discardableResult
-    func createWorkContract(
+    func createWorkLegacyCompat(
         studentID: UUID,
         lessonID: UUID,
         title: String? = nil,
@@ -129,7 +129,7 @@ struct WorkRepository {
         scheduledDate: Date? = nil
     ) throws -> WorkModel {
         #if DEBUG
-        print("⚠️ createWorkContract called - migrating to WorkModel (call site: \(#file):\(#line))")
+        print("⚠️ createWorkLegacyCompat called - migrating to WorkModel (call site: \(#file):\(#line))")
         #endif
         // Create and return WorkModel (WorkContract is read-only for legacy data)
         // This method never returns nil - it always returns a WorkModel or throws
@@ -221,8 +221,8 @@ struct WorkRepository {
     }
     
     // MARK: - Legacy Methods (WorkModel) - Deprecated
-    /// Legacy method: Create WorkModel (deprecated in favor of WorkContract)
-    @available(*, deprecated, message: "Use createWorkContract instead. WorkModel is deprecated in favor of WorkContract.")
+    /// Legacy method: Create WorkModel (deprecated in favor of createWork)
+    @available(*, deprecated, message: "Use createWork instead. This legacy method is deprecated.")
     @discardableResult
     func createWork(title: String,
                     studentIDs: [UUID],

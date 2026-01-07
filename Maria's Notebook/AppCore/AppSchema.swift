@@ -33,5 +33,7 @@ struct AppSchema {
         ProjectTemplateWeek.self,
         ProjectWeekRoleAssignment.self,
         Reminder.self,
+        Track.self,
+        TrackStep.self,
     ])
 }

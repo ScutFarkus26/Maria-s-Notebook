@@ -57,8 +57,10 @@ struct WorkAgendaCalendarPane: View {
         )) {
             if let token = selected {
                 let id = token.contractID
-                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-                if let c = try? modelContext.fetch(fetch).first {
+                // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
+                let allContractsDescriptor = FetchDescriptor<WorkContract>()
+                if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+                   let c = allContracts.first(where: { $0.id == id }) {
                     WorkContractDetailSheet(contract: c) { selected = nil }
                         .id(token.id)
                 } else {
@@ -145,8 +147,10 @@ struct WorkAgendaCalendarPane: View {
     // MARK: - Formatting helpers
     private func workTitle(for id: UUID) -> String {
         // Try to resolve from WorkContract, then Lesson name; fall back to a short lesson id or generic label.
-        let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-        if let c = try? modelContext.fetch(fetch).first {
+        // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
+        let allContractsDescriptor = FetchDescriptor<WorkContract>()
+        if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+           let c = allContracts.first(where: { $0.id == id }) {
             if let lid = c.lessonID.asUUID {
                 let lFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lid })
                 if let l = try? modelContext.fetch(lFetch).first {
@@ -161,8 +165,11 @@ struct WorkAgendaCalendarPane: View {
     }
 
     private func studentName(for id: UUID) -> String {
-        let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-        if let c = try? modelContext.fetch(fetch).first, let sid = c.studentID.asUUID {
+        // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
+        let allContractsDescriptor = FetchDescriptor<WorkContract>()
+        if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+           let c = allContracts.first(where: { $0.id == id }),
+           let sid = c.studentID.asUUID {
             let sFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == sid })
             if let s = try? modelContext.fetch(sFetch).first {
                 return StudentFormatter.displayName(for: s)
@@ -254,8 +261,10 @@ struct WorkAgendaCalendarPane: View {
                 case .work(let id):
                     prompt = PlanPrompt(workID: id, date: AppCalendar.startOfDay(day))
                     // Tentatively sync the contract's scheduledDate; final save happens on prompt Save
-                    let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-                    if let c = try? modelContext.fetch(fetch).first {
+                    // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
+                    let allContractsDescriptor = FetchDescriptor<WorkContract>()
+                    if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+                       let c = allContracts.first(where: { $0.id == id }) {
                         c.scheduledDate = AppCalendar.startOfDay(day)
                         _ = saveCoordinator.save(modelContext, reason: "Sync contract scheduledDate on drop (prompt pending)")
                     }
@@ -265,8 +274,10 @@ struct WorkAgendaCalendarPane: View {
                     let fetchPI = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
                     if let item = try? modelContext.fetch(fetchPI).first,
                        let wid = item.workID.asUUID {
-                        let fetchWC = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == wid })
-                        if let c = try? modelContext.fetch(fetchWC).first {
+                        // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
+                        let allContractsDescriptor = FetchDescriptor<WorkContract>()
+                        if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+                           let c = allContracts.first(where: { $0.id == wid }) {
                             c.scheduledDate = AppCalendar.startOfDay(day)
                             _ = saveCoordinator.save(modelContext, reason: "Sync contract scheduledDate on calendar move")
                         }
@@ -282,13 +293,16 @@ struct WorkAgendaCalendarPane: View {
         let normalized = AppCalendar.startOfDay(date)
         let item = WorkPlanItem(workID: workID, scheduledDate: normalized, reason: reason, note: note.isEmpty ? nil : note)
         modelContext.insert(item)
-        let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == workID })
-        if let c = try? modelContext.fetch(fetch).first {
+        // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
+        let allContractsDescriptor = FetchDescriptor<WorkContract>()
+        if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+           let c = allContracts.first(where: { $0.id == workID }) {
             c.scheduledDate = normalized
         }
         _ = saveCoordinator.save(modelContext, reason: "Create WorkPlanItem")
         #if DEBUG
-        if let c = try? modelContext.fetch(fetch).first {
+        if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+           let c = allContracts.first(where: { $0.id == workID }) {
             let allItems = (try? modelContext.fetch(FetchDescriptor<WorkPlanItem>())) ?? []
             let desc = WorkAgingDebug.describe(contract: c, modelContext: modelContext, planItems: allItems)
             debugPrint("WorkAgingDebug(savePlan):", desc)
@@ -301,8 +315,10 @@ struct WorkAgendaCalendarPane: View {
         if let item = try? modelContext.fetch(fetch).first,
            let wid = item.workID.asUUID {
             item.scheduledDate = AppCalendar.startOfDay(day)
-            let fetchWC = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> { $0.id == wid })
-            if let c = try? modelContext.fetch(fetchWC).first {
+            // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
+            let allContractsDescriptor = FetchDescriptor<WorkContract>()
+            if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+               let c = allContracts.first(where: { $0.id == wid }) {
                 c.scheduledDate = AppCalendar.startOfDay(day)
             }
             _ = saveCoordinator.save(modelContext, reason: "Reschedule WorkPlanItem")

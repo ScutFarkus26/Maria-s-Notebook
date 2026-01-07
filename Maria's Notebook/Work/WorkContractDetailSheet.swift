@@ -18,7 +18,7 @@ struct WorkContractDetailSheet: View {
     @State private var relatedStudent: Student? = nil
     
     @Query private var workNotes: [ScopedNote] // Legacy notes
-    @Query private var contractNotes: [Note] // New unified notes
+    @State private var contractNotes: [Note] = [] // New unified notes - fetched in memory to avoid predicate issues
     @Query private var presentations: [Presentation]
     @Query private var planItems: [WorkPlanItem]
     @Query private var peerContracts: [WorkContract]
@@ -68,8 +68,7 @@ struct WorkContractDetailSheet: View {
         let contractID = contract.id
         let workID = contractID.uuidString
         _workNotes = Query(filter: #Predicate<ScopedNote> { $0.workContractID == workID })
-        // Query for new unified notes attached to this contract
-        _contractNotes = Query(filter: #Predicate<Note> { $0.workContract?.id == contractID })
+        // Query for new unified notes attached to this contract - fetch all and filter in memory to avoid predicate issues with optional WorkContract
         // CloudKit compatibility: workID is now String, so use workID string
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workID })
         let lessonID = contract.lessonID
@@ -119,6 +118,7 @@ struct WorkContractDetailSheet: View {
         .onAppear {
             loadRelatedData()
             checkForWorkModelMapping()
+            loadContractNotes()
             #if DEBUG
             PerformanceLogger.logScreenLoad(
                 screenName: "WorkContractDetailSheet",
@@ -446,6 +446,15 @@ struct WorkContractDetailSheet: View {
     }
 
     private func reloadPresentationNotes() { /* Logic for ScopedNotes */ }
+    
+    /// Load contract notes by fetching all notes and filtering in memory (avoid predicate issues with optional WorkContract)
+    private func loadContractNotes() {
+        let contractID = contract.id
+        let allNotesDescriptor = FetchDescriptor<Note>()
+        if let allNotes = try? modelContext.fetch(allNotesDescriptor) {
+            contractNotes = allNotes.filter { $0.workContract?.id == contractID }
+        }
+    }
 
     private func labelForOutcome(_ o: CompletionOutcome) -> String {
         switch o {

@@ -336,10 +336,27 @@ struct MariasToolboxApp: App {
                         )
                     }
                     
+                    // Check if iCloud is available before attempting CloudKit container creation
+                    if FileManager.default.ubiquityIdentityToken == nil {
+                        #if DEBUG
+                        print("SwiftData: iCloud is not available (not signed in). Skipping CloudKit container creation.")
+                        #endif
+                        // Store error state
+                        let errorMessage = "Not signed into iCloud. Please sign in to System Settings > Apple ID > iCloud to enable sync."
+                        UserDefaults.standard.set(errorMessage, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
+                        // Fall back to local store
+                        let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
+                        let container = try ModelContainer(for: schema, configurations: config)
+                        return container
+                    }
+                    
                     guard let containerID = MariasToolboxApp.getCloudKitContainerID() else {
                         #if DEBUG
                         print("SwiftData: Missing CloudKit container identifier. Falling back to local store without CloudKit.")
                         #endif
+                        let errorMessage = "Missing CloudKit container identifier. CloudKit sync cannot be initialized."
+                        UserDefaults.standard.set(errorMessage, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
                         let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
                         let container = try ModelContainer(for: schema, configurations: config)
                         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
@@ -364,6 +381,8 @@ struct MariasToolboxApp: App {
                             print("SwiftData:   and harmless - they occur during SwiftData's internal initialization.")
                             #endif
                             UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
+                            // Clear any previous error since CloudKit is now active
+                            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
                             return container
                         } catch {
                             // CloudKit initialization failed - log detailed error and fall back to local store
@@ -375,6 +394,20 @@ struct MariasToolboxApp: App {
                             }
                             print("SwiftData: Falling back to local store without CloudKit sync.")
                             #endif
+                            // Store the error for display in the UI
+                            let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
+                            if let nsError = error as NSError?, let userInfo = nsError.userInfo as? [String: Any] {
+                                // Try to get more detailed error information
+                                var detailedError = errorDescription
+                                if let underlyingError = userInfo[NSUnderlyingErrorKey] as? NSError {
+                                    detailedError = underlyingError.localizedDescription
+                                } else if let errorMessage = userInfo[NSLocalizedDescriptionKey] as? String {
+                                    detailedError = errorMessage
+                                }
+                                UserDefaults.standard.set(detailedError, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                            } else {
+                                UserDefaults.standard.set(errorDescription, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                            }
                             // Fall back to local store
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
                             let container = try ModelContainer(for: schema, configurations: config)
@@ -402,6 +435,8 @@ struct MariasToolboxApp: App {
                             print("SwiftData:   and harmless - they occur during SwiftData's internal initialization.")
                             #endif
                             UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
+                            // Clear any previous error since CloudKit is now active
+                            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
                             return container
                         } catch {
                             // CloudKit initialization failed - log detailed error and fall back to local store
@@ -413,6 +448,20 @@ struct MariasToolboxApp: App {
                             }
                             print("SwiftData: Falling back to local store without CloudKit sync.")
                             #endif
+                            // Store the error for display in the UI
+                            let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
+                            if let nsError = error as NSError?, let userInfo = nsError.userInfo as? [String: Any] {
+                                // Try to get more detailed error information
+                                var detailedError = errorDescription
+                                if let underlyingError = userInfo[NSUnderlyingErrorKey] as? NSError {
+                                    detailedError = underlyingError.localizedDescription
+                                } else if let errorMessage = userInfo[NSLocalizedDescriptionKey] as? String {
+                                    detailedError = errorMessage
+                                }
+                                UserDefaults.standard.set(detailedError, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                            } else {
+                                UserDefaults.standard.set(errorDescription, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                            }
                             // Fall back to local store
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
                             let container = try ModelContainer(for: schema, configurations: config)

@@ -758,19 +758,57 @@ private struct EphemeralStoreWarningBanner: View {
 
 /// Warning banner displayed when CloudKit sync is enabled but not active.
 private struct CloudKitSyncWarningBanner: View {
+    @Environment(\.appRouter) private var appRouter
+    
+    private var isiCloudSignedIn: Bool {
+        FileManager.default.ubiquityIdentityToken != nil
+    }
+    
+    private var errorDescription: String? {
+        UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+    }
+    
+    private var warningTitle: String {
+        if !isiCloudSignedIn {
+            return "⚠️ Not Signed Into iCloud"
+        } else if let error = errorDescription, !error.isEmpty {
+            return "⚠️ CloudKit Init Failed"
+        } else {
+            return "⚠️ iCloud Sync Issue"
+        }
+    }
+    
+    private var warningMessage: String {
+        if !isiCloudSignedIn {
+            return "Sign in to iCloud in System Settings to enable sync across devices."
+        } else if let error = errorDescription, !error.isEmpty {
+            return error
+        } else {
+            return "Sync is enabled but not currently active."
+        }
+    }
+    
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "icloud.slash")
+            Image(systemName: isiCloudSignedIn ? "icloud.slash" : "person.crop.circle.badge.exclamationmark")
                 .foregroundStyle(.yellow)
             VStack(alignment: .leading, spacing: 2) {
-                Text("⚠️ iCloud Sync Issue")
+                Text(warningTitle)
                     .font(.callout)
                     .fontWeight(.bold)
-                Text("Sync is enabled but not currently active.")
+                Text(warningMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
             Spacer()
+            Button {
+                appRouter.navigateTo(.settings)
+            } label: {
+                Label("Settings", systemImage: "gear")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

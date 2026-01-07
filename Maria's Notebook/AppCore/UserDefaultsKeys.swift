@@ -10,6 +10,7 @@ enum UserDefaultsKeys {
     static let allowLocalStoreFallback = "AllowLocalStoreFallback"
     static let enableCloudKitSync = "EnableCloudKitSync"
     static let cloudKitActive = "CloudKitActive"
+    static let cloudKitLastErrorDescription = "CloudKitLastErrorDescription"
     
     // MARK: - Planning
     static let planningRootViewMode = "PlanningRootView.mode"

@@ -302,11 +302,11 @@ final class TodayViewModel: ObservableObject {
             loadLessonsIfNeeded(ids: contractLessonIDs)
             
             // Fetch Plan Items for the contracts we need
+            // Fetch all and filter in memory to avoid predicate issues with Set.contains
             let contractIDStrings = Set(contracts.map { $0.id.uuidString })
-            let planDescriptor = FetchDescriptor<WorkPlanItem>(
-                predicate: #Predicate { contractIDStrings.contains($0.workID) }
-            )
-            let planItems = try context.fetch(planDescriptor)
+            let allPlanItemsDescriptor = FetchDescriptor<WorkPlanItem>()
+            let allPlanItems = try context.fetch(allPlanItemsDescriptor)
+            let planItems = allPlanItems.filter { contractIDStrings.contains($0.workID) }
             let planItemsByContract = planItems.grouped { CloudKitUUID.uuid(from: $0.workID) ?? UUID() }
             
             // Fetch Notes that have a workContractID matching our contracts

@@ -6,9 +6,10 @@ struct WorkDetailWindowContainer: View {
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        if let contract = try? modelContext.fetch(
-            FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == workID })
-        ).first {
+        // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
+        let allContractsDescriptor = FetchDescriptor<WorkContract>()
+        if let allContracts = try? modelContext.fetch(allContractsDescriptor),
+           let contract = allContracts.first(where: { $0.id == workID }) {
             WorkContractDetailSheet(contract: contract)
                 #if os(macOS)
                 .frame(minWidth: 500, minHeight: 400)
