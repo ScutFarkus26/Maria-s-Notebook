@@ -133,6 +133,11 @@ struct LifecycleService {
                 )
                 wc.kind = .practiceLesson
                 modelContext.insert(wc)
+                
+                // Dual-write: Also create WorkModel for migration compatibility
+                let workModel = WorkModel.from(contract: wc, in: modelContext)
+                modelContext.insert(workModel)
+                
                 workForPresentation.append(wc)
                 createdCount += 1
             }

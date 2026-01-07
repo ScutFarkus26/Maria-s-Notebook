@@ -23,6 +23,22 @@ import SwiftUI
     @Relationship(deleteRule: .cascade, inverse: \Note.work) var noteItems: [Note]? = []
     @Relationship(deleteRule: .cascade, inverse: \ScopedNote.work) var scopedNotes: [ScopedNote]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkNote.work) var checkNotes: [WorkNote]? = []
+    
+    // MARK: - Migration-ready fields (for WorkContract compatibility)
+    /// Work kind (migration-ready, aligns with WorkContract.kind)
+    var kindRaw: String? = nil
+    /// Work status (migration-ready, aligns with WorkContract.status)
+    var statusRaw: String = WorkStatus.active.rawValue
+    /// When the work was assigned (defaults to createdAt if not set)
+    var assignedAt: Date = Date()
+    /// Last meaningful touch date (for aging calculations)
+    var lastTouchedAt: Date? = nil
+    /// Due date (maps from WorkContract.scheduledDate)
+    var dueAt: Date? = nil
+    /// Completion outcome (migration-ready, aligns with WorkContract.completionOutcome)
+    var completionOutcomeRaw: String? = nil
+    /// Legacy contract ID for traceability during migration
+    var legacyContractID: UUID? = nil
 
     init(
         id: UUID = UUID(),
@@ -32,7 +48,15 @@ import SwiftUI
         notes: String = "",
         createdAt: Date = Date(),
         completedAt: Date? = nil,
-        participants: [WorkParticipantEntity] = []
+        participants: [WorkParticipantEntity] = [],
+        // Migration-ready parameters
+        kind: WorkKind? = nil,
+        status: WorkStatus = .active,
+        assignedAt: Date? = nil,
+        lastTouchedAt: Date? = nil,
+        dueAt: Date? = nil,
+        completionOutcome: CompletionOutcome? = nil,
+        legacyContractID: UUID? = nil
     ) {
         self.id = id
         self.title = title
@@ -47,11 +71,40 @@ import SwiftUI
         self.noteItems = []
         self.scopedNotes = []
         for p in (self.participants ?? []) { p.work = self }
+        
+        // Migration-ready fields
+        self.kindRaw = kind?.rawValue
+        self.statusRaw = status.rawValue
+        self.assignedAt = assignedAt ?? createdAt
+        self.lastTouchedAt = lastTouchedAt
+        self.dueAt = dueAt
+        self.completionOutcomeRaw = completionOutcome?.rawValue
+        self.legacyContractID = legacyContractID
     }
 
     var workType: WorkType {
         get { WorkType(rawValue: workTypeRaw) ?? .research }
         set { workTypeRaw = newValue.rawValue }
+    }
+    
+    // MARK: - Migration-ready computed properties
+    
+    /// Work kind (migration-ready, aligns with WorkContract.kind)
+    var kind: WorkKind? {
+        get { kindRaw.flatMap { WorkKind(rawValue: $0) } }
+        set { kindRaw = newValue?.rawValue }
+    }
+    
+    /// Work status (migration-ready, aligns with WorkContract.status)
+    var status: WorkStatus {
+        get { WorkStatus(rawValue: statusRaw) ?? .active }
+        set { statusRaw = newValue.rawValue }
+    }
+    
+    /// Completion outcome (migration-ready, aligns with WorkContract.completionOutcome)
+    var completionOutcome: CompletionOutcome? {
+        get { completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) } }
+        set { completionOutcomeRaw = newValue?.rawValue }
     }
 
     // MARK: - Completion helpers
@@ -59,12 +112,23 @@ import SwiftUI
 
     /// A work item is considered open if any participant has not completed their work.
     /// If there are no participants, treat it as open so it appears in triage lists.
+    /// Migration-ready: Also checks status for WorkContract compatibility.
     var isOpen: Bool {
-        // If no participants have been assigned, consider it open
+        // Migration-ready: Check status first (for WorkContract compatibility)
+        if status == .complete { return false }
+        // Legacy behavior: If no participants have been assigned, consider it open
         if (participants ?? []).isEmpty { return true }
         // Otherwise open if any participant has not completed
         return (participants ?? []).contains { $0.completedAt == nil }
     }
+    
+    // MARK: - Status Helpers (migration-ready, aligns with WorkContract)
+    
+    /// Convenience computed properties for status checks (not usable in predicates)
+    var isActive: Bool { status == .active }
+    var isReview: Bool { status == .review }
+    var isComplete: Bool { status == .complete }
+    var isIncomplete: Bool { status == .active || status == .review }
 
     func participant(for studentID: UUID) -> WorkParticipantEntity? {
         let studentIDString = studentID.uuidString

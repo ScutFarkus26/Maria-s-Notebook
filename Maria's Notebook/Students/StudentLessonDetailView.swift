@@ -722,6 +722,11 @@ struct StudentLessonDetailContentView: View {
                 let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
                 c.kind = WorkKind.followUpAssignment // Explicit Type
                 modelContext.insert(c)
+                
+                // Dual-write: Also create WorkModel for migration compatibility
+                let workModel = WorkModel.from(contract: c, in: modelContext)
+                modelContext.insert(workModel)
+                
                 contract = c
             }
 

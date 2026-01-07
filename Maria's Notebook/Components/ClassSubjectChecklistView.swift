@@ -470,7 +470,13 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     
     private func findOrCreateContract(student: Student, lesson: Lesson, context: ModelContext) -> WorkContract {
         if let existing = fetchContracts(student: student, lesson: lesson, context: context).first { return existing }
-        let c = WorkContract(studentID: student.id.uuidString, lessonID: lesson.id.uuidString); context.insert(c)
+        let c = WorkContract(studentID: student.id.uuidString, lessonID: lesson.id.uuidString)
+        context.insert(c)
+        
+        // Dual-write: Also create WorkModel for migration compatibility
+        let workModel = WorkModel.from(contract: c, in: context)
+        context.insert(workModel)
+        
         return c
     }
 }

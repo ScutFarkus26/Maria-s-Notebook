@@ -38,6 +38,7 @@ struct WorkRepository {
 
     // MARK: - Create (WorkContract)
     /// Create a new WorkContract for a single student
+    /// Also creates a corresponding WorkModel for migration compatibility.
     @discardableResult
     func createWorkContract(
         studentID: UUID,
@@ -61,6 +62,11 @@ struct WorkRepository {
             kind: kind
         )
         context.insert(contract)
+        
+        // Dual-write: Also create WorkModel for migration compatibility
+        let workModel = WorkModel.from(contract: contract, in: context)
+        context.insert(workModel)
+        
         try context.save()
         return contract
     }

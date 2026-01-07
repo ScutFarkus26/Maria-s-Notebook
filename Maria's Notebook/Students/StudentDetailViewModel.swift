@@ -357,6 +357,7 @@ final class StudentDetailViewModel: ObservableObject {
     }
     
     /// Ensure a contract exists for a lesson, creating one if needed
+    /// Also creates a corresponding WorkModel for migration compatibility.
     func ensureContract(for lesson: Lesson, presentationStudentLesson: StudentLesson?, modelContext: ModelContext) -> WorkContract? {
         let sid = student.id.uuidString
         let lid = lesson.id.uuidString
@@ -384,6 +385,11 @@ final class StudentDetailViewModel: ObservableObject {
             legacyStudentLessonID: nil
         )
         modelContext.insert(newContract)
+        
+        // Dual-write: Also create WorkModel for migration compatibility
+        let workModel = WorkModel.from(contract: newContract, in: modelContext)
+        modelContext.insert(workModel)
+        
         try? modelContext.save()
         return newContract
     }

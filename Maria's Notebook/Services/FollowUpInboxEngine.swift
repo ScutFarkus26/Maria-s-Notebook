@@ -91,6 +91,36 @@ struct FollowUpInboxEngine {
         modelContext: ModelContext,
         constants: Constants = Constants()
     ) -> [FollowUpInboxItem] {
+        // Migration flag: choose work source internally
+        if WorkMigrationFlags.useWorkModelInInbox {
+            // TODO: WorkModel path will be implemented in PROMPT 5
+            // For now, fall through to WorkContract path to preserve behavior
+        }
+        
+        // Default path: use WorkContract (existing behavior)
+        return computeItemsFromContracts(
+            lessons: lessons,
+            students: students,
+            studentLessons: studentLessons,
+            contracts: contracts,
+            planItems: planItems,
+            notes: notes,
+            modelContext: modelContext,
+            constants: constants
+        )
+    }
+    
+    /// Internal helper: compute items from WorkContract (existing implementation)
+    private static func computeItemsFromContracts(
+        lessons: [Lesson],
+        students: [Student],
+        studentLessons: [StudentLesson],
+        contracts: [WorkContract],
+        planItems: [WorkPlanItem],
+        notes: [ScopedNote],
+        modelContext: ModelContext,
+        constants: Constants
+    ) -> [FollowUpInboxItem] {
         var results: [FollowUpInboxItem] = []
         let lessonsByID: [UUID: Lesson] = lessons.toDictionary(by: \.id)
         let studentsByID: [UUID: Student] = students.toDictionary(by: \.id)

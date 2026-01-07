@@ -240,6 +240,237 @@ enum WorkContractAging {
     }
 }
 
+// MARK: - WorkModel Aging Policy
+/// Computes aging/overdue metrics for a WorkModel using the same policy as WorkContractAging.
+/// This provides a unified aging policy across both work models.
+enum WorkAgingPolicy {
+    /// Returns the most recent meaningful touch date for a work model.
+    /// Priority:
+    /// 1) WorkModel.lastTouchedAt (if explicitly set)
+    /// 2) Most recent past completed check-in date (from WorkCheckIn)
+    /// 3) Most recent note timestamp (updatedAt, then createdAt)
+    /// 4) Most recent status change timestamp (completedAt if present)
+    /// 5) Fallback: assignedAt or createdAt
+    nonisolated static func lastMeaningfulTouchDate(
+        for work: WorkModel,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [ScopedNote]? = nil
+    ) -> Date {
+        let today = AppCalendar.startOfDay(Date())
+        
+        // 1) Explicit lastTouchedAt (highest priority)
+        if let lastTouched = work.lastTouchedAt {
+            return AppCalendar.startOfDay(lastTouched)
+        }
+        
+        // 2) Most recent past completed check-in date
+        let workCheckIns = checkIns ?? (work.checkIns ?? [])
+        let pastCheckInDates: [Date] = workCheckIns
+            .filter { $0.status == .completed }
+            .map { AppCalendar.startOfDay($0.date) }
+            .filter { $0 <= today }
+        let latestCheckIn = pastCheckInDates.max()
+        
+        // 3) Most recent note timestamp
+        let workNotes = notes ?? (work.scopedNotes ?? [])
+        let latestNote: Date? = workNotes.map { max($0.updatedAt, $0.createdAt) }.max()
+        
+        // 4) Status change timestamp (completedAt)
+        let statusChange: Date? = work.completedAt.map { AppCalendar.startOfDay($0) }
+        
+        // 5) Fallbacks
+        let assigned = AppCalendar.startOfDay(work.assignedAt)
+        let created = AppCalendar.startOfDay(work.createdAt)
+        
+        // Return the most recent non-nil in priority order
+        return latestCheckIn ?? latestNote ?? statusChange ?? assigned ?? created
+    }
+    
+    /// School-day aware difference between today and the last meaningful touch.
+    /// This is the authoritative version for business rules.
+    nonisolated static func daysSinceLastTouch(
+        for work: WorkModel,
+        modelContext: ModelContext,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [ScopedNote]? = nil
+    ) -> Int {
+        let last = lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
+        let startToday = AppCalendar.startOfDay(Date())
+        let startLast = AppCalendar.startOfDay(last)
+        var days = 0
+        var cursor = startLast
+        while cursor < startToday {
+            if !isNonSchoolDaySync(cursor, using: modelContext) {
+                days += 1
+            }
+            cursor = AppCalendar.addingDays(1, to: cursor)
+            if days > 36500 { break }
+        }
+        return max(0, days)
+    }
+    
+    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Reuses the same logic as WorkContractAging.
+    nonisolated private static func isNonSchoolDaySync(_ date: Date, using context: ModelContext) -> Bool {
+        let cal = AppCalendar.shared
+        let day = AppCalendar.startOfDay(date)
+        
+        // 1) Explicit non-school day wins
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
+            if !nonSchoolDays.isEmpty { return true }
+        } catch {
+            // On fetch error, fall back to weekend logic below
+        }
+        
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = cal.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+        
+        // 3) Weekend override makes it a school day
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
+            if !overrides.isEmpty { return false }
+        } catch {
+            // If override fetch fails, assume weekend remains non-school
+        }
+        return true
+    }
+    
+    /// Maps day difference to an AgingBucket using school days.
+    /// Uses the same thresholds as WorkContractAging.
+    nonisolated static func agingBucket(
+        for work: WorkModel,
+        modelContext: ModelContext,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [ScopedNote]? = nil
+    ) -> AgingBucket {
+        let days = daysSinceLastTouch(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes)
+        if days >= AgingPolicy.staleDays { return .stale }
+        if days >= AgingPolicy.agingDays { return .aging }
+        return .fresh
+    }
+    
+    /// Convenience predicate for stale status using school days.
+    nonisolated static func isStale(
+        _ work: WorkModel,
+        modelContext: ModelContext,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [ScopedNote]? = nil
+    ) -> Bool {
+        agingBucket(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes) == .stale
+    }
+    
+    /// Intent-aware overdue check.
+    /// True only when:
+    /// - There exists a dueAt date (or due date from check-ins)
+    /// - That date is in the past (strictly before today start)
+    /// - There has been no meaningful touch since before that due date
+    nonisolated static func isOverdue(
+        _ work: WorkModel,
+        checkIns: [WorkCheckIn]? = nil,
+        lastTouch overrideLastTouch: Date? = nil
+    ) -> Bool {
+        let today = AppCalendar.startOfDay(Date())
+        
+        // Check WorkModel.dueAt first
+        if let dueAt = work.dueAt {
+            let dueDay = AppCalendar.startOfDay(dueAt)
+            guard dueDay < today else { return false }
+            
+            let last = overrideLastTouch ?? lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: nil)
+            return AppCalendar.startOfDay(last) < dueDay
+        }
+        
+        // Fallback: check scheduled check-ins for due dates
+        let workCheckIns = checkIns ?? (work.checkIns ?? [])
+        let dueCheckIns = workCheckIns
+            .filter { $0.status == .scheduled }
+            .map { AppCalendar.startOfDay($0.date) }
+            .filter { $0 < today }
+        
+        guard let earliestDue = dueCheckIns.min() else { return false }
+        
+        let last = overrideLastTouch ?? lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: nil)
+        return AppCalendar.startOfDay(last) < earliestDue
+    }
+    
+    /// Check if work is due today
+    nonisolated static func isDueToday(
+        _ work: WorkModel,
+        checkIns: [WorkCheckIn]? = nil
+    ) -> Bool {
+        let today = AppCalendar.startOfDay(Date())
+        
+        if let dueAt = work.dueAt {
+            return AppCalendar.startOfDay(dueAt) == today
+        }
+        
+        let workCheckIns = checkIns ?? (work.checkIns ?? [])
+        return workCheckIns.contains { $0.status == .scheduled && AppCalendar.startOfDay($0.date) == today }
+    }
+    
+    /// Check if work is upcoming (due in 1-2 days)
+    nonisolated static func isUpcoming(
+        _ work: WorkModel,
+        checkIns: [WorkCheckIn]? = nil
+    ) -> Bool {
+        let today = AppCalendar.startOfDay(Date())
+        let tomorrow = AppCalendar.addingDays(1, to: today)
+        let dayAfter = AppCalendar.addingDays(2, to: today)
+        
+        if let dueAt = work.dueAt {
+            let dueDay = AppCalendar.startOfDay(dueAt)
+            return (dueDay == tomorrow || dueDay == dayAfter) && dueDay > today
+        }
+        
+        let workCheckIns = checkIns ?? (work.checkIns ?? [])
+        return workCheckIns.contains { checkIn in
+            guard checkIn.status == .scheduled else { return false }
+            let checkInDay = AppCalendar.startOfDay(checkIn.date)
+            return (checkInDay == tomorrow || checkInDay == dayAfter) && checkInDay > today
+        }
+    }
+    
+    /// Urgency bucket for inbox sorting (none, upcoming, today, overdue, stale)
+    enum UrgencyBucket: Int, Comparable {
+        case none = 0
+        case upcoming = 1
+        case today = 2
+        case overdue = 3
+        case stale = 4
+        
+        static func < (lhs: UrgencyBucket, rhs: UrgencyBucket) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
+    }
+    
+    /// Determine urgency bucket for a work item
+    nonisolated static func urgencyBucket(
+        for work: WorkModel,
+        modelContext: ModelContext,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [ScopedNote]? = nil
+    ) -> UrgencyBucket {
+        if isStale(work, modelContext: modelContext, checkIns: checkIns, notes: notes) {
+            return .stale
+        }
+        if isOverdue(work, checkIns: checkIns) {
+            return .overdue
+        }
+        if isDueToday(work, checkIns: checkIns) {
+            return .today
+        }
+        if isUpcoming(work, checkIns: checkIns) {
+            return .upcoming
+        }
+        return .none
+    }
+}
+
 #if DEBUG
 // Lightweight debug helper for console verification
 enum WorkAgingDebug {
@@ -253,6 +484,20 @@ enum WorkAgingDebug {
         let days = WorkContractAging.daysSinceLastTouch(for: contract, modelContext: modelContext, planItems: planItems, notes: notes)
         let bucket = WorkContractAging.agingBucket(for: contract, modelContext: modelContext, planItems: planItems, notes: notes)
         let overdue = WorkContractAging.isOverdue(contract, planItems: planItems, lastTouch: last)
+        let df = DateFormatter(); df.dateStyle = .medium
+        return "[school-days] last=\(df.string(from: last)) days=\(days) bucket=\(bucket) overdue=\(overdue)"
+    }
+    
+    static func describe(
+        work: WorkModel,
+        modelContext: ModelContext,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [ScopedNote]? = nil
+    ) -> String {
+        let last = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
+        let days = WorkAgingPolicy.daysSinceLastTouch(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes)
+        let bucket = WorkAgingPolicy.agingBucket(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes)
+        let overdue = WorkAgingPolicy.isOverdue(work, checkIns: checkIns, lastTouch: last)
         let df = DateFormatter(); df.dateStyle = .medium
         return "[school-days] last=\(df.string(from: last)) days=\(days) bucket=\(bucket) overdue=\(overdue)"
     }

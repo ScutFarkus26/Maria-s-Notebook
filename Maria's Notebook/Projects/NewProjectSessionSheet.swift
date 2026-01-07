@@ -223,6 +223,10 @@ struct NewProjectSessionSheet: View {
         
         modelContext.insert(contract)
         
+        // Dual-write: Also create WorkModel for migration compatibility
+        let workModel = WorkModel.from(contract: contract, in: modelContext)
+        modelContext.insert(workModel)
+        
         // Create a WorkPlanItem (Due Date)
         let planItem = WorkPlanItem(workID: contract.id, scheduledDate: scheduledDate, reason: .dueDate, note: nil)
         modelContext.insert(planItem)

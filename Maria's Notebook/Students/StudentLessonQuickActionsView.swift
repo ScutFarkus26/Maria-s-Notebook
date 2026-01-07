@@ -190,6 +190,10 @@ struct StudentLessonQuickActionsView: View {
                                     c.kind = .followUpAssignment
                                     c.scheduledNote = trimmed
                                     modelContext.insert(c)
+                                    
+                                    // Dual-write: Also create WorkModel for migration compatibility
+                                    let workModel = WorkModel.from(contract: c, in: modelContext)
+                                    modelContext.insert(workModel)
                                 }
                             }
                             try? modelContext.save()
@@ -335,6 +339,11 @@ struct StudentLessonQuickActionsView: View {
                 let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
                 c.kind = .practiceLesson
                 modelContext.insert(c)
+                
+                // Dual-write: Also create WorkModel for migration compatibility
+                let workModel = WorkModel.from(contract: c, in: modelContext)
+                modelContext.insert(workModel)
+                
                 createdAny = true
             }
         }

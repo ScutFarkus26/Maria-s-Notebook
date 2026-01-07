@@ -300,6 +300,10 @@ final class LessonPickerViewModel: ObservableObject {
                     let c = WorkContract(studentID: sid, lessonID: lidString, status: .active)
                     c.kind = .practiceLesson
                     context.insert(c)
+                    
+                    // Dual-write: Also create WorkModel for migration compatibility
+                    let workModel = WorkModel.from(contract: c, in: context)
+                    context.insert(workModel)
                 }
             }
         }
@@ -326,6 +330,10 @@ final class LessonPickerViewModel: ObservableObject {
                     c.kind = .followUpAssignment
                     c.scheduledNote = trimmedFollowUp
                     context.insert(c)
+                    
+                    // Dual-write: Also create WorkModel for migration compatibility
+                    let workModel = WorkModel.from(contract: c, in: context)
+                    context.insert(workModel)
                 }
             }
         }
