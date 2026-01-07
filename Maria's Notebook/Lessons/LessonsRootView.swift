@@ -16,6 +16,8 @@ struct LessonsRootView: View {
 
     // Selection
     @State private var selectedLesson: Lesson?
+    // Intermediate state for List selection to avoid publishing during view updates
+    @State private var listSelectedSubject: String? = nil
 
     @SceneStorage("Lessons.selectedSubject") private var selectedSubjectRaw: String = ""
     @SceneStorage("Lessons.searchText") private var searchTextRaw: String = ""
@@ -48,6 +50,7 @@ struct LessonsRootView: View {
     private var selectedSubject: String? {
         filterState.selectedSubject
     }
+
 
     private var groupsForSelectedSubject: [String] {
         guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return [] }
@@ -90,15 +93,31 @@ struct LessonsRootView: View {
         .environment(\.editMode, $editMode)
         #endif
         .task {
-            if filterState.selectedSubject == nil && !selectedSubjectRaw.trimmed().isEmpty {
-                filterState.selectedSubject = selectedSubjectRaw
+            await MainActor.run {
+                if filterState.selectedSubject == nil && !selectedSubjectRaw.trimmed().isEmpty {
+                    filterState.selectedSubject = selectedSubjectRaw
+                    listSelectedSubject = selectedSubjectRaw
+                }
+                if filterState.searchText.isEmpty && !searchTextRaw.isEmpty {
+                    filterState.searchText = searchTextRaw
+                }
             }
-            if filterState.searchText.isEmpty && !searchTextRaw.isEmpty {
-                filterState.searchText = searchTextRaw
+        }
+        .onChange(of: listSelectedSubject) { _, newValue in
+            Task { @MainActor in
+                // Only update if different to avoid loop
+                if filterState.selectedSubject != newValue {
+                    filterState.selectedSubject = newValue
+                }
             }
         }
         .onChange(of: filterState.selectedSubject) { _, newValue in
             Task { @MainActor in
+                // Sync to list selection if different
+                if listSelectedSubject != newValue {
+                    listSelectedSubject = newValue
+                }
+                // Handle side effects
                 selectedSubjectRaw = newValue ?? ""
                 selectedLesson = nil
                 syncReorderableGroups()
@@ -122,8 +141,10 @@ struct LessonsRootView: View {
             }
         }
         .onChange(of: reorderScope) { _, newValue in
-            if newValue == .groups {
-                syncReorderableGroups()
+            Task { @MainActor in
+                if newValue == .groups {
+                    syncReorderableGroups()
+                }
             }
         }
         .toolbar {
@@ -148,7 +169,7 @@ struct LessonsRootView: View {
     // MARK: - Columns
 
     private var subjectsColumn: some View {
-        List(selection: $filterState.selectedSubject) {
+        List(selection: $listSelectedSubject) {
             ForEach(subjects, id: \.self) { subject in
                 Text(subject)
                     .tag(subject)
@@ -182,10 +203,21 @@ struct LessonsRootView: View {
                     .id("GroupReorderList")
                 } else {
                     // Standard Lesson List Mode
+                    // Include an "Ungrouped" section for lessons with no group
+                    let ungroupedLabel = "Ungrouped"
+                    let baseGroups = groupsForSelectedSubject
+                    let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
+                    let displayGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
+
                     List(selection: $selectedLesson) {
-                        ForEach(groupsForSelectedSubject, id: \.self) { group in
-                            let groupLessons = lessonsForSubject.filter {
-                                $0.group.caseInsensitiveCompare(group) == .orderedSame
+                        ForEach(displayGroups, id: \.self) { group in
+                            let groupLessons = lessonsForSubject.filter { lesson in
+                                let lessonGroupTrimmed = lesson.group.trimmed()
+                                if group == ungroupedLabel {
+                                    return lessonGroupTrimmed.isEmpty
+                                } else {
+                                    return lessonGroupTrimmed.caseInsensitiveCompare(group.trimmed()) == .orderedSame
+                                }
                             }.sorted { lhs, rhs in
                                 if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
                                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending

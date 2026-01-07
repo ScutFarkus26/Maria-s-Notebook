@@ -163,7 +163,11 @@ struct LessonsCardsGridView: View {
             view
                 .coordinateSpace(name: "lessonsGridScroll")
                 .onPreferenceChange(ItemFramePreference.self) { frames in
-                    itemFrames = frames
+                    // Defer state update to next run loop to avoid layout recursion
+                    // PreferenceKey updates happen during layout, so we must defer state changes
+                    DispatchQueue.main.async {
+                        itemFrames = frames
+                    }
                 }
         }
         .onAppear {

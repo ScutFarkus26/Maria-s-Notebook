@@ -16,33 +16,76 @@ struct EnsureResizableWindow: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: ResizableFlagView, context: Context) {
+        // Update stored values
         nsView.minSize = minSize
         nsView.maxSize = maxSize
-        // If the view is already in a window, apply immediately
-        if let win = nsView.window {
-            apply(to: win, minSize: minSize, maxSize: maxSize)
+        
+        // Schedule window updates to next run loop to avoid layout recursion
+        // Only apply if values actually changed (cached in ResizableFlagView)
+        if nsView.window != nil {
+            nsView.scheduleWindowUpdate()
         }
-    }
-
-    private func apply(to window: NSWindow, minSize: NSSize?, maxSize: NSSize?) {
-        window.styleMask.insert(.resizable)
-        window.contentResizeIncrements = NSSize(width: 1, height: 1)
-        if let min = minSize { window.contentMinSize = min } else { window.contentMinSize = .zero }
-        if let max = maxSize { window.contentMaxSize = max } else { window.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude) }
     }
 }
 
 final class ResizableFlagView: NSView {
     var minSize: NSSize?
     var maxSize: NSSize?
+    
+    // Cache last applied values to avoid redundant updates
+    private var lastAppliedMinSize: NSSize?
+    private var lastAppliedMaxSize: NSSize?
+    private var hasScheduledUpdate = false
+    
+    /// Schedule window property updates to the next run loop to prevent layout recursion
+    func scheduleWindowUpdate() {
+        // Prevent duplicate scheduling
+        guard !hasScheduledUpdate else { return }
+        hasScheduledUpdate = true
+        
+        // Check if values actually changed
+        guard minSize != lastAppliedMinSize || maxSize != lastAppliedMaxSize else {
+            hasScheduledUpdate = false
+            return
+        }
+        
+        // Defer to next run loop to avoid triggering layout during active layout pass
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let win = self.window else {
+                self?.hasScheduledUpdate = false
+                return
+            }
+            
+            // Apply window mutations outside of layout pass
+            self.apply(to: win)
+            self.hasScheduledUpdate = false
+        }
+    }
+    
+    private func apply(to window: NSWindow) {
+        // Only update if values changed (idempotent)
+        let effectiveMin = minSize ?? .zero
+        let effectiveMax = maxSize ?? NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        
+        guard effectiveMin != lastAppliedMinSize || effectiveMax != lastAppliedMaxSize else {
+            return
+        }
+        
+        window.styleMask.insert(.resizable)
+        window.contentResizeIncrements = NSSize(width: 1, height: 1)
+        window.contentMinSize = effectiveMin
+        window.contentMaxSize = effectiveMax
+        
+        // Update cache
+        lastAppliedMinSize = minSize
+        lastAppliedMaxSize = maxSize
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        guard let win = window else { return }
-        win.styleMask.insert(.resizable)
-        win.contentResizeIncrements = NSSize(width: 1, height: 1)
-        if let minSize { win.contentMinSize = minSize } else { win.contentMinSize = .zero }
-        if let maxSize { win.contentMaxSize = maxSize } else { win.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude) }
+        // Defer window mutations to avoid layout recursion during window attachment
+        guard window != nil else { return }
+        scheduleWindowUpdate()
     }
 }
 #endif

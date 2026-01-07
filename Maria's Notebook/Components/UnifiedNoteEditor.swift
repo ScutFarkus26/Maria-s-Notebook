@@ -1068,18 +1068,35 @@ struct SmartTextEditor: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: NSTextView, context: Context) {
-        if nsView.string != text { nsView.string = text }
+        // Update text programmatically - prevent binding feedback loop
+        if nsView.string != text {
+            context.coordinator.isProgrammaticEdit = true
+            nsView.string = text
+            context.coordinator.isProgrammaticEdit = false
+        }
         
+        // Defer triggerTool actions to next run loop to avoid layout recursion
         if context.coordinator.lastTrigger != triggerTool {
-            nsView.window?.makeFirstResponder(nsView)
-            nsView.selectAll(nil)
-            
-            if #available(macOS 15.2, *) {
-                // Try to invoke the system selector directly
-                NSApp.sendAction(#selector(NSTextView.showWritingTools(_:)), to: nil, from: nil)
-            }
-            
             context.coordinator.lastTrigger = triggerTool
+            
+            // Store references for deferred execution
+            let textView = nsView
+            let window = nsView.window
+            
+            // Defer responder/selection/actions to avoid triggering layout during updateNSView
+            DispatchQueue.main.async {
+                // Guard that window and textView are still valid
+                guard let win = window, textView.window == win else { return }
+                
+                // Focus editor and select all
+                win.makeFirstResponder(textView)
+                textView.selectAll(nil)
+                
+                // Show writing tools (macOS 15.2+)
+                if #available(macOS 15.2, *) {
+                    NSApp.sendAction(#selector(NSTextView.showWritingTools(_:)), to: nil, from: nil)
+                }
+            }
         }
     }
     
@@ -1088,8 +1105,14 @@ struct SmartTextEditor: NSViewRepresentable {
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: SmartTextEditor
         var lastTrigger = 0
+        /// Flag to prevent binding updates during programmatic string changes
+        var isProgrammaticEdit = false
+        
         init(_ parent: SmartTextEditor) { self.parent = parent }
+        
         func textDidChange(_ notification: Notification) {
+            // Ignore changes that originate from programmatic updates to prevent feedback loops
+            guard !isProgrammaticEdit else { return }
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
         }
