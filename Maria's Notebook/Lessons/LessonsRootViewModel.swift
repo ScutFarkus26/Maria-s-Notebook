@@ -1,3 +1,6 @@
+// LessonsRootViewModel.swift
+// Updated to accept debounced search text parameter to avoid recomputing filters on every keystroke.
+
 import Foundation
 import SwiftUI
 import SwiftData
@@ -9,12 +12,12 @@ final class LessonsRootViewModel: ObservableObject {
     
     init() { }
     
-    func recomputeFilteredLessons(modelContext: ModelContext, filterState: LessonsFilterState, using filterer: LessonsViewModel) {
+    func recomputeFilteredLessons(modelContext: ModelContext, filterState: LessonsFilterState, using filterer: LessonsViewModel, debouncedSearchText: String) {
         self.filteredLessons = filterer.filteredLessons(
             modelContext: modelContext,
             sourceFilter: filterState.sourceFilter,
             personalKindFilter: filterState.personalKindFilter,
-            searchText: filterState.searchText,
+            searchText: debouncedSearchText,
             selectedSubject: filterState.selectedSubject,
             selectedGroup: filterState.selectedGroup
         )

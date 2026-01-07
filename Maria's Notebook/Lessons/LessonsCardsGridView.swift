@@ -1,3 +1,8 @@
+// LessonsCardsGridView.swift
+// Performance optimizations: Geometry measurement and matchedGeometryEffect are gated to only run
+// when in manual reorder mode (isManualMode && onReorder != nil), avoiding expensive layout
+// measurements during normal browsing. Grid mode is browse-only (no reordering).
+
 import SwiftUI
 import Foundation
 
@@ -164,6 +169,8 @@ struct LessonsCardsGridView: View {
     private func card(_ lesson: Lesson) -> some View {
         let isDragging = isManualMode && draggingLessonID == lesson.id
         let isHover = hoverTargetID == lesson.id
+        // Only measure frames when in manual reorder mode with a reorder handler
+        let shouldMeasureFrames = isManualMode && onReorder != nil
 
         LessonCardContainer(
             lesson: lesson,
@@ -172,6 +179,8 @@ struct LessonsCardsGridView: View {
             hasAppeared: hasAppeared,
             gridNamespace: gridNamespace,
             disableAnimations: draggingLessonID != nil,
+            shouldMeasureFrames: shouldMeasureFrames,
+            shouldUseMatchedGeometry: shouldMeasureFrames,
             statusCount: statusCounts?[lesson.id]
         )
 #if os(macOS)
@@ -287,11 +296,17 @@ private struct LessonCardContainer: View {
     let hasAppeared: Bool
     let gridNamespace: Namespace.ID
     let disableAnimations: Bool
+    let shouldMeasureFrames: Bool
+    let shouldUseMatchedGeometry: Bool
     let statusCount: Int?
 
     var body: some View {
-        LessonCard(lesson: lesson, statusCount: statusCount)
-            .matchedGeometryEffect(id: lesson.id, in: gridNamespace)
+        let card = LessonCard(lesson: lesson, statusCount: statusCount)
+        let withMatchedGeometry = shouldUseMatchedGeometry
+            ? AnyView(card.matchedGeometryEffect(id: lesson.id, in: gridNamespace))
+            : AnyView(card)
+        
+        return withMatchedGeometry
             .when(hasAppeared) { view in
                 view.transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
@@ -308,11 +323,15 @@ private struct LessonCardContainer: View {
             }
             .contentShape(Rectangle())
             .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(
-                        key: ItemFramePreference.self,
-                        value: [lesson.id: proxy.frame(in: .named("lessonsGridScroll"))]
-                    )
+                Group {
+                    if shouldMeasureFrames {
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: ItemFramePreference.self,
+                                value: [lesson.id: proxy.frame(in: .named("lessonsGridScroll"))]
+                            )
+                        }
+                    }
                 }
             )
     }
