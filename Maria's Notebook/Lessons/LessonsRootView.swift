@@ -21,6 +21,9 @@ struct LessonsRootView: View {
 
     @SceneStorage("Lessons.selectedSubject") private var selectedSubjectRaw: String = ""
     @SceneStorage("Lessons.searchText") private var searchTextRaw: String = ""
+    
+    // Schedule presentation state
+    @State private var lessonToSchedule: Lesson?
 
     // Modes
     @State private var isReorderMode: Bool = false
@@ -164,6 +167,17 @@ struct LessonsRootView: View {
                     .disabled(selectedSubject == nil)
             }
         }
+        .sheet(item: $lessonToSchedule) { lesson in
+            SchedulePresentationSheet(
+                lesson: lesson,
+                onPlan: { studentIDs in
+                    planPresentation(for: lesson, studentIDs: studentIDs)
+                },
+                onCancel: {
+                    lessonToSchedule = nil
+                }
+            )
+        }
     }
 
     // MARK: - Columns
@@ -229,6 +243,13 @@ struct LessonsRootView: View {
                                         LessonRow(lesson: lesson)
                                             .tag(lesson)
                                             .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+                                            .contextMenu {
+                                                Button {
+                                                    lessonToSchedule = lesson
+                                                } label: {
+                                                    Label("Plan Presentation", systemImage: "tray.and.arrow.down")
+                                                }
+                                            }
                                     }
                                     .onMove(perform: canReorderLessons ? { source, destination in
                                         moveLessons(from: source, to: destination, in: groupLessons)
@@ -293,6 +314,57 @@ struct LessonsRootView: View {
             }
         }
         modelContext.safeSave()
+    }
+    
+    // MARK: - Plan Presentation
+    
+    private func planPresentation(for lesson: Lesson, studentIDs: Set<UUID>) {
+        guard !studentIDs.isEmpty else { return }
+        
+        // Fetch students
+        let studentUUIDs = Array(studentIDs)
+        let predicate = #Predicate<Student> { studentUUIDs.contains($0.id) }
+        let descriptor = FetchDescriptor<Student>(predicate: predicate)
+        let students = (try? modelContext.fetch(descriptor)) ?? []
+        
+        // Check if an unscheduled StudentLesson already exists for this lesson+students combination
+        let lessonIDString = lesson.id.uuidString
+        let existingPredicate = #Predicate<StudentLesson> { sl in
+            sl.lessonID == lessonIDString &&
+            sl.scheduledFor == nil &&
+            sl.givenAt == nil
+        }
+        let existingDescriptor = FetchDescriptor<StudentLesson>(predicate: existingPredicate)
+        let existingLessons = (try? modelContext.fetch(existingDescriptor)) ?? []
+        
+        // Check if there's an exact match (same students)
+        let studentSet = Set(studentUUIDs)
+        if let existing = existingLessons.first(where: { Set($0.resolvedStudentIDs) == studentSet }) {
+            // Already exists, don't create duplicate
+            lessonToSchedule = nil
+            return
+        }
+        
+        // Create new unscheduled StudentLesson (will appear in presentations inbox)
+        let newStudentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: studentUUIDs,
+            createdAt: Date(),
+            scheduledFor: nil, // nil = unscheduled, goes to inbox
+            givenAt: nil,
+            notes: "",
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: ""
+        )
+        newStudentLesson.students = students
+        newStudentLesson.lesson = lesson
+        
+        modelContext.insert(newStudentLesson)
+        _ = saveCoordinator.save(modelContext, reason: "Plan presentation")
+        
+        lessonToSchedule = nil
     }
 }
 
