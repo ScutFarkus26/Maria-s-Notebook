@@ -161,6 +161,18 @@ struct LifecycleService {
             }
         }
 
+        // 2.5) Upsert LessonPresentation records per student (shadow data for progress tracking)
+        let presentationIDStr = presentation.id.uuidString
+        for sid in studentIDStrs {
+            try upsertLessonPresentation(
+                presentationID: presentationIDStr,
+                studentID: sid,
+                lessonID: lessonIDStr,
+                presentedAt: presentedAt,
+                context: modelContext
+            )
+        }
+
         // 3) If there were existing contracts but we just created the presentation (e.g., backfill ordering), include them
         // Fetch all associated contracts to return a complete set
         let pid = presentation.id.uuidString
@@ -178,13 +190,54 @@ struct LifecycleService {
     }
 
     private static func fetchWorkContract(presentationID: String, studentID: String, context: ModelContext) throws -> WorkContract? {
-        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate { ($0.presentationID ?? "") == presentationID && $0.studentID == studentID })
-        return try context.fetch(descriptor).first
+        // Fetch all WorkContracts and filter in memory (no predicates on WorkContract)
+        let allContracts = try context.fetch(FetchDescriptor<WorkContract>())
+        return allContracts.first { contract in
+            (contract.presentationID ?? "") == presentationID && contract.studentID == studentID
+        }
     }
 
     private static func fetchAllWorkContracts(presentationID: String, context: ModelContext) throws -> [WorkContract] {
-        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate { ($0.presentationID ?? "") == presentationID })
-        return try context.fetch(descriptor)
+        // Fetch all WorkContracts and filter in memory (no predicates on WorkContract)
+        let allContracts = try context.fetch(FetchDescriptor<WorkContract>())
+        return allContracts.filter { contract in
+            (contract.presentationID ?? "") == presentationID
+        }
+    }
+
+    // MARK: - LessonPresentation Helpers
+
+    /// Upsert LessonPresentation idempotently by (presentationID, studentID).
+    /// Fetches all LessonPresentation records and filters in memory (no predicates).
+    /// If exists: updates lastObservedAt. If not exists: creates new with state .presented.
+    private static func upsertLessonPresentation(
+        presentationID: String,
+        studentID: String,
+        lessonID: String,
+        presentedAt: Date,
+        context: ModelContext
+    ) throws {
+        // Fetch all LessonPresentation records and filter in memory (no predicates)
+        let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
+        let existing = allLessonPresentations.first { lp in
+            lp.presentationID == presentationID && lp.studentID == studentID
+        }
+        
+        if let existing = existing {
+            // Update lastObservedAt to track when this presentation was last seen
+            existing.lastObservedAt = presentedAt
+        } else {
+            // Create new LessonPresentation with initial state .presented
+            let lessonPresentation = LessonPresentation(
+                studentID: studentID,
+                lessonID: lessonID,
+                presentationID: presentationID,
+                state: .presented,
+                presentedAt: presentedAt,
+                lastObservedAt: presentedAt
+            )
+            context.insert(lessonPresentation)
+        }
     }
 }
 

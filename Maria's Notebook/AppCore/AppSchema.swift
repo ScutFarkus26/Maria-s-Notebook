@@ -23,6 +23,7 @@ struct AppSchema {
         MeetingNote.self,
         CommunityAttachment.self,
         Presentation.self,
+        LessonPresentation.self,
         WorkContract.self,
         WorkPlanItem.self,
         StudentMeeting.self,
@@ -35,5 +36,6 @@ struct AppSchema {
         Reminder.self,
         Track.self,
         TrackStep.self,
+        StudentTrackEnrollment.self,
     ])
 }
