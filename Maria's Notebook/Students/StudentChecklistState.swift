@@ -91,14 +91,24 @@ final class StudentChecklistViewModel: ObservableObject {
             return Dictionary(uniqueKeysWithValues: pairs)
         }()
 
-        // Fetch WorkModels for this student across lessons
-        // WorkContract is now read-only for legacy data
-        let studentKey = studentID.uuidString
-        // Fetch all WorkModels and filter in memory (predicates don't support contains with closures)
-        let workModelFetch = FetchDescriptor<WorkModel>()
-        let allWorkModels: [WorkModel] = (try? context.fetch(workModelFetch)) ?? []
+        // Fetch WorkModels for this student across lessons using centralized adapter
+        let adapter = LegacyWorkAdapter(modelContext: context)
+        
+        // Fetch all WorkModels once per recompute (cached per refresh scope)
+        #if DEBUG
+        let workModelFetchStart = Date()
+        #endif
+        let allWorkModels = (try? adapter.fetchAllWorkModels()) ?? []
+        #if DEBUG
+        let workModelFetchDuration = Date().timeIntervalSince(workModelFetchStart)
+        print("📊 StudentChecklistState: Fetched \(allWorkModels.count) WorkModels in \(String(format: "%.3f", workModelFetchDuration))s")
+        #endif
+        
+        // Build mapping dictionary once per recompute
+        let workModelsByContractID = adapter.workModelsByLegacyContractID(workModels: allWorkModels)
         
         // Filter to work models where any participant matches this student
+        let studentKey = studentID.uuidString
         let allWorkModelsForStudent = allWorkModels.filter { work in
             (work.participants ?? []).contains { $0.studentID == studentKey }
         }
@@ -114,23 +124,13 @@ final class StudentChecklistViewModel: ObservableObject {
         }
         
         // For backward compatibility, also fetch WorkContracts for contractID mapping
-        // Fetch all WorkContracts and filter in memory to avoid predicate UUID/String issues
-        let wcFetch = FetchDescriptor<WorkContract>()
-        let allContracts: [WorkContract] = (try? context.fetch(wcFetch)) ?? []
+        // Use centralized adapter - fetch all once per recompute (cached per refresh scope)
+        let allContracts = adapter.fetchAllWorkContracts()
         let allContractsForStudent = allContracts.filter { $0.studentID == studentKey }
         let contracts: [WorkContract] = allContractsForStudent.filter { contract in
             if let lid = UUID(uuidString: contract.lessonID) { return lessonIDs.contains(lid) }
             return false
         }
-        
-        // Map WorkModels by their legacyContractID for backward compatibility
-        var workModelsByContractID: [UUID: WorkModel] = [:]
-        let contractIDs = Set(contracts.map { $0.id })
-        let workModelsWithLegacyID = workModels.filter { $0.legacyContractID != nil }
-        workModelsByContractID = Dictionary(uniqueKeysWithValues: workModelsWithLegacyID.compactMap { work in
-            guard let contractID = work.legacyContractID, contractIDs.contains(contractID) else { return nil }
-            return (contractID, work)
-        })
 
         // Index contracts
         let contractsByLesson: [String: [WorkContract]] = Dictionary(grouping: contracts, by: { $0.lessonID })

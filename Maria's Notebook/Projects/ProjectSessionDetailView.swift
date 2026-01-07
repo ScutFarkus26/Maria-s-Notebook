@@ -134,8 +134,11 @@ struct ProjectSessionDetailView: View {
                 }()
             ) { chosenID in
                 if let chosenID {
-                    targetContract.lessonID = chosenID.uuidString
-                    _ = saveCoordinator.save(modelContext, reason: "Link contract to lesson")
+                    // WorkContract is read-only for legacy data - do not mutate
+                    #if DEBUG
+                    print("⚠️ Attempted to update WorkContract lessonID, but WorkContract is read-only (legacy data)")
+                    #endif
+                    // Do not mutate WorkContract - it is read-only
                 }
             }
         }
@@ -145,30 +148,51 @@ struct ProjectSessionDetailView: View {
     private func contractRow(_ contract: WorkContract) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                // Title (Role)
+                // Title (Role) - Read-only for legacy data
                 TextField("Title", text: Binding(
                     get: { contract.scheduledNote ?? "" },
-                    set: { contract.scheduledNote = $0 }
+                    set: { _ in
+                        // WorkContract is read-only - do not mutate
+                        #if DEBUG
+                        print("⚠️ Attempted to update WorkContract scheduledNote, but WorkContract is read-only (legacy data)")
+                        #endif
+                    }
                 ))
                 .textFieldStyle(.roundedBorder)
+                .disabled(true)
                 
                 Spacer()
                 
-                // Status Picker
-                Picker("Status", selection: Bindable(contract).status) {
+                // Status Picker - Read-only for legacy data
+                Picker("Status", selection: Binding(
+                    get: { contract.status },
+                    set: { _ in
+                        // WorkContract is read-only - do not mutate
+                        #if DEBUG
+                        print("⚠️ Attempted to update WorkContract status, but WorkContract is read-only (legacy data)")
+                        #endif
+                    }
+                )) {
                     Text("Active").tag(WorkStatus.active)
                     Text("Review").tag(WorkStatus.review)
                     Text("Complete").tag(WorkStatus.complete)
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
+                .disabled(true)
                 
-                // Due Date
+                // Due Date - Read-only for legacy data
                 DatePicker("Due", selection: Binding(
                     get: { contract.scheduledDate ?? Date() },
-                    set: { contract.scheduledDate = $0 }
+                    set: { _ in
+                        // WorkContract is read-only - do not mutate
+                        #if DEBUG
+                        print("⚠️ Attempted to update WorkContract scheduledDate, but WorkContract is read-only (legacy data)")
+                        #endif
+                    }
                 ), displayedComponents: .date)
                 .labelsHidden()
+                .disabled(true)
             }
 
             // Linked Lesson display

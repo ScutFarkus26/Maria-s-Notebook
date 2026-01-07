@@ -33,6 +33,8 @@ struct WorkContractDetailSheet: View {
     @State private var showPlannedBanner: Bool = false
     @State private var showDeleteAlert: Bool = false
     @State private var isRestoringData: Bool = false
+    @State private var correspondingWorkModel: WorkModel? = nil
+    @State private var isReadOnly: Bool = true // WorkContract is read-only for legacy data
 
     @State private var status: WorkStatus
     @State private var workKind: WorkKind
@@ -85,20 +87,38 @@ struct WorkContractDetailSheet: View {
                     Divider()
                     notesSection()
                     
-                    Button(role: .destructive) { showDeleteAlert = true } label: {
-                        Label("Delete Work", systemImage: "trash")
-                    }.frame(maxWidth: .infinity).padding(.top, 20)
+                    // WorkContract is read-only - disable delete for legacy data
+                    if !isReadOnly {
+                        Button(role: .destructive) { showDeleteAlert = true } label: {
+                            Label("Delete Work", systemImage: "trash")
+                        }.frame(maxWidth: .infinity).padding(.top, 20)
+                    } else {
+                        // Show read-only indicator
+                        HStack {
+                            Image(systemName: "lock.fill")
+                            Text("This is legacy data. Edit via WorkModel instead.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 20)
+                    }
                 }.padding(24)
             }
             Divider()
             HStack {
                 Button("Cancel") { close() }
                 Spacer()
-                Button("Save") { save() }.buttonStyle(.borderedProminent)
+                if !isReadOnly {
+                    Button("Save") { save() }.buttonStyle(.borderedProminent)
+                } else {
+                    Button("Close") { close() }.buttonStyle(.borderedProminent)
+                }
             }.padding(16).background(.bar)
         }
         .onAppear {
             loadRelatedData()
+            checkForWorkModelMapping()
             #if DEBUG
             PerformanceLogger.logScreenLoad(
                 screenName: "WorkContractDetailSheet",
@@ -108,7 +128,8 @@ struct WorkContractDetailSheet: View {
                     "workNotes": workNotes.count,
                     "presentations": presentations.count,
                     "planItems": planItems.count,
-                    "peerContracts": peerContracts.count
+                    "peerContracts": peerContracts.count,
+                    "hasWorkModelMapping": correspondingWorkModel != nil ? 1 : 0
                 ]
             )
             #endif
@@ -166,7 +187,12 @@ struct WorkContractDetailSheet: View {
     private func headerSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(studentName()).font(.system(size: 34, weight: .bold, design: .rounded))
-            TextField("Work Title", text: $workTitle).font(.title2).padding(8).background(Color.primary.opacity(0.05)).cornerRadius(8)
+            TextField("Work Title", text: $workTitle)
+                .font(.title2)
+                .padding(8)
+                .background(Color.primary.opacity(0.05))
+                .cornerRadius(8)
+                .disabled(isReadOnly)
             
             HStack {
                 Label(lessonTitle(), systemImage: "book.closed").font(.subheadline).foregroundStyle(.secondary)
@@ -175,7 +201,10 @@ struct WorkContractDetailSheet: View {
                     Text("Practice").tag(WorkKind.practiceLesson)
                     Text("Follow-Up").tag(WorkKind.followUpAssignment)
                     Text("Project").tag(WorkKind.research)
-                }.labelsHidden().controlSize(.small)
+                }
+                .labelsHidden()
+                .controlSize(.small)
+                .disabled(isReadOnly)
             }
 
             HStack(spacing: 12) {
@@ -193,10 +222,15 @@ struct WorkContractDetailSheet: View {
     }
 
     @ViewBuilder private func statusBtn(_ s: WorkStatus, _ label: String) -> some View {
-        Button(label) { status = s }
-            .padding(.horizontal, 12).padding(.vertical, 8)
-            .background(status == s ? Color.accentColor.opacity(0.1) : Color.clear)
-            .foregroundStyle(status == s ? Color.accentColor : .primary)
+        Button(label) {
+            if !isReadOnly {
+                status = s
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(status == s ? Color.accentColor.opacity(0.1) : Color.clear)
+        .foregroundStyle(status == s ? Color.accentColor : .primary)
+        .disabled(isReadOnly)
     }
 
     @ViewBuilder private func completionSection() -> some View {
@@ -299,6 +333,16 @@ struct WorkContractDetailSheet: View {
     }
 
     private func save() {
+        // WorkContract is read-only for legacy data - do not mutate
+        // If a WorkModel exists, mutations should be done there instead
+        guard !isReadOnly else {
+            #if DEBUG
+            print("⚠️ Attempted to save WorkContract \(contract.id) but it is read-only (legacy data)")
+            #endif
+            close()
+            return
+        }
+        // This should not be reached in normal operation (WorkContract is read-only)
         contract.status = status
         contract.title = workTitle
         contract.kind = workKind
@@ -311,9 +355,37 @@ struct WorkContractDetailSheet: View {
     private func close() { onDone?() ?? dismiss() }
     
     private func deleteContract() {
+        // WorkContract is read-only for legacy data - do not delete
+        // If a WorkModel exists, deletion should be done there instead
+        guard !isReadOnly else {
+            #if DEBUG
+            print("⚠️ Attempted to delete WorkContract \(contract.id) but it is read-only (legacy data)")
+            #endif
+            close()
+            return
+        }
+        // This should not be reached in normal operation (WorkContract is read-only)
         modelContext.delete(contract)
         saveCoordinator.save(modelContext, reason: "Deleting work contract")
         close()
+    }
+    
+    private func checkForWorkModelMapping() {
+        // Check if there's a corresponding WorkModel using LegacyWorkAdapter
+        let adapter = LegacyWorkAdapter(modelContext: modelContext)
+        do {
+            let allWorkModels = try adapter.fetchAllWorkModels()
+            let workModelsByContractID = adapter.workModelsByLegacyContractID(workModels: allWorkModels)
+            correspondingWorkModel = adapter.resolveWorkModel(forLegacyContract: contract, map: workModelsByContractID)
+            // WorkContract is always read-only - if a WorkModel exists, that's the source of truth
+            // If no WorkModel exists, WorkContract is still read-only (legacy data only)
+            isReadOnly = true
+        } catch {
+            #if DEBUG
+            print("⚠️ Failed to check WorkModel mapping for WorkContract \(contract.id): \(error)")
+            #endif
+            isReadOnly = true
+        }
     }
 
     private func addPlan() {

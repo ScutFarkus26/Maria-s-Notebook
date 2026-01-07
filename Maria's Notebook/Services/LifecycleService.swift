@@ -111,7 +111,7 @@ struct LifecycleService {
             }
         }
 
-        // 2) Ensure WorkModels exist per student (WorkContract is now read-only)
+        // 2) Ensure WorkModels exist per student (WorkContract is now read-only for legacy data)
         var workForPresentation: [WorkContract] = []
         var createdCount = 0
         var skippedCount = 0
@@ -121,7 +121,7 @@ struct LifecycleService {
                 workForPresentation.append(existing)
                 skippedCount += 1
             } else {
-                // Create new WorkModel
+                // Create new WorkModel (WorkContract is read-only - no new WorkContract creation)
                 guard let studentUUID = UUID(uuidString: sid),
                       let lessonUUID = UUID(uuidString: lessonIDStr),
                       let presentationUUID = UUID(uuidString: presentation.id.uuidString) else {
@@ -139,49 +139,24 @@ struct LifecycleService {
                         scheduledDate: nil
                     )
                     
-                    // For backward compatibility, return WorkContract if it exists
-                    // Otherwise, create a minimal WorkContract for legacy code
-                    if let contractID = workModel.legacyContractID,
-                       let contract = try? modelContext.fetch(FetchDescriptor<WorkContract>(
-                           predicate: #Predicate { $0.id == contractID }
-                       )).first {
-                        workForPresentation.append(contract)
-                    } else {
-                        // Create minimal WorkContract for backward compatibility
-                        let wc = WorkContract(
-                            id: UUID(),
-                            createdAt: Date(),
-                            studentID: sid,
-                            lessonID: lessonIDStr,
-                            presentationID: presentation.id.uuidString,
-                            status: .active,
-                            scheduledDate: nil,
-                            completedAt: nil,
-                            legacyStudentLessonID: legacyID
-                        )
-                        wc.kind = .practiceLesson
-                        modelContext.insert(wc)
-                        workModel.legacyContractID = wc.id
-                        workForPresentation.append(wc)
+                    // For backward compatibility, try to find an existing WorkContract by legacyContractID
+                    // Do NOT create new WorkContract - it is read-only for legacy data only
+                    if let contractID = workModel.legacyContractID {
+                        // Fetch all WorkContracts and filter in memory (no predicates on WorkContract)
+                        let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
+                        if let contract = allContracts.first(where: { $0.id == contractID }) {
+                            workForPresentation.append(contract)
+                        }
                     }
+                    // If no legacy contract exists, that's fine - WorkModel is the source of truth
                     createdCount += 1
                 } catch {
-                    // Fallback: create WorkContract if WorkModel creation fails
-                    let wc = WorkContract(
-                        id: UUID(),
-                        createdAt: Date(),
-                        studentID: sid,
-                        lessonID: lessonIDStr,
-                        presentationID: presentation.id.uuidString,
-                        status: .active,
-                        scheduledDate: nil,
-                        completedAt: nil,
-                        legacyStudentLessonID: legacyID
-                    )
-                    wc.kind = .practiceLesson
-                    modelContext.insert(wc)
-                    workForPresentation.append(wc)
-                    createdCount += 1
+                    // WorkModel creation failed - log error but do not create WorkContract
+                    // WorkContract is read-only for legacy data only
+                    #if DEBUG
+                    print("⚠️ Failed to create WorkModel for presentation \(presentation.id.uuidString), student \(sid): \(error)")
+                    #endif
+                    // Do not create WorkContract - it is deprecated
                 }
             }
         }

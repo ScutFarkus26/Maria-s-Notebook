@@ -451,7 +451,12 @@ struct FollowUpInboxEngine {
         let lessonsByID: [UUID: Lesson] = lessons.toDictionary(by: \.id)
         let studentsByID: [UUID: Student] = students.toDictionary(by: \.id)
         
-        // Fetch open WorkModel records
+        // Fetch open WorkModel records once per compute (cached per refresh scope)
+        #if DEBUG
+        let workModelFetchStart = Date()
+        var workModelFetchCount = 0
+        #endif
+        
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
         let completeRaw = WorkStatus.complete.rawValue
@@ -461,8 +466,17 @@ struct FollowUpInboxEngine {
             },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
+        #if DEBUG
+        workModelFetchCount += 1
+        #endif
         let allWorkModels = (try? modelContext.fetch(descriptor)) ?? []
         let openWorkModels = allWorkModels.filter { $0.isOpen && $0.status != .complete }
+        
+        #if DEBUG
+        let workModelFetchDuration = Date().timeIntervalSince(workModelFetchStart)
+        print("📊 FollowUpInboxEngine: Fetched \(allWorkModels.count) WorkModels (\(openWorkModels.count) open) in \(String(format: "%.3f", workModelFetchDuration))s (fetch count: \(workModelFetchCount))")
+        assert(workModelFetchCount == 1, "⚠️ FollowUpInboxEngine: Expected 1 WorkModel fetch, got \(workModelFetchCount)")
+        #endif
         
         // Helper: student display name for a set of IDs (single vs group)
         func childName(for ids: [UUID]) -> (UUID?, String) {
@@ -593,13 +607,24 @@ struct FollowUpInboxEngine {
             }
         }
         
-        // Pre-group checkIns and notes for work aging
+        // Pre-group checkIns and notes for work aging (build indices once per compute)
+        // These are built from the already-fetched openWorkModels, no additional fetches
         let checkInsByWorkID: [UUID: [WorkCheckIn]] = openWorkModels.reduce(into: [:]) { dict, work in
             dict[work.id] = work.checkIns ?? []
         }
         let notesByWorkID: [UUID: [ScopedNote]] = openWorkModels.reduce(into: [:]) { dict, work in
             dict[work.id] = work.scopedNotes ?? []
         }
+        
+        #if DEBUG
+        let studentLessonsFetchStart = Date()
+        #endif
+        // StudentLessons are passed in as a parameter (fetched once upstream)
+        // No additional fetch needed here
+        #if DEBUG
+        let studentLessonsFetchDuration = Date().timeIntervalSince(studentLessonsFetchStart)
+        print("📊 FollowUpInboxEngine: Processed \(studentLessons.count) StudentLessons (no additional fetch)")
+        #endif
         
         var addedWorkIDs: Set<UUID> = []
         

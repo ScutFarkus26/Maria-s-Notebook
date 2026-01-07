@@ -128,7 +128,11 @@ struct WorkRepository {
         presentationID: UUID? = nil,
         scheduledDate: Date? = nil
     ) throws -> WorkModel {
+        #if DEBUG
+        print("⚠️ createWorkContract called - migrating to WorkModel (call site: \(#file):\(#line))")
+        #endif
         // Create and return WorkModel (WorkContract is read-only for legacy data)
+        // This method never returns nil - it always returns a WorkModel or throws
         return try createWork(
             studentID: studentID,
             lessonID: lessonID,
@@ -143,17 +147,13 @@ struct WorkRepository {
     /// Mark a WorkModel as completed
     func markWorkCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) throws {
         guard let work = fetchWorkModel(id: id) else {
-            // Fallback: try WorkContract for legacy data (read-only)
-            guard let contract = fetchWork(id: id) else { return }
-            contract.status = .complete
-            contract.completedAt = Date()
-            if let outcome = outcome {
-                contract.completionOutcome = outcome
+            // WorkContract is read-only for legacy data - do not mutate
+            #if DEBUG
+            if let contract = fetchWork(id: id) {
+                print("⚠️ Attempted to mark WorkContract \(id) as completed, but WorkContract is read-only (legacy data)")
             }
-            if let note = note {
-                contract.completionNote = note
-            }
-            try context.save()
+            #endif
+            // Do not mutate WorkContract - it is read-only
             return
         }
         work.status = .complete
@@ -170,10 +170,13 @@ struct WorkRepository {
     /// Update a WorkModel's status
     func updateWorkStatus(id: UUID, status: WorkStatus) throws {
         guard let work = fetchWorkModel(id: id) else {
-            // Fallback: try WorkContract for legacy data (read-only)
-            guard let contract = fetchWork(id: id) else { return }
-            contract.status = status
-            try context.save()
+            // WorkContract is read-only for legacy data - do not mutate
+            #if DEBUG
+            if let contract = fetchWork(id: id) {
+                print("⚠️ Attempted to update WorkContract \(id) status, but WorkContract is read-only (legacy data)")
+            }
+            #endif
+            // Do not mutate WorkContract - it is read-only
             return
         }
         work.status = status
