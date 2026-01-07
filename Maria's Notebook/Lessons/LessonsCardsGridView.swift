@@ -2,6 +2,7 @@
 // Performance optimizations: Geometry measurement and matchedGeometryEffect are gated to only run
 // when in manual reorder mode (isManualMode && onReorder != nil), avoiding expensive layout
 // measurements during normal browsing. Grid mode is browse-only (no reordering).
+// In browse mode (isManualMode=false), no GeometryReader, PreferenceKeys, or matchedGeometryEffect are used.
 
 import SwiftUI
 import Foundation
@@ -124,7 +125,9 @@ struct LessonsCardsGridView: View {
     }
 
     var body: some View {
-        ScrollView {
+        let needsGeometry = isManualMode && onReorder != nil
+        
+        return ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                 if groupedByGroup.count > 1 {
                     ForEach(groupedByGroup, id: \.key) { entry in
@@ -151,11 +154,17 @@ struct LessonsCardsGridView: View {
                 if !hasAppeared { tx.animation = nil }
             }
             .animation(gridAnimation, value: idList)
-            .padding(24)
+            .padding(.top, 24)
+            .padding(.bottom, 24)
+            .padding(.trailing, 24)
+            .padding(.leading, 0)
         }
-        .coordinateSpace(name: "lessonsGridScroll")
-        .onPreferenceChange(ItemFramePreference.self) { frames in
-            itemFrames = frames
+        .when(needsGeometry) { view in
+            view
+                .coordinateSpace(name: "lessonsGridScroll")
+                .onPreferenceChange(ItemFramePreference.self) { frames in
+                    itemFrames = frames
+                }
         }
         .onAppear {
             // Defer enabling animations until after the first layout to avoid initial appear animations

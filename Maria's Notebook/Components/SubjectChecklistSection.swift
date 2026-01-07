@@ -57,6 +57,7 @@ struct SubjectChecklistSection: View {
                                     Text(group)
                                         .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                                 }
+                                .padding(.leading, -4)
                                 VStack(spacing: 8) {
                                     ForEach(items, id: \.id) { lesson in
                                         let row = rowStatesByLesson[lesson.id]

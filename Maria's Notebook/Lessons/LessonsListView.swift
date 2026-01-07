@@ -1,168 +1,114 @@
-// LessonsListView.swift
-// Performance-optimized List view for lessons with reordering support.
-// Reordering is only enabled when onReorder is provided (manual mode + group selected).
-// Uses native List.onMove for lightweight, reliable reordering without expensive animations.
+// Maria's Notebook/Lessons/LessonsListView.swift
 
 import SwiftUI
+import SwiftData
 
+/// Curriculum-only list view for lessons inside a selected subject+group.
+/// Shows Section headers by subheading (if present) and supports lesson reordering (List-only).
 struct LessonsListView: View {
+    let subject: String
+    let group: String
     let lessons: [Lesson]
-    let onTapLesson: (Lesson) -> Void
-    let onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)?
-    let onGiveLesson: ((Lesson) -> Void)?
-    let statusCounts: [UUID: Int]?
-    
+
+    let canReorderLessons: Bool
+    let onMoveLesson: (_ source: IndexSet, _ destination: Int, _ orderedSubset: [Lesson]) -> Void
+
+    private var lessonsInGroup: [Lesson] {
+        lessons
+            .filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
+            .filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
+    }
+
+    private var orderedLessons: [Lesson] {
+        lessonsInGroup.sorted { lhs, rhs in
+            if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+    }
+
+    private var subheadingOrder: [String] {
+        let existing = Array(Set(orderedLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        return FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existing)
+    }
+
     var body: some View {
         List {
-            ForEach(lessons, id: \.id) { lesson in
-                LessonListRow(
-                    lesson: lesson,
-                    statusCount: statusCounts?[lesson.id]
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onTapLesson(lesson)
-                }
-                #if os(macOS)
-                .overlay(RightClickCatcher(onRightClick: { onGiveLesson?(lesson) }))
-                #else
-                .contextMenu {
-                    Button {
-                        onGiveLesson?(lesson)
-                    } label: {
-                        Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+            // If there are subheadings, present as structural sections.
+            if !subheadingOrder.isEmpty {
+                ForEach(subheadingOrder, id: \.self) { sh in
+                    let items = orderedLessons.filter { $0.subheading.trimmed() == sh }
+                    if !items.isEmpty {
+                        Section(header: Text(sh)) {
+                            ForEach(items, id: \.id) { lesson in
+                                LessonRow(lesson: lesson)
+                            }
+                            .onMove(perform: canReorderLessons ? { source, destination in
+                                // IMPORTANT: onMove needs a single ordered subset.
+                                // Here we reorder within the subheading section only.
+                                onMoveLesson(source, destination, items)
+                            } : nil)
+                        }
                     }
                 }
-                #endif
+
+                // Lessons with no subheading go at the end (optional section)
+                let noSub = orderedLessons.filter { $0.subheading.trimmed().isEmpty }
+                if !noSub.isEmpty {
+                    Section(header: Text("Other")) {
+                        ForEach(noSub, id: \.id) { lesson in
+                            LessonRow(lesson: lesson)
+                        }
+                        .onMove(perform: canReorderLessons ? { source, destination in
+                            onMoveLesson(source, destination, noSub)
+                        } : nil)
+                    }
+                }
+            } else {
+                // No subheadings: single list
+                ForEach(orderedLessons, id: \.id) { lesson in
+                    LessonRow(lesson: lesson)
+                }
+                .onMove(perform: canReorderLessons ? { source, destination in
+                    onMoveLesson(source, destination, orderedLessons)
+                } : nil)
             }
-            .onMove(perform: onReorder != nil ? { source, destination in
-                guard let onReorder = onReorder else { return }
-                guard let fromIndex = source.first else { return }
-                let toIndex = destination > fromIndex ? destination - 1 : destination
-                guard fromIndex < lessons.count && toIndex < lessons.count else { return }
-                let movingLesson = lessons[fromIndex]
-                onReorder(movingLesson, fromIndex, toIndex, lessons)
-            } : nil)
         }
-        .listStyle(.plain)
+        .listStyle(.inset)
+        .contentMargins(.leading, 0, for: .scrollContent)
+        .contentMargins(.trailing, 0, for: .scrollContent)
+        .navigationTitle(group)
     }
 }
 
-private struct LessonListRow: View {
+private struct LessonRow: View {
     let lesson: Lesson
-    let statusCount: Int?
-    
+
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .top) {
-                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-                        .lineLimit(2)
-                    Spacer()
-                    if lesson.source == .personal {
-                        Text(lesson.personalKind?.badgeLabel ?? "Personal")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(Color.primary.opacity(0.08)))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
-                if !lesson.group.isEmpty || !lesson.subject.isEmpty {
-                    Text(groupSubjectLine)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                
-                if !lesson.subheading.isEmpty {
-                    Text(lesson.subheading)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                } else if let firstLine = writeUpFirstLine {
-                    Text(firstLine)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+        HStack(spacing: 10) {
+            Circle()
+                .fill(.secondary.opacity(0.35))
+                .frame(width: 7, height: 7)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                    .font(.system(.body, design: .rounded).weight(.semibold))
+                    .lineLimit(1)
+
+                Text("\(lesson.subject) · \(lesson.group)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            
-            if let count = statusCount, count > 0 {
-                Text("\(count)")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.orange.opacity(0.15)))
-                    .overlay(Capsule().stroke(Color.orange.opacity(0.5)))
-                    .accessibilityLabel("\(count) students need this")
-            }
+
+            Spacer(minLength: 0)
+
+            // Structural affordance only (no student tracking)
+            Image(systemName: "tag.fill")
+                .font(.caption2)
+                .foregroundStyle(.secondary.opacity(0.45))
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
-    }
-    
-    private var groupSubjectLine: String {
-        switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
-        case (false, false): return "\(lesson.subject) • \(lesson.group)"
-        case (false, true): return lesson.subject
-        case (true, false): return lesson.group
-        default: return ""
-        }
-    }
-    
-    private var writeUpFirstLine: String? {
-        let trimmed = lesson.writeUp.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return trimmed.split(separator: "\n").first.map(String.init)
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
     }
 }
-
-#if os(macOS)
-import AppKit
-
-private struct RightClickCatcher: NSViewRepresentable {
-    let onRightClick: () -> Void
-
-    func makeNSView(context: Context) -> RightClickView {
-        let view = RightClickView()
-        view.onRightClick = onRightClick
-        return view
-    }
-
-    func updateNSView(_ nsView: RightClickView, context: Context) {
-        nsView.onRightClick = onRightClick
-    }
-}
-
-private class RightClickView: NSView {
-    var onRightClick: (() -> Void)?
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        if let e = NSApp.currentEvent {
-            if e.type == .rightMouseDown { return self }
-            if e.type == .otherMouseDown && e.buttonNumber == 2 { return self }
-            if e.type == .leftMouseDown && e.modifierFlags.contains(.control) { return self }
-        }
-        return nil
-    }
-
-    override func rightMouseDown(with event: NSEvent) {
-        onRightClick?()
-    }
-
-    override func otherMouseDown(with event: NSEvent) {
-        if event.buttonNumber == 2 { onRightClick?() }
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        if event.modifierFlags.contains(.control) {
-            onRightClick?()
-        } else {
-            super.mouseDown(with: event)
-        }
-    }
-}
-#endif
-
