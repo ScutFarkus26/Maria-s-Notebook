@@ -283,7 +283,8 @@ enum WorkAgingPolicy {
         let created = AppCalendar.startOfDay(work.createdAt)
         
         // Return the most recent non-nil in priority order
-        return latestCheckIn ?? latestNote ?? statusChange ?? assigned ?? created
+        // Note: assigned and created are non-optional, so they're always available as final fallbacks
+        return latestCheckIn ?? latestNote ?? statusChange ?? assigned
     }
     
     /// School-day aware difference between today and the last meaningful touch.
@@ -394,7 +395,13 @@ enum WorkAgingPolicy {
         
         guard let earliestDue = dueCheckIns.min() else { return false }
         
-        let last = overrideLastTouch ?? lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: nil)
+        let last: Date
+        if let override = overrideLastTouch {
+            last = override
+        } else {
+            last = lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: nil)
+        }
+        
         return AppCalendar.startOfDay(last) < earliestDue
     }
     

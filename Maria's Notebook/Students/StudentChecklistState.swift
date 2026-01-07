@@ -105,7 +105,7 @@ final class StudentChecklistViewModel: ObservableObject {
         #endif
         
         // Build mapping dictionary once per recompute
-        let workModelsByContractID = adapter.workModelsByLegacyContractID(workModels: allWorkModels)
+        // REMOVED: unused workModelsByContractID
         
         // Filter to work models where any participant matches this student
         let studentKey = studentID.uuidString
@@ -161,7 +161,7 @@ final class StudentChecklistViewModel: ObservableObject {
 
         // Build states per lessonID
         var result: [UUID: StudentChecklistRowState] = [:]
-        let today = AppCalendar.startOfDay(Date())
+        // REMOVED: unused today constant
 
         for lessonID in lessonIDs {
             let lessonKey = lessonID.uuidString
@@ -235,8 +235,20 @@ final class StudentChecklistViewModel: ObservableObject {
             // Booleans - prefer WorkModel status
             let isScheduled = plannedCandidate != nil
             let isPresented = (presentation != nil)
-            let isActive = workModelForLesson?.isOpen ?? (open != nil)
-            let isComplete = (workModelForLesson?.status == .complete) ?? (open == nil && completed != nil)
+            
+            let isActive: Bool
+            if let work = workModelForLesson {
+                isActive = work.isOpen
+            } else {
+                isActive = (open != nil)
+            }
+            
+            let isComplete: Bool
+            if let work = workModelForLesson {
+                isComplete = (work.status == .complete)
+            } else {
+                isComplete = (open == nil && completed != nil)
+            }
 
             let state = StudentChecklistRowState(
                 lessonID: lessonID,

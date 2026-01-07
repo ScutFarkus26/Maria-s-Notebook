@@ -457,8 +457,6 @@ struct FollowUpInboxEngine {
         var workModelFetchCount = 0
         #endif
         
-        let activeRaw = WorkStatus.active.rawValue
-        let reviewRaw = WorkStatus.review.rawValue
         let completeRaw = WorkStatus.complete.rawValue
         let descriptor = FetchDescriptor<WorkModel>(
             predicate: #Predicate { work in

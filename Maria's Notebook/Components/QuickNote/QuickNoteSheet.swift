@@ -345,12 +345,14 @@ struct QuickNoteSheet: View {
                 .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $viewModel.isShowingCamera) {
+                #if os(iOS)
                 CameraView(image: Binding(
-                    get: { viewModel.attachedImage as? UIImage },
+                    get: { viewModel.attachedImage },
                     set: { viewModel.attachedImage = $0 }
                 )) { img in
                     if let img = img { viewModel.processImage(img) }
                 }
+                #endif
             }
             .alert("AI Error", isPresented: Binding(
                 get: { viewModel.aiError != nil },

@@ -205,7 +205,9 @@ struct WorkRepository {
         }
         
         // Fallback: try WorkContract for legacy data (read-only)
-        guard let contract = fetchWork(id: id) else { return }
+        // Inlined fetch to avoid deprecation warning
+        let descriptor = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
+        guard let contract = (try? context.fetch(descriptor))?.first else { return }
         // Resolve attributes that UI might still touch briefly
         _ = contract.title
         _ = contract.createdAt

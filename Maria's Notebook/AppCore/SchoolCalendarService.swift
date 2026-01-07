@@ -3,7 +3,9 @@ import SwiftData
 
 /// An actor-backed calendar service that computes and caches non-school days,
 /// ensuring thread safety and correct isolation for SwiftData operations.
-public actor SchoolCalendarService {
+/// Converted to @MainActor to align with ModelContext thread requirements in Swift 6.
+@MainActor
+public final class SchoolCalendarService {
     public static let shared = SchoolCalendarService()
 
     // MARK: - State
@@ -59,15 +61,14 @@ public actor SchoolCalendarService {
         let start = cal.startOfDay(for: range.lowerBound)
         let end = cal.startOfDay(for: range.upperBound)
 
-        // Fetch SwiftData models on the main actor and extract dates immediately.
-        let (nonSchoolDates, overrideDates): ([Date], [Date]) = await MainActor.run {
-            let nsFetch = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date >= start && $0.date < end })
-            let ovFetch = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date >= start && $0.date < end })
-            let ns: [NonSchoolDay] = (try? context.fetch(nsFetch)) ?? []
-            let ovs: [SchoolDayOverride] = (try? context.fetch(ovFetch)) ?? []
-            // Extract dates immediately to avoid returning non-Sendable types
-            return (ns.map { $0.date }, ovs.map { $0.date })
-        }
+        // Fetch SwiftData models directly (we are on MainActor)
+        let nsFetch = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date >= start && $0.date < end })
+        let ovFetch = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date >= start && $0.date < end })
+        let ns: [NonSchoolDay] = (try? context.fetch(nsFetch)) ?? []
+        let ovs: [SchoolDayOverride] = (try? context.fetch(ovFetch)) ?? []
+        
+        let nonSchoolDates = ns.map { $0.date }
+        let overrideDates = ovs.map { $0.date }
 
         var result = Set<Date>(nonSchoolDates.map { cal.startOfDay(for: $0) })
 
@@ -105,38 +106,40 @@ public actor SchoolCalendarService {
         let isWeekend = (wd == 1 || wd == 7)
 
         if isWeekend {
-            let becameNonSchool: Bool = try await MainActor.run {
-                let overrideDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
-                let overrides: [SchoolDayOverride] = try context.fetch(overrideDescriptor)
-                if let existing = overrides.first {
-                    // Remove override -> weekend becomes non-school again
-                    context.delete(existing)
-                    try context.save()
-                    return true
-                } else {
-                    // Add override -> weekend becomes a school day (non-school = false)
-                    context.insert(SchoolDayOverride(date: day))
-                    try context.save()
-                    return false
-                }
+            // Weekend logic
+            let overrideDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            let overrides: [SchoolDayOverride] = try context.fetch(overrideDescriptor)
+            
+            let becameNonSchool: Bool
+            if let existing = overrides.first {
+                // Remove override -> weekend becomes non-school again
+                context.delete(existing)
+                try context.save()
+                becameNonSchool = true
+            } else {
+                // Add override -> weekend becomes a school day (non-school = false)
+                context.insert(SchoolDayOverride(date: day))
+                try context.save()
+                becameNonSchool = false
             }
             invalidateMonthCache(for: day)
             return becameNonSchool
         } else {
-            let isNowNonSchool: Bool = try await MainActor.run {
-                let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
-                let items: [NonSchoolDay] = try context.fetch(nsDescriptor)
-                if let existing = items.first {
-                    // Remove explicit non-school -> becomes school day
-                    context.delete(existing)
-                    try context.save()
-                    return false
-                } else {
-                    // Add explicit non-school for weekday
-                    context.insert(NonSchoolDay(date: day))
-                    try context.save()
-                    return true
-                }
+            // Weekday logic
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            let items: [NonSchoolDay] = try context.fetch(nsDescriptor)
+            
+            let isNowNonSchool: Bool
+            if let existing = items.first {
+                // Remove explicit non-school -> becomes school day
+                context.delete(existing)
+                try context.save()
+                isNowNonSchool = false
+            } else {
+                // Add explicit non-school for weekday
+                context.insert(NonSchoolDay(date: day))
+                try context.save()
+                isNowNonSchool = true
             }
             invalidateMonthCache(for: day)
             return isNowNonSchool

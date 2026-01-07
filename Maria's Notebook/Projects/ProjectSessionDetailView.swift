@@ -133,7 +133,7 @@ struct ProjectSessionDetailView: View {
                     return vm
                 }()
             ) { chosenID in
-                if let chosenID {
+                if let _ = chosenID {
                     // WorkContract is read-only for legacy data - do not mutate
                     #if DEBUG
                     print("⚠️ Attempted to update WorkContract lessonID, but WorkContract is read-only (legacy data)")

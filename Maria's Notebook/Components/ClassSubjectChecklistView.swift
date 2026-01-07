@@ -371,8 +371,20 @@ class ClassSubjectChecklistViewModel: ObservableObject {
                 let completeContract = contractsForLesson.first { $0.status == .complete }
                 
                 // Prefer WorkModel status
-                let isActive = workModelForLesson?.isOpen ?? (openContract != nil)
-                let isComplete = (workModelForLesson?.status == .complete) ?? (openContract == nil && completeContract != nil)
+                let isActive: Bool
+                if let work = workModelForLesson {
+                    isActive = work.isOpen
+                } else {
+                    isActive = (openContract != nil)
+                }
+                
+                let isComplete: Bool
+                if let work = workModelForLesson {
+                    isComplete = (work.status == .complete)
+                } else {
+                    isComplete = (openContract == nil && completeContract != nil)
+                }
+                
                 let contractID = workModelForLesson?.id ?? workModelForLesson?.legacyContractID ?? (openContract ?? completeContract)?.id
                 
                 let state = StudentChecklistRowState(

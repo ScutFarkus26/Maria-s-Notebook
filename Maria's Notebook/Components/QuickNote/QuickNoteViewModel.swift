@@ -165,7 +165,7 @@ class QuickNoteViewModel: ObservableObject {
                 // Only update if text actually changed
                 if hasChanges {
                     // Store the updated text to check against in next analysis
-                    let previousText = self.bodyText
+                    // REMOVED: unused previousText
                     self.lastReplacementText = updatedText
                     
                     withAnimation {

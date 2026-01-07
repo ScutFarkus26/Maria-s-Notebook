@@ -403,7 +403,6 @@ actor StudentTagger {
                 // already follows that exact format - if so, don't replace it
                 if replacementTrimmed.hasSuffix(".") {
                     // Check if matched text is "FirstName LastInitial." format
-                    let matchedLower = matchedTrimmed.lowercased()
                     let expectedPattern = "\(firstLower) \(firstInitial)\\."
                     if let regex = try? NSRegularExpression(pattern: "^\(expectedPattern)$", options: .caseInsensitive) {
                         let range = NSRange(matchedText.startIndex..., in: matchedText)
@@ -452,11 +451,10 @@ actor StudentTagger {
                             if replacement.hasSuffix(".") && matchedText.hasSuffix(".") {
                                 // Build what the replacement format would look like
                                 let expectedFormat = "\(first) \(firstInitial.uppercased())."
-                                let matchedLower = matchedText.lowercased()
                                 let expectedLower = expectedFormat.lowercased()
                                 
                                 // If they match (case-insensitive), don't generate a replacement
-                                if matchedLower == expectedLower {
+                                if matchedText.lowercased() == expectedLower {
                                     continue // Skip - already in correct format, don't replace
                                 }
                             }

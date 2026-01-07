@@ -400,7 +400,6 @@ final class StudentDetailViewModel: ObservableObject {
         }
         
         // Use legacy adapter to find WorkContract if it exists
-        let adapter = WorkLegacyAdapter(modelContext: modelContext)
         if let legacyID = workModel.legacyContractID {
             // Fetch all WorkContracts and filter in memory (no predicates)
             let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []

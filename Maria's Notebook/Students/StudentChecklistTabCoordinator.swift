@@ -41,7 +41,6 @@ struct StudentChecklistTabCoordinator {
         if let workID = row?.contractID,
            let work = vm.fetchWork(by: workID, modelContext: modelContext) {
             // Use legacy adapter to find WorkContract if needed for UI compatibility
-            let adapter = WorkLegacyAdapter(modelContext: modelContext)
             if let legacyID = work.legacyContractID {
                 // Try to find WorkContract directly (for legacy UI compatibility)
                 let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
