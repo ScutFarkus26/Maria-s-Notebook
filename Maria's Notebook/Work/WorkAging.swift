@@ -280,10 +280,9 @@ enum WorkAgingPolicy {
         
         // 5) Fallbacks
         let assigned = AppCalendar.startOfDay(work.assignedAt)
-        let created = AppCalendar.startOfDay(work.createdAt)
         
         // Return the most recent non-nil in priority order
-        // Note: assigned and created are non-optional, so they're always available as final fallbacks
+        // Note: assigned is non-optional, so it's always available as final fallback
         return latestCheckIn ?? latestNote ?? statusChange ?? assigned
     }
     

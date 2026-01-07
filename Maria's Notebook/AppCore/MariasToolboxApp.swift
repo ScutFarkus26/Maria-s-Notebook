@@ -396,7 +396,8 @@ struct MariasToolboxApp: App {
                             #endif
                             // Store the error for display in the UI
                             let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
-                            if let nsError = error as NSError?, let userInfo = nsError.userInfo as? [String: Any] {
+                            if let nsError = error as NSError? {
+                                let userInfo = nsError.userInfo
                                 // Try to get more detailed error information
                                 var detailedError = errorDescription
                                 if let underlyingError = userInfo[NSUnderlyingErrorKey] as? NSError {
@@ -450,7 +451,8 @@ struct MariasToolboxApp: App {
                             #endif
                             // Store the error for display in the UI
                             let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
-                            if let nsError = error as NSError?, let userInfo = nsError.userInfo as? [String: Any] {
+                            if let nsError = error as NSError? {
+                                let userInfo = nsError.userInfo
                                 // Try to get more detailed error information
                                 var detailedError = errorDescription
                                 if let underlyingError = userInfo[NSUnderlyingErrorKey] as? NSError {

@@ -360,7 +360,6 @@ actor StudentTagger {
         firstNameCounts: [String: Int]
     ) -> [TextReplacement] {
         var replacements: [TextReplacement] = []
-        let lowerText = text.lowercased()
         
         // Track what we've already seen to avoid duplicate replacements
         var seenReplacements: Set<String> = []
