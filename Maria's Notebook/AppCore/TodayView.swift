@@ -107,31 +107,26 @@ struct TodayView: View {
     }
     
     // Helpers
-    private var nameForLesson: (UUID) -> String { { id in viewModel.lessonsByID[id]?.name ?? "Lesson" } }
+    // PERFORMANCE OPTIMIZATION: Use ViewModel helpers to avoid recreating closures
+    private func nameForLesson(_ id: UUID) -> String {
+        viewModel.lessonName(for: id)
+    }
     
+    // PERFORMANCE OPTIMIZATION: Use cached duplicate names from ViewModel
     private var duplicateFirstNames: Set<String> {
-        let firsts = viewModel.studentsByID.values.map { $0.firstName.trimmed().lowercased() }
-        var counts: [String: Int] = [:]
-        for f in firsts { counts[f, default: 0] += 1 }
-        return Set(counts.filter { $0.value > 1 }.map { $0.key })
+        viewModel.duplicateFirstNames
     }
 
-    private var displayNameForID: (UUID) -> String { { id in
-        guard let s = viewModel.studentsByID[id] else { return "Student" }
-        let first = s.firstName
-        let key = first.trimmed().lowercased()
-        if duplicateFirstNames.contains(key) {
-            if let initialChar = s.lastName.trimmed().first {
-                return "\(first) \(String(initialChar).uppercased())."
-            }
-        }
-        return first
-    } }
+    // PERFORMANCE OPTIMIZATION: Use ViewModel helper to avoid recreating closures
+    private func displayNameForID(_ id: UUID) -> String {
+        viewModel.displayName(for: id)
+    }
 
-    private var studentNamesForIDs: ([UUID]) -> String { { ids in
+    // PERFORMANCE OPTIMIZATION: Use function instead of closure
+    private func studentNamesForIDs(_ ids: [UUID]) -> String {
         let names = ids.map { displayNameForID($0) }
         return names.joined(separator: ", ")
-    } }
+    }
     
     private func studentNames(for note: Note) -> String {
         switch note.scope {
@@ -243,10 +238,47 @@ struct TodayView: View {
                     }
                     #endif
                 }
+                #if os(iOS)
+                // PERFORMANCE OPTIMIZATION: Use simultaneousGesture to avoid interfering with List scrolling
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 80)
+                        .onEnded { value in
+                            let horizontalAmount = value.translation.width
+                            let verticalAmount = value.translation.height
+                            // Only trigger if horizontal swipe is significantly more than vertical
+                            // This prevents conflicts with List scrolling
+                            if abs(horizontalAmount) > abs(verticalAmount) * 1.5 && abs(horizontalAmount) > 80 {
+                                // Horizontal swipe
+                                if horizontalAmount > 0 {
+                                    // Swipe right - go to previous day
+                                    let prev = previousSchoolDaySync(before: viewModel.date)
+                                    viewModel.date = AppCalendar.startOfDay(prev)
+                                } else {
+                                    // Swipe left - go to next day
+                                    let next = nextSchoolDaySync(after: viewModel.date)
+                                    viewModel.date = AppCalendar.startOfDay(next)
+                                }
+                            }
+                        }
+                )
+                #endif
             }
         }
         .onAppear {
             viewModel.setCalendar(calendar)
+            // Sync reminders when Today view appears
+            Task {
+                let syncService = ReminderSyncService.shared
+                syncService.modelContext = modelContext
+                if syncService.syncListName != nil {
+                    do {
+                        try await syncService.syncReminders()
+                    } catch {
+                        // Silently fail - user can manually sync from settings
+                        print("TodayView: Reminder sync failed: \(error.localizedDescription)")
+                    }
+                }
+            }
             AppCalendar.adopt(timeZoneFrom: calendar)
             // Ensure initial date is a school day
             let coerced = nearestSchoolDaySync(to: viewModel.date)
@@ -528,7 +560,7 @@ struct TodayView: View {
             if !(viewModel.absentToday.isEmpty && viewModel.leftEarlyToday.isEmpty) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        ForEach(StringSorting.sortByLocalizedCaseInsensitive(items: viewModel.absentToday, extractor: displayNameForID), id: \.self) { sid in
+                        ForEach(StringSorting.sortByLocalizedCaseInsensitive(items: viewModel.absentToday, extractor: { displayNameForID($0) }), id: \.self) { sid in
                             let name = displayNameForID(sid)
                             if !name.trimmed().isEmpty {
                                 studentPill(name, color: .red)
@@ -537,7 +569,7 @@ struct TodayView: View {
                         if !viewModel.absentToday.isEmpty && !viewModel.leftEarlyToday.isEmpty {
                             Color.clear.frame(width: 8)
                         }
-                        ForEach(StringSorting.sortByLocalizedCaseInsensitive(items: viewModel.leftEarlyToday, extractor: displayNameForID), id: \.self) { sid in
+                        ForEach(StringSorting.sortByLocalizedCaseInsensitive(items: viewModel.leftEarlyToday, extractor: { displayNameForID($0) }), id: \.self) { sid in
                             let name = displayNameForID(sid)
                             if !name.trimmed().isEmpty {
                                 studentPill(name, color: .purple)
@@ -580,7 +612,7 @@ struct TodayView: View {
                         Button {
                             selectedStudentLesson = sl
                         } label: {
-                            LessonRow(
+                            TodayLessonRow(
                                 lessonName: nameForLesson(sl.resolvedLessonID),
                                 studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
                                 isPresented: sl.isGiven
@@ -865,7 +897,7 @@ private struct ContractFollowUpRow: View {
     }
 }
 
-private struct LessonRow: View {
+private struct TodayLessonRow: View {
     let lessonName: String
     let studentNames: String
     let isPresented: Bool

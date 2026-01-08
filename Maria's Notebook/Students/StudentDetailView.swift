@@ -1,13 +1,9 @@
 // StudentDetailView.swift
-// A focused sheet for displaying a student's details and upcoming lessons
 
 import SwiftUI
 import SwiftData
 import Combine
-// Uses StudentChecklistViewModel
 
-/// Detail sheet for a single student, with Overview, Checklist, History, Meetings, and Notes tabs.
-/// This refactor adds comments, MARKs, and tiny local naming cleanups without altering behavior.
 struct StudentDetailView: View {
     // MARK: - Inputs
     let student: Student
@@ -30,13 +26,10 @@ struct StudentDetailView: View {
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
-    
-    // Use @AppStorage to persist selection across different students
-    @AppStorage("StudentDetailView.activeTab") private var selectedTab: StudentDetailTab = .overview
-    
-    @State private var selectedContract: WorkContract? = nil
 
-    // NEW: Cache contracts for student in state
+    @AppStorage("StudentDetailView.activeTab") private var selectedTab: StudentDetailTab = .overview
+
+    @State private var selectedContract: WorkContract? = nil
     @State private var contractsCache: [WorkContract] = []
 
     @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
@@ -56,22 +49,9 @@ struct StudentDetailView: View {
         lessonsVM.subjects(from: vm.lessons)
     }
 
-    // MARK: - Live computed caches from ViewModel
-    private var lessons: [Lesson] { vm.lessons }
-    private var studentLessonsRaw: [StudentLesson] { vm.studentLessons }
-    private var lessonsByID: [UUID: Lesson] { vm.lessonsByID }
-    private var studentLessonsByID: [UUID: StudentLesson] { vm.studentLessonsByID }
-    private var nextLessonsForStudent: [StudentLessonSnapshot] { vm.nextLessonsForStudent }
-    
-    // Added filtered computed properties for student-specific data
-    // Note: Now this is just an alias since ViewModel already filters
-    private var studentLessonsAll: [StudentLesson] { vm.studentLessons }
-
-    // Lightweight ID arrays to aid type-checker in onChange
     private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
     private var studentLessonIDs: [UUID] { vm.studentLessons.map(\.id) }
 
-    // MARK: - Checklist Tab Coordinator
     private var checklistCoordinator: StudentChecklistTabCoordinator {
         StudentChecklistTabCoordinator(
             vm: vm,
@@ -82,8 +62,6 @@ struct StudentDetailView: View {
         )
     }
 
-
-    // MARK: - Tab content builders
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
@@ -99,30 +77,22 @@ struct StudentDetailView: View {
                 draftStartDate: $draftStartDate,
                 contractsCache: $contractsCache,
                 selectedContract: $selectedContract,
-                lessonsByID: lessonsByID,
-                nextLessonsForStudent: nextLessonsForStudent
+                lessonsByID: vm.lessonsByID,
+                nextLessonsForStudent: vm.nextLessonsForStudent
             )
         case .checklist:
             StudentChecklistTab(
                 student: student,
                 subjects: subjectsForChecklist,
                 selectedSubject: selectedChecklistSubject,
-                lessons: lessons,
-                studentLessonsRaw: studentLessonsRaw,
+                lessons: vm.lessons,
+                studentLessonsRaw: vm.studentLessons,
                 rowStatesByLesson: checklistVM.rowStatesByLesson,
                 onSubjectSelected: { setSelectedChecklistSubject($0) },
-                onTapScheduled: { lesson, row in
-                    checklistCoordinator.handleTapScheduled(lesson: lesson, row: row)
-                },
-                onTapPresented: { lesson, row in
-                    checklistCoordinator.handleTapPresented(lesson: lesson, row: row)
-                },
-                onTapActive: { lesson, row in
-                    checklistCoordinator.handleTapActive(lesson: lesson, row: row)
-                },
-                onTapComplete: { lesson, row in
-                    checklistCoordinator.handleTapComplete(lesson: lesson, row: row)
-                }
+                onTapScheduled: { lesson, row in checklistCoordinator.handleTapScheduled(lesson: lesson, row: row) },
+                onTapPresented: { lesson, row in checklistCoordinator.handleTapPresented(lesson: lesson, row: row) },
+                onTapActive: { lesson, row in checklistCoordinator.handleTapActive(lesson: lesson, row: row) },
+                onTapComplete: { lesson, row in checklistCoordinator.handleTapComplete(lesson: lesson, row: row) }
             )
         case .history:
             historyPlaceholder
@@ -131,36 +101,29 @@ struct StudentDetailView: View {
             StudentMeetingsTab(student: student)
                 .padding(.top, 36)
         case .notes:
-            // Handled in body to avoid ScrollView
+            // handled in body
             EmptyView()
+        case .progress:
+            StudentProgressTab(student: student)
         }
     }
 
-    // MARK: - Helper functions (delegate to ViewModel)
-    
     private func fetchContractsForStudent() -> [WorkContract] {
-        return vm.fetchContractsForStudent(modelContext: modelContext)
+        vm.fetchContractsForStudent(modelContext: modelContext)
     }
-    
+
     @ViewBuilder
     private func lessonGiveSheet(for lesson: Lesson) -> some View {
-        // Create a draft StudentLesson for this student and selected lesson
-        // Note: createDraftStudentLesson already saves the context
         let newSL: StudentLesson = vm.createDraftStudentLesson(for: lesson, modelContext: modelContext)
-        
         StudentLessonDetailView(studentLesson: newSL) {
             vm.selectedLessonForGive = nil
-            // Refresh data after the sheet is dismissed
             vm.loadData(modelContext: modelContext)
         }
         .studentDetailSheetSizing()
     }
-    
-    // MARK: - Actions
-    private func handleCancelEdit() {
-        isEditing = false
-    }
-    
+
+    private func handleCancelEdit() { isEditing = false }
+
     private func handleSaveEdit() {
         let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
         let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -175,7 +138,7 @@ struct StudentDetailView: View {
         _ = saveCoordinator.save(modelContext, reason: "Edit student details")
         isEditing = false
     }
-    
+
     private func handleEdit() {
         draftFirstName = student.firstName
         draftLastName = student.lastName
@@ -185,19 +148,15 @@ struct StudentDetailView: View {
         draftStartDate = student.dateStarted ?? Date()
         isEditing = true
     }
-    
-    private func handleDelete() {
-        showDeleteAlert = true
-    }
-    
+
+    private func handleDelete() { showDeleteAlert = true }
+
     private func handleDone() {
         if let onDone { onDone() } else { dismiss() }
     }
 
-    // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             HStack {
                 Text("Student Info")
                     .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
@@ -206,15 +165,16 @@ struct StudentDetailView: View {
             .padding(.horizontal, 24)
             .padding(.top, 18)
 
-            // Tab navigation
             StudentDetailTabNavigation(selectedTab: $selectedTab)
 
-            Divider()
-                .padding(.top, 8)
+            Divider().padding(.top, 8)
 
             if selectedTab == .notes {
-                // The new Notes timeline has its own internal list, so we avoid the wrapping ScrollView
                 StudentNotesTab(student: student)
+            } else if selectedTab == .progress {
+                tabContent
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 24)
             } else {
                 ScrollView {
                     VStack(spacing: 28) {
@@ -276,7 +236,6 @@ struct StudentDetailView: View {
             vm.updateContracts(contractsCache)
         }
         .onChange(of: lessonIDs) { _, _ in
-            // Reload data when lessons change
             vm.loadData(modelContext: modelContext)
             checklistVM.recompute(for: vm.lessons, using: modelContext)
             ensureChecklistSubjectSelection()
@@ -284,7 +243,6 @@ struct StudentDetailView: View {
             vm.updateContracts(contractsCache)
         }
         .onChange(of: studentLessonIDs) { _, _ in
-            // Reload data when student lessons change
             vm.loadData(modelContext: modelContext)
             checklistVM.recompute(for: vm.lessons, using: modelContext)
             contractsCache = fetchContractsForStudent()
@@ -304,7 +262,6 @@ struct StudentDetailView: View {
                 setSelectedChecklistSubject(exact)
             }
         } else {
-            // Prefer Geometry if present, otherwise first
             if let geo = subjects.first(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare("Geometry") == .orderedSame }) {
                 setSelectedChecklistSubject(geo)
             } else {
@@ -313,14 +270,12 @@ struct StudentDetailView: View {
         }
     }
 
-    /// Creates the detail view for a student. Keeps StateObject identity stable across sheet presentations.
     init(student: Student, onDone: (() -> Void)? = nil) {
         self.student = student
         self.onDone = onDone
         _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
         _checklistVM = StateObject(wrappedValue: StudentChecklistViewModel(studentID: student.id))
     }
-
 
     private var historyPlaceholder: some View {
         ContentUnavailableView {
@@ -330,17 +285,4 @@ struct StudentDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }
-
 }
-
-#Preview {
-    let container = ModelContainer.preview
-    let context = container.mainContext
-
-    // Seed a sample student and minimal references used by the view
-    let student = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(timeIntervalSince1970: 0), level: .upper)
-    context.insert(student)
-    return StudentDetailView(student: student)
-        .previewEnvironment(using: container)
-}
-

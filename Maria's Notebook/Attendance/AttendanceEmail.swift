@@ -51,7 +51,7 @@ public struct AttendanceEmailReport {
             }
             lines.append("")
         }
-        section("Present", names: present)
+        section("On Time", names: present)
         section("Tardy", names: tardy)
         section("Absent", names: absent)
         return lines.joined(separator: "\n")

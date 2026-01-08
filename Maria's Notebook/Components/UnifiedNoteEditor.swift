@@ -1119,4 +1119,3 @@ struct SmartTextEditor: NSViewRepresentable {
     }
 }
 #endif
-

@@ -4,7 +4,7 @@
 import SwiftUI
 
 enum StudentDetailTab: String {
-    case overview, checklist, history, meetings, notes
+    case overview, checklist, history, meetings, notes, progress
 }
 
 struct StudentDetailTabNavigation: View {
@@ -68,6 +68,9 @@ struct StudentDetailTabNavigation: View {
         }
         PillButton(title: "Notes", isSelected: selectedTab == .notes) { 
             selectedTab = .notes 
+        }
+        PillButton(title: "Progress", isSelected: selectedTab == .progress) { 
+            selectedTab = .progress 
         }
     }
 }

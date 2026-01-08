@@ -7,6 +7,8 @@ import Combine
 /// Only syncs reminders from a specific Reminders list configured by the user.
 @MainActor
 class ReminderSyncService: ObservableObject {
+    static let shared = ReminderSyncService()
+    
     private let eventStore = EKEventStore()
     var modelContext: ModelContext?
     
@@ -15,16 +17,38 @@ class ReminderSyncService: ObservableObject {
     var syncListName: String? {
         didSet {
             UserDefaults.standard.set(syncListName, forKey: "ReminderSync.syncListName")
+            // Restart observation if sync is enabled/disabled
+            Task { @MainActor in
+                if self.syncListName != nil && self.hasFullAccess {
+                    self.startObservingChanges()
+                } else {
+                    self.stopObservingChangesOnMainActor()
+                }
+            }
         }
     }
     
     /// Whether EventKit access has been authorized
     @Published var authorizationStatus: EKAuthorizationStatus = .notDetermined
     
+    // MARK: - Change Observation
+    private var changeObserver: NSObjectProtocol?
+    private var isObserving = false
+    
     init(modelContext: ModelContext? = nil) {
         self.modelContext = modelContext
         self.syncListName = UserDefaults.standard.string(forKey: "ReminderSync.syncListName")
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
+        
+        // Start observing if we have access and a sync list configured
+        if syncListName != nil && hasFullAccess {
+            startObservingChanges()
+        }
+    }
+    
+    deinit {
+        // `deinit` is not MainActor-isolated; schedule cleanup on the main actor.
+        stopObservingChanges()
     }
     
     /// Request access to Reminders
@@ -37,6 +61,11 @@ class ReminderSyncService: ObservableObject {
                         // Update status
                         Task { @MainActor in
                             self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
+                            
+                            // Start observing if access was granted and sync is configured
+                            if granted && self.syncListName != nil {
+                                self.startObservingChanges()
+                            }
                         }
                         
                         // Handle completion - check for error first
@@ -58,6 +87,11 @@ class ReminderSyncService: ObservableObject {
                     self.eventStore.requestAccess(to: .reminder) { granted, error in
                         Task { @MainActor in
                             self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
+                            
+                            // Start observing if access was granted and sync is configured
+                            if granted && self.syncListName != nil {
+                                self.startObservingChanges()
+                            }
                         }
                         if let error = error {
                             continuation.resume(throwing: error)
@@ -236,6 +270,71 @@ class ReminderSyncService: ObservableObject {
         reminder.updatedAt = data.lastModifiedDate ?? Date()
         reminder.lastSyncedAt = Date()
     }
+    
+    // MARK: - Automatic Syncing
+    
+    /// Start observing EventKit changes for automatic syncing
+    private func startObservingChanges() {
+        guard !isObserving else { return }
+        guard hasFullAccess else { return }
+        guard syncListName != nil else { return }
+        
+        // Observe EventKit store changes
+        // Note: EKEventStoreChangedNotification is posted when reminders/events change
+        changeObserver = NotificationCenter.default.addObserver(
+            forName: .EKEventStoreChanged,
+            object: eventStore,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.handleEventStoreChanged()
+            }
+        }
+        
+        isObserving = true
+    }
+    
+    /// Stop observing EventKit changes (MainActor implementation)
+    @MainActor
+    private func stopObservingChangesOnMainActor() {
+        if let observer = changeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            changeObserver = nil
+        }
+        isObserving = false
+    }
+
+    /// Stop observing EventKit changes
+    /// Safe to call from nonisolated contexts (e.g. `deinit`)
+    private nonisolated func stopObservingChanges() {
+        Task { @MainActor [weak self] in
+            self?.stopObservingChangesOnMainActor()
+        }
+    }
+    
+    /// Handle EventKit store changes by syncing reminders
+    private func handleEventStoreChanged() async {
+        // Only sync if we have a configured list and access
+        guard let listName = syncListName, !listName.isEmpty else { return }
+        guard hasFullAccess else { return }
+        guard modelContext != nil else { return }
+        
+        // Debounce: Only sync if we haven't synced recently (within last 5 seconds)
+        // This prevents excessive syncing during rapid changes
+        if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < 5.0 {
+            return
+        }
+        
+        do {
+            try await syncReminders()
+            lastSyncTime = Date()
+        } catch {
+            // Silently log errors for automatic sync (user can manually sync if needed)
+            print("ReminderSyncService: Automatic sync failed: \(error.localizedDescription)")
+        }
+    }
+    
+    private var lastSyncTime: Date?
 }
 
 enum ReminderSyncError: LocalizedError {

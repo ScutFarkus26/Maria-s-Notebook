@@ -41,7 +41,7 @@ struct LessonsListView: View {
                     if !items.isEmpty {
                         Section(header: Text(sh)) {
                             ForEach(items, id: \.id) { lesson in
-                                LessonRow(lesson: lesson)
+                                LessonRow(lesson: lesson, secondaryTextStyle: .subjectAndGroup, showTagIcon: true)
                             }
                             .onMove(perform: canReorderLessons ? { source, destination in
                                 // IMPORTANT: onMove needs a single ordered subset.
@@ -57,7 +57,7 @@ struct LessonsListView: View {
                 if !noSub.isEmpty {
                     Section(header: Text("Other")) {
                         ForEach(noSub, id: \.id) { lesson in
-                            LessonRow(lesson: lesson)
+                            LessonRow(lesson: lesson, secondaryTextStyle: .subjectAndGroup, showTagIcon: true)
                         }
                         .onMove(perform: canReorderLessons ? { source, destination in
                             onMoveLesson(source, destination, noSub)
@@ -67,7 +67,7 @@ struct LessonsListView: View {
             } else {
                 // No subheadings: single list
                 ForEach(orderedLessons, id: \.id) { lesson in
-                    LessonRow(lesson: lesson)
+                    LessonRow(lesson: lesson, secondaryTextStyle: .subjectAndGroup, showTagIcon: true)
                 }
                 .onMove(perform: canReorderLessons ? { source, destination in
                     onMoveLesson(source, destination, orderedLessons)
@@ -78,37 +78,5 @@ struct LessonsListView: View {
         .contentMargins(.leading, 0, for: .scrollContent)
         .contentMargins(.trailing, 0, for: .scrollContent)
         .navigationTitle(group)
-    }
-}
-
-private struct LessonRow: View {
-    let lesson: Lesson
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(.secondary.opacity(0.35))
-                .frame(width: 7, height: 7)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-                    .font(.system(.body, design: .rounded).weight(.semibold))
-                    .lineLimit(1)
-
-                Text("\(lesson.subject) · \(lesson.group)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 0)
-
-            // Structural affordance only (no student tracking)
-            Image(systemName: "tag.fill")
-                .font(.caption2)
-                .foregroundStyle(.secondary.opacity(0.45))
-        }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
     }
 }

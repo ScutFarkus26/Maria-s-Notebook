@@ -84,10 +84,10 @@ struct LessonsRootView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             subjectsColumn
-                .navigationSplitViewColumnWidth(min: 160, ideal: 200, max: 300)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
         } content: {
             lessonsListColumn
-                .navigationSplitViewColumnWidth(min: 220, ideal: 320, max: 500)
+                .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 520)
         } detail: {
             lessonDetailColumn
         }
@@ -240,7 +240,7 @@ struct LessonsRootView: View {
                             if !groupLessons.isEmpty {
                                 Section(header: Text(group)) {
                                     ForEach(groupLessons, id: \.self) { lesson in
-                                        LessonRow(lesson: lesson)
+                                        LessonRow(lesson: lesson, secondaryTextStyle: .subheading, showTagIcon: false)
                                             .tag(lesson)
                                             .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
                                             .contextMenu {
@@ -339,7 +339,7 @@ struct LessonsRootView: View {
         
         // Check if there's an exact match (same students)
         let studentSet = Set(studentUUIDs)
-        if let existing = existingLessons.first(where: { Set($0.resolvedStudentIDs) == studentSet }) {
+        if existingLessons.contains(where: { Set($0.resolvedStudentIDs) == studentSet }) {
             // Already exists, don't create duplicate
             lessonToSchedule = nil
             return
@@ -382,35 +382,5 @@ private extension View {
         self
             .listStyle(.inset)
         #endif
-    }
-}
-
-// MARK: - Internal Components
-
-private struct LessonRow: View {
-    let lesson: Lesson
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(.secondary.opacity(0.35))
-                .frame(width: 7, height: 7)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-                    .font(.system(.body, design: .rounded).weight(.semibold))
-                    .lineLimit(1)
-
-                if !lesson.subheading.isEmpty {
-                    Text(lesson.subheading)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, 2)
     }
 }

@@ -90,10 +90,48 @@ final class TodayViewModel: ObservableObject {
     @Published var recentNoteStudentsByID: [UUID: Student] = [:]
 
     // MARK: - Caches
-    @Published private(set) var studentsByID: [UUID: Student] = [:]
+    @Published private(set) var studentsByID: [UUID: Student] = [:] {
+        didSet {
+            // Invalidate duplicate names cache when students change
+            _cachedDuplicateFirstNames = nil
+        }
+    }
     @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
     // Caching contracts by ID for generic lookups if needed
     @Published private(set) var contractsByID: [UUID: WorkContract] = [:]
+    
+    // PERFORMANCE OPTIMIZATION: Cache duplicate first names to avoid recalculating on every access
+    private var _cachedDuplicateFirstNames: Set<String>?
+    var duplicateFirstNames: Set<String> {
+        if let cached = _cachedDuplicateFirstNames {
+            return cached
+        }
+        let firsts = studentsByID.values.map { $0.firstName.trimmed().lowercased() }
+        var counts: [String: Int] = [:]
+        for f in firsts { counts[f, default: 0] += 1 }
+        let duplicates = Set(counts.filter { $0.value > 1 }.map { $0.key })
+        _cachedDuplicateFirstNames = duplicates
+        return duplicates
+    }
+    
+    // PERFORMANCE OPTIMIZATION: Helper to get display name for a student ID
+    // This avoids recreating closures in the view
+    func displayName(for studentID: UUID) -> String {
+        guard let student = studentsByID[studentID] else { return "Student" }
+        let first = student.firstName
+        let key = first.trimmed().lowercased()
+        if duplicateFirstNames.contains(key) {
+            if let initialChar = student.lastName.trimmed().first {
+                return "\(first) \(String(initialChar).uppercased())."
+            }
+        }
+        return first
+    }
+    
+    // PERFORMANCE OPTIMIZATION: Helper to get lesson name
+    func lessonName(for lessonID: UUID) -> String {
+        lessonsByID[lessonID]?.name ?? "Lesson"
+    }
 
     // MARK: - Scheduling
     // ENERGY OPTIMIZATION: Debounce reloads to prevent excessive database queries
@@ -431,14 +469,14 @@ final class TodayViewModel: ObservableObject {
     
     private func reloadReminders(day: Date, nextDay: Date) {
         do {
-            let startOfToday = Date().startOfDay
-            let startOfDay = day.startOfDay
+            let startOfDay = AppCalendar.startOfDay(day)
             
             // ENERGY OPTIMIZATION: Only fetch reminders that could be relevant
             // Fetch incomplete reminders with due dates in the past or within the next 7 days
             // This avoids loading reminders that are far in the future
-            let futureCutoff = Calendar.current.date(byAdding: .day, value: 7, to: startOfDay) ?? nextDay
-            let pastCutoff = Calendar.current.date(byAdding: .day, value: -30, to: startOfDay) ?? Date.distantPast
+            // IMPORTANT: Always include a buffer around the selected date to ensure we don't miss reminders
+            let futureCutoff = calendar.date(byAdding: .day, value: 7, to: startOfDay) ?? nextDay
+            let pastCutoff = calendar.date(byAdding: .day, value: -30, to: startOfDay) ?? Date.distantPast
             
             let incompleteDescriptor = FetchDescriptor<Reminder>(
                 predicate: #Predicate { r in
@@ -449,19 +487,22 @@ final class TodayViewModel: ObservableObject {
             let allReminders = try context.fetch(incompleteDescriptor)
             
             // Separate into overdue and due today
+            // Overdue = reminders due before the selected date
+            // Due today = reminders due on the selected date
             var overdue: [Reminder] = []
             var today: [Reminder] = []
             
             for reminder in allReminders {
                 guard let dueDate = reminder.dueDate else { continue }
-                let dueDay = dueDate.startOfDay
+                // Use AppCalendar for consistent date normalization
+                let dueDay = AppCalendar.startOfDay(dueDate)
                 
-                if dueDay < startOfToday {
-                    // Overdue
-                    overdue.append(reminder)
-                } else if dueDay >= startOfDay && dueDay < nextDay {
-                    // Due today
+                if dueDay >= startOfDay && dueDay < nextDay {
+                    // Due on the selected date
                     today.append(reminder)
+                } else if dueDay < startOfDay {
+                    // Overdue (before the selected date)
+                    overdue.append(reminder)
                 }
             }
             
@@ -473,6 +514,7 @@ final class TodayViewModel: ObservableObject {
             self.todaysReminders = today
             
         } catch {
+            print("Error loading reminders: \(error)")
             self.overdueReminders = []
             self.todaysReminders = []
         }

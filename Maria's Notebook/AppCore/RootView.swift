@@ -25,6 +25,7 @@ struct RootView: View {
         
         case community
         case logs
+        case tracks
         case settings
         
         var id: Self { self }
@@ -43,6 +44,7 @@ struct RootView: View {
             case .planningProjects: return "Projects"
             case .community: return "Community"
             case .logs: return "Logs"
+            case .tracks: return "Tracks"
             case .settings: return "Settings"
             }
         }
@@ -61,6 +63,7 @@ struct RootView: View {
             case .planningProjects: return "folder"
             case .community: return "bubble.left.and.bubble.right"
             case .logs: return "list.bullet"
+            case .tracks: return "list.number"
             case .settings: return "gear"
             }
         }
@@ -76,13 +79,14 @@ struct RootView: View {
             case .community: self = .community
             case .logs: self = .logs
             case .settings: self = .settings
+            // tracks has no legacy tab equivalent
             }
         }
         
         // Check if this item should be in the More menu on iPhone
         var isInMoreMenu: Bool {
             switch self {
-            case .lessons, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .logs, .settings:
+            case .lessons, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .logs, .tracks, .settings:
                 return true
             default:
                 return false
@@ -101,6 +105,7 @@ struct RootView: View {
             case .planningChecklist, .planningAgenda, .planningWork, .planningProjects: return .planning
             case .community: return .community
             case .logs: return .logs
+            case .tracks: return nil // Tracks is a new feature, no legacy tab
             case .settings: return .settings
             }
         }
@@ -199,6 +204,7 @@ struct RootView: View {
                             get: { selectedNavItem },
                             set: { selectedNavItemRaw = $0.rawValue }
                         ))
+                        .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
                     } detail: {
                         RootDetailContent(selectedNavItem: selectedNavItem)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -215,6 +221,7 @@ struct RootView: View {
                     get: { selectedNavItem },
                     set: { selectedNavItemRaw = $0.rawValue }
                 ))
+                .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
             } detail: {
                 RootDetailContent(selectedNavItem: selectedNavItem)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -434,6 +441,8 @@ private struct RootDetailContent: View {
                 CommunityMeetingsView()
             case .logs:
                 LogsMenuRootView()
+            case .tracks:
+                TrackListView()
             case .settings:
                 SettingsView()
             }
@@ -483,6 +492,9 @@ private struct RootSidebar: View {
                 }
                 NavigationLink(value: RootView.NavigationItem.logs) {
                     Label("Logs", systemImage: "list.bullet")
+                }
+                NavigationLink(value: RootView.NavigationItem.tracks) {
+                    Label("Tracks", systemImage: "list.number")
                 }
             }
             
@@ -545,6 +557,11 @@ private struct RootSidebar: View {
                 
                 Button { selection = .logs } label: {
                     Label("Logs", systemImage: "list.bullet")
+                }
+                .buttonStyle(.plain)
+                
+                Button { selection = .tracks } label: {
+                    Label("Tracks", systemImage: "list.number")
                 }
                 .buttonStyle(.plain)
             }
@@ -633,6 +650,12 @@ private struct MoreMenuView: View {
                         navigationPath.append(RootView.NavigationItem.logs)
                     } label: {
                         Label("Logs", systemImage: RootView.NavigationItem.logs.icon)
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        navigationPath.append(RootView.NavigationItem.tracks)
+                    } label: {
+                        Label("Tracks", systemImage: RootView.NavigationItem.tracks.icon)
                     }
                     .buttonStyle(.plain)
                 }

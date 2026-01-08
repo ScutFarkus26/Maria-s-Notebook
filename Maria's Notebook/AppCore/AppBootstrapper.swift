@@ -55,7 +55,21 @@ final class AppBootstrapper: ObservableObject {
         // Clean orphaned student IDs from StudentLesson records
         DataMigrations.cleanOrphanedStudentIDs(using: context)
         
-        // 4. Signal UI
+        // 4. Initialize Reminder Sync Service
+        ReminderSyncService.shared.modelContext = context
+        // Perform initial sync if configured
+        if ReminderSyncService.shared.syncListName != nil {
+            Task {
+                do {
+                    try await ReminderSyncService.shared.syncReminders()
+                    print("AppBootstrapper: Initial reminder sync completed")
+                } catch {
+                    print("AppBootstrapper: Initial reminder sync failed: \(error.localizedDescription)")
+                }
+            }
+        }
+        
+        // 5. Signal UI
         AppRouter.shared.refreshPlanningInbox()
         
         print("AppBootstrapper: Startup checks complete.")

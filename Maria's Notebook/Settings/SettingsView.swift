@@ -105,6 +105,15 @@ struct SettingsView: View {
                 TestStudentsSettingsView()
                     .frame(maxWidth: .infinity)
             }
+            SettingsGroup(title: "Curriculum Tracks", systemImage: "list.number") {
+                NavigationLink(destination: TrackListView()) {
+                    HStack {
+                        Text("Manage Tracks")
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
