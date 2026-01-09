@@ -139,9 +139,14 @@ struct LessonsViewModel {
         
         let sortDescriptors: [SortDescriptor<Lesson>] = {
             if selectedGroup != nil {
+                // When filtering by group, use orderInGroup
                 return [SortDescriptor(\.orderInGroup), SortDescriptor(\.name)]
+            } else if selectedSubject != nil {
+                // When filtering by subject, use sortIndex (subject-level ordering)
+                return [SortDescriptor(\.sortIndex), SortDescriptor(\.name)]
             } else {
-                return [SortDescriptor(\.subject), SortDescriptor(\.group), SortDescriptor(\.orderInGroup), SortDescriptor(\.name)]
+                // No filter: use subject, then sortIndex within subject
+                return [SortDescriptor(\.subject), SortDescriptor(\.sortIndex), SortDescriptor(\.name)]
             }
         }()
         
@@ -215,18 +220,18 @@ struct LessonsViewModel {
                 return lhs.orderInGroup < rhs.orderInGroup
             }
         } else if let subject = selectedSubject {
+            // Use sortIndex for subject-level ordering
             return fetched.sorted { lhs, rhs in
-                let lg = indexForGroup(lhs.group, inSubject: subject, cache: &groupIndexCache, lessons: scoped)
-                let rg = indexForGroup(rhs.group, inSubject: subject, cache: &groupIndexCache, lessons: scoped)
-                if lg == rg {
-                    if lhs.orderInGroup == rhs.orderInGroup {
-                        let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-                        if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
-                        return nameOrder == .orderedAscending
-                    }
+                if lhs.sortIndex != rhs.sortIndex {
+                    return lhs.sortIndex < rhs.sortIndex
+                }
+                // Fallback to orderInGroup, then name for stable ordering
+                if lhs.orderInGroup != rhs.orderInGroup {
                     return lhs.orderInGroup < rhs.orderInGroup
                 }
-                return lg < rg
+                let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
+                return nameOrder == .orderedAscending
             }
         } else {
             return fetched.sorted { lhs, rhs in

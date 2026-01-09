@@ -159,6 +159,7 @@ struct LessonsCardsGridView: View {
             .padding(.trailing, 24)
             .padding(.leading, 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .when(needsGeometry) { view in
             view
                 .coordinateSpace(name: "lessonsGridScroll")

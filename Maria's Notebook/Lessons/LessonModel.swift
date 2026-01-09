@@ -14,6 +14,8 @@ final class Lesson: Identifiable {
     var group: String = ""
     /// Manual order within a group
     var orderInGroup: Int = 0
+    /// Ordering index for lessons within a subject (across all groups)
+    var sortIndex: Int = 0
     /// Short subheading/strapline
     var subheading: String = ""
     /// Markdown or rich text source for the lesson write-up
@@ -81,6 +83,7 @@ final class Lesson: Identifiable {
         subject: String = "",
         group: String = "",
         orderInGroup: Int = 0,
+        sortIndex: Int = 0,
         subheading: String = "",
         writeUp: String = "",
         pagesFileBookmark: Data? = nil,
@@ -94,6 +97,7 @@ final class Lesson: Identifiable {
         self.subject = subject
         self.group = group
         self.orderInGroup = orderInGroup
+        self.sortIndex = sortIndex
         self.subheading = subheading
         self.writeUp = writeUp
         self.pagesFileBookmark = pagesFileBookmark
