@@ -114,6 +114,10 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
             }
+            SettingsGroup(title: "Progress Sync", systemImage: "arrow.triangle.2.circlepath") {
+                ProgressSyncSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
 
