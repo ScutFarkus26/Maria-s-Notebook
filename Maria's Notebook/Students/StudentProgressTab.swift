@@ -1,5 +1,5 @@
 // StudentProgressTab.swift
-// Read-only progress tab showing student's track enrollments and progress (group-based tracks)
+// Progress tab showing student's active projects and track enrollments with detailed cards
 
 import SwiftUI
 import SwiftData
@@ -10,19 +10,63 @@ import UIKit
 #endif
 
 struct StudentProgressTab: View {
-    // MARK: - Environment
+    let student: Student
+    
     @Environment(\.modelContext) private var modelContext
     
-    // MARK: - Inputs
-    let student: Student
-    var onLessonTapped: ((Lesson) -> Void)? = nil
-    
     // MARK: - Queries
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group)])
+    
+    // Enrollments
+    @Query(sort: [SortDescriptor(\StudentTrackEnrollment.createdAt, order: .reverse)])
+    private var allEnrollments: [StudentTrackEnrollment]
+    
+    // Tracks lookup
+    @Query(sort: [SortDescriptor(\Track.title)])
+    private var allTracks: [Track]
+    
+    // Projects
+    @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)])
+    private var allProjects: [Project]
+    
+    // Additional queries for track details
+    @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)])
+    private var allPresentations: [Presentation]
+    
+    @Query(sort: [SortDescriptor(\WorkContract.createdAt, order: .reverse)])
+    private var allWorkContracts: [WorkContract]
+    
+    @Query(sort: [SortDescriptor(\Note.updatedAt, order: .reverse)])
+    private var allNotes: [Note]
+    
+    @Query(sort: [SortDescriptor(\TrackStep.orderIndex)])
+    private var allTrackSteps: [TrackStep]
+    
+    @Query(sort: [SortDescriptor(\Lesson.name)])
     private var allLessons: [Lesson]
     
     // MARK: - State
+    @State private var selectedEnrollment: StudentTrackEnrollment?
+    @State private var selectedProject: Project?
     @State private var animatedProgress: [String: Double] = [:]
+    @State private var filterSheet: FilterSheet? = nil
+    
+    // MARK: - Filter Sheet State
+    enum FilterSheet: Identifiable {
+        case presentations(StudentTrackEnrollment, Track)
+        case work(StudentTrackEnrollment, Track)
+        case notes(StudentTrackEnrollment, Track)
+        
+        var id: String {
+            switch self {
+            case .presentations(let enrollment, _):
+                return "presentations_\(enrollment.id.uuidString)"
+            case .work(let enrollment, _):
+                return "work_\(enrollment.id.uuidString)"
+            case .notes(let enrollment, _):
+                return "notes_\(enrollment.id.uuidString)"
+            }
+        }
+    }
     
     // MARK: - Computed Properties
     private var cardBackgroundColor: Color {
@@ -33,107 +77,265 @@ struct StudentProgressTab: View {
         #endif
     }
     
-    // MARK: - Computed Data
-    private var progressData: ProgressData {
-        ProgressData(
-            student: student,
-            modelContext: modelContext,
-            allLessons: allLessons
-        )
+    private var activeEnrollments: [StudentTrackEnrollment] {
+        let sid = student.id.uuidString
+        return allEnrollments.filter { $0.studentID == sid && $0.isActive }
+    }
+    
+    private var activeProjects: [Project] {
+        let sid = student.id.uuidString
+        return allProjects.filter { $0.memberStudentIDs.contains(sid) }
+    }
+    
+    private var tracksByID: [String: Track] {
+        Dictionary(uniqueKeysWithValues: allTracks.map { ($0.id.uuidString, $0) })
     }
     
     // MARK: - Body
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                if !progressData.activeEnrollments.isEmpty {
-                    ForEach(progressData.activeEnrollments) { enrollment in
-                        if let track = progressData.trackByID[enrollment.trackID] {
-                            enrollmentCard(
-                                enrollment: enrollment,
-                                track: track,
-                                progressData: progressData
-                            )
+                // 1. Projects Section
+                if !activeProjects.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Active Projects", systemImage: "book.closed.fill")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)
+                        
+                        ForEach(activeProjects) { project in
+                            projectRow(project)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedProject = project
+                                }
                         }
                     }
+                    .padding(.horizontal, 4)
+                }
+                
+                // 2. Tracks Section with detailed cards
+                if activeEnrollments.isEmpty {
+                    if activeProjects.isEmpty {
+                        emptyStateView
+                            .padding(.top, 60)
+                    }
                 } else {
-                    emptyStateView
-                        .padding(.top, 60)
+                    ForEach(activeEnrollments) { enrollment in
+                        if let track = tracksByID[enrollment.trackID] {
+                            enrollmentCard(enrollment: enrollment, track: track)
+                                .padding(.horizontal, 4)
+                                .onTapGesture {
+                                    selectedEnrollment = enrollment
+                                }
+                        }
+                    }
                 }
             }
             .padding(.vertical, 16)
+        }
+        // Sheets
+        .sheet(item: $selectedEnrollment) { enrollment in
+            if let track = tracksByID[enrollment.trackID] {
+                StudentTrackDetailView(enrollment: enrollment, track: track)
+                    .studentDetailSheetSizing()
+            }
+        }
+        .sheet(item: $selectedProject) { project in
+            ProjectDetailView(club: project)
+                .studentDetailSheetSizing()
+        }
+        .sheet(item: $filterSheet) { sheet in
+            switch sheet {
+            case .presentations(let enrollment, let track):
+                TrackFilteredListView(
+                    enrollment: enrollment,
+                    track: track,
+                    filterType: .presentations,
+                    allPresentations: allPresentations,
+                    allWorkContracts: allWorkContracts,
+                    allNotes: allNotes,
+                    allLessons: allLessons,
+                    onDismiss: { filterSheet = nil }
+                )
+                .studentDetailSheetSizing()
+            case .work(let enrollment, let track):
+                TrackFilteredListView(
+                    enrollment: enrollment,
+                    track: track,
+                    filterType: .work,
+                    allPresentations: allPresentations,
+                    allWorkContracts: allWorkContracts,
+                    allNotes: allNotes,
+                    allLessons: allLessons,
+                    onDismiss: { filterSheet = nil }
+                )
+                .studentDetailSheetSizing()
+            case .notes(let enrollment, let track):
+                TrackFilteredListView(
+                    enrollment: enrollment,
+                    track: track,
+                    filterType: .notes,
+                    allPresentations: allPresentations,
+                    allWorkContracts: allWorkContracts,
+                    allNotes: allNotes,
+                    allLessons: allLessons,
+                    onDismiss: { filterSheet = nil }
+                )
+                .studentDetailSheetSizing()
+            }
         }
     }
     
     // MARK: - Empty State
     private var emptyStateView: some View {
         ContentUnavailableView {
-            Label("No Active Enrollments", systemImage: "chart.line.uptrend.xyaxis.circle")
+            Label("No Active Work", systemImage: "list.clipboard")
                 .foregroundStyle(.secondary)
         } description: {
-            Text("Students are automatically enrolled in tracks when lessons are scheduled, presented, or marked as presented.")
+            Text("No active projects or track enrollments.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
         }
     }
     
-    // MARK: - Enrollment Card
+    // MARK: - Project Row
+    private func projectRow(_ project: Project) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(AppColors.color(forSubject: "Reading").opacity(0.1))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "book.closed.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(AppColors.color(forSubject: "Reading"))
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(project.title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                if let book = project.bookTitle, !book.isEmpty {
+                    Text(book)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.secondary.opacity(0.5))
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+    }
+    
+    // MARK: - Enrollment Card (matching StudentTracksTab design)
     @ViewBuilder
     private func enrollmentCard(
         enrollment: StudentTrackEnrollment,
-        track: GroupTrack,
-        progressData: ProgressData
+        track: Track
     ) -> some View {
-        let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: allLessons)
-        let totalLessons = trackLessons.count
-        let masteredCount = GroupTrackProgressResolver.masteredCount(
-            track: track,
-            studentID: progressData.studentIDStr,
-            lessons: allLessons,
-            lessonPresentations: progressData.lpForStudent
-        )
-        let currentLesson = GroupTrackProgressResolver.currentLesson(
-            track: track,
-            studentID: progressData.studentIDStr,
-            lessons: allLessons,
-            lessonPresentations: progressData.lpForStudent
-        )
-        let lastObserved = progressData.lastObservedForTrack(trackID: enrollment.trackID, track: track)
-        let progressPercent = totalLessons > 0 ? Double(masteredCount) / Double(totalLessons) : 0.0
-        let isComplete = masteredCount == totalLessons && totalLessons > 0
-        let subjectColor = AppColors.color(forSubject: track.subject)
+        let studentIDString = student.id.uuidString
+        let trackIDString = track.id.uuidString
+        
+        // Get stats for this track enrollment
+        let presentations = allPresentations.filter {
+            $0.trackID == trackIDString && $0.studentIDs.contains(studentIDString)
+        }
+        let workContracts = allWorkContracts.filter {
+            $0.trackID == trackIDString && $0.studentID == studentIDString
+        }
+        let notes = allNotes.filter {
+            $0.studentTrackEnrollment?.id == enrollment.id
+        }
+        
+        let presentationCount = presentations.count
+        let workCount = workContracts.count
+        let noteCount = notes.count
+        let totalActivity = presentationCount + workCount + noteCount
+        
+        // Get last activity date
+        let lastActivityDate: Date? = {
+            var dates: [Date] = []
+            dates.append(contentsOf: presentations.map { $0.presentedAt })
+            dates.append(contentsOf: workContracts.compactMap { $0.completedAt ?? $0.createdAt })
+            dates.append(contentsOf: notes.map { $0.updatedAt })
+            return dates.max()
+        }()
+        
+        let trackColor = trackColorForTitle(track.title)
+        let hasNotes = enrollment.notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        
+        // Calculate progress based on TrackSteps and Presentations
+        let trackSteps = allTrackSteps
+            .filter { $0.track?.id == track.id }
+            .sorted { $0.orderIndex < $1.orderIndex }
+        
+        let completedStepIDs = Set(presentations
+            .compactMap { $0.trackStepID }
+            .filter { stepID in
+                trackSteps.contains { $0.id.uuidString == stepID }
+            })
+        
+        let masteredCount = completedStepIDs.count
+        let totalSteps = trackSteps.count
+        let progressPercent = totalSteps > 0 ? Double(masteredCount) / Double(totalSteps) : 0.0
+        let isComplete = masteredCount == totalSteps && totalSteps > 0
+        
+        // Find current/next step (first uncompleted step)
+        let currentStep = trackSteps.first { step in
+            !completedStepIDs.contains(step.id.uuidString)
+        }
+        
+        let currentLesson = currentStep?.lessonTemplateID.flatMap { lessonID in
+            allLessons.first { $0.id == lessonID }
+        }
+        
         let cardKey = enrollment.trackID
         
         VStack(alignment: .leading, spacing: 16) {
-            // Header with subject color accent
+            // Header with track icon and title
             HStack(spacing: 12) {
-                // Subject icon/indicator
+                // Track icon/indicator
                 ZStack {
                     Circle()
-                        .fill(subjectColor.opacity(0.15))
+                        .fill(trackColor.opacity(0.15))
                         .frame(width: 44, height: 44)
                     
-                    Image(systemName: iconForSubject(track.subject))
+                    Image(systemName: "list.bullet.rectangle")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(subjectColor)
+                        .foregroundStyle(trackColor)
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(track.subject)
+                    Text(track.title)
                         .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
                     
-                    Text(track.group)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
+                    // Started date or enrollment date
+                    if let startedAt = enrollment.startedAt {
+                        Text("Started \(startedAt, style: .relative)")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Enrolled \(enrollment.createdAt, style: .relative)")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 
                 Spacer()
                 
-                // Completion badge
-                if isComplete {
+                // Active badge
+                if enrollment.isActive {
                     ZStack {
                         Circle()
                             .fill(
@@ -149,6 +351,32 @@ struct StudentProgressTab: View {
                             .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(.white)
                     }
+                } else if isComplete && totalSteps > 0 {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.green, Color.green.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 36, height: 36)
+                        
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                } else {
+                    ZStack {
+                        Circle()
+                            .fill(Color.secondary.opacity(0.15))
+                            .frame(width: 36, height: 36)
+                        
+                        Image(systemName: "circle")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             
@@ -156,203 +384,288 @@ struct StudentProgressTab: View {
                 .padding(.vertical, 4)
             
             // Progress visualization
-            VStack(alignment: .leading, spacing: 12) {
-                // Progress stats
-                HStack(alignment: .lastTextBaseline, spacing: 8) {
-                    Text("\(masteredCount)")
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(subjectColor)
-                    
-                    Text("/ \(totalLessons)")
-                        .font(.system(size: 20, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                    
-                    Text("\(Int(progressPercent * 100))%")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundStyle(progressPercent >= 1.0 ? .green : .primary)
-                }
-                
-                // Animated progress bar
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        // Background
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.secondary.opacity(0.15))
-                            .frame(height: 12)
+            if totalSteps > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Progress stats
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Text("\(masteredCount)")
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .foregroundStyle(trackColor)
                         
-                        // Progress fill with animated width
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: isComplete 
-                                        ? [Color.green, Color.green.opacity(0.8)]
-                                        : [subjectColor, subjectColor.opacity(0.7)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(
-                                width: geometry.size.width * (animatedProgress[cardKey] ?? 0.0),
-                                height: 12
-                            )
-                            .animation(.spring(response: 0.8, dampingFraction: 0.8), value: animatedProgress[cardKey])
+                        Text("/ \(totalSteps)")
+                            .font(.system(size: 20, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
                         
-                        // Glow effect for completed tracks
-                        if isComplete && (animatedProgress[cardKey] ?? 0) >= 1.0 {
+                        Spacer()
+                        
+                        Text("\(Int(progressPercent * 100))%")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(progressPercent >= 1.0 ? .green : .primary)
+                    }
+                    
+                    // Animated progress bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // Background
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.secondary.opacity(0.15))
+                                .frame(height: 12)
+                            
+                            // Progress fill with animated width
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .fill(
                                     LinearGradient(
-                                        colors: [
-                                            Color.green.opacity(0.2),
-                                            Color.green.opacity(0.1),
-                                            Color.green.opacity(0.2)
-                                        ],
+                                        colors: isComplete
+                                            ? [Color.green, Color.green.opacity(0.8)]
+                                            : [trackColor, trackColor.opacity(0.7)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     )
                                 )
                                 .frame(
-                                    width: geometry.size.width,
+                                    width: geometry.size.width * (animatedProgress[cardKey] ?? 0.0),
                                     height: 12
                                 )
-                                .blur(radius: 2)
+                                .animation(.spring(response: 0.8, dampingFraction: 0.8), value: animatedProgress[cardKey])
+                            
+                            // Glow effect for completed tracks
+                            if isComplete && (animatedProgress[cardKey] ?? 0) >= 1.0 {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.green.opacity(0.2),
+                                                Color.green.opacity(0.1),
+                                                Color.green.opacity(0.2)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(
+                                        width: geometry.size.width,
+                                        height: 12
+                                    )
+                                    .blur(radius: 2)
+                            }
                         }
                     }
-                }
-                .frame(height: 12)
-                
-                // Lesson dots visualization
-                if totalLessons > 0 && totalLessons <= 30 {
-                    HStack(spacing: 6) {
-                        ForEach(0..<totalLessons, id: \.self) { index in
-                            Circle()
-                                .fill(index < masteredCount ? subjectColor : Color.secondary.opacity(0.2))
-                                .frame(width: 8, height: 8)
-                                .overlay {
-                                    if index < masteredCount {
-                                        Circle()
-                                            .stroke(subjectColor.opacity(0.3), lineWidth: 2)
-                                            .scaleEffect(1.3)
+                    .frame(height: 12)
+                    
+                    // Step dots visualization (if 30 or fewer steps)
+                    if totalSteps > 0 && totalSteps <= 30 {
+                        HStack(spacing: 6) {
+                            ForEach(0..<totalSteps, id: \.self) { index in
+                                let step = trackSteps[safe: index]
+                                let isCompleted = step.map { completedStepIDs.contains($0.id.uuidString) } ?? false
+                                
+                                Circle()
+                                    .fill(isCompleted ? trackColor : Color.secondary.opacity(0.2))
+                                    .frame(width: 8, height: 8)
+                                    .overlay {
+                                        if isCompleted {
+                                            Circle()
+                                                .stroke(trackColor.opacity(0.3), lineWidth: 2)
+                                                .scaleEffect(1.3)
+                                        }
                                     }
-                                }
+                            }
                         }
+                        .padding(.top, 4)
                     }
-                    .padding(.top, 4)
                 }
+                .padding(.bottom, 4)
             }
             
-            // Current lesson or completion status
-            if track.isSequential {
+            // Current/Next lesson
+            if let currentLesson = currentLesson, totalSteps > 0 {
                 Divider()
                     .padding(.vertical, 4)
                 
-                if let currentLesson = currentLesson {
-                    if let onLessonTapped = onLessonTapped {
-                        Button {
-                            onLessonTapped(currentLesson)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "book.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(subjectColor.opacity(0.7))
-                                    .frame(width: 20)
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Current Lesson")
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                    
-                                    Text(currentLesson.name.isEmpty ? "Untitled Lesson" : currentLesson.name)
-                                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.secondary.opacity(0.5))
-                            }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(subjectColor.opacity(0.08))
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        HStack(spacing: 12) {
-                            Image(systemName: "book.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(subjectColor.opacity(0.7))
-                                .frame(width: 20)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Current Lesson")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                
-                                Text(currentLesson.name.isEmpty ? "Untitled Lesson" : currentLesson.name)
-                                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                            }
-                            
-                            Spacer()
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(subjectColor.opacity(0.08))
-                        )
-                    }
-                } else {
-                    HStack(spacing: 10) {
-                        Image(systemName: "trophy.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.orange, Color.yellow],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                HStack(spacing: 12) {
+                    Image(systemName: "book.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(trackColor.opacity(0.7))
+                        .frame(width: 20)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Next Lesson")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
                         
-                        Text("All lessons mastered!")
-                            .font(.system(size: AppTheme.FontSize.callout, weight: .bold, design: .rounded))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.green, Color.green.opacity(0.8)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                        Text(currentLesson.name.isEmpty ? "Untitled Lesson" : currentLesson.name)
+                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(trackColor.opacity(0.08))
+                )
+            } else if isComplete && totalSteps > 0 {
+                Divider()
+                    .padding(.vertical, 4)
+                
+                HStack(spacing: 10) {
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.orange, Color.yellow],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
+                        )
+                    
+                    Text("All lessons mastered!")
+                        .font(.system(size: AppTheme.FontSize.callout, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.green, Color.green.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.green.opacity(0.1))
+                )
+            }
+            
+            // Stats section
+            if totalActivity > 0 {
+                Divider()
+                    .padding(.vertical, 4)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Text("\(totalActivity)")
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .foregroundStyle(trackColor)
+                        
+                        Text("total activities")
+                            .font(.system(size: 20, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
                         
                         Spacer()
                     }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.green.opacity(0.1))
-                    )
+                    
+                    // Stats badges (clickable)
+                    HStack(spacing: 12) {
+                        Button {
+                            filterSheet = .presentations(enrollment, track)
+                        } label: {
+                            statBadge(
+                                count: presentationCount,
+                                label: "Presentations",
+                                icon: "presentation",
+                                color: .orange
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(presentationCount == 0)
+                        
+                        Button {
+                            filterSheet = .work(enrollment, track)
+                        } label: {
+                            statBadge(
+                                count: workCount,
+                                label: "Work",
+                                icon: "briefcase.fill",
+                                color: .blue
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(workCount == 0)
+                        
+                        Button {
+                            filterSheet = .notes(enrollment, track)
+                        } label: {
+                            statBadge(
+                                count: noteCount,
+                                label: "Notes",
+                                icon: "note.text",
+                                color: .yellow
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(noteCount == 0)
+                    }
+                    
+                    // Last activity
+                    if let lastActivityDate = lastActivityDate {
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            
+                            Text("Last activity \(lastActivityDate, style: .relative)")
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 4)
+                    }
                 }
-            }
-            
-            // Last observed date
-            if let lastObserved = lastObserved {
-                HStack(spacing: 8) {
-                    Image(systemName: "clock.fill")
-                        .font(.system(size: 11))
+            } else if totalSteps == 0 {
+                // No steps defined yet
+                HStack(spacing: 10) {
+                    Image(systemName: "hourglass")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary.opacity(0.7))
+                    
+                    Text("No activity recorded yet")
+                        .font(.system(size: AppTheme.FontSize.callout, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
                     
-                    Text("Last observed \(lastObserved, style: .relative)")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
+                    Spacer()
                 }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.secondary.opacity(0.08))
+                )
+            }
+            
+            // Enrollment notes preview
+            if hasNotes, let notes = enrollment.notes {
+                Divider()
+                    .padding(.vertical, 4)
+                
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "note.text")
+                        .font(.system(size: 14))
+                        .foregroundStyle(trackColor.opacity(0.7))
+                        .frame(width: 20)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Notes")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                        
+                        Text(notes)
+                            .font(.system(size: AppTheme.FontSize.callout, weight: .regular, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .lineLimit(3)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(trackColor.opacity(0.08))
+                )
             }
         }
         .padding(20)
@@ -366,13 +679,13 @@ struct StudentProgressTab: View {
                 .stroke(
                     LinearGradient(
                         colors: [
-                            subjectColor.opacity(isComplete ? 0.3 : 0.15),
-                            subjectColor.opacity(isComplete ? 0.15 : 0.05)
+                            trackColor.opacity(enrollment.isActive ? 0.3 : 0.15),
+                            trackColor.opacity(enrollment.isActive ? 0.15 : 0.05)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: isComplete ? 2 : 1
+                    lineWidth: enrollment.isActive ? 2 : 1
                 )
         )
         .onAppear {
@@ -389,85 +702,40 @@ struct StudentProgressTab: View {
         }
     }
     
-    // MARK: - Helper: Icon for Subject
-    private func iconForSubject(_ subject: String) -> String {
-        let key = subject.normalizedForComparison()
-        
-        switch key {
-        case "math", "mathematics": return "function"
-        case "language", "language arts": return "text.book.closed.fill"
-        case "science": return "flask.fill"
-        case "practical life": return "hands.sparkles.fill"
-        case "sensorial": return "eye.fill"
-        case "geography": return "globe.americas.fill"
-        case "history": return "book.closed.fill"
-        case "art": return "paintpalette.fill"
-        case "music": return "music.note"
-        case "geometry": return "triangle.fill"
-        case "botany": return "leaf.fill"
-        case "zoology": return "pawprint.fill"
-        case "reading": return "book.fill"
-        case "writing": return "pencil"
-        default: return "book.closed.circle.fill"
-        }
-    }
-}
-
-// MARK: - Progress Data Helper
-private struct ProgressData {
-    let studentIDStr: String
-    let allEnrollments: [StudentTrackEnrollment]
-    let activeEnrollments: [StudentTrackEnrollment]
-    let trackByID: [String: GroupTrack]
-    let lpForStudent: [LessonPresentation]
-    let allLessons: [Lesson]
-    
-    init(student: Student, modelContext: ModelContext, allLessons: [Lesson]) {
-        let studentIDStr = student.id.uuidString
-        self.studentIDStr = studentIDStr
-        self.allLessons = allLessons
-        
-        // Fetch all data with fetch-all + in-memory filtering
-        let enrollments = (try? modelContext.fetch(FetchDescriptor<StudentTrackEnrollment>())) ?? []
-        let groupTracks = (try? GroupTrackService.getAllGroupTracks(modelContext: modelContext)) ?? []
-        let lps = (try? modelContext.fetch(FetchDescriptor<LessonPresentation>())) ?? []
-        
-        // Filter enrollments for this student
-        let studentEnrollments = enrollments.filter { $0.studentID == studentIDStr }
-        self.allEnrollments = studentEnrollments
-        self.activeEnrollments = studentEnrollments.filter { $0.isActive }
-        
-        // Filter lesson presentations
-        self.lpForStudent = lps.filter { $0.studentID == studentIDStr }
-        
-        // Create track dictionary by "subject|group" key
-        var trackDict: [String: GroupTrack] = [:]
-        for track in groupTracks {
-            let key = "\(track.subject)|\(track.group)"
-            trackDict[key] = track
-        }
-        self.trackByID = trackDict
+    // MARK: - Helper Functions
+    private func trackColorForTitle(_ title: String) -> Color {
+        // Generate a consistent color based on the track title
+        let hash = title.hash
+        let colors: [Color] = [
+            .blue, .purple, .pink, .orange, .green, .mint, .teal, .cyan, .indigo
+        ]
+        let index = abs(hash) % colors.count
+        return colors[index]
     }
     
-    func lastObservedForTrack(trackID: String, track: GroupTrack) -> Date? {
-        // Find max lastObservedAt from lpForStudent where lessonID matches any lesson in the track
-        let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: allLessons)
-        
-        // Get lesson IDs from track
-        let lessonIDs = Set(trackLessons.map { $0.id.uuidString })
-        
-        let relevantLPs = lpForStudent.filter { lp in
-            // Primary: trackID matches (for legacy compatibility)
-            if lp.trackID == trackID {
-                return true
-            }
-            // Fallback: lessonID matches any lesson in the track
-            if lessonIDs.contains(lp.lessonID) {
-                return true
-            }
-            return false
+    private func statBadge(count: Int, label: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(color)
+            
+            Text("\(count)")
+                .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+            
+            Text(label)
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
         }
-        
-        return relevantLPs.compactMap { $0.lastObservedAt }.max()
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(color.opacity(0.1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(color.opacity(0.2), lineWidth: 1)
+        )
     }
 }

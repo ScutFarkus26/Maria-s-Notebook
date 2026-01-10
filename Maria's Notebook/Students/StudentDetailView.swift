@@ -58,36 +58,14 @@ struct StudentDetailView: View {
         case .notes:
             // handled in body
             EmptyView()
-        case .tracks:
-            StudentTracksTab(student: student)
-                .padding(.top, 36)
         case .progress:
-            StudentProgressTab(student: student) { lesson in
-                // Use direct string comparison to avoid relationship loading issues
-                let lessonIDString = lesson.id.uuidString
-                let studentIDString = student.id.uuidString
-                
-                // Find the most recent StudentLesson using direct string comparison (avoids relationship access)
-                // Sort by givenAt/scheduledFor/createdAt to get the most recent
-                let existing = vm.studentLessons
-                    .filter { sl in
-                        sl.lessonID == lessonIDString && 
-                        sl.studentIDs.contains(studentIDString)
-                    }
-                    .sorted { lhs, rhs in
-                        let lDate = lhs.givenAt ?? lhs.scheduledFor ?? lhs.createdAt
-                        let rDate = rhs.givenAt ?? rhs.scheduledFor ?? rhs.createdAt
-                        return lDate > rDate
-                    }
-                    .first
-                
-                if let existing = existing {
-                    vm.selectedStudentLessonForDetail = existing
-                } else {
-                    // No existing StudentLesson found, use openPlan to create a draft
-                    vm.openPlan(for: lesson, modelContext: modelContext)
-                }
-            }
+            // Replaces old Tracks tab, now includes Projects
+            StudentProgressTab(student: student)
+                .padding(.top, 36)
+        case .history:
+            // New History tab
+            StudentHistoryTab(student: student)
+                .padding(.top, 36)
         }
     }
 
@@ -154,7 +132,7 @@ struct StudentDetailView: View {
 
             if selectedTab == .notes {
                 StudentNotesTab(student: student)
-            } else if selectedTab == .progress {
+            } else if selectedTab == .progress || selectedTab == .history {
                 tabContent
                     .padding(.horizontal, 32)
                     .padding(.bottom, 24)
