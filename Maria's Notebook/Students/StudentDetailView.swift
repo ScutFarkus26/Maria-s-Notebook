@@ -16,7 +16,6 @@ struct StudentDetailView: View {
 
     // MARK: - State
     @StateObject private var vm: StudentDetailViewModel
-    @StateObject private var checklistVM: StudentChecklistViewModel
 
     @State private var isEditing = false
     @State private var draftFirstName = ""
@@ -32,35 +31,8 @@ struct StudentDetailView: View {
     @State private var selectedContract: WorkContract? = nil
     @State private var contractsCache: [WorkContract] = []
 
-    @AppStorage("StudentDetailView.selectedChecklistSubject") private var selectedChecklistSubjectRaw: String = ""
-
-    private var selectedChecklistSubject: String? {
-        let s = selectedChecklistSubjectRaw.trimmingCharacters(in: .whitespacesAndNewlines)
-        return s.isEmpty ? nil : s
-    }
-
-    private func setSelectedChecklistSubject(_ subject: String?) {
-        let trimmed = subject?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        selectedChecklistSubjectRaw = trimmed
-    }
-
-    private let lessonsVM = LessonsViewModel()
-    private var subjectsForChecklist: [String] {
-        lessonsVM.subjects(from: vm.lessons)
-    }
-
     private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
     private var studentLessonIDs: [UUID] { vm.studentLessons.map(\.id) }
-
-    private var checklistCoordinator: StudentChecklistTabCoordinator {
-        StudentChecklistTabCoordinator(
-            vm: vm,
-            checklistVM: checklistVM,
-            modelContext: modelContext,
-            saveCoordinator: saveCoordinator,
-            selectedContract: $selectedContract
-        )
-    }
 
     @ViewBuilder
     private var tabContent: some View {
@@ -80,23 +52,6 @@ struct StudentDetailView: View {
                 lessonsByID: vm.lessonsByID,
                 nextLessonsForStudent: vm.nextLessonsForStudent
             )
-        case .checklist:
-            StudentChecklistTab(
-                student: student,
-                subjects: subjectsForChecklist,
-                selectedSubject: selectedChecklistSubject,
-                lessons: vm.lessons,
-                studentLessonsRaw: vm.studentLessons,
-                rowStatesByLesson: checklistVM.rowStatesByLesson,
-                onSubjectSelected: { setSelectedChecklistSubject($0) },
-                onTapScheduled: { lesson, row in checklistCoordinator.handleTapScheduled(lesson: lesson, row: row) },
-                onTapPresented: { lesson, row in checklistCoordinator.handleTapPresented(lesson: lesson, row: row) },
-                onTapActive: { lesson, row in checklistCoordinator.handleTapActive(lesson: lesson, row: row) },
-                onTapComplete: { lesson, row in checklistCoordinator.handleTapComplete(lesson: lesson, row: row) }
-            )
-        case .history:
-            historyPlaceholder
-                .padding(.top, 36)
         case .meetings:
             StudentMeetingsTab(student: student)
                 .padding(.top, 36)
@@ -258,43 +213,18 @@ struct StudentDetailView: View {
         }
         .task {
             vm.loadData(modelContext: modelContext)
-            checklistVM.recompute(for: vm.lessons, using: modelContext)
-            ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
         .onChange(of: lessonIDs) { _, _ in
             vm.loadData(modelContext: modelContext)
-            checklistVM.recompute(for: vm.lessons, using: modelContext)
-            ensureChecklistSubjectSelection()
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
         }
         .onChange(of: studentLessonIDs) { _, _ in
             vm.loadData(modelContext: modelContext)
-            checklistVM.recompute(for: vm.lessons, using: modelContext)
             contractsCache = fetchContractsForStudent()
             vm.updateContracts(contractsCache)
-        }
-    }
-
-    private func ensureChecklistSubjectSelection() {
-        let subjects = subjectsForChecklist
-        guard !subjects.isEmpty else {
-            setSelectedChecklistSubject(nil)
-            return
-        }
-        if let selected = selectedChecklistSubject,
-           subjects.contains(where: { $0.caseInsensitiveCompare(selected) == .orderedSame }) {
-            if let exact = subjects.first(where: { $0.caseInsensitiveCompare(selected) == .orderedSame }) {
-                setSelectedChecklistSubject(exact)
-            }
-        } else {
-            if let geo = subjects.first(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare("Geometry") == .orderedSame }) {
-                setSelectedChecklistSubject(geo)
-            } else {
-                setSelectedChecklistSubject(subjects.first)
-            }
         }
     }
 
@@ -302,15 +232,5 @@ struct StudentDetailView: View {
         self.student = student
         self.onDone = onDone
         _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
-        _checklistVM = StateObject(wrappedValue: StudentChecklistViewModel(studentID: student.id))
-    }
-
-    private var historyPlaceholder: some View {
-        ContentUnavailableView {
-            Label("History", systemImage: "clock.arrow.circlepath")
-        } description: {
-            Text("This will show the student's history.")
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
     }
 }

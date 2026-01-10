@@ -45,9 +45,6 @@ enum UserDefaultsKeys {
     static let generalShowTestStudents = "General.showTestStudents"
     static let generalTestStudentNames = "General.testStudentNames"
     
-    // MARK: - Student Detail
-    static let studentDetailViewSelectedChecklistSubject = "StudentDetailView.selectedChecklistSubject"
-    
     // MARK: - Reminder Sync
     static let reminderSyncSyncListName = "ReminderSync.syncListName"
     

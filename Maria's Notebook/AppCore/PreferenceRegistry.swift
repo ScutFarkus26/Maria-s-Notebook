@@ -33,7 +33,6 @@ public enum PreferenceRegistry {
         PreferenceDefinition(key: "WorkAge.freshColorHex", type: .string),
         PreferenceDefinition(key: "WorkAge.warningColorHex", type: .string),
         PreferenceDefinition(key: "WorkAge.overdueColorHex", type: .string),
-        PreferenceDefinition(key: "StudentDetailView.selectedChecklistSubject", type: .string),
         PreferenceDefinition(key: "lastBackupTimeInterval", type: .double),
         PreferenceDefinition(key: "Backup.encrypt", type: .bool),
         PreferenceDefinition(key: "General.showTestStudents", type: .bool, defaultValue: .bool(false)),
