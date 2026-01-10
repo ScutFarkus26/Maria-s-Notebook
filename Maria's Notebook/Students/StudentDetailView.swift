@@ -59,11 +59,9 @@ struct StudentDetailView: View {
             // handled in body
             EmptyView()
         case .progress:
-            // Replaces old Tracks tab, now includes Projects
             StudentProgressTab(student: student)
                 .padding(.top, 36)
         case .history:
-            // New History tab
             StudentHistoryTab(student: student)
                 .padding(.top, 36)
         }

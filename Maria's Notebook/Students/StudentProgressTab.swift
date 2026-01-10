@@ -84,7 +84,7 @@ struct StudentProgressTab: View {
     
     private var activeProjects: [Project] {
         let sid = student.id.uuidString
-        return allProjects.filter { $0.memberStudentIDs.contains(sid) }
+        return allProjects.filter { $0.memberStudentIDs.contains(sid) && $0.isActive }
     }
     
     private var tracksByID: [String: Track] {
@@ -237,7 +237,7 @@ struct StudentProgressTab: View {
         )
     }
     
-    // MARK: - Enrollment Card (matching StudentTracksTab design)
+    // MARK: - Enrollment Card
     @ViewBuilder
     private func enrollmentCard(
         enrollment: StudentTrackEnrollment,

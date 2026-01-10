@@ -13,11 +13,20 @@ struct StudentHistoryTab: View {
     @Query(sort: [SortDescriptor(\Track.title)])
     private var allTracks: [Track]
     
+    @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)])
+    private var allProjects: [Project]
+    
     @State private var selectedEnrollment: StudentTrackEnrollment?
+    @State private var selectedProject: Project?
     
     private var finishedEnrollments: [StudentTrackEnrollment] {
         let sid = student.id.uuidString
         return allEnrollments.filter { $0.studentID == sid && !$0.isActive }
+    }
+    
+    private var finishedProjects: [Project] {
+        let sid = student.id.uuidString
+        return allProjects.filter { $0.memberStudentIDs.contains(sid) && !$0.isActive }
     }
     
     private var tracksByID: [String: Track] {
@@ -27,16 +36,37 @@ struct StudentHistoryTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                if finishedEnrollments.isEmpty {
-                    ContentUnavailableView {
-                        Label("No History", systemImage: "clock")
+                // Past Projects Section
+                if !finishedProjects.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Past Projects", systemImage: "book.closed.fill")
+                            .font(.headline)
                             .foregroundStyle(.secondary)
-                    } description: {
-                        Text("No finished tracks found.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                        
+                        ForEach(finishedProjects) { project in
+                            finishedProjectRow(project)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedProject = project
+                                }
+                        }
                     }
-                    .padding(.top, 60)
+                }
+                
+                // Finished Tracks Section
+                if finishedEnrollments.isEmpty {
+                    if finishedProjects.isEmpty {
+                        ContentUnavailableView {
+                            Label("No History", systemImage: "clock")
+                                .foregroundStyle(.secondary)
+                        } description: {
+                            Text("No finished tracks found.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 60)
+                    }
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Finished Tracks", systemImage: "flag.checkered")
@@ -66,6 +96,43 @@ struct StudentHistoryTab: View {
                     .studentDetailSheetSizing()
             }
         }
+        .sheet(item: $selectedProject) { project in
+            ProjectDetailView(club: project)
+                .studentDetailSheetSizing()
+        }
+    }
+    
+    @ViewBuilder
+    private func finishedProjectRow(_ project: Project) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.title2)
+                .foregroundStyle(.secondary.opacity(0.5))
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(project.title)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .strikethrough()
+                
+                if let book = project.bookTitle, !book.isEmpty {
+                    Text(book)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.02))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.primary.opacity(0.05))
+        )
     }
     
     private func finishedRow(enrollment: StudentTrackEnrollment, track: Track) -> some View {

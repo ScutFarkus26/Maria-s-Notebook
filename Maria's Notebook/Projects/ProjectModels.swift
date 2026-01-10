@@ -31,6 +31,8 @@ final class Project: Identifiable {
     // Store Student IDs as strings for CloudKit compatibility
     var memberStudentIDs: [String] = []
 
+    var isActive: Bool = true
+
     // Relationships - FIX: Made optional
     @Relationship(inverse: \ProjectAssignmentTemplate.project) var sharedTemplates: [ProjectAssignmentTemplate]? = []
     @Relationship(inverse: \ProjectSession.project) var sessions: [ProjectSession]? = []
@@ -40,13 +42,15 @@ final class Project: Identifiable {
         createdAt: Date = Date(),
         title: String = "",
         bookTitle: String? = nil,
-        memberStudentIDs: [String] = []
+        memberStudentIDs: [String] = [],
+        isActive: Bool = true
     ) {
         self.id = id
         self.createdAt = createdAt
         self.title = title
         self.bookTitle = bookTitle
         self.memberStudentIDs = memberStudentIDs
+        self.isActive = isActive
         self.sharedTemplates = []
         self.sessions = []
     }
