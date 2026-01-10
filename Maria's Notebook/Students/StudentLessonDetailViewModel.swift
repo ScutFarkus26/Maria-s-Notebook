@@ -132,7 +132,7 @@ final class StudentLessonDetailViewModel {
         }
         
         // Auto-enroll when lesson is scheduled (if not already presented)
-        if !nowGiven, let scheduledFor = studentLesson.scheduledFor, scheduledFor != nil {
+        if !nowGiven, studentLesson.scheduledFor != nil {
             if let lesson = studentLesson.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
                     lesson: lesson,

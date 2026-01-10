@@ -290,7 +290,7 @@ final class LessonPickerViewModel: ObservableObject {
             )
         }
         // When scheduled
-        else if mode == .plan, let scheduledDate = scheduledFor, scheduledDate != nil {
+        else if mode == .plan, scheduledFor != nil {
             GroupTrackService.autoEnrollInTrackIfNeeded(
                 lesson: finalLesson,
                 studentIDs: selectedIDs.map { $0.uuidString },
