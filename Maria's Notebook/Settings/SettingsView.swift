@@ -12,6 +12,8 @@ struct SettingsView: View {
     @StateObject private var statsViewModel = SettingsStatsViewModel()
     
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    
+    @State private var showTrackPopulator = false
 
     private var overviewColumns: [GridItem] {
         // Use 2 columns on iPhone (compact), 4 columns on iPad (regular)
@@ -64,6 +66,9 @@ struct SettingsView: View {
                 
                 // MARK: - iCloud Status Section
                 iCloudStatusSection
+                
+                // MARK: - Debug Section
+                debugSection
             }
             .frame(maxWidth: 900)
             .padding(.horizontal, 24)
@@ -71,6 +76,18 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Settings")
+        .sheet(isPresented: $showTrackPopulator) {
+            NavigationStack {
+                TrackPopulationView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") {
+                                showTrackPopulator = false
+                            }
+                        }
+                    }
+            }
+        }
 #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
 #endif
@@ -167,6 +184,26 @@ struct SettingsView: View {
             SettingsGroup(title: "iCloud Status", systemImage: "icloud.fill") {
                 CloudKitStatusSettingsView()
                     .frame(maxWidth: .infinity)
+            }
+        }
+    }
+    
+    private var debugSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "Debug")
+            SettingsGroup(title: "Track Population", systemImage: "list.number") {
+                Button(action: {
+                    showTrackPopulator = true
+                }) {
+                    HStack {
+                        Text("Populate Tracks from History")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
             }
         }
     }
