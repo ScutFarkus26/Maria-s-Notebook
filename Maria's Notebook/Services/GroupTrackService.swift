@@ -181,8 +181,131 @@ struct GroupTrackService {
             }
     }
     
+    // MARK: - Track Object Management (UUID-based Track model)
+    
+    /// Find or create a Track object for the given subject and group.
+    /// This creates Track and TrackStep objects that can be used for enrollment and history linking.
+    /// - Parameters:
+    ///   - subject: The subject name
+    ///   - group: The group name
+    ///   - modelContext: The model context for database operations
+    /// - Returns: The Track object (existing or newly created)
+    static func getOrCreateTrack(
+        subject: String,
+        group: String,
+        modelContext: ModelContext
+    ) throws -> Track {
+        let trimmedSubject = subject.trimmed()
+        let trimmedGroup = group.trimmed()
+        
+        // Check if this group should be a track
+        guard isTrack(subject: trimmedSubject, group: trimmedGroup, modelContext: modelContext) else {
+            throw NSError(domain: "GroupTrackService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Group is explicitly disabled as a track"])
+        }
+        
+        // Fetch all Tracks to find existing one by title
+        let trackTitle = "\(trimmedSubject) — \(trimmedGroup)"
+        let allTracks = try modelContext.fetch(FetchDescriptor<Track>())
+        
+        if let existingTrack = allTracks.first(where: { $0.title.trimmingCharacters(in: .whitespacesAndNewlines) == trackTitle }) {
+            // Track exists - ensure TrackSteps are up to date
+            try ensureTrackSteps(for: existingTrack, subject: trimmedSubject, group: trimmedGroup, modelContext: modelContext)
+            return existingTrack
+        }
+        
+        // Create new Track
+        let newTrack = Track(
+            title: trackTitle,
+            createdAt: Date()
+        )
+        modelContext.insert(newTrack)
+        
+        // Create TrackSteps for all lessons in this group
+        try ensureTrackSteps(for: newTrack, subject: trimmedSubject, group: trimmedGroup, modelContext: modelContext)
+        
+        return newTrack
+    }
+    
+    /// Ensure TrackSteps exist for all lessons in a subject/group combination.
+    /// This adds missing steps and removes steps for lessons that no longer exist.
+    private static func ensureTrackSteps(
+        for track: Track,
+        subject: String,
+        group: String,
+        modelContext: ModelContext
+    ) throws {
+        // Fetch all lessons for this subject/group
+        let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+        let matchingLessons = allLessons.filter { lesson in
+            lesson.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame &&
+            lesson.group.trimmed().caseInsensitiveCompare(group) == .orderedSame
+        }
+        .sorted { $0.orderInGroup < $1.orderInGroup }
+        
+        // Get existing steps
+        let allSteps = try modelContext.fetch(FetchDescriptor<TrackStep>())
+        let existingSteps = allSteps.filter { step in
+            step.track?.id == track.id
+        }
+        
+        // Build map of existing steps by lesson ID
+        var existingStepsByLessonID: [UUID: TrackStep] = [:]
+        for step in existingSteps {
+            if let lessonID = step.lessonTemplateID {
+                existingStepsByLessonID[lessonID] = step
+            }
+        }
+        
+        // Create or update steps for each lesson
+        var steps: [TrackStep] = []
+        for (index, lesson) in matchingLessons.enumerated() {
+            if let existingStep = existingStepsByLessonID[lesson.id] {
+                // Update orderIndex if needed
+                existingStep.orderIndex = index
+                existingStep.track = track
+                steps.append(existingStep)
+            } else {
+                // Create new step
+                let newStep = TrackStep(
+                    track: track,
+                    orderIndex: index,
+                    lessonTemplateID: lesson.id,
+                    createdAt: Date()
+                )
+                modelContext.insert(newStep)
+                steps.append(newStep)
+            }
+        }
+        
+        // Remove steps for lessons that no longer exist
+        let existingLessonIDs = Set(matchingLessons.map { $0.id })
+        for step in existingSteps {
+            if let lessonID = step.lessonTemplateID, !existingLessonIDs.contains(lessonID) {
+                modelContext.delete(step)
+            }
+        }
+        
+        // Update track.steps relationship
+        track.steps = steps
+    }
+    
+    /// Get Track object for a subject/group combination, if it exists.
+    static func getTrack(
+        subject: String,
+        group: String,
+        modelContext: ModelContext
+    ) throws -> Track? {
+        let trimmedSubject = subject.trimmed()
+        let trimmedGroup = group.trimmed()
+        let trackTitle = "\(trimmedSubject) — \(trimmedGroup)"
+        
+        let allTracks = try modelContext.fetch(FetchDescriptor<Track>())
+        return allTracks.first(where: { $0.title.trimmingCharacters(in: .whitespacesAndNewlines) == trackTitle })
+    }
+    
     /// Automatically enroll students in a track if the lesson belongs to a track.
     /// Called when a lesson is scheduled or presented.
+    /// Now uses Track objects with UUID IDs instead of subject|group strings.
     /// - Parameters:
     ///   - lesson: The lesson that was scheduled/presented
     ///   - studentIDs: Array of student UUID strings to enroll
@@ -198,14 +321,23 @@ struct GroupTrackService {
             return
         }
         
-        let trackID = "\(lesson.subject.trimmed())|\(lesson.group.trimmed())"
+        // Find or create Track object
+        guard let track = try? getOrCreateTrack(
+            subject: lesson.subject,
+            group: lesson.group,
+            modelContext: modelContext
+        ) else {
+            return
+        }
+        
+        let trackID = track.id.uuidString
         
         // Fetch all existing enrollments for these students
         let allEnrollments = (try? modelContext.fetch(FetchDescriptor<StudentTrackEnrollment>())) ?? []
         
         // Enroll each student if not already enrolled
         for studentID in studentIDs {
-            // Check if enrollment already exists
+            // Check if enrollment already exists (by Track UUID)
             let existingEnrollment = allEnrollments.first { enrollment in
                 enrollment.studentID == studentID && enrollment.trackID == trackID
             }
@@ -219,7 +351,7 @@ struct GroupTrackService {
                     }
                 }
             } else {
-                // Create new enrollment
+                // Create new enrollment with Track UUID
                 let newEnrollment = StudentTrackEnrollment(
                     studentID: studentID,
                     trackID: trackID,

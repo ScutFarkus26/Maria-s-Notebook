@@ -89,6 +89,26 @@ struct AddLessonView: View {
                         newLesson.personalKind = nil
                     }
                     modelContext.insert(newLesson)
+                    
+                    // Automatically create/update Track object if lesson belongs to a track
+                    let subject = newLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let group = newLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !subject.isEmpty && !group.isEmpty {
+                        if GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+                            do {
+                                _ = try GroupTrackService.getOrCreateTrack(
+                                    subject: subject,
+                                    group: group,
+                                    modelContext: modelContext
+                                )
+                            } catch {
+                                #if DEBUG
+                                print("⚠️ Failed to create/update Track for \(subject)/\(group): \(error)")
+                                #endif
+                            }
+                        }
+                    }
+                    
                     if saveCoordinator.save(modelContext, reason: "Adding lesson") {
                         dismiss()
                     }

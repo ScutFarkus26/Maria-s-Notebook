@@ -108,6 +108,66 @@ struct WorkRepository {
         )
         work.participants = [participant]
         
+        // Link work to Track if lesson belongs to a track
+        // We need to create/update a WorkContract for track linking (even though WorkContract is read-only)
+        // This is necessary because StudentTrackDetailView queries WorkContract by trackID
+        if let lesson = try? context.fetch(FetchDescriptor<Lesson>(
+            predicate: #Predicate { $0.id == lessonID }
+        )).first {
+            let subject = lesson.subject.trimmed()
+            let group = lesson.group.trimmed()
+            if !subject.isEmpty && !group.isEmpty,
+               GroupTrackService.isTrack(subject: subject, group: group, modelContext: context),
+               let track = try? GroupTrackService.getOrCreateTrack(
+                   subject: subject,
+                   group: group,
+                   modelContext: context
+               ) {
+                // Find or create WorkContract for track linking
+                let trackID = track.id.uuidString
+                var trackStepID: String? = nil
+                
+                // Find the TrackStep for this lesson
+                let allSteps = (try? context.fetch(FetchDescriptor<TrackStep>())) ?? []
+                if let step = allSteps.first(where: {
+                    $0.track?.id == track.id && $0.lessonTemplateID == lessonID
+                }) {
+                    trackStepID = step.id.uuidString
+                }
+                
+                // Find existing WorkContract for this presentation+student combo, or create new one
+                let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
+                let presentationIDStr = presentationID?.uuidString
+                if let existingContract = allContracts.first(where: {
+                    ($0.presentationID ?? "") == (presentationIDStr ?? "") && 
+                    $0.studentID == studentID.uuidString &&
+                    $0.lessonID == lessonID.uuidString
+                }) {
+                    // Update existing contract with track info
+                    existingContract.trackID = trackID
+                    existingContract.trackStepID = trackStepID
+                } else {
+                    // Create new WorkContract for track linking (even though WorkContract is read-only)
+                    // This is necessary for track tab functionality
+                    let workContract = WorkContract(
+                        studentID: studentID.uuidString,
+                        lessonID: lessonID.uuidString,
+                        presentationID: presentationIDStr,
+                        trackID: trackID,
+                        trackStepID: trackStepID,
+                        title: title,
+                        status: work.status,
+                        scheduledDate: scheduledDate,
+                        completedAt: nil,
+                        kind: kind
+                    )
+                    context.insert(workContract)
+                    // Link WorkModel to WorkContract via legacyContractID
+                    work.legacyContractID = workContract.id
+                }
+            }
+        }
+        
         context.insert(work)
         try context.save()
         return work

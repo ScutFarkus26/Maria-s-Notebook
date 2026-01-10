@@ -44,10 +44,60 @@ struct LifecycleService {
         let presentation: Presentation
         if let p = existingPresentation {
             presentation = p
+            // Update existing presentation with track info if not already set
+            if presentation.trackID == nil, let lesson = studentLesson.lesson {
+                let subject = lesson.subject.trimmed()
+                let group = lesson.group.trimmed()
+                if !subject.isEmpty && !group.isEmpty,
+                   GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext),
+                   let track = try? GroupTrackService.getOrCreateTrack(
+                       subject: subject,
+                       group: group,
+                       modelContext: modelContext
+                   ) {
+                    presentation.trackID = track.id.uuidString
+                    // Find the TrackStep for this lesson
+                    if let lessonUUID = UUID(uuidString: lessonIDStr) {
+                        let allSteps = (try? modelContext.fetch(FetchDescriptor<TrackStep>())) ?? []
+                        if let step = allSteps.first(where: { 
+                            $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID 
+                        }) {
+                            presentation.trackStepID = step.id.uuidString
+                        }
+                    }
+                }
+            }
         } else {
             // Create new Presentation
             let title = studentLesson.lesson?.name
             let subtitle = studentLesson.lesson?.subheading
+            
+            // Link to Track if lesson belongs to a track
+            var trackID: String? = nil
+            var trackStepID: String? = nil
+            if let lesson = studentLesson.lesson {
+                let subject = lesson.subject.trimmed()
+                let group = lesson.group.trimmed()
+                if !subject.isEmpty && !group.isEmpty,
+                   GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext),
+                   let track = try? GroupTrackService.getOrCreateTrack(
+                       subject: subject,
+                       group: group,
+                       modelContext: modelContext
+                   ) {
+                    trackID = track.id.uuidString
+                    // Find the TrackStep for this lesson
+                    if let lessonUUID = UUID(uuidString: lessonIDStr) {
+                        let allSteps = (try? modelContext.fetch(FetchDescriptor<TrackStep>())) ?? []
+                        if let step = allSteps.first(where: { 
+                            $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID 
+                        }) {
+                            trackStepID = step.id.uuidString
+                        }
+                    }
+                }
+            }
+            
             presentation = Presentation(
                 id: UUID(),
                 createdAt: Date(),
@@ -55,6 +105,8 @@ struct LifecycleService {
                 lessonID: lessonIDStr,
                 studentIDs: studentIDStrs,
                 legacyStudentLessonID: legacyID,
+                trackID: trackID,
+                trackStepID: trackStepID,
                 lessonTitleSnapshot: title,
                 lessonSubtitleSnapshot: subtitle
             )
@@ -139,12 +191,34 @@ struct LifecycleService {
                         scheduledDate: nil
                     )
                     
+                    // Link WorkModel to Track if lesson belongs to a track
+                    if let lesson = studentLesson.lesson {
+                        let subject = lesson.subject.trimmed()
+                        let group = lesson.group.trimmed()
+                        if !subject.isEmpty && !group.isEmpty,
+                           GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext),
+                           let track = try? GroupTrackService.getOrCreateTrack(
+                               subject: subject,
+                               group: group,
+                               modelContext: modelContext
+                           ) {
+                            // WorkModel doesn't have trackID field, so we need to update via WorkContract if it exists
+                            // But WorkContract is read-only, so we can't update it directly
+                            // The trackID will be set on the Presentation which is linked to this work
+                        }
+                    }
+                    
                     // For backward compatibility, try to find an existing WorkContract by legacyContractID
                     // Do NOT create new WorkContract - it is read-only for legacy data only
                     if let contractID = workModel.legacyContractID {
                         // Fetch all WorkContracts and filter in memory (no predicates on WorkContract)
                         let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
                         if let contract = allContracts.first(where: { $0.id == contractID }) {
+                            // Update WorkContract with track info if presentation has it
+                            if contract.trackID == nil, let presentationTrackID = presentation.trackID {
+                                contract.trackID = presentationTrackID
+                                contract.trackStepID = presentation.trackStepID
+                            }
                             workForPresentation.append(contract)
                         }
                     }

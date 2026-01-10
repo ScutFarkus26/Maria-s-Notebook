@@ -290,6 +290,7 @@ public struct BulkLessonsEntryView: View {
 
         guard !items.isEmpty else { return }
 
+        var insertedLessons: [Lesson] = []
         for r in items {
             let lesson = Lesson(
                 name: r.name,
@@ -305,8 +306,38 @@ public struct BulkLessonsEntryView: View {
                 lesson.personalKind = nil
             }
             modelContext.insert(lesson)
+            insertedLessons.append(lesson)
         }
         do {
+            try modelContext.save()
+            
+            // Automatically create/update Track objects for new subject/group combinations
+            var processedGroups: Set<String> = []
+            for lesson in insertedLessons {
+                let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !subject.isEmpty && !group.isEmpty else { continue }
+                
+                let key = "\(subject)|\(group)"
+                guard !processedGroups.contains(key) else { continue }
+                processedGroups.insert(key)
+                
+                if GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+                    do {
+                        _ = try GroupTrackService.getOrCreateTrack(
+                            subject: subject,
+                            group: group,
+                            modelContext: modelContext
+                        )
+                    } catch {
+                        #if DEBUG
+                        print("⚠️ Failed to create/update Track for \(subject)/\(group): \(error)")
+                        #endif
+                    }
+                }
+            }
+            
+            // Save track updates
             try modelContext.save()
         } catch {
             // Swallow save error for now; could surface an alert if needed
