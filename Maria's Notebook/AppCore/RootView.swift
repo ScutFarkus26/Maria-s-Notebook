@@ -229,60 +229,88 @@ struct RootView: View {
         }
         .onAppear {
             // Migration: Convert legacy selectedTab to selectedNavItem if needed
-            // Defer state changes to avoid layout recursion warnings
+            // Defer state changes to next run loop to avoid multiple updates per frame
             DispatchQueue.main.async {
-                if selectedNavItemRaw == nil, let legacyRaw = selectedTabRaw {
-                    if let legacyTab = Tab(rawValue: legacyRaw) {
-                        if let navItem = NavigationItem(fromLegacyTab: legacyTab) {
-                            // For planning, check stored mode
-                            if legacyTab == .planning {
-                                if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
-                                    switch modeRaw {
-                                    case "Open Work": selectedNavItemRaw = NavigationItem.planningWork.rawValue
-                                    case "Projects": selectedNavItemRaw = NavigationItem.planningProjects.rawValue
-                                    case "Checklist": selectedNavItemRaw = NavigationItem.planningChecklist.rawValue
-                                    default: selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
-                                    }
-                                } else {
-                                    selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                // Only migrate if no selection is set
+                guard self.selectedNavItemRaw == nil, let legacyRaw = self.selectedTabRaw else { return }
+                
+                // Determine the target navigation item - only set once
+                var targetItem: RootView.NavigationItem? = nil
+                
+                // Check legacy string migrations first (these take precedence)
+                if legacyRaw == "Lesson Planning" {
+                    targetItem = .planningAgenda
+                } else if legacyRaw == "Work Planning" || legacyRaw == "Work" {
+                    targetItem = .planningWork
+                } else if let legacyTab = RootView.Tab(rawValue: legacyRaw) {
+                    if let navItem = RootView.NavigationItem(fromLegacyTab: legacyTab) {
+                        // For planning, check stored mode
+                        if legacyTab == .planning {
+                            if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
+                                switch modeRaw {
+                                case "Open Work": targetItem = .planningWork
+                                case "Projects": targetItem = .planningProjects
+                                case "Checklist": targetItem = .planningChecklist
+                                default: targetItem = .planningAgenda
                                 }
                             } else {
-                                selectedNavItemRaw = navItem.rawValue
+                                targetItem = .planningAgenda
                             }
+                        } else {
+                            targetItem = navItem
                         }
                     }
-                    // Handle legacy string migrations
-                    if legacyRaw == "Lesson Planning" {
-                        selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
-                    }
-                    if legacyRaw == "Work Planning" || legacyRaw == "Work" {
-                        selectedNavItemRaw = NavigationItem.planningWork.rawValue
-                    }
+                }
+                
+                // Set once, if we found a target
+                if let target = targetItem {
+                    self.selectedNavItemRaw = target.rawValue
                 }
             }
         }
         .onChange(of: appRouter.navigationDestination) { _, destination in
-            if case .openAttendance = destination {
-                selectedNavItemRaw = NavigationItem.attendance.rawValue
-                appRouter.clearNavigation()
+            // Defer to next run loop to avoid multiple updates per frame
+            DispatchQueue.main.async {
+                if case .openAttendance = destination {
+                    let newValue = RootView.NavigationItem.attendance.rawValue
+                    // Only update if different to avoid multiple updates per frame
+                    if self.selectedNavItemRaw != newValue {
+                        self.selectedNavItemRaw = newValue
+                    }
+                    self.appRouter.clearNavigation()
+                }
             }
         }
         .onChange(of: appRouter.selectedNavItem) { _, item in
-            if let item = item {
-                selectedNavItemRaw = item.rawValue
-                appRouter.selectedNavItem = nil // Clear after handling
+            // Defer to next run loop to avoid multiple updates per frame
+            DispatchQueue.main.async {
+                if let item = item {
+                    let newValue = item.rawValue
+                    // Only update if different to avoid multiple updates per frame
+                    if self.selectedNavItemRaw != newValue {
+                        self.selectedNavItemRaw = newValue
+                    }
+                    self.appRouter.selectedNavItem = nil // Clear after handling
+                }
             }
         }
         // Backward compatibility: handle legacy selectedTab
         .onChange(of: appRouter.selectedTab) { _, tab in
-            if let tab = tab, let navItem = NavigationItem(fromLegacyTab: tab) {
+            // Defer to next run loop to avoid multiple updates per frame
+            DispatchQueue.main.async {
+                guard let tab = tab, let navItem = RootView.NavigationItem(fromLegacyTab: tab) else { return }
+                let newValue: String
                 // For planning, default to agenda
                 if tab == .planning {
-                    selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                    newValue = RootView.NavigationItem.planningAgenda.rawValue
                 } else {
-                    selectedNavItemRaw = navItem.rawValue
+                    newValue = navItem.rawValue
                 }
-                appRouter.selectedTab = nil // Clear after handling
+                // Only update if different to avoid multiple updates per frame
+                if self.selectedNavItemRaw != newValue {
+                    self.selectedNavItemRaw = newValue
+                }
+                self.appRouter.selectedTab = nil // Clear after handling
             }
         }
         .saveErrorAlert()

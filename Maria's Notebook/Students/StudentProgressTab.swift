@@ -47,7 +47,6 @@ struct StudentProgressTab: View {
     // MARK: - State
     @State private var selectedEnrollment: StudentTrackEnrollment?
     @State private var selectedProject: Project?
-    @State private var animatedProgress: [String: Double] = [:]
     @State private var filterSheet: FilterSheet? = nil
     
     // MARK: - Filter Sheet State
@@ -299,8 +298,6 @@ struct StudentProgressTab: View {
             allLessons.first { $0.id == lessonID }
         }
         
-        let cardKey = enrollment.trackID
-        
         VStack(alignment: .leading, spacing: 16) {
             // Header with track icon and title
             HStack(spacing: 12) {
@@ -423,13 +420,12 @@ struct StudentProgressTab: View {
                                     )
                                 )
                                 .frame(
-                                    width: geometry.size.width * (animatedProgress[cardKey] ?? 0.0),
+                                    width: max(0, min(geometry.size.width, geometry.size.width * progressPercent)),
                                     height: 12
                                 )
-                                .animation(.spring(response: 0.8, dampingFraction: 0.8), value: animatedProgress[cardKey])
                             
                             // Glow effect for completed tracks
-                            if isComplete && (animatedProgress[cardKey] ?? 0) >= 1.0 {
+                            if isComplete && progressPercent >= 1.0 {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                                     .fill(
                                         LinearGradient(
@@ -567,7 +563,7 @@ struct StudentProgressTab: View {
                             statBadge(
                                 count: presentationCount,
                                 label: "Presentations",
-                                icon: "presentation",
+                                icon: "person.2.fill",
                                 color: .orange
                             )
                         }
@@ -688,18 +684,6 @@ struct StudentProgressTab: View {
                     lineWidth: enrollment.isActive ? 2 : 1
                 )
         )
-        .onAppear {
-            // Animate progress on appear
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.8).delay(0.1)) {
-                animatedProgress[cardKey] = progressPercent
-            }
-        }
-        .onChange(of: progressPercent) { oldValue, newValue in
-            // Animate when progress changes
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.8)) {
-                animatedProgress[cardKey] = newValue
-            }
-        }
     }
     
     // MARK: - Helper Functions
