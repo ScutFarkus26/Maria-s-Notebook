@@ -17,6 +17,12 @@ enum LessonsDisplayMode: String, CaseIterable, Identifiable {
     }
 }
 
+struct TrackSettingsItem: Identifiable {
+    let id = UUID()
+    let subject: String
+    let group: String
+}
+
 struct LessonsRootView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
@@ -40,9 +46,7 @@ struct LessonsRootView: View {
     @State private var lessonToSchedule: Lesson?
     
     // Track settings state
-    @State private var trackSettingsSubject: String?
-    @State private var trackSettingsGroup: String?
-    @State private var showingTrackSettings = false
+    @State private var trackSettingsItem: TrackSettingsItem?
     
     // Lesson detail sidebar state
     @State private var selectedLessonDetail: Lesson?
@@ -237,10 +241,8 @@ struct LessonsRootView: View {
                 }
             )
         }
-        .sheet(isPresented: $showingTrackSettings) {
-            if let subject = trackSettingsSubject, let group = trackSettingsGroup {
-                GroupTrackSettingsSheet(subject: subject, group: group)
-            }
+        .sheet(item: $trackSettingsItem) { item in
+            GroupTrackSettingsSheet(subject: item.subject, group: item.group)
         }
     }
 
@@ -607,9 +609,7 @@ struct LessonsRootView: View {
             Text(group)
             Spacer()
             Button {
-                trackSettingsSubject = subject
-                trackSettingsGroup = group
-                showingTrackSettings = true
+                trackSettingsItem = TrackSettingsItem(subject: subject, group: group)
             } label: {
                 Image(systemName: iconName)
                     .foregroundColor(.secondary)
