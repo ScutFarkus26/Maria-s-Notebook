@@ -133,7 +133,7 @@ struct TrackPopulationView: View {
         }
     }
     
-    private func performScan(lessons: [Lesson], presentations: [Presentation], workContracts: [WorkContract]) -> [PotentialTrack] {
+    nonisolated private func performScan(lessons: [Lesson], presentations: [Presentation], workContracts: [WorkContract]) -> [PotentialTrack] {
         // Group lessons by subject and group (ignore empty groups)
         var groups: [String: [Lesson]] = [:] // Key: "subject|group"
         

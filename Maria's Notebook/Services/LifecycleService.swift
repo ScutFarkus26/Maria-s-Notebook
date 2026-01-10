@@ -192,19 +192,19 @@ struct LifecycleService {
                     )
                     
                     // Link WorkModel to Track if lesson belongs to a track
+                    // Note: WorkModel doesn't have trackID field, so we can't link directly
+                    // The trackID will be set on the Presentation which is linked to this work
                     if let lesson = studentLesson.lesson {
                         let subject = lesson.subject.trimmed()
                         let group = lesson.group.trimmed()
                         if !subject.isEmpty && !group.isEmpty,
-                           GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext),
-                           let track = try? GroupTrackService.getOrCreateTrack(
-                               subject: subject,
-                               group: group,
-                               modelContext: modelContext
-                           ) {
-                            // WorkModel doesn't have trackID field, so we need to update via WorkContract if it exists
-                            // But WorkContract is read-only, so we can't update it directly
-                            // The trackID will be set on the Presentation which is linked to this work
+                           GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+                            // Track exists - WorkModel link will be handled via Presentation.trackID
+                            _ = try? GroupTrackService.getOrCreateTrack(
+                                subject: subject,
+                                group: group,
+                                modelContext: modelContext
+                            )
                         }
                     }
                     
