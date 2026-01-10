@@ -392,9 +392,25 @@ struct BoardDropDelegate: DropDelegate {
         for id in ids {
             if let item = allStudentLessons.first(where: { $0.id == id }) {
                 item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+                // Auto-enroll students in track if lesson belongs to a track
+                if let lesson = item.lesson {
+                    GroupTrackService.autoEnrollInTrackIfNeeded(
+                        lesson: lesson,
+                        studentIDs: item.studentIDs,
+                        modelContext: modelContext
+                    )
+                }
             }
             if id == targetSL.id {
                 targetSL.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+                // Auto-enroll students in track if lesson belongs to a track
+                if let lesson = targetSL.lesson {
+                    GroupTrackService.autoEnrollInTrackIfNeeded(
+                        lesson: lesson,
+                        studentIDs: targetSL.studentIDs,
+                        modelContext: modelContext
+                    )
+                }
             }
         }
     }
@@ -404,6 +420,14 @@ struct BoardDropDelegate: DropDelegate {
         for id in ids {
             if let item = allStudentLessons.first(where: { $0.id == id }) {
                 item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+                // Auto-enroll students in track if lesson belongs to a track
+                if let lesson = item.lesson {
+                    GroupTrackService.autoEnrollInTrackIfNeeded(
+                        lesson: lesson,
+                        studentIDs: item.studentIDs,
+                        modelContext: modelContext
+                    )
+                }
             }
         }
     }

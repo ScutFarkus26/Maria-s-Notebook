@@ -11,9 +11,6 @@ struct StudentProgressTab: View {
     // MARK: - Inputs
     let student: Student
     
-    // MARK: - State
-    @State private var showingEnrollSheet = false
-    
     // MARK: - Queries
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group)])
     private var allLessons: [Lesson]
@@ -30,10 +27,7 @@ struct StudentProgressTab: View {
     // MARK: - Body
     var body: some View {
         List {
-            // Enrollments Management Section
-            enrollmentsSection()
-            
-            // Progress Sections
+            // Progress Sections (read-only)
             if !progressData.activeEnrollments.isEmpty {
                 ForEach(progressData.activeEnrollments) { enrollment in
                     if let track = progressData.trackByID[enrollment.trackID] {
@@ -44,96 +38,15 @@ struct StudentProgressTab: View {
                         )
                     }
                 }
+            } else {
+                ContentUnavailableView {
+                    Label("No Active Enrollments", systemImage: "list.bullet")
+                } description: {
+                    Text("Students are automatically enrolled in tracks when lessons are scheduled, presented, or marked as presented.")
+                }
             }
         }
         .listStyle(.plain)
-        .sheet(isPresented: $showingEnrollSheet) {
-            EnrollInTrackSheet(
-                student: student,
-                existingEnrollments: progressData.allEnrollments
-            )
-        }
-    }
-    
-    // MARK: - Enrollments Section
-    @ViewBuilder
-    private func enrollmentsSection() -> some View {
-        Section("Enrollments") {
-            if progressData.activeEnrollments.isEmpty {
-                Text("No active enrollments")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            // Show all enrollments (active and inactive)
-            if !progressData.allEnrollments.isEmpty {
-                ForEach(progressData.allEnrollments) { enrollment in
-                    if let track = progressData.trackByID[enrollment.trackID] {
-                        enrollmentRow(enrollment: enrollment, track: track)
-                    }
-                }
-            }
-            
-            // Always show Add Enrollment button
-            Button {
-                showingEnrollSheet = true
-            } label: {
-                Label("Add Enrollment", systemImage: "plus.circle.fill")
-            }
-        }
-    }
-    
-    // MARK: - Enrollment Row
-    @ViewBuilder
-    private func enrollmentRow(enrollment: StudentTrackEnrollment, track: GroupTrack) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(track.subject) · \(track.group)")
-                    .font(.headline)
-                
-                HStack(spacing: 8) {
-                    // Status badge
-                    if enrollment.isActive {
-                        Label("Active", systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    } else {
-                        Label("Inactive", systemImage: "circle")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // Started date
-                    if let startDate = enrollment.startedAt ?? enrollment.createdAt as Date? {
-                        Text("•")
-                            .foregroundColor(.secondary)
-                        Text("Started \(startDate, style: .date)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            // Deactivate button (only for active enrollments)
-            if enrollment.isActive {
-                Button {
-                    deactivateEnrollment(enrollment)
-                } label: {
-                    Text("Deactivate")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-    }
-    
-    // MARK: - Actions
-    private func deactivateEnrollment(_ enrollment: StudentTrackEnrollment) {
-        enrollment.isActive = false
-        try? modelContext.save()
     }
     
     // MARK: - Section Builder

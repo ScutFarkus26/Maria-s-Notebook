@@ -292,7 +292,19 @@ struct AgendaSlotDropDelegate: DropDelegate {
                 ids.insert(id, at: bounded)
                 let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
                 let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
-                for id in ids { if let item = allStudentLessons.first(where: { $0.id == id }) { item.setScheduledFor(timeMap[id], using: AppCalendar.shared) } }
+                for id in ids {
+                    if let item = allStudentLessons.first(where: { $0.id == id }) {
+                        item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+                        // Auto-enroll students in track if lesson belongs to a track
+                        if let lesson = item.lesson {
+                            GroupTrackService.autoEnrollInTrackIfNeeded(
+                                lesson: lesson,
+                                studentIDs: item.studentIDs,
+                                modelContext: modelContext
+                            )
+                        }
+                    }
+                }
                 result = true
             }
         }
@@ -366,6 +378,15 @@ struct AgendaSlotDropDelegate: DropDelegate {
                             if src.studentIDs.isEmpty { modelContext.delete(src) } else { /* Removed src.syncSnapshotsFromRelationships() */ }
                         }
                         try? modelContext.save()
+                        
+                        // Auto-enroll students in track if lesson belongs to a track
+                        if let lesson = targetSL.lesson {
+                            GroupTrackService.autoEnrollInTrackIfNeeded(
+                                lesson: lesson,
+                                studentIDs: targetSL.studentIDs,
+                                modelContext: modelContext
+                            )
+                        }
                         return
                     }
                 }

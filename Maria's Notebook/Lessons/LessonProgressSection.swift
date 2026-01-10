@@ -305,12 +305,14 @@ struct LessonProgressSection: View {
     }
 
     private func scheduleRePresent(on date: Date) {
+        guard let lesson = lesson else { return }
+        
         let startOfDay = calendar.startOfDay(for: date)
         let scheduled = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
 
         let newStudentLesson = StudentLesson(
             id: UUID(),
-            lessonID: lesson?.id ?? UUID(),
+            lessonID: lesson.id,
             studentIDs: Array(selectedStudentIDs),
             createdAt: Date(),
             scheduledFor: scheduled,
@@ -325,6 +327,13 @@ struct LessonProgressSection: View {
         modelContext.insert(newStudentLesson)
 
         do { try modelContext.save() } catch {}
+
+        // Auto-enroll students in track if lesson belongs to a track
+        GroupTrackService.autoEnrollInTrackIfNeeded(
+            lesson: lesson,
+            studentIDs: Array(selectedStudentIDs).map { $0.uuidString },
+            modelContext: modelContext
+        )
 
         let fmt = DateFormatter()
         fmt.dateStyle = .medium
