@@ -229,6 +229,15 @@ struct StudentLessonQuickActionsView: View {
             } catch {
                 // ignore
             }
+            
+            // Auto-enroll in track if lesson belongs to a track
+            if let lesson = studentLesson.lesson {
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson,
+                    studentIDs: studentLesson.studentIDs,
+                    modelContext: modelContext
+                )
+            }
         }
 
         // Phase 3: Auto-create next lesson in group when marking presented now

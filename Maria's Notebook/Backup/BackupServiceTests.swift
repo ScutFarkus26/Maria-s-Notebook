@@ -20,7 +20,7 @@ struct BackupServiceTests {
 
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(BackupFile.fileExtension)
         let service = BackupService()
-        try await service.exportBackup(modelContext: ctx, to: tmp, encrypt: false) { _, _ in }
+        try await service.exportBackup(modelContext: ctx, to: tmp, password: nil) { _, _ in }
 
         // Wipe and restore
         try await service.importBackup(modelContext: ctx, from: tmp, mode: .replace) { _, _ in }
@@ -35,7 +35,7 @@ struct BackupServiceTests {
         let ctx = container.mainContext
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(BackupFile.fileExtension)
         let service = BackupService()
-        try await service.exportBackup(modelContext: ctx, to: tmp, encrypt: false) { _, _ in }
+        try await service.exportBackup(modelContext: ctx, to: tmp, password: nil) { _, _ in }
         var data = try Data(contentsOf: tmp)
         // Tweak a byte
         if let idx = data.indices.first { data[idx] ^= 0xFF }
@@ -53,8 +53,9 @@ struct BackupServiceTests {
         ctx.insert(s); try ctx.save()
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(BackupFile.fileExtension)
         let service = BackupService()
-        try await service.exportBackup(modelContext: ctx, to: tmp, encrypt: true) { _, _ in }
-        try await service.importBackup(modelContext: ctx, from: tmp, mode: .merge) { _, _ in }
+        let testPassword = "testPassword123"
+        try await service.exportBackup(modelContext: ctx, to: tmp, password: testPassword) { _, _ in }
+        try await service.importBackup(modelContext: ctx, from: tmp, mode: .merge, password: testPassword) { _, _ in }
         #expect(((try? ctx.fetch(FetchDescriptor<Student>())) ?? []).count >= 1)
     }
 
@@ -71,7 +72,7 @@ struct BackupServiceTests {
 
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(BackupFile.fileExtension)
         let service = BackupService()
-        let _ = try await service.exportBackup(modelContext: ctx, to: tmp, encrypt: false) { _, _ in }
+        let _ = try await service.exportBackup(modelContext: ctx, to: tmp, password: nil) { _, _ in }
 
         // Overwrite defaults
         defaults.removeObject(forKey: "AttendanceEmail.enabled")
@@ -118,7 +119,7 @@ struct BackupServiceTests {
         defaults.set(10, forKey: "LessonAge.warningDays")
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(BackupFile.fileExtension)
         let service = BackupService()
-        let _ = try await service.exportBackup(modelContext: ctx, to: tmp, encrypt: false) { _, _ in }
+        let _ = try await service.exportBackup(modelContext: ctx, to: tmp, password: nil) { _, _ in }
         defaults.removeObject(forKey: "Backup.encrypt")
         defaults.removeObject(forKey: "LessonAge.warningDays")
         let _ = try await service.importBackup(modelContext: ctx, from: tmp, mode: .merge) { _, _ in }

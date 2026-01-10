@@ -136,17 +136,20 @@ struct ProjectsRootView: View {
         }
         .onAppear {
             // Auto-select first if none selected on iPad
-            #if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .pad {
+            // Defer state changes to avoid layout recursion warnings
+            DispatchQueue.main.async {
+                #if os(iOS)
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    if selectedClubIDString.isEmpty, let first = clubs.first {
+                        selectedClubIDString = first.id.uuidString
+                    }
+                }
+                #else
                 if selectedClubIDString.isEmpty, let first = clubs.first {
                     selectedClubIDString = first.id.uuidString
                 }
+                #endif
             }
-            #else
-            if selectedClubIDString.isEmpty, let first = clubs.first {
-                selectedClubIDString = first.id.uuidString
-            }
-            #endif
         }
     }
 

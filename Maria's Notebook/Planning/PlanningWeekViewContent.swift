@@ -46,13 +46,31 @@ struct PlanningWeekViewContent: View {
             if let sl = fetchStudentLesson(by: id) {
                 StudentLessonDetailView(studentLesson: sl) { activeSheet = nil }
             } else {
-                EmptyView()
+                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
+                ProgressView("Loading…")
+                    .frame(minWidth: 320, minHeight: 240)
+                    .task {
+                        // Dismiss if the item is no longer available
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        if case .studentLessonDetail(let currentId) = activeSheet, currentId == id {
+                            activeSheet = nil
+                        }
+                    }
             }
         case .quickActions(let id):
             if let sl = fetchStudentLesson(by: id) {
                 StudentLessonQuickActionsView(studentLesson: sl) { activeSheet = nil }
             } else {
-                EmptyView()
+                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
+                ProgressView("Loading…")
+                    .frame(minWidth: 320, minHeight: 240)
+                    .task {
+                        // Dismiss if the item is no longer available
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        if case .quickActions(let currentId) = activeSheet, currentId == id {
+                            activeSheet = nil
+                        }
+                    }
             }
         case .giveLessonDraft(let id):
             if let sl = fetchStudentLesson(by: id) {
@@ -68,7 +86,16 @@ struct PlanningWeekViewContent: View {
                         }
                     }
             } else {
-                EmptyView()
+                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
+                ProgressView("Preparing…")
+                    .frame(minWidth: 320, minHeight: 240)
+                    .task {
+                        // Dismiss if the draft is no longer available
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        if case .giveLessonDraft(let currentId) = activeSheet, currentId == id {
+                            activeSheet = nil
+                        }
+                    }
             }
         case .addLesson:
             AddLessonView(defaultSubject: nil, defaultGroup: nil)

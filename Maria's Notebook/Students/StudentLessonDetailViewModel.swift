@@ -120,6 +120,26 @@ final class StudentLessonDetailViewModel {
             } catch {
                 print("LifecycleService error: \(error)")
             }
+            
+            // Auto-enroll students in track if lesson belongs to a track
+            if let lesson = studentLesson.lesson {
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson,
+                    studentIDs: studentLesson.studentIDs,
+                    modelContext: modelContext
+                )
+            }
+        }
+        
+        // Auto-enroll when lesson is scheduled (if not already presented)
+        if !nowGiven, let scheduledFor = studentLesson.scheduledFor, scheduledFor != nil {
+            if let lesson = studentLesson.lesson {
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson,
+                    studentIDs: studentLesson.studentIDs,
+                    modelContext: modelContext
+                )
+            }
         }
 
         // 3. Auto-create next lesson if needed

@@ -234,32 +234,35 @@ struct RootView: View {
         }
         .onAppear {
             // Migration: Convert legacy selectedTab to selectedNavItem if needed
-            if selectedNavItemRaw == nil, let legacyRaw = selectedTabRaw {
-                if let legacyTab = Tab(rawValue: legacyRaw) {
-                    if let navItem = NavigationItem(fromLegacyTab: legacyTab) {
-                        // For planning, check stored mode
-                        if legacyTab == .planning {
-                            if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
-                                switch modeRaw {
-                                case "Open Work": selectedNavItemRaw = NavigationItem.planningWork.rawValue
-                                case "Projects": selectedNavItemRaw = NavigationItem.planningProjects.rawValue
-                                case "Checklist": selectedNavItemRaw = NavigationItem.planningChecklist.rawValue
-                                default: selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+            // Defer state changes to avoid layout recursion warnings
+            DispatchQueue.main.async {
+                if selectedNavItemRaw == nil, let legacyRaw = selectedTabRaw {
+                    if let legacyTab = Tab(rawValue: legacyRaw) {
+                        if let navItem = NavigationItem(fromLegacyTab: legacyTab) {
+                            // For planning, check stored mode
+                            if legacyTab == .planning {
+                                if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
+                                    switch modeRaw {
+                                    case "Open Work": selectedNavItemRaw = NavigationItem.planningWork.rawValue
+                                    case "Projects": selectedNavItemRaw = NavigationItem.planningProjects.rawValue
+                                    case "Checklist": selectedNavItemRaw = NavigationItem.planningChecklist.rawValue
+                                    default: selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                                    }
+                                } else {
+                                    selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
                                 }
                             } else {
-                                selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                                selectedNavItemRaw = navItem.rawValue
                             }
-                        } else {
-                            selectedNavItemRaw = navItem.rawValue
                         }
                     }
-                }
-                // Handle legacy string migrations
-                if legacyRaw == "Lesson Planning" {
-                    selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
-                }
-                if legacyRaw == "Work Planning" || legacyRaw == "Work" {
-                    selectedNavItemRaw = NavigationItem.planningWork.rawValue
+                    // Handle legacy string migrations
+                    if legacyRaw == "Lesson Planning" {
+                        selectedNavItemRaw = NavigationItem.planningAgenda.rawValue
+                    }
+                    if legacyRaw == "Work Planning" || legacyRaw == "Work" {
+                        selectedNavItemRaw = NavigationItem.planningWork.rawValue
+                    }
                 }
             }
         }

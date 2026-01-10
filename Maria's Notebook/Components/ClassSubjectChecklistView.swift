@@ -490,10 +490,22 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         if let group = allSLs.first(where: { $0.isGiven && ($0.givenAt ?? Date.distantPast).isSameDay(as: today) }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
+                // Auto-enroll student in track if lesson belongs to a track
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson,
+                    studentIDs: [studentIDString],
+                    modelContext: context
+                )
             }
         } else {
             let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true)
             context.insert(newSL)
+            // Auto-enroll student in track if lesson belongs to a track
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: lesson,
+                studentIDs: [studentIDString],
+                modelContext: context
+            )
         }
     }
     

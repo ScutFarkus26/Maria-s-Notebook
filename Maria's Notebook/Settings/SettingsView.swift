@@ -56,7 +56,7 @@ struct SettingsView: View {
                     // Row 2: Detail (New)
                     LazyVGrid(columns: overviewColumns, spacing: 16) {
                         StatCard(title: "Work Items", value: "\(statsViewModel.workContractsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
-                        StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "easel.fill")
+                        StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "paintpalette.fill")
                         StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
                         StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
                     }

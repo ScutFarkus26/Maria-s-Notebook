@@ -24,7 +24,7 @@ final class AppBootstrapper: ObservableObject {
         
         let context = modelContainer.mainContext
         
-        print("AppBootstrapper: Starting startup checks...")
+        // print("AppBootstrapper: Starting startup checks...")
         
         // 1. Calendar Setup
         AppCalendar.adopt(timeZoneFrom: Calendar.current)
@@ -62,9 +62,9 @@ final class AppBootstrapper: ObservableObject {
             Task {
                 do {
                     try await ReminderSyncService.shared.syncReminders()
-                    print("AppBootstrapper: Initial reminder sync completed")
+                    // print("AppBootstrapper: Initial reminder sync completed")
                 } catch {
-                    print("AppBootstrapper: Initial reminder sync failed: \(error.localizedDescription)")
+                    // print("AppBootstrapper: Initial reminder sync failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -72,7 +72,7 @@ final class AppBootstrapper: ObservableObject {
         // 5. Signal UI
         AppRouter.shared.refreshPlanningInbox()
         
-        print("AppBootstrapper: Startup checks complete.")
+        // print("AppBootstrapper: Startup checks complete.")
         state = .ready
     }
 }

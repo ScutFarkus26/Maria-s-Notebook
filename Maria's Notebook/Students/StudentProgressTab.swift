@@ -1,5 +1,5 @@
 // StudentProgressTab.swift
-// Read-only progress tab showing student's track enrollments and progress
+// Read-only progress tab showing student's track enrollments and progress (group-based tracks)
 
 import SwiftUI
 import SwiftData
@@ -14,11 +14,16 @@ struct StudentProgressTab: View {
     // MARK: - State
     @State private var showingEnrollSheet = false
     
+    // MARK: - Queries
+    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group)])
+    private var allLessons: [Lesson]
+    
     // MARK: - Computed Data
     private var progressData: ProgressData {
         ProgressData(
             student: student,
-            modelContext: modelContext
+            modelContext: modelContext,
+            allLessons: allLessons
         )
     }
     
@@ -80,10 +85,10 @@ struct StudentProgressTab: View {
     
     // MARK: - Enrollment Row
     @ViewBuilder
-    private func enrollmentRow(enrollment: StudentTrackEnrollment, track: Track) -> some View {
+    private func enrollmentRow(enrollment: StudentTrackEnrollment, track: GroupTrack) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(track.title)
+                Text("\(track.subject) · \(track.group)")
                     .font(.headline)
                 
                 HStack(spacing: 8) {
@@ -135,58 +140,56 @@ struct StudentProgressTab: View {
     @ViewBuilder
     private func enrollmentSection(
         enrollment: StudentTrackEnrollment,
-        track: Track,
+        track: GroupTrack,
         progressData: ProgressData
     ) -> some View {
-        let totalSteps = TrackProgressResolver.totalSteps(track: track)
-        let masteredCount = TrackProgressResolver.masteredCount(
+        let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: allLessons)
+        let totalLessons = trackLessons.count
+        let masteredCount = GroupTrackProgressResolver.masteredCount(
             track: track,
             studentID: progressData.studentIDStr,
+            lessons: allLessons,
             lessonPresentations: progressData.lpForStudent
         )
-        let currentStep = TrackProgressResolver.currentStep(
+        let currentLesson = GroupTrackProgressResolver.currentLesson(
             track: track,
             studentID: progressData.studentIDStr,
+            lessons: allLessons,
             lessonPresentations: progressData.lpForStudent
         )
-        let lastObserved = progressData.lastObservedForTrack(trackID: track.id.uuidString)
+        let lastObserved = progressData.lastObservedForTrack(trackID: enrollment.trackID, track: track)
         
         Section {
             // Track Title
-            Text(track.title)
+            Text("\(track.subject) · \(track.group)")
                 .font(.headline)
             
-            // Progress: masteredCount/totalSteps
+            // Progress: masteredCount/totalLessons
             HStack {
                 Text("Progress:")
                 Spacer()
-                Text("\(masteredCount)/\(totalSteps)")
+                Text("\(masteredCount)/\(totalLessons)")
                     .fontWeight(.medium)
             }
             
-            // Current Step
-            if let currentStep = currentStep {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Current Step:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    HStack {
-                        Text("Step \(currentStep.orderIndex + 1)")
+            // Current Lesson (only for sequential tracks)
+            if track.isSequential {
+                if let currentLesson = currentLesson {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Current Lesson:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Text(currentLesson.name.isEmpty ? "Untitled Lesson" : currentLesson.name)
                             .fontWeight(.medium)
-                        if let lessonTemplateID = currentStep.lessonTemplateID,
-                           let lesson = progressData.lessonsByID[lessonTemplateID] {
-                            Text("• \(lesson.name)")
-                                .foregroundColor(.secondary)
-                        }
                     }
-                }
-            } else {
-                HStack {
-                    Text("Current Step:")
-                    Spacer()
-                    Text("All steps mastered")
-                        .foregroundColor(.green)
-                        .fontWeight(.medium)
+                } else {
+                    HStack {
+                        Text("Current Lesson:")
+                        Spacer()
+                        Text("All lessons mastered")
+                            .foregroundColor(.green)
+                            .fontWeight(.medium)
+                    }
                 }
             }
             
@@ -208,19 +211,19 @@ private struct ProgressData {
     let studentIDStr: String
     let allEnrollments: [StudentTrackEnrollment]
     let activeEnrollments: [StudentTrackEnrollment]
-    let trackByID: [String: Track]
+    let trackByID: [String: GroupTrack]
     let lpForStudent: [LessonPresentation]
-    let lessonsByID: [UUID: Lesson]
+    let allLessons: [Lesson]
     
-    init(student: Student, modelContext: ModelContext) {
+    init(student: Student, modelContext: ModelContext, allLessons: [Lesson]) {
         let studentIDStr = student.id.uuidString
         self.studentIDStr = studentIDStr
+        self.allLessons = allLessons
         
         // Fetch all data with fetch-all + in-memory filtering
         let enrollments = (try? modelContext.fetch(FetchDescriptor<StudentTrackEnrollment>())) ?? []
-        let tracks = (try? modelContext.fetch(FetchDescriptor<Track>())) ?? []
+        let groupTracks = (try? GroupTrackService.getAllGroupTracks(modelContext: modelContext)) ?? []
         let lps = (try? modelContext.fetch(FetchDescriptor<LessonPresentation>())) ?? []
-        let lessons = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
         
         // Filter enrollments for this student
         let studentEnrollments = enrollments.filter { $0.studentID == studentIDStr }
@@ -230,30 +233,29 @@ private struct ProgressData {
         // Filter lesson presentations
         self.lpForStudent = lps.filter { $0.studentID == studentIDStr }
         
-        // Create track dictionary
-        self.trackByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id.uuidString, $0) })
-        
-        // Create lessons dictionary
-        self.lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        // Create track dictionary by "subject|group" key
+        var trackDict: [String: GroupTrack] = [:]
+        for track in groupTracks {
+            let key = "\(track.subject)|\(track.group)"
+            trackDict[key] = track
+        }
+        self.trackByID = trackDict
     }
     
-    func lastObservedForTrack(trackID: String) -> Date? {
-        // Find max lastObservedAt from lpForStudent where:
-        // 1. lp.trackID == trackID (primary)
-        // OR
-        // 2. lp.lessonID matches any step.lessonTemplateID in the track (fallback)
-        guard let track = trackByID[trackID] else { return nil }
+    func lastObservedForTrack(trackID: String, track: GroupTrack) -> Date? {
+        // Find max lastObservedAt from lpForStudent where lessonID matches any lesson in the track
+        let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: allLessons)
         
-        let steps = (track.steps ?? []).sorted { $0.orderIndex < $1.orderIndex }
-        let stepLessonIDs = Set(steps.compactMap { $0.lessonTemplateID?.uuidString })
+        // Get lesson IDs from track
+        let lessonIDs = Set(trackLessons.map { $0.id.uuidString })
         
         let relevantLPs = lpForStudent.filter { lp in
-            // Primary: trackID matches
+            // Primary: trackID matches (for legacy compatibility)
             if lp.trackID == trackID {
                 return true
             }
-            // Fallback: lessonID matches any step's lessonTemplateID
-            if stepLessonIDs.contains(lp.lessonID) {
+            // Fallback: lessonID matches any lesson in the track
+            if lessonIDs.contains(lp.lessonID) {
                 return true
             }
             return false
@@ -262,4 +264,3 @@ private struct ProgressData {
         return relevantLPs.compactMap { $0.lastObservedAt }.max()
     }
 }
-

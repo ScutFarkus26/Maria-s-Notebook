@@ -219,7 +219,7 @@ struct LessonsViewModel {
                 }
                 return lhs.orderInGroup < rhs.orderInGroup
             }
-        } else if let subject = selectedSubject {
+        } else if selectedSubject != nil {
             // Use sortIndex for subject-level ordering
             return fetched.sorted { lhs, rhs in
                 if lhs.sortIndex != rhs.sortIndex {

@@ -1,5 +1,5 @@
 // EnrollInTrackSheet.swift
-// Sheet for enrolling a student in a track
+// Sheet for enrolling a student in a group-based track
 
 import SwiftUI
 import SwiftData
@@ -14,7 +14,9 @@ struct EnrollInTrackSheet: View {
     let existingEnrollments: [StudentTrackEnrollment]
     
     // MARK: - State
-    @State private var tracks: [Track] = []
+    @State private var groupTracks: [GroupTrack] = []
+    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group)])
+    private var allLessons: [Lesson]
     @State private var isLoading = true
     
     // MARK: - Body
@@ -24,17 +26,17 @@ struct EnrollInTrackSheet: View {
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if tracks.isEmpty {
+                } else if groupTracks.isEmpty {
                     ContentUnavailableView {
                         Label("No Tracks Available", systemImage: "list.bullet")
                     } description: {
-                        Text("No tracks found. Create tracks first.")
+                        Text("No tracks found. Mark groups as tracks in the Lessons view first.")
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
-                        ForEach(tracks) { track in
-                            trackRow(track: track)
+                        ForEach(groupTracks, id: \.id) { groupTrack in
+                            trackRow(groupTrack: groupTrack)
                         }
                     }
                 }
@@ -58,39 +60,45 @@ struct EnrollInTrackSheet: View {
     
     // MARK: - Data Loading
     private func loadTracks() {
-        // Fetch all tracks using fetch-all approach (no predicates with UUID->String conversions)
         do {
-            let descriptor = FetchDescriptor<Track>(
-                sortBy: [SortDescriptor(\.title, order: .forward)]
-            )
-            tracks = try modelContext.fetch(descriptor)
+            groupTracks = try GroupTrackService.getAllGroupTracks(modelContext: modelContext)
         } catch {
-            tracks = []
+            groupTracks = []
         }
         isLoading = false
     }
     
     // MARK: - Track Row
     @ViewBuilder
-    private func trackRow(track: Track) -> some View {
+    private func trackRow(groupTrack: GroupTrack) -> some View {
+        let lessons = GroupTrackService.getLessonsForTrack(track: groupTrack, allLessons: allLessons)
+        let trackID = "\(groupTrack.subject)|\(groupTrack.group)"
+        
         Button {
-            enrollInTrack(track)
+            enrollInTrack(groupTrack: groupTrack)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(track.title)
+                    Text("\(groupTrack.subject) · \(groupTrack.group)")
                         .font(.headline)
                     
-                    let stepCount = track.steps?.count ?? 0
-                    Text("\(stepCount) step\(stepCount == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        Text("\(lessons.count) lesson\(lessons.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        if groupTrack.isSequential {
+                            Label("Sequential", systemImage: "list.number")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 
                 Spacer()
                 
                 // Show enrollment status
-                if let enrollment = existingEnrollmentFor(trackID: track.id.uuidString) {
+                if let enrollment = existingEnrollmentFor(trackID: trackID) {
                     if enrollment.isActive {
                         Label("Active", systemImage: "checkmark.circle.fill")
                             .font(.caption)
@@ -111,12 +119,12 @@ struct EnrollInTrackSheet: View {
         existingEnrollments.first { $0.trackID == trackID }
     }
     
-    private func enrollInTrack(_ track: Track) {
+    private func enrollInTrack(groupTrack: GroupTrack) {
         let studentIDStr = student.id.uuidString
-        let trackIDStr = track.id.uuidString
+        let trackID = "\(groupTrack.subject)|\(groupTrack.group)"
         
         // Check if enrollment already exists
-        if let existingEnrollment = existingEnrollmentFor(trackID: trackIDStr) {
+        if let existingEnrollment = existingEnrollmentFor(trackID: trackID) {
             // Reactivate existing enrollment
             existingEnrollment.isActive = true
             if existingEnrollment.startedAt == nil {
@@ -126,7 +134,7 @@ struct EnrollInTrackSheet: View {
             // Create new enrollment
             let newEnrollment = StudentTrackEnrollment(
                 studentID: studentIDStr,
-                trackID: trackIDStr,
+                trackID: trackID,
                 startedAt: Date(),
                 isActive: true
             )

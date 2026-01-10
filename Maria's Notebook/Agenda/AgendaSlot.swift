@@ -109,7 +109,11 @@ struct AgendaSlot: View {
         }
         .coordinateSpace(name: zoneSpaceID)
         .onPreferenceChange(PillFramePreference.self) { frames in
-            itemFrames = frames
+            // Defer state update to next run loop to avoid layout recursion
+            // PreferenceKey updates happen during layout, so we must defer state changes
+            DispatchQueue.main.async {
+                itemFrames = frames
+            }
         }
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onDrop(of: [UTType.text], delegate: AgendaSlotDropDelegate(

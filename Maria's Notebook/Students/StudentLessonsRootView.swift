@@ -232,7 +232,16 @@ struct StudentLessonsRootView: View {
                     selectedLessonID = nil
                 })
             } else {
-                EmptyView()
+                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
+                ProgressView("Loading…")
+                    .frame(minWidth: 320, minHeight: 240)
+                    .task {
+                        // Dismiss if the item is no longer available after a brief delay
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        if selectedLessonID != nil {
+                            selectedLessonID = nil
+                        }
+                    }
             }
         }
         .sheet(isPresented: Binding(get: { quickActionsLessonID != nil }, set: { if !$0 { quickActionsLessonID = nil } })) {
@@ -241,7 +250,16 @@ struct StudentLessonsRootView: View {
                     quickActionsLessonID = nil
                 }
             } else {
-                EmptyView()
+                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
+                ProgressView("Loading…")
+                    .frame(minWidth: 320, minHeight: 240)
+                    .task {
+                        // Dismiss if the item is no longer available after a brief delay
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        if quickActionsLessonID != nil {
+                            quickActionsLessonID = nil
+                        }
+                    }
             }
         }
         .onChange(of: appRouter.navigationDestination) { _, destination in

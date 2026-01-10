@@ -236,6 +236,12 @@ final class StudentDetailViewModel: ObservableObject {
         if let upcoming = upcomingStudentLesson(for: lesson.id, studentID: student.id) {
             upcoming.isPresented = true
             try? modelContext.save()
+            // Auto-enroll in track if lesson belongs to a track
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: lesson,
+                studentIDs: [student.id.uuidString],
+                modelContext: modelContext
+            )
         } else {
             let sl = StudentLesson(
                 lessonID: lesson.id,
@@ -251,6 +257,12 @@ final class StudentDetailViewModel: ObservableObject {
             )
             modelContext.insert(sl)
             try? modelContext.save()
+            // Auto-enroll in track if lesson belongs to a track
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: lesson,
+                studentIDs: [student.id.uuidString],
+                modelContext: modelContext
+            )
             showToast("Presentation recorded")
         }
     }
@@ -300,6 +312,15 @@ final class StudentDetailViewModel: ObservableObject {
         newSL.students = [student]
         modelContext.insert(newSL)
         try? modelContext.save()
+        
+        // Auto-enroll in track if lesson is created as presented and belongs to a track
+        if giveStartGiven {
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: lesson,
+                studentIDs: [student.id.uuidString],
+                modelContext: modelContext
+            )
+        }
         
         return newSL
     }
@@ -352,6 +373,13 @@ final class StudentDetailViewModel: ObservableObject {
         newSL.students = [student]
         modelContext.insert(newSL)
         try? modelContext.save()
+        
+        // Auto-enroll in track if lesson belongs to a track
+        GroupTrackService.autoEnrollInTrackIfNeeded(
+            lesson: lesson,
+            studentIDs: [student.id.uuidString],
+            modelContext: modelContext
+        )
         
         return newSL
     }

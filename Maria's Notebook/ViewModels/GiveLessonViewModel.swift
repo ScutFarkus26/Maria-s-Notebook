@@ -279,6 +279,24 @@ final class LessonPickerViewModel: ObservableObject {
                 // Ignore errors for now; caller handles thrown save errors later
             }
         }
+        
+        // Auto-enroll students in track if lesson belongs to a track
+        // When presented
+        if mode == .given {
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: finalLesson,
+                studentIDs: selectedIDs.map { $0.uuidString },
+                modelContext: context
+            )
+        }
+        // When scheduled
+        else if mode == .plan, let scheduledDate = scheduledFor, scheduledDate != nil {
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: finalLesson,
+                studentIDs: selectedIDs.map { $0.uuidString },
+                modelContext: context
+            )
+        }
 
         // If planning (not given) and practice is requested, create active practice work per student (no presentation link)
         if mode == .plan && needsPractice {

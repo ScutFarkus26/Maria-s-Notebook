@@ -73,6 +73,17 @@ struct StudentsRootView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 #endif
+            } else {
+                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
+                ProgressView("Loading…")
+                    .frame(minWidth: 320, minHeight: 240)
+                    .task {
+                        // Dismiss if the contract is no longer available after a brief delay
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        if selectedContract != nil {
+                            selectedContract = nil
+                        }
+                    }
             }
         }
     }

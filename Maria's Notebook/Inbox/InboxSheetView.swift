@@ -216,7 +216,11 @@ public struct InboxSheetView: View {
         }
         .coordinateSpace(name: spaceID)
         .onPreferenceChange(InboxPillFramePreference.self) { prefs in
-          itemFrames = prefs
+          // Defer state update to next run loop to avoid layout recursion
+          // PreferenceKey updates happen during layout, so we must defer state changes
+          DispatchQueue.main.async {
+              itemFrames = prefs
+          }
         }
         .onDrop(of: [UTType.text], delegate: InboxDropDelegate(
           getCurrent: { orderedUnscheduledLessons },

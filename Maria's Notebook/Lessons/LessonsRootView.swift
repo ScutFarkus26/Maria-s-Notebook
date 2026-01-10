@@ -39,6 +39,11 @@ struct LessonsRootView: View {
     // Schedule presentation state
     @State private var lessonToSchedule: Lesson?
     
+    // Track settings state
+    @State private var trackSettingsSubject: String?
+    @State private var trackSettingsGroup: String?
+    @State private var showingTrackSettings = false
+    
     // Lesson detail sidebar state
     @State private var selectedLessonDetail: Lesson?
     
@@ -52,6 +57,9 @@ struct LessonsRootView: View {
 
     // Local state for responsive reordering
     @State private var reorderableGroups: [String] = []
+    
+    // Group organization mode
+    @State private var isOrganizingGroups: Bool = false
 
     #if os(iOS)
     @State private var editMode: EditMode = .inactive
@@ -73,15 +81,30 @@ struct LessonsRootView: View {
         guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return [] }
         return helper.groups(for: subject, lessons: lessons)
     }
+    
+    // Groups from the filtered lessons (used when searching across all subjects)
+    private var groupsFromFilteredLessons: [String] {
+        let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
+        if hasSearchText {
+            // When searching, get unique groups from all filtered lessons
+            let unique = Set(lessonsForSubject.map { $0.group.trimmed() }.filter { !$0.isEmpty })
+            return Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        } else {
+            // When not searching, use subject-based groups
+            return groupsForSelectedSubject
+        }
+    }
 
     // Filtered lessons for the entire subject (all groups)
+    // When searching, ignore subject filter to search across all lessons
     private var lessonsForSubject: [Lesson] {
+        let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
         return helper.filteredLessons(
             modelContext: modelContext,
             sourceFilter: filterState.sourceFilter,
             personalKindFilter: filterState.personalKindFilter,
             searchText: filterState.debouncedSearchText,
-            selectedSubject: filterState.selectedSubject,
+            selectedSubject: hasSearchText ? nil : filterState.selectedSubject,
             selectedGroup: nil // We want ALL groups for the subject, displayed inline
         )
     }
@@ -155,6 +178,11 @@ struct LessonsRootView: View {
                 syncReorderableGroups()
             }
         }
+        .onChange(of: isOrganizingGroups) { _, newValue in
+            if newValue {
+                syncReorderableGroups()
+            }
+        }
         .onChange(of: filterState.searchText) { _, newValue in
             Task { @MainActor in
                 searchTextRaw = newValue
@@ -163,6 +191,10 @@ struct LessonsRootView: View {
         .onChange(of: displayMode) { _, newValue in
             Task { @MainActor in
                 displayModeRaw = newValue.rawValue
+                // Exit organize mode when switching away from plan mode
+                if newValue != .plan {
+                    isOrganizingGroups = false
+                }
                 #if os(iOS)
                 editMode = (newValue == .plan) ? .active : .inactive
                 #endif
@@ -182,6 +214,16 @@ struct LessonsRootView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 140)
                 .disabled(selectedSubject == nil)
+                
+                // Organize Groups button (only in plan mode)
+                if displayMode == .plan && selectedSubject != nil {
+                    Button {
+                        isOrganizingGroups.toggle()
+                    } label: {
+                        Label(isOrganizingGroups ? "Done Organizing" : "Organize Groups", 
+                              systemImage: isOrganizingGroups ? "checkmark.circle.fill" : "list.bullet.indent")
+                    }
+                }
             }
         }
         .sheet(item: $lessonToSchedule) { lesson in
@@ -194,6 +236,11 @@ struct LessonsRootView: View {
                     lessonToSchedule = nil
                 }
             )
+        }
+        .sheet(isPresented: $showingTrackSettings) {
+            if let subject = trackSettingsSubject, let group = trackSettingsGroup {
+                GroupTrackSettingsSheet(subject: subject, group: group)
+            }
         }
     }
 
@@ -212,7 +259,10 @@ struct LessonsRootView: View {
 
     private var lessonsContentColumn: some View {
         Group {
-            if let subject = selectedSubject, !subject.trimmed().isEmpty {
+            let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
+            let shouldShowLessons = (selectedSubject != nil && !selectedSubject!.trimmed().isEmpty) || hasSearchText
+            
+            if shouldShowLessons {
                 if displayMode == .browse {
                     // Browse mode: Grid view (no reordering)
                     LessonsCardsGridView(
@@ -225,7 +275,7 @@ struct LessonsRootView: View {
                         onGiveLesson: { lesson in
                             lessonToSchedule = lesson
                         },
-                        selectedSubject: subject
+                        selectedSubject: selectedSubject
                     )
                 } else {
                     // Plan mode: List view with reordering
@@ -244,9 +294,77 @@ struct LessonsRootView: View {
         .searchable(text: $filterState.searchText, placement: .toolbar)
     }
     
+    @ViewBuilder
     private var planModeList: some View {
+        if isOrganizingGroups {
+            organizeGroupsView
+        } else {
+            expandedGroupsView
+        }
+    }
+    
+    private var organizeGroupsView: some View {
         let ungroupedLabel = "Ungrouped"
-        let baseGroups = groupsForSelectedSubject
+        let baseGroups = groupsFromFilteredLessons
+        let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
+        let allGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
+        
+        // Ensure displayGroups includes all current groups, using saved order from reorderableGroups
+        // Start with reorderableGroups (which should be synced when entering organize mode)
+        // and add any missing groups at the end
+        let displayGroups: [String] = {
+            if reorderableGroups.isEmpty {
+                return allGroups
+            }
+            let existingSet = Set(reorderableGroups)
+            let missing = allGroups.filter { !existingSet.contains($0) }
+            return reorderableGroups + missing
+        }()
+        
+        return List {
+            ForEach(displayGroups, id: \.self) { group in
+                HStack(spacing: 12) {
+                    // Drag handle
+                    Image(systemName: "line.3.horizontal")
+                        .foregroundStyle(.secondary)
+                        .font(.body)
+                    
+                    Text(group)
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                    
+                    Spacer()
+                    
+                    // Show lesson count
+                    let groupLessons = lessonsForSubject.filter { lesson in
+                        let lessonGroupTrimmed = lesson.group.trimmed()
+                        if group == ungroupedLabel {
+                            return lessonGroupTrimmed.isEmpty
+                        } else {
+                            return lessonGroupTrimmed.caseInsensitiveCompare(group.trimmed()) == .orderedSame
+                        }
+                    }
+                    
+                    Text("\(groupLessons.count)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.secondary.opacity(0.1))
+                        .clipShape(Capsule())
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            }
+            .onMove { source, destination in
+                moveGroups(from: source, to: destination, in: displayGroups)
+            }
+        }
+        .listStyle(.plain)
+        .id("OrganizeGroupsList")
+    }
+    
+    private var expandedGroupsView: some View {
+        let ungroupedLabel = "Ungrouped"
+        let baseGroups = groupsFromFilteredLessons
         let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
         let displayGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
         
@@ -270,7 +388,7 @@ struct LessonsRootView: View {
                 }
 
                 if !groupLessons.isEmpty {
-                    Section(header: Text(group)) {
+                    Section(header: groupSectionHeader(group: group, subject: selectedSubject ?? "")) {
                         ForEach(groupLessons, id: \.self) { lesson in
                             HStack(spacing: 12) {
                                 // Drag handle (visible in Plan mode)
@@ -332,7 +450,39 @@ struct LessonsRootView: View {
     // MARK: - Reordering Logic
 
     private func syncReorderableGroups() {
-        reorderableGroups = groupsForSelectedSubject
+        let ungroupedLabel = "Ungrouped"
+        let baseGroups = groupsForSelectedSubject
+        let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
+        let allGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
+        
+        // Load saved order if available, otherwise use current order
+        if let subject = selectedSubject, !subject.trimmed().isEmpty {
+            let orderedGroups = FilterOrderStore.loadGroupOrder(for: subject, existing: baseGroups)
+            let orderedWithUngrouped = hasUngrouped ? (orderedGroups + [ungroupedLabel]) : orderedGroups
+            reorderableGroups = orderedWithUngrouped
+        } else {
+            reorderableGroups = allGroups
+        }
+    }
+    
+    @MainActor
+    private func moveGroups(from source: IndexSet, to destination: Int, in groups: [String]) {
+        guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
+        guard let sourceIndex = source.first else { return }
+        guard sourceIndex < groups.count else { return }
+        
+        // Reorder groups
+        var reordered = groups
+        reordered.move(fromOffsets: source, toOffset: destination)
+        
+        // Update state
+        reorderableGroups = reordered
+        
+        // Save to FilterOrderStore (excluding "Ungrouped" label)
+        let ungroupedLabel = "Ungrouped"
+        let groupsToSave = reordered.filter { $0 != ungroupedLabel }
+        FilterOrderStore.saveGroupOrder(groupsToSave, for: subject)
+        FilterOrderStore.resetCache()
     }
 
     @MainActor
@@ -437,5 +587,36 @@ struct LessonsRootView: View {
         _ = saveCoordinator.save(modelContext, reason: "Plan presentation")
         
         lessonToSchedule = nil
+    }
+    
+    // MARK: - Group Track Settings
+    
+    @ViewBuilder
+    private func groupSectionHeader(group: String, subject: String) -> some View {
+        let iconName: String = {
+            if GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+                if let track = try? GroupTrackService.getGroupTrack(subject: subject, group: group, modelContext: modelContext) {
+                    return track.isSequential ? "list.number" : "list.bullet"
+                }
+                return "list.number" // Default to sequential if we can't determine
+            }
+            return "list.bullet.clipboard"
+        }()
+        
+        HStack {
+            Text(group)
+            Spacer()
+            Button {
+                trackSettingsSubject = subject
+                trackSettingsGroup = group
+                showingTrackSettings = true
+            } label: {
+                Image(systemName: iconName)
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+            .help("Configure track settings")
+        }
     }
 }
