@@ -9,7 +9,7 @@ struct AppColors {
     }
 
     static func color(forSubject subject: String) -> Color {
-        let key = subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let key = subject.normalizedForComparison()
 
         // Common explicit mappings for clarity and cross-view consistency
         switch key {

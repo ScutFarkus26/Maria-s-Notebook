@@ -87,7 +87,7 @@ struct StudentsViewModel {
         
         // 3. Search string filtering (SwiftData predicates don't support string contains well)
         if !searchString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let query = searchString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let query = searchString.normalizedForComparison()
             fetched = fetched.filter { student in
                 let firstName = student.firstName.lowercased()
                 let lastName = student.lastName.lowercased()
@@ -248,7 +248,7 @@ struct StudentsViewModel {
         let lessonsDescriptor = FetchDescriptor<Lesson>()
         let allLessons = modelContext.safeFetch(lessonsDescriptor)
         let excludedLessonIDs: Set<UUID> = {
-            func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            func norm(_ s: String) -> String { s.normalizedForComparison() }
             let ids = allLessons.filter { l in
                 let s = norm(l.subject)
                 let g = norm(l.group)
@@ -320,7 +320,7 @@ struct StudentsViewModel {
         let lessonsDescriptor = FetchDescriptor<Lesson>()
         let allLessons = modelContext.safeFetch(lessonsDescriptor)
         let excludedLessonIDs: Set<UUID> = {
-            func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            func norm(_ s: String) -> String { s.normalizedForComparison() }
             let ids = allLessons.filter { l in
                 let s = norm(l.subject)
                 let g = norm(l.group)

@@ -126,7 +126,7 @@ struct StudentLessonPill: View {
         guard let start = days.first,
               let endExclusive = calendar.date(byAdding: .day, value: 1, to: (days.last ?? start)) else { return [] }
 
-        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        func norm(_ s: String) -> String { s.normalizedForComparison() }
         let excludedLessonIDs: Set<UUID> = {
             let ids = lessons.filter { l in
                 let s = norm(l.subject)

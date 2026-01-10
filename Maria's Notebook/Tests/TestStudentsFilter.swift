@@ -24,7 +24,7 @@ enum TestStudentsFilter {
     static func isHidden(_ student: Student, show: Bool? = nil, namesRaw: String? = nil) -> Bool {
         let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)
         guard !set.isEmpty else { return false }
-        let name = student.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let name = student.fullName.normalizedForComparison()
         return set.contains(name)
     }
 
@@ -33,7 +33,7 @@ enum TestStudentsFilter {
         let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)
         guard !set.isEmpty else { return students }
         return students.filter { s in
-            let name = s.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let name = s.fullName.normalizedForComparison()
             return !set.contains(name)
         }
     }
@@ -43,7 +43,7 @@ enum TestStudentsFilter {
         let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)
         guard !set.isEmpty else { return [] }
         return Set(students.compactMap { s in
-            let name = s.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let name = s.fullName.normalizedForComparison()
             return set.contains(name) ? s.id : nil
         })
     }

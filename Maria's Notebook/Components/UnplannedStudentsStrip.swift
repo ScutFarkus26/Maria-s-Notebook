@@ -18,7 +18,7 @@ struct UnplannedStudentsStrip: View {
     private var duplicateFirstNames: Set<String> {
         var counts: [String: Int] = [:]
         for s in unplanned {
-            let key = s.firstName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let key = s.firstName.normalizedForComparison()
             counts[key, default: 0] += 1
         }
         return Set(counts.filter { $0.value > 1 }.map { $0.key })

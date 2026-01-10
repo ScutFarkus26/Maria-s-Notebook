@@ -391,7 +391,7 @@ struct StudentProgressTab: View {
     
     // MARK: - Helper: Icon for Subject
     private func iconForSubject(_ subject: String) -> String {
-        let key = subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let key = subject.normalizedForComparison()
         
         switch key {
         case "math", "mathematics": return "function"

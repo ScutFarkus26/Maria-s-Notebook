@@ -16,7 +16,7 @@ struct SchedulePresentationSheet: View {
     @State private var studentSearchText: String = ""
     
     private var filteredStudents: [Student] {
-        let query = studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let query = studentSearchText.normalizedForComparison()
         guard !query.isEmpty else { return allStudents }
         
         return allStudents.filter { student in

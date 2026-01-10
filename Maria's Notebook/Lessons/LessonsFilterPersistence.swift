@@ -12,6 +12,6 @@ struct LessonsFilterPersistence {
     }
 
     static func normalizeSubjectKey(_ subject: String) -> String {
-        subject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        subject.normalizedForComparison()
     }
 }

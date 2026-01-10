@@ -103,7 +103,7 @@ struct StudentsView<WorkloadContent: View>: View {
         let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         let hiddenNames = Set(tokens)
         let ids = students.compactMap { s -> UUID? in
-            let name = s.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let name = s.fullName.normalizedForComparison()
             return hiddenNames.contains(name) ? s.id : nil
         }
         return Set(ids)
@@ -128,7 +128,7 @@ struct StudentsView<WorkloadContent: View>: View {
         var result: [UUID: Int] = [:]
         // ... (Existing logic for calculation)
         let excludedLessonIDs: Set<UUID> = {
-            func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            func norm(_ s: String) -> String { s.normalizedForComparison() }
             let ids = cachedLessons.values.filter { l in
                 let s = norm(l.subject)
                 let g = norm(l.group)

@@ -297,7 +297,7 @@ enum StudentCSVImporter {
     }
 
     static func parseLevel(from string: String) -> Student.Level? {
-        let s = string.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let s = string.normalizedForComparison()
         switch s {
         case "lower", "l", "lower elementary", "lower el", "lower elem":
             return .lower

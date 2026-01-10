@@ -19,7 +19,7 @@ struct FilterOrderStore {
     private static var cachedSubheadingOrders: [String: [String]] = [:]
 
     private static func normalized(_ s: String) -> String {
-        s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        s.normalizedForComparison()
     }
 
     // MARK: Subjects

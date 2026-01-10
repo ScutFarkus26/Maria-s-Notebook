@@ -15,7 +15,7 @@ struct DaysSinceLastLessonView: View {
     @Query private var lessons: [Lesson]
 
     private var excludedLessonIDs: Set<UUID> {
-        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        func norm(_ s: String) -> String { s.normalizedForComparison() }
         let ids = lessons.filter { l in
             let s = norm(l.subject)
             let g = norm(l.group)

@@ -17,5 +17,11 @@ extension String {
             .filter { !$0.isEmpty }
         return components.joined(separator: " ")
     }
+    
+    /// Normalizes a string for case-insensitive comparison and search operations
+    /// - Returns: A trimmed and lowercased string
+    func normalizedForComparison() -> String {
+        self.trimmed().lowercased()
+    }
 }
 

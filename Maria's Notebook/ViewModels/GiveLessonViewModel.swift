@@ -94,7 +94,7 @@ final class LessonPickerViewModel: ObservableObject {
     }
     
     var filteredLessons: [Lesson] {
-        let query = lessonSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let query = lessonSearchText.normalizedForComparison()
         guard !query.isEmpty else { return sortedLessons }
 
         return sortedLessons.filter { lesson in
@@ -122,7 +122,7 @@ final class LessonPickerViewModel: ObservableObject {
         }
         
         // Apply search filter
-        let query = studentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let query = studentSearchText.normalizedForComparison()
         if !query.isEmpty {
             filtered = filtered.filter { student in
                 student.firstName.lowercased().contains(query) ||

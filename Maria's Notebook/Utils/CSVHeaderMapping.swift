@@ -26,7 +26,7 @@ enum CSVHeaderMapping {
         headers: [String],
         synonymMap: [String: [String]]
     ) -> [String: Int] {
-        let normalized = headers.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        let normalized = headers.map { $0.normalizedForComparison() }
         var result: [String: Int] = [:]
         
         for (canonicalKey, candidates) in synonymMap {

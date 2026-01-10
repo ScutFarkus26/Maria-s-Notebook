@@ -9,7 +9,7 @@ struct StudentFilterView: View {
     @State private var searchText = ""
     
     private var filteredStudents: [Student] {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let q = searchText.normalizedForComparison()
         let base: [Student]
         if q.isEmpty {
             base = students

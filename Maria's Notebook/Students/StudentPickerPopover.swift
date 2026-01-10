@@ -20,7 +20,7 @@ struct StudentPickerPopover: View {
     }
 
     var filteredStudentsForPicker: [Student] {
-        let search = searchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let search = searchText.normalizedForComparison()
 
         let searched = students.filter { student in
             if search.isEmpty { return true }
