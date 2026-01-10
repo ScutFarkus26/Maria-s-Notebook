@@ -26,6 +26,8 @@ final class StudentTrackEnrollment: Identifiable {
     /// Optional notes about this enrollment
     var notes: String? = nil
     
+    @Relationship(deleteRule: .cascade, inverse: \Note.studentTrackEnrollment) var richNotes: [Note]? = []
+    
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
@@ -42,6 +44,7 @@ final class StudentTrackEnrollment: Identifiable {
         self.startedAt = startedAt
         self.isActive = isActive
         self.notes = notes
+        self.richNotes = []
     }
 }
 

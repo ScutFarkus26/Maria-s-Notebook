@@ -13,6 +13,8 @@ final class Presentation: Identifiable {
     var lessonID: String = ""
     var studentIDs: [String] = []
     var legacyStudentLessonID: String?
+    var trackID: String? = nil
+    var trackStepID: String? = nil
 
     // Snapshots to keep history stable even if source lesson changes later
     var lessonTitleSnapshot: String?
@@ -25,6 +27,8 @@ final class Presentation: Identifiable {
         lessonID: String,
         studentIDs: [String],
         legacyStudentLessonID: String? = nil,
+        trackID: String? = nil,
+        trackStepID: String? = nil,
         lessonTitleSnapshot: String? = nil,
         lessonSubtitleSnapshot: String? = nil
     ) {
@@ -34,6 +38,8 @@ final class Presentation: Identifiable {
         self.lessonID = lessonID
         self.studentIDs = studentIDs
         self.legacyStudentLessonID = legacyStudentLessonID
+        self.trackID = trackID
+        self.trackStepID = trackStepID
         self.lessonTitleSnapshot = lessonTitleSnapshot
         self.lessonSubtitleSnapshot = lessonSubtitleSnapshot
     }

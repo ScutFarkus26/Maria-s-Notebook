@@ -49,6 +49,8 @@ final class WorkContract: Identifiable {
     var studentID: String = ""
     var lessonID: String = ""
     var presentationID: String? = nil
+    var trackID: String? = nil
+    var trackStepID: String? = nil
     
     var title: String? = nil
     var statusRaw: String = WorkStatus.active.rawValue
@@ -79,6 +81,8 @@ final class WorkContract: Identifiable {
         studentID: String = "",
         lessonID: String = "",
         presentationID: String? = nil,
+        trackID: String? = nil,
+        trackStepID: String? = nil,
         title: String? = nil,
         status: WorkStatus = .active,
         scheduledDate: Date? = nil,
@@ -91,6 +95,8 @@ final class WorkContract: Identifiable {
         self.studentID = studentID
         self.lessonID = lessonID
         self.presentationID = presentationID
+        self.trackID = trackID
+        self.trackStepID = trackStepID
         self.title = title
         self.statusRaw = status.rawValue
         self.scheduledDate = scheduledDate

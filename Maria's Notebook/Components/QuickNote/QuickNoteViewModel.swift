@@ -39,6 +39,9 @@ class QuickNoteViewModel: ObservableObject {
     @Published var isShowingStudentPicker: Bool = false
     @Published var isShowingCamera: Bool = false
     
+    // Track Context
+    @Published var selectedEnrollmentID: UUID? = nil
+    
     // MARK: - Dependencies
     private let tagger = StudentTagger()
     let initialStudentID: UUID?
@@ -214,12 +217,22 @@ class QuickNoteViewModel: ObservableObject {
             scope = .all
         }
         
+        // Fetch StudentTrackEnrollment if selectedEnrollmentID is set
+        var studentTrackEnrollment: StudentTrackEnrollment? = nil
+        if let enrollmentID = selectedEnrollmentID {
+            let descriptor = FetchDescriptor<StudentTrackEnrollment>(
+                predicate: #Predicate<StudentTrackEnrollment> { $0.id == enrollmentID }
+            )
+            studentTrackEnrollment = modelContext.safeFetchFirst(descriptor)
+        }
+        
         let newNote = Note(
             createdAt: noteDate,
             body: trimmed,
             scope: scope,
             category: category,
             includeInReport: includeInReport,
+            studentTrackEnrollment: studentTrackEnrollment,
             imagePath: attachedImagePath
         )
         

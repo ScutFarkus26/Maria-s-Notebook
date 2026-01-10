@@ -103,6 +103,9 @@ struct StudentDetailView: View {
         case .notes:
             // handled in body
             EmptyView()
+        case .tracks:
+            StudentTracksTab(student: student)
+                .padding(.top, 36)
         case .progress:
             StudentProgressTab(student: student) { lesson in
                 // Use direct string comparison to avoid relationship loading issues

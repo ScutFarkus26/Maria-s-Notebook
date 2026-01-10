@@ -127,6 +127,7 @@ final class Note: Identifiable {
     @Relationship var communityTopic: CommunityTopic?
     @Relationship var reminder: Reminder?
     @Relationship var schoolDayOverride: SchoolDayOverride?
+    @Relationship var studentTrackEnrollment: StudentTrackEnrollment?
 
     // Computed, Codable scope
     @MainActor var scope: NoteScope {
@@ -174,6 +175,7 @@ final class Note: Identifiable {
         if communityTopic != nil { return "communityTopic" }
         if reminder != nil { return "reminder" }
         if schoolDayOverride != nil { return "schoolDayOverride" }
+        if studentTrackEnrollment != nil { return "studentTrackEnrollment" }
         return "general"
     }
 
@@ -201,6 +203,7 @@ final class Note: Identifiable {
         communityTopic: CommunityTopic? = nil,
         reminder: Reminder? = nil,
         schoolDayOverride: SchoolDayOverride? = nil,
+        studentTrackEnrollment: StudentTrackEnrollment? = nil,
         imagePath: String? = nil,
         reportedBy: String? = nil,
         reporterName: String? = nil
@@ -226,6 +229,7 @@ final class Note: Identifiable {
         self.communityTopic = communityTopic
         self.reminder = reminder
         self.schoolDayOverride = schoolDayOverride
+        self.studentTrackEnrollment = studentTrackEnrollment
         self.imagePath = imagePath
         self.reportedBy = reportedBy
         self.reporterName = reporterName
