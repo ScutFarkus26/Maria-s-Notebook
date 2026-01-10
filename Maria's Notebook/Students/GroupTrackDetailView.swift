@@ -17,9 +17,39 @@ struct GroupTrackDetailView: View {
         try? GroupTrackService.getGroupTrack(subject: subject, group: group, modelContext: modelContext)
     }
     
+    private var effectiveTrackSettings: (isSequential: Bool, isExplicitlyDisabled: Bool) {
+        (try? GroupTrackService.getEffectiveTrackSettings(subject: subject, group: group, modelContext: modelContext)) ?? (isSequential: true, isExplicitlyDisabled: false)
+    }
+    
     private var lessons: [Lesson] {
-        guard let track = groupTrack else { return [] }
-        return GroupTrackService.getLessonsForTrack(track: track, allLessons: allLessons)
+        // Check if this group is a track (all groups are tracks by default unless explicitly disabled)
+        guard GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) else {
+            return []
+        }
+        
+        // If we have an actual GroupTrack record, use it
+        if let track = groupTrack {
+            return GroupTrackService.getLessonsForTrack(track: track, allLessons: allLessons)
+        }
+        
+        // No record exists = default behavior = sequential track
+        // Filter and sort lessons for this group manually
+        let settings = effectiveTrackSettings
+        let filtered = allLessons.filter { lesson in
+            lesson.subject.trimmed().caseInsensitiveCompare(subject.trimmed()) == .orderedSame &&
+            lesson.group.trimmed().caseInsensitiveCompare(group.trimmed()) == .orderedSame
+        }
+        
+        return filtered.sorted { lhs, rhs in
+            if settings.isSequential {
+                // Sequential: respect orderInGroup
+                if lhs.orderInGroup != rhs.orderInGroup {
+                    return lhs.orderInGroup < rhs.orderInGroup
+                }
+            }
+            // Fallback to name for stable ordering
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
     }
     
     var body: some View {
@@ -40,13 +70,12 @@ struct GroupTrackDetailView: View {
                 HStack {
                     Text("Type:")
                     Spacer()
-                    if let track = groupTrack {
-                        Label(
-                            track.isSequential ? "Sequential" : "Unordered",
-                            systemImage: track.isSequential ? "list.number" : "list.bullet"
-                        )
-                        .foregroundColor(.secondary)
-                    }
+                    let settings = effectiveTrackSettings
+                    Label(
+                        settings.isSequential ? "Sequential" : "Unordered",
+                        systemImage: settings.isSequential ? "list.number" : "list.bullet"
+                    )
+                    .foregroundColor(.secondary)
                 }
             }
             
@@ -59,7 +88,7 @@ struct GroupTrackDetailView: View {
                     ForEach(Array(lessons.enumerated()), id: \.element.id) { index, lesson in
                         LessonStepRow(
                             lesson: lesson,
-                            stepNumber: groupTrack?.isSequential == true ? index + 1 : nil
+                            stepNumber: effectiveTrackSettings.isSequential ? index + 1 : nil
                         )
                     }
                 }

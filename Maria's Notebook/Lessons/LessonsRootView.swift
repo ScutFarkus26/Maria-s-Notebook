@@ -596,12 +596,20 @@ struct LessonsRootView: View {
     @ViewBuilder
     private func groupSectionHeader(group: String, subject: String) -> some View {
         let iconName: String = {
+            // All groups are tracks by default (sequential) unless explicitly disabled
             if GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
-                if let track = try? GroupTrackService.getGroupTrack(subject: subject, group: group, modelContext: modelContext) {
-                    return track.isSequential ? "list.number" : "list.bullet"
+                // Get effective track settings (returns default if no record exists)
+                if let settings = try? GroupTrackService.getEffectiveTrackSettings(
+                    subject: subject,
+                    group: group,
+                    modelContext: modelContext
+                ) {
+                    return settings.isSequential ? "list.number" : "list.bullet"
                 }
-                return "list.number" // Default to sequential if we can't determine
+                // Fallback to sequential if we can't determine (default behavior)
+                return "list.number"
             }
+            // Explicitly disabled - show non-track icon
             return "list.bullet.clipboard"
         }()
         

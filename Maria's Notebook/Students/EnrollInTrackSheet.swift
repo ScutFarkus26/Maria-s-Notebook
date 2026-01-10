@@ -14,7 +14,7 @@ struct EnrollInTrackSheet: View {
     let existingEnrollments: [StudentTrackEnrollment]
     
     // MARK: - State
-    @State private var groupTracks: [GroupTrack] = []
+    @State private var availableTracks: [(subject: String, group: String, isSequential: Bool)] = []
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group)])
     private var allLessons: [Lesson]
     @State private var isLoading = true
@@ -26,17 +26,17 @@ struct EnrollInTrackSheet: View {
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if groupTracks.isEmpty {
+                } else if availableTracks.isEmpty {
                     ContentUnavailableView {
                         Label("No Tracks Available", systemImage: "list.bullet")
                     } description: {
-                        Text("No tracks found. Mark groups as tracks in the Lessons view first.")
+                        Text("No tracks available. All groups are tracks by default unless explicitly disabled.")
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
-                        ForEach(groupTracks, id: \.id) { groupTrack in
-                            trackRow(groupTrack: groupTrack)
+                        ForEach(Array(availableTracks.enumerated()), id: \.offset) { index, track in
+                            trackRow(track: track)
                         }
                     }
                 }
@@ -61,25 +61,43 @@ struct EnrollInTrackSheet: View {
     // MARK: - Data Loading
     private func loadTracks() {
         do {
-            groupTracks = try GroupTrackService.getAllGroupTracks(modelContext: modelContext)
+            // Get all available tracks (including groups without records - default behavior)
+            availableTracks = try GroupTrackService.getAllAvailableTracks(
+                from: allLessons,
+                modelContext: modelContext
+            )
         } catch {
-            groupTracks = []
+            availableTracks = []
         }
         isLoading = false
     }
     
     // MARK: - Track Row
     @ViewBuilder
-    private func trackRow(groupTrack: GroupTrack) -> some View {
-        let lessons = GroupTrackService.getLessonsForTrack(track: groupTrack, allLessons: allLessons)
-        let trackID = "\(groupTrack.subject)|\(groupTrack.group)"
+    private func trackRow(track: (subject: String, group: String, isSequential: Bool)) -> some View {
+        // Get lessons for this track (filter and sort manually since we may not have a GroupTrack record)
+        let lessons = allLessons
+            .filter { lesson in
+                lesson.subject.trimmed().caseInsensitiveCompare(track.subject.trimmed()) == .orderedSame &&
+                lesson.group.trimmed().caseInsensitiveCompare(track.group.trimmed()) == .orderedSame
+            }
+            .sorted { lhs, rhs in
+                if track.isSequential {
+                    if lhs.orderInGroup != rhs.orderInGroup {
+                        return lhs.orderInGroup < rhs.orderInGroup
+                    }
+                }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+        
+        let trackID = "\(track.subject)|\(track.group)"
         
         Button {
-            enrollInTrack(groupTrack: groupTrack)
+            enrollInTrack(subject: track.subject, group: track.group)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(groupTrack.subject) · \(groupTrack.group)")
+                    Text("\(track.subject) · \(track.group)")
                         .font(.headline)
                     
                     HStack(spacing: 8) {
@@ -87,7 +105,7 @@ struct EnrollInTrackSheet: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        if groupTrack.isSequential {
+                        if track.isSequential {
                             Label("Sequential", systemImage: "list.number")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -119,9 +137,9 @@ struct EnrollInTrackSheet: View {
         existingEnrollments.first { $0.trackID == trackID }
     }
     
-    private func enrollInTrack(groupTrack: GroupTrack) {
+    private func enrollInTrack(subject: String, group: String) {
         let studentIDStr = student.id.uuidString
-        let trackID = "\(groupTrack.subject)|\(groupTrack.group)"
+        let trackID = "\(subject)|\(group)"
         
         // Check if enrollment already exists
         if let existingEnrollment = existingEnrollmentFor(trackID: trackID) {

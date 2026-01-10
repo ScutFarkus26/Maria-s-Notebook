@@ -72,32 +72,41 @@ struct GroupTrackSettingsSheet: View {
     
     private func loadSettings() {
         do {
+            // Default behavior: all groups are tracks (sequential) unless explicitly disabled
             if let track = try GroupTrackService.getGroupTrack(
                 subject: subject,
                 group: group,
                 modelContext: modelContext
             ) {
-                isTrack = true
+                // If a record exists, check if it's explicitly disabled
+                isTrack = !track.isExplicitlyDisabled
                 isSequential = track.isSequential
             } else {
-                isTrack = false
+                // No record exists = default behavior = is a track (sequential)
+                isTrack = true
                 isSequential = true
             }
         } catch {
             print("Failed to load track settings: \(error)")
+            // On error, default to true (is a track, sequential)
+            isTrack = true
+            isSequential = true
         }
     }
     
     private func saveSettings() {
         do {
             if isTrack {
+                // User wants this to be a track - create or update record
                 let track = try GroupTrackService.getOrCreateGroupTrack(
                     subject: subject,
                     group: group,
                     modelContext: modelContext
                 )
                 track.isSequential = isSequential
+                track.isExplicitlyDisabled = false // Explicitly enabled
             } else {
+                // User unchecked "Use as Track" - explicitly disable
                 try GroupTrackService.removeTrack(
                     subject: subject,
                     group: group,

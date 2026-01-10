@@ -407,4 +407,33 @@ enum DataMigrations {
             }
         }
     }
+    
+    /// Migrate GroupTrack records to include isExplicitlyDisabled field.
+    /// Sets all existing GroupTrack records to isExplicitlyDisabled = false (they remain as tracks).
+    /// New default behavior: All groups are tracks (sequential) unless explicitly disabled.
+    /// Idempotent: guarded by a UserDefaults flag.
+    static func migrateGroupTracksToDefaultBehaviorIfNeeded(using context: ModelContext) {
+        let flagKey = "Migration.groupTracksDefaultBehavior.v1"
+        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+            let tracks = context.safeFetch(FetchDescriptor<GroupTrack>())
+            var updated = 0
+            
+            for track in tracks {
+                // Existing GroupTrack records should remain as tracks (not explicitly disabled)
+                // Since the field defaults to false, we only need to set it if it's somehow true
+                // But to be safe, explicitly set it to false for all existing records
+                if track.isExplicitlyDisabled {
+                    track.isExplicitlyDisabled = false
+                    updated += 1
+                }
+            }
+            
+            if updated > 0 {
+                context.safeSave()
+                print("DataMigrations: Migrated \(updated) GroupTrack records to new default behavior")
+            } else {
+                print("DataMigrations: GroupTrack migration completed. All groups are now tracks by default (sequential).")
+            }
+        }
+    }
 }

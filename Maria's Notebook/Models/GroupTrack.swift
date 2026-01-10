@@ -18,6 +18,11 @@ final class GroupTrack: Identifiable {
     /// Whether this is a sequential track (order matters) or just a group
     var isSequential: Bool = true
     
+    /// Whether this group is explicitly disabled as a track.
+    /// If false or nil, the group is a track (default behavior).
+    /// If true, the user has explicitly unchecked "Use as Track".
+    var isExplicitlyDisabled: Bool = false
+    
     /// Creation timestamp
     var createdAt: Date = Date()
     
@@ -26,12 +31,14 @@ final class GroupTrack: Identifiable {
         subject: String,
         group: String,
         isSequential: Bool = true,
+        isExplicitlyDisabled: Bool = false,
         createdAt: Date = Date()
     ) {
         self.id = id
         self.subject = subject.trimmed()
         self.group = group.trimmed()
         self.isSequential = isSequential
+        self.isExplicitlyDisabled = isExplicitlyDisabled
         self.createdAt = createdAt
     }
     
