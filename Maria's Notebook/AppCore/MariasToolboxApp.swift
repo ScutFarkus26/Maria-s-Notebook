@@ -766,13 +766,20 @@ struct MariasToolboxApp: App {
         // Cleanup: remove legacy Beta flag now that Engagement Lifecycle is always on
         UserDefaults.standard.removeObject(forKey: "useEngagementLifecycle")
         
-        // NOTE: CoreData+CloudKit error messages in console logs
+        // NOTE: CoreData+CloudKit error messages and WAL maintenance logs in console
         // SwiftData uses Core Data internally, and during CloudKit initialization,
         // it creates temporary stores that get torn down, causing harmless error messages.
         // These errors (like "store was removed from coordinator" and "file:///dev/null")
         // are expected during initialization and don't affect functionality.
         // The container is successfully created (see "✅ CloudKit container created successfully!" message).
-        // These system-level logs cannot be suppressed from Swift code, but they can be safely ignored.
+        //
+        // Additionally, in Debug builds, you may see verbose SQLite logs including:
+        // - WAL checkpoint operations
+        // - PostSaveMaintenance operations
+        // - SQL query execution details
+        // These are normal Core Data/SQLite maintenance operations and do not indicate errors.
+        // They are enabled by default in Debug builds via Xcode's diagnostics and cannot be
+        // suppressed from Swift code. These logs can be safely ignored.
         
         #if DEBUG
         // TEST: Simulate database initialization failure for testing recovery flow
