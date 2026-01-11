@@ -70,12 +70,14 @@ struct WorkRepository {
         
         // If presentationID is not available, try to find the StudentLesson
         if studentLessonID == nil {
+            // Fetch candidates by lessonID (studentIDs is @Transient and can't be queried in SwiftData)
             let descriptor = FetchDescriptor<StudentLesson>(
                 predicate: #Predicate { sl in
-                    sl.lessonID == lessonID.uuidString && sl.studentIDs.contains(studentID.uuidString)
+                    sl.lessonID == lessonID.uuidString
                 }
             )
-            if let sl = (try? context.fetch(descriptor))?.first {
+            // Filter in memory using the computed studentIDs property
+            if let sl = (try? context.fetch(descriptor))?.first(where: { $0.studentIDs.contains(studentID.uuidString) }) {
                 studentLessonID = sl.id
             }
         }

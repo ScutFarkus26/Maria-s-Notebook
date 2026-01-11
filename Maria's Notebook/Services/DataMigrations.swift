@@ -436,4 +436,100 @@ enum DataMigrations {
             }
         }
     }
+    
+    /// Migrate WorkContract records to WorkModel records.
+    /// For each WorkContract that does not already exist as a WorkModel (based on legacyContractID),
+    /// creates a WorkModel using WorkModel.from(contract:in:).
+    /// Also migrates relationships from Note and ScopedNote from workContract to work.
+    /// Idempotent: only migrates contracts that don't already have corresponding WorkModels.
+    @MainActor
+    static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) {
+        do {
+            // Fetch all WorkContract records
+            let contracts = context.safeFetch(FetchDescriptor<WorkContract>())
+            guard !contracts.isEmpty else { return }
+            
+            // Fetch all WorkModel records and build a set of existing legacyContractID values
+            let workModels = context.safeFetch(FetchDescriptor<WorkModel>())
+            let existingLegacyContractIDs = Set(workModels.compactMap { $0.legacyContractID })
+            
+            // Count how many we create
+            var createdWorkCount = 0
+            
+            // For each WorkContract that doesn't already exist as a WorkModel, create a WorkModel
+            for contract in contracts {
+                // Skip if this contract already has a corresponding WorkModel
+                guard !existingLegacyContractIDs.contains(contract.id) else { continue }
+                
+                // Create WorkModel using the helper
+                let workModel = WorkModel.from(contract: contract, in: context)
+                
+                // Insert into context
+                context.insert(workModel)
+                createdWorkCount += 1
+            }
+            
+            // Always attempt to migrate Note and ScopedNote relationships (even if createdWorkCount is 0)
+            // Use WorkLegacyAdapter to look up migrated WorkModel by legacy contract ID
+            let adapter = WorkLegacyAdapter(modelContext: context)
+            var migratedNotesCount = 0
+            
+            // Migrate Note relationships
+            let notes = context.safeFetch(FetchDescriptor<Note>())
+            for note in notes {
+                // Only migrate if note has workContract but no work
+                guard let workContract = note.workContract, note.work == nil else { continue }
+                
+                // Look up the migrated WorkModel by legacy contract ID
+                guard let workModel = adapter.workModel(forLegacyContractID: workContract.id) else { continue }
+                
+                // Move the relationship
+                note.work = workModel
+                note.workContract = nil
+                migratedNotesCount += 1
+            }
+            
+            // Migrate ScopedNote relationships
+            let scopedNotes = context.safeFetch(FetchDescriptor<ScopedNote>())
+            for scopedNote in scopedNotes {
+                // Only migrate if scopedNote has workContract (or workContractID) but no work
+                guard scopedNote.work == nil else { continue }
+                
+                // Get the contract ID - prefer workContract relationship, fall back to workContractID string
+                let contractID: UUID
+                if let workContract = scopedNote.workContract {
+                    contractID = workContract.id
+                } else if let workContractIDString = scopedNote.workContractID,
+                          let uuid = UUID(uuidString: workContractIDString) {
+                    contractID = uuid
+                } else {
+                    continue
+                }
+                
+                // Look up the migrated WorkModel by legacy contract ID
+                guard let workModel = adapter.workModel(forLegacyContractID: contractID) else { continue }
+                
+                // Move the relationship
+                scopedNote.work = workModel
+                scopedNote.workContract = nil
+                scopedNote.workContractID = nil
+                migratedNotesCount += 1
+            }
+            
+            // Save once at the end only if something changed
+            if createdWorkCount > 0 || migratedNotesCount > 0 {
+                context.safeSave()
+                
+                // Print logs only when something changed
+                if createdWorkCount > 0 {
+                    print("DataMigrations: Migrated \(createdWorkCount) WorkContract records into WorkModel.")
+                }
+                if migratedNotesCount > 0 {
+                    print("DataMigrations: Migrated \(migratedNotesCount) notes to WorkModel relationships.")
+                }
+            }
+        } catch {
+            print("DataMigrations: WorkContract -> WorkModel migration failed: \(error.localizedDescription)")
+        }
+    }
 }

@@ -471,17 +471,10 @@ final class TodayViewModel: ObservableObject {
         do {
             let startOfDay = AppCalendar.startOfDay(day)
             
-            // ENERGY OPTIMIZATION: Only fetch reminders that could be relevant
-            // Fetch incomplete reminders with due dates in the past or within the next 7 days
-            // This avoids loading reminders that are far in the future
-            // IMPORTANT: Always include a buffer around the selected date to ensure we don't miss reminders
-            let futureCutoff = calendar.date(byAdding: .day, value: 7, to: startOfDay) ?? nextDay
-            let pastCutoff = calendar.date(byAdding: .day, value: -30, to: startOfDay) ?? Date.distantPast
-            
+            // Fetch all incomplete reminders (date filtering is done in memory to avoid forced unwraps in predicate)
             let incompleteDescriptor = FetchDescriptor<Reminder>(
                 predicate: #Predicate { r in
-                    r.isCompleted == false &&
-                    (r.dueDate == nil || (r.dueDate! >= pastCutoff && r.dueDate! <= futureCutoff))
+                    r.isCompleted == false
                 }
             )
             let allReminders = try context.fetch(incompleteDescriptor)

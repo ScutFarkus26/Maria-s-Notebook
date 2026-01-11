@@ -42,13 +42,14 @@ extension WorkModel {
         // If presentationID is not available but we have studentID and lessonID,
         // try to find the StudentLesson
         if studentLessonID == nil, let sid = studentID, let lid = lessonID {
-            // Try to find a StudentLesson that matches
+            // Fetch candidates by lessonID (studentIDs is @Transient and can't be queried in SwiftData)
             let descriptor = FetchDescriptor<StudentLesson>(
                 predicate: #Predicate { sl in
-                    sl.lessonID == lid.uuidString && sl.studentIDs.contains(sid.uuidString)
+                    sl.lessonID == lid.uuidString
                 }
             )
-            if let sl = (try? context.fetch(descriptor))?.first {
+            // Filter in memory using the computed studentIDs property
+            if let sl = (try? context.fetch(descriptor))?.first(where: { $0.studentIDs.contains(sid.uuidString) }) {
                 studentLessonID = sl.id
             }
         }
