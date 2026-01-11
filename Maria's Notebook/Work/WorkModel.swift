@@ -39,6 +39,26 @@ import SwiftUI
     var completionOutcomeRaw: String? = nil
     /// Legacy contract ID for traceability during migration
     var legacyContractID: UUID? = nil
+    /// Student ID (migration-ready, replaces WorkContract.studentID)
+    var studentID: String = ""
+    /// Lesson ID (migration-ready, replaces WorkContract.lessonID)
+    var lessonID: String = ""
+    /// Presentation ID (migration-ready, replaces WorkContract.presentationID)
+    var presentationID: String? = nil
+    /// Track ID (migration-ready, replaces WorkContract.trackID)
+    var trackID: String? = nil
+    /// Track step ID (migration-ready, replaces WorkContract.trackStepID)
+    var trackStepID: String? = nil
+    /// Scheduled note (migration-ready, replaces WorkContract.scheduledNote)
+    var scheduledNote: String? = nil
+    /// Scheduled reason raw value (migration-ready, replaces WorkContract.scheduledReasonRaw)
+    var scheduledReasonRaw: String? = nil
+    /// Source context type raw value (migration-ready, replaces WorkContract.sourceContextTypeRaw)
+    var sourceContextTypeRaw: String? = nil
+    /// Source context ID (migration-ready, replaces WorkContract.sourceContextID)
+    var sourceContextID: String? = nil
+    /// Legacy student lesson ID (migration-ready, replaces WorkContract.legacyStudentLessonID)
+    var legacyStudentLessonID: String? = nil
 
     init(
         id: UUID = UUID(),
@@ -56,7 +76,17 @@ import SwiftUI
         lastTouchedAt: Date? = nil,
         dueAt: Date? = nil,
         completionOutcome: CompletionOutcome? = nil,
-        legacyContractID: UUID? = nil
+        legacyContractID: UUID? = nil,
+        studentID: String = "",
+        lessonID: String = "",
+        presentationID: String? = nil,
+        trackID: String? = nil,
+        trackStepID: String? = nil,
+        scheduledNote: String? = nil,
+        scheduledReason: ScheduledReason? = nil,
+        sourceContextType: WorkSourceContextType? = nil,
+        sourceContextID: String? = nil,
+        legacyStudentLessonID: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -80,6 +110,16 @@ import SwiftUI
         self.dueAt = dueAt
         self.completionOutcomeRaw = completionOutcome?.rawValue
         self.legacyContractID = legacyContractID
+        self.studentID = studentID
+        self.lessonID = lessonID
+        self.presentationID = presentationID
+        self.trackID = trackID
+        self.trackStepID = trackStepID
+        self.scheduledNote = scheduledNote
+        self.scheduledReasonRaw = scheduledReason?.rawValue
+        self.sourceContextTypeRaw = sourceContextType?.rawValue
+        self.sourceContextID = sourceContextID
+        self.legacyStudentLessonID = legacyStudentLessonID
     }
 
     var workType: WorkType {
@@ -105,6 +145,18 @@ import SwiftUI
     var completionOutcome: CompletionOutcome? {
         get { completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) } }
         set { completionOutcomeRaw = newValue?.rawValue }
+    }
+    
+    /// Scheduled reason (migration-ready, aligns with WorkContract.scheduledReason)
+    var scheduledReason: ScheduledReason? {
+        get { scheduledReasonRaw.flatMap { ScheduledReason(rawValue: $0) } }
+        set { scheduledReasonRaw = newValue?.rawValue }
+    }
+    
+    /// Source context type (migration-ready, aligns with WorkContract.sourceContextType)
+    var sourceContextType: WorkSourceContextType? {
+        get { sourceContextTypeRaw.flatMap { WorkSourceContextType(rawValue: $0) } }
+        set { sourceContextTypeRaw = newValue?.rawValue }
     }
 
     // MARK: - Completion helpers
