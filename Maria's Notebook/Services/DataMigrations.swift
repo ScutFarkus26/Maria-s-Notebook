@@ -449,6 +449,9 @@ enum DataMigrations {
             let contracts = context.safeFetch(FetchDescriptor<WorkContract>())
             guard !contracts.isEmpty else { return }
             
+            // Build lookup dictionary for contracts
+            let contractByID = Dictionary(uniqueKeysWithValues: contracts.map { ($0.id, $0) })
+            
             // Fetch all WorkModel records and build a set of existing legacyContractID values
             let workModels = context.safeFetch(FetchDescriptor<WorkModel>())
             let existingLegacyContractIDs = Set(workModels.compactMap { $0.legacyContractID })
@@ -516,9 +519,61 @@ enum DataMigrations {
                 migratedNotesCount += 1
             }
             
+            // Backfill IDs for already-migrated WorkModels
+            var backfilledCount = 0
+            for work in workModels {
+                // Only process WorkModels that have a legacyContractID
+                guard let legacyContractID = work.legacyContractID else { continue }
+                
+                // Check if backfill is needed
+                let needsBackfill = work.studentID.isEmpty || work.lessonID.isEmpty || (work.presentationID == nil && contractByID[legacyContractID]?.presentationID != nil)
+                
+                if needsBackfill {
+                    // Find the contract using legacyContractID
+                    guard let contract = contractByID[legacyContractID] else { continue }
+                    
+                    // Backfill IDs from contract
+                    work.studentID = contract.studentID
+                    work.lessonID = contract.lessonID
+                    if let presentationID = contract.presentationID {
+                        work.presentationID = presentationID
+                    }
+                    if let trackID = contract.trackID {
+                        work.trackID = trackID
+                    }
+                    if let trackStepID = contract.trackStepID {
+                        work.trackStepID = trackStepID
+                    }
+                    
+                    backfilledCount += 1
+                }
+            }
+            
+            // Backfill WorkModels that were created using studentLessonID (StudentLesson-based paths) but have empty string IDs.
+            // These cannot be repaired via legacyContractID because they are not migrated from WorkContract.
+            let studentLessons = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
+            let studentLessonByID: [UUID: StudentLesson] = Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
+
+            var studentLessonBackfilledCount = 0
+
+            for work in workModels {
+                guard (work.studentID.isEmpty || work.lessonID.isEmpty), let slID = work.studentLessonID else { continue }
+                guard let sl = studentLessonByID[slID] else { continue }
+
+                // StudentLesson.lessonID is stored; studentIDs is @Transient but usable in memory here.
+                if work.lessonID.isEmpty { work.lessonID = sl.lessonID }
+                if work.studentID.isEmpty {
+                    if let firstStudent = sl.studentIDs.first {
+                        work.studentID = firstStudent
+                    }
+                }
+                if work.legacyStudentLessonID == nil { work.legacyStudentLessonID = slID.uuidString }
+                studentLessonBackfilledCount += 1
+            }
+            
             // Save once at the end only if something changed
-            if createdWorkCount > 0 || migratedNotesCount > 0 {
-                context.safeSave()
+            if createdWorkCount > 0 || migratedNotesCount > 0 || backfilledCount > 0 || studentLessonBackfilledCount > 0 {
+                try context.save()
                 
                 // Print logs only when something changed
                 if createdWorkCount > 0 {
@@ -526,6 +581,12 @@ enum DataMigrations {
                 }
                 if migratedNotesCount > 0 {
                     print("DataMigrations: Migrated \(migratedNotesCount) notes to WorkModel relationships.")
+                }
+                if backfilledCount > 0 {
+                    print("DataMigrations: Backfilled IDs for \(backfilledCount) WorkModel records.")
+                }
+                if studentLessonBackfilledCount > 0 {
+                    print("DataMigrations: Backfilled IDs from StudentLesson for \(studentLessonBackfilledCount) WorkModel records.")
                 }
             }
         } catch {

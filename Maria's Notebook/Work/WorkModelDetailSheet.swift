@@ -1,0 +1,462 @@
+import SwiftUI
+import SwiftData
+import Foundation
+#if DEBUG
+#endif
+
+struct WorkModelDetailSheet: View {
+    let workID: UUID
+    var onDone: (() -> Void)? = nil
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    
+    @State private var work: WorkModel? = nil
+    
+    // OPTIMIZATION: Load only related lessons and students instead of all
+    @State private var relatedLesson: Lesson? = nil
+    @State private var relatedLessons: [Lesson] = [] // For NextLessonResolver - same subject/group
+    @State private var relatedStudent: Student? = nil
+    
+    @State private var workNotes: [ScopedNote] = [] // Legacy notes - loaded via relationship
+    @State private var workModelNotes: [Note] = [] // New unified notes - loaded via relationship
+    @Query private var presentations: [Presentation]
+    @Query private var planItems: [WorkPlanItem]
+    @Query private var peerWorks: [WorkModel]
+    
+    @State private var resolvedPresentationID: UUID? = nil
+    @State private var presentationNotes: [ScopedNote] = []
+    @State private var showPresentationNotes: Bool = true
+    @State private var showAddNoteSheet: Bool = false
+    @State private var noteBeingEdited: Note? = nil
+    @State private var scopedNoteBeingEdited: ScopedNote? = nil
+    @State private var showScheduleSheet: Bool = false
+    @State private var showPlannedBanner: Bool = false
+    @State private var showDeleteAlert: Bool = false
+
+    @State private var status: WorkStatus
+    @State private var workKind: WorkKind
+    @State private var workTitle: String = ""
+    @State private var completionOutcome: CompletionOutcome? = nil
+    @State private var completionNote: String = ""
+    
+    @State private var newPlanDate: Date = Date()
+    @State private var newPlanReason: WorkPlanItem.Reason = .progressCheck
+    @State private var newPlanNote: String = ""
+
+    private var scheduleDates: WorkScheduleDates {
+        guard let work = work else {
+            return WorkScheduleDates(primaryDate: nil, primaryKind: nil, secondaryDate: nil, secondaryKind: nil)
+        }
+        let workIDString = work.id.uuidString
+        let items = planItems.filter { $0.workID == workIDString }
+        return WorkScheduleDateLogic.compute(forPlanItems: items)
+    }
+    
+    private var likelyNextLesson: Lesson? {
+        guard let work = work,
+              let currentLessonID = UUID(uuidString: work.lessonID),
+              relatedLessons.first(where: { $0.id == currentLessonID }) != nil else { return nil }
+        return NextLessonResolver.resolveNextLesson(from: currentLessonID, lessons: relatedLessons)
+    }
+
+    init(workID: UUID, onDone: (() -> Void)? = nil) {
+        self.workID = workID
+        self.onDone = onDone
+        // Initialize with default values - will be updated when work is loaded
+        _status = State(initialValue: .active)
+        _workTitle = State(initialValue: "")
+        _completionOutcome = State(initialValue: nil)
+        _completionNote = State(initialValue: "")
+        _workKind = State(initialValue: .practiceLesson)
+        
+        let workIDString = workID.uuidString
+        _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workIDString })
+        // Query for peer works - will filter by lessonID after work is loaded
+        _peerWorks = Query()
+    }
+    
+    var body: some View {
+        Group {
+            if let work = work {
+                VStack(spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            headerSection()
+                            Divider()
+                            if status == .complete { completionSection(); Divider() }
+                            calendarSection()
+                            Divider()
+                            notesSection()
+                            
+                            Button(role: .destructive) { showDeleteAlert = true } label: {
+                                Label("Delete Work", systemImage: "trash")
+                            }.frame(maxWidth: .infinity).padding(.top, 20)
+                        }.padding(24)
+                    }
+                    Divider()
+                    HStack {
+                        Button("Cancel") { close() }
+                        Spacer()
+                        Button("Save") { save() }.buttonStyle(.borderedProminent)
+                    }.padding(16).background(.bar)
+                }
+                .sheet(isPresented: $showScheduleSheet) {
+                    WorkModelScheduleNextLessonSheet(work: work) { showPlannedBanner = true }
+                }
+                .sheet(isPresented: $showAddNoteSheet) {
+                    UnifiedNoteEditor(
+                        context: .work(work),
+                        initialNote: nil,
+                        onSave: { _ in
+                            // Note is automatically saved via relationship
+                            showAddNoteSheet = false
+                            loadWorkNotes() // Reload notes
+                        },
+                        onCancel: {
+                            showAddNoteSheet = false
+                        }
+                    )
+                }
+                .sheet(item: $noteBeingEdited) { note in
+                    UnifiedNoteEditor(
+                        context: .work(work),
+                        initialNote: note,
+                        onSave: { _ in
+                            noteBeingEdited = nil
+                            loadWorkNotes() // Reload notes
+                        },
+                        onCancel: {
+                            noteBeingEdited = nil
+                        }
+                    )
+                }
+                .sheet(item: $scopedNoteBeingEdited) { scopedNote in
+                    LegacyNoteEditor(
+                        title: "Edit Note",
+                        text: scopedNote.body,
+                        onSave: { newText in
+                            scopedNote.body = newText
+                            try? modelContext.save()
+                            scopedNoteBeingEdited = nil
+                            loadWorkNotes() // Reload notes
+                        },
+                        onCancel: {
+                            scopedNoteBeingEdited = nil
+                        }
+                    )
+                }
+                .alert("Delete?", isPresented: $showDeleteAlert) {
+                    Button("Delete", role: .destructive) { deleteWork() }
+                }
+            } else {
+                ContentUnavailableView("Work not found", systemImage: "doc.questionmark")
+                    #if os(macOS)
+                    .frame(minWidth: 400, minHeight: 200)
+                    #endif
+            }
+        }
+        .onAppear {
+            loadWork()
+            if work != nil {
+                loadRelatedData()
+                loadWorkNotes()
+                #if DEBUG
+                PerformanceLogger.logScreenLoad(
+                    screenName: "WorkModelDetailSheet",
+                    itemCounts: [
+                        "lessons": relatedLessons.count,
+                        "students": relatedStudent != nil ? 1 : 0,
+                        "workNotes": workNotes.count,
+                        "workModelNotes": workModelNotes.count,
+                        "presentations": presentations.count,
+                        "planItems": planItems.count,
+                        "peerWorks": peerWorks.count
+                    ]
+                )
+                #endif
+                resolvedPresentationID = resolvePresentationID()
+                reloadPresentationNotes()
+            }
+        }
+    }
+    
+    private func loadWork() {
+        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
+        work = try? modelContext.fetch(descriptor).first
+        
+        if let work = work {
+            status = work.status
+            workTitle = work.title
+            workKind = work.kind ?? .practiceLesson
+            completionOutcome = work.completionOutcome
+            // Note: WorkModel doesn't have completionNote field, so we'll leave it empty
+            completionNote = ""
+        }
+    }
+
+    @ViewBuilder
+    private func headerSection() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(studentName()).font(.system(size: 34, weight: .bold, design: .rounded))
+            TextField("Work Title", text: $workTitle)
+                .font(.title2)
+                .padding(8)
+                .background(Color.primary.opacity(0.05))
+                .cornerRadius(8)
+            
+            HStack {
+                Label(lessonTitle(), systemImage: "book.closed").font(.subheadline).foregroundStyle(.secondary)
+                Spacer()
+                Picker("Kind", selection: $workKind) {
+                    Text("Practice").tag(WorkKind.practiceLesson)
+                    Text("Follow-Up").tag(WorkKind.followUpAssignment)
+                    Text("Project").tag(WorkKind.research)
+                }
+                .labelsHidden()
+                .controlSize(.small)
+            }
+
+            HStack(spacing: 12) {
+                HStack(spacing: 0) {
+                    statusBtn(.active, "Active"); statusBtn(.review, "Review"); statusBtn(.complete, "Complete")
+                }.background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
+                
+                if status != .complete, likelyNextLesson != nil {
+                    Button { showScheduleSheet = true } label: {
+                        Image(systemName: "lock.open.fill").padding(8).background(Color.accentColor.opacity(0.1)).cornerRadius(8)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func statusBtn(_ s: WorkStatus, _ label: String) -> some View {
+        Button(label) {
+            status = s
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(status == s ? Color.accentColor.opacity(0.1) : Color.clear)
+        .foregroundStyle(status == s ? Color.accentColor : .primary)
+    }
+
+    @ViewBuilder private func completionSection() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("Outcome", selection: $completionOutcome) {
+                Text("Select...").tag(nil as CompletionOutcome?)
+                ForEach(CompletionOutcome.allCases, id: \.self) { Text(labelForOutcome($0)).tag($0 as CompletionOutcome?) }
+            }
+            TextField("Notes", text: $completionNote).textFieldStyle(.roundedBorder)
+        }
+    }
+
+    @ViewBuilder private func calendarSection() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Calendar").font(.headline)
+            HStack {
+                DatePicker("", selection: $newPlanDate, displayedComponents: .date).labelsHidden()
+                Button("Add") { addPlan() }.buttonStyle(.bordered)
+            }
+        }
+    }
+
+    @ViewBuilder private func notesSection() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack { Text("Notes").font(.headline); Spacer(); Button("+") { showAddNoteSheet = true } }
+            
+            // Show new unified notes first
+            ForEach(workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                noteRow(note)
+            }
+            
+            // Show legacy ScopedNote objects for backward compatibility
+            ForEach(workNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { scopedNote in
+                scopedNoteRow(scopedNote)
+            }
+            
+            if workModelNotes.isEmpty && workNotes.isEmpty {
+                Text("No notes yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func noteRow(_ note: Note) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(note.body)
+                .font(.body)
+            HStack {
+                if note.category != .general {
+                    Text(note.category.rawValue.capitalized)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color.secondary.opacity(0.1))
+                        )
+                }
+                Text(note.createdAt, style: .date)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+        }
+        .padding(8)
+        .background(Color.primary.opacity(0.04))
+        .cornerRadius(8)
+        .contextMenu {
+            Button {
+                noteBeingEdited = note
+            } label: {
+                Label("Edit Note", systemImage: "pencil")
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func scopedNoteRow(_ scopedNote: ScopedNote) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(scopedNote.body)
+                .font(.body)
+            Text(scopedNote.createdAt, style: .date)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(8)
+        .background(Color.primary.opacity(0.04))
+        .cornerRadius(8)
+        .contextMenu {
+            Button {
+                scopedNoteBeingEdited = scopedNote
+            } label: {
+                Label("Edit Note", systemImage: "pencil")
+            }
+        }
+    }
+
+    private func save() {
+        guard let work = work else { return }
+        work.status = status
+        work.title = workTitle
+        work.kind = workKind
+        work.completionOutcome = completionOutcome
+        // Note: WorkModel doesn't have completionNote field, so we skip it
+        saveCoordinator.save(modelContext, reason: "Saving work model")
+        close()
+    }
+
+    private func close() { onDone?() ?? dismiss() }
+    
+    private func deleteWork() {
+        guard let work = work else { return }
+        modelContext.delete(work)
+        saveCoordinator.save(modelContext, reason: "Deleting work model")
+        close()
+    }
+
+    private func addPlan() {
+        guard let work = work else { return }
+        let item = WorkPlanItem(workID: work.id, scheduledDate: newPlanDate, reason: newPlanReason)
+        modelContext.insert(item)
+        saveCoordinator.save(modelContext, reason: "Adding plan item")
+    }
+
+    /// OPTIMIZATION: Load only related lessons and students on demand
+    private func loadRelatedData() {
+        guard let work = work else { return }
+        
+        // Load the specific lesson
+        if let lessonID = UUID(uuidString: work.lessonID) {
+            let lessonDescriptor = FetchDescriptor<Lesson>(
+                predicate: #Predicate<Lesson> { $0.id == lessonID }
+            )
+            relatedLesson = modelContext.safeFetchFirst(lessonDescriptor)
+            
+            // If we found the lesson, load lessons in the same subject/group for NextLessonResolver
+            if let lesson = relatedLesson {
+                let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !subject.isEmpty, !group.isEmpty else { return }
+                
+                // Load all lessons and filter in memory (predicates don't support trimmingCharacters or caseInsensitiveCompare)
+                let allLessonsDescriptor = FetchDescriptor<Lesson>(
+                    sortBy: [SortDescriptor(\.orderInGroup)]
+                )
+                let allLessons = modelContext.safeFetch(allLessonsDescriptor)
+                relatedLessons = allLessons.filter { l in
+                    let lSubject = l.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let lGroup = l.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return lSubject.caseInsensitiveCompare(subject) == .orderedSame &&
+                           lGroup.caseInsensitiveCompare(group) == .orderedSame
+                }
+            }
+        }
+        
+        // Load the specific student
+        if let studentID = UUID(uuidString: work.studentID) {
+            let studentDescriptor = FetchDescriptor<Student>(
+                predicate: #Predicate<Student> { $0.id == studentID }
+            )
+            relatedStudent = modelContext.safeFetchFirst(studentDescriptor)
+        }
+    }
+    
+    private func studentName() -> String {
+        return relatedStudent?.firstName ?? "Student"
+    }
+
+    private func lessonTitle() -> String {
+        return relatedLesson?.name ?? "Lesson"
+    }
+
+    private func resolvePresentationID() -> UUID? {
+        guard let work = work, let pid = work.presentationID else { return nil }
+        return UUID(uuidString: pid)
+    }
+
+    private func reloadPresentationNotes() { /* Logic for ScopedNotes */ }
+    
+    /// Load work notes via relationships
+    private func loadWorkNotes() {
+        guard let work = work else { return }
+        // Load notes via relationships
+        workModelNotes = Array(work.noteItems ?? [])
+        workNotes = Array(work.scopedNotes ?? [])
+    }
+
+    private func labelForOutcome(_ o: CompletionOutcome) -> String {
+        switch o {
+        case .mastered: return "Mastered"
+        case .needsMorePractice: return "Keep Practicing"
+        default: return o.rawValue.capitalized
+        }
+    }
+}
+
+// MARK: - Helpers
+private struct NextLessonResolver {
+    static func resolveNextLesson(from currentID: UUID, lessons: [Lesson]) -> Lesson? {
+        guard let current = lessons.first(where: { $0.id == currentID }) else { return nil }
+        let candidates = lessons.filter { $0.subject == current.subject && $0.group == current.group }
+            .sorted { $0.orderInGroup < $1.orderInGroup }
+        if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
+            return candidates[idx + 1]
+        }
+        return nil
+    }
+}
+
+struct WorkModelScheduleNextLessonSheet: View {
+    let work: WorkModel
+    var onCreated: () -> Void
+    @Environment(\.dismiss) var dismiss
+    var body: some View {
+        Button("Tap to Unlock") { onCreated(); dismiss() }.padding()
+    }
+}

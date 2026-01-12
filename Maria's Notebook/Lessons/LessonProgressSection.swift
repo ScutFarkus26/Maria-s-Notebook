@@ -297,6 +297,27 @@ struct LessonProgressSection: View {
                 notes: "",
                 createdAt: Date()
             )
+            // Set identity fields
+            if let lessonID = lesson?.id {
+                practiceWork.lessonID = lessonID.uuidString
+            } else {
+                // Try to get lessonID from studentLessonID
+                let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+                if let studentLesson = (try? modelContext.fetch(descriptor))?.first {
+                    practiceWork.lessonID = studentLesson.lessonID
+                }
+            }
+            if let firstStudentID = selectedStudentIDs.first {
+                practiceWork.studentID = firstStudentID.uuidString
+            } else {
+                // Try to get studentID from studentLessonID
+                let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+                if let studentLesson = (try? modelContext.fetch(descriptor))?.first,
+                   let firstStudentID = studentLesson.resolvedStudentIDs.first {
+                    practiceWork.studentID = firstStudentID.uuidString
+                }
+            }
+            practiceWork.legacyStudentLessonID = studentLessonID.uuidString
             practiceWork.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork) }
             modelContext.insert(practiceWork)
             try? modelContext.save()

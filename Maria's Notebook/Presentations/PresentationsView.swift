@@ -33,6 +33,7 @@ struct PresentationsView: View {
     @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
     @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
     @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
+    @Query(sort: [SortDescriptor(\WorkModel.id)]) private var workModelsForChangeDetection: [WorkModel]
     
     // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
     private var studentLessonIDs: [UUID] {
@@ -47,18 +48,29 @@ struct PresentationsView: View {
         studentsForChangeDetection.map { $0.id }
     }
     
-    // OPTIMIZATION: Only fetch active/review contracts (needed for blocking logic)
-    // Split into separate queries to help compiler type-check
-    @Query(filter: #Predicate<WorkContract> { $0.statusRaw == "active" }) 
-    private var activeContractsOnly: [WorkContract]
-    
-    @Query(filter: #Predicate<WorkContract> { $0.statusRaw == "review" }) 
-    private var reviewContractsOnly: [WorkContract]
-    
-    // Computed property to combine them
-    private var activeContracts: [WorkContract] {
-        activeContractsOnly + reviewContractsOnly
+    // Active WorkModels: unresolved work items (statusRaw != "complete")
+    private var activeWork: [WorkModel] {
+        workModelsForChangeDetection.filter { $0.statusRaw != "complete" }
     }
+    
+    // Helper: All WorkModels from the existing @Query
+    private var allWorkModels: [WorkModel] {
+        workModelsForChangeDetection
+    }
+    
+    // Helper: Open WorkModels (statusRaw != "complete")
+    private var openWorkModels: [WorkModel] {
+        allWorkModels.filter { $0.statusRaw != "complete" }
+    }
+    
+    // Dictionary for fast lookup: Group open WorkModels by presentationID
+    private var openWorkByPresentationID: [String: [WorkModel]] {
+        Dictionary(grouping: openWorkModels.filter { $0.presentationID != nil }) { work in
+            work.presentationID ?? ""
+        }
+    }
+    
+    // NOTE: WorkModel fetching is now handled by ViewModel
 
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @AppStorage("LessonsAgenda.startDate") private var startDateRaw: Double = 0
@@ -98,7 +110,7 @@ struct PresentationsView: View {
     // Computed properties that use ViewModel (preserves exact same functionality)
     private var readyLessons: [StudentLesson] { viewModel.readyLessons }
     private var blockedLessons: [StudentLesson] { viewModel.blockedLessons }
-    private func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkContract] {
+    private func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkModel] {
         viewModel.getBlockingContracts(sl)
     }
 
@@ -152,6 +164,31 @@ struct PresentationsView: View {
         viewModel.daysSinceLastLessonByStudent
     }
 
+    // DIAGNOSTIC: Work classification counts
+    private var diagnosticAllWork: [WorkModel] {
+        workModelsForChangeDetection
+    }
+    
+    private var diagnosticOpenWork: [WorkModel] {
+        diagnosticAllWork.filter { $0.statusRaw != "complete" }
+    }
+    
+    private var diagnosticOpenWorkWithPresentation: [WorkModel] {
+        diagnosticOpenWork.filter { $0.presentationID != nil }
+    }
+    
+    private func printDiagnostics() {
+        let allWork = diagnosticAllWork
+        let openWork = diagnosticOpenWork
+        let openWorkWithPresentation = diagnosticOpenWorkWithPresentation
+        
+        print("PresentationsView DIAGNOSTIC: allWork=\(allWork.count) openWork=\(openWork.count) openWorkWithPresentation=\(openWorkWithPresentation.count)")
+        
+        for w in openWorkWithPresentation.prefix(5) {
+            print("  openWork pid=\(w.presentationID ?? "nil") sid=\(w.studentID) lid=\(w.lessonID) status=\(w.statusRaw)")
+        }
+    }
+
     var body: some View {
         Group {
             if horizontalSizeClass == .compact {
@@ -196,6 +233,9 @@ struct PresentationsView: View {
             } else {
                 // macOS / iPad Layout: Existing Split View
                 GeometryReader { proxy in
+                    let inboxHeight = proxy.size.height * (isCalendarMinimized ? 1.0 : 0.5)
+                    let calendarHeight = proxy.size.height * 0.5
+                    
                     VStack(spacing: 0) {
                         // Top: Inbox
                         PresentationsInboxView(
@@ -209,7 +249,7 @@ struct PresentationsView: View {
                             isInboxTargeted: $isInboxTargeted,
                             isCalendarMinimized: $isCalendarMinimized
                         )
-                        .frame(height: proxy.size.height * (isCalendarMinimized ? 1.0 : 0.5))
+                        .frame(height: inboxHeight)
 
                         if !isCalendarMinimized {
                             Divider()
@@ -226,12 +266,19 @@ struct PresentationsView: View {
                                     selectedStudentLessonForDetail = sl
                                 }
                             )
-                            .frame(height: proxy.size.height * 0.5)
+                            .frame(height: calendarHeight)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
                 }
             }
+        }
+        .onAppear {
+            print("=== PresentationsView DIAGNOSTIC: onAppear ===")
+            printDiagnostics()
+        }
+        .onChange(of: workModelsForChangeDetection.count) { _, _ in
+            printDiagnostics()
         }
         .task {
             // Update ViewModel immediately
@@ -283,7 +330,7 @@ struct PresentationsView: View {
         .onChange(of: lessonIDs) { _, _ in
             updateViewModel()
         }
-        .onChange(of: activeContracts.map { $0.id }) { _, _ in
+        .onChange(of: activeWork.map { $0.id }) { _, _ in
             updateViewModel()
         }
         .onChange(of: studentIDs) { _, _ in
@@ -363,6 +410,16 @@ struct PresentationsView: View {
             needsAnotherPresentation: snap.needsAnotherPresentation,
             followUpWork: snap.followUpWork
         )
+    }
+    
+    // MARK: - Helper Functions
+    
+    static func unresolvedWorkCount(forPresentationID pid: String, studentIDs: [String], allWork: [WorkModel]) -> Int {
+        return allWork.filter { w in
+            w.presentationID == pid &&
+            studentIDs.contains(w.studentID) &&
+            w.statusRaw != "complete"
+        }.count
     }
 
 }

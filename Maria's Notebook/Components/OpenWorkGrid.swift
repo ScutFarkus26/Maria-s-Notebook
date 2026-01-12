@@ -2,14 +2,14 @@ import SwiftUI
 import SwiftData
 
 struct OpenWorkGrid: View {
-    let works: [WorkContract]
+    let works: [WorkModel]
     let lessonsByID: [UUID: Lesson]
     let studentsByID: [UUID: Student]
     let sortMode: WorkAgendaSortMode
 
-    let onOpen: (WorkContract) -> Void
-    let onMarkCompleted: (WorkContract) -> Void
-    let onScheduleToday: (WorkContract) -> Void
+    let onOpen: (WorkModel) -> Void
+    let onMarkCompleted: (WorkModel) -> Void
+    let onScheduleToday: (WorkModel) -> Void
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
@@ -28,10 +28,10 @@ struct OpenWorkGrid: View {
                     ForEach(groupedSections, id: \.key) { section in
                         Section(header: groupHeader(title: section.key, count: section.items.count)) {
                             ForEach(section.items, id: \.id) { item in
-                                let lastTouch = WorkContractAging.lastMeaningfulTouchDate(for: item.contract, planItems: planItems, notes: nil, presentation: nil)
+                                let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: item.work, checkIns: item.work.checkIns, notes: item.work.scopedNotes)
                                 let ageSchoolDays = LessonAgeHelper.schoolDaysSinceCreation(createdAt: lastTouch, asOf: Date(), using: modelContext, calendar: calendar)
                                 WorkCardView(
-                                    contract: item.contract,
+                                    work: item.work,
                                     lessonTitle: item.title,
                                     studentDisplay: item.student,
                                     needsAttention: item.needsAttention,
@@ -72,7 +72,7 @@ struct OpenWorkGrid: View {
     }
 
     // MARK: - Derived items
-    private struct Item: Identifiable { let id = UUID(); let _id: UUID; let contract: WorkContract; let title: String; let student: String; let needsAttention: Bool; let metadata: String }
+    private struct Item: Identifiable { let id = UUID(); let _id: UUID; let work: WorkModel; let title: String; let student: String; let needsAttention: Bool; let metadata: String }
 
     // Group items by current sort mode; preserve overall order by grouping in the order items first appear
     private var groupedSections: [(key: String, items: [Item])] {
@@ -94,7 +94,7 @@ struct OpenWorkGrid: View {
         case .student:
             return item.student
         case .age:
-            let days = ageDays(for: item.contract)
+            let days = ageDays(for: item.work)
             return ageBucketLabel(forDays: days)
         case .needsAttention:
             return item.needsAttention ? "Needs Attention" : "Other"
@@ -111,12 +111,12 @@ struct OpenWorkGrid: View {
     }
 
     private var sortedWorks: [Item] {
-        let mapped: [Item] = works.map { c in
-            let title = lessonTitle(forLessonID: c.lessonID)
-            let student = studentName(for: c)
-            let meta = metadata(for: c)
-            let attention = needsAttention(for: c)
-            return Item(_id: c.id, contract: c, title: title, student: student, needsAttention: attention, metadata: meta)
+        let mapped: [Item] = works.map { w in
+            let title = lessonTitle(forLessonID: w.lessonID)
+            let student = studentName(for: w)
+            let meta = metadata(for: w)
+            let attention = needsAttention(for: w)
+            return Item(_id: w.id, work: w, title: title, student: student, needsAttention: attention, metadata: meta)
         }
         switch sortMode {
         case .lesson:
@@ -124,12 +124,12 @@ struct OpenWorkGrid: View {
         case .student:
             return mapped.sorted { $0.student.localizedCaseInsensitiveCompare($1.student) == .orderedAscending }
         case .age:
-            return mapped.sorted { ageDays(for: $0.contract) > ageDays(for: $1.contract) }
+            return mapped.sorted { ageDays(for: $0.work) > ageDays(for: $1.work) }
         case .needsAttention:
             return mapped.sorted { lhs, rhs in
                 if lhs.needsAttention != rhs.needsAttention { return lhs.needsAttention && !rhs.needsAttention }
                 // If both same attention, older first
-                return ageDays(for: lhs.contract) > ageDays(for: rhs.contract)
+                return ageDays(for: lhs.work) > ageDays(for: rhs.work)
             }
         }
     }
@@ -143,39 +143,39 @@ struct OpenWorkGrid: View {
         return "Lesson \(String(lessonID.prefix(6)))"
     }
 
-    private func studentName(for c: WorkContract) -> String {
-        if let sid = UUID(uuidString: c.studentID), let s = studentsByID[sid] {
+    private func studentName(for w: WorkModel) -> String {
+        if let sid = UUID(uuidString: w.studentID), let s = studentsByID[sid] {
             return StudentFormatter.displayName(for: s)
         }
         return "Student"
     }
 
-    private func metadata(for c: WorkContract) -> String {
+    private func metadata(for w: WorkModel) -> String {
         var parts: [String] = []
-        switch c.status {
+        switch w.status {
         case .active: parts.append("Practice")
         case .review: parts.append("Follow-Up")
         case .complete: parts.append("Completed")
         }
-        let age = ageDays(for: c)
+        let age = ageDays(for: w)
         parts.append("\(age)d")
         return parts.joined(separator: " • ")
     }
 
-    private func ageDays(for c: WorkContract) -> Int {
-        let start = AppCalendar.startOfDay(c.createdAt)
+    private func ageDays(for w: WorkModel) -> Int {
+        let start = AppCalendar.startOfDay(w.createdAt)
         let now = AppCalendar.startOfDay(Date())
         let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
         return comps.day ?? 0
     }
 
-    private func needsAttention(for c: WorkContract) -> Bool {
-        // Conservative heuristic: overdue if scheduledDate in past, or stale if createdAt older than 10 days and no schedule.
-        if let sd = c.scheduledDate {
+    private func needsAttention(for w: WorkModel) -> Bool {
+        // Conservative heuristic: overdue if dueAt in past, or stale if createdAt older than 10 days and no schedule.
+        if let due = w.dueAt {
             let today = AppCalendar.startOfDay(Date())
-            if AppCalendar.startOfDay(sd) < today { return true }
+            if AppCalendar.startOfDay(due) < today { return true }
         }
-        let age = ageDays(for: c)
+        let age = ageDays(for: w)
         if age >= 10 { return true }
         return false
     }
@@ -183,7 +183,7 @@ struct OpenWorkGrid: View {
 
 #Preview {
     // Encapsulate data setup in a closure to avoid Void return statements in ViewBuilder
-    let previewData: (ModelContainer, Student, Lesson, WorkContract, WorkContract) = {
+    let previewData: (ModelContainer, Student, Lesson, WorkModel, WorkModel) = {
         let schema = AppSchema.schema
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         guard let container = try? ModelContainer(for: schema, configurations: configuration) else {
@@ -194,22 +194,22 @@ struct OpenWorkGrid: View {
         let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
         ctx.insert(s)
         ctx.insert(l)
-        let c1 = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .active)
-        let c2 = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .review)
-        ctx.insert(c1)
-        ctx.insert(c2)
-        return (container, s, l, c1, c2)
+        let w1 = WorkModel(status: .active, studentID: s.id.uuidString, lessonID: l.id.uuidString)
+        let w2 = WorkModel(status: .review, studentID: s.id.uuidString, lessonID: l.id.uuidString)
+        ctx.insert(w1)
+        ctx.insert(w2)
+        return (container, s, l, w1, w2)
     }()
     
     let container = previewData.0
     let s = previewData.1
     let l = previewData.2
-    let c1 = previewData.3
-    let c2 = previewData.4
+    let w1 = previewData.3
+    let w2 = previewData.4
     
     Group {
         OpenWorkGrid(
-            works: [c1, c2],
+            works: [w1, w2],
             lessonsByID: [l.id: l],
             studentsByID: [s.id: s],
             sortMode: .lesson,
@@ -220,7 +220,7 @@ struct OpenWorkGrid: View {
         .previewEnvironment(using: container)
         
         WorkCardView(
-            contract: WorkContract(studentID: UUID().uuidString, lessonID: UUID().uuidString, presentationID: nil, status: .active),
+            work: WorkModel(status: .active, studentID: UUID().uuidString, lessonID: UUID().uuidString),
             lessonTitle: "Long Division",
             studentDisplay: "Ada Lovelace",
             needsAttention: true,

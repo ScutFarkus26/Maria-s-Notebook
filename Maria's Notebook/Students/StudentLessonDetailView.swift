@@ -725,6 +725,9 @@ struct StudentLessonDetailContentView: View {
                        (work.kindRaw ?? "") == followRaw
             }
 
+            // Get user-entered assignment name
+            let trimmed = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            
             let work: WorkModel
             if let existing = existingWork {
                 work = existing
@@ -734,7 +737,7 @@ struct StudentLessonDetailContentView: View {
                 guard let created = try? repository.createWork(
                     studentID: studentUUID,
                     lessonID: lessonID,
-                    title: nil,
+                    title: trimmed,
                     kind: .followUpAssignment,
                     presentationID: nil,
                     scheduledDate: nil
@@ -745,7 +748,6 @@ struct StudentLessonDetailContentView: View {
             }
             
             // Update notes if provided
-            let trimmed = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty {
                 work.notes = trimmed
             }

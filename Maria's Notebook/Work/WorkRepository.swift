@@ -102,6 +102,13 @@ struct WorkRepository {
             legacyContractID: nil
         )
         
+        // Ensure identity fields are always populated for the new WorkModel.
+        // These are required for Open Work and other UI to resolve student/lesson/presentation.
+        work.studentID = studentID.uuidString
+        work.lessonID = lessonID.uuidString
+        work.presentationID = presentationID?.uuidString
+        work.legacyStudentLessonID = studentLessonID?.uuidString
+        
         // Create participant for the student
         let participant = WorkParticipantEntity(
             studentID: studentID,
@@ -111,8 +118,6 @@ struct WorkRepository {
         work.participants = [participant]
         
         // Link work to Track if lesson belongs to a track
-        // We need to create/update a WorkContract for track linking (even though WorkContract is read-only)
-        // This is necessary because StudentTrackDetailView queries WorkContract by trackID
         if let lesson = try? context.fetch(FetchDescriptor<Lesson>(
             predicate: #Predicate { $0.id == lessonID }
         )).first {
@@ -125,47 +130,15 @@ struct WorkRepository {
                    group: group,
                    modelContext: context
                ) {
-                // Find or create WorkContract for track linking
-                let trackID = track.id.uuidString
-                var trackStepID: String? = nil
+                // Set track ID on WorkModel
+                work.trackID = track.id.uuidString
                 
                 // Find the TrackStep for this lesson
                 let allSteps = (try? context.fetch(FetchDescriptor<TrackStep>())) ?? []
                 if let step = allSteps.first(where: {
                     $0.track?.id == track.id && $0.lessonTemplateID == lessonID
                 }) {
-                    trackStepID = step.id.uuidString
-                }
-                
-                // Find existing WorkContract for this presentation+student combo, or create new one
-                let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
-                let presentationIDStr = presentationID?.uuidString
-                if let existingContract = allContracts.first(where: {
-                    ($0.presentationID ?? "") == (presentationIDStr ?? "") && 
-                    $0.studentID == studentID.uuidString &&
-                    $0.lessonID == lessonID.uuidString
-                }) {
-                    // Update existing contract with track info
-                    existingContract.trackID = trackID
-                    existingContract.trackStepID = trackStepID
-                } else {
-                    // Create new WorkContract for track linking (even though WorkContract is read-only)
-                    // This is necessary for track tab functionality
-                    let workContract = WorkContract(
-                        studentID: studentID.uuidString,
-                        lessonID: lessonID.uuidString,
-                        presentationID: presentationIDStr,
-                        trackID: trackID,
-                        trackStepID: trackStepID,
-                        title: title,
-                        status: work.status,
-                        scheduledDate: scheduledDate,
-                        completedAt: nil,
-                        kind: kind
-                    )
-                    context.insert(workContract)
-                    // Link WorkModel to WorkContract via legacyContractID
-                    work.legacyContractID = workContract.id
+                    work.trackStepID = step.id.uuidString
                 }
             }
         }
@@ -299,6 +272,30 @@ struct WorkRepository {
             notes: notes,
             createdAt: Date()
         )
+        // Set identity fields from studentLessonID if available, otherwise use first studentID
+        if let studentLessonID = studentLessonID {
+            let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+            if let studentLesson = (try? context.fetch(descriptor))?.first {
+                work.lessonID = studentLesson.lessonID
+                if let firstStudentID = studentLesson.resolvedStudentIDs.first {
+                    work.studentID = firstStudentID.uuidString
+                } else if let firstStudentID = studentIDs.first {
+                    work.studentID = firstStudentID.uuidString
+                }
+                work.legacyStudentLessonID = studentLessonID.uuidString
+            } else {
+                // Fallback: use first studentID and try to get lessonID from participants
+                if let firstStudentID = studentIDs.first {
+                    work.studentID = firstStudentID.uuidString
+                }
+                work.legacyStudentLessonID = studentLessonID.uuidString
+            }
+        } else {
+            // No studentLessonID: use first studentID
+            if let firstStudentID = studentIDs.first {
+                work.studentID = firstStudentID.uuidString
+            }
+        }
         work.participants = (work.participants ?? []) + studentIDs.map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: work) }
         context.insert(work)
 

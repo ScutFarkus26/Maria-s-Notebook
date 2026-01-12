@@ -25,11 +25,11 @@ struct StudentLessonPill: View {
     var targetStudentLessonID: UUID? = nil
     var showTimeBadge: Bool = true
     var enableMissHighlight: Bool = false
-    var blockingContracts: [UUID: WorkContract] = [:]
+    var blockingContracts: [UUID: WorkModel] = [:]
 
     @State private var showTimeEditor: Bool = false
     @State private var isValidDragTarget: Bool = false
-    @State private var selectedContractForDetail: WorkContract? = nil
+    @State private var selectedWorkForDetail: WorkModel? = nil
 
     private static let timeOnlyFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -159,7 +159,7 @@ struct StudentLessonPill: View {
         let isMissing: Bool
         let status: AttendanceStatus?
         let hasHad: Bool
-        let blockingContract: WorkContract?
+        let blockingContract: WorkModel?
     }
     
     private var studentChips: [StudentChip] {
@@ -212,7 +212,7 @@ struct StudentLessonPill: View {
         let hasHad: Bool
         let suppressIndicator: Bool
         let highlight: Bool
-        let blockingContract: WorkContract?
+        let blockingContract: WorkModel?
         
         var onTap: (() -> Void)? = nil
 
@@ -300,7 +300,7 @@ struct StudentLessonPill: View {
                                         blockingContract: chip.blockingContract,
                                         onTap: {
                                             if let c = chip.blockingContract {
-                                                selectedContractForDetail = c
+                                                selectedWorkForDetail = c
                                             }
                                         }
                                     )
@@ -359,9 +359,9 @@ struct StudentLessonPill: View {
                 onDidMutate: { reason in _ = saveCoordinator.save(modelContext, reason: reason) }
             ))
         }
-        .sheet(item: $selectedContractForDetail) { contract in
-            WorkContractDetailSheet(contract: contract) {
-                selectedContractForDetail = nil
+        .sheet(item: $selectedWorkForDetail) { work in
+            WorkDetailContainerView(workID: work.id) {
+                selectedWorkForDetail = nil
             }
             #if os(macOS)
             .frame(minWidth: 400, minHeight: 500)

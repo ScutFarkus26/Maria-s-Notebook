@@ -84,6 +84,15 @@ extension WorkModel {
             work.participants = [participant]
         }
         
+        // Ensure identity fields are always populated
+        if let sid = studentID {
+            work.studentID = sid.uuidString
+        }
+        if let lid = lessonID {
+            work.lessonID = lid.uuidString
+        }
+        work.legacyStudentLessonID = studentLessonID?.uuidString
+        
         return work
     }
 }

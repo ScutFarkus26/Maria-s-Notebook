@@ -14,7 +14,7 @@ final class PresentationsViewModel: ObservableObject {
     // MARK: - Published State
     @Published var readyLessons: [StudentLesson] = []
     @Published var blockedLessons: [StudentLesson] = []
-    @Published var blockingContractsCache: [UUID: [UUID: WorkContract]] = [:]
+    @Published var blockingContractsCache: [UUID: [UUID: WorkModel]] = [:]
     @Published var daysSinceLastLessonByStudent: [UUID: Int] = [:]
     
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
@@ -29,12 +29,13 @@ final class PresentationsViewModel: ObservableObject {
     // MARK: - Cache State
     private var lastUpdateDate: Date?
     private var cachedLessons: [Lesson] = []
-    private var cachedContracts: [WorkContract] = []
+    private var cachedWorkModels: [WorkModel] = []
+    private var cachedPresentations: [Presentation] = []
     private var cachedStudentLessons: [StudentLesson] = []
     private var _cachedStudents: [Student] = []
     private var lastStudentLessonsIDs: Set<UUID> = []
     private var lastLessonsIDs: Set<UUID> = []
-    private var lastContractsIDs: Set<UUID> = []
+    private var lastWorkModelIDs: Set<UUID> = []
     private var lastStudentsIDs: Set<UUID> = []
     
     // MARK: - Initialization
@@ -126,24 +127,36 @@ final class PresentationsViewModel: ObservableObject {
         )
         #endif
         
-        // 4. Fetch only active/review contracts (already optimized)
-        let contracts: [WorkContract] = {
+        // 4. Fetch all WorkModels (we'll filter in memory to avoid predicate issues)
+        // Prefer broad fetch and filter in memory per constraints
+        let workModels: [WorkModel] = {
             #if DEBUG
             let startTime = Date()
             #endif
-            let activeDesc = FetchDescriptor<WorkContract>(
-                predicate: #Predicate { $0.statusRaw == "active" }
-            )
-            let reviewDesc = FetchDescriptor<WorkContract>(
-                predicate: #Predicate { $0.statusRaw == "review" }
-            )
-            let active = modelContext.safeFetch(activeDesc)
-            let review = modelContext.safeFetch(reviewDesc)
-            let result = active + review
+            let allWork = modelContext.safeFetch(FetchDescriptor<WorkModel>())
+            // Filter for non-complete work only (active and review status)
+            let result = allWork.filter { $0.statusRaw != "complete" }
             #if DEBUG
             let duration = Date().timeIntervalSince(startTime)
             PerformanceLogger.log(
-                screenName: "PresentationsViewModel - Fetch Contracts",
+                screenName: "PresentationsViewModel - Fetch WorkModels",
+                itemCount: result.count,
+                duration: duration
+            )
+            #endif
+            return result
+        }()
+        
+        // 5. Fetch all Presentations (needed to find presentation for each StudentLesson)
+        let presentations: [Presentation] = {
+            #if DEBUG
+            let startTime = Date()
+            #endif
+            let result = modelContext.safeFetch(FetchDescriptor<Presentation>())
+            #if DEBUG
+            let duration = Date().timeIntervalSince(startTime)
+            PerformanceLogger.log(
+                screenName: "PresentationsViewModel - Fetch Presentations",
                 itemCount: result.count,
                 duration: duration
             )
@@ -154,12 +167,12 @@ final class PresentationsViewModel: ObservableObject {
         // Check if data actually changed
         let studentLessonsIDs = Set(studentLessons.map { $0.id })
         let lessonsIDs = Set(lessons.map { $0.id })
-        let contractsIDs = Set(contracts.map { $0.id })
+        let workModelIDs = Set(workModels.map { $0.id })
         let studentsIDs = Set(students.map { $0.id })
         
         let dataChanged = studentLessonsIDs != lastStudentLessonsIDs ||
                          lessonsIDs != lastLessonsIDs ||
-                         contractsIDs != lastContractsIDs ||
+                         workModelIDs != lastWorkModelIDs ||
                          studentsIDs != lastStudentsIDs
         
         if !dataChanged && lastUpdateDate != nil {
@@ -168,20 +181,37 @@ final class PresentationsViewModel: ObservableObject {
         
         lastStudentLessonsIDs = studentLessonsIDs
         lastLessonsIDs = lessonsIDs
-        lastContractsIDs = contractsIDs
+        lastWorkModelIDs = workModelIDs
         lastStudentsIDs = studentsIDs
         
         cachedStudentLessons = studentLessons
         cachedLessons = lessons
-        cachedContracts = contracts
+        cachedWorkModels = workModels
+        cachedPresentations = presentations
         _cachedStudents = students
         lastUpdateDate = Date()
         
         // Filter visible students
         let visibleStudents = TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
         
-        // Build blocking contracts cache once
-        rebuildBlockingCache(lessons: lessons, contracts: contracts)
+        // Build openWorkByPresentationID dictionary for fast lookup
+        // Group open WorkModels by presentationID (where presentationID != nil)
+        let openWorkByPresentationID: [String: [WorkModel]] = {
+            Dictionary(grouping: workModels.filter { $0.presentationID != nil }) { work in
+                work.presentationID ?? ""
+            }
+        }()
+        
+        // Build a map of presentations by legacyStudentLessonID for efficient lookup
+        var presentationsByLegacyID: [String: Presentation] = [:]
+        for presentation in presentations {
+            if let legacyID = presentation.legacyStudentLessonID {
+                presentationsByLegacyID[legacyID] = presentation
+            }
+        }
+        
+        // Build blocking work cache once (still needed for getBlockingContracts)
+        rebuildBlockingCache(workModels: workModels, presentations: presentations, presentationsByLegacyID: presentationsByLegacyID, openWorkByPresentationID: openWorkByPresentationID)
         
         // Calculate days since last lesson
         calculateDaysSinceLastLesson(
@@ -193,17 +223,51 @@ final class PresentationsViewModel: ObservableObject {
         // Filter unscheduled lessons
         let allUnscheduled = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
         
-        // Separate blocked and ready lessons
+        // Separate blocked and ready lessons using prerequisite blocking logic
         var ready: [StudentLesson] = []
         var blocked: [StudentLesson] = []
         
         for sl in allUnscheduled {
-            if isBlocked(sl) {
+            let (isBlocked, prereqOpenCount) = checkBlockingForStudentLesson(
+                sl: sl,
+                lessons: lessons,
+                studentLessons: studentLessons,
+                presentations: presentations,
+                workModels: workModels
+            )
+            
+            // Add diagnostic print
+            let groupKey = sl.studentGroupKeyPersisted.isEmpty ? sl.studentGroupKey : sl.studentGroupKeyPersisted
+            print("BLOCKING DIAGNOSTIC: sl=\(sl.id) groupKey=\(groupKey) blocked=\(isBlocked) prereqOpenCount=\(prereqOpenCount)")
+            
+            if isBlocked {
                 blocked.append(sl)
             } else {
                 ready.append(sl)
             }
         }
+        
+        // Filter presented items for Inbox: presented (givenAt != nil or isPresented == true) AND has open work
+        let presentedLessons = studentLessons.filter { $0.isGiven }
+        var inboxItems: [StudentLesson] = []
+        
+        for sl in presentedLessons {
+            let legacyID = sl.id.uuidString
+            let presentation = presentationsByLegacyID[legacyID]
+            let presentationIDString = presentation?.id.uuidString
+            
+            // Inbox: presented AND has open work
+            if let pid = presentationIDString, let openWork = openWorkByPresentationID[pid], !openWork.isEmpty {
+                inboxItems.append(sl)
+            }
+        }
+        
+        // TEMP debug prints (DEBUG only)
+        #if DEBUG
+        print("PresentationsView debug: openWorkModels=\(workModels.count)")
+        print("PresentationsView debug: openWorkByPresentationID keys=\(openWorkByPresentationID.keys.count)")
+        print("PresentationsView debug: inboxCount=\(inboxItems.count) onDeckCount=\(blocked.count)")
+        #endif
         
         // Apply inbox ordering to ready lessons
         ready = InboxOrderStore.orderedUnscheduled(from: ready, orderRaw: inboxOrderRaw)
@@ -225,8 +289,8 @@ final class PresentationsViewModel: ObservableObject {
         self.blockedLessons = blocked
     }
     
-    /// Get blocking contracts for a specific StudentLesson (from cache)
-    func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkContract] {
+    /// Get blocking work for a specific StudentLesson (from cache)
+    func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkModel] {
         return blockingContractsCache[sl.id] ?? [:]
     }
     
@@ -246,58 +310,226 @@ final class PresentationsViewModel: ObservableObject {
     
     // MARK: - Private Helpers
     
-    private func rebuildBlockingCache(lessons: [Lesson], contracts: [WorkContract]) {
+    /// Check if a StudentLesson is blocked by incomplete prerequisite work from the preceding lesson
+    private func checkBlockingForStudentLesson(
+        sl: StudentLesson,
+        lessons: [Lesson],
+        studentLessons: [StudentLesson],
+        presentations: [Presentation],
+        workModels: [WorkModel]
+    ) -> (isBlocked: Bool, prereqOpenCount: Int) {
+        // Find the current lesson
+        guard let currentLessonID = UUID(uuidString: sl.lessonID),
+              let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else {
+            return (false, 0)
+        }
+        
+        // Find the preceding lesson in the sequence (same subject/group, previous orderInGroup)
+        let precedingLesson = findPrecedingLesson(
+            currentLesson: currentLesson,
+            lessons: lessons
+        )
+        
+        guard let precedingLesson = precedingLesson else {
+            // No preceding lesson means no prerequisites to check
+            return (false, 0)
+        }
+        
+        // Find the Presentation for the preceding lesson with the same student group
+        _ = sl.studentGroupKeyPersisted.isEmpty ? sl.studentGroupKey : sl.studentGroupKeyPersisted
+        let studentIDs = Set(sl.resolvedStudentIDs.map { $0.uuidString })
+        
+        let precedingPresentation = presentations.first { presentation in
+            guard presentation.lessonID == precedingLesson.id.uuidString else { return false }
+            let presentationStudentIDs = Set(presentation.studentIDs)
+            return presentationStudentIDs == studentIDs
+        }
+        
+        guard let precedingPresentation = precedingPresentation else {
+            // No presentation for preceding lesson means no prerequisites
+            return (false, 0)
+        }
+        
+        // Find WorkModel records linked to the preceding presentation
+        let precedingPresentationID = precedingPresentation.id.uuidString
+        let prerequisiteWork = workModels.filter { work in
+            work.presentationID == precedingPresentationID
+        }
+        
+        // Check if ANY prerequisite work is incomplete for any required student
+        var prereqOpenCount = 0
+        var isBlocked = false
+        
+        for work in prerequisiteWork {
+            if isWorkComplete(work: work, requiredStudentIDs: sl.resolvedStudentIDs) {
+                continue // This work is complete
+            }
+            
+            prereqOpenCount += 1
+            
+            // Check if this work blocks any required student
+            if workHasIncompleteForRequiredStudents(work: work, requiredStudentIDs: sl.resolvedStudentIDs) {
+                isBlocked = true
+            }
+        }
+        
+        return (isBlocked, prereqOpenCount)
+    }
+    
+    /// Find the preceding lesson in the sequence (same subject/group, previous orderInGroup)
+    private func findPrecedingLesson(currentLesson: Lesson, lessons: [Lesson]) -> Lesson? {
+        let currentSubject = currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentGroup = currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !currentSubject.isEmpty, !currentGroup.isEmpty else {
+            return nil
+        }
+        
+        // Find all lessons in the same subject/group
+        let candidates = lessons.filter { lesson in
+            lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
+            lesson.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
+        }
+        .sorted { $0.orderInGroup < $1.orderInGroup }
+        
+        // Find the current lesson's index
+        guard let currentIndex = candidates.firstIndex(where: { $0.id == currentLesson.id }),
+              currentIndex > 0 else {
+            return nil // No preceding lesson
+        }
+        
+        return candidates[currentIndex - 1]
+    }
+    
+    /// Check if work is complete (either statusRaw == "complete" OR all relevant WorkParticipantEntity entries have completedAt != nil)
+    private func isWorkComplete(work: WorkModel, requiredStudentIDs: [UUID]) -> Bool {
+        // Check if work status is complete
+        if work.statusRaw == "complete" {
+            return true
+        }
+        
+        // Check if per-student completion: all relevant WorkParticipantEntity entries have completedAt != nil
+        if let participants = work.participants, !participants.isEmpty {
+            let requiredStudentIDStrings = Set(requiredStudentIDs.map { $0.uuidString })
+            
+            // Only check participants that are in the required student list (relevant participants)
+            let relevantParticipants = participants.filter { participant in
+                requiredStudentIDStrings.contains(participant.studentID)
+            }
+            
+            // All relevant WorkParticipantEntity entries must have completedAt != nil
+            // If there are no relevant participants, we can't check per-student completion, so fall back to status
+            if relevantParticipants.isEmpty {
+                return false // No relevant participants means not complete (status already checked)
+            }
+            
+            return relevantParticipants.allSatisfy { $0.completedAt != nil }
+        }
+        
+        // No participants means we check by status only (already checked above)
+        return false
+    }
+    
+    /// Check if work has incomplete status for any required student
+    private func workHasIncompleteForRequiredStudents(work: WorkModel, requiredStudentIDs: [UUID]) -> Bool {
+        // This is the inverse of isWorkComplete - if work is not complete, it has incomplete status
+        return !isWorkComplete(work: work, requiredStudentIDs: requiredStudentIDs)
+    }
+    
+    private func rebuildBlockingCache(workModels: [WorkModel], presentations: [Presentation], presentationsByLegacyID: [String: Presentation], openWorkByPresentationID: [String: [WorkModel]]) {
         blockingContractsCache.removeAll()
         
-        // Helper for fuzzy matching
-        func norm(_ s: String) -> String {
-            s.trimmed().lowercased()
-        }
-        
-        // Group lessons by subject/group for efficient lookup
-        var lessonsByGroup: [String: [Lesson]] = [:]
-        for lesson in lessons {
-            let key = "\(norm(lesson.subject))|\(norm(lesson.group))"
-            lessonsByGroup[key, default: []].append(lesson)
-        }
-        
-        // Sort each group
-        for key in lessonsByGroup.keys {
-            lessonsByGroup[key]?.sort { $0.orderInGroup < $1.orderInGroup }
-        }
-        
-        // Build cache for all unscheduled student lessons
+        // Build cache for all unscheduled student lessons using prerequisite blocking logic
         let unscheduled = cachedStudentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
         
         for sl in unscheduled {
-            guard let lessonIDUUID = UUID(uuidString: sl.lessonID),
-                  let currentLesson = sl.lesson ?? lessons.first(where: { $0.id == lessonIDUUID }) else {
+            // Find the current lesson
+            guard let currentLessonID = UUID(uuidString: sl.lessonID),
+                  let currentLesson = cachedLessons.first(where: { $0.id == currentLessonID }) else {
                 continue
             }
             
-            let subjectKey = norm(currentLesson.subject)
-            let groupKey = norm(currentLesson.group)
-            let groupKeyString = "\(subjectKey)|\(groupKey)"
+            // Find the preceding lesson in the sequence
+            guard let precedingLesson = findPrecedingLesson(
+                currentLesson: currentLesson,
+                lessons: cachedLessons
+            ) else {
+                continue // No preceding lesson means no prerequisites
+            }
             
-            guard let groupLessons = lessonsByGroup[groupKeyString],
-                  let currentIndex = groupLessons.firstIndex(where: { $0.id == currentLesson.id }),
-                  currentIndex > 0 else {
+            // Find the Presentation for the preceding lesson with the same student group
+            let studentIDs = Set(sl.resolvedStudentIDs.map { $0.uuidString })
+            guard let precedingPresentation = presentations.first(where: { presentation in
+                guard presentation.lessonID == precedingLesson.id.uuidString else { return false }
+                let presentationStudentIDs = Set(presentation.studentIDs)
+                return presentationStudentIDs == studentIDs
+            }) else {
+                continue // No presentation for preceding lesson means no prerequisites
+            }
+            
+            // Find incomplete prerequisite work linked to the preceding presentation
+            let precedingPresentationID = precedingPresentation.id.uuidString
+            let prerequisiteWork = workModels.filter { work in
+                work.presentationID == precedingPresentationID &&
+                !isWorkComplete(work: work, requiredStudentIDs: sl.resolvedStudentIDs)
+            }
+            
+            // Build blocking dictionary: map student IDs to their blocking work
+            var blocking: [UUID: WorkModel] = [:]
+            for work in prerequisiteWork {
+                // For work with participants, map to specific students
+                if let participants = work.participants, !participants.isEmpty {
+                    for participant in participants {
+                        guard let studentID = UUID(uuidString: participant.studentID),
+                              sl.resolvedStudentIDs.contains(studentID),
+                              participant.completedAt == nil else {
+                            continue
+                        }
+                        // Only add if not already added (first incomplete work per student)
+                        if blocking[studentID] == nil {
+                            blocking[studentID] = work
+                        }
+                    }
+                } else {
+                    // No participants: work blocks all students in the group
+                    for studentID in sl.resolvedStudentIDs {
+                        if blocking[studentID] == nil {
+                            blocking[studentID] = work
+                        }
+                    }
+                }
+            }
+            
+            if !blocking.isEmpty {
+                blockingContractsCache[sl.id] = blocking
+            }
+        }
+        
+        // Also build cache for presented lessons (for Inbox) - these still use current presentation work
+        let presented = cachedStudentLessons.filter { $0.isGiven }
+        for sl in presented {
+            let legacyID = sl.id.uuidString
+            guard let presentation = presentationsByLegacyID[legacyID] else {
                 continue
             }
             
-            let previousLesson = groupLessons[currentIndex - 1]
-            var blocking: [UUID: WorkContract] = [:]
+            let presentationIDString = presentation.id.uuidString
             
+            // Get open work for this presentation from openWorkByPresentationID
+            guard let openWork = openWorkByPresentationID[presentationIDString], !openWork.isEmpty else {
+                continue
+            }
+            
+            // Build blocking dictionary for all students with unresolved work
+            var blocking: [UUID: WorkModel] = [:]
             for studentIDString in sl.studentIDs {
                 guard let studentID = UUID(uuidString: studentIDString) else { continue }
-                let pidString = previousLesson.id.uuidString
-                
-                if let contract = contracts.first(where: { c in
-                    c.studentID == studentIDString &&
-                    c.lessonID == pidString &&
-                    (c.status == .active || c.status == .review)
+                if let work = openWork.first(where: { w in
+                    w.presentationID == presentationIDString &&
+                    w.studentID == studentIDString &&
+                    w.statusRaw != "complete"
                 }) {
-                    blocking[studentID] = contract
+                    blocking[studentID] = work
                 }
             }
             

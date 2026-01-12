@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 struct PresentationsInboxView: View {
     let readyLessons: [StudentLesson]
     let blockedLessons: [StudentLesson]
-    let getBlockingContracts: (StudentLesson) -> [UUID: WorkContract]
+    let getBlockingContracts: (StudentLesson) -> [UUID: WorkModel]
     let filteredSnapshot: (StudentLesson) -> StudentLessonSnapshot
     let missWindow: PresentationsMissWindow
     @Binding var missWindowRaw: String
@@ -230,7 +230,7 @@ struct PresentationsInboxView: View {
     }
 
     @ViewBuilder
-    private func inboxRow(_ sl: StudentLesson, blockingContracts: [UUID: WorkContract] = [:]) -> some View {
+    private func inboxRow(_ sl: StudentLesson, blockingContracts: [UUID: WorkModel] = [:]) -> some View {
         HStack(spacing: 0) {
             StudentLessonPill(
                 snapshot: filteredSnapshot(sl),

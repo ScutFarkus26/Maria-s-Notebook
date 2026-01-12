@@ -7,9 +7,10 @@ struct WorksAgendaView: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @EnvironmentObject private var restoreCoordinator: RestoreCoordinator
 
-    // MEMORY OPTIMIZATION: Only load active/review contracts (open work), not all contracts
-    @Query(filter: #Predicate<WorkContract> { $0.statusRaw == "active" || $0.statusRaw == "review" }) 
-    private var openContracts: [WorkContract]
+    // MEMORY OPTIMIZATION: Load all WorkModel, filter open work in memory
+    // Using broad query to avoid filtering out newly created items with strict predicates
+    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
+    private var allWork: [WorkModel]
     
     // MEMORY OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -39,9 +40,9 @@ struct WorksAgendaView: View {
     @State private var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
     @State private var isCalendarMinimized: Bool = false
 
-    @State private var selectedContractID: UUID? = nil
+    @State private var selectedWorkID: UUID? = nil
 
-    private struct SelectionToken: Identifiable, Equatable { let id: UUID; let contractID: UUID }
+    private struct SelectionToken: Identifiable, Equatable { let id: UUID; let workID: UUID }
     @State private var selected: SelectionToken? = nil
 
     // MEMORY OPTIMIZATION: Load lessons and students on-demand based on contracts
@@ -49,15 +50,15 @@ struct WorksAgendaView: View {
     private var studentsByID: [UUID: Student] { studentsByIDCache }
     
     private func loadLessonsAndStudentsIfNeeded() {
-        // Collect IDs from open contracts
+        // Collect IDs from open work
         var neededLessonIDs = Set<UUID>()
         var neededStudentIDs = Set<UUID>()
         
-        for contract in openContracts {
-            if let lid = UUID(uuidString: contract.lessonID) {
+        for work in openWork {
+            if let lid = UUID(uuidString: work.lessonID) {
                 neededLessonIDs.insert(lid)
             }
-            if let sid = UUID(uuidString: contract.studentID) {
+            if let sid = UUID(uuidString: work.studentID) {
                 neededStudentIDs.insert(sid)
             }
         }
@@ -149,10 +150,10 @@ struct WorksAgendaView: View {
                 }
                 .navigationTitle("Work Agenda")
                 .sheet(item: $selected, onDismiss: { selected = nil }) { token in
-                    let id = token.contractID
-                    let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id })
-                    if let c = try? modelContext.fetch(fetch).first {
-                        WorkContractDetailSheet(contract: c) { selected = nil }
+                    let id = token.workID
+                    let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
+                    if let w = try? modelContext.fetch(fetch).first {
+                        WorkDetailWindowContainer(workID: w.id)
                             .id(token.id)
                     } else {
                         ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
@@ -163,8 +164,8 @@ struct WorksAgendaView: View {
         .onAppear {
             loadLessonsAndStudentsIfNeeded()
         }
-        .onChange(of: openContracts.map { $0.id }) { _, _ in
-            // Reload when contracts change
+        .onChange(of: allWork.map { $0.id }) { _, _ in
+            // Reload when work changes
             loadLessonsAndStudentsIfNeeded()
         }
         .onChange(of: lessonIDs) { _, _ in
@@ -234,20 +235,27 @@ struct WorksAgendaView: View {
     }
 
     // MARK: - Data helpers
-    private func openWorksFiltered() -> [WorkContract] {
-        // openContracts already contains only active/review contracts (open work)
-        var works = openContracts
-        works = works.filter { c in
-            if let sid = UUID(uuidString: c.studentID) { return studentsByID[sid] != nil }
-            return false
+    
+    /// Filter all work to get open work (anything NOT .complete)
+    private var openWork: [WorkModel] {
+        allWork.filter { work in
+            // Treat anything that is NOT .complete as open
+            work.status != .complete
         }
+    }
+    
+    private func openWorksFiltered() -> [WorkModel] {
+        // Filter open work in memory (anything NOT .complete)
+        var works = openWork
+        // During WorkContract -> WorkModel migration, avoid filtering out work items just because caches haven't loaded yet.
+        // We'll still use studentsByID/lessonsByID for display when available.
         // Optional search (use debounced text for filtering)
         if !debouncedSearchText.trimmed().isEmpty {
             let query = debouncedSearchText.lowercased()
-            works = works.filter { c in
+            works = works.filter { w in
                 var hay: [String] = []
-                hay.append(lessonTitle(forLessonID: c.lessonID))
-                if let sid = UUID(uuidString: c.studentID), let s = studentsByID[sid] {
+                hay.append(lessonTitle(forLessonID: w.lessonID))
+                if let sid = UUID(uuidString: w.studentID), let s = studentsByID[sid] {
                     hay.append(s.firstName)
                     hay.append(s.lastName)
                     hay.append(s.fullName)
@@ -268,31 +276,43 @@ struct WorksAgendaView: View {
     }
 
     // MARK: - Actions
-    private func openDetail(_ c: WorkContract) {
+    private func openDetail(_ w: WorkModel) {
+        // TEMP DIAGNOSTIC: Print work details before opening
+        print("=== TEMP DIAGNOSTIC: Opening work detail ===")
+        print("work.id: \(w.id)")
+        print("work.studentID: \(w.studentID)")
+        print("work.lessonID: \(w.lessonID)")
+        print("work.presentationID: \(w.presentationID ?? "nil")")
+        print("allWork.contains(where: { $0.id == w.id }): \(allWork.contains(where: { $0.id == w.id }))")
+        print("===========================================")
+        
+        // Force save before opening
+        try? modelContext.save()
+        
         selected = nil
-        let token = SelectionToken(id: UUID(), contractID: c.id)
+        let token = SelectionToken(id: UUID(), workID: w.id)
         DispatchQueue.main.async { selected = token }
     }
 
-    private func markCompleted(_ c: WorkContract) {
-        c.status = .complete
+    private func markCompleted(_ w: WorkModel) {
+        w.status = .complete
         _ = saveCoordinator.save(modelContext, reason: "Mark work completed")
     }
 
-    private func scheduleToday(_ c: WorkContract) {
+    private func scheduleToday(_ w: WorkModel) {
         let today = AppCalendar.startOfDay(Date())
-        // Update or create a single plan item for this contract
-        let workID: UUID = c.id
+        // Update or create a single plan item for this work
+        let workID: UUID = w.id
         let workIDString = workID.uuidString
         let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.workID == workIDString })
         let existing = (try? modelContext.fetch(fetch)) ?? []
         if let first = existing.sorted(by: { $0.scheduledDate < $1.scheduledDate }).first {
             first.scheduledDate = today
         } else {
-            let item = WorkPlanItem(workID: c.id, scheduledDate: today, reason: .progressCheck, note: nil)
+            let item = WorkPlanItem(workID: w.id, scheduledDate: today, reason: .progressCheck, note: nil)
             modelContext.insert(item)
         }
-        c.scheduledDate = today
+        w.dueAt = today
         _ = saveCoordinator.save(modelContext, reason: "Quick schedule today")
     }
 }
@@ -311,8 +331,8 @@ struct WorksAgendaView: View {
         let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
         ctx.insert(s)
         ctx.insert(l)
-        let c = WorkContract(studentID: s.id.uuidString, lessonID: l.id.uuidString, presentationID: nil, status: .active)
-        ctx.insert(c)
+        let w = WorkModel(status: .active, studentID: s.id.uuidString, lessonID: l.id.uuidString)
+        ctx.insert(w)
         return container
     }()
 
