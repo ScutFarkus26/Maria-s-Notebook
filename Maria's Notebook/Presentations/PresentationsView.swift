@@ -40,6 +40,26 @@ struct PresentationsView: View {
         studentLessonsForChangeDetection.map { $0.id }
     }
     
+    private struct StudentLessonChangeKey: Hashable {
+        let id: UUID
+        let scheduledFor: Double
+        let givenAt: Double
+        let isPresented: Bool
+    }
+    
+    private var studentLessonChangeKeys: [StudentLessonChangeKey] {
+        studentLessonsForChangeDetection
+            .map {
+                StudentLessonChangeKey(
+                    id: $0.id,
+                    scheduledFor: $0.scheduledFor?.timeIntervalSinceReferenceDate ?? -1,
+                    givenAt: $0.givenAt?.timeIntervalSinceReferenceDate ?? -1,
+                    isPresented: $0.isPresented
+                )
+            }
+            .sorted { $0.id.uuidString < $1.id.uuidString }
+    }
+    
     private var lessonIDs: [UUID] {
         lessonsForChangeDetection.map { $0.id }
     }
@@ -334,24 +354,6 @@ struct PresentationsView: View {
 
 
     // MARK: - Helpers
-    
-    private struct StudentLessonChangeKey: Hashable {
-        var id: UUID
-        var scheduledFor: Double
-        var givenAt: Double
-        var isPresented: Bool
-    }
-    
-    private var studentLessonChangeKeys: [StudentLessonChangeKey] {
-        studentLessonsForChangeDetection.map { sl in
-            StudentLessonChangeKey(
-                id: sl.id,
-                scheduledFor: sl.scheduledFor?.timeIntervalSinceReferenceDate ?? -1,
-                givenAt: sl.givenAt?.timeIntervalSinceReferenceDate ?? -1,
-                isPresented: sl.isPresented
-            )
-        }.sorted { $0.id.uuidString < $1.id.uuidString }
-    }
     
     /// Update ViewModel - now fetches data internally with targeted queries
     private func updateViewModel() {

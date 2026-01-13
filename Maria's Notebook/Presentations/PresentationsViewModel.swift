@@ -33,10 +33,17 @@ final class PresentationsViewModel: ObservableObject {
     private var cachedPresentations: [Presentation] = []
     private var cachedStudentLessons: [StudentLesson] = []
     private var _cachedStudents: [Student] = []
-    private var lastStudentLessonsIDs: Set<UUID> = []
+    private var lastStudentLessonChangeKeys: Set<StudentLessonChangeKey> = []
     private var lastLessonsIDs: Set<UUID> = []
     private var lastWorkModelIDs: Set<UUID> = []
     private var lastStudentsIDs: Set<UUID> = []
+    
+    private struct StudentLessonChangeKey: Hashable {
+        let id: UUID
+        let scheduledFor: Double
+        let givenAt: Double
+        let isPresented: Bool
+    }
     
     // MARK: - Initialization
     init() {
@@ -165,12 +172,19 @@ final class PresentationsViewModel: ObservableObject {
         }()
         
         // Check if data actually changed
-        let studentLessonsIDs = Set(studentLessons.map { $0.id })
+        let studentLessonKeys = Set(studentLessons.map {
+            StudentLessonChangeKey(
+                id: $0.id,
+                scheduledFor: $0.scheduledFor?.timeIntervalSinceReferenceDate ?? -1,
+                givenAt: $0.givenAt?.timeIntervalSinceReferenceDate ?? -1,
+                isPresented: $0.isPresented
+            )
+        })
         let lessonsIDs = Set(lessons.map { $0.id })
         let workModelIDs = Set(workModels.map { $0.id })
         let studentsIDs = Set(students.map { $0.id })
         
-        let dataChanged = studentLessonsIDs != lastStudentLessonsIDs ||
+        let dataChanged = studentLessonKeys != lastStudentLessonChangeKeys ||
                          lessonsIDs != lastLessonsIDs ||
                          workModelIDs != lastWorkModelIDs ||
                          studentsIDs != lastStudentsIDs
@@ -179,7 +193,7 @@ final class PresentationsViewModel: ObservableObject {
             return // No need to recalculate
         }
         
-        lastStudentLessonsIDs = studentLessonsIDs
+        lastStudentLessonChangeKeys = studentLessonKeys
         lastLessonsIDs = lessonsIDs
         lastWorkModelIDs = workModelIDs
         lastStudentsIDs = studentsIDs
