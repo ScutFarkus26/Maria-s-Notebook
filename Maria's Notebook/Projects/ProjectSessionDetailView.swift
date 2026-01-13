@@ -10,19 +10,20 @@ struct ProjectSessionDetailView: View {
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
     @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
     
-    // NEW: Query all work contracts to filter locally
-    @Query private var allWorkContracts: [WorkContract]
+    // NEW: Query all work models to filter locally
+    @Query private var allWorkModels: [WorkModel]
 
-    @State private var showLessonPickerForContract: WorkContract? = nil
+    @State private var showLessonPickerForWork: WorkModel? = nil
     
     private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
 
-    // Filter contracts relevant to this session
-    private var sessionContracts: [WorkContract] {
+    // Filter work models relevant to this session
+    private var sessionWorkModels: [WorkModel] {
         let sid = session.id.uuidString
-        return allWorkContracts.filter {
-            ($0.sourceContextType == .projectSession || $0.sourceContextType == .bookClubSession) && $0.sourceContextID == sid
+        return allWorkModels.filter { work in
+            let contextType = work.sourceContextType
+            return (contextType == .projectSession || contextType == .bookClubSession) && work.sourceContextID == sid
         }
     }
 
@@ -33,20 +34,20 @@ struct ProjectSessionDetailView: View {
         return "Student"
     }
 
-    private var groupedByStudent: [(id: String, items: [WorkContract])] {
-        let items = sessionContracts
-        var buckets: [String: [WorkContract]] = [:]
+    private var groupedByStudent: [(id: String, items: [WorkModel])] {
+        let items = sessionWorkModels
+        var buckets: [String: [WorkModel]] = [:]
         var order: [String] = []
         
-        // Use the session's contract list to determine order if possible,
+        // Use the session's work list to determine order if possible,
         // otherwise sort by student ID
-        for c in items {
-            let sid = c.studentID
+        for work in items {
+            let sid = work.studentID
             if buckets[sid] == nil {
                 order.append(sid)
                 buckets[sid] = []
             }
-            buckets[sid]?.append(c)
+            buckets[sid]?.append(work)
         }
         
         // Sort bucket order by student name
@@ -111,12 +112,12 @@ struct ProjectSessionDetailView: View {
 
             List {
                 if groupedByStudent.isEmpty {
-                    ContentUnavailableView("No Work Contracts", systemImage: "doc.text", description: Text("No work contracts are linked to this session."))
+                    ContentUnavailableView("No Work", systemImage: "doc.text", description: Text("No work items are linked to this session."))
                 } else {
                     ForEach(groupedByStudent, id: \.id) { bucket in
                         Section(header: Text(studentName(for: bucket.id)).font(.headline)) {
-                            ForEach(bucket.items, id: \.id) { contract in
-                                contractRow(contract)
+                            ForEach(bucket.items, id: \.id) { work in
+                                workRow(work)
                             }
                         }
                     }
@@ -124,54 +125,49 @@ struct ProjectSessionDetailView: View {
             }
         }
         .navigationTitle(Self.df.string(from: session.meetingDate))
-        .sheet(item: $showLessonPickerForContract) { targetContract in
-            ProjectLessonPickerSheet(
-                viewModel: {
-                    let initialIDs = Set([UUID(uuidString: targetContract.studentID)].compactMap { $0 })
-                    let vm = LessonPickerViewModel(selectedStudentIDs: initialIDs)
-                    vm.configure(lessons: lessons, students: students)
-                    return vm
-                }()
-            ) { chosenID in
-                if let _ = chosenID {
-                    // WorkContract is read-only for legacy data - do not mutate
-                    #if DEBUG
-                    print("⚠️ Attempted to update WorkContract lessonID, but WorkContract is read-only (legacy data)")
-                    #endif
-                    // Do not mutate WorkContract - it is read-only
+        .sheet(item: Binding(
+            get: { showLessonPickerForWork.map { WorkIDWrapper(id: $0.id) } },
+            set: { wrapper in showLessonPickerForWork = wrapper != nil ? allWorkModels.first { $0.id == wrapper!.id } : nil }
+        )) { wrapper in
+            if let targetWork = allWorkModels.first(where: { $0.id == wrapper.id }) {
+                ProjectLessonPickerSheet(
+                    viewModel: {
+                        let initialIDs = Set([UUID(uuidString: targetWork.studentID)].compactMap { $0 })
+                        let vm = LessonPickerViewModel(selectedStudentIDs: initialIDs)
+                        vm.configure(lessons: lessons, students: students)
+                        return vm
+                    }()
+                ) { chosenID in
+                    if let _ = chosenID {
+                        // WorkModel is writable but editing is disabled for now
+                    }
                 }
             }
         }
     }
+    
+    private struct WorkIDWrapper: Identifiable {
+        let id: UUID
+    }
 
     @ViewBuilder
-    private func contractRow(_ contract: WorkContract) -> some View {
+    private func workRow(_ work: WorkModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                // Title (Role) - Read-only for legacy data
+                // Title (Role) - Display only
                 TextField("Title", text: Binding(
-                    get: { contract.scheduledNote ?? "" },
-                    set: { _ in
-                        // WorkContract is read-only - do not mutate
-                        #if DEBUG
-                        print("⚠️ Attempted to update WorkContract scheduledNote, but WorkContract is read-only (legacy data)")
-                        #endif
-                    }
+                    get: { work.scheduledNote ?? "" },
+                    set: { _ in }
                 ))
                 .textFieldStyle(.roundedBorder)
                 .disabled(true)
                 
                 Spacer()
                 
-                // Status Picker - Read-only for legacy data
+                // Status Picker - Display only
                 Picker("Status", selection: Binding(
-                    get: { contract.status },
-                    set: { _ in
-                        // WorkContract is read-only - do not mutate
-                        #if DEBUG
-                        print("⚠️ Attempted to update WorkContract status, but WorkContract is read-only (legacy data)")
-                        #endif
-                    }
+                    get: { work.status },
+                    set: { _ in }
                 )) {
                     Text("Active").tag(WorkStatus.active)
                     Text("Review").tag(WorkStatus.review)
@@ -181,15 +177,10 @@ struct ProjectSessionDetailView: View {
                 .labelsHidden()
                 .disabled(true)
                 
-                // Due Date - Read-only for legacy data
+                // Due Date - Display only
                 DatePicker("Due", selection: Binding(
-                    get: { contract.scheduledDate ?? Date() },
-                    set: { _ in
-                        // WorkContract is read-only - do not mutate
-                        #if DEBUG
-                        print("⚠️ Attempted to update WorkContract scheduledDate, but WorkContract is read-only (legacy data)")
-                        #endif
-                    }
+                    get: { work.dueAt ?? Date() },
+                    set: { _ in }
                 ), displayedComponents: .date)
                 .labelsHidden()
                 .disabled(true)
@@ -197,7 +188,7 @@ struct ProjectSessionDetailView: View {
 
             // Linked Lesson display
             HStack(spacing: 8) {
-                if let uuid = UUID(uuidString: contract.lessonID), let l = lessonsByID[uuid] {
+                if let uuid = UUID(uuidString: work.lessonID), let l = lessonsByID[uuid] {
                     Text("Linked: \(l.name)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -208,7 +199,7 @@ struct ProjectSessionDetailView: View {
                 }
                 Spacer()
                 Button {
-                    showLessonPickerForContract = contract
+                    showLessonPickerForWork = work
                 } label: {
                     Label("Change Lesson", systemImage: "book")
                 }

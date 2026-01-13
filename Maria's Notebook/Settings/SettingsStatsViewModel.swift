@@ -12,7 +12,7 @@ class SettingsStatsViewModel: ObservableObject {
     @Published var studentLessonsCount: Int = 0
     @Published var plannedCount: Int = 0
     @Published var givenCount: Int = 0
-    @Published var workContractsCount: Int = 0
+    @Published var workModelsCount: Int = 0
     @Published var presentationsCount: Int = 0
     @Published var notesCount: Int = 0
     @Published var meetingsCount: Int = 0
@@ -40,7 +40,7 @@ class SettingsStatsViewModel: ObservableObject {
             let students = loadCount(for: Student.self, context: context)
             let lessons = loadCount(for: Lesson.self, context: context)
             let studentLessons = loadCount(for: StudentLesson.self, context: context)
-            let contracts = loadCount(for: WorkContract.self, context: context)
+            let workModels = loadCount(for: WorkModel.self, context: context)
             let presentations = loadCount(for: Presentation.self, context: context)
             let notes = loadCount(for: Note.self, context: context)
             let meetings = loadCount(for: StudentMeeting.self, context: context)
@@ -63,7 +63,7 @@ class SettingsStatsViewModel: ObservableObject {
             self.studentLessonsCount = studentLessons
             self.plannedCount = planned
             self.givenCount = given
-            self.workContractsCount = contracts
+            self.workModelsCount = workModels
             self.presentationsCount = presentations
             self.notesCount = notes
             self.meetingsCount = meetings

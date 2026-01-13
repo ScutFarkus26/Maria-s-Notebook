@@ -131,6 +131,13 @@ class ReminderSyncService: ObservableObject {
     /// Sync reminders from the configured Reminders list
     /// This should be called when the user has configured a sync list and wants to pull reminders
     func syncReminders() async throws {
+        // Throttle: Skip if called too soon (within 10 minutes of last sync)
+        // This prevents redundant syncing when the view appears multiple times
+        let throttleInterval: TimeInterval = 10 * 60 // 10 minutes
+        if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < throttleInterval {
+            return // Skip sync - called too soon
+        }
+        
         // Check authorization
         guard hasFullAccess else {
             throw ReminderSyncError.notAuthorized
@@ -218,6 +225,9 @@ class ReminderSyncService: ObservableObject {
         }
         
         try modelContext.save()
+        
+        // Update last sync time after successful sync
+        lastSyncTime = Date()
     }
     
     /// Get all available Reminders lists

@@ -11,9 +11,9 @@ struct StudentMeetingsTab: View {
     // MARK: - Environment & Data
     @Environment(\.modelContext) private var modelContext
 
-    // Query all contracts; we'll filter by studentID
-    @Query(sort: [SortDescriptor(\WorkContract.createdAt, order: .reverse)])
-    private var allContracts: [WorkContract]
+    // Query all work models; we'll filter by studentID
+    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
+    private var allWorkModels: [WorkModel]
 
     // Query all lessons for lookup
     @Query(sort: [SortDescriptor(\Lesson.name)])
@@ -54,8 +54,8 @@ struct StudentMeetingsTab: View {
     @State private var editRequests: String = ""
     @State private var editGuideNotes: String = ""
     
-    // Work contract detail sheet
-    @State private var selectedContract: WorkContract? = nil
+    // Work detail sheet
+    @State private var selectedWorkID: UUID? = nil
 
     // Work snapshot settings
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14
@@ -68,28 +68,28 @@ struct StudentMeetingsTab: View {
 
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
 
-    private var contractsForStudent: [WorkContract] {
+    private var workModelsForStudent: [WorkModel] {
         let sid = student.id.uuidString
-        return allContracts.filter { $0.studentID == sid }
+        return allWorkModels.filter { $0.studentID == sid }
     }
 
-    private var openContractsForStudent: [WorkContract] {
-        contractsForStudent.filter { $0.status != .complete }
+    private var openWorkModelsForStudent: [WorkModel] {
+        workModelsForStudent.filter { $0.status != .complete }
     }
 
-    private var overdueContractsForStudent: [WorkContract] {
+    private var overdueWorkModelsForStudent: [WorkModel] {
         let threshold = Calendar.current.date(byAdding: .day, value: -workOverdueDays, to: Date()) ?? Date.distantPast
-        return contractsForStudent.filter { $0.status != .complete && $0.createdAt < threshold }
+        return workModelsForStudent.filter { $0.status != .complete && $0.createdAt < threshold }
     }
 
-    private var recentCompletedContractsForStudent: [WorkContract] {
+    private var recentCompletedWorkModelsForStudent: [WorkModel] {
         let threshold = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
-        return contractsForStudent.filter { $0.status == .complete && ($0.completedAt ?? .distantPast) >= threshold }
+        return workModelsForStudent.filter { $0.status == .complete && ($0.completedAt ?? .distantPast) >= threshold }
     }
 
-    private var openContractCountText: String { openContractsForStudent.isEmpty ? "—" : "\(openContractsForStudent.count)" }
-    private var overdueContractCountText: String { overdueContractsForStudent.isEmpty ? "—" : "\(overdueContractsForStudent.count)" }
-    private var recentlyCompletedContractCountText: String { recentCompletedContractsForStudent.isEmpty ? "—" : "\(recentCompletedContractsForStudent.count)" }
+    private var openWorkCountText: String { openWorkModelsForStudent.isEmpty ? "—" : "\(openWorkModelsForStudent.count)" }
+    private var overdueWorkCountText: String { overdueWorkModelsForStudent.isEmpty ? "—" : "\(overdueWorkModelsForStudent.count)" }
+    private var recentlyCompletedWorkCountText: String { recentCompletedWorkModelsForStudent.isEmpty ? "—" : "\(recentCompletedWorkModelsForStudent.count)" }
     
     // MARK: - Lessons since last meeting
     
@@ -174,8 +174,13 @@ struct StudentMeetingsTab: View {
             .frame(minWidth: 420)
 #endif
         }
-        .sheet(item: $selectedContract) { contract in
-            WorkContractDetailSheet(contract: contract)
+        .sheet(item: Binding(
+            get: { selectedWorkID.map { WorkIDWrapper(id: $0) } },
+            set: { selectedWorkID = $0?.id }
+        )) { wrapper in
+            WorkDetailContainerView(workID: wrapper.id) {
+                selectedWorkID = nil
+            }
         }
     }
 
@@ -241,26 +246,26 @@ struct StudentMeetingsTab: View {
                     GridRow {
                         // Left column
                         VStack(alignment: .leading, spacing: 6) {
-                            rowLine(label: "Open contracts", value: openContractCountText)
-                            if !openContractsForStudent.isEmpty {
+                            rowLine(label: "Open work", value: openWorkCountText)
+                            if !openWorkModelsForStudent.isEmpty {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    ForEach(openContractsForStudent.prefix(3)) { contract in
-                                        contractRowLine(contract)
+                                    ForEach(openWorkModelsForStudent.prefix(3)) { work in
+                                        workRowLine(work)
                                             .contentShape(Rectangle())
                                             .onTapGesture {
-                                                selectedContract = contract
+                                                selectedWorkID = work.id
                                             }
                                     }
                                 }
                             }
-                            rowLine(label: "Overdue/stuck", value: overdueContractCountText)
-                            if !overdueContractsForStudent.isEmpty {
+                            rowLine(label: "Overdue/stuck", value: overdueWorkCountText)
+                            if !overdueWorkModelsForStudent.isEmpty {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    ForEach(overdueContractsForStudent.prefix(3)) { contract in
-                                        contractRowLine(contract)
+                                    ForEach(overdueWorkModelsForStudent.prefix(3)) { work in
+                                        workRowLine(work)
                                             .contentShape(Rectangle())
                                             .onTapGesture {
-                                                selectedContract = contract
+                                                selectedWorkID = work.id
                                             }
                                     }
                                 }
@@ -270,14 +275,14 @@ struct StudentMeetingsTab: View {
                         
                         // Right column
                         VStack(alignment: .leading, spacing: 6) {
-                            rowLine(label: "Recently completed", value: recentlyCompletedContractCountText)
-                            if !recentCompletedContractsForStudent.isEmpty {
+                            rowLine(label: "Recently completed", value: recentlyCompletedWorkCountText)
+                            if !recentCompletedWorkModelsForStudent.isEmpty {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    ForEach(recentCompletedContractsForStudent.prefix(3)) { contract in
-                                        contractRowLine(contract, showCompletedDate: true)
+                                    ForEach(recentCompletedWorkModelsForStudent.prefix(3)) { work in
+                                        workRowLine(work, showCompletedDate: true)
                                             .contentShape(Rectangle())
                                             .onTapGesture {
-                                                selectedContract = contract
+                                                selectedWorkID = work.id
                                             }
                                     }
                                 }
@@ -412,16 +417,16 @@ struct StudentMeetingsTab: View {
     }
 
 
-    // MARK: - Helpers for Contract display
+    // MARK: - Helpers for Work display
 
-    private func contractRowLine(_ contract: WorkContract, showCompletedDate: Bool = false) -> some View {
+    private func workRowLine(_ work: WorkModel, showCompletedDate: Bool = false) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "circle.fill").font(.system(size: 6)).foregroundStyle(.secondary)
-            Text(contractDisplayTitle(contract))
+            Text(workDisplayTitle(work))
                 .font(.footnote)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-            if showCompletedDate, let date = contract.completedAt {
+            if showCompletedDate, let date = work.completedAt {
                 Text("•").foregroundStyle(.secondary)
                 Text(Self.dateFormatter.string(from: date))
                     .font(.footnote)
@@ -432,11 +437,17 @@ struct StudentMeetingsTab: View {
         .padding(.vertical, 2)
     }
 
-    private func contractDisplayTitle(_ contract: WorkContract) -> String {
-        if let lid = UUID(uuidString: contract.lessonID), let l = lessonsByID[lid] {
+    private func workDisplayTitle(_ work: WorkModel) -> String {
+        if let lid = UUID(uuidString: work.lessonID), let l = lessonsByID[lid] {
             return l.name
         }
         return "Lesson"
+    }
+    
+    // MARK: - Helper for sheet binding
+    
+    private struct WorkIDWrapper: Identifiable {
+        let id: UUID
     }
     
     private func lessonRowLine(_ studentLesson: StudentLesson) -> some View {

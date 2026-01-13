@@ -32,8 +32,8 @@ struct StudentProgressTab: View {
     @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)])
     private var allPresentations: [Presentation]
     
-    @Query(sort: [SortDescriptor(\WorkContract.createdAt, order: .reverse)])
-    private var allWorkContracts: [WorkContract]
+    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
+    private var allWorkModels: [WorkModel]
     
     @Query(sort: [SortDescriptor(\Note.updatedAt, order: .reverse)])
     private var allNotes: [Note]
@@ -153,7 +153,7 @@ struct StudentProgressTab: View {
                     track: track,
                     filterType: .presentations,
                     allPresentations: allPresentations,
-                    allWorkContracts: allWorkContracts,
+                    allWorkModels: allWorkModels,
                     allNotes: allNotes,
                     allLessons: allLessons,
                     onDismiss: { filterSheet = nil }
@@ -165,7 +165,7 @@ struct StudentProgressTab: View {
                     track: track,
                     filterType: .work,
                     allPresentations: allPresentations,
-                    allWorkContracts: allWorkContracts,
+                    allWorkModels: allWorkModels,
                     allNotes: allNotes,
                     allLessons: allLessons,
                     onDismiss: { filterSheet = nil }
@@ -177,7 +177,7 @@ struct StudentProgressTab: View {
                     track: track,
                     filterType: .notes,
                     allPresentations: allPresentations,
-                    allWorkContracts: allWorkContracts,
+                    allWorkModels: allWorkModels,
                     allNotes: allNotes,
                     allLessons: allLessons,
                     onDismiss: { filterSheet = nil }
@@ -249,7 +249,7 @@ struct StudentProgressTab: View {
         let presentations = allPresentations.filter {
             $0.trackID == trackIDString && $0.studentIDs.contains(studentIDString)
         }
-        let workContracts = allWorkContracts.filter {
+        let workModels = allWorkModels.filter {
             $0.trackID == trackIDString && $0.studentID == studentIDString
         }
         let notes = allNotes.filter {
@@ -257,7 +257,7 @@ struct StudentProgressTab: View {
         }
         
         let presentationCount = presentations.count
-        let workCount = workContracts.count
+        let workCount = workModels.count
         let noteCount = notes.count
         let totalActivity = presentationCount + workCount + noteCount
         
@@ -265,7 +265,7 @@ struct StudentProgressTab: View {
         let lastActivityDate: Date? = {
             var dates: [Date] = []
             dates.append(contentsOf: presentations.map { $0.presentedAt })
-            dates.append(contentsOf: workContracts.compactMap { $0.completedAt ?? $0.createdAt })
+            dates.append(contentsOf: workModels.compactMap { $0.completedAt ?? $0.createdAt })
             dates.append(contentsOf: notes.map { $0.updatedAt })
             return dates.max()
         }()

@@ -1417,7 +1417,19 @@ public final class BackupService {
             p.legacyStudentLessonID = dto.legacyStudentLessonID
             p.lessonTitleSnapshot = dto.lessonTitleSnapshot
             p.lessonSubtitleSnapshot = dto.lessonSubtitleSnapshot
+            
+            // If legacyStudentLessonID is not set, try to find a matching StudentLesson
+            if p.legacyStudentLessonID == nil {
+                let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
+                if let matchingSL = allStudentLessons.first(where: { sl in
+                    sl.lessonID == dto.lessonID && Set(sl.studentIDs) == Set(dto.studentIDs)
+                }) {
+                    p.legacyStudentLessonID = matchingSL.id.uuidString
+                }
+            }
+            
             modelContext.insert(p)
+            print("Presentation link set: legacyStudentLessonID=\(p.legacyStudentLessonID ?? "nil")")
         }
 
         for dto in payload.proposedSolutions {

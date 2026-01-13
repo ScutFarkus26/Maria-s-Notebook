@@ -40,6 +40,18 @@ You may also see harmless CoreData+CloudKit messages during initialization:
 
 These occur during SwiftData's CloudKit initialization and are expected. They do not affect functionality.
 
+## Detached Signature Errors
+
+You may see SQLite errors about `/private/var/db/DetachedSignatures`:
+- "cannot open file at line 51043 of [f0ca7bba1c]"
+- "os_unix.c:51043: (2) open(/private/var/db/DetachedSignatures) - No such file or directory"
+
+These errors occur when SQLite tries to access a system directory for detached signature logging (a security/auditing feature) that doesn't exist on your system. **These errors are harmless** and do not affect database functionality.
+
+**Fix Attempted**: The app attempts to suppress these errors by setting the `SQLITE_DISABLE_SIGNATURE_LOGGING` environment variable early in app initialization. However, since these errors occur at SQLite library initialization time (very early in the process), they may still appear if SQLite initializes before the environment variable is set or doesn't respect the variable.
+
+If you still see these errors, they can be safely ignored. They indicate that SQLite is working normally but couldn't access an optional system directory for signature logging.
+
 ## Summary
 
 - ✅ WAL checkpoint and PostSaveMaintenance logs are **normal** in Debug builds

@@ -277,15 +277,6 @@ struct WorksAgendaView: View {
 
     // MARK: - Actions
     private func openDetail(_ w: WorkModel) {
-        // TEMP DIAGNOSTIC: Print work details before opening
-        print("=== TEMP DIAGNOSTIC: Opening work detail ===")
-        print("work.id: \(w.id)")
-        print("work.studentID: \(w.studentID)")
-        print("work.lessonID: \(w.lessonID)")
-        print("work.presentationID: \(w.presentationID ?? "nil")")
-        print("allWork.contains(where: { $0.id == w.id }): \(allWork.contains(where: { $0.id == w.id }))")
-        print("===========================================")
-        
         // Force save before opening
         try? modelContext.save()
         

@@ -57,14 +57,24 @@ struct WorkAgendaCalendarPane: View {
         )) {
             if let token = selected {
                 let id = token.contractID
-                // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
-                let allContractsDescriptor = FetchDescriptor<WorkContract>()
-                if let allContracts = try? modelContext.fetch(allContractsDescriptor),
-                   let c = allContracts.first(where: { $0.id == id }) {
-                    WorkContractDetailSheet(contract: c) { selected = nil }
-                        .id(token.id)
+                // Try to find WorkModel by id first (if already migrated)
+                let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
+                if let workModel = try? modelContext.fetch(workModelFetch).first {
+                    WorkModelDetailSheet(workID: workModel.id) {
+                        selected = nil
+                    }
+                    .id(token.id)
                 } else {
-                    ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+                    // Fallback: try to find WorkModel by legacyContractID (if not yet migrated)
+                    let legacyFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == id })
+                    if let workModel = try? modelContext.fetch(legacyFetch).first {
+                        WorkModelDetailSheet(workID: workModel.id) {
+                            selected = nil
+                        }
+                        .id(token.id)
+                    } else {
+                        ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+                    }
                 }
             }
         }

@@ -164,30 +164,6 @@ struct PresentationsView: View {
         viewModel.daysSinceLastLessonByStudent
     }
 
-    // DIAGNOSTIC: Work classification counts
-    private var diagnosticAllWork: [WorkModel] {
-        workModelsForChangeDetection
-    }
-    
-    private var diagnosticOpenWork: [WorkModel] {
-        diagnosticAllWork.filter { $0.statusRaw != "complete" }
-    }
-    
-    private var diagnosticOpenWorkWithPresentation: [WorkModel] {
-        diagnosticOpenWork.filter { $0.presentationID != nil }
-    }
-    
-    private func printDiagnostics() {
-        let allWork = diagnosticAllWork
-        let openWork = diagnosticOpenWork
-        let openWorkWithPresentation = diagnosticOpenWorkWithPresentation
-        
-        print("PresentationsView DIAGNOSTIC: allWork=\(allWork.count) openWork=\(openWork.count) openWorkWithPresentation=\(openWorkWithPresentation.count)")
-        
-        for w in openWorkWithPresentation.prefix(5) {
-            print("  openWork pid=\(w.presentationID ?? "nil") sid=\(w.studentID) lid=\(w.lessonID) status=\(w.statusRaw)")
-        }
-    }
 
     var body: some View {
         Group {
@@ -272,13 +248,6 @@ struct PresentationsView: View {
                     }
                 }
             }
-        }
-        .onAppear {
-            print("=== PresentationsView DIAGNOSTIC: onAppear ===")
-            printDiagnostics()
-        }
-        .onChange(of: workModelsForChangeDetection.count) { _, _ in
-            printDiagnostics()
         }
         .task {
             // Update ViewModel immediately

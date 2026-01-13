@@ -21,7 +21,7 @@ struct WorkContractDetailSheet: View {
     @State private var contractNotes: [Note] = [] // New unified notes - fetched in memory to avoid predicate issues
     @Query private var presentations: [Presentation]
     @Query private var planItems: [WorkPlanItem]
-    @Query private var peerContracts: [WorkContract]
+    @Query private var peerWorkModels: [WorkModel]
     
     @State private var resolvedPresentationID: UUID? = nil
     @State private var presentationNotes: [ScopedNote] = []
@@ -72,7 +72,17 @@ struct WorkContractDetailSheet: View {
         // CloudKit compatibility: workID is now String, so use workID string
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workID })
         let lessonID = contract.lessonID
-        _peerContracts = Query(filter: #Predicate<WorkContract> { $0.lessonID == lessonID })
+        _peerWorkModels = Query(filter: #Predicate<WorkModel> { $0.lessonID == lessonID })
+        
+        #if DEBUG
+        // Debug logging: Check if WorkContract fetches still return results
+        Task { @MainActor in
+            let contractsFetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.lessonID == lessonID })
+            if let contracts = try? modelContext.fetch(contractsFetch), contracts.count > 0 {
+                print("WARNING: WorkContract read-path still active in WorkContractDetailSheet.peerContracts init count=\(contracts.count)")
+            }
+        }
+        #endif
     }
     
     var body: some View {
@@ -128,7 +138,7 @@ struct WorkContractDetailSheet: View {
                     "workNotes": workNotes.count,
                     "presentations": presentations.count,
                     "planItems": planItems.count,
-                    "peerContracts": peerContracts.count,
+                    "peerWorkModels": peerWorkModels.count,
                     "hasWorkModelMapping": correspondingWorkModel != nil ? 1 : 0
                 ]
             )
@@ -141,7 +151,7 @@ struct WorkContractDetailSheet: View {
         }
         .sheet(isPresented: $showAddNoteSheet) {
             UnifiedNoteEditor(
-                context: .workContract(contract),
+                context: noteContextForNewNote(),
                 initialNote: nil,
                 onSave: { _ in
                     // Note is automatically saved via relationship
@@ -154,7 +164,7 @@ struct WorkContractDetailSheet: View {
         }
         .sheet(item: $noteBeingEdited) { note in
             UnifiedNoteEditor(
-                context: .workContract(contract),
+                context: noteContext(for: note),
                 initialNote: note,
                 onSave: { _ in
                     noteBeingEdited = nil
@@ -438,6 +448,44 @@ struct WorkContractDetailSheet: View {
 
     private func lessonTitle() -> String {
         return relatedLesson?.name ?? "Lesson"
+    }
+    
+    // Task requirement #4: Fix call site to use presentation when available instead of .general
+    private func noteContextForNewNote() -> UnifiedNoteEditor.NoteContext {
+        // Priority 1: Use presentation if available (Task requirement #4)
+        if let presentationID = resolvedPresentationID,
+           let presentation = presentations.first(where: { $0.id == presentationID }) {
+            return .presentation(presentation)
+        }
+        // Priority 2: Use corresponding WorkModel if available
+        if let workModel = correspondingWorkModel {
+            return .work(workModel)
+        }
+        // Last resort: general (should be rare)
+        return .general
+    }
+    
+    private func noteContext(for note: Note) -> UnifiedNoteEditor.NoteContext {
+        // Try to determine context from the note's relationships
+        if let work = note.work {
+            return .work(work)
+        }
+        if let studentLesson = note.studentLesson {
+            return .studentLesson(studentLesson)
+        }
+        if let presentation = note.presentation {
+            return .presentation(presentation)
+        }
+        // Fallback: Try to find presentation from contract if available
+        if let presentationID = resolvedPresentationID,
+           let presentation = presentations.first(where: { $0.id == presentationID }) {
+            return .presentation(presentation)
+        }
+        // Fallback to corresponding WorkModel if available
+        if let workModel = correspondingWorkModel {
+            return .work(workModel)
+        }
+        return .general
     }
 
     private func resolvePresentationID() -> UUID? {

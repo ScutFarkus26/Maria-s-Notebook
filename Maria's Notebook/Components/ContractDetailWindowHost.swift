@@ -6,14 +6,20 @@ struct ContractDetailWindowHost: View {
     @Environment(\.modelContext) private var modelContext
     
     var body: some View {
-        // Fetch all and filter in memory to avoid predicate issues with WorkContract/UUID
-        let allContractsDescriptor = FetchDescriptor<WorkContract>()
-        if let allContracts = try? modelContext.fetch(allContractsDescriptor),
-           let contract = allContracts.first(where: { $0.id == workID }) {
-            WorkContractDetailSheet(contract: contract)
+        // Try to find WorkModel by id first (if already migrated)
+        let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
+        if let workModel = try? modelContext.fetch(workModelFetch).first {
+            WorkModelDetailSheet(workID: workModel.id)
                 .frame(minWidth: 400, minHeight: 300)
         } else {
-            ContentUnavailableView("Contract Not Found", systemImage: "doc.text.magnifyingglass")
+            // Fallback: try to find WorkModel by legacyContractID (if not yet migrated)
+            let legacyFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == workID })
+            if let workModel = try? modelContext.fetch(legacyFetch).first {
+                WorkModelDetailSheet(workID: workModel.id)
+                    .frame(minWidth: 400, minHeight: 300)
+            } else {
+                ContentUnavailableView("Work Not Found", systemImage: "doc.text.magnifyingglass")
+            }
         }
     }
 }

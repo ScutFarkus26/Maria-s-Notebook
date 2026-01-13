@@ -19,11 +19,11 @@ struct StudentWorkSummary: Identifiable {
 
 struct WorkStudentsGrid: View {
     let summaries: [StudentWorkSummary]
-    // Keyed by UUID, values are WorkContracts
-    let openContractsByStudentID: [UUID: [WorkContract]]
+    // Keyed by UUID, values are WorkModels
+    let openWorkByStudentID: [UUID: [WorkModel]]
     let lessonsByID: [UUID: Lesson]
     let onTapStudent: (Student) -> Void
-    let onTapContract: (WorkContract) -> Void
+    let onTapWork: (WorkModel) -> Void
 
     // Check size class to determine layout
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -48,10 +48,10 @@ struct WorkStudentsGrid: View {
                     ForEach(summaries) { summary in
                         StudentWorkCard(
                             summary: summary,
-                            contracts: openContractsByStudentID[summary.id] ?? [],
+                            work: openWorkByStudentID[summary.id] ?? [],
                             lessonsByID: lessonsByID,
                             onTapStudent: onTapStudent,
-                            onTapContract: onTapContract
+                            onTapWork: onTapWork
                         )
                     }
                 }
@@ -63,10 +63,10 @@ struct WorkStudentsGrid: View {
 
 private struct StudentWorkCard: View {
     let summary: StudentWorkSummary
-    let contracts: [WorkContract]
+    let work: [WorkModel]
     let lessonsByID: [UUID: Lesson]
     let onTapStudent: (Student) -> Void
-    let onTapContract: (WorkContract) -> Void
+    let onTapWork: (WorkModel) -> Void
 
     // Style flags
     var monochrome: Bool = false
@@ -99,11 +99,11 @@ private struct StudentWorkCard: View {
     }
 
     // Lookup via lessonsByID map
-    private func title(for contract: WorkContract) -> String {
-        if let t = contract.title, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return t
+    private func title(for work: WorkModel) -> String {
+        if !work.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return work.title
         }
-        if let lid = UUID(uuidString: contract.lessonID),
+        if let lid = UUID(uuidString: work.lessonID),
            let lesson = lessonsByID[lid] {
             return lesson.name
         }
@@ -125,19 +125,19 @@ private struct StudentWorkCard: View {
                 }
             }
 
-            if !contracts.isEmpty {
+            if !work.isEmpty {
                 VStack(alignment: .leading, spacing: ultraDense ? 4 : (dense ? 6 : 8)) {
-                    ForEach(contracts, id: \.id) { contract in
+                    ForEach(work, id: \.id) { workItem in
                         HStack(spacing: ultraDense ? 4 : (dense ? 6 : 8)) {
-                            Circle().fill(kindColor(contract.kind)).frame(width: 6, height: 6)
-                            Text(title(for: contract))
+                            Circle().fill(kindColor(workItem.kind)).frame(width: 6, height: 6)
+                            Text(title(for: workItem))
                                 .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
                             Spacer(minLength: 0)
                         }
                         .contentShape(Rectangle())
-                        .onTapGesture { onTapContract(contract) }
+                        .onTapGesture { onTapWork(workItem) }
                     }
                 }
                 .padding(ultraDense ? 8 : (dense ? 10 : 12))

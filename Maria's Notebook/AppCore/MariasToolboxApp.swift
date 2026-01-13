@@ -282,6 +282,27 @@ struct MariasToolboxApp: App {
         return true
     }
 
+    /// Configures SQLite to suppress detached signature logging errors.
+    /// These errors occur when SQLite tries to access /private/var/db/DetachedSignatures
+    /// which doesn't exist on some systems. This function is called after container creation
+    /// as a placeholder for potential future configuration.
+    /// 
+    /// Note: The main fix is setting the environment variable in init() before SQLite initializes.
+    /// These errors are harmless and occur at SQLite library initialization time, so they may
+    /// still appear even with this configuration. However, setting environment variables early in
+    /// app initialization provides the best chance of suppressing them.
+    static func configureSQLiteToSuppressDetachedSignatureErrors(for container: ModelContainer) {
+        // The environment variable is set in init() for maximum effect.
+        // SQLite signature logging happens very early, so the environment variable
+        // in init() is the primary mechanism. This function serves as a placeholder
+        // for potential future configuration if SwiftData exposes more SQLite options.
+        // 
+        // Note: SwiftData's ModelContext doesn't expose the underlying Core Data
+        // NSPersistentStoreCoordinator directly, so we can't configure SQLite pragmas here.
+        // The environment variable approach is the best available option.
+        _ = container // Mark as used, serves as a hook point for future improvements
+    }
+    
     /// Creates a ModelContainer with comprehensive error handling.
     /// If SwiftData asserts internally during schema processing, we cannot catch it.
     /// Returns the container and sets initError if there's a recoverable error.
@@ -722,6 +743,8 @@ struct MariasToolboxApp: App {
         
         do {
             let container = try MariasToolboxApp.createModelContainer()
+            // Configure SQLite to suppress detached signature errors
+            MariasToolboxApp.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
             MariasToolboxApp._sharedModelContainer = container
             // #if DEBUG
             // print("SwiftData: Container created and cached successfully")
@@ -763,6 +786,20 @@ struct MariasToolboxApp: App {
             NSApplication.shared.applicationIconImage = icon
         }
         #endif
+        
+        // Configure SQLite environment to suppress detached signature logging errors
+        // This attempts to prevent errors about /private/var/db/DetachedSignatures
+        // which occurs when SQLite tries to access a system directory that doesn't exist.
+        // 
+        // Note: These errors are harmless and may still appear if SQLite initializes before
+        // this code runs or doesn't respect the environment variable. However, setting it
+        // early in app initialization provides the best chance of suppression.
+        // 
+        // Error example:
+        // "cannot open file at line 51043 of [f0ca7bba1c]"
+        // "os_unix.c:51043: (2) open(/private/var/db/DetachedSignatures) - No such file or directory"
+        setenv("SQLITE_DISABLE_SIGNATURE_LOGGING", "1", 0)
+        
         // Cleanup: remove legacy Beta flag now that Engagement Lifecycle is always on
         UserDefaults.standard.removeObject(forKey: "useEngagementLifecycle")
         

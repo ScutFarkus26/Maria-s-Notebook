@@ -14,7 +14,7 @@ struct StudentOverviewTab: View {
     @Binding var draftLevel: Student.Level
     @Binding var draftStartDate: Date
     @Binding var contractsCache: [WorkContract]
-    @Binding var selectedContract: WorkContract?
+    @Binding var selectedWorkID: UUID?
     
     let lessonsByID: [UUID: Lesson]
     let nextLessonsForStudent: [StudentLessonSnapshot]
@@ -60,7 +60,7 @@ struct StudentOverviewTab: View {
                     } else {
                         ForEach(contractsCache, id: \.id) { contract in
                             Button(action: {
-                                selectedContract = contract
+                                selectedWorkID = contract.id
                             }) {
                                 ContractRow(contract: contract, lessonName: lessonName(for: contract))
                             }

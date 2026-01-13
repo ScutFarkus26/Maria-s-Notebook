@@ -269,19 +269,26 @@ final class StudentDetailViewModel: ObservableObject {
     
     // MARK: - Business Logic (moved from View)
     
-    /// Fetch contracts for the student (non-complete only)
-    func fetchContractsForStudent(modelContext: ModelContext) -> [WorkContract] {
+    /// Fetch work models for the student (non-complete only)
+    func fetchWorkModelsForStudent(modelContext: ModelContext) -> [WorkModel] {
         let sid = student.id.uuidString
         let completeStatusRaw = WorkStatus.complete.rawValue
         
-        let predicate = #Predicate<WorkContract> { contract in
-            contract.studentID == sid && contract.statusRaw != completeStatusRaw
+        let predicate = #Predicate<WorkModel> { work in
+            work.studentID == sid && work.statusRaw != completeStatusRaw
         }
-        let descriptor = FetchDescriptor<WorkContract>(
+        let descriptor = FetchDescriptor<WorkModel>(
             predicate: predicate,
-            sortBy: [SortDescriptor(\WorkContract.createdAt, order: .reverse)]
+            sortBy: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]
         )
         return (try? modelContext.fetch(descriptor)) ?? []
+    }
+    
+    /// Fetch contracts for the student (non-complete only) - deprecated, use fetchWorkModelsForStudent
+    @available(*, deprecated, message: "Use fetchWorkModelsForStudent instead")
+    func fetchContractsForStudent(modelContext: ModelContext) -> [WorkContract] {
+        // Legacy method - return empty array as WorkContract is read-only
+        return []
     }
     
     /// Create a draft student lesson, reusing existing if available

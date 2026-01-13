@@ -14,6 +14,8 @@ struct SettingsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     
     @State private var showTrackPopulator = false
+    @State private var isRunningRepair = false
+    @State private var repairMessage: String?
 
     private var overviewColumns: [GridItem] {
         // Use 2 columns on iPhone (compact), 4 columns on iPad (regular)
@@ -57,7 +59,7 @@ struct SettingsView: View {
                     
                     // Row 2: Detail (New)
                     LazyVGrid(columns: overviewColumns, spacing: 16) {
-                        StatCard(title: "Work Items", value: "\(statsViewModel.workContractsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
+                        StatCard(title: "Work Items", value: "\(statsViewModel.workModelsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
                         StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "paintpalette.fill")
                         StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
                         StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
@@ -204,6 +206,53 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.plain)
+            }
+            SettingsGroup(title: "Presentation Links Repair", systemImage: "link.badge.plus") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Button(action: {
+                        runPresentationRepair()
+                    }) {
+                        HStack {
+                            if isRunningRepair {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                            Text("Run Presentation StudentLesson Link Repair")
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isRunningRepair)
+                    
+                    if let message = repairMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func runPresentationRepair() {
+        guard !isRunningRepair else { return }
+        isRunningRepair = true
+        repairMessage = "Running repair..."
+        
+        Task { @MainActor in
+            // Reset the migration flag to allow re-running
+            MigrationFlag.reset(key: "Repair.presentationStudentLessonLinks.v2")
+            
+            // Run the repair
+            await DataMigrations.repairPresentationStudentLessonLinks_v2(using: modelContext)
+            
+            isRunningRepair = false
+            repairMessage = "Repair completed. Check console for details."
+            
+            // Clear message after 5 seconds
+            Task {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                repairMessage = nil
             }
         }
     }

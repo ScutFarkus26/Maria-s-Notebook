@@ -20,13 +20,13 @@ struct LifecycleService {
         }
     }
     
-    /// Record a Presentation (immutable) and create per-student WorkContract items.
-    /// Idempotent by `legacyStudentLessonID` on Presentation and (presentationID, studentID) on WorkContract.
+    /// Record a Presentation (immutable) and create per-student WorkModel items.
+    /// Idempotent by `legacyStudentLessonID` on Presentation and (presentationID, studentID) on WorkModel.
     static func recordPresentationAndExplodeWork(
         from studentLesson: StudentLesson,
         presentedAt: Date,
         modelContext: ModelContext
-    ) throws -> (presentation: Presentation, work: [WorkContract]) {
+    ) throws -> (presentation: Presentation, work: [WorkModel]) {
         // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
         let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
@@ -111,6 +111,7 @@ struct LifecycleService {
                 lessonSubtitleSnapshot: subtitle
             )
             modelContext.insert(presentation)
+            print("Presentation link set: legacyStudentLessonID=\(presentation.legacyStudentLessonID ?? "nil")")
         }
 
         // MIGRATION: Copy legacy notes from StudentLesson to Presentation (idempotent)
@@ -163,17 +164,17 @@ struct LifecycleService {
             }
         }
 
-        // 2) Ensure WorkModels exist per student (WorkContract is now read-only for legacy data)
-        var workForPresentation: [WorkContract] = []
+        // 2) Ensure WorkModels exist per student
+        var workForPresentation: [WorkModel] = []
         var createdCount = 0
         var skippedCount = 0
         for sid in studentIDStrs {
-            // Check for existing WorkContract first (for backward compatibility)
-            if let existing = try fetchWorkContract(presentationID: presentation.id.uuidString, studentID: sid, context: modelContext) {
+            // Check for existing WorkModel first
+            if let existing = try fetchWorkModel(presentationID: presentation.id.uuidString, studentID: sid, context: modelContext) {
                 workForPresentation.append(existing)
                 skippedCount += 1
             } else {
-                // Create new WorkModel (WorkContract is read-only - no new WorkContract creation)
+                // Create new WorkModel
                 guard let studentUUID = UUID(uuidString: sid),
                       let lessonUUID = UUID(uuidString: lessonIDStr),
                       let presentationUUID = UUID(uuidString: presentation.id.uuidString) else {
@@ -208,29 +209,13 @@ struct LifecycleService {
                         }
                     }
                     
-                    // For backward compatibility, try to find an existing WorkContract by legacyContractID
-                    // Do NOT create new WorkContract - it is read-only for legacy data only
-                    if let contractID = workModel.legacyContractID {
-                        // Fetch all WorkContracts and filter in memory (no predicates on WorkContract)
-                        let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
-                        if let contract = allContracts.first(where: { $0.id == contractID }) {
-                            // Update WorkContract with track info if presentation has it
-                            if contract.trackID == nil, let presentationTrackID = presentation.trackID {
-                                contract.trackID = presentationTrackID
-                                contract.trackStepID = presentation.trackStepID
-                            }
-                            workForPresentation.append(contract)
-                        }
-                    }
-                    // If no legacy contract exists, that's fine - WorkModel is the source of truth
+                    workForPresentation.append(workModel)
                     createdCount += 1
                 } catch {
-                    // WorkModel creation failed - log error but do not create WorkContract
-                    // WorkContract is read-only for legacy data only
+                    // WorkModel creation failed - log error
                     #if DEBUG
                     print("⚠️ Failed to create WorkModel for presentation \(presentation.id.uuidString), student \(sid): \(error)")
                     #endif
-                    // Do not create WorkContract - it is deprecated
                 }
             }
         }
@@ -247,10 +232,9 @@ struct LifecycleService {
             )
         }
 
-        // 3) If there were existing contracts but we just created the presentation (e.g., backfill ordering), include them
-        // Fetch all associated contracts to return a complete set
+        // 3) Fetch all associated WorkModels for this presentation (e.g., backfill ordering)
         let pid = presentation.id.uuidString
-        let allForPresentation = try fetchAllWorkContracts(presentationID: pid, context: modelContext)
+        let allForPresentation = try fetchAllWorkModels(presentationID: pid, context: modelContext)
 
         return (presentation, allForPresentation)
     }
@@ -263,19 +247,19 @@ struct LifecycleService {
         return arr.first
     }
 
-    private static func fetchWorkContract(presentationID: String, studentID: String, context: ModelContext) throws -> WorkContract? {
-        // Fetch all WorkContracts and filter in memory (no predicates on WorkContract)
-        let allContracts = try context.fetch(FetchDescriptor<WorkContract>())
-        return allContracts.first { contract in
-            (contract.presentationID ?? "") == presentationID && contract.studentID == studentID
+    private static func fetchWorkModel(presentationID: String, studentID: String, context: ModelContext) throws -> WorkModel? {
+        // Fetch all WorkModels and filter in memory
+        let allWork = try context.fetch(FetchDescriptor<WorkModel>())
+        return allWork.first { work in
+            (work.presentationID ?? "") == presentationID && work.studentID == studentID
         }
     }
 
-    private static func fetchAllWorkContracts(presentationID: String, context: ModelContext) throws -> [WorkContract] {
-        // Fetch all WorkContracts and filter in memory (no predicates on WorkContract)
-        let allContracts = try context.fetch(FetchDescriptor<WorkContract>())
-        return allContracts.filter { contract in
-            (contract.presentationID ?? "") == presentationID
+    private static func fetchAllWorkModels(presentationID: String, context: ModelContext) throws -> [WorkModel] {
+        // Fetch all WorkModels and filter in memory
+        let allWork = try context.fetch(FetchDescriptor<WorkModel>())
+        return allWork.filter { work in
+            (work.presentationID ?? "") == presentationID
         }
     }
 

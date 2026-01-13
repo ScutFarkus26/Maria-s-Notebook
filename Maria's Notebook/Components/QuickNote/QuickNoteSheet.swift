@@ -271,7 +271,12 @@ struct QuickNoteSheet: View {
                     Menu {
                         ForEach(NoteCategory.allCases, id: \.self) { cat in
                             Button { viewModel.category = cat } label: {
-                                Label(cat.rawValue.capitalized, systemImage: viewModel.category == cat ? "checkmark" : "")
+                                HStack {
+                                    if viewModel.category == cat {
+                                        Image(systemName: "checkmark")
+                                    }
+                                    Text(cat.rawValue.capitalized)
+                                }
                             }
                         }
                     } label: {

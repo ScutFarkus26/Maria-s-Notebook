@@ -28,7 +28,7 @@ struct StudentDetailView: View {
 
     @AppStorage("StudentDetailView.activeTab") private var selectedTab: StudentDetailTab = .overview
 
-    @State private var selectedContract: WorkContract? = nil
+    @State private var selectedWorkID: UUID? = nil
     @State private var contractsCache: [WorkContract] = []
 
     private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
@@ -48,7 +48,7 @@ struct StudentDetailView: View {
                 draftLevel: $draftLevel,
                 draftStartDate: $draftStartDate,
                 contractsCache: $contractsCache,
-                selectedContract: $selectedContract,
+                selectedWorkID: $selectedWorkID,
                 lessonsByID: vm.lessonsByID,
                 nextLessonsForStudent: vm.nextLessonsForStudent
             )
@@ -181,11 +181,31 @@ struct StudentDetailView: View {
             }
             .studentDetailSheetSizing()
         }
-        .sheet(item: $selectedContract) { contract in
-            WorkContractDetailSheet(contract: contract) {
-                selectedContract = nil
+        .sheet(isPresented: Binding(
+            get: { selectedWorkID != nil },
+            set: { if !$0 { selectedWorkID = nil } }
+        )) {
+            if let workID = selectedWorkID {
+                // Try to find WorkModel by id first (if already migrated)
+                let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
+                if let workModel = try? modelContext.fetch(workModelFetch).first {
+                    WorkModelDetailSheet(workID: workModel.id) {
+                        selectedWorkID = nil
+                    }
+                    .studentDetailSheetSizing()
+                } else {
+                    // Fallback: try to find WorkModel by legacyContractID (if not yet migrated)
+                    let legacyFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == workID })
+                    if let workModel = try? modelContext.fetch(legacyFetch).first {
+                        WorkModelDetailSheet(workID: workModel.id) {
+                            selectedWorkID = nil
+                        }
+                        .studentDetailSheetSizing()
+                    } else {
+                        ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+                    }
+                }
             }
-            .studentDetailSheetSizing()
         }
         .task {
             vm.loadData(modelContext: modelContext)

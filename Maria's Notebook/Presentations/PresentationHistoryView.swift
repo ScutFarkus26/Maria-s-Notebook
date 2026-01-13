@@ -17,6 +17,8 @@ struct PresentationHistoryView: View {
     @Query private var students: [Student]
     // Fetch all ScopedNotes with non-nil presentationID (for counts)
     @Query(filter: #Predicate<ScopedNote> { $0.presentationID != nil }) private var allPresentationNotes: [ScopedNote]
+    // [FIX] Fetch new unified Notes that are attached to a presentation
+    @Query(filter: #Predicate<Note> { $0.presentation != nil }) private var allUnifiedPresentationNotes: [Note]
     
     // Use @Query for change detection only
     @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)]) private var allPresentationsForChangeDetection: [Presentation]
@@ -127,9 +129,19 @@ struct PresentationHistoryView: View {
         #endif
         // Build notes count cache from allPresentationNotes
         var counts: [String: Int] = [:]
+        
+        // Count legacy notes
         for n in allPresentationNotes {
             if let pid = n.presentationID { counts[pid, default: 0] += 1 }
         }
+        
+        // [FIX] Count unified notes
+        for n in allUnifiedPresentationNotes {
+            if let p = n.presentation {
+                counts[p.id.uuidString, default: 0] += 1
+            }
+        }
+        
         notesCountCache = counts
         // Build student name cache
         var sNames: [UUID: String] = [:]
@@ -248,6 +260,10 @@ struct PresentationHistoryView: View {
             .onChange(of: allPresentationNotes.map(\.id)) { _, _ in
                 buildCaches()
             }
+            // [FIX] Update caches when unified notes change
+            .onChange(of: allUnifiedPresentationNotes.map(\.id)) { _, _ in
+                buildCaches()
+            }
             .onChange(of: lessons.map(\.id)) { _, _ in
                 buildCaches()
             }
@@ -260,12 +276,22 @@ struct PresentationHistoryView: View {
                         Button {
                             nameDisplayStyleRaw = NameDisplayStyle.firstLastInitial.rawValue
                         } label: {
-                            Label("First name + Last initial", systemImage: nameDisplayStyle == .firstLastInitial ? "checkmark" : "")
+                            HStack {
+                                if nameDisplayStyle == .firstLastInitial {
+                                    Image(systemName: "checkmark")
+                                }
+                                Text("First name + Last initial")
+                            }
                         }
                         Button {
                             nameDisplayStyleRaw = NameDisplayStyle.initials.rawValue
                         } label: {
-                            Label("Initials (AB)", systemImage: nameDisplayStyle == .initials ? "checkmark" : "")
+                            HStack {
+                                if nameDisplayStyle == .initials {
+                                    Image(systemName: "checkmark")
+                                }
+                                Text("Initials (AB)")
+                            }
                         }
                     } label: {
                         Label("Names", systemImage: "textformat.abc")

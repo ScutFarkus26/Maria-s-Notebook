@@ -48,12 +48,18 @@ final class AppBootstrapper: ObservableObject {
         
         // 3.6.6. Work Contracts migration: Migrate WorkContracts to WorkModels
         DataMigrations.migrateWorkContractsToWorkModelsIfNeeded(using: context)
+        #if DEBUG
+        MigrationRunner.migrateWorkContractsToWorkModels(context: context)
+        #endif
         
         // 3.7. Legacy Backfill Migrations (one-time migrations)
         // OPTIMIZATION: These are now async and yield periodically to avoid blocking UI
         await DataMigrations.backfillRelationshipsIfNeeded(using: context)
         await DataMigrations.backfillIsPresentedIfNeeded(using: context)
         await DataMigrations.backfillScheduledForDayIfNeeded(using: context)
+        await DataMigrations.backfillPresentationStudentLessonLinks(using: context)
+        await DataMigrations.repairPresentationStudentLessonLinks_v2(using: context)
+        await DataMigrations.backfillNoteStudentLessonFromPresentation(using: context)
         
         // 3.8. Data Integrity Repairs (run on every launch to catch any corruption)
         // Repair denormalized scheduledForDay fields

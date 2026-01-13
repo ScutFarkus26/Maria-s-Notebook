@@ -49,7 +49,7 @@ enum AbsenceReason: String, Codable, CaseIterable, Sendable {
     
     var icon: String {
         switch self {
-        case .none: return ""
+        case .none: return "circle" // Placeholder - shouldn't be displayed when .none, but prevents SF Symbol error
         case .sick: return "cross.case.fill"
         case .vacation: return "beach.umbrella.fill"
         }

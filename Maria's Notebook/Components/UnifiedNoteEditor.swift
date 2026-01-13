@@ -36,7 +36,6 @@ struct UnifiedNoteEditor: View {
         case work(WorkModel)
         case studentLesson(StudentLesson)
         case presentation(Presentation)
-        case workContract(WorkContract)
         case attendance(AttendanceRecord)
         case workCheckIn(WorkCheckIn)
         case workCompletion(WorkCompletionRecord)
@@ -98,7 +97,6 @@ struct UnifiedNoteEditor: View {
         case .work: return "Work Note"
         case .studentLesson: return "Presentation Note"
         case .presentation: return "Presentation Note"
-        case .workContract: return "Work Contract Note"
         case .attendance: return "Attendance Note"
         case .workCheckIn: return "Check-In Note"
         case .workCompletion: return "Completion Note"
@@ -965,17 +963,33 @@ struct UnifiedNoteEditor: View {
             )
             
             // Set the appropriate relationship based on context
+            // Task requirement #2: Verify each NoteContext sets the correct relationship
+            var studentLessonID: String? = nil
+            var presentationID: String? = nil
+            var workID: String? = nil
+            
             switch context {
             case .lesson(let lesson):
                 note.lesson = lesson
             case .work(let work):
                 note.work = work
+                workID = work.id.uuidString
             case .studentLesson(let sl):
                 note.studentLesson = sl
+                studentLessonID = sl.id.uuidString
             case .presentation(let presentation):
                 note.presentation = presentation
-            case .workContract(let contract):
-                note.workContract = contract
+                // If presentation has a legacyStudentLessonID, fetch and link the StudentLesson
+                if let legacyIDString = presentation.legacyStudentLessonID,
+                   let legacyID = UUID(uuidString: legacyIDString) {
+                    let descriptor = FetchDescriptor<StudentLesson>(
+                        predicate: #Predicate { $0.id == legacyID }
+                    )
+                    if let studentLesson = try? modelContext.fetch(descriptor).first {
+                        note.studentLesson = studentLesson
+                    }
+                }
+                presentationID = presentation.id.uuidString
             case .attendance(let record):
                 note.attendanceRecord = record
             case .workCheckIn(let checkIn):
@@ -998,12 +1012,47 @@ struct UnifiedNoteEditor: View {
                 break
             }
             
+            // Task requirement #1: Add one-time diagnostic log
+            print("=== UnifiedNoteEditor.saveNote() Diagnostic ===")
+            print("NoteContext case: \(contextDescription)")
+            print("note.id: \(note.id.uuidString)")
+            if let slID = studentLessonID {
+                print("studentLessonID: \(slID)")
+            }
+            if let pID = presentationID {
+                print("presentationID: \(pID)")
+            }
+            if let wID = workID {
+                print("workID: \(wID)")
+            }
+            print("=== End Diagnostic ===")
+            
             modelContext.insert(note)
         }
         
         try? modelContext.save()
         onSave(note)
         dismiss()
+    }
+    
+    // Helper to describe context for logging
+    private var contextDescription: String {
+        switch context {
+        case .general: return ".general"
+        case .lesson: return ".lesson"
+        case .work: return ".work"
+        case .studentLesson: return ".studentLesson"
+        case .presentation: return ".presentation"
+        case .attendance: return ".attendance"
+        case .workCheckIn: return ".workCheckIn"
+        case .workCompletion: return ".workCompletion"
+        case .workPlanItem: return ".workPlanItem"
+        case .studentMeeting: return ".studentMeeting"
+        case .projectSession: return ".projectSession"
+        case .communityTopic: return ".communityTopic"
+        case .reminder: return ".reminder"
+        case .schoolDayOverride: return ".schoolDayOverride"
+        }
     }
 }
 

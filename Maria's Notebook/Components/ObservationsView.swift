@@ -300,7 +300,12 @@ struct ObservationsView: View {
                 Divider()
                 ForEach(NoteCategory.allCases, id: \.self) { cat in
                     Button(action: { selectedCategory = cat }) {
-                        Label(cat.rawValue.capitalized, systemImage: selectedCategory == cat ? "checkmark" : "")
+                        HStack {
+                            if selectedCategory == cat {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(cat.rawValue.capitalized)
+                        }
                     }
                 }
             } label: {
@@ -316,7 +321,12 @@ struct ObservationsView: View {
             Menu {
                 ForEach(ScopeFilter.allCases) { sf in
                     Button(action: { selectedScope = sf }) {
-                        Label(sf.rawValue, systemImage: selectedScope == sf ? "checkmark" : "")
+                        HStack {
+                            if selectedScope == sf {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(sf.rawValue)
+                        }
                     }
                 }
             } label: {
@@ -745,9 +755,6 @@ struct ObservationsView: View {
         }
         if let presentation = note.presentation {
             return .presentation(presentation)
-        }
-        if let workContract = note.workContract {
-            return .workContract(workContract)
         }
         if let attendanceRecord = note.attendanceRecord {
             return .attendance(attendanceRecord)

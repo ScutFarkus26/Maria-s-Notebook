@@ -5,11 +5,11 @@ import SwiftData
 /// These helpers reduce duplication and ensure consistent UUID-to-String conversion patterns.
 enum PredicateHelpers {
     /// Creates a predicate for matching a work ID (UUID stored as String in CloudKit).
-    /// - Parameter workID: The work contract UUID
+    /// - Parameter workID: The work model UUID
     /// - Returns: A predicate that matches the work ID
-    static func workID(_ workID: UUID) -> Predicate<WorkContract> {
-        #Predicate<WorkContract> { contract in
-            contract.id == workID
+    static func workID(_ workID: UUID) -> Predicate<WorkModel> {
+        #Predicate<WorkModel> { work in
+            work.id == workID
         }
     }
     
@@ -24,11 +24,11 @@ enum PredicateHelpers {
     }
     
     /// Creates a predicate for matching multiple work IDs.
-    /// - Parameter workIDs: Set of work contract UUIDs
+    /// - Parameter workIDs: Set of work model UUIDs
     /// - Returns: A predicate that matches any of the work IDs
-    static func workIDs(_ workIDs: Set<UUID>) -> Predicate<WorkContract> {
-        return #Predicate<WorkContract> { contract in
-            workIDs.contains(contract.id)
+    static func workIDs(_ workIDs: Set<UUID>) -> Predicate<WorkModel> {
+        return #Predicate<WorkModel> { work in
+            workIDs.contains(work.id)
         }
     }
     

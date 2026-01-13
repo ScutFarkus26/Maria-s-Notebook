@@ -236,10 +236,6 @@ final class PresentationsViewModel: ObservableObject {
                 workModels: workModels
             )
             
-            // Add diagnostic print
-            let groupKey = sl.studentGroupKeyPersisted.isEmpty ? sl.studentGroupKey : sl.studentGroupKeyPersisted
-            print("BLOCKING DIAGNOSTIC: sl=\(sl.id) groupKey=\(groupKey) blocked=\(isBlocked) prereqOpenCount=\(prereqOpenCount)")
-            
             if isBlocked {
                 blocked.append(sl)
             } else {

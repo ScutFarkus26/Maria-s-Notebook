@@ -15,23 +15,60 @@ struct TodayView: View {
     @StateObject private var viewModel: TodayViewModel
 
     // Navigation state
-    @State private var selectedContractID: UUID? = nil
+    @State private var selectedWorkID: UUID? = nil
     @State private var selectedStudentLesson: StudentLesson? = nil
     @State private var isShowingQuickNote = false
     @State private var noteBeingEdited: Note? = nil
 
-    // OPTIMIZATION: Use lightweight queries for change detection only
-    // Only fetch IDs to detect changes, not full objects - significantly reduces memory usage
-    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
-    @Query(sort: [SortDescriptor(\WorkPlanItem.id)]) private var planItemsForChangeDetection: [WorkPlanItem]
+    // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window to avoid loading the entire database.
+    // This significantly reduces memory usage and database query overhead by monitoring only lessons and plan items
+    // that could affect the Today screen's display for the current date.
+    @State private var filteredStudentLessonIDs: [UUID] = []
+    @State private var filteredPlanItemIDs: [UUID] = []
+    @State private var queryUpdateTask: Task<Void, Never>?
     
-    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
+    // Computed properties that fetch filtered data for change detection
+    // Filter StudentLesson to only lessons scheduled for the current day window [viewModel.date.startOfDay, nextDay)
     private var studentLessonIDs: [UUID] {
-        studentLessonsForChangeDetection.map { $0.id }
+        filteredStudentLessonIDs
     }
     
+    // Filter WorkPlanItem to only items where scheduledDate <= nextDay (covers overdue + today)
     private var planItemIDs: [UUID] {
-        planItemsForChangeDetection.map { $0.id }
+        filteredPlanItemIDs
+    }
+    
+    // Helper to update filtered queries when date or data changes
+    private func updateFilteredQueries() {
+        let (dayStart, dayEnd) = AppCalendar.dayRange(for: viewModel.date)
+        
+        // Fetch filtered StudentLesson IDs
+        do {
+            let lessonDescriptor = FetchDescriptor<StudentLesson>(
+                predicate: #Predicate<StudentLesson> { lesson in
+                    lesson.scheduledForDay >= dayStart && lesson.scheduledForDay < dayEnd
+                },
+                sortBy: [SortDescriptor(\StudentLesson.id)]
+            )
+            let lessons = try modelContext.fetch(lessonDescriptor)
+            filteredStudentLessonIDs = lessons.map { $0.id }
+        } catch {
+            filteredStudentLessonIDs = []
+        }
+        
+        // Fetch filtered WorkPlanItem IDs
+        do {
+            let planDescriptor = FetchDescriptor<WorkPlanItem>(
+                predicate: #Predicate<WorkPlanItem> { item in
+                    item.scheduledDate <= dayEnd
+                },
+                sortBy: [SortDescriptor(\WorkPlanItem.id)]
+            )
+            let planItems = try modelContext.fetch(planDescriptor)
+            filteredPlanItemIDs = planItems.map { $0.id }
+        } catch {
+            filteredPlanItemIDs = []
+        }
     }
     
     // MARK: - Helpers
@@ -285,6 +322,19 @@ struct TodayView: View {
             if coerced != viewModel.date {
                 viewModel.date = AppCalendar.startOfDay(coerced)
             }
+            // Initialize filtered queries
+            updateFilteredQueries()
+            
+            // Set up periodic updates to detect data changes (every 2 seconds)
+            // This maintains change detection while keeping queries tightly filtered
+            queryUpdateTask?.cancel()
+            queryUpdateTask = Task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                    guard !Task.isCancelled else { break }
+                    updateFilteredQueries()
+                }
+            }
         }
         .onChange(of: calendar) { _, newCal in
             viewModel.setCalendar(newCal)
@@ -296,6 +346,13 @@ struct TodayView: View {
             if coerced != newValue {
                 viewModel.date = AppCalendar.startOfDay(coerced)
             }
+            // Update filtered queries when date changes
+            updateFilteredQueries()
+        }
+        .onDisappear {
+            // Cancel periodic update task when view disappears
+            queryUpdateTask?.cancel()
+            queryUpdateTask = nil
         }
         // ENERGY OPTIMIZATION: Debounce onChange handlers to prevent rapid successive reloads
         // Use debounced reload instead of immediate reload for data-driven changes
@@ -306,9 +363,9 @@ struct TodayView: View {
             viewModel.reload()
         }
         // Sheet for Contract Details
-        .sheet(id: $selectedContractID) { id in
+        .sheet(id: $selectedWorkID) { id in
             WorkDetailContainerView(workID: id) {
-                selectedContractID = nil
+                selectedWorkID = nil
                 viewModel.reload()
             }
         }
@@ -640,9 +697,9 @@ struct TodayView: View {
                             .foregroundStyle(.red)
                         ForEach(viewModel.overdueSchedule) { item in
                             ContractScheduleRow(item: item,
-                                              studentName: resolveStudentName(for: item.contract),
-                                              lessonName: resolveLessonName(for: item.contract)) {
-                                selectedContractID = item.contract.id
+                                              studentName: resolveStudentName(for: item.work),
+                                              lessonName: resolveLessonName(for: item.work)) {
+                                selectedWorkID = item.work.id
                             }
                         }
                     }
@@ -652,9 +709,9 @@ struct TodayView: View {
                             .foregroundStyle(.secondary)
                         ForEach(viewModel.todaysSchedule) { item in
                             ContractScheduleRow(item: item,
-                                              studentName: resolveStudentName(for: item.contract),
-                                              lessonName: resolveLessonName(for: item.contract)) {
-                                selectedContractID = item.contract.id
+                                              studentName: resolveStudentName(for: item.work),
+                                              lessonName: resolveLessonName(for: item.work)) {
+                                selectedWorkID = item.work.id
                             }
                         }
                     }
@@ -674,9 +731,9 @@ struct TodayView: View {
                 VStack(spacing: 8) {
                     ForEach(viewModel.staleFollowUps) { item in
                         ContractFollowUpRow(item: item,
-                                          studentName: resolveStudentName(for: item.contract),
-                                          lessonName: resolveLessonName(for: item.contract)) {
-                            selectedContractID = item.contract.id
+                                          studentName: resolveStudentName(for: item.work),
+                                          lessonName: resolveLessonName(for: item.work)) {
+                            selectedWorkID = item.work.id
                         }
                     }
                 }
@@ -692,15 +749,15 @@ struct TodayView: View {
                 ContentUnavailableView("No completions yet", systemImage: "clock")
             } else {
                 VStack(spacing: 8) {
-                    ForEach(viewModel.completedContracts) { contract in
+                    ForEach(viewModel.completedContracts) { work in
                         CompletionRow(
-                            studentName: resolveStudentName(for: contract),
-                            lessonName: resolveLessonName(for: contract),
-                            contract: contract
+                            studentName: resolveStudentName(for: work),
+                            lessonName: resolveLessonName(for: work),
+                            work: work
                         )
                         .contentShape(RoundedRectangle(cornerRadius: 10))
                         .onTapGesture {
-                            selectedContractID = contract.id
+                            selectedWorkID = work.id
                         }
                     }
                 }
@@ -744,20 +801,20 @@ struct TodayView: View {
                 if !viewModel.overdueSchedule.isEmpty {
                     ForEach(viewModel.overdueSchedule) { item in
                         ContractScheduleListRow(item: item,
-                                              studentName: resolveStudentName(for: item.contract),
-                                              lessonName: resolveLessonName(for: item.contract),
+                                              studentName: resolveStudentName(for: item.work),
+                                              lessonName: resolveLessonName(for: item.work),
                                               onTap: {
-                            selectedContractID = item.contract.id
+                            selectedWorkID = item.work.id
                         })
                     }
                 }
                 if !viewModel.todaysSchedule.isEmpty {
                     ForEach(viewModel.todaysSchedule) { item in
                         ContractScheduleListRow(item: item,
-                                              studentName: resolveStudentName(for: item.contract),
-                                              lessonName: resolveLessonName(for: item.contract),
+                                              studentName: resolveStudentName(for: item.work),
+                                              lessonName: resolveLessonName(for: item.work),
                                               onTap: {
-                            selectedContractID = item.contract.id
+                            selectedWorkID = item.work.id
                         })
                     }
                 }
@@ -776,10 +833,10 @@ struct TodayView: View {
             } else {
                 ForEach(viewModel.staleFollowUps) { item in
                     ContractFollowUpListRow(item: item,
-                                          studentName: resolveStudentName(for: item.contract),
-                                          lessonName: resolveLessonName(for: item.contract),
+                                          studentName: resolveStudentName(for: item.work),
+                                          lessonName: resolveLessonName(for: item.work),
                                           onTap: {
-                        selectedContractID = item.contract.id
+                        selectedWorkID = item.work.id
                     })
                 }
             }
@@ -795,15 +852,15 @@ struct TodayView: View {
                     .listRowBackground(Color.clear)
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
-                ForEach(viewModel.completedContracts) { contract in
+                ForEach(viewModel.completedContracts) { work in
                     CompletionListRow(
-                        studentName: resolveStudentName(for: contract),
-                        lessonName: resolveLessonName(for: contract),
-                        contract: contract
+                        studentName: resolveStudentName(for: work),
+                        lessonName: resolveLessonName(for: work),
+                        work: work
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        selectedContractID = contract.id
+                        selectedWorkID = work.id
                     }
                 }
             }
@@ -813,13 +870,13 @@ struct TodayView: View {
     }
     
     // MARK: - Helpers
-    private func resolveStudentName(for contract: WorkContract) -> String {
-        guard let uuid = contract.studentID.asUUID else { return "Student" }
+    private func resolveStudentName(for work: WorkModel) -> String {
+        guard let uuid = UUID(uuidString: work.studentID) else { return "Student" }
         return displayNameForID(uuid)
     }
     
-    private func resolveLessonName(for contract: WorkContract) -> String {
-        guard let uuid = contract.lessonID.asUUID else { return "Lesson" }
+    private func resolveLessonName(for work: WorkModel) -> String {
+        guard let uuid = UUID(uuidString: work.lessonID) else { return "Lesson" }
         return nameForLesson(uuid)
     }
 }
@@ -933,7 +990,7 @@ private struct TodayLessonRow: View {
 private struct CompletionRow: View {
     let studentName: String
     let lessonName: String
-    let contract: WorkContract
+    let work: WorkModel
 
     var body: some View {
         HStack(spacing: 10) {
@@ -947,7 +1004,7 @@ private struct CompletionRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if let note = contract.completionNote, !note.trimmed().isEmpty {
+            if !work.notes.trimmed().isEmpty || (work.noteItems?.isEmpty == false) {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
             }
@@ -1130,7 +1187,7 @@ private struct ContractFollowUpListRow: View {
 private struct CompletionListRow: View {
     let studentName: String
     let lessonName: String
-    let contract: WorkContract
+    let work: WorkModel
 
     var body: some View {
         HStack(spacing: 10) {
@@ -1144,7 +1201,7 @@ private struct CompletionListRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if let note = contract.completionNote, !note.trimmed().isEmpty {
+            if !work.notes.trimmed().isEmpty || (work.noteItems?.isEmpty == false) {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
             }

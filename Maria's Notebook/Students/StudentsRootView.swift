@@ -20,15 +20,15 @@ struct StudentsRootView: View {
     // OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
     @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
-    @Query(sort: [SortDescriptor(\WorkContract.id)]) private var contractsForChangeDetection: [WorkContract]
+    @Query(sort: [SortDescriptor(\WorkModel.id)]) private var workForChangeDetection: [WorkModel]
     
     // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
     private var studentIDs: [UUID] {
         studentsForChangeDetection.map { $0.id }
     }
     
-    private var contractIDs: [UUID] {
-        contractsForChangeDetection.map { $0.id }
+    private var workIDs: [UUID] {
+        workForChangeDetection.map { $0.id }
     }
 
     // We keep the state here to persist it, but pass it down as a binding
@@ -41,10 +41,10 @@ struct StudentsRootView: View {
     }
 
     // Workload specific state
-    @State private var selectedContract: WorkContract? = nil
+    @State private var selectedWork: WorkModel? = nil
     
     // OPTIMIZATION: Cache workload data to avoid reloading on every view update
-    @State private var cachedOpenContracts: [WorkContract] = []
+    @State private var cachedOpenWork: [WorkModel] = []
     @State private var cachedStudents: [UUID: Student] = [:]
     @State private var cachedLessons: [UUID: Lesson] = [:]
 
@@ -60,12 +60,12 @@ struct StudentsRootView: View {
             }
         )
         .sheet(isPresented: Binding(
-            get: { selectedContract != nil },
-            set: { if !$0 { selectedContract = nil } }
+            get: { selectedWork != nil },
+            set: { if !$0 { selectedWork = nil } }
         )) {
-            if let contract = selectedContract {
-                WorkContractDetailSheet(contract: contract) {
-                    selectedContract = nil
+            if let work = selectedWork {
+                WorkModelDetailSheet(workID: work.id) {
+                    selectedWork = nil
                 }
                 #if os(macOS)
                 .frame(minWidth: 500, minHeight: 720)
@@ -78,10 +78,10 @@ struct StudentsRootView: View {
                 ProgressView("Loading…")
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
-                        // Dismiss if the contract is no longer available after a brief delay
+                        // Dismiss if the work is no longer available after a brief delay
                         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                        if selectedContract != nil {
-                            selectedContract = nil
+                        if selectedWork != nil {
+                            selectedWork = nil
                         }
                     }
             }
@@ -90,10 +90,10 @@ struct StudentsRootView: View {
 
     private var workOverviewContent: some View {
         WorkloadContentView(
-            openContracts: cachedOpenContracts,
+            openWork: cachedOpenWork,
             studentsByID: cachedStudents,
             lessonsByID: cachedLessons,
-            onTapContract: { contract in selectedContract = contract }
+            onTapWork: { work in selectedWork = work }
         )
         .task(id: mode) {
             // Reload workload data when mode changes to workOverview
@@ -101,8 +101,8 @@ struct StudentsRootView: View {
                 await loadWorkloadData()
             }
         }
-        .onChange(of: contractIDs) { _, _ in
-            // Reload workload data when contracts change (if in workOverview mode)
+        .onChange(of: workIDs) { _, _ in
+            // Reload workload data when work changes (if in workOverview mode)
             if mode == .workOverview {
                 Task { @MainActor in
                     await loadWorkloadData()
@@ -113,36 +113,30 @@ struct StudentsRootView: View {
     
     // MARK: - Workload Data Loading
     
-    /// Loads workload data on-demand: only open contracts and related students/lessons
+    /// Loads workload data on-demand: only open work and related students/lessons
     @MainActor
     private func loadWorkloadData() async {
-        // Fetch only open contracts (active or review status)
-        let openContracts: [WorkContract]
+        // Fetch only open work (statusRaw != "complete" means active or review status)
+        let openWork: [WorkModel]
         do {
-            let activeDescriptor = FetchDescriptor<WorkContract>(
-                predicate: #Predicate<WorkContract> { $0.statusRaw == "active" },
+            let descriptor = FetchDescriptor<WorkModel>(
+                predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" },
                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
             )
-            let reviewDescriptor = FetchDescriptor<WorkContract>(
-                predicate: #Predicate<WorkContract> { $0.statusRaw == "review" },
-                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-            )
-            let active = try modelContext.fetch(activeDescriptor)
-            let review = try modelContext.fetch(reviewDescriptor)
-            openContracts = active + review
+            openWork = try modelContext.fetch(descriptor)
         } catch {
-            openContracts = []
+            openWork = []
         }
         
-        // Collect student and lesson IDs from contracts
+        // Collect student and lesson IDs from work
         var neededStudentIDs = Set<UUID>()
         var neededLessonIDs = Set<UUID>()
         
-        for contract in openContracts {
-            if let sid = UUID(uuidString: contract.studentID) {
+        for work in openWork {
+            if let sid = UUID(uuidString: work.studentID) {
                 neededStudentIDs.insert(sid)
             }
-            if let lid = UUID(uuidString: contract.lessonID) {
+            if let lid = UUID(uuidString: work.lessonID) {
                 neededLessonIDs.insert(lid)
             }
         }
@@ -169,7 +163,7 @@ struct StudentsRootView: View {
         }
         
         // Update cache
-        cachedOpenContracts = openContracts
+        cachedOpenWork = openWork
         cachedStudents = studentsByID
         cachedLessons = lessonsByID
     }
@@ -177,16 +171,16 @@ struct StudentsRootView: View {
 
 // MARK: - Workload Content View
 private struct WorkloadContentView: View {
-    let openContracts: [WorkContract]
+    let openWork: [WorkModel]
     let studentsByID: [UUID: Student]
     let lessonsByID: [UUID: Lesson]
-    let onTapContract: (WorkContract) -> Void
+    let onTapWork: (WorkModel) -> Void
     
-    private var openByStudent: [UUID: [WorkContract]] {
-        var result: [UUID: [WorkContract]] = [:]
-        for contract in openContracts {
-            if let sid = UUID(uuidString: contract.studentID) {
-                result[sid, default: []].append(contract)
+    private var openByStudent: [UUID: [WorkModel]] {
+        var result: [UUID: [WorkModel]] = [:]
+        for work in openWork {
+            if let sid = UUID(uuidString: work.studentID) {
+                result[sid, default: []].append(work)
             }
         }
         return result
@@ -194,10 +188,10 @@ private struct WorkloadContentView: View {
     
     private var counts: [UUID: (practice: Int, follow: Int, research: Int)] {
         var result: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
-        for contract in openContracts {
-            guard let sid = UUID(uuidString: contract.studentID) else { continue }
+        for work in openWork {
+            guard let sid = UUID(uuidString: work.studentID) else { continue }
             
-            switch contract.kind {
+            switch work.kind {
             case .practiceLesson:
                 result[sid, default: (0,0,0)].practice += 1
             case .followUpAssignment:
@@ -228,13 +222,13 @@ private struct WorkloadContentView: View {
     var body: some View {
         WorkStudentsGrid(
             summaries: summaries,
-            openContractsByStudentID: openByStudent,
+            openWorkByStudentID: openByStudent,
             lessonsByID: lessonsByID,
             onTapStudent: { _ in
                 // In Workload view, tapping a student could perhaps filter or open details
                 // For now, we leave it as is or implement specific workload navigation
             },
-            onTapContract: onTapContract
+            onTapWork: onTapWork
         )
     }
 }

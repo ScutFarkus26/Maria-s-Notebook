@@ -12,7 +12,7 @@ struct TrackFilteredListView: View, Identifiable {
     let track: Track
     let filterType: TrackFilterType
     let allPresentations: [Presentation]
-    let allWorkContracts: [WorkContract]
+    let allWorkModels: [WorkModel]
     let allNotes: [Note]
     let allLessons: [Lesson]
     let onDismiss: () -> Void
@@ -37,11 +37,11 @@ struct TrackFilteredListView: View, Identifiable {
         }
     }
     
-    private var filteredWorkContracts: [WorkContract] {
+    private var filteredWorkModels: [WorkModel] {
         let trackIDString = track.id.uuidString
         let studentIDString = enrollment.studentID
-        return allWorkContracts.filter { contract in
-            contract.trackID == trackIDString && contract.studentID == studentIDString
+        return allWorkModels.filter { work in
+            work.trackID == trackIDString && work.studentID == studentIDString
         }
     }
     
@@ -117,20 +117,20 @@ struct TrackFilteredListView: View, Identifiable {
     
     private var workList: some View {
         Group {
-            if filteredWorkContracts.isEmpty {
+            if filteredWorkModels.isEmpty {
                 ContentUnavailableView {
                     Label("No Work", systemImage: "briefcase")
                         .foregroundStyle(.secondary)
                 } description: {
-                    Text("No work contracts found for this track.")
+                    Text("No work found for this track.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 40)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(filteredWorkContracts) { contract in
-                        workRow(contract)
+                    ForEach(filteredWorkModels) { work in
+                        workRow(work)
                     }
                 }
             }
@@ -204,7 +204,7 @@ struct TrackFilteredListView: View, Identifiable {
         )
     }
     
-    private func workRow(_ contract: WorkContract) -> some View {
+    private func workRow(_ work: WorkModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "briefcase.fill")
@@ -218,17 +218,17 @@ struct TrackFilteredListView: View, Identifiable {
                 
                 Spacer()
                 
-                Text(Self.dateFormatter.string(from: contract.completedAt ?? contract.createdAt))
+                Text(Self.dateFormatter.string(from: work.completedAt ?? work.createdAt))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             
-            Text(contract.title ?? "Work Contract")
+            Text(work.title.isEmpty ? "Work" : work.title)
                 .font(.body)
                 .foregroundStyle(.primary)
             
             HStack(spacing: 8) {
-                Text(contract.status.rawValue.capitalized)
+                Text(work.status.rawValue.capitalized)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)

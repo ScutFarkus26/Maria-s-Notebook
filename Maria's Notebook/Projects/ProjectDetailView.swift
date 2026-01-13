@@ -197,12 +197,12 @@ struct ProjectDetailView: View {
 // Helper view to show session details + work count
 private struct SessionRow: View {
     let session: ProjectSession
-    @Query private var contracts: [WorkContract]
+    @Query private var workModels: [WorkModel]
     
     init(session: ProjectSession) {
         self.session = session
         let sid = session.id.uuidString
-        _contracts = Query(filter: #Predicate<WorkContract> { $0.sourceContextID == sid })
+        _workModels = Query(filter: #Predicate<WorkModel> { $0.sourceContextID == sid })
     }
     
     var body: some View {
@@ -215,7 +215,7 @@ private struct SessionRow: View {
                 }
             }
             Spacer()
-            Text("\(contracts.count) work items")
+            Text("\(workModels.count) work items")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

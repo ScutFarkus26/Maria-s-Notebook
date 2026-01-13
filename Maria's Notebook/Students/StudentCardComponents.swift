@@ -115,6 +115,7 @@ struct DefaultStudentCard: View {
 struct AgeStudentCard: View {
     let student: Student
     @State private var bob = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private var levelColor: Color {
         AppColors.color(forLevel: student.level)
@@ -133,6 +134,11 @@ struct AgeStudentCard: View {
 
     private var ageVerboseLabel: String {
         AgeUtils.quarterFractionAgeString(for: student.birthday)
+    }
+    
+    // Computed property to determine if animation should run (only when scene is active)
+    private var isAnimating: Bool {
+        scenePhase == .active
     }
 
     private var sparklesOverlay: some View {
@@ -176,7 +182,10 @@ struct AgeStudentCard: View {
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
                 .offset(y: bob ? -2 : 2)
-                .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+                .animation(
+                    isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+                    value: bob
+                )
         }
         .frame(width: 112, height: 112)
         .accessibilityLabel("Age: \(ageVerboseLabel)")
@@ -239,6 +248,20 @@ struct AgeStudentCard: View {
         .onAppear {
             bob = true
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            // ENERGY OPTIMIZATION: Only animate when scene is active to reduce GPU/CPU usage when backgrounded
+            if newPhase == .active {
+                // Resume animation when scene becomes active
+                bob = true
+            } else {
+                // Stop animation immediately when scene becomes inactive
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    bob = false
+                }
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 }
@@ -291,6 +314,7 @@ struct LastLessonStudentCard: View {
 struct BirthdayStudentCard: View {
     let student: Student
     @Environment(\.calendar) private var calendar
+    @Environment(\.scenePhase) private var scenePhase
     @State private var bob = false
 
     private static let dateFormatter: DateFormatter = {
@@ -298,6 +322,11 @@ struct BirthdayStudentCard: View {
         fmt.setLocalizedDateFormatFromTemplate("MMM d")
         return fmt
     }()
+    
+    // Computed property to determine if animation should run (only when scene is active)
+    private var isAnimating: Bool {
+        scenePhase == .active
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -355,6 +384,20 @@ struct BirthdayStudentCard: View {
             .padding(14)
         }
         .onAppear { bob = true }
+        .onChange(of: scenePhase) { _, newPhase in
+            // ENERGY OPTIMIZATION: Only animate when scene is active to reduce GPU/CPU usage when backgrounded
+            if newPhase == .active {
+                // Resume animation when scene becomes active
+                bob = true
+            } else {
+                // Stop animation immediately when scene becomes inactive
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    bob = false
+                }
+            }
+        }
     }
 
     // MARK: - Prominent headline badges
@@ -364,7 +407,10 @@ struct BirthdayStudentCard: View {
                 .font(.system(size: 44, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
                 .offset(y: bob ? -2 : 2)
-                .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+                .animation(
+                    isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+                    value: bob
+                )
             Text(daysUntil == 1 ? "day" : "days")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.95))
@@ -387,7 +433,10 @@ struct BirthdayStudentCard: View {
             .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
             .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
             .offset(y: bob ? -2 : 2)
-            .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+            .animation(
+                isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+                value: bob
+            )
             .accessibilityHidden(true)
     }
 
@@ -416,7 +465,10 @@ struct BirthdayStudentCard: View {
         }
         .font(.title3)
         .offset(y: bob ? -6 : 6)
-        .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: bob)
+        .animation(
+            isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+            value: bob
+        )
         .accessibilityHidden(true)
     }
 

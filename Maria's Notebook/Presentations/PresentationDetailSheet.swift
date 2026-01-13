@@ -377,17 +377,28 @@ struct PresentationDetailSheet: View, Identifiable {
     let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "", writeUp: "")
     let student = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
     ctx.insert(lesson); ctx.insert(student)
+    
+    // Try to find a matching StudentLesson if available
+    var legacyStudentLessonID: String? = nil
+    let allStudentLessons = (try? ctx.fetch(FetchDescriptor<StudentLesson>())) ?? []
+    if let matchingSL = allStudentLessons.first(where: { sl in
+        sl.lessonID == lesson.id.uuidString && Set(sl.studentIDs) == Set([student.id.uuidString])
+    }) {
+        legacyStudentLessonID = matchingSL.id.uuidString
+    }
+    
     let p = Presentation(
         id: UUID(),
         createdAt: Date(),
         presentedAt: Date(),
         lessonID: lesson.id.uuidString,
         studentIDs: [student.id.uuidString],
-        legacyStudentLessonID: nil,
+        legacyStudentLessonID: legacyStudentLessonID,
         lessonTitleSnapshot: lesson.name,
         lessonSubtitleSnapshot: nil
     )
     ctx.insert(p)
+    print("Presentation link set: legacyStudentLessonID=\(p.legacyStudentLessonID ?? "nil")")
     let note = ScopedNote(body: "Group was engaged.", scope: .all, presentation: p)
     ctx.insert(note)
     return PresentationDetailSheet(presentationID: p.id)

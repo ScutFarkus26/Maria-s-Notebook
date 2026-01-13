@@ -12,9 +12,9 @@ struct StudentTrackDetailView: View {
     @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)])
     private var allPresentations: [Presentation]
     
-    // Query WorkContracts filtered by trackID and studentID
-    @Query(sort: [SortDescriptor(\WorkContract.createdAt, order: .reverse)])
-    private var allWorkContracts: [WorkContract]
+    // Query WorkModels filtered by trackID and studentID
+    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
+    private var allWorkModels: [WorkModel]
     
     // Query Notes filtered by studentTrackEnrollment
     @Query(sort: [SortDescriptor(\Note.updatedAt, order: .reverse)])
@@ -29,11 +29,11 @@ struct StudentTrackDetailView: View {
         }
     }
     
-    private var trackWorkContracts: [WorkContract] {
+    private var trackWorkModels: [WorkModel] {
         let trackIDString = track.id.uuidString
         let studentIDString = enrollment.studentID
-        return allWorkContracts.filter { contract in
-            contract.trackID == trackIDString && contract.studentID == studentIDString
+        return allWorkModels.filter { work in
+            work.trackID == trackIDString && work.studentID == studentIDString
         }
     }
     
@@ -52,7 +52,7 @@ struct StudentTrackDetailView: View {
         
         enum ItemType {
             case presentation(Presentation)
-            case work(WorkContract)
+            case work(WorkModel)
             case note(Note)
         }
     }
@@ -69,14 +69,14 @@ struct StudentTrackDetailView: View {
             ))
         }
         
-        // Add work contracts
-        for contract in trackWorkContracts {
+        // Add work models
+        for work in trackWorkModels {
             // Use completedAt if available, otherwise createdAt
-            let date = contract.completedAt ?? contract.createdAt
+            let date = work.completedAt ?? work.createdAt
             items.append(TimelineItem(
-                id: contract.id,
+                id: work.id,
                 date: date,
-                type: .work(contract)
+                type: .work(work)
             ))
         }
         
@@ -95,7 +95,7 @@ struct StudentTrackDetailView: View {
     
     // Stats counts
     private var presentationCount: Int { trackPresentations.count }
-    private var workCount: Int { trackWorkContracts.count }
+    private var workCount: Int { trackWorkModels.count }
     private var noteCount: Int { trackNotes.count }
     
     var body: some View {
@@ -257,7 +257,7 @@ struct StudentTrackDetailView: View {
         }
     }
     
-    private func workRow(_ contract: WorkContract) -> some View {
+    private func workRow(_ work: WorkModel) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "briefcase.fill")
@@ -269,15 +269,15 @@ struct StudentTrackDetailView: View {
                     .foregroundStyle(.blue)
             }
             
-            Text(contract.title ?? "Work Contract")
+            Text(work.title.isEmpty ? "Work" : work.title)
                 .font(.subheadline)
                 .foregroundStyle(.primary)
             
             HStack(spacing: 4) {
-                Text(contract.status.rawValue.capitalized)
+                Text(work.status.rawValue.capitalized)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if contract.status == .complete, contract.completedAt != nil {
+                if work.status == .complete, work.completedAt != nil {
                     Text("• Completed")
                         .font(.caption)
                         .foregroundStyle(.secondary)

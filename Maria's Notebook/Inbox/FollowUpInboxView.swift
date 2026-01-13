@@ -15,8 +15,15 @@ struct FollowUpInboxView: View {
     
     // Lightweight change detection queries (IDs only to detect when to reload)
     @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
-    // WorkModel change detection
-    @Query(sort: [SortDescriptor(\WorkModel.id)]) private var workModelsForChangeDetection: [WorkModel]
+    // ENERGY OPTIMIZATION: Filter WorkModel change detection to only non-complete items that can affect the follow-up inbox.
+    // This matches FollowUpInboxEngine's filter (statusRaw != "complete") and significantly reduces memory usage
+    // by avoiding monitoring of completed work that cannot appear in the inbox.
+    @Query(
+        filter: #Predicate<WorkModel> { work in
+            work.statusRaw != "complete"
+        },
+        sort: [SortDescriptor(\WorkModel.id)]
+    ) private var workModelsForChangeDetection: [WorkModel]
     
     @Query(filter: #Predicate<WorkNote> { $0.isLessonToGive == true }, sort: [
         SortDescriptor(\WorkNote.createdAt, order: .reverse)
@@ -166,18 +173,20 @@ struct FollowUpInboxView: View {
             }
         }
         .sheet(item: $selectedContract) { token in
-            // Legacy WorkContract support - try to find corresponding WorkModel
+            // Try to find WorkModel by id first (if already migrated)
             let targetID = token.id
-            let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == targetID })
+            let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == targetID })
             if let workModel = try? modelContext.fetch(workModelFetch).first {
                 WorkDetailContainerView(workID: workModel.id) {
                     selectedContract = nil
                 }
             } else {
-                // Fallback: try WorkContract for legacy data
-                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == targetID })
-                if let c = try? modelContext.fetch(fetch).first {
-                    WorkContractDetailSheet(contract: c) { selectedContract = nil }
+                // Fallback: try to find WorkModel by legacyContractID (if not yet migrated)
+                let legacyFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == targetID })
+                if let workModel = try? modelContext.fetch(legacyFetch).first {
+                    WorkDetailContainerView(workID: workModel.id) {
+                        selectedContract = nil
+                    }
                 } else {
                     ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
                 }
