@@ -207,12 +207,19 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         ids.insert(id, at: bounded)
         let baseDate = baseDateForDay(day: day, calendar: calendar)
         let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
-        for id in ids {
-            if let item = allStudentLessons.first(where: { $0.id == id }) {
-                item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+        do {
+            for id in ids {
+                if let item = allStudentLessons.first(where: { $0.id == id }) {
+                    item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+                    #if DEBUG
+                    item.checkInboxInvariant()
+                    #endif
+                }
             }
+            try modelContext.save()
+        } catch {
+            print("Presentations schedule save failed: \(error)")
         }
-        try? modelContext.save()
     }
 
     private func baseDateForDay(day: Date, calendar: Calendar) -> Date {

@@ -52,6 +52,12 @@ final class TodayViewModel: ObservableObject {
     // MARK: - Dependencies
     private let context: ModelContext
     private var calendar: Calendar
+    
+    // MARK: - School Day Cache
+    // Cache for NonSchoolDay and SchoolDayOverride records to avoid repeated database fetches
+    private var cachedNonSchoolDays: Set<Date> = []
+    private var cachedSchoolDayOverrides: Set<Date> = []
+    private var cachedYearRange: ClosedRange<Int>?
 
     // MARK: - Inputs
     @Published var date: Date {
@@ -339,28 +345,83 @@ final class TodayViewModel: ObservableObject {
             loadStudentsIfNeeded(ids: workStudentIDs)
             loadLessonsIfNeeded(ids: workLessonIDs)
             
-            // Fetch Plan Items for the work we need
-            // Fetch all and filter in memory to avoid predicate issues with Set.contains
+            // Fetch Plan Items for the work we need using efficient database predicate
             let workIDStrings = Set(workItems.map { $0.id.uuidString })
-            let allPlanItemsDescriptor = FetchDescriptor<WorkPlanItem>()
-            let allPlanItems = try context.fetch(allPlanItemsDescriptor)
-            let planItems = allPlanItems.filter { workIDStrings.contains($0.workID) }
+            
+            // Use predicate to fetch only relevant WorkPlanItems
+            // If workIDStrings is too large, fall back to date-based filtering
+            let planItems: [WorkPlanItem]
+            if workIDStrings.count > 100 {
+                // For large sets, use date range predicate instead
+                let planDescriptor = FetchDescriptor<WorkPlanItem>(
+                    predicate: #Predicate<WorkPlanItem> { item in
+                        item.scheduledDate <= nextDay
+                    }
+                )
+                let fetchedPlanItems = try context.fetch(planDescriptor)
+                planItems = fetchedPlanItems.filter { workIDStrings.contains($0.workID) }
+            } else {
+                // For smaller sets, use efficient ID-based predicate
+                let planDescriptor = FetchDescriptor<WorkPlanItem>(
+                    predicate: #Predicate<WorkPlanItem> { item in
+                        workIDStrings.contains(item.workID)
+                    }
+                )
+                planItems = try context.fetch(planDescriptor)
+            }
             let planItemsByWork = planItems.grouped { CloudKitUUID.uuid(from: $0.workID) ?? UUID() }
             
-            // Fetch Notes that have a work relationship matching our work
-            // Use work relationship instead of workContractID
-            let allNotes = try context.fetch(FetchDescriptor<ScopedNote>())
-            // Filter notes that reference our work via work relationship
-            let notes = allNotes.filter { note in
-                if let work = note.work, workIDStrings.contains(work.id.uuidString) {
-                    return true
+            // Fetch Notes that have a work relationship matching our work using efficient database predicate
+            // Use workContractID for predicate (direct property access)
+            // For notes matching via work relationship, we'll filter in memory from a smaller set
+            let notes: [ScopedNote]
+            if workIDStrings.count > 100 {
+                // For large sets, use date-based filtering to reduce fetch size
+                // Fetch notes from recent period (last 90 days to match work cutoff)
+                let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date().addingTimeInterval(-90*24*3600)
+                let notesDescriptor = FetchDescriptor<ScopedNote>(
+                    predicate: #Predicate<ScopedNote> { note in
+                        note.createdAt >= notesCutoffDate
+                    }
+                )
+                let fetchedNotes = try context.fetch(notesDescriptor)
+                notes = fetchedNotes.filter { note in
+                    if let work = note.work, workIDStrings.contains(work.id.uuidString) {
+                        return true
+                    }
+                    if let contractIDString = note.workContractID,
+                       workIDStrings.contains(contractIDString) {
+                        return true
+                    }
+                    return false
                 }
-                // Fallback: check workContractID for legacy notes (during migration)
-                if let contractIDString = note.workContractID,
-                   workIDStrings.contains(contractIDString) {
-                    return true
+            } else {
+                // For smaller sets, use efficient predicate on workContractID
+                let notesDescriptor = FetchDescriptor<ScopedNote>(
+                    predicate: #Predicate<ScopedNote> { note in
+                        note.workContractID != nil && workIDStrings.contains(note.workContractID!)
+                    }
+                )
+                let predicateMatchedNotes = try context.fetch(notesDescriptor)
+                
+                // Also fetch notes that match via work relationship
+                // Since predicates can't easily access nested relationship properties,
+                // we fetch notes with work relationship set (within date range) and filter in memory
+                // This is still more efficient than fetching ALL notes
+                let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date().addingTimeInterval(-90*24*3600)
+                let workRelationshipNotesDescriptor = FetchDescriptor<ScopedNote>(
+                    predicate: #Predicate<ScopedNote> { note in
+                        note.work != nil && note.createdAt >= notesCutoffDate
+                    }
+                )
+                let workRelationshipNotes = try context.fetch(workRelationshipNotesDescriptor)
+                let relationshipMatchedNotes = workRelationshipNotes.filter { note in
+                    guard let work = note.work else { return false }
+                    return workIDStrings.contains(work.id.uuidString) && 
+                           !predicateMatchedNotes.contains(where: { $0.id == note.id })
                 }
-                return false
+                
+                notes = predicateMatchedNotes + relationshipMatchedNotes
             }
             let notesByWork = notes.grouped { 
                 if let work = $0.work {
@@ -649,18 +710,65 @@ final class TodayViewModel: ObservableObject {
         }
     }
     
-    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Caches school day data for a 2-year window around the given date
+    /// This prevents hundreds of database fetches when iterating through dates
+    private func cacheSchoolDayData(for date: Date) {
+        let cal = AppCalendar.shared
+        let year = cal.component(.year, from: date)
+        let yearRange = (year - 1)...(year + 1)
+        
+        // Check if we already have cached data for this year range
+        if let cachedRange = cachedYearRange,
+           cachedRange.contains(year) {
+            return // Cache is still valid
+        }
+        
+        // Calculate date range for 2-year window (1 year before to 1 year after)
+        guard let startDate = cal.date(from: DateComponents(year: year - 1, month: 1, day: 1)),
+              let endDate = cal.date(from: DateComponents(year: year + 2, month: 1, day: 1)) else {
+            return
+        }
+        
+        let startOfWindow = AppCalendar.startOfDay(startDate)
+        let endOfWindow = AppCalendar.startOfDay(endDate)
+        
+        // Fetch all NonSchoolDay records in the window
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(
+                predicate: #Predicate<NonSchoolDay> { nsd in
+                    nsd.date >= startOfWindow && nsd.date < endOfWindow
+                }
+            )
+            let nonSchoolDays = try context.fetch(nsDescriptor)
+            cachedNonSchoolDays = Set(nonSchoolDays.map { AppCalendar.startOfDay($0.date) })
+        } catch {
+            cachedNonSchoolDays = []
+        }
+        
+        // Fetch all SchoolDayOverride records in the window
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(
+                predicate: #Predicate<SchoolDayOverride> { sdo in
+                    sdo.date >= startOfWindow && sdo.date < endOfWindow
+                }
+            )
+            let overrides = try context.fetch(ovDescriptor)
+            cachedSchoolDayOverrides = Set(overrides.map { AppCalendar.startOfDay($0.date) })
+        } catch {
+            cachedSchoolDayOverrides = []
+        }
+        
+        cachedYearRange = yearRange
+    }
+    
+    /// Synchronous helper that determines if a date is a non-school day using cached data.
     private func isNonSchoolDaySync(_ date: Date) -> Bool {
         let day = AppCalendar.startOfDay(date)
         let cal = AppCalendar.shared
 
-        // 1) Explicit non-school day wins
-        do {
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
-            let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            // On fetch error, fall back to weekend logic below
+        // 1) Explicit non-school day wins (check cache)
+        if cachedNonSchoolDays.contains(day) {
+            return true
         }
 
         // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
@@ -668,19 +776,19 @@ final class TodayViewModel: ObservableObject {
         let isWeekend = (weekday == 1 || weekday == 7)
         guard isWeekend else { return false }
 
-        // 3) Weekend override makes it a school day
-        do {
-            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
-            let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
-        } catch {
-            // If override fetch fails, assume weekend remains non-school
+        // 3) Weekend override makes it a school day (check cache)
+        if cachedSchoolDayOverrides.contains(day) {
+            return false
         }
+        
         return true
     }
     
     /// Synchronous helper that returns the next school day strictly after the given date.
     private func nextSchoolDaySync(after date: Date) -> Date {
+        // Cache school day data once at the start to avoid repeated database fetches
+        cacheSchoolDayData(for: date)
+        
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
         // Start from the following day
@@ -695,6 +803,9 @@ final class TodayViewModel: ObservableObject {
     
     /// Synchronous helper that returns the previous school day strictly before the given date.
     private func previousSchoolDaySync(before date: Date) -> Date {
+        // Cache school day data once at the start to avoid repeated database fetches
+        cacheSchoolDayData(for: date)
+        
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
         // Start from the previous day

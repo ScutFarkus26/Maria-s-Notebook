@@ -5,6 +5,85 @@
 import SwiftUI
 import SwiftData
 
+/// Helper class to cache school day data for TodayView
+/// This avoids repeated database fetches when iterating through dates
+private class SchoolDayCache {
+    var cachedNonSchoolDays: Set<Date> = []
+    var cachedSchoolDayOverrides: Set<Date> = []
+    var cachedYearRange: ClosedRange<Int>?
+    
+    func cacheSchoolDayData(for date: Date, modelContext: ModelContext) {
+        let cal = AppCalendar.shared
+        let year = cal.component(.year, from: date)
+        let yearRange = (year - 1)...(year + 1)
+        
+        // Check if we already have cached data for this year range
+        if let cachedRange = cachedYearRange,
+           cachedRange.contains(year) {
+            return // Cache is still valid
+        }
+        
+        // Calculate date range for 2-year window (1 year before to 1 year after)
+        guard let startDate = cal.date(from: DateComponents(year: year - 1, month: 1, day: 1)),
+              let endDate = cal.date(from: DateComponents(year: year + 2, month: 1, day: 1)) else {
+            return
+        }
+        
+        let startOfWindow = AppCalendar.startOfDay(startDate)
+        let endOfWindow = AppCalendar.startOfDay(endDate)
+        
+        // Fetch all NonSchoolDay records in the window
+        do {
+            let nsDescriptor = FetchDescriptor<NonSchoolDay>(
+                predicate: #Predicate<NonSchoolDay> { nsd in
+                    nsd.date >= startOfWindow && nsd.date < endOfWindow
+                }
+            )
+            let nonSchoolDays = try modelContext.fetch(nsDescriptor)
+            cachedNonSchoolDays = Set(nonSchoolDays.map { AppCalendar.startOfDay($0.date) })
+        } catch {
+            cachedNonSchoolDays = []
+        }
+        
+        // Fetch all SchoolDayOverride records in the window
+        do {
+            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(
+                predicate: #Predicate<SchoolDayOverride> { sdo in
+                    sdo.date >= startOfWindow && sdo.date < endOfWindow
+                }
+            )
+            let overrides = try modelContext.fetch(ovDescriptor)
+            cachedSchoolDayOverrides = Set(overrides.map { AppCalendar.startOfDay($0.date) })
+        } catch {
+            cachedSchoolDayOverrides = []
+        }
+        
+        cachedYearRange = yearRange
+    }
+    
+    func isNonSchoolDay(_ date: Date) -> Bool {
+        let day = AppCalendar.startOfDay(date)
+        let cal = AppCalendar.shared
+
+        // 1) Explicit non-school day wins (check cache)
+        if cachedNonSchoolDays.contains(day) {
+            return true
+        }
+
+        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        let weekday = cal.component(.weekday, from: day)
+        let isWeekend = (weekday == 1 || weekday == 7)
+        guard isWeekend else { return false }
+
+        // 3) Weekend override makes it a school day (check cache)
+        if cachedSchoolDayOverrides.contains(day) {
+            return false
+        }
+        
+        return true
+    }
+}
+
 /// Today hub view. Binds to TodayViewModel and renders multiple sections.
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
@@ -25,7 +104,9 @@ struct TodayView: View {
     // that could affect the Today screen's display for the current date.
     @State private var filteredStudentLessonIDs: [UUID] = []
     @State private var filteredPlanItemIDs: [UUID] = []
-    @State private var queryUpdateTask: Task<Void, Never>?
+    
+    // School day cache to avoid repeated database fetches in date calculation loops
+    @State private var schoolDayCache = SchoolDayCache()
     
     // Computed properties that fetch filtered data for change detection
     // Filter StudentLesson to only lessons scheduled for the current day window [viewModel.date.startOfDay, nextDay)
@@ -73,45 +154,24 @@ struct TodayView: View {
     
     // MARK: - Helpers
     
-    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Synchronous helper that determines if a date is a non-school day using cached data.
     private func isNonSchoolDaySync(_ date: Date) -> Bool {
-        let day = AppCalendar.startOfDay(date)
-        let cal = AppCalendar.shared
-
-        // 1) Explicit non-school day wins
-        do {
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
-            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            // On fetch error, fall back to weekend logic below
-        }
-
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday = cal.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-
-        // 3) Weekend override makes it a school day
-        do {
-            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
-            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
-        } catch {
-            // If override fetch fails, assume weekend remains non-school
-        }
-        return true
+        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        return schoolDayCache.isNonSchoolDay(date)
     }
     
     /// Synchronous helper that returns the next school day strictly after the given date.
     private func nextSchoolDaySync(after date: Date) -> Date {
+        // Cache school day data once at the start to avoid repeated database fetches
+        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
         // Start from the following day
         d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         // Safety cap to avoid infinite loops in case of data errors
         for _ in 0..<730 { // up to ~2 years
-            if !isNonSchoolDaySync(d) { return d }
+            if !schoolDayCache.isNonSchoolDay(d) { return d }
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
         return cal.startOfDay(for: date)
@@ -119,12 +179,15 @@ struct TodayView: View {
     
     /// Synchronous helper that returns the previous school day strictly before the given date.
     private func previousSchoolDaySync(before date: Date) -> Date {
+        // Cache school day data once at the start to avoid repeated database fetches
+        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
         // Start from the previous day
         d = cal.date(byAdding: .day, value: -1, to: d) ?? d
         for _ in 0..<730 { // up to ~2 years
-            if !isNonSchoolDaySync(d) { return d }
+            if !schoolDayCache.isNonSchoolDay(d) { return d }
             d = cal.date(byAdding: .day, value: -1, to: d) ?? d
         }
         return cal.startOfDay(for: date)
@@ -132,8 +195,11 @@ struct TodayView: View {
     
     /// Synchronous helper that coerces the provided date to the nearest school day.
     private func nearestSchoolDaySync(to date: Date) -> Date {
+        // Cache school day data once at the start to avoid repeated database fetches
+        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        
         let day = AppCalendar.startOfDay(date)
-        if !isNonSchoolDaySync(day) { return day }
+        if !schoolDayCache.isNonSchoolDay(day) { return day }
         let prev = previousSchoolDaySync(before: day)
         let next = nextSchoolDaySync(after: day)
         let distPrev = abs(prev.timeIntervalSince(day))
@@ -324,17 +390,6 @@ struct TodayView: View {
             }
             // Initialize filtered queries
             updateFilteredQueries()
-            
-            // Set up periodic updates to detect data changes (every 2 seconds)
-            // This maintains change detection while keeping queries tightly filtered
-            queryUpdateTask?.cancel()
-            queryUpdateTask = Task {
-                while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-                    guard !Task.isCancelled else { break }
-                    updateFilteredQueries()
-                }
-            }
         }
         .onChange(of: calendar) { _, newCal in
             viewModel.setCalendar(newCal)
@@ -349,15 +404,6 @@ struct TodayView: View {
             // Update filtered queries when date changes
             updateFilteredQueries()
         }
-        .onDisappear {
-            // Cancel periodic update task when view disappears
-            queryUpdateTask?.cancel()
-            queryUpdateTask = nil
-        }
-        // ENERGY OPTIMIZATION: Debounce onChange handlers to prevent rapid successive reloads
-        // Use debounced reload instead of immediate reload for data-driven changes
-        .onChange(of: studentLessonIDs) { _, _ in viewModel.scheduleReload() }
-        .onChange(of: planItemIDs) { _, _ in viewModel.scheduleReload() }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             // Planning inbox refresh is user-initiated, so reload immediately
             viewModel.reload()

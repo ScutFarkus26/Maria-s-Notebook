@@ -228,7 +228,7 @@ final class PresentationsViewModel: ObservableObject {
         var blocked: [StudentLesson] = []
         
         for sl in allUnscheduled {
-            let (isBlocked, prereqOpenCount) = checkBlockingForStudentLesson(
+            let (isBlocked, _) = checkBlockingForStudentLesson(
                 sl: sl,
                 lessons: lessons,
                 studentLessons: studentLessons,

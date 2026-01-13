@@ -140,6 +140,9 @@ struct PresentationsCalendarStrip: View {
             guard let currentDate = lesson.scheduledFor else { continue }
             let nextSchoolDay = await SchoolCalendar.nextSchoolDay(after: currentDate, using: modelContext)
             lesson.setScheduledFor(nextSchoolDay, using: calendar)
+            #if DEBUG
+            lesson.checkInboxInvariant()
+            #endif
         }
         
         // Save changes

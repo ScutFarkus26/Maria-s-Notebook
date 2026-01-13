@@ -50,6 +50,7 @@ struct StudentPickerPopover: View {
             return $0.lastName.lowercased() < $1.lastName.lowercased()
         }
     }
+    
 
     func displayName(for student: Student) -> String {
         return StudentFormatter.displayName(for: student)

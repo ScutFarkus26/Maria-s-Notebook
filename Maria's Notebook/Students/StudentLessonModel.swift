@@ -196,6 +196,22 @@ import SwiftData
             self.scheduledForDay = Date.distantPast
         }
     }
+    
+    #if DEBUG
+    /// Debug-only invariant check: verifies that scheduling state is consistent with inbox filter logic.
+    /// The inbox filter is: scheduledFor == nil && !isGiven
+    func checkInboxInvariant() {
+        let wouldBeInInbox = scheduledFor == nil && !isGiven
+        
+        if scheduledFor != nil {
+            // If scheduled, it must NOT be in inbox
+            assert(!wouldBeInInbox, "StudentLesson \(id): scheduledFor != nil but would be in inbox (isGiven=\(isGiven))")
+        } else if !isGiven {
+            // If unscheduled and not given, it must be eligible for inbox (basic filter passes)
+            assert(wouldBeInInbox, "StudentLesson \(id): scheduledFor == nil && !isGiven but would not be in inbox")
+        }
+    }
+    #endif
 }
 
 struct StudentLessonSnapshot: Identifiable {

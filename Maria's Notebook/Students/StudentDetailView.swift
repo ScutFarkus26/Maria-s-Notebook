@@ -68,7 +68,12 @@ struct StudentDetailView: View {
     }
 
     private func fetchContractsForStudent() -> [WorkContract] {
-        vm.fetchContractsForStudent(modelContext: modelContext)
+        // NOTE: fetchContractsForStudent is deprecated and now returns empty array
+        // The codebase is transitioning from WorkContract to WorkModel
+        // TODO: Migrate contractsCache and updateContracts to use WorkModel instead
+        // Using the new method but not yet integrated - WorkModel conversion needed
+        _ = vm.fetchWorkModelsForStudent(modelContext: modelContext)
+        return [] // Deprecated method returns empty array, matching that behavior
     }
 
     @ViewBuilder

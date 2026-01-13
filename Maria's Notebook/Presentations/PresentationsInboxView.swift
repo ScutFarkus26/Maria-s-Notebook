@@ -285,7 +285,14 @@ private struct InboxDropDelegate: DropDelegate {
                     // Only process if it actually has a schedule to clear
                     if sl.scheduledFor != nil {
                         sl.scheduledFor = nil
-                        try? modelContext.save()
+                        #if DEBUG
+                        sl.checkInboxInvariant()
+                        #endif
+                        do {
+                            try modelContext.save()
+                        } catch {
+                            print("Presentations inbox unschedule save failed: \(error)")
+                        }
                     }
                 }
             }

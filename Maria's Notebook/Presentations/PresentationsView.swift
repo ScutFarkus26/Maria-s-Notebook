@@ -198,6 +198,9 @@ struct PresentationsView: View {
                             isNonSchool: isNonSchool,
                             onClear: { sl in
                                 sl.scheduledFor = nil
+                                #if DEBUG
+                                sl.checkInboxInvariant()
+                                #endif
                                 try? modelContext.save()
                             },
                             onSelect: { sl in
@@ -292,7 +295,7 @@ struct PresentationsView: View {
                 await loadNonSchoolDates()
             }
         }
-        .onChange(of: studentLessonIDs) { _, _ in
+        .onChange(of: studentLessonChangeKeys) { _, _ in
             syncInboxOrderWithCurrentBase()
             updateViewModel()
         }
@@ -331,6 +334,24 @@ struct PresentationsView: View {
 
 
     // MARK: - Helpers
+    
+    private struct StudentLessonChangeKey: Hashable {
+        var id: UUID
+        var scheduledFor: Double
+        var givenAt: Double
+        var isPresented: Bool
+    }
+    
+    private var studentLessonChangeKeys: [StudentLessonChangeKey] {
+        studentLessonsForChangeDetection.map { sl in
+            StudentLessonChangeKey(
+                id: sl.id,
+                scheduledFor: sl.scheduledFor?.timeIntervalSinceReferenceDate ?? -1,
+                givenAt: sl.givenAt?.timeIntervalSinceReferenceDate ?? -1,
+                isPresented: sl.isPresented
+            )
+        }.sorted { $0.id.uuidString < $1.id.uuidString }
+    }
     
     /// Update ViewModel - now fetches data internally with targeted queries
     private func updateViewModel() {
