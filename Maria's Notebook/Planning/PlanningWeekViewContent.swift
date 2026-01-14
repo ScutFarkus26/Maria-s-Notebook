@@ -21,6 +21,10 @@ struct PlanningWeekViewContent: View {
     // Callback for when data needs to be reloaded (iOS only)
     var onRefreshNeeded: (() -> Void)?
     
+    // OPTIMIZATION: Load studentLessons for the entire week at once using database-level predicate
+    // This avoids 7 separate per-day queries and significantly reduces memory usage
+    @State private var weekStudentLessons: [StudentLesson] = []
+    
     enum ActiveSheet: Identifiable {
         case studentLessonDetail(UUID)
         case quickActions(UUID)
@@ -144,6 +148,36 @@ struct PlanningWeekViewContent: View {
         return result
     }
     
+    /// OPTIMIZATION: Load studentLessons for the entire week using database-level predicate
+    /// This fetches all lessons scheduled within the week's date range in a single query
+    /// instead of making 7 separate per-day queries, significantly reducing memory usage
+    private func loadWeekStudentLessons() {
+        guard let firstDay = days.first, let lastDay = days.last else {
+            weekStudentLessons = []
+            return
+        }
+        
+        // Calculate week range: from start of first day to end of last day
+        let weekStart = AppCalendar.startOfDay(firstDay)
+        let weekEnd = calendar.date(byAdding: .day, value: 1, to: AppCalendar.startOfDay(lastDay)) ?? weekStart
+        
+        // Fetch studentLessons scheduled within the week range using database-level predicate
+        // Use scheduledForDay (denormalized) for efficient querying, with fallback to scheduledFor
+        let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate<StudentLesson> { sl in
+                // Match if scheduledForDay is within week range (most efficient)
+                (sl.scheduledForDay >= weekStart && sl.scheduledForDay < weekEnd) ||
+                // Or if scheduledFor is within week range (fallback for edge cases)
+                (sl.scheduledFor != nil && sl.scheduledFor! >= weekStart && sl.scheduledFor! < weekEnd)
+            },
+            sortBy: [
+                SortDescriptor(\.scheduledFor, order: .forward),
+                SortDescriptor(\.createdAt, order: .forward)
+            ]
+        )
+        weekStudentLessons = (try? modelContext.fetch(descriptor)) ?? []
+    }
+    
     @MainActor private func planNextLesson(for sl: StudentLesson) {
         guard let lessonIDUUID = UUID(uuidString: sl.lessonID),
               let currentLesson = lessons.first(where: { $0.id == lessonIDUUID }) else { return }
@@ -261,9 +295,17 @@ struct PlanningWeekViewContent: View {
                 Divider()
                 GeometryReader { geometry in
                     ScrollView([.horizontal, .vertical]) {
-                        WeekGrid(days: days, availableWidth: geometry.size.width - (UIConstants.contentHorizontalPadding * 2), availableHeight: geometry.size.height, onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) }, onQuickActions: { sl in activeSheet = .quickActions(sl.id) }, onPlanNext: { sl in planNextLesson(for: sl) })
-                            .padding(.horizontal, UIConstants.contentHorizontalPadding)
-                            .padding(.vertical, UIConstants.contentVerticalPadding)
+                        WeekGrid(
+                            days: days,
+                            weekStudentLessons: weekStudentLessons,
+                            availableWidth: geometry.size.width - (UIConstants.contentHorizontalPadding * 2),
+                            availableHeight: geometry.size.height,
+                            onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) },
+                            onQuickActions: { sl in activeSheet = .quickActions(sl.id) },
+                            onPlanNext: { sl in planNextLesson(for: sl) }
+                        )
+                        .padding(.horizontal, UIConstants.contentHorizontalPadding)
+                        .padding(.vertical, UIConstants.contentVerticalPadding)
                     }
                 }
             }
@@ -294,8 +336,18 @@ struct PlanningWeekViewContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            loadWeekStudentLessons()
+        }
+        .onChange(of: startDate) { _, _ in
+            loadWeekStudentLessons()
+        }
         .onChange(of: inboxLessons.map { $0.id }) { _, _ in
             syncInboxOrderWithCurrentBase()
+        }
+        .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
+            // Reload week data when external changes occur (e.g., lessons scheduled/unscheduled)
+            loadWeekStudentLessons()
         }
     }
 

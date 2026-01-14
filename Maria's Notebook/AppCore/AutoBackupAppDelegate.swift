@@ -29,12 +29,15 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
         }
         
         // Wait up to 30 seconds for backup to complete, processing RunLoop events
+        // Use 1.0 second intervals to reduce CPU usage while still processing RunLoop events
         let timeout = Date().addingTimeInterval(30)
-        while semaphore.wait(timeout: .now() + 0.1) == .timedOut {
+        let checkInterval: TimeInterval = 1.0
+        while semaphore.wait(timeout: .now() + checkInterval) == .timedOut {
             if Date() > timeout {
                 break // Timeout reached
             }
-            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+            // Process RunLoop events to allow backup task to progress
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: checkInterval))
         }
     }
 }

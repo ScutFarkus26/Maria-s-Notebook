@@ -339,6 +339,11 @@ final class StudentNotesViewModel: ObservableObject {
         )
         return try? modelContext.fetch(d).first
     }
+    
+    // Public method to fetch a note by ID (used by views)
+    func note(by id: UUID) -> Note? {
+        return fetchNote(id: id)
+    }
 
     private func buildLessonNameLookup(for contracts: [WorkContract]) -> [String: String] {
         let lessonIDs = Set(contracts.compactMap { UUID(uuidString: $0.lessonID) })

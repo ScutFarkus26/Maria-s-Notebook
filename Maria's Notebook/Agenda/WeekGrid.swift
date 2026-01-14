@@ -3,6 +3,7 @@ import SwiftUI
 struct WeekGrid: View {
     @Environment(\.calendar) private var calendar
     let days: [Date]
+    let weekStudentLessons: [StudentLesson]
     let availableWidth: CGFloat
     let availableHeight: CGFloat
     let onSelectLesson: (StudentLesson) -> Void
@@ -24,7 +25,14 @@ struct WeekGrid: View {
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: UIConstants.gridColumnSpacing) {
             ForEach(days, id: \.self) { day in
-                DayColumn(day: day, availableHeight: availableHeight, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                DayColumn(
+                    day: day,
+                    weekStudentLessons: weekStudentLessons,
+                    availableHeight: availableHeight,
+                    onSelectLesson: onSelectLesson,
+                    onQuickActions: onQuickActions,
+                    onPlanNext: onPlanNext
+                )
             }
         }
     }

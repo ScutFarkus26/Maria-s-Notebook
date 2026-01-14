@@ -7,8 +7,9 @@ struct DayColumn: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
     
-    // OPTIMIZATION: Load only studentLessons for this day instead of all
-    @State private var dayStudentLessons: [StudentLesson] = []
+    // OPTIMIZATION: Use shared week studentLessons and filter for this day in memory
+    // This avoids making separate database queries for each day
+    let weekStudentLessons: [StudentLesson]
     @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)]) private var allStudents: [Student]
     
     let day: Date
@@ -17,8 +18,9 @@ struct DayColumn: View {
     let onQuickActions: (StudentLesson) -> Void
     let onPlanNext: (StudentLesson) -> Void
 
-    init(day: Date, availableHeight: CGFloat, onSelectLesson: @escaping (StudentLesson) -> Void, onQuickActions: @escaping (StudentLesson) -> Void, onPlanNext: @escaping (StudentLesson) -> Void) {
+    init(day: Date, weekStudentLessons: [StudentLesson], availableHeight: CGFloat, onSelectLesson: @escaping (StudentLesson) -> Void, onQuickActions: @escaping (StudentLesson) -> Void, onPlanNext: @escaping (StudentLesson) -> Void) {
         self.day = day
+        self.weekStudentLessons = weekStudentLessons
         self.availableHeight = availableHeight
         self.onSelectLesson = onSelectLesson
         self.onQuickActions = onQuickActions
@@ -103,10 +105,6 @@ struct DayColumn: View {
         }
         .onAppear {
             AppCalendar.adopt(timeZoneFrom: calendar)
-            loadDayStudentLessons()
-        }
-        .onChange(of: day) { _, _ in
-            loadDayStudentLessons()
         }
         .padding(.bottom, 12)
     }
@@ -115,21 +113,16 @@ struct DayColumn: View {
     private var dayNumber: String { Formatters.dayNumber.string(from: day) }
     
     private var normalizedDay: Date { AppCalendar.startOfDay(day) }
-
-    /// OPTIMIZATION: Load only studentLessons for this day using predicate
-    private func loadDayStudentLessons() {
+    
+    /// OPTIMIZATION: Filter week studentLessons for this specific day in memory
+    /// The week data is already loaded with a database-level predicate, so we just filter here
+    private var dayStudentLessons: [StudentLesson] {
         let (start, end) = AppCalendar.dayRange(for: normalizedDay)
-        
-        // Filter by scheduledForDay (denormalized) or scheduledFor for this specific day
-        // This significantly reduces memory usage compared to loading all studentLessons
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate<StudentLesson> { sl in
-                // Match either the denormalized day field or the exact scheduled time
-                (sl.scheduledForDay >= start && sl.scheduledForDay < end) ||
-                (sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end)
-            }
-        )
-        dayStudentLessons = modelContext.safeFetch(descriptor)
+        return weekStudentLessons.filter { sl in
+            // Match either the denormalized day field or the exact scheduled time
+            (sl.scheduledForDay >= start && sl.scheduledForDay < end) ||
+            (sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end)
+        }
     }
     
     private var plannedStudentIDs: Set<UUID> {

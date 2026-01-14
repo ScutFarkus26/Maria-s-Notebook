@@ -39,7 +39,16 @@ struct StudentNotesTimelineView: View {
         }
         .onAppear {
             if viewModel == nil {
-                viewModel = StudentNotesViewModel(student: student, modelContext: modelContext)
+                let newViewModel = StudentNotesViewModel(student: student, modelContext: modelContext)
+                // Set up the note lookup function
+                newViewModel.itemsNoteLookup = { id in
+                    newViewModel.note(by: id)
+                }
+                // Set up the reload function
+                newViewModel.reloadItems = {
+                    newViewModel.fetchAllNotes()
+                }
+                viewModel = newViewModel
             }
         }
     }
@@ -136,7 +145,7 @@ private struct StudentNotesTimelineList: View {
             
             Divider()
 
-            // List Content
+            // List Content - Using ScrollView + LazyVStack to avoid nested List issues
             if filteredItems.isEmpty {
                 ContentUnavailableView(
                     label: {
@@ -148,32 +157,31 @@ private struct StudentNotesTimelineList: View {
                 )
                 .frame(maxHeight: .infinity)
             } else {
-                List {
-                    ForEach(groupedItems, id: \.key) { group in
-                        Section {
-                            ForEach(group.items) { item in
-                                StudentNoteRowView(item: item)
-                                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                                    .listRowSeparator(.visible)
-                                    // FIX: Ensure entire row captures tap, and handle ALL note types
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: []) {
+                        ForEach(groupedItems, id: \.key) { group in
+                            // Section Header
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(monthYearHeader(for: group.key))
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                    .textCase(nil)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 16)
+                                    .padding(.bottom, 8)
+                                
+                                // Section Items
+                                ForEach(group.items) { item in
+                                    Button {
                                         if let note = resolveEditableNote(from: item) {
                                             noteBeingEdited = note
                                         }
+                                    } label: {
+                                        StudentNoteRowView(item: item)
+                                            .contentShape(Rectangle())
                                     }
-    #if os(iOS)
-                                    .swipeActions(edge: .trailing) {
-                                        if let note = resolveEditableNote(from: item) {
-                                            Button {
-                                                noteBeingEdited = note
-                                            } label: {
-                                                Label("Edit", systemImage: "pencil")
-                                            }
-                                            .tint(.blue)
-                                        }
-                                    }
-    #endif
+                                    .buttonStyle(.plain)
                                     .contextMenu {
                                         if let note = resolveEditableNote(from: item) {
                                             Button {
@@ -181,21 +189,24 @@ private struct StudentNotesTimelineList: View {
                                             } label: {
                                                 Label("Edit Note", systemImage: "pencil")
                                             }
+                                            
+                                            Button(role: .destructive) {
+                                                viewModel.delete(item: item)
+                                            } label: {
+                                                Label("Delete Note", systemImage: "trash")
+                                            }
                                         }
                                     }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 4)
+                                    
+                                    Divider()
+                                        .padding(.leading, 16)
+                                }
                             }
-                            .onDelete { offsets in
-                                deleteItems(at: offsets, in: group.items)
-                            }
-                        } header: {
-                            Text(monthYearHeader(for: group.key))
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                                .textCase(nil)
                         }
                     }
                 }
-                .listStyle(.plain)
             }
             
             // Quick Note Bar
@@ -250,16 +261,6 @@ private struct StudentNotesTimelineList: View {
         }
     }
 
-    private func deleteItems(at offsets: IndexSet, in items: [UnifiedNoteItem]) {
-        let itemsToDelete = offsets.map { items[$0] }
-        
-        for item in itemsToDelete {
-            withAnimation {
-                viewModel.delete(item: item)
-            }
-        }
-    }
-
     @MainActor
     private func resolveEditableNote(from item: UnifiedNoteItem) -> Note? {
         // FIX: Removed "guard item.source == .general" check.
@@ -270,8 +271,6 @@ private struct StudentNotesTimelineList: View {
 }
 
 extension StudentNotesViewModel {
-    @MainActor
-    func note(by id: UUID) -> Note? { self.itemsNoteLookup?(id) }
     @MainActor
     func reload() { self.reloadItems?() }
 }

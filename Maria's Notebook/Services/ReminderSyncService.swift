@@ -329,9 +329,10 @@ class ReminderSyncService: ObservableObject {
         guard hasFullAccess else { return }
         guard modelContext != nil else { return }
         
-        // Debounce: Only sync if we haven't synced recently (within last 5 seconds)
-        // This prevents excessive syncing during rapid changes
-        if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < 5.0 {
+        // Debounce: Only sync if we haven't synced recently (within last 30 seconds)
+        // This prevents excessive syncing during rapid iCloud background updates, preserving battery life
+        // The logic guarantees a sync happens eventually: once 30 seconds pass since last sync, the next change will trigger a sync
+        if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < 30.0 {
             return
         }
         
