@@ -25,9 +25,18 @@ struct FollowUpInboxView: View {
         sort: [SortDescriptor(\WorkModel.id)]
     ) private var workModelsForChangeDetection: [WorkModel]
     
-    @Query(filter: #Predicate<WorkNote> { $0.isLessonToGive == true }, sort: [
-        SortDescriptor(\WorkNote.createdAt, order: .reverse)
-    ]) private var lessonReminderNotes: [WorkNote]
+    // Query Notes with work relationship (migrated WorkNote objects)
+    // Filter in memory for those with "[TO GIVE] " prefix (migrated from WorkNote.isLessonToGive)
+    @Query(
+        filter: #Predicate<Note> { $0.work != nil },
+        sort: [SortDescriptor(\Note.createdAt, order: .reverse)]
+    ) private var allWorkNotes: [Note]
+    
+    private var lessonReminderNotes: [Note] {
+        allWorkNotes.filter { note in
+            note.body.hasPrefix("[TO GIVE] ")
+        }
+    }
     
     // Extract IDs for change detection
     private var studentLessonIDs: [UUID] {
@@ -220,9 +229,13 @@ struct FollowUpInboxView: View {
         .padding(.horizontal, 4)
     }
 
-    private func studentName(for note: WorkNote) -> String {
-        if let s = note.student { return StudentFormatter.displayName(for: s) }
-        // CloudKit compatibility: Convert String studentID to UUID for comparison
+    private func studentName(for note: Note) -> String {
+        // Extract student from note scope if available
+        if case .student(let studentID) = note.scope,
+           let s = students.first(where: { $0.id == studentID }) {
+            return StudentFormatter.displayName(for: s)
+        }
+        // Fallback: Get student from work participants
         if let sidString = (note.work?.participants ?? []).first?.studentID,
            let sid = UUID(uuidString: sidString),
            let s = students.first(where: { $0.id == sid }) {
@@ -231,7 +244,7 @@ struct FollowUpInboxView: View {
         return "Unknown student"
     }
 
-    private func workTitle(for note: WorkNote) -> String? {
+    private func workTitle(for note: Note) -> String? {
         guard let w = note.work else { return nil }
         let trimmed = w.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { return trimmed }
@@ -245,9 +258,16 @@ struct FollowUpInboxView: View {
         }
         return nil
     }
+    
+    private func noteBodyWithoutPrefix(_ note: Note) -> String {
+        if note.body.hasPrefix("[TO GIVE] ") {
+            return String(note.body.dropFirst("[TO GIVE] ".count))
+        }
+        return note.body
+    }
 
     @ViewBuilder
-    private func lessonReminderRow(_ note: WorkNote) -> some View {
+    private func lessonReminderRow(_ note: Note) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
@@ -260,7 +280,7 @@ struct FollowUpInboxView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text(note.text)
+                Text(noteBodyWithoutPrefix(note))
                     .font(.subheadline)
                     .foregroundStyle(.primary)
                     .lineLimit(2)
@@ -274,13 +294,16 @@ struct FollowUpInboxView: View {
         .onTapGesture {
             if let w = note.work {
                 selectedWork = WorkToken(id: w.id)
-            } else if let s = note.student {
-                appRouter.requestOpenStudentDetail(s.id)
+            } else if case .student(let studentID) = note.scope {
+                appRouter.requestOpenStudentDetail(studentID)
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button("Clear") {
-                note.isLessonToGive = false
+                // Remove "[TO GIVE] " prefix to clear the reminder
+                if note.body.hasPrefix("[TO GIVE] ") {
+                    note.body = String(note.body.dropFirst("[TO GIVE] ".count))
+                }
                 try? modelContext.save()
             }.tint(.blue)
         }

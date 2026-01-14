@@ -130,6 +130,7 @@ struct StudentNoteRowView: View {
         case .work:    return "doc.text.fill"
         case .meeting: return "person.2.fill"
         case .presentation: return "presentation.fill"
+        case .attendance: return "calendar.badge.clock" // Added missing case
         }
     }
 

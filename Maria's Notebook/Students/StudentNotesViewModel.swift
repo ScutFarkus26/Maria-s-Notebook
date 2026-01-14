@@ -13,6 +13,7 @@ public struct UnifiedNoteItem: Identifiable {
         case work
         case meeting
         case presentation
+        case attendance // Added for clarity, though mapped to .general in UI if needed
     }
 
     public let id: UUID
@@ -46,9 +47,9 @@ final class StudentNotesViewModel: ObservableObject {
     // MARK: - Fetch
     func fetchAllNotes() {
         var aggregated: [UnifiedNoteItem] = []
+        let studentIDString = student.id.uuidString
 
         // 1) General (Note) objects where scope matches .student(student.id)
-        // OPTIMIZATION: Use database-level predicates instead of fetching all notes
         let noteSort: [SortDescriptor<Note>] = [
             SortDescriptor(\Note.updatedAt, order: .reverse),
             SortDescriptor(\Note.createdAt, order: .reverse)
@@ -64,8 +65,7 @@ final class StudentNotesViewModel: ObservableObject {
         )
         let primaryNotes: [Note] = (try? modelContext.fetch(primaryFetch)) ?? []
         
-        // Also fetch notes with .students([UUID]) scope (searchIndexStudentID == nil && scopeIsAll == false)
-        // These need in-memory filtering, but should be a much smaller set
+        // Also fetch notes with .students([UUID]) scope
         let multiStudentFetch = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { note in
                 note.scopeIsAll == false && note.searchIndexStudentID == nil
@@ -78,7 +78,19 @@ final class StudentNotesViewModel: ObservableObject {
         
         // Combine results
         let visibleNotes = primaryNotes + filteredMultiStudentNotes
-        let generalItems: [UnifiedNoteItem] = visibleNotes.map { note in
+        
+        // FILTERING: Exclude notes attached to specific contexts that have their own fetch blocks.
+        // This prevents "leaking" notes from other students if they were created with 'All' scope.
+        let generalItems: [UnifiedNoteItem] = visibleNotes.compactMap { note in
+            // Exclude if attached to Work (handled by Block 2)
+            if note.workContract != nil { return nil }
+            // Exclude if attached to Presentation (handled by Block 3)
+            if note.presentation != nil { return nil }
+            // Exclude if attached to StudentMeeting (handled by Block 4)
+            if note.studentMeeting != nil { return nil }
+            // FIX: Exclude if attached to AttendanceRecord (handled by Block 5)
+            if note.attendanceRecord != nil { return nil }
+            
             let context: String = {
                 if let lesson = note.lesson {
                     let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -86,6 +98,7 @@ final class StudentNotesViewModel: ObservableObject {
                 }
                 return "General Note"
             }()
+            
             return UnifiedNoteItem(
                 id: note.id,
                 date: note.updatedAt,
@@ -93,7 +106,7 @@ final class StudentNotesViewModel: ObservableObject {
                 source: .general,
                 contextText: context,
                 color: .blue, // Blue for general
-                associatedID: note.id, // link back to the Note as the source object
+                associatedID: note.id,
                 category: note.category,
                 includeInReport: note.includeInReport,
                 imagePath: note.imagePath,
@@ -103,94 +116,66 @@ final class StudentNotesViewModel: ObservableObject {
         }
         aggregated.append(contentsOf: generalItems)
 
-        // 2) Work-related notes from ScopedNote linked to this student's WorkContracts
-        let sid = student.id.uuidString
+        // 2) Work-related notes
         let workFetch = FetchDescriptor<WorkContract>(
-            predicate: #Predicate<WorkContract> { $0.studentID == sid }
+            predicate: #Predicate<WorkContract> { $0.studentID == studentIDString }
         )
         let contracts: [WorkContract] = (try? modelContext.fetch(workFetch)) ?? []
-        let contractIDs = Set(contracts.map { $0.id.uuidString })
+        let contractIDs = Set(contracts.map { $0.id })
 
         if !contractIDs.isEmpty {
-            let scopedSort: [SortDescriptor<ScopedNote>] = [
-                SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
-                SortDescriptor(\ScopedNote.createdAt, order: .reverse)
-            ]
-            // Fetch notes that have a workContractID, then filter in-memory for the id set
-            let scopedFetch = FetchDescriptor<ScopedNote>(
-                predicate: #Predicate<ScopedNote> { $0.workContractID != nil },
-                sortBy: scopedSort
+            let noteFetch = FetchDescriptor<Note>(
+                predicate: #Predicate<Note> { $0.workContract != nil },
+                sortBy: noteSort
             )
-            let scoped: [ScopedNote] = (try? modelContext.fetch(scopedFetch)) ?? []
-            // Build a quick lookup for contract -> lesson name (best-effort)
+            let fetchedNotes: [Note] = (try? modelContext.fetch(noteFetch)) ?? []
             let lessonNameByContractID: [String: String] = buildLessonNameLookup(for: contracts)
 
-            let workItems: [UnifiedNoteItem] = scoped.compactMap { note in
-                guard let wid = note.workContractID, contractIDs.contains(wid) else { return nil }
-                let context = lessonNameByContractID[wid] ?? "Work"
-                let assoc = UUID(uuidString: wid)
+            let workItems: [UnifiedNoteItem] = fetchedNotes.compactMap { note in
+                guard let contract = note.workContract, contractIDs.contains(contract.id) else { return nil }
+                
+                if !note.scopeIsAll && note.searchIndexStudentID == nil {
+                     guard note.scope.applies(to: student.id) else { return nil }
+                }
+                
+                let context = lessonNameByContractID[contract.id.uuidString] ?? "Work"
                 return UnifiedNoteItem(
                     id: note.id,
                     date: note.updatedAt,
                     body: note.body,
                     source: .work,
                     contextText: context,
-                    color: .orange, // Orange for work
-                    associatedID: assoc,
-                    category: .general, // ScopedNote doesn't have category, default to .general
-                    includeInReport: false, // ScopedNote doesn't have includeInReport, default to false
-                    imagePath: nil, // ScopedNote doesn't support images
-                    reportedBy: nil, // ScopedNote doesn't have reporter info
-                    reporterName: nil
+                    color: .orange,
+                    associatedID: contract.id,
+                    category: note.category,
+                    includeInReport: note.includeInReport,
+                    imagePath: note.imagePath,
+                    reportedBy: note.reportedBy,
+                    reporterName: note.reporterName
                 )
             }
             aggregated.append(contentsOf: workItems)
         }
 
-        // 3) Presentation-related notes from ScopedNote linked to Presentations that include this student
-        let studentIDString = student.id.uuidString
-        let presentationScopedFetch = FetchDescriptor<ScopedNote>(
-            predicate: #Predicate<ScopedNote> { $0.presentationID != nil },
-            sortBy: [
-                SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
-                SortDescriptor(\ScopedNote.createdAt, order: .reverse)
-            ]
+        // 3) Presentation-related notes
+        let presentationNoteFetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.presentation != nil },
+            sortBy: noteSort
         )
-        let presentationScopedNotes: [ScopedNote] = (try? modelContext.fetch(presentationScopedFetch)) ?? []
-        
-        // Fetch all presentations to build a lookup
-        let allPresentations: [Presentation] = (try? modelContext.fetch(FetchDescriptor<Presentation>())) ?? []
-        // Build dictionary safely, handling potential duplicates by keeping the first occurrence
-        var presentationsByID: [String: Presentation] = [:]
-        for presentation in allPresentations {
-            let key = presentation.id.uuidString
-            if presentationsByID[key] == nil {
-                presentationsByID[key] = presentation
-            }
-        }
-        
-        // Fetch all lessons for context lookup
+        let presentationNotes: [Note] = (try? modelContext.fetch(presentationNoteFetch)) ?? []
         let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
-        // Build dictionary safely, handling potential duplicates by keeping the first occurrence
-        var lessonsByID: [String: Lesson] = [:]
-        for lesson in allLessons {
-            let key = lesson.id.uuidString
-            if lessonsByID[key] == nil {
-                lessonsByID[key] = lesson
-            }
-        }
+        var lessonsByID: [UUID: Lesson] = [:]
+        for lesson in allLessons { lessonsByID[lesson.id] = lesson }
         
-        let presentationItems: [UnifiedNoteItem] = presentationScopedNotes.compactMap { note in
-            guard let presentationID = note.presentationID,
-                  let presentation = presentationsByID[presentationID],
-                  presentation.studentIDs.contains(studentIDString) else {
-                return nil
-            }
+        let presentationItems: [UnifiedNoteItem] = presentationNotes.compactMap { note in
+            guard let presentation = note.presentation,
+                  presentation.studentIDs.contains(studentIDString) else { return nil }
             
-            // Get lesson name from presentation
+            guard note.scope.applies(to: student.id) else { return nil }
+            
             let context: String = {
                 if let lessonID = UUID(uuidString: presentation.lessonID),
-                   let lesson = lessonsByID[lessonID.uuidString] {
+                   let lesson = lessonsByID[lessonID] {
                     let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
                     return name.isEmpty ? "Presentation" : name
                 } else if let snapshot = presentation.lessonTitleSnapshot?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -200,111 +185,123 @@ final class StudentNotesViewModel: ObservableObject {
                 return "Presentation"
             }()
             
-            let assoc = UUID(uuidString: presentationID)
             return UnifiedNoteItem(
                 id: note.id,
                 date: note.updatedAt,
                 body: note.body,
                 source: .presentation,
                 contextText: context,
-                color: .purple, // Purple for presentations
-                associatedID: assoc,
-                category: .general, // ScopedNote doesn't have category, default to .general
-                includeInReport: false, // ScopedNote doesn't have includeInReport, default to false
-                imagePath: nil, // ScopedNote doesn't support images
-                reportedBy: nil, // ScopedNote doesn't have reporter info
-                reporterName: nil
+                color: .purple,
+                associatedID: presentation.id,
+                category: note.category,
+                includeInReport: note.includeInReport,
+                imagePath: note.imagePath,
+                reportedBy: note.reportedBy,
+                reporterName: note.reporterName
             )
         }
         aggregated.append(contentsOf: presentationItems)
 
-        // 4) Meeting-related notes from StudentMeeting records for this student
+        // 4) Meeting-related notes
         let meetingFetch = FetchDescriptor<StudentMeeting>(
             predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
             sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]
         )
         let studentMeetings: [StudentMeeting] = (try? modelContext.fetch(meetingFetch)) ?? []
         
-        // Check if StudentMeeting has a notes field or relationship to MeetingNote
-        // Based on AppSchema, MeetingNote is related to CommunityTopic, not StudentMeeting
-        // StudentMeeting has text fields: reflection, focus, requests, guideNotes
-        // We'll create note items from these text fields if they contain content
         let meetingItems: [UnifiedNoteItem] = studentMeetings.flatMap { meeting -> [UnifiedNoteItem] in
             var items: [UnifiedNoteItem] = []
-            
-            // Create items from each non-empty text field
-            if !meeting.reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                items.append(UnifiedNoteItem(
-                    id: UUID(), // Generate new ID for each field
-                    date: meeting.date,
-                    body: meeting.reflection,
-                    source: .meeting,
-                    contextText: "Meeting - Reflection",
-                    color: .green, // Green for meetings
-                    associatedID: meeting.id,
-                    category: .general,
-                    includeInReport: false,
-                    imagePath: nil, // StudentMeeting doesn't support images
-                    reportedBy: nil, // StudentMeeting doesn't have reporter info
-                    reporterName: nil
-                ))
-            }
-            if !meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                items.append(UnifiedNoteItem(
-                    id: UUID(),
-                    date: meeting.date,
-                    body: meeting.focus,
-                    source: .meeting,
-                    contextText: "Meeting - Focus",
-                    color: .green,
-                    associatedID: meeting.id,
-                    category: .general,
-                    includeInReport: false,
-                    imagePath: nil, // StudentMeeting doesn't support images
-                    reportedBy: nil, // StudentMeeting doesn't have reporter info
-                    reporterName: nil
-                ))
-            }
-            if !meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                items.append(UnifiedNoteItem(
-                    id: UUID(),
-                    date: meeting.date,
-                    body: meeting.requests,
-                    source: .meeting,
-                    contextText: "Meeting - Requests",
-                    color: .green,
-                    associatedID: meeting.id,
-                    category: .general,
-                    includeInReport: false,
-                    imagePath: nil, // StudentMeeting doesn't support images
-                    reportedBy: nil, // StudentMeeting doesn't have reporter info
-                    reporterName: nil
-                ))
-            }
-            if !meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                items.append(UnifiedNoteItem(
-                    id: UUID(),
-                    date: meeting.date,
-                    body: meeting.guideNotes,
-                    source: .meeting,
-                    contextText: "Meeting - Guide Notes",
-                    color: .green,
-                    associatedID: meeting.id,
-                    category: .general,
-                    includeInReport: false,
-                    imagePath: nil, // StudentMeeting doesn't support images
-                    reportedBy: nil, // StudentMeeting doesn't have reporter info
-                    reporterName: nil
-                ))
-            }
-            
+            if !meeting.reflection.isEmpty { items.append(makeMeetingNote(meeting, body: meeting.reflection, context: "Meeting - Reflection")) }
+            if !meeting.focus.isEmpty { items.append(makeMeetingNote(meeting, body: meeting.focus, context: "Meeting - Focus")) }
+            if !meeting.requests.isEmpty { items.append(makeMeetingNote(meeting, body: meeting.requests, context: "Meeting - Requests")) }
+            if !meeting.guideNotes.isEmpty { items.append(makeMeetingNote(meeting, body: meeting.guideNotes, context: "Meeting - Guide Notes")) }
             return items
         }
         aggregated.append(contentsOf: meetingItems)
 
-        // Sort combined results by date (descending)
-        aggregated.sort { $0.date > $1.date }
-        self.items = aggregated
+        // 5) Attendance-related notes (NEW BLOCK)
+        // Fetch AttendanceRecords specifically for this student
+        let attFetch = FetchDescriptor<AttendanceRecord>(
+            predicate: #Predicate<AttendanceRecord> { $0.studentID == studentIDString },
+            sortBy: [SortDescriptor(\AttendanceRecord.date, order: .reverse)]
+        )
+        let attendanceRecords: [AttendanceRecord] = (try? modelContext.fetch(attFetch)) ?? []
+        
+        // 5a) Create items from the 'note' string field on the record itself
+        let attendanceStringItems: [UnifiedNoteItem] = attendanceRecords.compactMap { record in
+            guard let text = record.note?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+            return UnifiedNoteItem(
+                id: UUID(), // Virtual ID for the string note
+                date: record.date,
+                body: text,
+                source: .attendance,
+                contextText: "Attendance - \(record.status.displayName)",
+                color: record.status.color, // Use the status color (e.g. Red for Absent)
+                associatedID: record.id,
+                category: .general,
+                includeInReport: false,
+                imagePath: nil,
+                reportedBy: nil,
+                reporterName: nil
+            )
+        }
+        aggregated.append(contentsOf: attendanceStringItems)
+        
+        // 5b) Fetch full Note objects attached to these records
+        // First get all notes with an attendance record, then filter for our student's records
+        let attNoteFetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.attendanceRecord != nil },
+            sortBy: noteSort
+        )
+        let attNotes: [Note] = (try? modelContext.fetch(attNoteFetch)) ?? []
+        
+        let linkedAttItems: [UnifiedNoteItem] = attNotes.compactMap { note in
+            guard let record = note.attendanceRecord,
+                  record.studentID == studentIDString else { return nil }
+            
+            // Safety check on scope
+            guard note.scope.applies(to: student.id) else { return nil }
+
+            return UnifiedNoteItem(
+                id: note.id,
+                date: note.updatedAt,
+                body: note.body,
+                source: .attendance,
+                contextText: "Attendance Note",
+                color: record.status.color,
+                associatedID: record.id,
+                category: note.category,
+                includeInReport: note.includeInReport,
+                imagePath: note.imagePath,
+                reportedBy: note.reportedBy,
+                reporterName: note.reporterName
+            )
+        }
+        aggregated.append(contentsOf: linkedAttItems)
+
+        // Deduplicate and Sort
+        var uniqueMap: [UUID: UnifiedNoteItem] = [:]
+        for item in aggregated {
+            uniqueMap[item.id] = item
+        }
+        self.items = Array(uniqueMap.values).sorted { $0.date > $1.date }
+    }
+    
+    private func makeMeetingNote(_ meeting: StudentMeeting, body: String, context: String) -> UnifiedNoteItem {
+        UnifiedNoteItem(
+            id: UUID(),
+            date: meeting.date,
+            body: body,
+            source: .meeting,
+            contextText: context,
+            color: .green,
+            associatedID: meeting.id,
+            category: .general,
+            includeInReport: false,
+            imagePath: nil,
+            reportedBy: nil,
+            reporterName: nil
+        )
     }
 
     // MARK: - Add
@@ -312,14 +309,12 @@ final class StudentNotesViewModel: ObservableObject {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        // Create new Note with student scope
         let newNote = Note(
             body: trimmed,
             scope: .student(student.id)
         )
         modelContext.insert(newNote)
 
-        // Save and refresh
         do {
             try modelContext.save()
             fetchAllNotes()
@@ -330,59 +325,30 @@ final class StudentNotesViewModel: ObservableObject {
 
     // MARK: - Delete
     func delete(item: UnifiedNoteItem) {
-        // Attempt to delete backing object based on known types.
-        // We try Note first for .general, then fall back to ScopedNote.
-        switch item.source {
-        case .general, .lesson, .meeting:
-            if let note = fetchNote(id: item.id) {
-                modelContext.delete(note)
-                try? modelContext.save()
-                items.removeAll { $0.id == item.id }
-                return
-            }
-            // If not found as Note, attempt ScopedNote
-            fallthrough
-        case .work, .presentation:
-            if let s = fetchScopedNote(id: item.id) {
-                modelContext.delete(s)
-                try? modelContext.save()
-                items.removeAll { $0.id == item.id }
-            }
+        if let note = fetchNote(id: item.id) {
+            modelContext.delete(note)
+            try? modelContext.save()
+            items.removeAll { $0.id == item.id }
         }
     }
 
     // MARK: - Helpers
     private func fetchNote(id: UUID) -> Note? {
-        // OPTIMIZATION: Use predicate instead of fetching all notes
         let d = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { $0.id == id }
         )
         return try? modelContext.fetch(d).first
     }
 
-    private func fetchScopedNote(id: UUID) -> ScopedNote? {
-        // OPTIMIZATION: Use predicate instead of fetching all notes
-        let d = FetchDescriptor<ScopedNote>(
-            predicate: #Predicate<ScopedNote> { $0.id == id }
-        )
-        return try? modelContext.fetch(d).first
-    }
-
     private func buildLessonNameLookup(for contracts: [WorkContract]) -> [String: String] {
-        // OPTIMIZATION: Only fetch lessons that are referenced by contracts
         let lessonIDs = Set(contracts.compactMap { UUID(uuidString: $0.lessonID) })
         guard !lessonIDs.isEmpty else { return [:] }
         
-        // Note: SwiftData predicates don't support Set.contains with captured values,
-        // so we fetch all lessons and filter. This is still better than fetching all contracts/notes.
         let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
         let lessons = allLessons.filter { lessonIDs.contains($0.id) }
-        // Build dictionary safely, handling potential duplicates by keeping the first occurrence
         var byID: [UUID: Lesson] = [:]
         for lesson in lessons {
-            if byID[lesson.id] == nil {
-                byID[lesson.id] = lesson
-            }
+            byID[lesson.id] = lesson
         }
 
         var map: [String: String] = [:]

@@ -63,8 +63,7 @@ import SwiftData
     @Relationship var lesson: Lesson?
 
     // CloudKit compatibility: Relationship arrays must be optional
-    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.studentLesson) var scopedNotes: [ScopedNote]? = []
-    @Relationship(deleteRule: .cascade, inverse: \Note.studentLesson) var noteItems: [Note]? = []
+    @Relationship(deleteRule: .cascade, inverse: \Note.studentLesson) var unifiedNotes: [Note]? = []
     
     // Computed property for backward compatibility with UUID
     var lessonIDUUID: UUID? {
@@ -101,8 +100,7 @@ import SwiftData
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork
-        self.scopedNotes = []
-        self.noteItems = []
+        self.unifiedNotes = []
     }
 
     init(
@@ -136,8 +134,7 @@ import SwiftData
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork
-        self.scopedNotes = []
-        self.noteItems = []
+        self.unifiedNotes = []
     }
 
     func syncSnapshotsFromRelationships() {

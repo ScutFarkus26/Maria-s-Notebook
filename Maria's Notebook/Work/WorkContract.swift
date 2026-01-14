@@ -72,8 +72,7 @@ final class WorkContract: Identifiable {
     // Legacy support
     var legacyStudentLessonID: String? = nil
 
-    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.workContract) var scopedNotes: [ScopedNote]? = []
-    @Relationship(deleteRule: .cascade, inverse: \Note.workContract) var notes: [Note]? = []
+    @Relationship(deleteRule: .cascade, inverse: \Note.workContract) var unifiedNotes: [Note]? = []
 
     init(
         id: UUID = UUID(),
@@ -110,9 +109,6 @@ final class WorkContract: Identifiable {
         } else {
             self.kindRaw = WorkKind.followUpAssignment.rawValue
         }
-        
-        self.scopedNotes = []
-        self.notes = []
     }
 
     var status: WorkStatus {

@@ -15,10 +15,8 @@ struct PresentationHistoryView: View {
     @Query private var lessons: [Lesson]
     // Fetch Students (for lookup)
     @Query private var students: [Student]
-    // Fetch all ScopedNotes with non-nil presentationID (for counts)
-    @Query(filter: #Predicate<ScopedNote> { $0.presentationID != nil }) private var allPresentationNotes: [ScopedNote]
-    // [FIX] Fetch new unified Notes that are attached to a presentation
-    @Query(filter: #Predicate<Note> { $0.presentation != nil }) private var allUnifiedPresentationNotes: [Note]
+    // Fetch Notes that are attached to a presentation
+    @Query(sort: \Note.createdAt, order: .reverse) private var recentNotes: [Note]
     
     // Use @Query for change detection only
     @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)]) private var allPresentationsForChangeDetection: [Presentation]
@@ -127,16 +125,12 @@ struct PresentationHistoryView: View {
         #if DEBUG
         let t0 = Date()
         #endif
-        // Build notes count cache from allPresentationNotes
+        // Build notes count cache from recentNotes (filtered to presentation notes)
         var counts: [String: Int] = [:]
         
-        // Count legacy notes
-        for n in allPresentationNotes {
-            if let pid = n.presentationID { counts[pid, default: 0] += 1 }
-        }
-        
-        // [FIX] Count unified notes
-        for n in allUnifiedPresentationNotes {
+        // Count notes attached to presentations
+        let presentationNotes = recentNotes.filter { $0.presentation != nil }
+        for n in presentationNotes {
             if let p = n.presentation {
                 counts[p.id.uuidString, default: 0] += 1
             }
@@ -257,11 +251,7 @@ struct PresentationHistoryView: View {
                 // Reload when presentations change
                 loadPresentations(limit: loadedPresentations.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
             }
-            .onChange(of: allPresentationNotes.map(\.id)) { _, _ in
-                buildCaches()
-            }
-            // [FIX] Update caches when unified notes change
-            .onChange(of: allUnifiedPresentationNotes.map(\.id)) { _, _ in
+            .onChange(of: recentNotes.map(\.id)) { _, _ in
                 buildCaches()
             }
             .onChange(of: lessons.map(\.id)) { _, _ in

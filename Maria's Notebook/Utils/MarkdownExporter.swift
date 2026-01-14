@@ -45,12 +45,12 @@ struct MarkdownExporter {
             
             """
         }
-        if !(t.notes ?? []).isEmpty {
+        if !(t.unifiedNotes ?? []).isEmpty {
             m += "## Meeting Notes\n\n"
-            let notes = (t.notes ?? []).sorted { $0.createdAt < $1.createdAt }
+            let notes = (t.unifiedNotes ?? []).sorted { $0.createdAt < $1.createdAt }
             for n in notes {
-                let speaker = n.speaker.trimmingCharacters(in: .whitespacesAndNewlines)
-                let content = n.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                let speaker = (n.reporterName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let content = n.body.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !content.isEmpty {
                     if speaker.isEmpty {
                         m += "- \(content)\n"

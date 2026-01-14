@@ -6,7 +6,7 @@ extension WorkContract {
     // MARK: - Last meaningful touch
     nonisolated func lastMeaningfulTouchDate(
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Date {
         WorkContractAging.lastMeaningfulTouchDate(
@@ -21,7 +21,7 @@ extension WorkContract {
     @available(*, deprecated, message: "Prefer school-day overload using ModelContext.")
     nonisolated func daysSinceLastTouch(
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Int {
         WorkContractAging.daysSinceLastTouch(
@@ -36,7 +36,7 @@ extension WorkContract {
     nonisolated func daysSinceLastTouch(
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Int {
         WorkContractAging.daysSinceLastTouch(
@@ -52,7 +52,7 @@ extension WorkContract {
     @available(*, deprecated, message: "Prefer school-day overload using ModelContext.")
     nonisolated func isStale(
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Bool {
         WorkContractAging.isStale(
@@ -66,7 +66,7 @@ extension WorkContract {
     nonisolated func isStale(
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Bool {
         WorkContractAging.isStale(

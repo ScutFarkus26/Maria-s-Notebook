@@ -320,11 +320,11 @@ private struct AttachmentsSection: View {
 }
 
 private struct MeetingNotesSection: View {
-    let notes: [MeetingNote]
+    let notes: [Note]
     @Binding var newNoteSpeaker: String
     @Binding var newNoteContent: String
 
-    var onDelete: (MeetingNote) -> Void
+    var onDelete: (Note) -> Void
     var onAdd: () -> Void
 
     var body: some View {
@@ -333,16 +333,16 @@ private struct MeetingNotesSection: View {
                 if notes.isEmpty {
                     Text("No notes yet.").foregroundStyle(.secondary)
                 } else {
-                    let sortedNotes: [MeetingNote] = notes.sorted { $0.createdAt < $1.createdAt }
+                    let sortedNotes: [Note] = notes.sorted { $0.createdAt < $1.createdAt }
                     ForEach(sortedNotes) { n in
                         HStack(alignment: .top, spacing: 8) {
-                            if !n.speaker.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                Text(n.speaker).font(.caption.weight(.semibold))
+                            if let reporterName = n.reporterName, !reporterName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Text(reporterName).font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
                                     .background(Capsule().fill(Color.blue.opacity(0.12)))
                             }
-                            Text(n.content).font(.subheadline)
+                            Text(n.body).font(.subheadline)
                             Spacer()
                             Menu {
                                 Button("Delete", systemImage: "trash", role: .destructive) {

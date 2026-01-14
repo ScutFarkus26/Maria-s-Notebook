@@ -21,7 +21,6 @@ final class BackupServiceRoundTripTests: XCTestCase {
             StudentLesson.self,
             WorkContract.self,
             WorkPlanItem.self,
-            ScopedNote.self,
             Note.self,
             NonSchoolDay.self,
             SchoolDayOverride.self,
@@ -82,12 +81,6 @@ final class BackupServiceRoundTripTests: XCTestCase {
             let wpi = WorkPlanItem()
             (wpi as? WorkPlanItem)?.id = UUID()
             container.insert(wpi)
-        }
-
-        if canFetch(ScopedNote.self, in: container) {
-            let sn = ScopedNote()
-            (sn as? ScopedNote)?.id = UUID()
-            container.insert(sn)
         }
 
         if canFetch(Note.self, in: container) {
@@ -163,7 +156,6 @@ final class BackupServiceRoundTripTests: XCTestCase {
             StudentLesson.self,
             WorkContract.self,
             WorkPlanItem.self,
-            ScopedNote.self,
             Note.self,
             NonSchoolDay.self,
             SchoolDayOverride.self,
@@ -243,9 +235,6 @@ final class BackupServiceRoundTripTests: XCTestCase {
                 case is WorkPlanItem.Type:
                     sourceCount = countEntities(WorkPlanItem.self, in: sourceContainer)
                     destCount = countEntities(WorkPlanItem.self, in: destContainer)
-                case is ScopedNote.Type:
-                    sourceCount = countEntities(ScopedNote.self, in: sourceContainer)
-                    destCount = countEntities(ScopedNote.self, in: destContainer)
                 case is Note.Type:
                     sourceCount = countEntities(Note.self, in: sourceContainer)
                     destCount = countEntities(Note.self, in: destContainer)

@@ -71,9 +71,6 @@ final class Lesson: Identifiable {
     // Relationship to StudentLesson - inverse specified on this side (the "many" side)
     @Relationship(inverse: \StudentLesson.lesson)
     var studentLessons: [StudentLesson]? = []
-    
-    // Inverse relationship for WorkNote.lesson (CloudKit compatibility)
-    @Relationship(inverse: \WorkNote.lesson) var workNotes: [WorkNote]? = []
 
     // MARK: - Initializer
 

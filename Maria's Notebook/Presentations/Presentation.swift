@@ -49,10 +49,8 @@ final class Presentation: Identifiable {
         studentIDs.compactMap { UUID(uuidString: $0) }
     }
     
-    // Inverse relationship for ScopedNote.presentation (CloudKit compatibility)
-    @Relationship(inverse: \ScopedNote.presentation) var scopedNotes: [ScopedNote]? = []
     // Inverse relationship for Note.presentation
-    @Relationship(deleteRule: .cascade, inverse: \Note.presentation) var notes: [Note]? = []
+    @Relationship(deleteRule: .cascade, inverse: \Note.presentation) var unifiedNotes: [Note]? = []
 }
 
 #if DEBUG

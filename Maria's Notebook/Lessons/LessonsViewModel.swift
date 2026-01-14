@@ -336,7 +336,7 @@ struct LessonsViewModel {
         if !activeWork.isEmpty {
             let lastTouches = activeWork.compactMap { work -> Date? in
                 let checkIns = work.checkIns ?? []
-                let notes = work.scopedNotes ?? []
+                let notes = work.unifiedNotes ?? []
                 return WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
             }
             lastActivity = lastTouches.max()
@@ -349,7 +349,7 @@ struct LessonsViewModel {
         var isOverdue = false
         if let work = activeWork.first {
             let checkIns = work.checkIns ?? []
-            let notes = work.scopedNotes ?? []
+            let notes = work.unifiedNotes ?? []
             isStale = WorkAgingPolicy.isStale(work, modelContext: modelContext, checkIns: checkIns, notes: notes)
             isOverdue = WorkAgingPolicy.isOverdue(work, checkIns: checkIns)
         }

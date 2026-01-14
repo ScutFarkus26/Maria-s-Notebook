@@ -69,8 +69,5 @@ final class Student: Identifiable {
         get { nextLessons.compactMap { UUID(uuidString: $0) } }
         set { nextLessons = newValue.map { $0.uuidString } }
     }
-    
-    // Inverse relationship for WorkNote.student (CloudKit compatibility)
-    @Relationship(inverse: \WorkNote.student) var workNotes: [WorkNote]? = []
 }
 

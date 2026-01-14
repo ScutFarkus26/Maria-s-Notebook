@@ -122,19 +122,18 @@ final class InboxDataLoader {
     }
     
     /// Loads notes only for the specified contract IDs.
-    func loadNotes(for contractIDs: Set<UUID>) -> [ScopedNote] {
+    func loadNotes(for contractIDs: Set<UUID>) -> [Note] {
         guard !contractIDs.isEmpty else { return [] }
         
-        // Fetch notes with workContractID, then filter in Swift (predicates don't handle Set.contains with optionals well)
-        let descriptor = FetchDescriptor<ScopedNote>(
-            predicate: #Predicate { $0.workContractID != nil }
+        // Fetch notes with workContract relationship, then filter in Swift (predicates don't handle Set.contains with optionals well)
+        let descriptor = FetchDescriptor<Note>(
+            predicate: #Predicate { $0.workContract != nil }
         )
-        let allNotesWithContractID = context.safeFetch(descriptor)
+        let allNotesWithContract = context.safeFetch(descriptor)
         
-        let contractIDStrings = Set(contractIDs.map { $0.uuidString })
-        return allNotesWithContractID.filter { note in
-            guard let contractIDString = note.workContractID else { return false }
-            return contractIDStrings.contains(contractIDString)
+        return allNotesWithContract.filter { note in
+            guard let contract = note.workContract else { return false }
+            return contractIDs.contains(contract.id)
         }
     }
     
@@ -167,7 +166,7 @@ struct InboxData {
     let studentLessons: [StudentLesson]
     let contracts: [WorkContract]
     let planItems: [WorkPlanItem]
-    let notes: [ScopedNote]
+    let notes: [Note]
     let students: [Student]
     let lessons: [Lesson]
 }

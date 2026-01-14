@@ -372,63 +372,32 @@ final class TodayViewModel: ObservableObject {
             let planItemsByWork = planItems.grouped { CloudKitUUID.uuid(from: $0.workID) ?? UUID() }
             
             // Fetch Notes that have a work relationship matching our work using efficient database predicate
-            // Use workContractID for predicate (direct property access)
             // For notes matching via work relationship, we'll filter in memory from a smaller set
-            let notes: [ScopedNote]
-            if workIDStrings.count > 100 {
-                // For large sets, use date-based filtering to reduce fetch size
-                // Fetch notes from recent period (last 90 days to match work cutoff)
-                let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date().addingTimeInterval(-90*24*3600)
-                let notesDescriptor = FetchDescriptor<ScopedNote>(
-                    predicate: #Predicate<ScopedNote> { note in
-                        note.createdAt >= notesCutoffDate
-                    }
-                )
-                let fetchedNotes = try context.fetch(notesDescriptor)
-                notes = fetchedNotes.filter { note in
-                    if let work = note.work, workIDStrings.contains(work.id.uuidString) {
-                        return true
-                    }
-                    if let contractIDString = note.workContractID,
-                       workIDStrings.contains(contractIDString) {
-                        return true
-                    }
-                    return false
+            let notes: [Note]
+            // Use date-based filtering to reduce fetch size
+            // Fetch notes from recent period (last 90 days to match work cutoff)
+            let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date().addingTimeInterval(-90*24*3600)
+            let notesDescriptor = FetchDescriptor<Note>(
+                predicate: #Predicate<Note> { note in
+                    note.createdAt >= notesCutoffDate && (note.work != nil || note.workContract != nil)
                 }
-            } else {
-                // For smaller sets, use efficient predicate on workContractID
-                let notesDescriptor = FetchDescriptor<ScopedNote>(
-                    predicate: #Predicate<ScopedNote> { note in
-                        note.workContractID != nil && workIDStrings.contains(note.workContractID!)
-                    }
-                )
-                let predicateMatchedNotes = try context.fetch(notesDescriptor)
-                
-                // Also fetch notes that match via work relationship
-                // Since predicates can't easily access nested relationship properties,
-                // we fetch notes with work relationship set (within date range) and filter in memory
-                // This is still more efficient than fetching ALL notes
-                let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date().addingTimeInterval(-90*24*3600)
-                let workRelationshipNotesDescriptor = FetchDescriptor<ScopedNote>(
-                    predicate: #Predicate<ScopedNote> { note in
-                        note.work != nil && note.createdAt >= notesCutoffDate
-                    }
-                )
-                let workRelationshipNotes = try context.fetch(workRelationshipNotesDescriptor)
-                let relationshipMatchedNotes = workRelationshipNotes.filter { note in
-                    guard let work = note.work else { return false }
-                    return workIDStrings.contains(work.id.uuidString) && 
-                           !predicateMatchedNotes.contains(where: { $0.id == note.id })
+            )
+            let fetchedNotes = try context.fetch(notesDescriptor)
+            notes = fetchedNotes.filter { note in
+                if let work = note.work, workIDStrings.contains(work.id.uuidString) {
+                    return true
                 }
-                
-                notes = predicateMatchedNotes + relationshipMatchedNotes
+                if let contract = note.workContract, workIDStrings.contains(contract.id.uuidString) {
+                    return true
+                }
+                return false
             }
             let notesByWork = notes.grouped { 
                 if let work = $0.work {
                     return work.id
                 }
-                // Fallback: use workContractID for legacy notes
-                return $0.workContractID.flatMap { UUID(uuidString: $0) } ?? UUID()
+                // Fallback: use workContract ID for legacy notes
+                return $0.workContract?.id ?? UUID()
             }
             
             // Process work to build schedule items
@@ -455,7 +424,7 @@ final class TodayViewModel: ObservableObject {
     private func processWork(
         workItems: [WorkModel],
         planItemsByWork: [UUID: [WorkPlanItem]],
-        notesByWork: [UUID: [ScopedNote]]
+        notesByWork: [UUID: [Note]]
     ) -> (overdue: [ContractScheduleItem], today: [ContractScheduleItem], stale: [ContractFollowUpItem]) {
         var newOverdue: [ContractScheduleItem] = []
         var newToday: [ContractScheduleItem] = []

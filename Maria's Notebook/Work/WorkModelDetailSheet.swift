@@ -19,18 +19,15 @@ struct WorkModelDetailSheet: View {
     @State private var relatedLessons: [Lesson] = [] // For NextLessonResolver - same subject/group
     @State private var relatedStudent: Student? = nil
     
-    @State private var workNotes: [ScopedNote] = [] // Legacy notes - loaded via relationship
-    @State private var workModelNotes: [Note] = [] // New unified notes - loaded via relationship
+    @State private var workModelNotes: [Note] = [] // Unified notes - loaded via relationship
     @Query private var presentations: [Presentation]
     @Query private var planItems: [WorkPlanItem]
     @Query private var peerWorks: [WorkModel]
     
     @State private var resolvedPresentationID: UUID? = nil
-    @State private var presentationNotes: [ScopedNote] = []
     @State private var showPresentationNotes: Bool = true
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: Note? = nil
-    @State private var scopedNoteBeingEdited: ScopedNote? = nil
     @State private var showScheduleSheet: Bool = false
     @State private var showPlannedBanner: Bool = false
     @State private var showDeleteAlert: Bool = false
@@ -132,21 +129,6 @@ struct WorkModelDetailSheet: View {
                         }
                     )
                 }
-                .sheet(item: $scopedNoteBeingEdited) { scopedNote in
-                    LegacyNoteEditor(
-                        title: "Edit Note",
-                        text: scopedNote.body,
-                        onSave: { newText in
-                            scopedNote.body = newText
-                            try? modelContext.save()
-                            scopedNoteBeingEdited = nil
-                            loadWorkNotes() // Reload notes
-                        },
-                        onCancel: {
-                            scopedNoteBeingEdited = nil
-                        }
-                    )
-                }
                 .alert("Delete?", isPresented: $showDeleteAlert) {
                     Button("Delete", role: .destructive) { deleteWork() }
                 }
@@ -168,7 +150,6 @@ struct WorkModelDetailSheet: View {
                     itemCounts: [
                         "lessons": relatedLessons.count,
                         "students": relatedStudent != nil ? 1 : 0,
-                        "workNotes": workNotes.count,
                         "workModelNotes": workModelNotes.count,
                         "presentations": presentations.count,
                         "planItems": planItems.count,
@@ -265,17 +246,12 @@ struct WorkModelDetailSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Text("Notes").font(.headline); Spacer(); Button("+") { showAddNoteSheet = true } }
             
-            // Show new unified notes first
+            // Show unified notes
             ForEach(workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
                 noteRow(note)
             }
             
-            // Show legacy ScopedNote objects for backward compatibility
-            ForEach(workNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { scopedNote in
-                scopedNoteRow(scopedNote)
-            }
-            
-            if workModelNotes.isEmpty && workNotes.isEmpty {
+            if workModelNotes.isEmpty {
                 Text("No notes yet.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -319,26 +295,6 @@ struct WorkModelDetailSheet: View {
         }
     }
     
-    @ViewBuilder
-    private func scopedNoteRow(_ scopedNote: ScopedNote) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(scopedNote.body)
-                .font(.body)
-            Text(scopedNote.createdAt, style: .date)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(8)
-        .background(Color.primary.opacity(0.04))
-        .cornerRadius(8)
-        .contextMenu {
-            Button {
-                scopedNoteBeingEdited = scopedNote
-            } label: {
-                Label("Edit Note", systemImage: "pencil")
-            }
-        }
-    }
 
     private func save() {
         guard let work = work else { return }
@@ -426,8 +382,7 @@ struct WorkModelDetailSheet: View {
     private func loadWorkNotes() {
         guard let work = work else { return }
         // Load notes via relationships
-        workModelNotes = Array(work.noteItems ?? [])
-        workNotes = Array(work.scopedNotes ?? [])
+        workModelNotes = Array(work.unifiedNotes ?? [])
     }
 
     private func labelForOutcome(_ o: CompletionOutcome) -> String {

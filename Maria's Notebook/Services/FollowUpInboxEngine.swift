@@ -87,7 +87,7 @@ struct FollowUpInboxEngine {
         studentLessons: [StudentLesson],
         contracts: [WorkContract] = [],
         planItems: [WorkPlanItem] = [],
-        notes: [ScopedNote] = [],
+        notes: [Note] = [],
         modelContext: ModelContext,
         constants: Constants = Constants()
     ) -> [FollowUpInboxItem] {
@@ -135,7 +135,7 @@ struct FollowUpInboxEngine {
         studentLessons: [StudentLesson],
         contracts: [WorkContract] = [],
         planItems: [WorkPlanItem] = [],
-        notes: [ScopedNote] = [],
+        notes: [Note] = [],
         modelContext: ModelContext,
         constants: Constants = Constants()
     ) -> [FollowUpInboxItem] {
@@ -162,7 +162,7 @@ struct FollowUpInboxEngine {
         studentLessons: [StudentLesson],
         contracts: [WorkContract],
         planItems: [WorkPlanItem],
-        notes: [ScopedNote],
+        notes: [Note],
         modelContext: ModelContext,
         constants: Constants
     ) -> [FollowUpInboxItem] {
@@ -303,8 +303,8 @@ struct FollowUpInboxEngine {
 
         // Pre-group planItems and notes for work aging
         let itemsByWorkID: [UUID: [WorkPlanItem]] = planItems.grouped { UUID(uuidString: $0.workID) ?? UUID() }
-        let notesByWorkID: [UUID: [ScopedNote]] = notes.grouped { note in
-            note.workContractID.flatMap(UUID.init(uuidString:)) ?? UUID()
+        let notesByWorkID: [UUID: [Note]] = notes.grouped { note in
+            note.workContract?.id ?? UUID()
         }
 
         var addedContractIDs: Set<UUID> = []
@@ -610,8 +610,8 @@ struct FollowUpInboxEngine {
         let checkInsByWorkID: [UUID: [WorkCheckIn]] = openWorkModels.reduce(into: [:]) { dict, work in
             dict[work.id] = work.checkIns ?? []
         }
-        let notesByWorkID: [UUID: [ScopedNote]] = openWorkModels.reduce(into: [:]) { dict, work in
-            dict[work.id] = work.scopedNotes ?? []
+        let notesByWorkID: [UUID: [Note]] = openWorkModels.reduce(into: [:]) { dict, work in
+            dict[work.id] = work.unifiedNotes ?? []
         }
         
         #if DEBUG

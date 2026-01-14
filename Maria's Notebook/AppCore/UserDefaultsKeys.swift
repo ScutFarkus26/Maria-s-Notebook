@@ -50,6 +50,9 @@ enum UserDefaultsKeys {
     
     // MARK: - Debug
     static let debugSimulateDatabaseInitFailure = "DEBUG_SimulateDatabaseInitFailure"
+    
+    // MARK: - Migrations
+    static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
 }
 
 

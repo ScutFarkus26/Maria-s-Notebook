@@ -10,6 +10,14 @@ enum MigrationRunner {
         
         // Migrate WorkContracts to WorkModels (idempotent - safe to run multiple times)
         migrateWorkContractsToWorkModels(context: context)
+        
+        // Migrate legacy string notes on WorkModels to Note objects
+        Task { @MainActor in
+            DataMigrations.migrateLegacyWorkNotesToNoteObjects(using: context)
+        }
+        
+        // Clean orphaned student IDs from WorkModel records
+        DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
     }
     
     /// Migrate WorkContract records to WorkModel records.

@@ -144,9 +144,6 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Data Management")
             DataManagementGrid()
-            SettingsGroup(title: "Note Migration", systemImage: "arrow.triangle.2.circlepath") {
-                NoteMigrationSettingsCard()
-            }
         }
     }
 
@@ -262,4 +259,3 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
 }
-

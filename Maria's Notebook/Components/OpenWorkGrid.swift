@@ -28,7 +28,7 @@ struct OpenWorkGrid: View {
                     ForEach(groupedSections, id: \.key) { section in
                         Section(header: groupHeader(title: section.key, count: section.items.count)) {
                             ForEach(section.items, id: \.id) { item in
-                                let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: item.work, checkIns: item.work.checkIns, notes: item.work.scopedNotes)
+                                let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: item.work, checkIns: item.work.checkIns, notes: item.work.unifiedNotes)
                                 let ageSchoolDays = LessonAgeHelper.schoolDaysSinceCreation(createdAt: lastTouch, asOf: Date(), using: modelContext, calendar: calendar)
                                 WorkCardView(
                                     work: item.work,

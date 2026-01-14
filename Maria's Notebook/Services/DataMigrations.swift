@@ -175,6 +175,7 @@ enum DataMigrations {
                 
                 // If the value is empty or doesn't look like a UUID string, skip
                 if currentValue.isEmpty {
+                    print("WARNING: Skipped invalid AttendanceRecord (ID: \(record.id)) - Value: \(currentValue)")
                     continue
                 }
                 
@@ -188,6 +189,7 @@ enum DataMigrations {
                 // Try to access it through the underlying CoreData object if possible
                 // For now, we'll skip records that don't match expected format
                 // The store should have been migrated at the CoreData level
+                print("WARNING: Skipped invalid AttendanceRecord (ID: \(record.id)) - Value: \(currentValue)")
             }
             
             print("DataMigrations: AttendanceRecord studentID migration completed. Records will be migrated lazily on access.")
@@ -249,6 +251,59 @@ enum DataMigrations {
         if cleaned > 0 {
             context.safeSave()
             print("DataMigrations: Cleaned orphaned student IDs from \(cleaned) StudentLesson records")
+        }
+    }
+    
+    /// Cleans orphaned student IDs from WorkModel records.
+    /// Removes student IDs that no longer exist in the database to maintain referential integrity
+    /// when using manual ID management instead of SwiftData relationships.
+    /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
+    static func cleanOrphanedWorkStudentIDs(using context: ModelContext) {
+        // Fetch all students to build valid ID set
+        let studentFetch = FetchDescriptor<Student>()
+        let allStudents = context.safeFetch(studentFetch)
+        let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
+        
+        // Fetch all WorkModels
+        let workFetch = FetchDescriptor<WorkModel>()
+        let allWorks = context.safeFetch(workFetch)
+        
+        var cleaned = 0
+        for work in allWorks {
+            var modified = false
+            
+            // Check work.studentID - if not empty and not in valid set, clear it
+            if !work.studentID.isEmpty && !validStudentIDs.contains(work.studentID) {
+                work.studentID = ""
+                modified = true
+            }
+            
+            // Check work.participants - remove any with orphaned studentIDs
+            if let participants = work.participants, !participants.isEmpty {
+                let validParticipants = participants.filter { participant in
+                    validStudentIDs.contains(participant.studentID)
+                }
+                
+                if validParticipants.count != participants.count {
+                    work.participants = validParticipants.isEmpty ? nil : validParticipants
+                    // Delete orphaned participants from context
+                    for participant in participants {
+                        if !validStudentIDs.contains(participant.studentID) {
+                            context.delete(participant)
+                        }
+                    }
+                    modified = true
+                }
+            }
+            
+            if modified {
+                cleaned += 1
+            }
+        }
+        
+        if cleaned > 0 {
+            context.safeSave()
+            print("DataMigrations: Cleaned orphaned student IDs from \(cleaned) Work records.")
         }
     }
     
@@ -492,32 +547,7 @@ enum DataMigrations {
                 migratedNotesCount += 1
             }
             
-            // Migrate ScopedNote relationships
-            let scopedNotes = context.safeFetch(FetchDescriptor<ScopedNote>())
-            for scopedNote in scopedNotes {
-                // Only migrate if scopedNote has workContract (or workContractID) but no work
-                guard scopedNote.work == nil else { continue }
-                
-                // Get the contract ID - prefer workContract relationship, fall back to workContractID string
-                let contractID: UUID
-                if let workContract = scopedNote.workContract {
-                    contractID = workContract.id
-                } else if let workContractIDString = scopedNote.workContractID,
-                          let uuid = UUID(uuidString: workContractIDString) {
-                    contractID = uuid
-                } else {
-                    continue
-                }
-                
-                // Look up the migrated WorkModel by legacy contract ID
-                guard let workModel = adapter.workModel(forLegacyContractID: contractID) else { continue }
-                
-                // Move the relationship
-                scopedNote.work = workModel
-                scopedNote.workContract = nil
-                scopedNote.workContractID = nil
-                migratedNotesCount += 1
-            }
+            // ScopedNote migration has been completed. All notes are now in the unified Note system.
             
             // Backfill IDs for already-migrated WorkModels
             var backfilledCount = 0
@@ -1034,6 +1064,49 @@ enum DataMigrations {
             }
             
             print("DataMigrations.backfillNoteStudentLessonFromPresentation: scanned=\(scanned), updated=\(updated), skipped=\(skipped), unmatched=\(unmatched)")
+        }
+    }
+    
+    /// Migrate legacy string notes on WorkModels into Note objects.
+    /// For each WorkModel with a non-empty `notes` string and empty `unifiedNotes`,
+    /// creates a new Note object with the content and clears the legacy notes field.
+    /// Idempotent: only processes WorkModels that haven't been migrated yet.
+    @MainActor
+    static func migrateLegacyWorkNotesToNoteObjects(using context: ModelContext) {
+        let fetch = FetchDescriptor<WorkModel>(
+            predicate: #Predicate<WorkModel> { work in
+                !work.notes.isEmpty
+            }
+        )
+        let workModels = context.safeFetch(fetch)
+        
+        var migratedCount = 0
+        
+        for work in workModels {
+            // Check if unifiedNotes is empty (or nil) - skip if already migrated
+            guard (work.unifiedNotes ?? []).isEmpty else { continue }
+            
+            // Create a new Note object using the content of work.notes
+            let note = Note(
+                createdAt: work.createdAt,
+                body: work.notes,
+                scope: .all,
+                work: work
+            )
+            
+            // Insert the note into the context
+            context.insert(note)
+            
+            // Clear the old notes string to prevent re-migration
+            work.notes = ""
+            
+            migratedCount += 1
+        }
+        
+        // Save the context if any migrations occurred
+        if migratedCount > 0 {
+            context.safeSave()
+            print("DataMigrations: Migrated \(migratedCount) legacy work notes.")
         }
     }
 }

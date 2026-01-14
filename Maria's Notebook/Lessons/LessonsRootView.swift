@@ -25,6 +25,7 @@ struct TrackSettingsItem: Identifiable {
 
 struct LessonsRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appRouter) private var appRouter
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     // Data
@@ -50,6 +51,10 @@ struct LessonsRootView: View {
     
     // Lesson detail sidebar state
     @State private var selectedLessonDetail: Lesson?
+    
+    // Sheet presentation state
+    @State private var showingAddLesson = false
+    @State private var showingBulkEntry = false
     
     // Display mode
     private var displayMode: LessonsDisplayMode {
@@ -229,6 +234,30 @@ struct LessonsRootView: View {
                     }
                 }
             }
+            
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        showingAddLesson = true
+                    } label: {
+                        Label("New Lesson", systemImage: "plus.circle")
+                    }
+                    
+                    Button {
+                        showingBulkEntry = true
+                    } label: {
+                        Label("Bulk Entry…", systemImage: "square.grid.3x3")
+                    }
+                    
+                    Button {
+                        appRouter.requestImportLessons()
+                    } label: {
+                        Label("Import Lessons…", systemImage: "square.and.arrow.down")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
         }
         .sheet(item: $lessonToSchedule) { lesson in
             SchedulePresentationSheet(
@@ -243,6 +272,12 @@ struct LessonsRootView: View {
         }
         .sheet(item: $trackSettingsItem) { item in
             GroupTrackSettingsSheet(subject: item.subject, group: item.group)
+        }
+        .sheet(isPresented: $showingAddLesson) {
+            AddLessonView(defaultSubject: selectedSubject)
+        }
+        .sheet(isPresented: $showingBulkEntry) {
+            BulkLessonsEntryView(defaultSubject: selectedSubject)
         }
     }
 

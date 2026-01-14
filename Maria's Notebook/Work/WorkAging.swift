@@ -34,7 +34,7 @@ enum WorkContractAging {
     nonisolated static func lastMeaningfulTouchDate(
         for contract: WorkContract,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Date {
         let today = AppCalendar.startOfDay(Date())
@@ -78,7 +78,7 @@ enum WorkContractAging {
     nonisolated static func daysSinceLastTouch(
         for contract: WorkContract,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Int {
         let last = lastMeaningfulTouchDate(for: contract, planItems: planItems, notes: notes, presentation: presentation)
@@ -102,7 +102,7 @@ enum WorkContractAging {
         for contract: WorkContract,
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Int {
         let last = lastMeaningfulTouchDate(for: contract, planItems: planItems, notes: notes, presentation: presentation)
@@ -158,7 +158,7 @@ enum WorkContractAging {
     nonisolated static func agingBucket(
         for contract: WorkContract,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> AgingBucket {
         let days = daysSinceLastTouch(for: contract, planItems: planItems, notes: notes, presentation: presentation)
@@ -173,7 +173,7 @@ enum WorkContractAging {
         for contract: WorkContract,
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> AgingBucket {
         let days = daysSinceLastTouch(for: contract, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation)
@@ -187,7 +187,7 @@ enum WorkContractAging {
     nonisolated static func isStale(
         _ contract: WorkContract,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Bool {
         agingBucket(for: contract, planItems: planItems, notes: notes, presentation: presentation) == .stale
@@ -199,7 +199,7 @@ enum WorkContractAging {
         _ contract: WorkContract,
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil,
+        notes: [Note]? = nil,
         presentation: Presentation? = nil
     ) -> Bool {
         agingBucket(for: contract, modelContext: modelContext, planItems: planItems, notes: notes, presentation: presentation) == .stale
@@ -254,7 +254,7 @@ enum WorkAgingPolicy {
     nonisolated static func lastMeaningfulTouchDate(
         for work: WorkModel,
         checkIns: [WorkCheckIn]? = nil,
-        notes: [ScopedNote]? = nil
+        notes: [Note]? = nil
     ) -> Date {
         let today = AppCalendar.startOfDay(Date())
         
@@ -272,7 +272,7 @@ enum WorkAgingPolicy {
         let latestCheckIn = pastCheckInDates.max()
         
         // 3) Most recent note timestamp
-        let workNotes = notes ?? (work.scopedNotes ?? [])
+        let workNotes = notes ?? (work.unifiedNotes ?? [])
         let latestNote: Date? = workNotes.map { max($0.updatedAt, $0.createdAt) }.max()
         
         // 4) Status change timestamp (completedAt)
@@ -292,7 +292,7 @@ enum WorkAgingPolicy {
         for work: WorkModel,
         modelContext: ModelContext,
         checkIns: [WorkCheckIn]? = nil,
-        notes: [ScopedNote]? = nil
+        notes: [Note]? = nil
     ) -> Int {
         let last = lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
         let startToday = AppCalendar.startOfDay(Date())
@@ -346,7 +346,7 @@ enum WorkAgingPolicy {
         for work: WorkModel,
         modelContext: ModelContext,
         checkIns: [WorkCheckIn]? = nil,
-        notes: [ScopedNote]? = nil
+        notes: [Note]? = nil
     ) -> AgingBucket {
         let days = daysSinceLastTouch(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes)
         if days >= AgingPolicy.staleDays { return .stale }
@@ -359,7 +359,7 @@ enum WorkAgingPolicy {
         _ work: WorkModel,
         modelContext: ModelContext,
         checkIns: [WorkCheckIn]? = nil,
-        notes: [ScopedNote]? = nil
+        notes: [Note]? = nil
     ) -> Bool {
         agingBucket(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes) == .stale
     }
@@ -459,7 +459,7 @@ enum WorkAgingPolicy {
         for work: WorkModel,
         modelContext: ModelContext,
         checkIns: [WorkCheckIn]? = nil,
-        notes: [ScopedNote]? = nil
+        notes: [Note]? = nil
     ) -> UrgencyBucket {
         if isStale(work, modelContext: modelContext, checkIns: checkIns, notes: notes) {
             return .stale
@@ -484,7 +484,7 @@ enum WorkAgingDebug {
         contract: WorkContract,
         modelContext: ModelContext,
         planItems: [WorkPlanItem],
-        notes: [ScopedNote]? = nil
+        notes: [Note]? = nil
     ) -> String {
         let last = WorkContractAging.lastMeaningfulTouchDate(for: contract, planItems: planItems, notes: notes)
         let days = WorkContractAging.daysSinceLastTouch(for: contract, modelContext: modelContext, planItems: planItems, notes: notes)
@@ -498,7 +498,7 @@ enum WorkAgingDebug {
         work: WorkModel,
         modelContext: ModelContext,
         checkIns: [WorkCheckIn]? = nil,
-        notes: [ScopedNote]? = nil
+        notes: [Note]? = nil
     ) -> String {
         let last = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
         let days = WorkAgingPolicy.daysSinceLastTouch(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes)

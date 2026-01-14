@@ -29,9 +29,8 @@ final class CommunityTopic: Identifiable {
     // Children
     // CloudKit compatibility: Relationship arrays must be optional
     @Relationship(deleteRule: .cascade, inverse: \ProposedSolution.topic) var proposedSolutions: [ProposedSolution]? = []
-    @Relationship(deleteRule: .cascade, inverse: \MeetingNote.topic) var notes: [MeetingNote]? = []
     // Inverse relationship for Note.communityTopic
-    @Relationship(deleteRule: .cascade, inverse: \Note.communityTopic) var noteItems: [Note]? = []
+    @Relationship(deleteRule: .cascade, inverse: \Note.communityTopic) var unifiedNotes: [Note]? = []
 
     /// Freeform tags for filtering (e.g., Safety, Environment, Curriculum)
     /// 
@@ -91,8 +90,7 @@ final class CommunityTopic: Identifiable {
         self.addressedDate = addressedDate
         self.resolution = resolution
         self.proposedSolutions = []
-        self.notes = []
-        self.noteItems = []
+        self.unifiedNotes = []
         self.attachments = []
         self._tagsData = try? JSONEncoder().encode([String]())
     }
@@ -134,31 +132,6 @@ final class ProposedSolution: Identifiable {
     }
 }
 
-/// A note captured during a community meeting, with an optional speaker attribution.
-@Model
-final class MeetingNote: Identifiable {
-    var id: UUID = UUID()
-    var speaker: String = ""
-    var content: String = ""
-    var createdAt: Date = Date()
-
-    // Parent
-    var topic: CommunityTopic?
-
-    init(
-        id: UUID = UUID(),
-        speaker: String = "",
-        content: String = "",
-        createdAt: Date = Date(),
-        topic: CommunityTopic? = nil
-    ) {
-        self.id = id
-        self.speaker = speaker
-        self.content = content
-        self.createdAt = createdAt
-        self.topic = topic
-    }
-}
 /// Binary attachment (photo or file) associated with a community topic.
 @Model
 final class CommunityAttachment: Identifiable {

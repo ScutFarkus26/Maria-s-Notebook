@@ -17,18 +17,15 @@ struct WorkContractDetailSheet: View {
     @State private var relatedLessons: [Lesson] = [] // For NextLessonResolver - same subject/group
     @State private var relatedStudent: Student? = nil
     
-    @Query private var workNotes: [ScopedNote] // Legacy notes
-    @State private var contractNotes: [Note] = [] // New unified notes - fetched in memory to avoid predicate issues
+    @State private var contractNotes: [Note] = [] // Unified notes - fetched in memory to avoid predicate issues
     @Query private var presentations: [Presentation]
     @Query private var planItems: [WorkPlanItem]
     @Query private var peerWorkModels: [WorkModel]
     
     @State private var resolvedPresentationID: UUID? = nil
-    @State private var presentationNotes: [ScopedNote] = []
     @State private var showPresentationNotes: Bool = true
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: Note? = nil
-    @State private var scopedNoteBeingEdited: ScopedNote? = nil
     @State private var showScheduleSheet: Bool = false
     @State private var showPlannedBanner: Bool = false
     @State private var showDeleteAlert: Bool = false
@@ -67,8 +64,7 @@ struct WorkContractDetailSheet: View {
         
         let contractID = contract.id
         let workID = contractID.uuidString
-        _workNotes = Query(filter: #Predicate<ScopedNote> { $0.workContractID == workID })
-        // Query for new unified notes attached to this contract - fetch all and filter in memory to avoid predicate issues with optional WorkContract
+        // Query for unified notes attached to this contract - fetch all and filter in memory to avoid predicate issues with optional WorkContract
         // CloudKit compatibility: workID is now String, so use workID string
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workID })
         let lessonID = contract.lessonID
@@ -174,20 +170,6 @@ struct WorkContractDetailSheet: View {
                 }
             )
         }
-        .sheet(item: $scopedNoteBeingEdited) { scopedNote in
-            LegacyNoteEditor(
-                title: "Edit Note",
-                text: scopedNote.body,
-                onSave: { newText in
-                    scopedNote.body = newText
-                    try? modelContext.save()
-                    scopedNoteBeingEdited = nil
-                },
-                onCancel: {
-                    scopedNoteBeingEdited = nil
-                }
-            )
-        }
         .alert("Delete?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) { deleteContract() }
         }
@@ -267,17 +249,12 @@ struct WorkContractDetailSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Text("Notes").font(.headline); Spacer(); Button("+") { showAddNoteSheet = true } }
             
-            // Show new unified notes first
+            // Show unified notes
             ForEach(contractNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
                 noteRow(note)
             }
             
-            // Show legacy ScopedNote objects for backward compatibility
-            ForEach(workNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { scopedNote in
-                scopedNoteRow(scopedNote)
-            }
-            
-            if contractNotes.isEmpty && workNotes.isEmpty {
+            if contractNotes.isEmpty {
                 Text("No notes yet.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -321,26 +298,6 @@ struct WorkContractDetailSheet: View {
         }
     }
     
-    @ViewBuilder
-    private func scopedNoteRow(_ scopedNote: ScopedNote) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(scopedNote.body)
-                .font(.body)
-            Text(scopedNote.createdAt, style: .date)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(8)
-        .background(Color.primary.opacity(0.04))
-        .cornerRadius(8)
-        .contextMenu {
-            Button {
-                scopedNoteBeingEdited = scopedNote
-            } label: {
-                Label("Edit Note", systemImage: "pencil")
-            }
-        }
-    }
 
     private func save() {
         // WorkContract is read-only for legacy data - do not mutate
@@ -493,14 +450,19 @@ struct WorkContractDetailSheet: View {
         return UUID(uuidString: pid)
     }
 
-    private func reloadPresentationNotes() { /* Logic for ScopedNotes */ }
+    private func reloadPresentationNotes() { /* Presentation notes are now handled via unified Notes */ }
     
     /// Load contract notes by fetching all notes and filtering in memory (avoid predicate issues with optional WorkContract)
     private func loadContractNotes() {
         let contractID = contract.id
-        let allNotesDescriptor = FetchDescriptor<Note>()
-        if let allNotes = try? modelContext.fetch(allNotesDescriptor) {
-            contractNotes = allNotes.filter { $0.workContract?.id == contractID }
+        // Use relationship if available, otherwise fetch and filter
+        if let notes = contract.unifiedNotes {
+            contractNotes = Array(notes)
+        } else {
+            let allNotesDescriptor = FetchDescriptor<Note>()
+            if let allNotes = try? modelContext.fetch(allNotesDescriptor) {
+                contractNotes = allNotes.filter { $0.workContract?.id == contractID }
+            }
         }
     }
 

@@ -98,27 +98,27 @@ struct ObservationHeatmapView: View {
             }
         }
         
-        // 2) Check ScopedNote linked to this student's WorkContracts
+        // 2) Check Note linked to this student's WorkContracts
         let sid = student.id.uuidString
         let workFetch = FetchDescriptor<WorkContract>(
             predicate: #Predicate<WorkContract> { $0.studentID == sid }
         )
         let contracts: [WorkContract] = (try? modelContext.fetch(workFetch)) ?? []
-        let contractIDs = Set(contracts.map { $0.id.uuidString })
+        let contractIDs = Set(contracts.map { $0.id })
         
         if !contractIDs.isEmpty {
-            let scopedSort: [SortDescriptor<ScopedNote>] = [
-                SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
-                SortDescriptor(\ScopedNote.createdAt, order: .reverse)
+            let noteSort: [SortDescriptor<Note>] = [
+                SortDescriptor(\Note.updatedAt, order: .reverse),
+                SortDescriptor(\Note.createdAt, order: .reverse)
             ]
-            let scopedFetch = FetchDescriptor<ScopedNote>(
-                predicate: #Predicate<ScopedNote> { $0.workContractID != nil },
-                sortBy: scopedSort
+            let noteFetch = FetchDescriptor<Note>(
+                predicate: #Predicate<Note> { $0.workContract != nil },
+                sortBy: noteSort
             )
-            let scoped: [ScopedNote] = (try? modelContext.fetch(scopedFetch)) ?? []
+            let notes: [Note] = (try? modelContext.fetch(noteFetch)) ?? []
             
-            for note in scoped {
-                guard let wid = note.workContractID, contractIDs.contains(wid) else { continue }
+            for note in notes {
+                guard let contract = note.workContract, contractIDs.contains(contract.id) else { continue }
                 let noteDate = max(note.updatedAt, note.createdAt)
                 if mostRecentDate == nil || noteDate > mostRecentDate! {
                     mostRecentDate = noteDate
@@ -126,30 +126,28 @@ struct ObservationHeatmapView: View {
             }
         }
         
-        // 3) Check ScopedNote linked to Presentations that include this student
+        // 3) Check Note linked to Presentations that include this student
         let studentIDString = student.id.uuidString
-        let presentationScopedFetch = FetchDescriptor<ScopedNote>(
-            predicate: #Predicate<ScopedNote> { $0.presentationID != nil },
+        let presentationNoteFetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.presentation != nil },
             sortBy: [
-                SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
-                SortDescriptor(\ScopedNote.createdAt, order: .reverse)
+                SortDescriptor(\Note.updatedAt, order: .reverse),
+                SortDescriptor(\Note.createdAt, order: .reverse)
             ]
         )
-        let presentationScopedNotes: [ScopedNote] = (try? modelContext.fetch(presentationScopedFetch)) ?? []
+        let presentationNotes: [Note] = (try? modelContext.fetch(presentationNoteFetch)) ?? []
         
         let allPresentations: [Presentation] = (try? modelContext.fetch(FetchDescriptor<Presentation>())) ?? []
         // Build dictionary safely, handling potential duplicates by keeping the first occurrence
-        var presentationsByID: [String: Presentation] = [:]
+        var presentationsByID: [UUID: Presentation] = [:]
         for presentation in allPresentations {
-            let key = presentation.id.uuidString
-            if presentationsByID[key] == nil {
-                presentationsByID[key] = presentation
+            if presentationsByID[presentation.id] == nil {
+                presentationsByID[presentation.id] = presentation
             }
         }
         
-        for note in presentationScopedNotes {
-            guard let presentationID = note.presentationID,
-                  let presentation = presentationsByID[presentationID],
+        for note in presentationNotes {
+            guard let presentation = note.presentation,
                   presentation.studentIDs.contains(studentIDString) else {
                 continue
             }

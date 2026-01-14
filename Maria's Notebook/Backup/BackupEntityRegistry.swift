@@ -11,7 +11,6 @@ struct BackupEntityRegistry {
         StudentLesson.self,
         WorkContract.self,
         WorkPlanItem.self,
-        ScopedNote.self,
         Note.self,
         NonSchoolDay.self,
         SchoolDayOverride.self,
@@ -19,7 +18,6 @@ struct BackupEntityRegistry {
         Presentation.self,
         CommunityTopic.self,
         ProposedSolution.self,
-        MeetingNote.self,
         CommunityAttachment.self,
         AttendanceRecord.self,
         WorkCompletionRecord.self,
@@ -27,7 +25,6 @@ struct BackupEntityRegistry {
         WorkModel.self,
         WorkCheckIn.self,
         WorkParticipantEntity.self,
-        WorkNote.self,
         // Project models
         Project.self,
         ProjectAssignmentTemplate.self,

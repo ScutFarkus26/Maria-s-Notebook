@@ -41,9 +41,6 @@ private struct UnifiedObservationItem: Identifiable {
     // Source tracking for editing
     enum Source {
         case note(Note)
-        case scopedNote(ScopedNote)
-        case workNote(WorkNote)
-        case meetingNote(MeetingNote)
     }
     let source: Source
 }
@@ -78,9 +75,6 @@ struct ObservationsView: View {
     @State private var selectedItemIDs: Set<UUID> = []
     
     @State private var noteBeingEdited: Note? = nil
-    @State private var scopedNoteBeingEdited: ScopedNote? = nil
-    @State private var workNoteBeingEdited: WorkNote? = nil
-    @State private var meetingNoteBeingEdited: MeetingNote? = nil
 
     // Lookup cache for student names shown on rows
     @State private var studentsByID: [UUID: Student] = [:]
@@ -112,62 +106,10 @@ struct ObservationsView: View {
                 QuickNoteSheet()
             }
             .sheet(item: $noteBeingEdited) { note in
-                UnifiedNoteEditor(
-                    context: contextForNote(note),
-                    initialNote: note,
-                    onSave: { _ in
-                        noteBeingEdited = nil
-                        reloadAllNotes()
-                    },
-                    onCancel: {
-                        noteBeingEdited = nil
-                    }
-                )
-            }
-            .sheet(item: $scopedNoteBeingEdited) { scopedNote in
-                LegacyNoteEditor(
-                    title: "Edit Note",
-                    text: scopedNote.body,
-                    onSave: { newText in
-                        scopedNote.body = newText
-                        try? modelContext.save()
-                        scopedNoteBeingEdited = nil
-                        reloadAllNotes()
-                    },
-                    onCancel: {
-                        scopedNoteBeingEdited = nil
-                    }
-                )
-            }
-            .sheet(item: $workNoteBeingEdited) { workNote in
-                LegacyNoteEditor(
-                    title: "Edit Note",
-                    text: workNote.text,
-                    onSave: { newText in
-                        workNote.text = newText
-                        try? modelContext.save()
-                        workNoteBeingEdited = nil
-                        reloadAllNotes()
-                    },
-                    onCancel: {
-                        workNoteBeingEdited = nil
-                    }
-                )
-            }
-            .sheet(item: $meetingNoteBeingEdited) { meetingNote in
-                LegacyNoteEditor(
-                    title: "Edit Meeting Note",
-                    text: meetingNote.content,
-                    onSave: { newText in
-                        meetingNote.content = newText
-                        try? modelContext.save()
-                        meetingNoteBeingEdited = nil
-                        reloadAllNotes()
-                    },
-                    onCancel: {
-                        meetingNoteBeingEdited = nil
-                    }
-                )
+                NoteEditSheet(note: note) {
+                    noteBeingEdited = nil
+                    reloadAllNotes()
+                }
             }
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
             .sheet(isPresented: $showingSummarySheet) {
@@ -420,12 +362,6 @@ struct ObservationsView: View {
         switch item.source {
         case .note(let note):
             noteBeingEdited = note
-        case .scopedNote(let scopedNote):
-            scopedNoteBeingEdited = scopedNote
-        case .workNote(let workNote):
-            workNoteBeingEdited = workNote
-        case .meetingNote(let meetingNote):
-            meetingNoteBeingEdited = meetingNote
         }
     }
     
@@ -560,83 +496,8 @@ struct ObservationsView: View {
             print("Error fetching Note objects: \(error)")
         }
         
-        // 2. Fetch all ScopedNote objects
-        do {
-            let scopedFetch = FetchDescriptor<ScopedNote>(
-                sortBy: [SortDescriptor(\ScopedNote.createdAt, order: .reverse)]
-            )
-            let scopedNotes: [ScopedNote] = try modelContext.fetch(scopedFetch)
-            for scopedNote in scopedNotes {
-                // Enhanced extraction: try scope first, then infer from parent relationships
-                let studentIDs = studentIDsFromScopedNote(scopedNote)
-                let context = contextTextForScopedNote(scopedNote)
-                allItems.append(UnifiedObservationItem(
-                    id: scopedNote.id,
-                    date: scopedNote.createdAt,
-                    body: scopedNote.body,
-                    category: .general, // ScopedNote doesn't have category
-                    includeInReport: false,
-                    imagePath: nil,
-                    contextText: context,
-                    studentIDs: studentIDs,
-                    source: .scopedNote(scopedNote)
-                ))
-            }
-        } catch {
-            print("Error fetching ScopedNote objects: \(error)")
-        }
-        
-        // 3. Fetch all WorkNote objects
-        do {
-            let workNoteFetch = FetchDescriptor<WorkNote>(
-                sortBy: [SortDescriptor(\WorkNote.createdAt, order: .reverse)]
-            )
-            let workNotes: [WorkNote] = try modelContext.fetch(workNoteFetch)
-            for workNote in workNotes {
-                var studentIDs: [UUID] = []
-                if let student = workNote.student {
-                    studentIDs = [student.id]
-                }
-                let context = "Work Check-In"
-                allItems.append(UnifiedObservationItem(
-                    id: workNote.id,
-                    date: workNote.createdAt,
-                    body: workNote.text,
-                    category: .general, // WorkNote doesn't have category
-                    includeInReport: false,
-                    imagePath: nil,
-                    contextText: context,
-                    studentIDs: studentIDs,
-                    source: .workNote(workNote)
-                ))
-            }
-        } catch {
-            print("Error fetching WorkNote objects: \(error)")
-        }
-        
-        // 4. Fetch all MeetingNote objects
-        do {
-            let meetingNoteFetch = FetchDescriptor<MeetingNote>(
-                sortBy: [SortDescriptor(\MeetingNote.createdAt, order: .reverse)]
-            )
-            let meetingNotes: [MeetingNote] = try modelContext.fetch(meetingNoteFetch)
-            for meetingNote in meetingNotes {
-                let context = meetingNote.topic != nil ? "Topic: \(meetingNote.topic!.title)" : "Meeting"
-                allItems.append(UnifiedObservationItem(
-                    id: meetingNote.id,
-                    date: meetingNote.createdAt,
-                    body: meetingNote.content,
-                    category: .general, // MeetingNote doesn't have category
-                    includeInReport: false,
-                    imagePath: nil,
-                    contextText: context,
-                    studentIDs: [], // MeetingNote doesn't have student scope
-                    source: .meetingNote(meetingNote)
-                ))
-            }
-        } catch {
-            print("Error fetching MeetingNote objects: \(error)")
-        }
+        // Legacy note types (ScopedNote, WorkNote, MeetingNote) have been migrated to Note objects
+        // They are now included in the Note fetch above
         
         // Sort all items by date (newest first)
         allItems.sort { $0.date > $1.date }
@@ -654,64 +515,6 @@ struct ObservationsView: View {
         }
     }
     
-    private func studentIDsFromScopedNoteScope(_ scope: ScopedNote.Scope) -> [UUID] {
-        switch scope {
-        case .all: return []
-        case .student(let id): return [id]
-        case .students(let ids): return ids
-        }
-    }
-    
-    /// Enhanced extraction: tries scope first, then infers from parent relationships
-    private func studentIDsFromScopedNote(_ scopedNote: ScopedNote) -> [UUID] {
-        // First, try to get from scope
-        let fromScope = studentIDsFromScopedNoteScope(scopedNote.scope)
-        if !fromScope.isEmpty {
-            return fromScope
-        }
-        
-        // Fallback: infer from parent relationships
-        var studentIDs: [UUID] = []
-        
-        // If attached to a WorkContract, get student from contract
-        if let contract = scopedNote.workContract,
-           let studentID = UUID(uuidString: contract.studentID) {
-            studentIDs.append(studentID)
-        }
-        
-        // If attached to a StudentLesson, get student from lesson
-        if let studentLesson = scopedNote.studentLesson {
-            // StudentLesson can have multiple students, so get all of them
-            studentIDs.append(contentsOf: studentLesson.resolvedStudentIDs)
-        }
-        
-        // If attached to a Presentation, get students from presentation
-        if let presentation = scopedNote.presentation {
-            for studentIDString in presentation.studentIDs {
-                if let studentID = UUID(uuidString: studentIDString) {
-                    studentIDs.append(studentID)
-                }
-            }
-        }
-        
-        return studentIDs
-    }
-    
-    private func contextTextForScopedNote(_ scopedNote: ScopedNote) -> String? {
-        if scopedNote.studentLesson != nil {
-            return "Presentation"
-        }
-        if scopedNote.presentation != nil {
-            return "Presentation"
-        }
-        if scopedNote.workContract != nil {
-            return "Work Contract"
-        }
-        if scopedNote.work != nil {
-            return "Work"
-        }
-        return nil
-    }
 
     private var loadMoreRow: some View {
         // Since we load all notes at once, this row is not needed

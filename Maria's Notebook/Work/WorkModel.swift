@@ -20,9 +20,7 @@ import SwiftUI
     @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn]? = []
     // CloudKit compatibility: Relationship arrays must be optional
-    @Relationship(deleteRule: .cascade, inverse: \Note.work) var noteItems: [Note]? = []
-    @Relationship(deleteRule: .cascade, inverse: \ScopedNote.work) var scopedNotes: [ScopedNote]? = []
-    @Relationship(deleteRule: .cascade, inverse: \WorkNote.work) var checkNotes: [WorkNote]? = []
+    @Relationship(deleteRule: .cascade, inverse: \Note.work) var unifiedNotes: [Note]? = []
     
     // MARK: - Migration-ready fields (for WorkContract compatibility)
     /// Work kind (migration-ready, aligns with WorkContract.kind)
@@ -98,8 +96,7 @@ import SwiftUI
         self.createdAt = cal.startOfDay(for: createdAt)
         self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.participants = participants
-        self.noteItems = []
-        self.scopedNotes = []
+        self.unifiedNotes = []
         for p in (self.participants ?? []) { p.work = self }
         
         // Migration-ready fields

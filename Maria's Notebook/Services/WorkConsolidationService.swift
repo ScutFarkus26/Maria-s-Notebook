@@ -153,43 +153,10 @@ struct WorkConsolidationService {
                 }
             }
             
-            // Merge notes (Note items): add all note items from duplicates
-            for duplicate in duplicates {
-                if let dupNoteItems = duplicate.noteItems {
-                    if canonical.noteItems == nil {
-                        canonical.noteItems = []
-                    }
-                    for noteItem in dupNoteItems {
-                        noteItem.work = canonical
-                        canonical.noteItems?.append(noteItem)
-                    }
-                }
-            }
-            
-            // Merge scoped notes: add all scoped notes from duplicates
-            for duplicate in duplicates {
-                if let dupScopedNotes = duplicate.scopedNotes {
-                    if canonical.scopedNotes == nil {
-                        canonical.scopedNotes = []
-                    }
-                    for scopedNote in dupScopedNotes {
-                        scopedNote.work = canonical
-                        canonical.scopedNotes?.append(scopedNote)
-                    }
-                }
-            }
-            
-            // Merge check notes (WorkNote): add all check notes from duplicates
-            for duplicate in duplicates {
-                if let dupCheckNotes = duplicate.checkNotes {
-                    if canonical.checkNotes == nil {
-                        canonical.checkNotes = []
-                    }
-                    for checkNote in dupCheckNotes {
-                        checkNote.work = canonical
-                        canonical.checkNotes?.append(checkNote)
-                    }
-                }
+            // Re-parent unified notes
+            let notesToMove = duplicates.flatMap { $0.unifiedNotes ?? [] }
+            for note in notesToMove {
+                note.work = canonical
             }
             
             // Merge dates: keep earliest assignedAt, earliest dueAt, most recent lastTouchedAt

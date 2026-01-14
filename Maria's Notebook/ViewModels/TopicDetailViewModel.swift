@@ -22,7 +22,7 @@ final class TopicDetailViewModel: ObservableObject {
 
     // Derived lists (loaded lazily)
     @Published var proposedSolutions: [ProposedSolution] = []
-    @Published var notes: [MeetingNote] = []
+    @Published var notes: [Note] = []
     @Published var attachments: [CommunityAttachment] = []
 
     // MARK: - Mapping helpers
@@ -76,10 +76,10 @@ final class TopicDetailViewModel: ObservableObject {
         )
     }
 
-    private static func descriptorForNotes(topicID id: UUID) -> FetchDescriptor<MeetingNote> {
-        FetchDescriptor<MeetingNote>(
+    private static func descriptorForNotes(topicID id: UUID) -> FetchDescriptor<Note> {
+        FetchDescriptor<Note>(
             predicate: #Predicate { n in
-                n.topic?.id == id
+                n.communityTopic?.id == id
             },
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
@@ -153,12 +153,17 @@ final class TopicDetailViewModel: ObservableObject {
 
     func addNote(context: ModelContext, speaker: String, content: String) {
         guard let topic else { return }
-        let n = MeetingNote(speaker: speaker, content: content, topic: topic)
+        let n = Note(
+            body: content,
+            scope: .all,
+            communityTopic: topic,
+            reporterName: speaker.isEmpty ? nil : speaker
+        )
         context.insert(n)
         notes.append(n)
     }
 
-    func deleteNote(context: ModelContext, _ note: MeetingNote) {
+    func deleteNote(context: ModelContext, _ note: Note) {
         if let idx = notes.firstIndex(where: { $0.id == note.id }) {
             notes.remove(at: idx)
             context.delete(note)

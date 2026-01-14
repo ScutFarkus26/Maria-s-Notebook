@@ -10,7 +10,6 @@ struct StudentLessonNotesSectionUnified: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: Note? = nil
-    @State private var scopedNoteBeingEdited: ScopedNote? = nil
     @State private var hasLoggedDebugInfo: Bool = false
     
     // Helper computed values for matching
@@ -128,7 +127,7 @@ struct StudentLessonNotesSectionUnified: View {
             // Try to use relationship arrays first (more efficient)
             var notes: [Note] = []
             for presentation in matchedPresentations {
-                if let presentationNotes = presentation.notes {
+                if let presentationNotes = presentation.unifiedNotes {
                     notes.append(contentsOf: presentationNotes)
                 }
             }
@@ -199,57 +198,12 @@ struct StudentLessonNotesSectionUnified: View {
     // Task requirement: Notes where note.studentLesson == current StudentLesson
     private var lessonNotes: [Note] {
         // Use inverse relationship from StudentLesson
-        studentLesson.noteItems ?? []
-    }
-    
-    // Get lesson-attached scoped notes (not from presentations)
-    private var lessonScopedNotes: [ScopedNote] {
-        studentLesson.scopedNotes ?? []
+        studentLesson.unifiedNotes ?? []
     }
     
     // Get presentation-attached notes
     private var presentationNotes: [Note] {
         presentationNotesForThisLesson
-    }
-    
-    // Get scoped notes from matched presentations
-    private var presentationScopedNotesForThisLesson: [ScopedNote] {
-        let matched = matchedPresentations
-        
-        // Prefer relationship arrays if they exist
-        var allScopedNotes: [ScopedNote] = []
-        for presentation in matched {
-            if let scopedNotes = presentation.scopedNotes {
-                allScopedNotes.append(contentsOf: scopedNotes)
-            }
-        }
-        
-        // If relationship is not available, fetch all ScopedNote and filter by presentation relationship
-        if allScopedNotes.isEmpty {
-            do {
-                let allScopedNotesFetch = try modelContext.fetch(FetchDescriptor<ScopedNote>())
-                let matchedPresentationIDs = Set(matched.map { $0.id })
-                allScopedNotes = allScopedNotesFetch.filter { scopedNote in
-                    if let notePresentation = scopedNote.presentation {
-                        return matchedPresentationIDs.contains(notePresentation.id)
-                    }
-                    // Also check presentationID string if relationship is nil
-                    if let presentationID = scopedNote.presentationID {
-                        return matched.contains { $0.id.uuidString == presentationID }
-                    }
-                    return false
-                }
-            } catch {
-                return []
-            }
-        }
-        
-        return allScopedNotes
-    }
-    
-    // Get presentation-attached scoped notes
-    private var presentationScopedNotes: [ScopedNote] {
-        presentationScopedNotesForThisLesson
     }
     
     // Get all unified notes (lesson-attached + work-attached + presentation-attached), merged, de-duplicated, and sorted
@@ -278,14 +232,6 @@ struct StudentLessonNotesSectionUnified: View {
         allUnifiedNotes
     }
     
-    // Get all scoped notes (lesson-attached only), sorted
-    // Note: presentation scoped notes are displayed separately
-    private var scopedNotes: [ScopedNote] {
-        let lessonScopedNotes = self.lessonScopedNotes
-        
-        // Sort by createdAt descending (newest first)
-        return lessonScopedNotes.sorted(by: { $0.createdAt > $1.createdAt })
-    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -337,17 +283,8 @@ struct StudentLessonNotesSectionUnified: View {
                 }
             }
             
-            // Show lesson-attached ScopedNote objects
-            if !scopedNotes.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(scopedNotes, id: \.id) { scopedNote in
-                        scopedNoteRow(scopedNote)
-                    }
-                }
-            }
-            
             // Show Presentation Notes section
-            if !presentationNotes.isEmpty || !presentationScopedNotes.isEmpty {
+            if !presentationNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Presentation Notes")
                         .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
@@ -358,16 +295,11 @@ struct StudentLessonNotesSectionUnified: View {
                     ForEach(presentationNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
                         unifiedNoteRow(note)
                     }
-                    
-                    // Show presentation-attached ScopedNote objects
-                    ForEach(presentationScopedNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { scopedNote in
-                        scopedNoteRow(scopedNote)
-                    }
                 }
             }
             
             // Show legacy string field (if it has content and no other notes)
-            if !legacyNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && allUnifiedNotes.isEmpty && scopedNotes.isEmpty && presentationNotes.isEmpty && presentationScopedNotes.isEmpty {
+            if !legacyNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && allUnifiedNotes.isEmpty && presentationNotes.isEmpty {
                 TextEditor(text: Binding(
                     get: { legacyNotes },
                     set: { onLegacyNotesChange($0) }
@@ -377,7 +309,7 @@ struct StudentLessonNotesSectionUnified: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(Color.primary.opacity(0.12), lineWidth: 1)
                 )
-            } else if allUnifiedNotes.isEmpty && scopedNotes.isEmpty && presentationNotes.isEmpty && presentationScopedNotes.isEmpty && legacyNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            } else if allUnifiedNotes.isEmpty && presentationNotes.isEmpty && legacyNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text("No notes yet. Tap + to add a note.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -409,20 +341,6 @@ struct StudentLessonNotesSectionUnified: View {
                 },
                 onCancel: {
                     noteBeingEdited = nil
-                }
-            )
-        }
-        .sheet(item: $scopedNoteBeingEdited) { scopedNote in
-            LegacyNoteEditor(
-                title: "Edit Note",
-                text: scopedNote.body,
-                onSave: { newText in
-                    scopedNote.body = newText
-                    try? modelContext.save()
-                    scopedNoteBeingEdited = nil
-                },
-                onCancel: {
-                    scopedNoteBeingEdited = nil
                 }
             )
         }
@@ -466,48 +384,6 @@ struct StudentLessonNotesSectionUnified: View {
         }
     }
     
-    @ViewBuilder
-    private func scopedNoteRow(_ scopedNote: ScopedNote) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text(scopeText(for: scopedNote.scope))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .overlay(
-                        Capsule().stroke(Color.primary.opacity(0.12))
-                    )
-                Spacer()
-                Text(scopedNote.createdAt, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Text(scopedNote.body)
-                .font(.body)
-                .foregroundStyle(.primary)
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .contextMenu {
-            Button {
-                scopedNoteBeingEdited = scopedNote
-            } label: {
-                Label("Edit Note", systemImage: "pencil")
-            }
-        }
-    }
-    
-    private func scopeText(for scope: ScopedNote.Scope) -> String {
-        switch scope {
-        case .all: return "All"
-        case .student(_): return "Student"
-        case .students(let ids): return ids.isEmpty ? "Group" : "\(ids.count) students"
-        }
-    }
 }
 
 

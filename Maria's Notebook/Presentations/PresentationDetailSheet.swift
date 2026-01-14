@@ -14,12 +14,10 @@ struct PresentationDetailSheet: View, Identifiable {
     @Query private var students: [Student]
 
     @State private var presentation: Presentation? = nil
-    @State private var notes: [ScopedNote] = [] // Legacy notes
-    @State private var unifiedNotes: [Note] = [] // New unified notes
+    @State private var unifiedNotes: [Note] = [] // Unified notes
     @State private var isLoading: Bool = true
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: Note? = nil
-    @State private var scopedNoteBeingEdited: ScopedNote? = nil
 
     init(presentationID: UUID, onDone: (() -> Void)? = nil) {
         self.presentationID = presentationID
@@ -129,19 +127,15 @@ struct PresentationDetailSheet: View, Identifiable {
                                         .foregroundStyle(.accent)
                                 }
                             }
-                            if unifiedNotes.isEmpty && notes.isEmpty {
+                            if unifiedNotes.isEmpty {
                                 Text("No notes for this presentation")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             } else {
                                 VStack(alignment: .leading, spacing: 8) {
-                                    // Show new unified notes first
+                                    // Show unified notes
                                     ForEach(unifiedNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
                                         unifiedNoteRow(note)
-                                    }
-                                    // Show legacy ScopedNote objects
-                                    ForEach(notes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
-                                        noteRow(note)
                                     }
                                 }
                             }
@@ -219,21 +213,6 @@ struct PresentationDetailSheet: View, Identifiable {
                 )
             }
         }
-        .sheet(item: $scopedNoteBeingEdited) { scopedNote in
-            LegacyNoteEditor(
-                title: "Edit Note",
-                text: scopedNote.body,
-                onSave: { newText in
-                    scopedNote.body = newText
-                    try? modelContext.save()
-                    scopedNoteBeingEdited = nil
-                    reloadNotes()
-                },
-                onCancel: {
-                    scopedNoteBeingEdited = nil
-                }
-            )
-        }
         .task { @MainActor in
             #if DEBUG
             let t0 = Date()
@@ -294,75 +273,23 @@ struct PresentationDetailSheet: View, Identifiable {
         }
     }
     
-    @ViewBuilder
-    private func noteRow(_ note: ScopedNote) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text(scopeText(for: note.scope))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .overlay(
-                        Capsule().stroke(Color.primary.opacity(0.12))
-                    )
-                Spacer()
-                Text(Self.dateFormatter.string(from: note.updatedAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Text(note.body)
-                .font(.body)
-                .foregroundStyle(.primary)
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .contextMenu {
-            Button {
-                scopedNoteBeingEdited = note
-            } label: {
-                Label("Edit Note", systemImage: "pencil")
-            }
-        }
-    }
-    
     @MainActor
     private func reloadNotes() {
         guard let presentation = presentation else { return }
-        let pid = presentation.id.uuidString
         
-        // Load legacy ScopedNote objects
-        let sort: [SortDescriptor<ScopedNote>] = [
-            SortDescriptor(\ScopedNote.updatedAt, order: .reverse),
-            SortDescriptor(\ScopedNote.createdAt, order: .reverse)
-        ]
-        let nDesc = FetchDescriptor<ScopedNote>(predicate: #Predicate { $0.presentationID == pid }, sortBy: sort)
-        self.notes = (try? modelContext.fetch(nDesc)) ?? []
-        
-        // Load new unified Note objects from relationship
+        // Load unified Note objects from relationship
         // Refresh the presentation object to get updated relationships
         let presentationID = presentation.id
         if let refreshed = try? modelContext.fetch(
             FetchDescriptor<Presentation>(predicate: #Predicate<Presentation> { $0.id == presentationID })
         ).first {
-            if let notes = refreshed.notes {
+            if let notes = refreshed.unifiedNotes {
                 self.unifiedNotes = Array(notes)
             } else {
                 self.unifiedNotes = []
             }
         } else {
             self.unifiedNotes = []
-        }
-    }
-
-    private func scopeText(for scope: ScopedNote.Scope) -> String {
-        switch scope {
-        case .all: return "All"
-        case .student(_): return "Student"
-        case .students(let ids): return ids.isEmpty ? "Group" : "\(ids.count) students"
         }
     }
 
@@ -399,7 +326,7 @@ struct PresentationDetailSheet: View, Identifiable {
     )
     ctx.insert(p)
     print("Presentation link set: legacyStudentLessonID=\(p.legacyStudentLessonID ?? "nil")")
-    let note = ScopedNote(body: "Group was engaged.", scope: .all, presentation: p)
+    let note = Note(body: "Group was engaged.", scope: .all, presentation: p)
     ctx.insert(note)
     return PresentationDetailSheet(presentationID: p.id)
         .previewEnvironment(using: container)

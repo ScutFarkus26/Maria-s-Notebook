@@ -58,9 +58,9 @@ struct CommunityMeetingsView: View {
             return "\(title)\n\(details)"
         }.joined(separator: "\n")
 
-        let notesText = (t.notes ?? []).map { note in
-            let speaker = note.speaker
-            let content = note.content
+        let notesText = (t.unifiedNotes ?? []).map { note in
+            let speaker = note.reporterName ?? ""
+            let content = note.body
             return "\(speaker)\n\(content)"
         }.joined(separator: "\n")
 
@@ -210,7 +210,8 @@ struct CommunityMeetingsView: View {
     let s1 = ProposedSolution(title: "Color-coded vests", details: "Assign vests and zones per day.", proposedBy: "Maria", topic: t1)
     let s2 = ProposedSolution(title: "Student helpers", details: "Older students pair with guides.", proposedBy: "Ami", topic: t1)
     t1.proposedSolutions = [s1, s2]
-    t1.notes = [MeetingNote(speaker: "John", content: "Safety near swings is the main concern.", topic: t1)]
+    let note1 = Note(body: "Safety near swings is the main concern.", scope: .all, communityTopic: t1, reporterName: "John")
+    t1.unifiedNotes = [note1]
 
     let t2 = CommunityTopic(title: "Library noise", issueDescription: "Afternoon work cycle is too loud.", addressedDate: Date(), resolution: "Post visual noise meter and soft music.")
     let s3 = ProposedSolution(title: "Quiet corners", details: "Add more rugs and dividers.", proposedBy: "Sara", topic: t2)

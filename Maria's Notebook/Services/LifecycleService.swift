@@ -114,55 +114,7 @@ struct LifecycleService {
             print("Presentation link set: legacyStudentLessonID=\(presentation.legacyStudentLessonID ?? "nil")")
         }
 
-        // MIGRATION: Copy legacy notes from StudentLesson to Presentation (idempotent)
-        // Build existing migration keys for this Presentation to keep this fast and idempotent.
-        let presentationUUID = presentation.id
-        let existingForPresentationFetch = FetchDescriptor<ScopedNote>(predicate: #Predicate<ScopedNote> { ($0.presentationID ?? "") == presentationUUID.uuidString && $0.migrationKey != nil })
-        let existingForPresentation = try modelContext.fetch(existingForPresentationFetch)
-        var existingKeys: Set<String> = Set(existingForPresentation.compactMap { $0.migrationKey })
-
-        // A) Scoped notes attached to StudentLesson → Presentation
-        for legacy in studentLesson.scopedNotes ?? [] {
-            let mk = "studentLessonScopedNote:\(studentLesson.id.uuidString):\(legacy.id.uuidString)"
-            if existingKeys.contains(mk) {
-                continue
-            }
-            let newNote = ScopedNote(
-                createdAt: legacy.createdAt,
-                updatedAt: legacy.updatedAt,
-                body: legacy.body,
-                scope: legacy.scope,
-                legacyFingerprint: legacy.legacyFingerprint,
-                migrationKey: mk,
-                studentLesson: nil,
-                presentation: presentation,
-                workContract: nil
-            )
-            modelContext.insert(newNote)
-            existingKeys.insert(mk)
-        }
-
-        // B) StudentLesson freeform notes string → Presentation (single group note)
-        let trimmedNotesString = studentLesson.notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedNotesString.isEmpty {
-            let mk2 = "studentLessonNotesString:\(studentLesson.id.uuidString)"
-            if !existingKeys.contains(mk2) {
-                let created = studentLesson.givenAt ?? studentLesson.createdAt
-                let newNote = ScopedNote(
-                    createdAt: created,
-                    updatedAt: created,
-                    body: trimmedNotesString,
-                    scope: .all,
-                    legacyFingerprint: nil,
-                    migrationKey: mk2,
-                    studentLesson: nil,
-                    presentation: presentation,
-                    workContract: nil
-                )
-                modelContext.insert(newNote)
-                existingKeys.insert(mk2)
-            }
-        }
+        // Legacy note migration has been completed. All notes are now in the unified Note system.
 
         // 2) Ensure WorkModels exist per student
         var workForPresentation: [WorkModel] = []

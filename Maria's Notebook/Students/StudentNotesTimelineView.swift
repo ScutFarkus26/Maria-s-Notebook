@@ -82,7 +82,6 @@ private struct StudentNotesTimelineList: View {
         // Sort groups by date (newest first)
         let sortedKeys = grouped.keys.sorted { key1, key2 in
             // Parse the keys to compare dates properly
-            // Format is "YYYY-MM" so we can sort as strings
             key1 > key2
         }
         
@@ -99,7 +98,6 @@ private struct StudentNotesTimelineList: View {
     }
     
     private func monthYearHeader(for key: String) -> String {
-        // Key format is "YYYY-MM"
         let parts = key.split(separator: "-")
         guard parts.count == 2,
               let year = Int(parts[0]),
@@ -134,7 +132,6 @@ private struct StudentNotesTimelineList: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
             }
-            // FIX: Use standard SwiftUI material background instead of UIColor
             .background(.background)
             
             Divider()
@@ -158,6 +155,13 @@ private struct StudentNotesTimelineList: View {
                                 StudentNoteRowView(item: item)
                                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                                     .listRowSeparator(.visible)
+                                    // FIX: Ensure entire row captures tap, and handle ALL note types
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        if let note = resolveEditableNote(from: item) {
+                                            noteBeingEdited = note
+                                        }
+                                    }
     #if os(iOS)
                                     .swipeActions(edge: .trailing) {
                                         if let note = resolveEditableNote(from: item) {
@@ -258,16 +262,16 @@ private struct StudentNotesTimelineList: View {
 
     @MainActor
     private func resolveEditableNote(from item: UnifiedNoteItem) -> Note? {
-        // Only support editing for general Note items that directly map to Note entities
-        guard item.source == .general else { return nil }
-        // Attempt to fetch the Note by id from the model context
+        // FIX: Removed "guard item.source == .general" check.
+        // Now we simply attempt to look up the Note by ID.
+        // If it returns a valid Note object (whether attached to Work, Lesson, or General), it will be editable.
         return viewModel.note(by: item.id)
     }
 }
+
 extension StudentNotesViewModel {
     @MainActor
     func note(by id: UUID) -> Note? { self.itemsNoteLookup?(id) }
     @MainActor
     func reload() { self.reloadItems?() }
 }
-

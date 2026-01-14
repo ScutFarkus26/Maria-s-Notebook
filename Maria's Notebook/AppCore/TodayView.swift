@@ -1050,7 +1050,7 @@ private struct CompletionRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if !work.notes.trimmed().isEmpty || (work.noteItems?.isEmpty == false) {
+            if !work.notes.trimmed().isEmpty || (work.unifiedNotes?.isEmpty == false) {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
             }
@@ -1247,7 +1247,7 @@ private struct CompletionListRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if !work.notes.trimmed().isEmpty || (work.noteItems?.isEmpty == false) {
+            if !work.notes.trimmed().isEmpty || (work.unifiedNotes?.isEmpty == false) {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
             }
