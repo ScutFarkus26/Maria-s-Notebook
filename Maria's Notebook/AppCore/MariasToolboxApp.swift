@@ -781,6 +781,10 @@ struct MariasToolboxApp: App {
     }
 
     init() {
+        // Start monitoring main thread for stutters (blocking > 100ms)
+        // This runs in all build configurations (Debug and Release)
+        PerformanceLogger.startStutterDetection()
+        
         #if os(macOS)
         if let icon = NSImage(named: NSImage.applicationIconName) {
             NSApplication.shared.applicationIconImage = icon

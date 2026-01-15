@@ -2,7 +2,7 @@ import SwiftData
 import Foundation
 
 enum MigrationRunner {
-    static func runIfNeeded(context: ModelContext) {
+    static func runIfNeeded(context: ModelContext) async {
         let key = "MigrationRunner.v1.practiceFollowUpBackfill"
         // Disabled: Do not fetch or mutate WorkModel at startup.
         // Mark as done to avoid reruns while retaining compatibility flags.
@@ -17,7 +17,7 @@ enum MigrationRunner {
         }
         
         // Clean orphaned student IDs from WorkModel records
-        DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
+        await DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
     }
     
     /// Migrate WorkContract records to WorkModel records.

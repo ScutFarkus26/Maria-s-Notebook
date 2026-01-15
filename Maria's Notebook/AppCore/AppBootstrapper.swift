@@ -47,7 +47,7 @@ final class AppBootstrapper: ObservableObject {
         DataMigrations.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
         
         // 3.6.6. Work Contracts migration: Migrate WorkContracts to WorkModels
-        DataMigrations.migrateWorkContractsToWorkModelsIfNeeded(using: context)
+        await DataMigrations.migrateWorkContractsToWorkModelsIfNeeded(using: context)
         #if DEBUG
         MigrationRunner.migrateWorkContractsToWorkModels(context: context)
         #endif
@@ -61,11 +61,11 @@ final class AppBootstrapper: ObservableObject {
         await DataMigrations.repairPresentationStudentLessonLinks_v2(using: context)
         await DataMigrations.backfillNoteStudentLessonFromPresentation(using: context)
         
-        // 3.8. Data Integrity Repairs (run on every launch to catch any corruption)
-        // Repair denormalized scheduledForDay fields
-        DataMigrations.repairDenormalizedScheduledForDay(using: context)
-        // Clean orphaned student IDs from StudentLesson records
-        DataMigrations.cleanOrphanedStudentIDs(using: context)
+        // 3.8. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
+        if Int.random(in: 1...10) == 1 {
+            await DataMigrations.repairDenormalizedScheduledForDay(using: context)
+            await DataMigrations.cleanOrphanedStudentIDs(using: context)
+        }
         
         // 4. Initialize Reminder Sync Service
         ReminderSyncService.shared.modelContext = context

@@ -31,10 +31,10 @@ struct ObservationHeatmapView: View {
         }
         .navigationTitle("Observation Heatmap")
         .onAppear {
-            calculateObservations()
+            calculateObservationsAsync()
         }
         .onChange(of: allStudents.count) { _, _ in
-            calculateObservations()
+            calculateObservationsAsync()
         }
         .sheet(isPresented: $showingQuickNote) {
             if let studentID = selectedStudentID {
@@ -74,6 +74,174 @@ struct ObservationHeatmapView: View {
         }
         
         studentObservations = observations
+    }
+    
+    private func calculateObservationsAsync() {
+        Task { @MainActor in
+            let context = modelContext
+            let students = allStudents
+            
+            // 1) Fetch all StudentMeetings once
+            let allMeetings: [StudentMeeting] = (try? context.fetch(FetchDescriptor<StudentMeeting>())) ?? []
+            
+            // 2) Fetch all WorkContracts once
+            let allContracts: [WorkContract] = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
+            
+            // 3) Fetch all Notes once
+            let allNotes: [Note] = (try? context.fetch(FetchDescriptor<Note>())) ?? []
+            
+            // 4) Fetch all Presentations once
+            let allPresentations: [Presentation] = (try? context.fetch(FetchDescriptor<Presentation>())) ?? []
+            
+            // Build dictionaries for O(1) lookup
+            
+            // StudentMeetings grouped by studentID (String) -> most recent date with content
+            var meetingsByStudentID: [String: Date] = [:]
+            for meeting in allMeetings {
+                let hasContent = !meeting.reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                                !meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                                !meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                                !meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                
+                if hasContent {
+                    if let existing = meetingsByStudentID[meeting.studentID] {
+                        if meeting.date > existing {
+                            meetingsByStudentID[meeting.studentID] = meeting.date
+                        }
+                    } else {
+                        meetingsByStudentID[meeting.studentID] = meeting.date
+                    }
+                }
+            }
+            
+            // WorkContracts grouped by studentID (String) -> set of contract IDs
+            var contractIDsByStudentID: [String: Set<UUID>] = [:]
+            for contract in allContracts {
+                contractIDsByStudentID[contract.studentID, default: []].insert(contract.id)
+            }
+            
+            // Presentations by ID
+            var presentationsByID: [UUID: Presentation] = [:]
+            for presentation in allPresentations {
+                presentationsByID[presentation.id] = presentation
+            }
+            
+            // Notes by studentID (from scope, workContract, and presentation)
+            // Group 1: Notes with student scope - map by studentID
+            var studentScopedNotesByStudentID: [UUID: [Note]] = [:]
+            // Group 2: Notes with workContract relationships - map by contractID
+            var contractNotesByContractID: [UUID: Note] = [:]
+            // Group 3: Notes with presentation relationships - map by presentationID
+            var presentationNotesByPresentationID: [UUID: Note] = [:]
+            
+            for note in allNotes {
+                // Group 1: Student-scoped notes (only .student(let id) scope, matching original logic)
+                if case .student(let studentID) = note.scope {
+                    studentScopedNotesByStudentID[studentID, default: []].append(note)
+                }
+                
+                // Group 2: WorkContract notes
+                if let contract = note.workContract {
+                    // Store the most recent note per contract
+                    if let existing = contractNotesByContractID[contract.id] {
+                        let existingDate = max(existing.updatedAt, existing.createdAt)
+                        let noteDate = max(note.updatedAt, note.createdAt)
+                        if noteDate > existingDate {
+                            contractNotesByContractID[contract.id] = note
+                        }
+                    } else {
+                        contractNotesByContractID[contract.id] = note
+                    }
+                }
+                
+                // Group 3: Presentation notes
+                if let presentation = note.presentation {
+                    // Store the most recent note per presentation
+                    if let existing = presentationNotesByPresentationID[presentation.id] {
+                        let existingDate = max(existing.updatedAt, existing.createdAt)
+                        let noteDate = max(note.updatedAt, note.createdAt)
+                        if noteDate > existingDate {
+                            presentationNotesByPresentationID[presentation.id] = note
+                        }
+                    } else {
+                        presentationNotesByPresentationID[presentation.id] = note
+                    }
+                }
+            }
+            
+            // Compute most recent date for each student
+            var observations: [StudentObservation] = []
+            
+            for student in students {
+                var mostRecentDate: Date? = nil
+                let studentIDString = student.id.uuidString
+                
+                // 1) Check student-scoped notes
+                if let studentNotes = studentScopedNotesByStudentID[student.id] {
+                    for note in studentNotes {
+                        let noteDate = max(note.updatedAt, note.createdAt)
+                        if mostRecentDate == nil || noteDate > mostRecentDate! {
+                            mostRecentDate = noteDate
+                        }
+                    }
+                }
+                
+                // 2) Check WorkContract notes
+                if let contractIDs = contractIDsByStudentID[studentIDString] {
+                    for contractID in contractIDs {
+                        if let note = contractNotesByContractID[contractID] {
+                            let noteDate = max(note.updatedAt, note.createdAt)
+                            if mostRecentDate == nil || noteDate > mostRecentDate! {
+                                mostRecentDate = noteDate
+                            }
+                        }
+                    }
+                }
+                
+                // 3) Check Presentation notes
+                for (presentationID, presentation) in presentationsByID {
+                    if presentation.studentIDs.contains(studentIDString) {
+                        if let note = presentationNotesByPresentationID[presentationID] {
+                            let noteDate = max(note.updatedAt, note.createdAt)
+                            if mostRecentDate == nil || noteDate > mostRecentDate! {
+                                mostRecentDate = noteDate
+                            }
+                        }
+                    }
+                }
+                
+                // 4) Check StudentMeeting records
+                if let meetingDate = meetingsByStudentID[studentIDString] {
+                    if mostRecentDate == nil || meetingDate > mostRecentDate! {
+                        mostRecentDate = meetingDate
+                    }
+                }
+                
+                let daysSince = calculateDaysSince(date: mostRecentDate)
+                observations.append(StudentObservation(
+                    student: student,
+                    daysSinceLastObservation: daysSince,
+                    mostRecentDate: mostRecentDate
+                ))
+            }
+            
+            // Sort: Red (most days) at top, then Yellow, then Green
+            observations.sort { lhs, rhs in
+                // First sort by observation status (Red > Yellow > Green)
+                let lhsStatus = observationStatus(for: lhs.daysSinceLastObservation)
+                let rhsStatus = observationStatus(for: rhs.daysSinceLastObservation)
+                
+                if lhsStatus != rhsStatus {
+                    return lhsStatus.rawValue > rhsStatus.rawValue
+                }
+                
+                // If same status, sort by days (more days = higher priority)
+                return lhs.daysSinceLastObservation > rhs.daysSinceLastObservation
+            }
+            
+            // Update studentObservations
+            studentObservations = observations
+        }
     }
     
     private func findMostRecentNoteDate(for student: Student) -> Date? {

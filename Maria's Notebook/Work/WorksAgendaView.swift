@@ -7,10 +7,8 @@ struct WorksAgendaView: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @EnvironmentObject private var restoreCoordinator: RestoreCoordinator
 
-    // MEMORY OPTIMIZATION: Load all WorkModel, filter open work in memory
-    // Using broad query to avoid filtering out newly created items with strict predicates
-    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
-    private var allWork: [WorkModel]
+    @Query(filter: #Predicate<WorkModel> { $0.statusRaw != "complete" }, sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
+    private var openWork: [WorkModel]
     
     // MEMORY OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -164,7 +162,7 @@ struct WorksAgendaView: View {
         .onAppear {
             loadLessonsAndStudentsIfNeeded()
         }
-        .onChange(of: allWork.map { $0.id }) { _, _ in
+        .onChange(of: openWork.map { $0.id }) { _, _ in
             // Reload when work changes
             loadLessonsAndStudentsIfNeeded()
         }
@@ -235,14 +233,6 @@ struct WorksAgendaView: View {
     }
 
     // MARK: - Data helpers
-    
-    /// Filter all work to get open work (anything NOT .complete)
-    private var openWork: [WorkModel] {
-        allWork.filter { work in
-            // Treat anything that is NOT .complete as open
-            work.status != .complete
-        }
-    }
     
     private func openWorksFiltered() -> [WorkModel] {
         // Filter open work in memory (anything NOT .complete)

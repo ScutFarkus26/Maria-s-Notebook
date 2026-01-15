@@ -107,6 +107,7 @@ struct DefaultStudentCard: View {
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.06), lineWidth: 1))
                 .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         )
+        .drawingGroup()
     }
 }
 
@@ -245,6 +246,7 @@ struct AgeStudentCard: View {
             .padding(14)
         }
         .frame(minHeight: 100)
+        .drawingGroup()
         .onAppear {
             bob = true
         }
@@ -383,6 +385,7 @@ struct BirthdayStudentCard: View {
             }
             .padding(14)
         }
+        .drawingGroup()
         .onAppear { bob = true }
         .onChange(of: scenePhase) { _, newPhase in
             // ENERGY OPTIMIZATION: Only animate when scene is active to reduce GPU/CPU usage when backgrounded

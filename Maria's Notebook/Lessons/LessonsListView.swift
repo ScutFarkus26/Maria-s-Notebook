@@ -13,6 +13,8 @@ struct LessonsListView: View {
     let canReorderLessons: Bool
     let onMoveLesson: (_ source: IndexSet, _ destination: Int, _ orderedSubset: [Lesson]) -> Void
 
+    @State private var cachedSubheadingOrder: [String] = []
+
     private var lessonsInGroup: [Lesson] {
         lessons
             .filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
@@ -26,17 +28,17 @@ struct LessonsListView: View {
         }
     }
 
-    private var subheadingOrder: [String] {
+    private func updateSubheadings() {
         let existing = Array(Set(orderedLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        return FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existing)
+        cachedSubheadingOrder = FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existing)
     }
 
     var body: some View {
         List {
             // If there are subheadings, present as structural sections.
-            if !subheadingOrder.isEmpty {
-                ForEach(subheadingOrder, id: \.self) { sh in
+            if !cachedSubheadingOrder.isEmpty {
+                ForEach(cachedSubheadingOrder, id: \.self) { sh in
                     let items = orderedLessons.filter { $0.subheading.trimmed() == sh }
                     if !items.isEmpty {
                         Section(header: Text(sh)) {
@@ -78,5 +80,11 @@ struct LessonsListView: View {
         .contentMargins(.leading, 0, for: .scrollContent)
         .contentMargins(.trailing, 0, for: .scrollContent)
         .navigationTitle(group)
+        .onAppear {
+            updateSubheadings()
+        }
+        .onChange(of: lessons) {
+            updateSubheadings()
+        }
     }
 }

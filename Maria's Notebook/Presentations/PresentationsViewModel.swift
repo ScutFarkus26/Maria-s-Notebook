@@ -134,15 +134,15 @@ final class PresentationsViewModel: ObservableObject {
         )
         #endif
         
-        // 4. Fetch all WorkModels (we'll filter in memory to avoid predicate issues)
-        // Prefer broad fetch and filter in memory per constraints
+        // 4. Fetch non-complete WorkModels (filter at database layer for efficiency)
         let workModels: [WorkModel] = {
             #if DEBUG
             let startTime = Date()
             #endif
-            let allWork = modelContext.safeFetch(FetchDescriptor<WorkModel>())
-            // Filter for non-complete work only (active and review status)
-            let result = allWork.filter { $0.statusRaw != "complete" }
+            let descriptor = FetchDescriptor<WorkModel>(
+                predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
+            )
+            let result = modelContext.safeFetch(descriptor)
             #if DEBUG
             let duration = Date().timeIntervalSince(startTime)
             PerformanceLogger.log(

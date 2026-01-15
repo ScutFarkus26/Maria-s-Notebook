@@ -200,12 +200,17 @@ enum DataMigrations {
     /// This ensures data integrity when scheduledForDay gets out of sync with scheduledFor
     /// (e.g., during bulk imports or when didSet doesn't fire during initialization).
     /// Safe to call repeatedly - it's idempotent and only fixes mismatched records.
-    static func repairDenormalizedScheduledForDay(using context: ModelContext) {
+    static func repairDenormalizedScheduledForDay(using context: ModelContext) async {
         let fetch = FetchDescriptor<StudentLesson>()
         let lessons = context.safeFetch(fetch)
         var repaired = 0
         
-        for sl in lessons {
+        for (index, sl) in lessons.enumerated() {
+            // Yield every 200 items checked, regardless of whether they needed repair
+            if index % 200 == 0 {
+                await Task.yield()
+            }
+            
             let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
             if sl.scheduledForDay != correct {
                 sl.scheduledForDay = correct
@@ -223,7 +228,7 @@ enum DataMigrations {
     /// Removes student IDs that no longer exist in the database to maintain referential integrity
     /// when using manual ID management instead of SwiftData relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
-    static func cleanOrphanedStudentIDs(using context: ModelContext) {
+    static func cleanOrphanedStudentIDs(using context: ModelContext) async {
         // Fetch all students to build valid ID set
         let studentFetch = FetchDescriptor<Student>()
         let allStudents = context.safeFetch(studentFetch)
@@ -234,7 +239,12 @@ enum DataMigrations {
         let allLessons = context.safeFetch(lessonFetch)
         
         var cleaned = 0
-        for sl in allLessons {
+        for (index, sl) in allLessons.enumerated() {
+            // Yield every 200 iterations to keep UI responsive
+            if index % 200 == 0 {
+                await Task.yield()
+            }
+            
             let originalIDs = sl.studentIDs
             let cleanedIDs = originalIDs.filter { validStudentIDs.contains($0) }
             
@@ -258,7 +268,7 @@ enum DataMigrations {
     /// Removes student IDs that no longer exist in the database to maintain referential integrity
     /// when using manual ID management instead of SwiftData relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
-    static func cleanOrphanedWorkStudentIDs(using context: ModelContext) {
+    static func cleanOrphanedWorkStudentIDs(using context: ModelContext) async {
         // Fetch all students to build valid ID set
         let studentFetch = FetchDescriptor<Student>()
         let allStudents = context.safeFetch(studentFetch)
@@ -269,7 +279,12 @@ enum DataMigrations {
         let allWorks = context.safeFetch(workFetch)
         
         var cleaned = 0
-        for work in allWorks {
+        for (index, work) in allWorks.enumerated() {
+            // Yield every 200 iterations to prevent blocking
+            if index % 200 == 0 {
+                await Task.yield()
+            }
+            
             var modified = false
             
             // Check work.studentID - if not empty and not in valid set, clear it
@@ -332,7 +347,7 @@ enum DataMigrations {
             
             for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
                 // Yield periodically to prevent blocking UI
-                if batchStart % (batchSize * 5) == 0 {
+                if batchStart % 500 == 0 {
                     await Task.yield()
                 }
                 
@@ -390,7 +405,7 @@ enum DataMigrations {
             
             for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
                 // Yield periodically to prevent blocking UI
-                if batchStart % (batchSize * 5) == 0 {
+                if batchStart % 500 == 0 {
                     await Task.yield()
                 }
                 
@@ -434,7 +449,7 @@ enum DataMigrations {
             
             for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
                 // Yield periodically to prevent blocking UI
-                if batchStart % (batchSize * 5) == 0 {
+                if batchStart % 500 == 0 {
                     await Task.yield()
                 }
                 
@@ -498,7 +513,7 @@ enum DataMigrations {
     /// Also migrates relationships from Note and ScopedNote from workContract to work.
     /// Idempotent: only migrates contracts that don't already have corresponding WorkModels.
     @MainActor
-    static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) {
+    static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
         do {
             // Fetch all WorkContract records
             let contracts = context.safeFetch(FetchDescriptor<WorkContract>())
@@ -515,7 +530,12 @@ enum DataMigrations {
             var createdWorkCount = 0
             
             // For each WorkContract that doesn't already exist as a WorkModel, create a WorkModel
-            for contract in contracts {
+            for (index, contract) in contracts.enumerated() {
+                // Yield every 50 iterations to prevent blocking
+                if index % 50 == 0 && index > 0 {
+                    await Task.yield()
+                }
+                
                 // Skip if this contract already has a corresponding WorkModel
                 guard !existingLegacyContractIDs.contains(contract.id) else { continue }
                 
@@ -532,9 +552,15 @@ enum DataMigrations {
             let adapter = WorkLegacyAdapter(modelContext: context)
             var migratedNotesCount = 0
             
-            // Migrate Note relationships
-            let notes = context.safeFetch(FetchDescriptor<Note>())
-            for note in notes {
+            // Migrate Note relationships - optimized fetch with predicate
+            let notesDescriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.workContract != nil && $0.work == nil })
+            let notes = (try? context.fetch(notesDescriptor)) ?? []
+            for (index, note) in notes.enumerated() {
+                // Yield every 50 iterations to prevent blocking
+                if index % 50 == 0 && index > 0 {
+                    await Task.yield()
+                }
+                
                 // Only migrate if note has workContract but no work
                 guard let workContract = note.workContract, note.work == nil else { continue }
                 
@@ -551,7 +577,12 @@ enum DataMigrations {
             
             // Backfill IDs for already-migrated WorkModels
             var backfilledCount = 0
-            for work in workModels {
+            for (index, work) in workModels.enumerated() {
+                // Yield every 50 iterations to prevent blocking
+                if index % 50 == 0 && index > 0 {
+                    await Task.yield()
+                }
+                
                 // Only process WorkModels that have a legacyContractID
                 guard let legacyContractID = work.legacyContractID else { continue }
                 
@@ -586,7 +617,12 @@ enum DataMigrations {
 
             var studentLessonBackfilledCount = 0
 
-            for work in workModels {
+            for (index, work) in workModels.enumerated() {
+                // Yield every 50 iterations to prevent blocking
+                if index % 50 == 0 && index > 0 {
+                    await Task.yield()
+                }
+                
                 guard (work.studentID.isEmpty || work.lessonID.isEmpty), let slID = work.studentLessonID else { continue }
                 guard let sl = studentLessonByID[slID] else { continue }
 
@@ -819,7 +855,8 @@ enum DataMigrations {
             
             for batchStart in stride(from: 0, to: presentations.count, by: batchSize) {
                 // Yield periodically to prevent blocking UI
-                if batchStart % (batchSize * 5) == 0 {
+                // Since this function involves nested loops and date calculations, yielding every 50 items is necessary to keep the UI responsive
+                if batchStart % 50 == 0 {
                     await Task.yield()
                 }
                 

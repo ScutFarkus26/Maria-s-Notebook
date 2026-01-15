@@ -1,5 +1,7 @@
 import Foundation
 import SwiftUI
+import ImageIO
+import CoreGraphics
 
 #if os(macOS)
 import AppKit
@@ -94,6 +96,72 @@ public enum PhotoStorageService {
         }
         
         return UIImage(data: imageData)
+    }
+    #endif
+    
+    /// Loads a downsampled image from the photos directory using a filename.
+    /// Uses CGImageSource to create thumbnails efficiently, drastically reducing memory usage.
+    /// - Parameters:
+    ///   - filename: The filename returned from saveImage
+    ///   - pointSize: The desired size in points
+    ///   - scale: The display scale factor (typically from UIScreen.main.scale or NSScreen.main?.backingScaleFactor)
+    /// - Returns: The downsampled NSImage if found, nil otherwise
+    #if os(macOS)
+    nonisolated public static func loadDownsampledImage(filename: String, pointSize: CGSize, scale: CGFloat) -> NSImage? {
+        guard let photosDir = try? photosDirectory() else {
+            return nil
+        }
+        
+        let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
+        
+        guard let imageSource = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
+            return nil
+        }
+        
+        let maxPixelSize = max(pointSize.width, pointSize.height) * scale
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary) else {
+            return nil
+        }
+        
+        return NSImage(cgImage: thumbnail, size: pointSize)
+    }
+    #else
+    /// Loads a downsampled image from the photos directory using a filename.
+    /// Uses CGImageSource to create thumbnails efficiently, drastically reducing memory usage.
+    /// - Parameters:
+    ///   - filename: The filename returned from saveImage
+    ///   - pointSize: The desired size in points
+    ///   - scale: The display scale factor (typically from UIScreen.main.scale)
+    /// - Returns: The downsampled UIImage if found, nil otherwise
+    nonisolated public static func loadDownsampledImage(filename: String, pointSize: CGSize, scale: CGFloat) -> UIImage? {
+        guard let photosDir = try? photosDirectory() else {
+            return nil
+        }
+        
+        let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
+        
+        guard let imageSource = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
+            return nil
+        }
+        
+        let maxPixelSize = max(pointSize.width, pointSize.height) * scale
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary) else {
+            return nil
+        }
+        
+        return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
     }
     #endif
     

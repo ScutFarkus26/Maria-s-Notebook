@@ -60,7 +60,10 @@ struct FollowUpInboxView: View {
     private var students: [Student] { inboxData?.students ?? [] }
     private var studentLessons: [StudentLesson] { inboxData?.studentLessons ?? [] }
     
-    private func loadData() {
+    private func loadData() async {
+        // Yield to allow the view to appear immediately before the heavy fetch
+        await Task.yield()
+        
         // Minimal data loading - engine handles WorkModel fetching internally
         // Still need students, lessons, and studentLessons for display
         let loader = InboxDataLoader(context: modelContext)
@@ -164,13 +167,13 @@ struct FollowUpInboxView: View {
         }
         .padding(16)
         .task {
-            loadData()
+            await loadData()
         }
         .onChange(of: studentLessonIDs) { _, _ in
-            loadData()
+            Task { await loadData() }
         }
         .onChange(of: workModelIDs) { _, _ in
-            loadData()
+            Task { await loadData() }
         }
         .sheet(item: $selectedSL) { token in
             let targetID = token.id

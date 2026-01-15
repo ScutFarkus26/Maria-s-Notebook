@@ -18,7 +18,7 @@ struct WorkContractDetailSheet: View {
     @State private var relatedStudent: Student? = nil
     
     @State private var contractNotes: [Note] = [] // Unified notes - fetched in memory to avoid predicate issues
-    @Query private var presentations: [Presentation]
+    @State private var linkedPresentation: Presentation? = nil
     @Query private var planItems: [WorkPlanItem]
     @Query private var peerWorkModels: [WorkModel]
     
@@ -132,7 +132,7 @@ struct WorkContractDetailSheet: View {
                     "lessons": relatedLessons.count,
                     "students": relatedStudent != nil ? 1 : 0,
                     "workNotes": workNotes.count,
-                    "presentations": presentations.count,
+                    "presentations": linkedPresentation != nil ? 1 : 0,
                     "planItems": planItems.count,
                     "peerWorkModels": peerWorkModels.count,
                     "hasWorkModelMapping": correspondingWorkModel != nil ? 1 : 0
@@ -397,6 +397,15 @@ struct WorkContractDetailSheet: View {
             )
             relatedStudent = modelContext.safeFetchFirst(studentDescriptor)
         }
+        
+        // Load the specific presentation if contract has a presentationID
+        if let presentationIDString = contract.presentationID,
+           let presentationID = UUID(uuidString: presentationIDString) {
+            let presentationDescriptor = FetchDescriptor<Presentation>(
+                predicate: #Predicate<Presentation> { $0.id == presentationID }
+            )
+            linkedPresentation = modelContext.safeFetchFirst(presentationDescriptor)
+        }
     }
     
     private func studentName() -> String {
@@ -410,8 +419,7 @@ struct WorkContractDetailSheet: View {
     // Task requirement #4: Fix call site to use presentation when available instead of .general
     private func noteContextForNewNote() -> UnifiedNoteEditor.NoteContext {
         // Priority 1: Use presentation if available (Task requirement #4)
-        if let presentationID = resolvedPresentationID,
-           let presentation = presentations.first(where: { $0.id == presentationID }) {
+        if let presentation = linkedPresentation {
             return .presentation(presentation)
         }
         // Priority 2: Use corresponding WorkModel if available
@@ -434,8 +442,7 @@ struct WorkContractDetailSheet: View {
             return .presentation(presentation)
         }
         // Fallback: Try to find presentation from contract if available
-        if let presentationID = resolvedPresentationID,
-           let presentation = presentations.first(where: { $0.id == presentationID }) {
+        if let presentation = linkedPresentation {
             return .presentation(presentation)
         }
         // Fallback to corresponding WorkModel if available
