@@ -534,9 +534,13 @@ enum DataMigrations {
             }
             
             // Always attempt to migrate Note and ScopedNote relationships (even if createdWorkCount is 0)
-            // Use WorkLegacyAdapter to look up migrated WorkModel by legacy contract ID
-            let adapter = WorkLegacyAdapter(modelContext: context)
+            // Use LegacyWorkAdapter to look up migrated WorkModel by legacy contract ID
+            let adapter = LegacyWorkAdapter(modelContext: context)
             var migratedNotesCount = 0
+            
+            // Build mapping of legacy contract IDs to WorkModels
+            let allWorkModels = (try? adapter.fetchAllWorkModels()) ?? []
+            let workModelsByContractID = adapter.workModelsByLegacyContractID(workModels: allWorkModels)
             
             // Migrate Note relationships - optimized fetch with predicate
             let notesDescriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.workContract != nil && $0.work == nil })
@@ -551,7 +555,7 @@ enum DataMigrations {
                 guard let workContract = note.workContract, note.work == nil else { continue }
                 
                 // Look up the migrated WorkModel by legacy contract ID
-                guard let workModel = adapter.workModel(forLegacyContractID: workContract.id) else { continue }
+                guard let workModel = adapter.resolveWorkModel(forLegacyContract: workContract, map: workModelsByContractID) else { continue }
                 
                 // Move the relationship
                 note.work = workModel

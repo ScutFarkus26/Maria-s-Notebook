@@ -28,9 +28,9 @@
    - Usage: Migration helper to convert WorkContract -> WorkModel
    - Status: KEEP (used during migration)
 
-5. **Work/WorkLegacyAdapter.swift**
-   - Usage: Adapter for migration lookups
-   - Status: KEEP (used during migration)
+5. **Work/LegacyWorkAdapter.swift**
+   - Usage: Adapter for migration lookups and legacy data access
+   - Status: KEEP (used during migration and in WorkContractDetailSheet)
 
 6. **Backup/BackupTypes.swift**
    - Usage: Backup DTO includes workContracts field
@@ -189,6 +189,25 @@
 
 37. **Components/LegacyNoteEditor.swift** ✅ DELETED
     - Status: ✅ File removed as dead code
+
+38. **Work/WorkLegacyAdapter.swift** ✅ DELETED
+    - Status: ✅ File removed - consolidated into LegacyWorkAdapter.swift
+    - Action: ✅ Updated DataMigrations.swift to use LegacyWorkAdapter instead
+
+39. **Students/StudentDetailViewModel+Compat.swift** ✅ DELETED
+    - Status: ✅ File removed - workSummary property was unused
+    - Action: ✅ Verified no references to workSummary in codebase
+
+## Cleanup Dead Code
+✅ **COMPLETED** - Final dead code cleanup for WorkContract migration:
+
+1. ✅ Deleted `Services/WorkMigrationFlags.swift` (unused migration flag)
+2. ✅ Deleted `Components/LegacyNoteEditor.swift` (obsolete UI component)
+3. ✅ Consolidated adapters: Updated `Services/DataMigrations.swift` to use `LegacyWorkAdapter` instead of `WorkLegacyAdapter`, then deleted `Work/WorkLegacyAdapter.swift`
+4. ✅ Verified `Tests/CloudKitStatusView.swift` uses WorkModel (already completed in previous cleanup)
+5. ✅ Deleted `Students/StudentDetailViewModel+Compat.swift` (unused compatibility extension)
+
+**Result**: All dead code related to WorkContract migration has been removed. Only active compatibility layers and migration code remain.
 
 ## Summary
 - **Migration Code**: 2 files - KEEP ✅
