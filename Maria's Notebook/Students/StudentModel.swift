@@ -37,6 +37,9 @@ final class Student: Identifiable {
     // Use queries filtered by studentIDs instead to find lessons for a student
     // var studentLessons: [StudentLesson]? = [] // Removed - cannot have relationship to @Transient property
 
+    @Relationship(deleteRule: .cascade, inverse: \Document.student)
+    var documents: [Document]? = []
+
     var fullName: String {
         "\(firstName) \(lastName)"
     }

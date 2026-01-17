@@ -35,5 +35,6 @@ struct AppSchema {
         TrackStep.self,
         StudentTrackEnrollment.self,
         GroupTrack.self,
+        Document.self,
     ])
 }
