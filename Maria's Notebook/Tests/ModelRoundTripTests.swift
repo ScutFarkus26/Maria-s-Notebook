@@ -3,7 +3,7 @@ import XCTest
 import SwiftData
 import Foundation
 
-@testable import YourModuleName // Replace with your module name containing BackupService and models
+@testable import Maria_s_Notebook
 
 @MainActor
 final class BackupServiceRoundTripTests: XCTestCase {
