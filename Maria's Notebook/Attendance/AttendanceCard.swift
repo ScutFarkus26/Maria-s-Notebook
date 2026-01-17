@@ -92,8 +92,10 @@ struct AttendanceCard: View {
         // Compact status pill with absence reason indicator
         HStack(spacing: 6) {
             Text(statusLabel)
+                .id(status)
                 .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
                 .foregroundStyle(accentColor)
+                .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .move(edge: .top).combined(with: .opacity)))
             if status == .absent && absenceReason != .none {
                 Image(systemName: absenceReason.icon)
                     .font(.system(size: 10))
@@ -105,6 +107,7 @@ struct AttendanceCard: View {
         .background(
             Capsule().fill(accentColor.opacity(0.12))
         )
+        .animation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
 
         // Clicking the note opens the editor only if editing, otherwise static display
         if hasNote {
@@ -188,8 +191,10 @@ struct AttendanceCard: View {
                     // Compact status pill with absence reason indicator
                     HStack(spacing: 6) {
                         Text(statusLabel)
+                            .id(status)
                             .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
                             .foregroundStyle(accentColor)
+                            .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .move(edge: .top).combined(with: .opacity)))
                         if status == .absent && absenceReason != .none {
                             Image(systemName: absenceReason.icon)
                                 .font(.system(size: 10))
@@ -201,6 +206,7 @@ struct AttendanceCard: View {
                     .background(
                         Capsule().fill(accentColor.opacity(0.12))
                     )
+                    .animation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
 
                     // Spacer to push note section to bottom
                     Spacer(minLength: 4)
@@ -270,6 +276,7 @@ struct AttendanceCard: View {
         .background(background)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: status)
 #if os(macOS)
         .highPriorityGesture(TapGesture(count: 1).onEnded { if isEditing { onTap() } })
 #else
