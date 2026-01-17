@@ -410,7 +410,7 @@ final class TodayViewModel: ObservableObject {
             // Sort outputs
             self.overdueSchedule = overdue.sorted { $0.planItem.scheduledDate < $1.planItem.scheduledDate }
             self.todaysSchedule = today.sorted { $0.planItem.scheduledDate < $1.planItem.scheduledDate }
-            self.staleFollowUps = stale.sorted { $0.daysSinceTouch > $1.daysSinceTouch } // Most stale first
+            self.staleFollowUps = Array(stale.sorted { $0.daysSinceTouch > $1.daysSinceTouch }.prefix(15)) // Most stale first
             
         } catch {
             print("Error fetching work/plans: \(error)")
