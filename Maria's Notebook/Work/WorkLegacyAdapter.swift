@@ -1,3 +1,6 @@
+// LEGACY DATA ADAPTER. RETAIN FOR BACKWARD COMPATIBILITY ONLY.
+// DO NOT USE IN NEW FEATURES - Use WorkModel directly instead.
+
 import Foundation
 import SwiftData
 

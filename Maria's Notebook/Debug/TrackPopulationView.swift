@@ -111,12 +111,12 @@ struct TrackPopulationView: View {
             // Fetch all data on main actor (required for ModelContext)
             let lessons: [Lesson]
             let presentations: [Presentation]
-            let workContracts: [WorkContract]
+            let workModels: [WorkModel]
             
             do {
                 lessons = try modelContext.fetch(FetchDescriptor<Lesson>())
                 presentations = try modelContext.fetch(FetchDescriptor<Presentation>())
-                workContracts = try modelContext.fetch(FetchDescriptor<WorkContract>())
+                workModels = try modelContext.fetch(FetchDescriptor<WorkModel>())
             } catch {
                 print("Error fetching data: \(error)")
                 isScanning = false
@@ -125,7 +125,7 @@ struct TrackPopulationView: View {
             
             // Process data in background
             let tracks = await Task.detached {
-                performScan(lessons: lessons, presentations: presentations, workContracts: workContracts)
+                performScan(lessons: lessons, presentations: presentations, workModels: workModels)
             }.value
             
             potentialTracks = tracks
@@ -133,7 +133,7 @@ struct TrackPopulationView: View {
         }
     }
     
-    nonisolated private func performScan(lessons: [Lesson], presentations: [Presentation], workContracts: [WorkContract]) -> [PotentialTrack] {
+    nonisolated private func performScan(lessons: [Lesson], presentations: [Presentation], workModels: [WorkModel]) -> [PotentialTrack] {
         // Group lessons by subject and group (ignore empty groups)
         var groups: [String: [Lesson]] = [:] // Key: "subject|group"
         
@@ -157,7 +157,7 @@ struct TrackPopulationView: View {
             }
         }
         
-        // Count history items (presentations and work contracts) for each group
+        // Count history items (presentations and work models) for each group
         var historyCounts: [String: Int] = [:]
         
         for presentation in presentations {
@@ -166,8 +166,8 @@ struct TrackPopulationView: View {
             historyCounts[groupKey, default: 0] += 1
         }
         
-        for contract in workContracts {
-            guard let lessonID = UUID(uuidString: contract.lessonID),
+        for work in workModels {
+            guard let lessonID = UUID(uuidString: work.lessonID),
                   let groupKey = lessonIDToGroupKey[lessonID] else { continue }
             historyCounts[groupKey, default: 0] += 1
         }
@@ -234,7 +234,7 @@ struct TrackPopulationView: View {
                 // Fetch all required data on main actor
                 let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
                 let allPresentations = try modelContext.fetch(FetchDescriptor<Presentation>())
-                let allWorkContracts = try modelContext.fetch(FetchDescriptor<WorkContract>())
+                let allWorkModels = try modelContext.fetch(FetchDescriptor<WorkModel>())
                 var existingEnrollments = try modelContext.fetch(FetchDescriptor<StudentTrackEnrollment>())
                 
                 // Process each selected track
@@ -248,7 +248,7 @@ struct TrackPopulationView: View {
                         potentialTrack: potentialTrack,
                         allLessons: allLessons,
                         allPresentations: allPresentations,
-                        allWorkContracts: allWorkContracts,
+                        allWorkModels: allWorkModels,
                         existingEnrollments: existingEnrollments
                     )
                     
@@ -282,7 +282,7 @@ struct TrackPopulationView: View {
         potentialTrack: PotentialTrack,
         allLessons: [Lesson],
         allPresentations: [Presentation],
-        allWorkContracts: [WorkContract],
+        allWorkModels: [WorkModel],
         existingEnrollments: [StudentTrackEnrollment]
     ) throws -> [StudentTrackEnrollment] {
         // 1. Find all lessons matching this subject and group
@@ -341,21 +341,21 @@ struct TrackPopulationView: View {
             studentIDsFromPresentations.formUnion(presentation.studentIDs)
         }
         
-        // 6. Backfill history: Update WorkContracts
+        // 6. Backfill history: Update WorkModels
         var workDates: [Date] = []
         var studentIDsFromWork: Set<String> = []
         
-        for contract in allWorkContracts {
-            guard let lessonID = UUID(uuidString: contract.lessonID),
+        for work in allWorkModels {
+            guard let lessonID = UUID(uuidString: work.lessonID),
                   lessonIDs.contains(lessonID) else { continue }
             
-            contract.trackID = trackIDString
+            work.trackID = trackIDString
             
             // Collect date and student IDs
-            let date = contract.scheduledDate ?? contract.createdAt
+            let date = work.dueAt ?? work.createdAt
             workDates.append(date)
-            if !contract.studentID.isEmpty {
-                studentIDsFromWork.insert(contract.studentID)
+            if !work.studentID.isEmpty {
+                studentIDsFromWork.insert(work.studentID)
             }
         }
         
@@ -429,7 +429,7 @@ struct TrackRow: View {
         .modelContainer(for: [
             Lesson.self,
             Presentation.self,
-            WorkContract.self,
+            WorkModel.self,
             Track.self,
             TrackStep.self,
             StudentTrackEnrollment.self

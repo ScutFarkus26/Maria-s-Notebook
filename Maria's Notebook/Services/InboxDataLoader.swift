@@ -27,9 +27,6 @@ final class InboxDataLoader {
         let planItems = loadPlanItems(for: workIDs)
         let notes = loadNotes(for: workIDs)
         
-        // Also load legacy contracts for backward compatibility (empty in normal operation)
-        let legacyContracts = loadActiveContracts()
-        
         // Collect referenced student and lesson IDs
         var studentIDs = Set<UUID>()
         var lessonIDs = Set<UUID>()
@@ -54,7 +51,6 @@ final class InboxDataLoader {
         
         return InboxData(
             studentLessons: presentedStudentLessons,
-            contracts: legacyContracts, // Legacy field - kept for backward compatibility
             planItems: planItems,
             notes: notes,
             students: students,
@@ -111,14 +107,6 @@ final class InboxDataLoader {
             }
         )
         return context.safeFetch(descriptor)
-    }
-    
-    /// Legacy method: Loads active and review work contracts (for backward compatibility).
-    /// This returns empty array in normal operation as we use WorkModel now.
-    func loadActiveContracts() -> [WorkContract] {
-        // Return empty array - legacy contracts are not used in normal operation
-        // Kept for backward compatibility with InboxData structure
-        return []
     }
     
     /// Loads plan items only for the specified work IDs.
@@ -199,7 +187,6 @@ final class InboxDataLoader {
 /// Container for inbox data loaded by InboxDataLoader.
 struct InboxData {
     let studentLessons: [StudentLesson]
-    let contracts: [WorkContract]
     let planItems: [WorkPlanItem]
     let notes: [Note]
     let students: [Student]

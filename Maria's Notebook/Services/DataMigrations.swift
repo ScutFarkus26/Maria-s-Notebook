@@ -92,13 +92,6 @@ enum DataMigrations {
         MigrationFlag.markComplete(key: flagKey)
     }
     
-    /// Backfill nil WorkModel.title values to empty string once.
-    static func backfillEmptyWorkTitlesIfNeeded(using context: ModelContext) {
-        let flagKey = "Migration.workTitlesBackfillEmpty.v1"
-        // Title is non-optional; this migration is obsolete. Mark as done.
-        MigrationFlag.markComplete(key: flagKey)
-    }
-    
     /// Fix CommunityTopic.tags property migration to new storage format.
     /// The tags property now uses JSON-encoded Data storage (_tagsData) instead of direct array storage.
     /// 

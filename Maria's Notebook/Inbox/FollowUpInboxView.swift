@@ -71,7 +71,6 @@ struct FollowUpInboxView: View {
         // Create minimal InboxData with only what we need
         inboxData = InboxData(
             studentLessons: data.studentLessons,
-            contracts: [], // Not used - engine fetches WorkModel internally
             planItems: [], // Not used - engine fetches WorkModel internally
             notes: [], // Not used - engine fetches WorkModel internally
             students: data.students,

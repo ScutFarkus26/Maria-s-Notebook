@@ -29,7 +29,7 @@ struct StudentDetailView: View {
     @AppStorage("StudentDetailView.activeTab") private var selectedTab: StudentDetailTab = .overview
 
     @State private var selectedWorkID: UUID? = nil
-    @State private var contractsCache: [WorkContract] = []
+    @State private var contractsCache: [WorkModel] = []
 
     private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
     private var studentLessonIDs: [UUID] { vm.studentLessons.map(\.id) }
@@ -67,13 +67,8 @@ struct StudentDetailView: View {
         }
     }
 
-    private func fetchContractsForStudent() -> [WorkContract] {
-        // NOTE: fetchContractsForStudent is deprecated and now returns empty array
-        // The codebase is transitioning from WorkContract to WorkModel
-        // TODO: Migrate contractsCache and updateContracts to use WorkModel instead
-        // Using the new method but not yet integrated - WorkModel conversion needed
-        _ = vm.fetchWorkModelsForStudent(modelContext: modelContext)
-        return [] // Deprecated method returns empty array, matching that behavior
+    private func fetchContractsForStudent() -> [WorkModel] {
+        return vm.fetchWorkModelsForStudent(modelContext: modelContext)
     }
 
     @ViewBuilder
@@ -215,17 +210,14 @@ struct StudentDetailView: View {
         .task {
             vm.loadData(modelContext: modelContext)
             contractsCache = fetchContractsForStudent()
-            vm.updateContracts(contractsCache)
         }
         .onChange(of: lessonIDs) { _, _ in
             vm.loadData(modelContext: modelContext)
             contractsCache = fetchContractsForStudent()
-            vm.updateContracts(contractsCache)
         }
         .onChange(of: studentLessonIDs) { _, _ in
             vm.loadData(modelContext: modelContext)
             contractsCache = fetchContractsForStudent()
-            vm.updateContracts(contractsCache)
         }
     }
 

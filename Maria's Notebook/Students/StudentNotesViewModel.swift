@@ -140,7 +140,7 @@ final class StudentNotesViewModel: ObservableObject {
                      guard note.scope.applies(to: student.id) else { return nil }
                 }
                 
-                let context = lessonNameByWorkID[work.id.uuidString] ?? work.title.isEmpty ? "Work" : work.title
+                let context = lessonNameByWorkID[work.id.uuidString] ?? (work.title.isEmpty ? "Work" : work.title)
                 return UnifiedNoteItem(
                     id: note.id,
                     date: note.updatedAt,

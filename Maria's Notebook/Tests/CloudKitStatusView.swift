@@ -12,7 +12,7 @@ struct CloudKitStatusView: View {
     @Query private var students: [Student]
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
-    @Query private var workContracts: [WorkContract]
+    @Query private var workModels: [WorkModel]
     @Query private var workPlanItems: [WorkPlanItem]
     @Query private var workCompletionRecords: [WorkCompletionRecord]
     @Query private var attendanceRecords: [AttendanceRecord]
@@ -40,7 +40,7 @@ struct CloudKitStatusView: View {
         students.count +
         lessons.count +
         studentLessons.count +
-        workContracts.count +
+        workModels.count +
         workPlanItems.count +
         workCompletionRecords.count +
         attendanceRecords.count +
@@ -94,7 +94,7 @@ struct CloudKitStatusView: View {
                             RecordCountRow(name: "Students", count: students.count)
                             RecordCountRow(name: "Lessons", count: lessons.count)
                             RecordCountRow(name: "Student Lessons", count: studentLessons.count)
-                            RecordCountRow(name: "Work Contracts", count: workContracts.count)
+                            RecordCountRow(name: "Work Models", count: workModels.count)
                             RecordCountRow(name: "Work Plan Items", count: workPlanItems.count)
                             RecordCountRow(name: "Work Completions", count: workCompletionRecords.count)
                             RecordCountRow(name: "Attendance Records", count: attendanceRecords.count)
