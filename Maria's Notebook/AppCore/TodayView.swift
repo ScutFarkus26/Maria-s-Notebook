@@ -248,6 +248,7 @@ struct TodayView: View {
         Text(name)
             .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
             .foregroundStyle(color)
+            .textSelection(.disabled)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Capsule().fill(color.opacity(0.12)))
@@ -275,13 +276,11 @@ struct TodayView: View {
                         Divider()
                         #endif
                         
+                        attendanceStrip
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 10)
+                        
                         List {
-                            Section {
-                                attendanceStrip
-                                    .listRowInsets(EdgeInsets())
-                                    .listRowBackground(Color.clear)
-                            }
-                            
                             remindersListSection
                             
                             lessonsListSection
@@ -667,6 +666,15 @@ struct TodayView: View {
                             let name = displayNameForID(sid)
                             if !name.trimmed().isEmpty {
                                 studentPill(name, color: .red)
+                                    .contextMenu {
+                                        Text(name)
+                                        Divider()
+                                        Button {
+                                            markTardy(sid)
+                                        } label: {
+                                            Label("Mark Tardy", systemImage: "clock")
+                                        }
+                                    }
                             }
                         }
                         if !viewModel.absentToday.isEmpty && !viewModel.leftEarlyToday.isEmpty {
@@ -688,6 +696,81 @@ struct TodayView: View {
         }
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
+    }
+    
+    // MARK: - Attendance Actions
+    private func markTardy(_ studentID: UUID) {
+        let (day, _) = AppCalendar.dayRange(for: viewModel.date)
+        let store = AttendanceStore(context: modelContext, calendar: calendar)
+        
+        do {
+            var descriptor = FetchDescriptor<AttendanceRecord>(
+                predicate: #Predicate { rec in
+                    rec.studentID == studentID.uuidString && rec.date == day
+                }
+            )
+            descriptor.fetchLimit = 1
+            
+            let records = try modelContext.fetch(descriptor)
+            if let record = records.first {
+                // Update existing record
+                store.updateStatus(record, to: .tardy)
+            } else {
+                // Create new record if it doesn't exist
+                guard viewModel.studentsByID[studentID] != nil else {
+                    print("Warning: Cannot update attendance for student \(studentID) - student not found")
+                    return
+                }
+                let record = AttendanceRecord(studentID: studentID, date: day, status: .tardy)
+                modelContext.insert(record)
+            }
+            
+            // Save changes
+            try modelContext.save()
+            
+            // Reload the view model to reflect changes
+            viewModel.reload()
+        } catch {
+            print("Error updating attendance status: \(error.localizedDescription)")
+        }
+    }
+    
+    private func updateAttendanceStatus(for studentID: UUID, to status: AttendanceStatus) {
+        let store = AttendanceStore(context: modelContext, calendar: calendar)
+        let day = AppCalendar.startOfDay(viewModel.date)
+        
+        // Fetch or create the attendance record
+        do {
+            var descriptor = FetchDescriptor<AttendanceRecord>(
+                predicate: #Predicate { rec in
+                    rec.studentID == studentID.uuidString && rec.date == day
+                }
+            )
+            descriptor.fetchLimit = 1
+            
+            let records = try modelContext.fetch(descriptor)
+            if let record = records.first {
+                // Update existing record
+                store.updateStatus(record, to: status)
+            } else {
+                // Create new record if it doesn't exist
+                // Verify student exists (should be in studentsByID cache)
+                guard viewModel.studentsByID[studentID] != nil else {
+                    print("Warning: Cannot update attendance for student \(studentID) - student not found")
+                    return
+                }
+                let record = AttendanceRecord(studentID: studentID, date: day, status: status)
+                modelContext.insert(record)
+            }
+            
+            // Save changes
+            try modelContext.save()
+            
+            // Reload the view model to reflect changes
+            viewModel.reload()
+        } catch {
+            print("Error updating attendance status: \(error.localizedDescription)")
+        }
     }
 
     private func statChip(title: String, count: Int, color: Color) -> some View {
