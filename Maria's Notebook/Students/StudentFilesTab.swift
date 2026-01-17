@@ -185,7 +185,7 @@ struct StudentFilesTab: View {
                 .padding(.horizontal, 32)
                 .padding(.vertical, 20)
             }
-            .dropDestination(for: Data.self) { items, location in
+            .dropDestination(for: URL.self) { items, location in
                 return handleDrop(items)
             }
         }
@@ -226,19 +226,19 @@ struct StudentFilesTab: View {
         #endif
     }
     
-    private func handleDrop(_ items: [Data]) -> Bool {
-        guard let firstData = items.first else { return false }
-        
-        // Write data to a temporary file URL
-        let tempDir = FileManager.default.temporaryDirectory
-        let tempURL = tempDir.appendingPathComponent("dropped-file-\(UUID().uuidString).pdf")
+    private func handleDrop(_ urls: [URL]) -> Bool {
+        guard let url = urls.first else { return false }
         
         do {
-            try firstData.write(to: tempURL)
-            selectedImportData = ImportDataWrapper(url: tempURL, data: firstData)
+            let gotAccess = url.startAccessingSecurityScopedResource()
+            defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
+            
+            let data = try Data(contentsOf: url)
+            // Passing the original URL allows DocumentImportSheet to extract the correct filename
+            selectedImportData = ImportDataWrapper(url: url, data: data)
             return true
         } catch {
-            print("Failed to write dropped file: \(error)")
+            print("Failed to read dropped file: \(error)")
             return false
         }
     }
@@ -449,8 +449,19 @@ struct PDFPageViewRepresentable: NSViewRepresentable {
     
     func makeNSView(context: Context) -> PDFView {
         let pdfView = PDFView()
-        pdfView.document = PDFDocument()
-        pdfView.document?.insert(page, at: 0)
+        
+        // Check if the page already belongs to a document
+        if let existingDocument = page.document {
+            // Use the existing document to preserve accessibility tag structure
+            pdfView.document = existingDocument
+            pdfView.go(to: page)
+        } else {
+            // Only create a new document if the page doesn't have one
+            let newDocument = PDFDocument()
+            newDocument.insert(page, at: 0)
+            pdfView.document = newDocument
+        }
+        
         pdfView.autoScales = true
         pdfView.displayMode = .singlePage
         pdfView.displayDirection = .vertical
@@ -458,7 +469,17 @@ struct PDFPageViewRepresentable: NSViewRepresentable {
         return pdfView
     }
     
-    func updateNSView(_ nsView: PDFView, context: Context) {}
+    func updateNSView(_ nsView: PDFView, context: Context) {
+        // Ensure the view stays in sync with the page
+        if let existingDocument = page.document {
+            if nsView.document !== existingDocument {
+                nsView.document = existingDocument
+                nsView.go(to: page)
+            } else if nsView.currentPage !== page {
+                nsView.go(to: page)
+            }
+        }
+    }
 }
 #else
 struct PDFPageViewRepresentable: UIViewRepresentable {
@@ -466,9 +487,19 @@ struct PDFPageViewRepresentable: UIViewRepresentable {
     
     func makeUIView(context: Context) -> PDFView {
         let pdfView = PDFView()
-        let doc = PDFDocument()
-        doc?.insert(page, at: 0)
-        pdfView.document = doc
+        
+        // Check if the page already belongs to a document
+        if let existingDocument = page.document {
+            // Use the existing document to preserve accessibility tag structure
+            pdfView.document = existingDocument
+            pdfView.go(to: page)
+        } else {
+            // Only create a new document if the page doesn't have one
+            let newDocument = PDFDocument()
+            newDocument.insert(page, at: 0)
+            pdfView.document = newDocument
+        }
+        
         pdfView.autoScales = true
         pdfView.displayMode = .singlePage
         pdfView.displayDirection = .vertical
@@ -476,7 +507,17 @@ struct PDFPageViewRepresentable: UIViewRepresentable {
         return pdfView
     }
     
-    func updateUIView(_ uiView: PDFView, context: Context) {}
+    func updateUIView(_ uiView: PDFView, context: Context) {
+        // Ensure the view stays in sync with the page
+        if let existingDocument = page.document {
+            if uiView.document !== existingDocument {
+                uiView.document = existingDocument
+                uiView.go(to: page)
+            } else if uiView.currentPage !== page {
+                uiView.go(to: page)
+            }
+        }
+    }
 }
 #endif
 
