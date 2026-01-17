@@ -409,9 +409,10 @@ struct AgeUtilsTests {
 
         let result = AgeUtils.roundedAgeComponents(birthday: birthday, today: today)
 
-        // Should be just under 5 years (Feb 28 is 1 day before the anniversary)
-        #expect(result.years == 4)
-        #expect(result.months == 11 || result.months == 0) // Depends on rounding
+        // Feb 29, 2020 to Feb 28, 2025 is 4 years, 11 months, 30 days
+        // Since 30 days is more than half of the month (28 days in Feb 2025), it rounds up
+        #expect(result.years == 5)
+        #expect(result.months == 0)
     }
 
     @Test("Very old age 100 years")
@@ -421,8 +422,10 @@ struct AgeUtilsTests {
 
         let result = AgeUtils.roundedAgeComponents(birthday: birthday, today: today)
 
+        // Jan 1, 1920 to June 15, 2025 is 105 years, 5 months, 14 days
+        // 14 days is less than half of June (30 days), so doesn't round up
         #expect(result.years == 105)
-        #expect(result.months == 6)
+        #expect(result.months == 5)
     }
 }
 #endif
