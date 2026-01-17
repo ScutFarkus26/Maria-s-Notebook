@@ -212,6 +212,7 @@ struct CategoryChip: View {
         case .social: return .purple
         case .emotional: return .pink
         case .health: return .green
+        case .attendance: return .teal
         case .general: return .gray
         }
     }

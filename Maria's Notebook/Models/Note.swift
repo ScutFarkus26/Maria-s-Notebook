@@ -7,6 +7,7 @@ public enum NoteCategory: String, Codable, CaseIterable {
     case social
     case emotional
     case health
+    case attendance
     case general
 }
 

@@ -164,6 +164,8 @@ struct StudentNoteRowView: View {
             return .pink
         case .health:
             return .red
+        case .attendance:
+            return .teal
         case .general:
             return .gray
         }

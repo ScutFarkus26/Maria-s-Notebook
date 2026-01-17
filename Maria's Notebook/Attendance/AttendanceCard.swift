@@ -19,7 +19,7 @@ struct AttendanceCard: View {
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showingNoteEditor = false
-    @State private var draftNote: String = ""
+    @State private var noteToEdit: Note? = nil
 
     private var status: AttendanceStatus { record?.status ?? .unmarked }
     private var absenceReason: AbsenceReason { record?.absenceReason ?? .none }
@@ -36,9 +36,25 @@ struct AttendanceCard: View {
         }
     }
 
+    // Helper to resolve the most relevant note content (Unified Note object vs Legacy String)
+    private var resolvedNote: (text: String, object: Note?) {
+        // 1. Check for Unified Note objects (linked relationships)
+        // Sort by creation date descending to show the most recent one
+        if let notes = record?.notes, let newest = notes.sorted(by: { $0.createdAt > $1.createdAt }).first {
+            return (newest.body, newest)
+        }
+        
+        // 2. Fallback to legacy string stored on the record
+        if let legacyText = record?.note, !legacyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return (legacyText, nil)
+        }
+        
+        // 3. No note found
+        return ("", nil)
+    }
+
     private var hasNote: Bool {
-        let t = record?.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return !t.isEmpty
+        return !resolvedNote.text.isEmpty
     }
 
     // Original layout: note icon next to name (macOS and iOS regular)
@@ -49,11 +65,19 @@ struct AttendanceCard: View {
                 .font(.system(size: AppTheme.FontSize.titleSmall, weight: .medium, design: .rounded))
                 .lineLimit(1)
                 .truncationMode(.tail)
+            
+            // Visual indicator that a note exists
+            if hasNote {
+                Image(systemName: "note.text")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            
             Spacer(minLength: 0)
             // Small note icon at far right (only when no note exists and editing)
             if !hasNote && isEditing {
                 Button {
-                    draftNote = record?.note ?? ""
+                    noteToEdit = nil
                     showingNoteEditor = true
                 } label: {
                     Image(systemName: "square.and.pencil")
@@ -84,15 +108,17 @@ struct AttendanceCard: View {
 
         // Clicking the note opens the editor only if editing, otherwise static display
         if hasNote {
+            let noteContent = resolvedNote
+            
             if isEditing {
                 Button {
-                    draftNote = record?.note ?? ""
+                    noteToEdit = noteContent.object
                     showingNoteEditor = true
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "note.text")
                             .foregroundStyle(.secondary)
-                        Text(record?.note ?? "")
+                        Text(noteContent.text)
                             .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -105,7 +131,7 @@ struct AttendanceCard: View {
                 HStack(spacing: 6) {
                     Image(systemName: "note.text")
                         .foregroundStyle(.secondary)
-                    Text(record?.note ?? "")
+                    Text(noteContent.text)
                         .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -144,12 +170,20 @@ struct AttendanceCard: View {
             VStack(alignment: .leading, spacing: 8) {
 #if os(iOS)
                 if hSizeClass == .compact {
-                    // iPhone compact layout: name on separate row, note at bottom
-                    // Name on its own row, can wrap to 2 lines
-                    Text(student.fullName)
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .medium, design: .rounded))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // iPhone compact layout
+                    HStack(spacing: 6) {
+                        Text(student.fullName)
+                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .medium, design: .rounded))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        // Visual indicator for note
+                        if hasNote {
+                            Image(systemName: "note.text")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
 
                     // Compact status pill with absence reason indicator
                     HStack(spacing: 6) {
@@ -171,11 +205,11 @@ struct AttendanceCard: View {
                     // Spacer to push note section to bottom
                     Spacer(minLength: 4)
 
-                    // Note section at bottom: either add note icon or note text
+                    // Note section at bottom
                     if !hasNote && isEditing {
                         // Add note icon button
                         Button {
-                            draftNote = record?.note ?? ""
+                            noteToEdit = nil
                             showingNoteEditor = true
                         } label: {
                             HStack(spacing: 6) {
@@ -190,16 +224,17 @@ struct AttendanceCard: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("Add Note")
                     } else if hasNote {
+                        let noteContent = resolvedNote
                         // Note text display
                         if isEditing {
                             Button {
-                                draftNote = record?.note ?? ""
+                                noteToEdit = noteContent.object
                                 showingNoteEditor = true
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "note.text")
                                         .foregroundStyle(.secondary)
-                                    Text(record?.note ?? "")
+                                    Text(noteContent.text)
                                         .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
@@ -212,7 +247,7 @@ struct AttendanceCard: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "note.text")
                                     .foregroundStyle(.secondary)
-                                Text(record?.note ?? "")
+                                Text(noteContent.text)
                                     .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
@@ -243,7 +278,7 @@ struct AttendanceCard: View {
         .contextMenu {
             if isEditing {
                 Button {
-                    draftNote = record?.note ?? ""
+                    noteToEdit = resolvedNote.object
                     showingNoteEditor = true
                 } label: {
                     Label("Note…", systemImage: "square.and.pencil")
@@ -279,7 +314,7 @@ struct AttendanceCard: View {
             if let record = record {
                 UnifiedNoteEditor(
                     context: .attendance(record),
-                    initialNote: nil,
+                    initialNote: noteToEdit,
                     onSave: { _ in
                         // Note is automatically saved via relationship
                         showingNoteEditor = false
@@ -292,5 +327,3 @@ struct AttendanceCard: View {
         }
     }
 }
-
-

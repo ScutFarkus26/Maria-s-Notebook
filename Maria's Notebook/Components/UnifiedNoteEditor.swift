@@ -15,7 +15,7 @@ import FoundationModels
 @available(macOS 26.0, *)
 @Generable(description: "Classification for a single note")
 struct NoteClassificationSuggestion {
-    @Guide(description: "One of: academic, behavioral, social, emotional, health, general")
+    @Guide(description: "One of: academic, behavioral, social, emotional, health, attendance, general")
     var category: String
 
     @Guide(description: "IDs or names indicating student-specific scope; empty means all")
@@ -261,6 +261,11 @@ struct UnifiedNoteEditor: View {
                 selectedStudentIDs = Set(ids)
             case .all:
                 break
+            }
+        } else {
+            // Default category for specific contexts
+            if case .attendance = context {
+                category = .attendance
             }
         }
     }
@@ -934,7 +939,10 @@ struct UnifiedNoteEditor: View {
         
         // Determine scope based on context and selection
         let scope: NoteScope
-        if !shouldShowStudentSelection || selectedStudentIDs.isEmpty {
+        
+        // Use selectedStudentIDs (which is populated from context if picker is hidden)
+        // Fix: Use selectedStudentIDs if present, even if selection UI is hidden
+        if selectedStudentIDs.isEmpty {
             scope = .all
         } else if selectedStudentIDs.count == 1 {
             scope = .student(selectedStudentIDs.first!)

@@ -33,7 +33,7 @@ final class AppBootstrapper: ObservableObject {
         // (Completed and removed)
         
         // 3. Schema & Data Normalization (WorkModel logic disabled)
-        DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: context)
+        await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: context)
         
         // 3.5. Fix type mismatches in stored array properties
         DataMigrations.fixCommunityTopicTagsIfNeeded(using: context)
@@ -60,6 +60,9 @@ final class AppBootstrapper: ObservableObject {
         await DataMigrations.backfillPresentationStudentLessonLinks(using: context)
         await DataMigrations.repairPresentationStudentLessonLinks_v2(using: context)
         await DataMigrations.backfillNoteStudentLessonFromPresentation(using: context)
+        
+        // 3.7.5. Repair incorrectly scoped notes
+        await DataMigrations.repairScopeForContextualNotes(using: context)
         
         // 3.8. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {

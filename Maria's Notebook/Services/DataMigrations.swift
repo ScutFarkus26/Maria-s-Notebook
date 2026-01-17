@@ -5,14 +5,15 @@ import CoreData
 enum DataMigrations {
     /// Normalize all existing StudentLesson.givenAt values to start-of-day (strip time) once.
     /// Idempotent: guarded by a UserDefaults flag and only updates rows where time != start of day.
-    static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) {
+    static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) async {
         let flagKey = "Migration.givenAtDateOnly.v1"
-        _ = MigrationFlag.runIfNeeded(key: flagKey) {
+        await MigrationFlag.runIfNeeded(key: flagKey) {
             let calendar = AppCalendar.shared
             let fetch = FetchDescriptor<StudentLesson>()
             let lessons = context.safeFetch(fetch)
             var changed = 0
-            for sl in lessons {
+            for (index, sl) in lessons.enumerated() {
+                if index % 100 == 0 { await Task.yield() }
                 if let dt = sl.givenAt {
                     let normalized = calendar.startOfDay(for: dt)
                     if dt != normalized {
@@ -206,10 +207,7 @@ enum DataMigrations {
         var repaired = 0
         
         for (index, sl) in lessons.enumerated() {
-            // Yield every 200 items checked, regardless of whether they needed repair
-            if index % 200 == 0 {
-                await Task.yield()
-            }
+            if index % 100 == 0 { await Task.yield() }
             
             let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
             if sl.scheduledForDay != correct {
@@ -240,10 +238,7 @@ enum DataMigrations {
         
         var cleaned = 0
         for (index, sl) in allLessons.enumerated() {
-            // Yield every 200 iterations to keep UI responsive
-            if index % 200 == 0 {
-                await Task.yield()
-            }
+            if index % 100 == 0 { await Task.yield() }
             
             let originalIDs = sl.studentIDs
             let cleanedIDs = originalIDs.filter { validStudentIDs.contains($0) }
@@ -280,10 +275,8 @@ enum DataMigrations {
         
         var cleaned = 0
         for (index, work) in allWorks.enumerated() {
-            // Yield every 200 iterations to prevent blocking
-            if index % 200 == 0 {
-                await Task.yield()
-            }
+            // Yield every 100 iterations to prevent blocking
+            if index % 100 == 0 { await Task.yield() }
             
             var modified = false
             
@@ -689,7 +682,7 @@ enum DataMigrations {
             
             for batchStart in stride(from: 0, to: presentationsToBackfill.count, by: batchSize) {
                 // Yield periodically to prevent blocking UI
-                if batchStart % (batchSize * 5) == 0 {
+                if batchStart % 100 == 0 {
                     await Task.yield()
                 }
                 
@@ -1144,6 +1137,52 @@ enum DataMigrations {
         if migratedCount > 0 {
             context.safeSave()
             print("DataMigrations: Migrated \(migratedCount) legacy work notes.")
+        }
+    }
+    
+    /// Repair scope for notes that were incorrectly set to .all due to UI bugs.
+    /// Specifically targets Attendance, WorkCompletion, and StudentMeeting notes.
+    static func repairScopeForContextualNotes(using context: ModelContext) async {
+        let flagKey = "Repair.noteScopes.v1"
+        await MigrationFlag.runIfNeeded(key: flagKey) {
+            let notes = context.safeFetch(FetchDescriptor<Note>())
+            var changed = 0
+            
+            for note in notes {
+                var targetStudentID: UUID? = nil
+                
+                if let rec = note.attendanceRecord, let uuid = UUID(uuidString: rec.studentID) {
+                    targetStudentID = uuid
+                } else if let rec = note.workCompletionRecord, let uuid = UUID(uuidString: rec.studentID) {
+                    targetStudentID = uuid
+                } else if let meeting = note.studentMeeting, let uuid = UUID(uuidString: meeting.studentID) {
+                    targetStudentID = uuid
+                }
+                
+                if let targetID = targetStudentID {
+                    // Check if current scope matches the target student and fix if needed
+                    // Access scope on MainActor since it's marked @MainActor
+                    let shouldFix = await Task { @MainActor in
+                        var needsFix = true
+                        if case .student(let currentID) = note.scope {
+                            if currentID == targetID { needsFix = false }
+                        }
+                        if needsFix {
+                            note.scope = .student(targetID)
+                        }
+                        return needsFix
+                    }.value
+                    
+                    if shouldFix {
+                        changed += 1
+                    }
+                }
+            }
+            
+            if changed > 0 {
+                context.safeSave()
+                print("DataMigrations: Repaired scope for \(changed) contextual notes.")
+            }
         }
     }
 }
