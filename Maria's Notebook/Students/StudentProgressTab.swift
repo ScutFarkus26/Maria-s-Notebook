@@ -420,7 +420,12 @@ struct StudentProgressTab: View {
                                     )
                                 )
                                 .frame(
-                                    width: max(0, min(geometry.size.width, geometry.size.width * progressPercent)),
+                                    width: {
+                                        let w = geometry.size.width
+                                        let val = w * progressPercent
+                                        // Guard against NaN or Infinity
+                                        return (w.isFinite && val.isFinite && val > 0) ? min(w, val) : 0
+                                    }(),
                                     height: 12
                                 )
                             

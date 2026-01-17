@@ -56,7 +56,18 @@ struct StudentsCardsGridView: View {
         ]
     }
 
-    private var idList: [UUID] { students.map { $0.id } }
+    private var uniqueStudents: [Student] {
+        var seenIDs: Set<UUID> = []
+        return students.filter { student in
+            if seenIDs.contains(student.id) {
+                return false
+            }
+            seenIDs.insert(student.id)
+            return true
+        }
+    }
+
+    private var idList: [UUID] { uniqueStudents.map { $0.id } }
 
     private var gridAnimation: Animation? {
         if draggingStudentID != nil || !hasAppeared {
@@ -123,7 +134,7 @@ struct StudentsCardsGridView: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                ForEach(students, id: \.id) { student in
+                ForEach(uniqueStudents, id: \.id) { student in
                     let isDragging = isManualMode && draggingStudentID == student.id
                     let isHover = hoverTargetID == student.id
 

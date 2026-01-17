@@ -189,6 +189,24 @@ struct StudentsView<WorkloadContent: View>: View {
             testStudentNames: testStudentNamesRaw
         )
     }
+    
+    // Temporary helper to check for duplicate IDs
+    private func checkForDuplicateIDs(in students: [Student]) {
+        var seenIDs: Set<UUID> = []
+        var duplicates: [UUID] = []
+        
+        for student in students {
+            if seenIDs.contains(student.id) {
+                duplicates.append(student.id)
+            } else {
+                seenIDs.insert(student.id)
+            }
+        }
+        
+        if !duplicates.isEmpty {
+            print("found duplicate ID: \(duplicates)")
+        }
+    }
 
     // MARK: - Body
     
@@ -858,6 +876,18 @@ struct StudentsView<WorkloadContent: View>: View {
                         // Reordering not supported in grid view modes
                     }
                 )
+                .onAppear {
+                    checkForDuplicateIDs(in: filteredStudents)
+                }
+                .onChange(of: filteredStudents.count) {
+                    checkForDuplicateIDs(in: filteredStudents)
+                }
+                .onChange(of: selectedFilter) {
+                    checkForDuplicateIDs(in: filteredStudents)
+                }
+                .onChange(of: effectiveSortOrder) {
+                    checkForDuplicateIDs(in: filteredStudents)
+                }
             }
         }
         .overlay {
