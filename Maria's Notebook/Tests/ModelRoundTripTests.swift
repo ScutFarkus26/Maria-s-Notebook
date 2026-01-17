@@ -14,8 +14,7 @@ final class BackupServiceRoundTripTests: XCTestCase {
 
     // Create fresh in-memory container with all model types
     func makeContainer() throws -> ModelContainer {
-        // List all model types mentioned in instructions
-        let modelTypes: [any Entity.Type] = [
+        let schema = Schema([
             Student.self,
             Lesson.self,
             StudentLesson.self,
@@ -28,16 +27,16 @@ final class BackupServiceRoundTripTests: XCTestCase {
             Presentation.self,
             CommunityTopic.self,
             ProposedSolution.self,
-            MeetingNote.self,
             CommunityAttachment.self,
-        ]
-        return try ModelContainer(for: modelTypes, inMemory: true)
+        ])
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: [modelConfiguration])
     }
 
     // Try fetching to check if model type exists
-    func canFetch<Entity: Entity>(_ type: Entity.Type, in container: ModelContainer) -> Bool {
+    func canFetch<T: PersistentModel>(_ type: T.Type, in context: ModelContext) -> Bool {
         do {
-            _ = try container.fetch(FetchDescriptor<Entity>())
+            _ = try context.fetch(FetchDescriptor<T>())
             return true
         } catch {
             return false
@@ -45,103 +44,105 @@ final class BackupServiceRoundTripTests: XCTestCase {
     }
 
     // Seed at least one instance per entity type if fetchable
-    func seedAllEntities(in container: ModelContainer) {
+    func seedAllEntities(in context: ModelContext) {
         // Each seed method guarded by canFetch to avoid errors if type not present
 
-        if canFetch(Student.self, in: container) {
-            let student = Student()
-            if let s = student as? any ObservableObject {
-                // Configure representative data if possible
-                (student as? Student)?.id = UUID()
-                (student as? Student)?.name = "Test Student"
-            }
-            container.insert(student)
+        if canFetch(Student.self, in: context) {
+            let student = Student(
+                firstName: "Test",
+                lastName: "Student",
+                birthday: Date()
+            )
+            context.insert(student)
         }
 
-        if canFetch(Lesson.self, in: container) {
+        if canFetch(Lesson.self, in: context) {
             let lesson = Lesson()
-            (lesson as? Lesson)?.id = UUID()
-            (lesson as? Lesson)?.title = "Test Lesson"
-            container.insert(lesson)
+            lesson.name = "Test Lesson"
+            context.insert(lesson)
         }
 
-        if canFetch(StudentLesson.self, in: container) {
-            let sl = StudentLesson()
-            (sl as? StudentLesson)?.id = UUID()
-            container.insert(sl)
+        if canFetch(StudentLesson.self, in: context) {
+            let sl = StudentLesson(
+                lessonID: UUID(),
+                studentIDs: []
+            )
+            context.insert(sl)
         }
 
-        if canFetch(WorkContract.self, in: container) {
-            let wc = WorkContract()
-            (wc as? WorkContract)?.id = UUID()
-            container.insert(wc)
+        if canFetch(WorkContract.self, in: context) {
+            let wc = WorkContract(
+                studentID: UUID().uuidString,
+                lessonID: UUID().uuidString
+            )
+            context.insert(wc)
         }
 
-        if canFetch(WorkPlanItem.self, in: container) {
-            let wpi = WorkPlanItem()
-            (wpi as? WorkPlanItem)?.id = UUID()
-            container.insert(wpi)
+        if canFetch(WorkPlanItem.self, in: context) {
+            let wpi = WorkPlanItem(
+                workID: UUID(),
+                scheduledDate: Date()
+            )
+            context.insert(wpi)
         }
 
-        if canFetch(Note.self, in: container) {
-            let note = Note()
-            (note as? Note)?.id = UUID()
-            container.insert(note)
+        if canFetch(Note.self, in: context) {
+            let note = Note(
+                body: "Test note"
+            )
+            context.insert(note)
         }
 
-        if canFetch(NonSchoolDay.self, in: container) {
-            let nsd = NonSchoolDay()
-            (nsd as? NonSchoolDay)?.id = UUID()
-            container.insert(nsd)
+        if canFetch(NonSchoolDay.self, in: context) {
+            let nsd = NonSchoolDay(
+                date: Date()
+            )
+            context.insert(nsd)
         }
 
-        if canFetch(SchoolDayOverride.self, in: container) {
-            let sdo = SchoolDayOverride()
-            (sdo as? SchoolDayOverride)?.id = UUID()
-            container.insert(sdo)
+        if canFetch(SchoolDayOverride.self, in: context) {
+            let sdo = SchoolDayOverride(
+                date: Date()
+            )
+            context.insert(sdo)
         }
 
-        if canFetch(StudentMeeting.self, in: container) {
-            let sm = StudentMeeting()
-            (sm as? StudentMeeting)?.id = UUID()
-            container.insert(sm)
+        if canFetch(StudentMeeting.self, in: context) {
+            let sm = StudentMeeting(
+                studentID: UUID()
+            )
+            context.insert(sm)
         }
 
-        if canFetch(Presentation.self, in: container) {
-            let p = Presentation()
-            (p as? Presentation)?.id = UUID()
-            container.insert(p)
+        if canFetch(Presentation.self, in: context) {
+            let p = Presentation(
+                presentedAt: Date(),
+                lessonID: UUID().uuidString,
+                studentIDs: []
+            )
+            context.insert(p)
         }
 
-        if canFetch(CommunityTopic.self, in: container) {
+        if canFetch(CommunityTopic.self, in: context) {
             let ct = CommunityTopic()
-            (ct as? CommunityTopic)?.id = UUID()
-            container.insert(ct)
+            context.insert(ct)
         }
 
-        if canFetch(ProposedSolution.self, in: container) {
+        if canFetch(ProposedSolution.self, in: context) {
             let ps = ProposedSolution()
-            (ps as? ProposedSolution)?.id = UUID()
-            container.insert(ps)
+            context.insert(ps)
         }
 
-        if canFetch(MeetingNote.self, in: container) {
-            let mn = MeetingNote()
-            (mn as? MeetingNote)?.id = UUID()
-            container.insert(mn)
-        }
-
-        if canFetch(CommunityAttachment.self, in: container) {
+        if canFetch(CommunityAttachment.self, in: context) {
             let ca = CommunityAttachment()
-            (ca as? CommunityAttachment)?.id = UUID()
-            container.insert(ca)
+            context.insert(ca)
         }
     }
 
     // Count entities of a given type if fetchable, else return nil
-    func countEntities<Entity: Entity>(_ type: Entity.Type, in container: ModelContainer) -> Int? {
+    func countEntities<T: PersistentModel>(_ type: T.Type, in context: ModelContext) -> Int? {
         do {
-            let results = try container.fetch(FetchDescriptor<Entity>())
+            let results = try context.fetch(FetchDescriptor<T>())
             return results.count
         } catch {
             return nil
@@ -149,7 +150,7 @@ final class BackupServiceRoundTripTests: XCTestCase {
     }
 
     // Get all model types to check counts for
-    var allModelTypes: [any Entity.Type] {
+    var allModelTypes: [any PersistentModel.Type] {
         [
             Student.self,
             Lesson.self,
@@ -163,7 +164,6 @@ final class BackupServiceRoundTripTests: XCTestCase {
             Presentation.self,
             CommunityTopic.self,
             ProposedSolution.self,
-            MeetingNote.self,
             CommunityAttachment.self,
         ]
     }
@@ -171,7 +171,6 @@ final class BackupServiceRoundTripTests: XCTestCase {
     // MARK: - Test
 
     @MainActor
-    @Test("Round-trip all entities counts match")
     func testRoundTripAllEntitiesCountsMatch() async throws {
         // Try to create initial container, skip if fails
         let sourceContainer: ModelContainer
@@ -181,16 +180,25 @@ final class BackupServiceRoundTripTests: XCTestCase {
             throw XCTSkip("Cannot create in-memory container: \(error)")
         }
 
+        let sourceContext = sourceContainer.mainContext
+
         // Seed data
-        seedAllEntities(in: sourceContainer)
-        try sourceContainer.save()
+        seedAllEntities(in: sourceContext)
+        try sourceContext.save()
 
         // Export to temporary file URL
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
         let exportURL = tempDir.appendingPathComponent(UUID().uuidString).appendingPathExtension("backup")
 
+        let backupService = BackupService()
+
         do {
-            try BackupService.shared.export(to: exportURL, container: sourceContainer)
+            _ = try await backupService.exportBackup(
+                modelContext: sourceContext,
+                to: exportURL,
+                password: nil,
+                progress: { _, _ in }
+            )
         } catch {
             XCTFail("Export failed: \(error)")
             return
@@ -204,8 +212,16 @@ final class BackupServiceRoundTripTests: XCTestCase {
             throw XCTSkip("Cannot create destination in-memory container: \(error)")
         }
 
+        let destContext = destContainer.mainContext
+
         do {
-            try BackupService.shared.import(from: exportURL, container: destContainer, mode: .replace)
+            _ = try await backupService.importBackup(
+                modelContext: destContext,
+                from: exportURL,
+                mode: .replace,
+                password: nil,
+                progress: { _, _ in }
+            )
         } catch {
             XCTFail("Import failed: \(error)")
             return
@@ -213,66 +229,60 @@ final class BackupServiceRoundTripTests: XCTestCase {
 
         // Verify counts per entity type
         for modelType in allModelTypes {
-            // Use dynamic casting to Entity.Type
-            if let entityType = modelType as? any Entity.Type {
-                // Count in source
-                let sourceCount: Int?
-                let destCount: Int?
+            // Count in source and dest
+            let sourceCount: Int?
+            let destCount: Int?
 
-                switch entityType {
-                case is Student.Type:
-                    sourceCount = countEntities(Student.self, in: sourceContainer)
-                    destCount = countEntities(Student.self, in: destContainer)
-                case is Lesson.Type:
-                    sourceCount = countEntities(Lesson.self, in: sourceContainer)
-                    destCount = countEntities(Lesson.self, in: destContainer)
-                case is StudentLesson.Type:
-                    sourceCount = countEntities(StudentLesson.self, in: sourceContainer)
-                    destCount = countEntities(StudentLesson.self, in: destContainer)
-                case is WorkContract.Type:
-                    sourceCount = countEntities(WorkContract.self, in: sourceContainer)
-                    destCount = countEntities(WorkContract.self, in: destContainer)
-                case is WorkPlanItem.Type:
-                    sourceCount = countEntities(WorkPlanItem.self, in: sourceContainer)
-                    destCount = countEntities(WorkPlanItem.self, in: destContainer)
-                case is Note.Type:
-                    sourceCount = countEntities(Note.self, in: sourceContainer)
-                    destCount = countEntities(Note.self, in: destContainer)
-                case is NonSchoolDay.Type:
-                    sourceCount = countEntities(NonSchoolDay.self, in: sourceContainer)
-                    destCount = countEntities(NonSchoolDay.self, in: destContainer)
-                case is SchoolDayOverride.Type:
-                    sourceCount = countEntities(SchoolDayOverride.self, in: sourceContainer)
-                    destCount = countEntities(SchoolDayOverride.self, in: destContainer)
-                case is StudentMeeting.Type:
-                    sourceCount = countEntities(StudentMeeting.self, in: sourceContainer)
-                    destCount = countEntities(StudentMeeting.self, in: destContainer)
-                case is Presentation.Type:
-                    sourceCount = countEntities(Presentation.self, in: sourceContainer)
-                    destCount = countEntities(Presentation.self, in: destContainer)
-                case is CommunityTopic.Type:
-                    sourceCount = countEntities(CommunityTopic.self, in: sourceContainer)
-                    destCount = countEntities(CommunityTopic.self, in: destContainer)
-                case is ProposedSolution.Type:
-                    sourceCount = countEntities(ProposedSolution.self, in: sourceContainer)
-                    destCount = countEntities(ProposedSolution.self, in: destContainer)
-                case is MeetingNote.Type:
-                    sourceCount = countEntities(MeetingNote.self, in: sourceContainer)
-                    destCount = countEntities(MeetingNote.self, in: destContainer)
-                case is CommunityAttachment.Type:
-                    sourceCount = countEntities(CommunityAttachment.self, in: sourceContainer)
-                    destCount = countEntities(CommunityAttachment.self, in: destContainer)
-                default:
-                    sourceCount = nil
-                    destCount = nil
-                }
+            switch modelType {
+            case is Student.Type:
+                sourceCount = countEntities(Student.self, in: sourceContext)
+                destCount = countEntities(Student.self, in: destContext)
+            case is Lesson.Type:
+                sourceCount = countEntities(Lesson.self, in: sourceContext)
+                destCount = countEntities(Lesson.self, in: destContext)
+            case is StudentLesson.Type:
+                sourceCount = countEntities(StudentLesson.self, in: sourceContext)
+                destCount = countEntities(StudentLesson.self, in: destContext)
+            case is WorkContract.Type:
+                sourceCount = countEntities(WorkContract.self, in: sourceContext)
+                destCount = countEntities(WorkContract.self, in: destContext)
+            case is WorkPlanItem.Type:
+                sourceCount = countEntities(WorkPlanItem.self, in: sourceContext)
+                destCount = countEntities(WorkPlanItem.self, in: destContext)
+            case is Note.Type:
+                sourceCount = countEntities(Note.self, in: sourceContext)
+                destCount = countEntities(Note.self, in: destContext)
+            case is NonSchoolDay.Type:
+                sourceCount = countEntities(NonSchoolDay.self, in: sourceContext)
+                destCount = countEntities(NonSchoolDay.self, in: destContext)
+            case is SchoolDayOverride.Type:
+                sourceCount = countEntities(SchoolDayOverride.self, in: sourceContext)
+                destCount = countEntities(SchoolDayOverride.self, in: destContext)
+            case is StudentMeeting.Type:
+                sourceCount = countEntities(StudentMeeting.self, in: sourceContext)
+                destCount = countEntities(StudentMeeting.self, in: destContext)
+            case is Presentation.Type:
+                sourceCount = countEntities(Presentation.self, in: sourceContext)
+                destCount = countEntities(Presentation.self, in: destContext)
+            case is CommunityTopic.Type:
+                sourceCount = countEntities(CommunityTopic.self, in: sourceContext)
+                destCount = countEntities(CommunityTopic.self, in: destContext)
+            case is ProposedSolution.Type:
+                sourceCount = countEntities(ProposedSolution.self, in: sourceContext)
+                destCount = countEntities(ProposedSolution.self, in: destContext)
+            case is CommunityAttachment.Type:
+                sourceCount = countEntities(CommunityAttachment.self, in: sourceContext)
+                destCount = countEntities(CommunityAttachment.self, in: destContext)
+            default:
+                sourceCount = nil
+                destCount = nil
+            }
 
-                if let sourceCount = sourceCount, let destCount = destCount {
-                    XCTAssertEqual(
-                        destCount, sourceCount,
-                        "Entity \(String(describing: entityType)) count mismatch: source \(sourceCount) vs dest \(destCount)"
-                    )
-                }
+            if let sourceCount = sourceCount, let destCount = destCount {
+                XCTAssertEqual(
+                    destCount, sourceCount,
+                    "Entity \(String(describing: modelType)) count mismatch: source \(sourceCount) vs dest \(destCount)"
+                )
             }
         }
     }

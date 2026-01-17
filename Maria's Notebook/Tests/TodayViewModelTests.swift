@@ -133,7 +133,7 @@ struct ContractScheduleItemTests {
         // Create minimal test data
         // Note: In real tests with SwiftData, you'd use a ModelContainer
         // For now, we test the logic conceptually
-        let planItemID = UUID()
+        _ = UUID()
 
         // The ContractScheduleItem.id should return planItem.id
         // We verify this through the type definition

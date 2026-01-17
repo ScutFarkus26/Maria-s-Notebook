@@ -3,6 +3,7 @@ import SwiftData
 #if os(macOS)
 import AppKit
 #endif
+@testable import Maria_s_Notebook
 
 /// View that displays CloudKit sync status and record counts
 struct CloudKitStatusView: View {
