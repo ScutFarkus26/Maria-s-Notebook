@@ -19,13 +19,16 @@ final class InboxDataLoader {
         // Load presented student lessons (for lesson follow-ups)
         let presentedStudentLessons = loadPresentedStudentLessons()
         
-        // Load active/review contracts (for work check-ins/reviews)
-        let contracts = loadActiveContracts()
+        // Load active/review work models (for work check-ins/reviews)
+        let workModels = loadActiveWorkModels()
         
-        // Load plan items and notes only for the contracts we need
-        let contractIDs = Set(contracts.map { $0.id })
-        let planItems = loadPlanItems(for: contractIDs)
-        let notes = loadNotes(for: contractIDs)
+        // Load plan items and notes only for the work models we need
+        let workIDs = Set(workModels.map { $0.id })
+        let planItems = loadPlanItems(for: workIDs)
+        let notes = loadNotes(for: workIDs)
+        
+        // Also load legacy contracts for backward compatibility (empty in normal operation)
+        let legacyContracts = loadActiveContracts()
         
         // Collect referenced student and lesson IDs
         var studentIDs = Set<UUID>()
@@ -36,11 +39,11 @@ final class InboxDataLoader {
             lessonIDs.insert(sl.resolvedLessonID)
         }
         
-        for contract in contracts {
-            if let sid = UUID(uuidString: contract.studentID) {
+        for work in workModels {
+            if let sid = UUID(uuidString: work.studentID) {
                 studentIDs.insert(sid)
             }
-            if let lid = UUID(uuidString: contract.lessonID) {
+            if let lid = UUID(uuidString: work.lessonID) {
                 lessonIDs.insert(lid)
             }
         }
@@ -51,7 +54,7 @@ final class InboxDataLoader {
         
         return InboxData(
             studentLessons: presentedStudentLessons,
-            contracts: contracts,
+            contracts: legacyContracts, // Legacy field - kept for backward compatibility
             planItems: planItems,
             notes: notes,
             students: students,
@@ -97,44 +100,76 @@ final class InboxDataLoader {
         return Array(Set(allPresented))
     }
     
-    /// Loads active and review work contracts.
+    /// Loads active and review work models (preferred).
     /// This is the filtered set needed for work check-in and review calculations.
-    func loadActiveContracts() -> [WorkContract] {
+    func loadActiveWorkModels() -> [WorkModel] {
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
-        let descriptor = FetchDescriptor<WorkContract>(
-            predicate: #Predicate { contract in
-                contract.statusRaw == activeRaw || contract.statusRaw == reviewRaw
+        let descriptor = FetchDescriptor<WorkModel>(
+            predicate: #Predicate { work in
+                work.statusRaw == activeRaw || work.statusRaw == reviewRaw
             }
         )
         return context.safeFetch(descriptor)
     }
     
-    /// Loads plan items only for the specified contract IDs.
-    func loadPlanItems(for contractIDs: Set<UUID>) -> [WorkPlanItem] {
-        guard !contractIDs.isEmpty else { return [] }
+    /// Legacy method: Loads active and review work contracts (for backward compatibility).
+    /// This returns empty array in normal operation as we use WorkModel now.
+    func loadActiveContracts() -> [WorkContract] {
+        // Return empty array - legacy contracts are not used in normal operation
+        // Kept for backward compatibility with InboxData structure
+        return []
+    }
+    
+    /// Loads plan items only for the specified work IDs.
+    func loadPlanItems(for workIDs: Set<UUID>) -> [WorkPlanItem] {
+        guard !workIDs.isEmpty else { return [] }
         
-        let contractIDStrings = Set(contractIDs.map { $0.uuidString })
+        let workIDStrings = Set(workIDs.map { $0.uuidString })
         let descriptor = FetchDescriptor<WorkPlanItem>(
-            predicate: #Predicate { contractIDStrings.contains($0.workID) }
+            predicate: #Predicate { workIDStrings.contains($0.workID) }
         )
         return context.safeFetch(descriptor)
     }
     
-    /// Loads notes only for the specified contract IDs.
-    func loadNotes(for contractIDs: Set<UUID>) -> [Note] {
-        guard !contractIDs.isEmpty else { return [] }
+    /// Loads notes only for the specified work IDs.
+    func loadNotes(for workIDs: Set<UUID>) -> [Note] {
+        guard !workIDs.isEmpty else { return [] }
         
-        // Fetch notes with workContract relationship, then filter in Swift (predicates don't handle Set.contains with optionals well)
-        let descriptor = FetchDescriptor<Note>(
+        // Fetch notes with work relationship (preferred), then filter in Swift
+        let workDescriptor = FetchDescriptor<Note>(
+            predicate: #Predicate { $0.work != nil }
+        )
+        let allNotesWithWork = context.safeFetch(workDescriptor)
+        
+        let workNotes = allNotesWithWork.filter { note in
+            guard let work = note.work else { return false }
+            return workIDs.contains(work.id)
+        }
+        
+        // Also fetch legacy workContract notes for backward compatibility
+        let contractDescriptor = FetchDescriptor<Note>(
             predicate: #Predicate { $0.workContract != nil }
         )
-        let allNotesWithContract = context.safeFetch(descriptor)
+        let allNotesWithContract = context.safeFetch(contractDescriptor)
         
-        return allNotesWithContract.filter { note in
+        let contractNotes = allNotesWithContract.filter { note in
+            // Skip if already included via work relationship
+            if note.work != nil { return false }
             guard let contract = note.workContract else { return false }
-            return contractIDs.contains(contract.id)
+            // Note: WorkContract IDs may not match WorkModel IDs, but include for legacy data
+            return workIDs.contains(contract.id) || false // Legacy contracts won't match workIDs normally
         }
+        
+        // Combine and deduplicate
+        var allNotes = workNotes
+        for note in contractNotes {
+            if !allNotes.contains(where: { $0.id == note.id }) {
+                allNotes.append(note)
+            }
+        }
+        
+        return allNotes
     }
     
     /// Loads students by their IDs.

@@ -82,7 +82,8 @@ final class StudentNotesViewModel: ObservableObject {
         // FILTERING: Exclude notes attached to specific contexts that have their own fetch blocks.
         // This prevents "leaking" notes from other students if they were created with 'All' scope.
         let generalItems: [UnifiedNoteItem] = visibleNotes.compactMap { note in
-            // Exclude if attached to Work (handled by Block 2)
+            // Exclude if attached to Work (handled by Block 2) - check both work and workContract
+            if note.work != nil { return nil }
             if note.workContract != nil { return nil }
             // Exclude if attached to Presentation (handled by Block 3)
             if note.presentation != nil { return nil }
@@ -116,11 +117,53 @@ final class StudentNotesViewModel: ObservableObject {
         }
         aggregated.append(contentsOf: generalItems)
 
-        // 2) Work-related notes
-        let workFetch = FetchDescriptor<WorkContract>(
+        // 2) Work-related notes (using WorkModel)
+        let workFetch = FetchDescriptor<WorkModel>(
+            predicate: #Predicate<WorkModel> { $0.studentID == studentIDString }
+        )
+        let workModels: [WorkModel] = (try? modelContext.fetch(workFetch)) ?? []
+        let workIDs = Set(workModels.map { $0.id })
+
+        if !workIDs.isEmpty {
+            // Fetch notes with work relationship (preferred)
+            let workNoteFetch = FetchDescriptor<Note>(
+                predicate: #Predicate<Note> { $0.work != nil },
+                sortBy: noteSort
+            )
+            let workNotes: [Note] = (try? modelContext.fetch(workNoteFetch)) ?? []
+            let lessonNameByWorkID: [String: String] = buildLessonNameLookup(forWorkModels: workModels)
+
+            let workItems: [UnifiedNoteItem] = workNotes.compactMap { note in
+                guard let work = note.work, workIDs.contains(work.id) else { return nil }
+                
+                if !note.scopeIsAll && note.searchIndexStudentID == nil {
+                     guard note.scope.applies(to: student.id) else { return nil }
+                }
+                
+                let context = lessonNameByWorkID[work.id.uuidString] ?? work.title.isEmpty ? "Work" : work.title
+                return UnifiedNoteItem(
+                    id: note.id,
+                    date: note.updatedAt,
+                    body: note.body,
+                    source: .work,
+                    contextText: context,
+                    color: .orange,
+                    associatedID: work.id,
+                    category: note.category,
+                    includeInReport: note.includeInReport,
+                    imagePath: note.imagePath,
+                    reportedBy: note.reportedBy,
+                    reporterName: note.reporterName
+                )
+            }
+            aggregated.append(contentsOf: workItems)
+        }
+        
+        // 2b) Legacy WorkContract notes (for backward compatibility)
+        let legacyContractFetch = FetchDescriptor<WorkContract>(
             predicate: #Predicate<WorkContract> { $0.studentID == studentIDString }
         )
-        let contracts: [WorkContract] = (try? modelContext.fetch(workFetch)) ?? []
+        let contracts: [WorkContract] = (try? modelContext.fetch(legacyContractFetch)) ?? []
         let contractIDs = Set(contracts.map { $0.id })
 
         if !contractIDs.isEmpty {
@@ -129,9 +172,12 @@ final class StudentNotesViewModel: ObservableObject {
                 sortBy: noteSort
             )
             let fetchedNotes: [Note] = (try? modelContext.fetch(noteFetch)) ?? []
-            let lessonNameByContractID: [String: String] = buildLessonNameLookup(for: contracts)
+            let lessonNameByContractID: [String: String] = buildLessonNameLookup(forContracts: contracts)
 
-            let workItems: [UnifiedNoteItem] = fetchedNotes.compactMap { note in
+            let legacyWorkItems: [UnifiedNoteItem] = fetchedNotes.compactMap { note in
+                // Skip if already included via work relationship
+                if note.work != nil { return nil }
+                
                 guard let contract = note.workContract, contractIDs.contains(contract.id) else { return nil }
                 
                 if !note.scopeIsAll && note.searchIndexStudentID == nil {
@@ -154,7 +200,7 @@ final class StudentNotesViewModel: ObservableObject {
                     reporterName: note.reporterName
                 )
             }
-            aggregated.append(contentsOf: workItems)
+            aggregated.append(contentsOf: legacyWorkItems)
         }
 
         // 3) Presentation-related notes
@@ -345,7 +391,30 @@ final class StudentNotesViewModel: ObservableObject {
         return fetchNote(id: id)
     }
 
-    private func buildLessonNameLookup(for contracts: [WorkContract]) -> [String: String] {
+    private func buildLessonNameLookup(forWorkModels workModels: [WorkModel]) -> [String: String] {
+        let lessonIDs = Set(workModels.compactMap { UUID(uuidString: $0.lessonID) })
+        guard !lessonIDs.isEmpty else { return [:] }
+        
+        let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+        let lessons = allLessons.filter { lessonIDs.contains($0.id) }
+        var byID: [UUID: Lesson] = [:]
+        for lesson in lessons {
+            byID[lesson.id] = lesson
+        }
+
+        var map: [String: String] = [:]
+        for work in workModels {
+            if let lid = UUID(uuidString: work.lessonID), let lesson = byID[lid] {
+                let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                map[work.id.uuidString] = name.isEmpty ? "Work" : name
+            } else {
+                map[work.id.uuidString] = work.title.isEmpty ? "Work" : work.title
+            }
+        }
+        return map
+    }
+    
+    private func buildLessonNameLookup(forContracts contracts: [WorkContract]) -> [String: String] {
         let lessonIDs = Set(contracts.compactMap { UUID(uuidString: $0.lessonID) })
         guard !lessonIDs.isEmpty else { return [:] }
         

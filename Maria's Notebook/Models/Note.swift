@@ -118,6 +118,7 @@ final class Note: Identifiable {
     @Relationship var work: WorkModel?
     @Relationship var studentLesson: StudentLesson?
     @Relationship var presentation: Presentation?
+    /// @deprecated Use `work` relationship instead. Kept for backward compatibility with legacy WorkContract data.
     @Relationship var workContract: WorkContract?
     @Relationship var attendanceRecord: AttendanceRecord?
     @Relationship var workCheckIn: WorkCheckIn?

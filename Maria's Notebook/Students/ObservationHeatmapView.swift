@@ -84,7 +84,10 @@ struct ObservationHeatmapView: View {
             // 1) Fetch all StudentMeetings once
             let allMeetings: [StudentMeeting] = (try? context.fetch(FetchDescriptor<StudentMeeting>())) ?? []
             
-            // 2) Fetch all WorkContracts once
+            // 2) Fetch all WorkModels once (preferred)
+            let allWorkModels: [WorkModel] = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
+            
+            // 2b) Fetch all WorkContracts once (for legacy data)
             let allContracts: [WorkContract] = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
             
             // 3) Fetch all Notes once
@@ -114,7 +117,13 @@ struct ObservationHeatmapView: View {
                 }
             }
             
-            // WorkContracts grouped by studentID (String) -> set of contract IDs
+            // WorkModels grouped by studentID (String) -> set of work IDs
+            var workIDsByStudentID: [String: Set<UUID>] = [:]
+            for work in allWorkModels {
+                workIDsByStudentID[work.studentID, default: []].insert(work.id)
+            }
+            
+            // WorkContracts grouped by studentID (String) -> set of contract IDs (legacy)
             var contractIDsByStudentID: [String: Set<UUID>] = [:]
             for contract in allContracts {
                 contractIDsByStudentID[contract.studentID, default: []].insert(contract.id)
@@ -126,10 +135,12 @@ struct ObservationHeatmapView: View {
                 presentationsByID[presentation.id] = presentation
             }
             
-            // Notes by studentID (from scope, workContract, and presentation)
+            // Notes by studentID (from scope, work, workContract, and presentation)
             // Group 1: Notes with student scope - map by studentID
             var studentScopedNotesByStudentID: [UUID: [Note]] = [:]
-            // Group 2: Notes with workContract relationships - map by contractID
+            // Group 2: Notes with work relationships - map by workID
+            var workNotesByWorkID: [UUID: Note] = [:]
+            // Group 2b: Notes with workContract relationships - map by contractID (legacy)
             var contractNotesByContractID: [UUID: Note] = [:]
             // Group 3: Notes with presentation relationships - map by presentationID
             var presentationNotesByPresentationID: [UUID: Note] = [:]
@@ -140,8 +151,22 @@ struct ObservationHeatmapView: View {
                     studentScopedNotesByStudentID[studentID, default: []].append(note)
                 }
                 
-                // Group 2: WorkContract notes
-                if let contract = note.workContract {
+                // Group 2: WorkModel notes (preferred)
+                if let work = note.work {
+                    // Store the most recent note per work
+                    if let existing = workNotesByWorkID[work.id] {
+                        let existingDate = max(existing.updatedAt, existing.createdAt)
+                        let noteDate = max(note.updatedAt, note.createdAt)
+                        if noteDate > existingDate {
+                            workNotesByWorkID[work.id] = note
+                        }
+                    } else {
+                        workNotesByWorkID[work.id] = note
+                    }
+                }
+                
+                // Group 2b: WorkContract notes (legacy - only if work is nil)
+                if note.work == nil, let contract = note.workContract {
                     // Store the most recent note per contract
                     if let existing = contractNotesByContractID[contract.id] {
                         let existingDate = max(existing.updatedAt, existing.createdAt)
@@ -186,7 +211,19 @@ struct ObservationHeatmapView: View {
                     }
                 }
                 
-                // 2) Check WorkContract notes
+                // 2) Check WorkModel notes (preferred)
+                if let workIDs = workIDsByStudentID[studentIDString] {
+                    for workID in workIDs {
+                        if let note = workNotesByWorkID[workID] {
+                            let noteDate = max(note.updatedAt, note.createdAt)
+                            if mostRecentDate == nil || noteDate > mostRecentDate! {
+                                mostRecentDate = noteDate
+                            }
+                        }
+                    }
+                }
+                
+                // 2b) Check WorkContract notes (legacy - only if no WorkModel notes)
                 if let contractIDs = contractIDsByStudentID[studentIDString] {
                     for contractID in contractIDs {
                         if let note = contractNotesByContractID[contractID] {

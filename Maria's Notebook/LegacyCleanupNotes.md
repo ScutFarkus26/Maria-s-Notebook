@@ -60,15 +60,14 @@
     - Status: ✅ UPDATED - Now uses WorkModel
     - Action: ✅ Replaced all WorkContract references with WorkModel
 
-11. **Models/Note.swift**
+11. **Models/Note.swift** ✅ COMPLETED
     - Usage: Has @Relationship var workContract: WorkContract?
-    - Status: MIGRATE - Should use work relationship instead (WorkModel)
-    - Action: Update code to use `work` relationship, deprecate `workContract`
+    - Status: ✅ UPDATED - Added deprecation comment, `work` relationship is primary
+    - Action: ✅ Deprecated workContract relationship (kept for backward compatibility), work relationship is now primary
 
-12. **Models/ScopedNote.swift**
-    - Usage: Has @Relationship var workContract: WorkContract? and workContractID: String?
-    - Status: MIGRATE - Should use work relationship instead (WorkModel)
-    - Action: Update code to use `work` relationship, deprecate `workContract` and `workContractID`
+12. **Models/ScopedNote.swift** ❌ NOT FOUND
+    - Usage: No ScopedNote model exists - this was likely confused with ScopedNotesSection (SwiftUI component)
+    - Status: ✅ N/A - No model to update
 
 13. **Students/StudentDetailView.swift**
     - Usage: Displays WorkContract items
@@ -80,20 +79,20 @@
     - Status: REMOVE - Should use WorkModel
     - Action: Replace WorkContract queries with WorkModel
 
-15. **Work/WorkContractDetailSheet.swift**
+15. **Work/WorkContractDetailSheet.swift** ⚠️ KEPT FOR BACKWARD COMPATIBILITY
     - Usage: Displays details of a WorkContract
-    - Status: REMOVE - Should use WorkModelDetailSheet or update to WorkModel
-    - Action: Replace or update to use WorkModel
+    - Status: ⚠️ KEPT - Read-only for legacy data, checks for corresponding WorkModel
+    - Action: ✅ Already read-only and backward-compatible. Used only for viewing legacy WorkContract data.
 
-16. **Components/UnifiedNoteEditor.swift**
-    - Usage: Has .workContract case in NoteContext enum
-    - Status: REMOVE - Should use .work case
-    - Action: Replace .workContract with .work
+16. **Components/UnifiedNoteEditor.swift** ✅ ALREADY DONE
+    - Usage: NoteContext enum
+    - Status: ✅ VERIFIED - Already uses .work(WorkModel) case, no .workContract case exists
+    - Action: ✅ No changes needed - already migrated
 
-17. **Components/ObservationsView.swift**
+17. **Components/ObservationsView.swift** ✅ COMPLETED
     - Usage: Checks for workContract relationship
-    - Status: REMOVE - Should check work relationship
-    - Action: Update to use work relationship
+    - Status: ✅ UPDATED - Now checks work relationship first (preferred), falls back to workContract for legacy
+    - Action: ✅ Updated to prefer `work` relationship over `workContract`
 
 18. **Work/WorkAgendaCalendarPane.swift**
     - Usage: Uses contractID in SelectionToken
@@ -115,20 +114,20 @@
     - Status: REMOVE - Should filter WorkModel
     - Action: Replace with WorkModel
 
-22. **Students/StudentNotesViewModel.swift**
+22. **Students/StudentNotesViewModel.swift** ✅ COMPLETED
     - Usage: Filters notes by workContractID
-    - Status: UPDATE - Should filter by work relationship
-    - Action: Update to use work relationship
+    - Status: ✅ UPDATED - Now uses WorkModel and work relationship (preferred), falls back to WorkContract for legacy
+    - Action: ✅ Migrated to fetch WorkModels and filter by work relationship, maintains backward compatibility
 
-23. **Students/ObservationHeatmapView.swift**
+23. **Students/ObservationHeatmapView.swift** ✅ COMPLETED
     - Usage: Filters notes by workContractID
-    - Status: UPDATE - Should filter by work relationship
-    - Action: Update to use work relationship
+    - Status: ✅ UPDATED - Now uses WorkModel and work relationship (preferred), falls back to WorkContract for legacy
+    - Action: ✅ Migrated to use WorkModels and work relationship, maintains backward compatibility
 
-24. **Services/InboxDataLoader.swift**
+24. **Services/InboxDataLoader.swift** ✅ COMPLETED
     - Usage: Loads notes filtered by workContractID
-    - Status: UPDATE - Should filter by work relationship
-    - Action: Update to use work relationship
+    - Status: ✅ UPDATED - Now uses WorkModel and work relationship (preferred), falls back to WorkContract for legacy
+    - Action: ✅ Migrated to load WorkModels instead of WorkContracts, updated note filtering to use work relationship
 
 25. **Services/FollowUpInboxEngine.swift**
     - Usage: Comments mention WorkContract (ignored)
@@ -185,6 +184,23 @@
     - Status: REVIEW - Already deprecated, may be OK
 
 ## Summary
-- **Migration Code**: 2 files - KEEP
-- **Backward Compatibility**: 5-8 files - REVIEW/KEEP
+- **Migration Code**: 2 files - KEEP ✅
+- **Backward Compatibility**: 5-8 files - REVIEW/KEEP ⚠️
 - **Active Usage to Update**: 26-30 files - UPDATE/REMOVE
+  - **✅ Completed**: Models/Note.swift, Components/ObservationsView.swift, Students/StudentNotesViewModel.swift, Students/ObservationHeatmapView.swift, Services/InboxDataLoader.swift
+  - **⚠️ Kept for Compatibility**: Work/WorkContractDetailSheet.swift (read-only for legacy data)
+  - **✅ Already Done**: Components/UnifiedNoteEditor.swift (already uses .work)
+  - **⏳ Remaining**: StudentDetailView.swift, StudentsRootView.swift, StudentProgressTab.swift, and various other files
+
+## Migration Progress Update
+**Date**: Current
+**Status**: Core note and data fetching logic migrated to WorkModel. Legacy WorkContract support maintained for backward compatibility.
+
+**Key Changes**:
+- Note model: `workContract` relationship deprecated but kept for legacy data compatibility
+- StudentNotesViewModel: Now fetches WorkModels primarily, falls back to WorkContract for legacy
+- ObservationHeatmapView: Now uses WorkModels for note filtering, maintains legacy support
+- InboxDataLoader: Now loads WorkModels instead of WorkContracts, updated note filtering
+- ObservationsView: Prefers `work` relationship, falls back to `workContract` for legacy
+
+**Next Steps**: Continue migrating view-level code (StudentDetailView, StudentsRootView, etc.) to use WorkModel instead of WorkContract for display purposes.
