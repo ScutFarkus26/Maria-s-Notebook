@@ -66,34 +66,28 @@ final class InboxDataLoader {
     /// (the most common case) and also check givenAt. In practice, most presented lessons
     /// have isPresented=true, so this significantly reduces the dataset.
     func loadPresentedStudentLessons() -> [StudentLesson] {
-        // Fetch lessons with isPresented == true (stored property, can be filtered efficiently)
+        // PERFORMANCE: Fetch lessons with isPresented == true first (stored property, filtered at DB level)
         let isPresentedDescriptor = FetchDescriptor<StudentLesson>(
             predicate: #Predicate { $0.isPresented == true }
         )
         let byIsPresented = context.safeFetch(isPresentedDescriptor)
-        
+
+        // Build a Set of IDs we already have to avoid duplicates
+        let existingIDs = Set(byIsPresented.map { $0.id })
+
         // Also need lessons with givenAt != nil but isPresented == false
-        // Since we can't do OR in predicate and givenAt is optional, we need to fetch
-        // a broader set. However, to minimize data, we can fetch only lessons that
-        // have givenAt set (though predicates don't handle optionals well either).
-        // For now, we'll fetch all and filter, but this is still better than the original
-        // unfiltered query because:
-        // 1. Most presented lessons have isPresented=true (covered by first query)
-        // 2. The second fetch is needed for edge cases, but isPresented filter already
-        //    reduces the dataset significantly
-        
-        // Actually, since givenAt is Date?, we can't filter it in predicate easily.
-        // The most efficient approach is to fetch all and filter for givenAt-only cases.
-        // However, in practice, almost all presented lessons should have isPresented=true,
-        // so this is acceptable.
-        let allStudentLessons = context.safeFetch(FetchDescriptor<StudentLesson>())
-        let withGivenAtOnly = allStudentLessons.filter { 
-            $0.givenAt != nil && !$0.isPresented 
+        // SwiftData predicates don't handle optional Date comparisons well,
+        // so we fetch non-presented lessons and filter for givenAt != nil
+        let notPresentedDescriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate { $0.isPresented == false }
+        )
+        let notPresented = context.safeFetch(notPresentedDescriptor)
+        let withGivenAtOnly = notPresented.filter { sl in
+            sl.givenAt != nil && !existingIDs.contains(sl.id)
         }
-        
-        // Combine and deduplicate
-        let allPresented = byIsPresented + withGivenAtOnly
-        return Array(Set(allPresented))
+
+        // Combine (no Set conversion needed since we pre-filtered duplicates)
+        return byIsPresented + withGivenAtOnly
     }
     
     /// Loads active and review work models (preferred).
@@ -124,12 +118,14 @@ final class InboxDataLoader {
     func loadNotes(for workIDs: Set<UUID>) -> [Note] {
         guard !workIDs.isEmpty else { return [] }
 
-        // Fetch notes with work relationship, then filter in Swift
+        // PERFORMANCE: Fetch notes with work relationship, then filter in Swift using Set for O(1) lookup
+        // SwiftData doesn't support filtering by relationship ID directly in predicates
         let workDescriptor = FetchDescriptor<Note>(
             predicate: #Predicate { $0.work != nil }
         )
         let allNotesWithWork = context.safeFetch(workDescriptor)
 
+        // workIDs is already a Set, so .contains is O(1)
         return allNotesWithWork.filter { note in
             guard let work = note.work else { return false }
             return workIDs.contains(work.id)

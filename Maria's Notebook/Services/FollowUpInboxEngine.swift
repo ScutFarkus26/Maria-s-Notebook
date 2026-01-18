@@ -91,6 +91,9 @@ struct FollowUpInboxEngine {
         var results: [FollowUpInboxItem] = []
         let lessonsByID: [UUID: Lesson] = lessons.toDictionary(by: \.id)
         let studentsByID: [UUID: Student] = students.toDictionary(by: \.id)
+
+        // PERFORMANCE: Build dictionary for O(1) studentLesson lookup instead of repeated O(n) searches
+        let studentLessonsByID: [UUID: StudentLesson] = studentLessons.toDictionary(by: \.id)
         
         // Fetch open WorkModel records once per compute (cached per refresh scope)
         #if DEBUG
@@ -184,7 +187,7 @@ struct FollowUpInboxEngine {
             let workModelsByStudentLessonKey: Set<String> = Set(
                 openWorkModels.compactMap { work in
                     guard let slID = work.studentLessonID,
-                          let sl = studentLessons.first(where: { $0.id == slID }) else { return nil }
+                          let sl = studentLessonsByID[slID] else { return nil }
                     let studentIDs = work.participants?.compactMap { UUID(uuidString: $0.studentID) } ?? []
                     return studentIDs.map { sid in
                         "\(sid.uuidString.lowercased())|\(sl.lessonID.lowercased())"
@@ -301,7 +304,7 @@ struct FollowUpInboxEngine {
                 }
                 // Fallback: try to get from studentLesson
                 if let slID = work.studentLessonID,
-                   let sl = studentLessons.first(where: { $0.id == slID }) {
+                   let sl = studentLessonsByID[slID] {
                     return sl.resolvedStudentIDs
                 }
                 return []
@@ -317,7 +320,7 @@ struct FollowUpInboxEngine {
             let lessonTitle: String = {
                 // Try to get from studentLesson
                 if let slID = work.studentLessonID,
-                   let sl = studentLessons.first(where: { $0.id == slID }),
+                   let sl = studentLessonsByID[slID],
                    let lessonUUID = UUID(uuidString: sl.lessonID),
                    let l = lessonsByID[lessonUUID] {
                     return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
@@ -383,22 +386,22 @@ struct FollowUpInboxEngine {
                     return participantStudentIDs
                 }
                 if let slID = work.studentLessonID,
-                   let sl = studentLessons.first(where: { $0.id == slID }) {
+                   let sl = studentLessonsByID[slID] {
                     return sl.resolvedStudentIDs
                 }
                 return []
             }()
-            
+
             let studentName: String = {
                 if let firstID = studentIDs.first, let s = studentsByID[firstID] {
                     return StudentFormatter.displayName(for: s)
                 }
                 return "Student"
             }()
-            
+
             let lessonTitle: String = {
                 if let slID = work.studentLessonID,
-                   let sl = studentLessons.first(where: { $0.id == slID }),
+                   let sl = studentLessonsByID[slID],
                    let lessonUUID = UUID(uuidString: sl.lessonID),
                    let l = lessonsByID[lessonUUID] {
                     return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")

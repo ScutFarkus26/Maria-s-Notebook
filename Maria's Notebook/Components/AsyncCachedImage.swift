@@ -6,9 +6,70 @@ import AppKit
 import UIKit
 #endif
 
-// Simple in-memory cache
+// MARK: - Image Caching
+
+/// In-memory cache for loaded images
 private class ImageCache {
     static let shared = NSCache<NSString, PlatformImage>()
+}
+
+/// Disk cache for downsampled images to persist across app launches
+private enum ImageDiskCache {
+    /// Returns the disk cache directory URL, creating it if needed
+    nonisolated static var cacheDirectory: URL? {
+        guard let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let imageCacheDir = cacheDir.appendingPathComponent("ImageCache", isDirectory: true)
+
+        // Create directory if it doesn't exist
+        if !FileManager.default.fileExists(atPath: imageCacheDir.path) {
+            try? FileManager.default.createDirectory(at: imageCacheDir, withIntermediateDirectories: true)
+        }
+        return imageCacheDir
+    }
+
+    /// Returns the file URL for a cached image with the given key
+    nonisolated static func fileURL(for cacheKey: String) -> URL? {
+        guard let cacheDir = cacheDirectory else { return nil }
+        // Use a hash of the cache key to avoid filesystem issues with special characters
+        let safeFilename = cacheKey.replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+        return cacheDir.appendingPathComponent("\(safeFilename).jpg")
+    }
+
+    /// Loads an image from disk cache
+    nonisolated static func loadImage(for cacheKey: String) -> PlatformImage? {
+        guard let fileURL = fileURL(for: cacheKey),
+              FileManager.default.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL) else {
+            return nil
+        }
+        #if os(macOS)
+        return NSImage(data: data)
+        #else
+        return UIImage(data: data)
+        #endif
+    }
+
+    /// Saves an image to disk cache
+    nonisolated static func saveImage(_ image: PlatformImage, for cacheKey: String) {
+        guard let fileURL = fileURL(for: cacheKey) else { return }
+
+        #if os(macOS)
+        guard let tiffData = image.tiffRepresentation,
+              let bitmapImage = NSBitmapImageRep(data: tiffData),
+              let jpegData = bitmapImage.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) else {
+            return
+        }
+        #else
+        guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
+            return
+        }
+        #endif
+
+        try? jpegData.write(to: fileURL)
+    }
 }
 
 struct AsyncCachedImage: View {
@@ -55,7 +116,7 @@ struct AsyncCachedImage: View {
     private func loadImage() async {
         // Determine the effective target size (use default thumbnail size if not provided)
         let effectiveSize = targetSize ?? CGSize(width: 300, height: 300)
-        
+
         // Get display scale
         let scale: CGFloat
         #if os(macOS)
@@ -63,18 +124,27 @@ struct AsyncCachedImage: View {
         #else
         scale = UIScreen.main.scale
         #endif
-        
+
         // Create cache key that includes size to cache different sizes separately
         let cacheKey = "\(filename)_\(Int(effectiveSize.width))x\(Int(effectiveSize.height))"
-        
-        // 1. Check Cache
+
+        // 1. Check in-memory cache first (fastest)
         if let cached = ImageCache.shared.object(forKey: cacheKey as NSString) {
             self.image = cached
             self.isLoading = false
             return
         }
-        
-        // 2. Load in background (detached task to avoid blocking main thread)
+
+        // 2. Check disk cache (fast, persists across app launches)
+        if let diskCached = ImageDiskCache.loadImage(for: cacheKey) {
+            // Store in memory cache for subsequent accesses
+            ImageCache.shared.setObject(diskCached, forKey: cacheKey as NSString)
+            self.image = diskCached
+            self.isLoading = false
+            return
+        }
+
+        // 3. Load from source in background (detached task to avoid blocking main thread)
         let loadedImage = await Task.detached(priority: .userInitiated) {
             // Use downsampling for thumbnails to reduce memory usage
             return PhotoStorageService.loadDownsampledImage(
@@ -83,10 +153,15 @@ struct AsyncCachedImage: View {
                 scale: scale
             )
         }.value
-        
-        // 3. Update UI and Cache
+
+        // 4. Update caches and UI
         if let loadedImage {
+            // Save to memory cache
             ImageCache.shared.setObject(loadedImage, forKey: cacheKey as NSString)
+            // Save to disk cache (fire and forget, runs in background)
+            Task.detached(priority: .background) {
+                ImageDiskCache.saveImage(loadedImage, for: cacheKey)
+            }
             self.image = loadedImage
         }
         self.isLoading = false

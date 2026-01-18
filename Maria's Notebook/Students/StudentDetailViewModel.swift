@@ -91,12 +91,17 @@ final class StudentDetailViewModel: ObservableObject {
     /// Loads lesson IDs that have been mastered by this student from LessonPresentation records.
     private func loadMasteredLessonIDs(modelContext: ModelContext) {
         let studentIDString = student.id.uuidString
-        let allLessonPresentations = (try? modelContext.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
+        let masteredState = LessonPresentationState.mastered
+        let descriptor = FetchDescriptor<LessonPresentation>(
+            predicate: #Predicate { lp in
+                lp.studentID == studentIDString && lp.state == masteredState
+            }
+        )
+        let masteredPresentations = (try? modelContext.fetch(descriptor)) ?? []
 
         masteredLessonIDs = Set(
-            allLessonPresentations
-                .filter { $0.studentID == studentIDString && $0.state == .mastered }
-                .compactMap { UUID(uuidString: $0.lessonID) }
+            masteredPresentations.compactMap { UUID(uuidString: $0.lessonID) }
         )
     }
 
@@ -410,12 +415,14 @@ final class StudentDetailViewModel: ObservableObject {
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
 
-        // Fetch all WorkModels and filter in memory (no predicates)
-        let allWorkModels = (try? modelContext.fetch(FetchDescriptor<WorkModel>())) ?? []
-        let existingWork = allWorkModels.first { work in
-            work.studentLessonID == studentLessonID &&
-            (work.statusRaw == activeRaw || work.statusRaw == reviewRaw)
-        }
+        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
+        let descriptor = FetchDescriptor<WorkModel>(
+            predicate: #Predicate { work in
+                work.studentLessonID == studentLessonID &&
+                (work.statusRaw == activeRaw || work.statusRaw == reviewRaw)
+            }
+        )
+        let existingWork = (try? modelContext.fetch(descriptor))?.first
 
         if let existing = existingWork {
             return existing

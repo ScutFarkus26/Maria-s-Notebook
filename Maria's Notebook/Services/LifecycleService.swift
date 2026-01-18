@@ -202,25 +202,28 @@ struct LifecycleService {
     }
 
     private static func fetchWorkModel(presentationID: String, studentID: String, context: ModelContext) throws -> WorkModel? {
-        // Fetch all WorkModels and filter in memory
-        let allWork = try context.fetch(FetchDescriptor<WorkModel>())
-        return allWork.first { work in
-            (work.presentationID ?? "") == presentationID && work.studentID == studentID
-        }
+        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
+        let descriptor = FetchDescriptor<WorkModel>(
+            predicate: #Predicate { work in
+                work.presentationID == presentationID && work.studentID == studentID
+            }
+        )
+        return try context.fetch(descriptor).first
     }
 
     private static func fetchAllWorkModels(presentationID: String, context: ModelContext) throws -> [WorkModel] {
-        // Fetch all WorkModels and filter in memory
-        let allWork = try context.fetch(FetchDescriptor<WorkModel>())
-        return allWork.filter { work in
-            (work.presentationID ?? "") == presentationID
-        }
+        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
+        let descriptor = FetchDescriptor<WorkModel>(
+            predicate: #Predicate { work in
+                work.presentationID == presentationID
+            }
+        )
+        return try context.fetch(descriptor)
     }
 
     // MARK: - LessonPresentation Helpers
 
     /// Upsert LessonPresentation idempotently by (presentationID, studentID).
-    /// Fetches all LessonPresentation records and filters in memory (no predicates).
     /// If exists: updates lastObservedAt. If not exists: creates new with state .presented.
     private static func upsertLessonPresentation(
         presentationID: String,
@@ -229,11 +232,13 @@ struct LifecycleService {
         presentedAt: Date,
         context: ModelContext
     ) throws {
-        // Fetch all LessonPresentation records and filter in memory (no predicates)
-        let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
-        let existing = allLessonPresentations.first { lp in
-            lp.presentationID == presentationID && lp.studentID == studentID
-        }
+        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
+        let descriptor = FetchDescriptor<LessonPresentation>(
+            predicate: #Predicate { lp in
+                lp.presentationID == presentationID && lp.studentID == studentID
+            }
+        )
+        let existing = try context.fetch(descriptor).first
         
         if let existing = existing {
             // Update lastObservedAt to track when this presentation was last seen
@@ -260,13 +265,13 @@ struct LifecycleService {
         presentedAt: Date,
         context: ModelContext
     ) throws {
-        // Fetch all LessonPresentation records and filter in memory (no predicates)
-        let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
-        
-        // Look for existing by lessonID and studentID (with or without presentationID)
-        let existing = allLessonPresentations.first { lp in
-            lp.lessonID == lessonID && lp.studentID == studentID
-        }
+        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
+        let descriptor = FetchDescriptor<LessonPresentation>(
+            predicate: #Predicate { lp in
+                lp.lessonID == lessonID && lp.studentID == studentID
+            }
+        )
+        let existing = try context.fetch(descriptor).first
         
         if let existing = existing {
             // Update lastObservedAt and presentedAt if the new date is earlier (preserve first presentation date)
