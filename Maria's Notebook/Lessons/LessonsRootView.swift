@@ -124,12 +124,12 @@ struct LessonsRootView: View {
     var body: some View {
         HStack(spacing: 0) {
             subjectsColumn
-                .frame(minWidth: 160, idealWidth: 200, maxWidth: 280)
+                .frame(width: 280)
 
             Divider()
 
             lessonsContentColumn
-                .frame(minWidth: 300)
+                .frame(maxWidth: .infinity)
 
             if let selectedLesson = selectedLessonDetail {
                 Divider()

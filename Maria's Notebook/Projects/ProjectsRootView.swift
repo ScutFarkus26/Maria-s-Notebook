@@ -49,78 +49,18 @@ struct ProjectsRootView: View {
 
     // MARK: - Body
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             // MARK: Sidebar
-            List(selection: selectedClubID) {
-                // Header (Section for consistent grouping)
-                Section {
-                    ForEach(filteredClubs) { club in
-                        NavigationLink(value: club.id) {
-                            ProjectSidebarRow(
-                                club: club,
-                                isSelected: club.id.uuidString == selectedClubIDString,
-                                lastSessionDate: lastSessionDate(for: club)
-                            )
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                clubToDelete = club
-                                showDeleteAlert = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                } header: {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.secondary)
-                            TextField("Search", text: $searchText)
-                                .textFieldStyle(.plain)
-                        }
-                        .padding(8)
-                        .background(Color.primary.opacity(0.05))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .padding(.bottom, 8)
-                    }
-                }
-            }
-            .listStyle(.sidebar)
-            .navigationTitle("Projects")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showNewSheet = true
-                    } label: {
-                        Label("Add Project", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
+            projectsSidebar
+                .frame(width: 280)
+
+            Divider()
+
             // MARK: Detail Area
-            if let club = selectedClub {
-                ProjectDetailView(club: club)
-                    .id(club.id) // Force recreation when selection changes
-            } else {
-                ContentUnavailableView(
-                    "No Selection",
-                    systemImage: "book",
-                    description: Text("Select a project from the sidebar to view details.")
-                )
-            }
+            projectDetailContent
+                .frame(maxWidth: .infinity)
         }
-        .navigationDestination(for: UUID.self) { clubID in
-            if let club = clubs.first(where: { $0.id == clubID }) {
-                ProjectDetailView(club: club)
-                    .id(club.id)
-            } else {
-                ContentUnavailableView(
-                    "Project Not Found",
-                    systemImage: "exclamationmark.triangle"
-                )
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showNewSheet) {
             ProjectEditorSheet(club: nil)
         }
@@ -150,6 +90,57 @@ struct ProjectsRootView: View {
                 }
                 #endif
             }
+        }
+    }
+
+    // MARK: - Sidebar
+
+    private var projectsSidebar: some View {
+        List(selection: selectedClubID) {
+            ForEach(filteredClubs) { club in
+                ProjectSidebarRow(
+                    club: club,
+                    isSelected: club.id.uuidString == selectedClubIDString,
+                    lastSessionDate: lastSessionDate(for: club)
+                )
+                .tag(club.id)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        clubToDelete = club
+                        showDeleteAlert = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .searchable(text: $searchText, placement: .sidebar)
+        .navigationTitle("Projects")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showNewSheet = true
+                } label: {
+                    Label("Add Project", systemImage: "plus")
+                }
+            }
+        }
+    }
+
+    // MARK: - Detail Content
+
+    @ViewBuilder
+    private var projectDetailContent: some View {
+        if let club = selectedClub {
+            ProjectDetailView(club: club)
+                .id(club.id)
+        } else {
+            ContentUnavailableView(
+                "No Selection",
+                systemImage: "book",
+                description: Text("Select a project from the sidebar to view details.")
+            )
         }
     }
 
@@ -225,35 +216,61 @@ struct ProjectsRootView: View {
 
 // MARK: - Sidebar Row
 
+/// A row component for displaying a project in a list view.
+/// Shows the project's icon (colored circle with project icon), title, and member count.
+/// Design matches SubjectListRow/StudentListRow for visual consistency across the app.
 struct ProjectSidebarRow: View {
     let club: Project
     let isSelected: Bool
     let lastSessionDate: Date?
 
+    private var projectColor: Color {
+        // Use a consistent color for projects, or could be customized per project
+        AppColors.color(forSubject: "Reading")
+    }
+
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "book.closed.fill")
-                .font(.title3)
-                .foregroundStyle(AppColors.color(forSubject: "Reading"))
-                .frame(width: 32)
-            
+        HStack(spacing: 12) {
+            // Icon circle with project icon (matching SubjectListRow/StudentListRow avatar style)
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [projectColor.opacity(0.8), projectColor]),
+                            center: .center,
+                            startRadius: 8,
+                            endRadius: 24
+                        )
+                    )
+                    .frame(width: 40, height: 40)
+
+                Image(systemName: "person.3.fill")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+
+            // Title and member count
             VStack(alignment: .leading, spacing: 2) {
                 Text(club.title)
-                    .font(.system(.body, design: .rounded, weight: .semibold))
+                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                
+
+                // Member count as secondary text
                 let memberCount = club.memberStudentIDs.count
-                let dateStr = lastSessionDate.map { ProjectsRootView.df.string(from: $0) }
-                
-                Text("\(memberCount) member\(memberCount == 1 ? "" : "s")\(dateStr != nil ? " • " + dateStr! : "")")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Circle().fill(projectColor).frame(width: 6, height: 6)
+                    Text("\(memberCount) \(memberCount == 1 ? "member" : "members")")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
             }
+
             Spacer()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .contentShape(Rectangle())
     }
 }
 

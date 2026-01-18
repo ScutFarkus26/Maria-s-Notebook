@@ -10,11 +10,22 @@ extension LessonsRootView {
 
     // MARK: - Subjects Column (Left)
 
+    /// Computes lesson counts per subject for display in the sidebar
+    private var lessonCountsBySubject: [String: Int] {
+        var counts: [String: Int] = [:]
+        for lesson in lessons {
+            let subject = lesson.subject.trimmed()
+            if !subject.isEmpty {
+                counts[subject, default: 0] += 1
+            }
+        }
+        return counts
+    }
+
     var subjectsColumn: some View {
         List(selection: $listSelectedSubject) {
             ForEach(subjects, id: \.self) { subject in
-                Text(subject)
-                    .font(.system(.body, design: .rounded, weight: .semibold))
+                SubjectListRow(subject: subject, lessonCount: lessonCountsBySubject[subject] ?? 0)
                     .tag(subject)
             }
         }

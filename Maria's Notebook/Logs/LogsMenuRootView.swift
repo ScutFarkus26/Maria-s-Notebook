@@ -6,84 +6,131 @@ struct LogsMenuRootView: View {
         case presentations = "Presentation History"
         case works = "Works Log"
         case observations = "Observations"
-        // Future: add other logs here
+
         var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .lessons: return "book.fill"
+            case .presentations: return "calendar.badge.clock"
+            case .works: return "hammer.fill"
+            case .observations: return "eye.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .lessons: return .blue
+            case .presentations: return .purple
+            case .works: return .orange
+            case .observations: return .teal
+            }
+        }
     }
 
     @AppStorage("LogsMenuRootView.mode") private var modeRaw: String = Mode.lessons.rawValue
-    #if os(iOS)
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    #endif
-    private var mode: Mode { Mode(rawValue: modeRaw) ?? .lessons }
+
+    private var mode: Mode {
+        get { Mode(rawValue: modeRaw) ?? .lessons }
+        nonmutating set { modeRaw = newValue.rawValue }
+    }
+
+    private var selectedMode: Binding<Mode?> {
+        Binding(
+            get: { mode },
+            set: { newValue in
+                if let newValue {
+                    modeRaw = newValue.rawValue
+                }
+            }
+        )
+    }
+
+    // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Top pill navigation for logs
-            #if os(iOS)
-            Group {
-                if horizontalSizeClass == .compact {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            PillButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
-                            PillButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
-                            PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillButton(title: Mode.observations.rawValue, isSelected: mode == .observations) { modeRaw = Mode.observations.rawValue }
-                        }
-                        .padding(.horizontal, 12)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                } else {
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 12) {
-                            PillButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
-                            PillButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
-                            PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                            PillButton(title: Mode.observations.rawValue, isSelected: mode == .observations) { modeRaw = Mode.observations.rawValue }
-                        }
-                        Spacer()
-                    }
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                }
-            }
-            #else
-            HStack {
-                Spacer()
-                HStack(spacing: 12) {
-                    PillButton(title: Mode.lessons.rawValue, isSelected: mode == .lessons) { modeRaw = Mode.lessons.rawValue }
-                    PillButton(title: Mode.presentations.rawValue, isSelected: mode == .presentations) { modeRaw = Mode.presentations.rawValue }
-                    PillButton(title: Mode.works.rawValue, isSelected: mode == .works) { modeRaw = Mode.works.rawValue }
-                    PillButton(title: Mode.observations.rawValue, isSelected: mode == .observations) { modeRaw = Mode.observations.rawValue }
-                }
-                Spacer()
-            }
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-            #endif
+        HStack(spacing: 0) {
+            // MARK: Sidebar
+            logsSidebar
+                .frame(width: 280)
 
             Divider()
 
-            Group {
-                switch mode {
-                case .lessons:
-                    StudentLessonsRootView()
-                case .presentations:
-                    PresentationHistoryView()
-                case .works:
-                    WorksLogView()
-                case .observations:
-                    ObservationsView()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // MARK: Content Area
+            logsContent
+                .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Sidebar
+
+    private var logsSidebar: some View {
+        List(selection: selectedMode) {
+            ForEach(Mode.allCases) { logMode in
+                LogsSidebarRow(mode: logMode)
+                    .tag(logMode)
+            }
+        }
+        .listStyle(.sidebar)
         .navigationTitle("Logs")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private var logsContent: some View {
+        switch mode {
+        case .lessons:
+            StudentLessonsRootView()
+        case .presentations:
+            PresentationHistoryView()
+        case .works:
+            WorksLogView()
+        case .observations:
+            ObservationsView()
+        }
+    }
+}
+
+// MARK: - Sidebar Row
+
+/// A row component for displaying a log type in the sidebar.
+/// Shows the log's icon (colored circle with glyph) and title.
+/// Design matches SubjectListRow/StudentListRow/ProjectSidebarRow for visual consistency.
+struct LogsSidebarRow: View {
+    let mode: LogsMenuRootView.Mode
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon circle with log-specific glyph
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [mode.color.opacity(0.8), mode.color]),
+                            center: .center,
+                            startRadius: 8,
+                            endRadius: 24
+                        )
+                    )
+                    .frame(width: 40, height: 40)
+
+                Image(systemName: mode.icon)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+
+            // Title
+            Text(mode.rawValue)
+                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+
+            Spacer()
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .contentShape(Rectangle())
     }
 }
 
