@@ -19,28 +19,22 @@ struct RootSidebar: View {
     #if os(macOS)
     private var macOSSidebar: some View {
         List(selection: $selection) {
-            Section("Daily") {
+            Section("Classroom") {
                 NavigationLink(value: RootView.NavigationItem.today) {
                     Label("Today", systemImage: "sun.max")
                 }
-            }
-
-            Section("Classroom") {
                 NavigationLink(value: RootView.NavigationItem.students) {
                     Label("Students", systemImage: "person.3")
-                }
-                NavigationLink(value: RootView.NavigationItem.lessons) {
-                    Label("Lessons", systemImage: "book")
                 }
                 NavigationLink(value: RootView.NavigationItem.community) {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
-                NavigationLink(value: RootView.NavigationItem.logs) {
-                    Label("Logs", systemImage: "list.bullet")
-                }
             }
 
-            Section("Planning") {
+            Section("Curriculum") {
+                NavigationLink(value: RootView.NavigationItem.lessons) {
+                    Label("Lessons", systemImage: "book")
+                }
                 NavigationLink(value: RootView.NavigationItem.planningChecklist) {
                     Label("Checklist", systemImage: "list.clipboard")
                 }
@@ -56,6 +50,9 @@ struct RootSidebar: View {
             }
 
             Section("System") {
+                NavigationLink(value: RootView.NavigationItem.logs) {
+                    Label("Logs", systemImage: "list.bullet")
+                }
                 NavigationLink(value: RootView.NavigationItem.settings) {
                     Label("Settings", systemImage: "gear")
                 }
@@ -67,41 +64,33 @@ struct RootSidebar: View {
 
     private var iOSSidebar: some View {
         List {
-            Section("Daily") {
+            Section("Classroom") {
                 Button { selection = .today } label: {
                     Label("Today", systemImage: "sun.max")
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View today's schedule, reminders, and tasks")
-            }
 
-            Section("Classroom") {
                 Button { selection = .students } label: {
                     Label("Students", systemImage: "person.3")
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student profiles and records")
 
+                Button { selection = .community } label: {
+                    Label("Community", systemImage: "bubble.left.and.bubble.right")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View community meetings and topics")
+            }
+
+            Section("Curriculum") {
                 Button { selection = .lessons } label: {
                     Label("Lessons", systemImage: "book")
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Browse and manage lesson plans")
 
-                Button { selection = .community } label: {
-                    Label("Community", systemImage: "bubble.left.and.bubble.right")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View community meetings and topics")
-
-                Button { selection = .logs } label: {
-                    Label("Logs", systemImage: "list.bullet")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View activity and observation logs")
-            }
-
-            Section("Planning") {
                 Button { selection = .planningChecklist } label: {
                     Label("Checklist", systemImage: "list.clipboard")
                 }
@@ -128,6 +117,12 @@ struct RootSidebar: View {
             }
 
             Section("System") {
+                Button { selection = .logs } label: {
+                    Label("Logs", systemImage: "list.bullet")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View activity and observation logs")
+
                 Button { selection = .settings } label: {
                     Label("Settings", systemImage: "gear")
                 }
