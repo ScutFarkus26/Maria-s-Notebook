@@ -72,6 +72,7 @@ struct RootSidebar: View {
                     Label("Today", systemImage: "sun.max")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("View today's schedule, reminders, and tasks")
             }
 
             Section("Classroom") {
@@ -79,21 +80,25 @@ struct RootSidebar: View {
                     Label("Students", systemImage: "person.3")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("Manage student profiles and records")
 
                 Button { selection = .lessons } label: {
                     Label("Lessons", systemImage: "book")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("Browse and manage lesson plans")
 
                 Button { selection = .community } label: {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("View community meetings and topics")
 
                 Button { selection = .logs } label: {
                     Label("Logs", systemImage: "list.bullet")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("View activity and observation logs")
             }
 
             Section("Planning") {
@@ -101,21 +106,25 @@ struct RootSidebar: View {
                     Label("Checklist", systemImage: "list.clipboard")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("View class subject checklist")
 
                 Button { selection = .planningAgenda } label: {
                     Label("Presentations", systemImage: "calendar")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("Manage lesson presentations agenda")
 
                 Button { selection = .planningWork } label: {
                     Label("Open Work", systemImage: "tray.full")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("View and manage student work contracts")
 
                 Button { selection = .planningProjects } label: {
                     Label("Projects", systemImage: "folder")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("Manage student projects")
             }
 
             Section("System") {
@@ -123,6 +132,7 @@ struct RootSidebar: View {
                     Label("Settings", systemImage: "gear")
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint("Configure app preferences and sync options")
             }
         }
     }

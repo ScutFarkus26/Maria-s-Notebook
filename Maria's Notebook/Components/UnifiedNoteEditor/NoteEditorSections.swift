@@ -42,7 +42,7 @@ extension UnifiedNoteEditor {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Detected Names")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
             }
@@ -51,30 +51,36 @@ extension UnifiedNoteEditor {
                 HStack(spacing: 8) {
                     ForEach(Array(detectedStudentIDs), id: \.self) { studentID in
                         if let student = students.first(where: { $0.id == studentID }) {
+                            let isSelected = selectedStudentIDs.contains(studentID)
+                            let studentName = displayName(for: student)
                             Button {
-                                if selectedStudentIDs.contains(studentID) {
+                                if isSelected {
                                     selectedStudentIDs.remove(studentID)
                                 } else {
                                     selectedStudentIDs.insert(studentID)
                                 }
                             } label: {
                                 HStack(spacing: 4) {
-                                    Text(displayName(for: student))
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                                    if selectedStudentIDs.contains(studentID) {
+                                    Text(studentName)
+                                        .font(AppTheme.ScaledFont.caption.weight(.medium))
+                                    if isSelected {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 12, weight: .semibold))
+                                            .font(.scaledRounded(.caption2, weight: .semibold))
+                                            .accessibilityHidden(true)
                                     }
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
-                                .foregroundColor(selectedStudentIDs.contains(studentID) ? .accentColor : .primary)
+                                .foregroundColor(isSelected ? .accentColor : .primary)
                                 .background(
                                     Capsule()
-                                        .fill(selectedStudentIDs.contains(studentID) ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
+                                        .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
                                 )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(studentName)
+                            .accessibilityHint(isSelected ? "Double tap to deselect" : "Double tap to select")
+                            .accessibilityAddTraits(isSelected ? .isSelected : [])
                         }
                     }
                 }
@@ -92,7 +98,7 @@ extension UnifiedNoteEditor {
     var studentSelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Selected Students")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
@@ -100,17 +106,19 @@ extension UnifiedNoteEditor {
                     HStack(spacing: 8) {
                         ForEach(Array(selectedStudentIDs), id: \.self) { studentID in
                             if let student = students.first(where: { $0.id == studentID }) {
+                                let studentName = displayName(for: student)
                                 HStack(spacing: 4) {
-                                    Text(displayName(for: student))
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                    Text(studentName)
+                                        .font(AppTheme.ScaledFont.caption.weight(.medium))
                                     Button {
                                         selectedStudentIDs.remove(studentID)
                                     } label: {
                                         Image(systemName: "xmark.circle.fill")
-                                            .font(.system(size: 12, weight: .semibold))
+                                            .font(.scaledRounded(.caption2, weight: .semibold))
                                     }
                                     .buttonStyle(.plain)
                                     .foregroundStyle(.secondary)
+                                    .accessibilityLabel("Remove \(studentName)")
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
@@ -119,6 +127,9 @@ extension UnifiedNoteEditor {
                                     Capsule()
                                         .fill(Color.accentColor.opacity(0.15))
                                 )
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("\(studentName), selected")
+                                .accessibilityHint("Contains remove button")
                             }
                         }
                     }
@@ -130,9 +141,10 @@ extension UnifiedNoteEditor {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.scaledRounded(.footnote, weight: .semibold))
+                            .accessibilityHidden(true)
                         Text("Add")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption.weight(.medium))
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -143,6 +155,8 @@ extension UnifiedNoteEditor {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add student")
+                .accessibilityHint("Double tap to open student picker")
                 .popover(isPresented: $showingStudentPicker, arrowEdge: .top) {
                     studentPickerPopover
                 }
@@ -168,7 +182,7 @@ extension UnifiedNoteEditor {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Category")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
@@ -211,7 +225,7 @@ extension UnifiedNoteEditor {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Note")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
 
@@ -280,7 +294,7 @@ extension UnifiedNoteEditor {
             showingCamera = true
         } label: {
             Label("Take Photo", systemImage: "camera.fill")
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -299,7 +313,7 @@ extension UnifiedNoteEditor {
     var photoPickerButton: some View {
         PhotosPicker(selection: $selectedPhoto, matching: .images) {
             Label("Choose Photo", systemImage: "photo.on.rectangle")
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -319,7 +333,7 @@ extension UnifiedNoteEditor {
             expandInitialsInBodyText()
         } label: {
             Label("Expand Initials", systemImage: "textformat.abc")
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -385,7 +399,8 @@ extension UnifiedNoteEditor {
 
     var reportToggleSection: some View {
         Toggle("Flag for Report", isOn: $includeInReport)
-            .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+            .font(AppTheme.ScaledFont.body)
+            .accessibilityHint(includeInReport ? "Currently flagged. Double tap to unflag." : "Not flagged. Double tap to flag this note for inclusion in reports.")
     }
 
     // MARK: - Header View (macOS)
@@ -393,7 +408,7 @@ extension UnifiedNoteEditor {
     var headerView: some View {
         HStack {
             Text(contextTitle)
-                .font(.system(size: AppTheme.FontSize.titleMedium, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleMedium.weight(.bold))
             Spacer()
         }
     }

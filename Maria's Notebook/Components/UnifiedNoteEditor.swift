@@ -189,7 +189,9 @@ struct UnifiedNoteEditor: View {
                 .padding(24)
             }
             .navigationTitle(contextTitle)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

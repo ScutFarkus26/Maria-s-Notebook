@@ -31,6 +31,9 @@ struct QuickNoteGlassButton: View {
             .onAppear {
                 self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
             }
+            .accessibilityLabel("Add quick note")
+            .accessibilityHint("Double tap to open note editor, or drag to reposition")
+            .accessibilityAddTraits(.isButton)
     }
 
     private var visualContent: some View {
@@ -136,13 +139,13 @@ struct EphemeralStoreWarningBanner: View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(iconColor)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(warningTitle)
-                    .font(.callout)
-                    .fontWeight(.bold)
+                    .font(AppTheme.ScaledFont.callout.weight(.bold))
                     .foregroundStyle(titleColor)
                 Text(warningMessage)
-                    .font(.caption)
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -164,6 +167,9 @@ struct EphemeralStoreWarningBanner: View {
                 .foregroundStyle(borderColor),
             alignment: .bottom
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(warningTitle). \(warningMessage)")
+        .accessibilityHint("Contains backup button")
     }
 }
 
@@ -203,12 +209,12 @@ struct CloudKitSyncWarningBanner: View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: isiCloudSignedIn ? "icloud.slash" : "person.crop.circle.badge.exclamationmark")
                 .foregroundStyle(.yellow)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(warningTitle)
-                    .font(.callout)
-                    .fontWeight(.bold)
+                    .font(AppTheme.ScaledFont.callout.weight(.bold))
                 Text(warningMessage)
-                    .font(.caption)
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -230,5 +236,8 @@ struct CloudKitSyncWarningBanner: View {
                 .foregroundStyle(Color.yellow.opacity(0.3)),
             alignment: .bottom
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(warningTitle). \(warningMessage)")
+        .accessibilityHint("Contains settings button")
     }
 }

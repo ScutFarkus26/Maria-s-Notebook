@@ -278,7 +278,7 @@ struct RootView: View {
         }
     }
 
-    private func handleNavigationDestinationChange(_ oldValue: AppNavigation?, _ destination: AppNavigation?) {
+    private func handleNavigationDestinationChange(_ oldValue: AppRouter.NavigationDestination?, _ destination: AppRouter.NavigationDestination?) {
         DispatchQueue.main.async {
             if case .openAttendance = destination {
                 let newValue = RootView.NavigationItem.attendance.rawValue

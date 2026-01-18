@@ -20,7 +20,7 @@ extension TodayView {
                 // Overdue reminders (with visual indicator)
                 if !viewModel.overdueReminders.isEmpty {
                     Text("Overdue")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.red)
                         .listRowBackground(Color.clear)
                     ForEach(viewModel.overdueReminders) { reminder in
@@ -39,7 +39,7 @@ extension TodayView {
                 if !viewModel.todaysReminders.isEmpty {
                     if !viewModel.overdueReminders.isEmpty {
                         Text("Due Today")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .listRowBackground(Color.clear)
                     }
@@ -59,7 +59,7 @@ extension TodayView {
                 if !viewModel.anytimeReminders.isEmpty {
                     if !viewModel.overdueReminders.isEmpty || !viewModel.todaysReminders.isEmpty {
                         Text("Anytime")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .listRowBackground(Color.clear)
                     }
@@ -90,16 +90,20 @@ extension TodayView {
             if ReminderSyncService.shared.isSyncing {
                 ProgressView()
                     .scaleEffect(0.7)
+                    .accessibilityLabel("Syncing reminders")
             } else if let error = ReminderSyncService.shared.lastSyncError {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                     .help("Sync error: \(error)")
+                    .accessibilityLabel("Sync error: \(error)")
             } else if let lastSync = ReminderSyncService.shared.lastSuccessfulSync {
                 Text(lastSync, style: .relative)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Last synced \(lastSync, style: .relative) ago")
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Calendar Events Section
@@ -129,16 +133,20 @@ extension TodayView {
             if CalendarSyncService.shared.isSyncing {
                 ProgressView()
                     .scaleEffect(0.7)
+                    .accessibilityLabel("Syncing calendar events")
             } else if let error = CalendarSyncService.shared.lastSyncError {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                     .help("Sync error: \(error)")
+                    .accessibilityLabel("Sync error: \(error)")
             } else if let lastSync = CalendarSyncService.shared.lastSuccessfulSync {
                 Text(lastSync, style: .relative)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Last synced \(lastSync, style: .relative) ago")
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Lessons Section
@@ -261,6 +269,16 @@ extension TodayView {
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 ForEach(viewModel.recentNotes, id: \.id) { note in
+                    let notePreview = note.body.split(separator: "\n").first.map(String.init) ?? ""
+                    let names = studentNames(for: note)
+                    let accessibilityLabel: String = {
+                        var label = "Observation: \(notePreview)"
+                        if !names.isEmpty {
+                            label += ", for \(names)"
+                        }
+                        return label
+                    }()
+
                     Button {
                         switch note.scope {
                         case .student(let id):
@@ -270,26 +288,29 @@ extension TodayView {
                         }
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: "note.text").foregroundStyle(.tint)
+                            Image(systemName: "note.text")
+                                .foregroundStyle(.tint)
+                                .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(note.body.split(separator: "\n").first.map(String.init) ?? "")
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                Text(notePreview)
+                                    .font(AppTheme.ScaledFont.bodySemibold)
                                     .foregroundStyle(.primary)
-                                let names = studentNames(for: note)
                                 if !names.isEmpty {
                                     Text(names)
-                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                        .font(AppTheme.ScaledFont.captionSmall)
                                         .foregroundStyle(.secondary)
                                 }
                             }
                             Spacer()
                             Text(note.createdAt, style: note.createdAt > Date().addingTimeInterval(-3600*24*3) ? .relative : .date)
-                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmallSemibold)
                                 .foregroundStyle(.secondary)
                         }
                         .padding(10)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(accessibilityLabel)
+                    .accessibilityHint("Double tap to view student details. Swipe left to edit.")
 #if os(iOS)
                     .swipeActions(edge: .trailing) {
                         Button {
