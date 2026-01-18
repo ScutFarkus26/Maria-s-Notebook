@@ -35,6 +35,7 @@
 			membershipExceptions = (
 				Tests/AgeUtilsTests.swift,
 				Tests/AttendanceModelsTests.swift,
+				Tests/AttendanceStoreTests.swift,
 				Tests/CompileAudit.swift,
 				Tests/CSVUtilsTests.swift,
 				Tests/DateCalculationsTests.swift,
@@ -43,10 +44,12 @@
 				Tests/FollowUpInboxEngineTests.swift,
 				Tests/ModelRoundTripTests.swift,
 				Tests/StringFuzzyMatchTests.swift,
+				Tests/StudentLessonTests.swift,
 				Tests/TestCalendar.swift,
 				Tests/TodayViewModelTests.swift,
 				Tests/TrackProgressResolverTests.swift,
 				Tests/WorkAgingPolicyTests.swift,
+				Tests/WorkModelTests.swift,
 			);
 			target = 51F9242C2F1C43F900E480A1 /* Maria's Notebook Tests */;
 		};
