@@ -80,21 +80,15 @@ extension UnifiedNoteEditor {
     }
 
     private func applyContextRelationship(to note: Note) {
-        var studentLessonID: String? = nil
-        var presentationID: String? = nil
-        var workID: String? = nil
-
         switch context {
         case .lesson(let lesson):
             note.lesson = lesson
 
         case .work(let work):
             note.work = work
-            workID = work.id.uuidString
 
         case .studentLesson(let sl):
             note.studentLesson = sl
-            studentLessonID = sl.id.uuidString
 
         case .presentation(let presentation):
             note.presentation = presentation
@@ -107,7 +101,6 @@ extension UnifiedNoteEditor {
                     note.studentLesson = studentLesson
                 }
             }
-            presentationID = presentation.id.uuidString
 
         case .attendance(let record):
             note.attendanceRecord = record
