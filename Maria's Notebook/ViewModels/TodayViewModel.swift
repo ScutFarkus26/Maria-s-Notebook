@@ -500,7 +500,16 @@ final class TodayViewModel: ObservableObject {
                 sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
             )
             let workItems = try context.fetch(descriptor)
-            
+
+            // Load students for completed work that aren't already cached
+            var completedWorkStudentIDs = Set<UUID>()
+            for work in workItems {
+                if let sid = UUID(uuidString: work.studentID) {
+                    completedWorkStudentIDs.insert(sid)
+                }
+            }
+            loadStudentsIfNeeded(ids: completedWorkStudentIDs)
+
             completedContracts = workItems.filter { w in
                 guard let uuid = UUID(uuidString: w.studentID),
                       let s = self.studentsByID[uuid] else { return false }

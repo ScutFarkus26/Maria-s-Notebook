@@ -1,9 +1,10 @@
 #if canImport(Testing)
 import Testing
 import Foundation
+import SwiftData
 @testable import Maria_s_Notebook
 
-@Suite("TodayViewModel.LevelFilter Tests")
+@Suite("TodayViewModel.LevelFilter Tests", .serialized)
 struct TodayViewModelLevelFilterTests {
 
     // MARK: - LevelFilter Raw Values
@@ -99,7 +100,7 @@ struct TodayViewModelLevelFilterTests {
     }
 }
 
-@Suite("TodayViewModel.AttendanceSummary Tests")
+@Suite("TodayViewModel.AttendanceSummary Tests", .serialized)
 struct TodayViewModelAttendanceSummaryTests {
 
     @Test("AttendanceSummary default values are zero")
@@ -125,17 +126,15 @@ struct TodayViewModelAttendanceSummaryTests {
     }
 }
 
-@Suite("ContractScheduleItem Tests")
+@Suite("ContractScheduleItem Tests", .serialized)
 @MainActor
 struct ContractScheduleItemTests {
 
     private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([
+        return try makeTestContainer(for: [
             WorkModel.self,
             WorkPlanItem.self,
         ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [config])
     }
 
     @Test("ContractScheduleItem id comes from planItem")
@@ -173,16 +172,14 @@ struct ContractScheduleItemTests {
     }
 }
 
-@Suite("ContractFollowUpItem Tests")
+@Suite("ContractFollowUpItem Tests", .serialized)
 @MainActor
 struct ContractFollowUpItemTests {
 
     private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([
+        return try makeTestContainer(for: [
             WorkModel.self,
         ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [config])
     }
 
     @Test("ContractFollowUpItem stores daysSinceTouch")
@@ -226,7 +223,7 @@ struct ContractFollowUpItemTests {
     }
 }
 
-@Suite("TodayViewModel.AttendanceSummary Additional Tests")
+@Suite("TodayViewModel.AttendanceSummary Additional Tests", .serialized)
 struct TodayViewModelAttendanceSummaryAdditionalTests {
 
     @Test("AttendanceSummary initializes all counters to zero")
@@ -283,7 +280,7 @@ struct TodayViewModelAttendanceSummaryAdditionalTests {
     }
 }
 
-@Suite("TodayViewModel.LevelFilter Additional Tests")
+@Suite("TodayViewModel.LevelFilter Additional Tests", .serialized)
 struct TodayViewModelLevelFilterAdditionalTests {
 
     @Test("LevelFilter.all is first in allCases")
