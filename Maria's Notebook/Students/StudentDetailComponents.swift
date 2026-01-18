@@ -4,41 +4,6 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - ContractRow
-
-struct ContractRow: View {
-    let contract: WorkContract
-    let lessonName: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Text(lessonName)
-                .font(.body)
-                .foregroundColor(.primary)
-            Spacer()
-            Text(contract.status.rawValue.capitalized)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(statusColor)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule().fill(statusColor.opacity(0.2))
-                )
-        }
-    }
-
-    private var statusColor: Color {
-        switch contract.status {
-        case .active:
-            return .blue
-        case .review:
-            return .orange
-        case .complete:
-            return .green
-        }
-    }
-}
-
 // MARK: - StudentEditForm
 
 struct StudentEditForm: View {

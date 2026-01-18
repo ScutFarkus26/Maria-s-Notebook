@@ -24,7 +24,7 @@ public final class BackupService {
         counts["Student"] = safeFetch(Student.self, using: modelContext).count
         counts["Lesson"] = safeFetch(Lesson.self, using: modelContext).count
         counts["StudentLesson"] = safeFetch(StudentLesson.self, using: modelContext).count
-        counts["WorkContract"] = safeFetch(WorkContract.self, using: modelContext).count
+        // WorkContract removed - not exported anymore
         counts["WorkPlanItem"] = safeFetch(WorkPlanItem.self, using: modelContext).count
         // Removed: ScopedNote
         counts["Note"] = safeFetch(Note.self, using: modelContext).count
@@ -54,7 +54,7 @@ public final class BackupService {
             "Student": 600,
             "Lesson": 2500,
             "StudentLesson": 300,
-            "WorkContract": 800,
+            // WorkContract removed - not exported anymore
             "WorkPlanItem": 500,
             "Note": 300,
             "NonSchoolDay": 200,
@@ -103,8 +103,6 @@ public final class BackupService {
         let lessons: [Lesson] = safeFetchInBatches(Lesson.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.12), "Collecting student lessons…")
         let studentLessons: [StudentLesson] = safeFetchInBatchesWithErrorHandling(StudentLesson.self, using: modelContext)
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.18), "Collecting work contracts…")
-        let workContracts: [WorkContract] = safeFetchInBatches(WorkContract.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.21), "Collecting work plan items…")
         let workPlanItems: [WorkPlanItem] = safeFetchInBatches(WorkPlanItem.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes…")
@@ -184,24 +182,8 @@ public final class BackupService {
             )
         }
 
-        let workContractDTOs: [WorkContractDTO] = workContracts.map { c in
-            WorkContractDTO(
-                id: c.id,
-                studentID: c.studentID,
-                lessonID: c.lessonID,
-                presentationID: c.presentationID,
-                status: c.statusRaw,
-                scheduledDate: c.scheduledDate,
-                createdAt: c.createdAt,
-                completedAt: c.completedAt,
-                kind: c.kindRaw,
-                scheduledReason: c.scheduledReasonRaw,
-                scheduledNote: c.scheduledNote,
-                completionOutcome: c.completionOutcome?.rawValue,
-                completionNote: c.completionNote,
-                legacyStudentLessonID: c.legacyStudentLessonID
-            )
-        }
+        // WorkContract is deprecated - export empty array for backward compatibility
+        let workContractDTOs: [WorkContractDTO] = []
 
         let workPlanItemDTOs: [WorkPlanItemDTO] = workPlanItems.compactMap { w in
             guard let workIDUUID = UUID(uuidString: w.workID) else { return nil }
@@ -472,7 +454,8 @@ public final class BackupService {
             "Student": studentDTOs.count,
             "Lesson": lessonDTOs.count,
             "StudentLesson": studentLessonDTOs.count,
-            "WorkContract": workContractDTOs.count,
+            // WorkContract deprecated - always 0 in new exports
+            "WorkContract": 0,
             "WorkPlanItem": workPlanItemDTOs.count,
             "ScopedNote": scopedNoteDTOs.count,
             "Note": noteDTOs.count,
@@ -643,7 +626,8 @@ public final class BackupService {
             assign("Student", ins: payload.students.count, del: count(Student.self))
             assign("Lesson", ins: payload.lessons.count, del: count(Lesson.self))
             assign("StudentLesson", ins: payload.studentLessons.count, del: count(StudentLesson.self))
-            assign("WorkContract", ins: payload.workContracts.count, del: count(WorkContract.self))
+            // WorkContract deprecated - imports are converted to WorkModel
+            assign("WorkContract", ins: payload.workContracts.count, del: 0)
             assign("WorkPlanItem", ins: payload.workPlanItems.count, del: count(WorkPlanItem.self))
             // Removed: ScopedNote
             assign("Note", ins: payload.notes.count, del: count(Note.self))
@@ -709,7 +693,8 @@ public final class BackupService {
                 assign(key, ins: counts.insert, sk: counts.skip)
             }
             
-            assignCounts("WorkContract", items: payload.workContracts, type: WorkContract.self) { $0.id }
+            // WorkContract deprecated - count based on legacyContractID in WorkModel or new inserts
+            assign("WorkContract", ins: payload.workContracts.filter { !exists(WorkModel.self, $0.id) }.count, sk: payload.workContracts.filter { exists(WorkModel.self, $0.id) }.count)
             assignCounts("WorkPlanItem", items: payload.workPlanItems, type: WorkPlanItem.self) { $0.id }
             // Removed: ScopedNote count
             assignCounts("Note", items: payload.notes, type: Note.self) { $0.id }
@@ -861,22 +846,39 @@ public final class BackupService {
             modelContext.insert(t)
         }
 
-        // Work Contracts
+        // Work Contracts - Import as WorkModels for backward compatibility with old backups
         for dto in payload.workContracts {
-            if (try? fetchOne(WorkContract.self, id: dto.id, using: modelContext)) != nil { continue }
-            let c = WorkContract(id: dto.id, studentID: dto.studentID, lessonID: dto.lessonID)
-            c.presentationID = dto.presentationID
-            c.statusRaw = dto.status
-            c.scheduledDate = dto.scheduledDate
-            c.createdAt = dto.createdAt ?? Date()
-            c.completedAt = dto.completedAt
-            c.kindRaw = dto.kind
-            c.scheduledReasonRaw = dto.scheduledReason
-            c.scheduledNote = dto.scheduledNote
-            c.completionOutcome = dto.completionOutcome.flatMap { CompletionOutcome(rawValue: $0) }
-            c.completionNote = dto.completionNote
-            c.legacyStudentLessonID = dto.legacyStudentLessonID
-            modelContext.insert(c)
+            // Check if already exists as a WorkModel (by legacyContractID or id)
+            if (try? fetchOne(WorkModel.self, id: dto.id, using: modelContext)) != nil { continue }
+            // Create WorkModel from the legacy WorkContract DTO
+            let work = WorkModel(
+                id: dto.id,
+                title: "",
+                workType: .research,
+                studentLessonID: nil,
+                notes: dto.completionNote ?? "",
+                createdAt: dto.createdAt ?? Date(),
+                completedAt: dto.completedAt,
+                participants: [],
+                kind: dto.kind.flatMap { WorkKind(rawValue: $0) },
+                status: WorkStatus(rawValue: dto.status) ?? .active,
+                assignedAt: dto.createdAt ?? Date(),
+                lastTouchedAt: nil,
+                dueAt: dto.scheduledDate,
+                completionOutcome: dto.completionOutcome.flatMap { CompletionOutcome(rawValue: $0) },
+                legacyContractID: dto.id,
+                studentID: dto.studentID,
+                lessonID: dto.lessonID,
+                presentationID: dto.presentationID,
+                trackID: nil,
+                trackStepID: nil,
+                scheduledNote: dto.scheduledNote,
+                scheduledReason: dto.scheduledReason.flatMap { ScheduledReason(rawValue: $0) },
+                sourceContextType: nil,
+                sourceContextID: nil,
+                legacyStudentLessonID: dto.legacyStudentLessonID
+            )
+            modelContext.insert(work)
         }
 
         // Work Plan Items
@@ -1137,8 +1139,9 @@ public final class BackupService {
             let arr = try context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == WorkContract.self {
-            let arr = try context.fetch(FetchDescriptor<WorkContract>(predicate: #Predicate { $0.id == id }))
+        // WorkContract removed - use WorkModel instead
+        if type == WorkModel.self {
+            let arr = try context.fetch(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
         if type == WorkPlanItem.self {

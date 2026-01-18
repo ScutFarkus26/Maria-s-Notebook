@@ -352,7 +352,6 @@ struct FollowUpInboxView: View {
         case .lessonFollowUp:
             selectedSL = SLToken(id: item.underlyingID)
         case .workCheckIn, .workReview:
-            // Open WorkModel detail (WorkContract is now read-only for legacy data)
             selectedWork = WorkToken(id: item.underlyingID)
         }
     }

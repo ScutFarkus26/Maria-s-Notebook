@@ -45,13 +45,7 @@ final class AppBootstrapper: ObservableObject {
         
         // 3.6.5. GroupTrack default behavior migration: All groups are tracks by default (sequential)
         DataMigrations.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
-        
-        // 3.6.6. Work Contracts migration: Migrate WorkContracts to WorkModels
-        await DataMigrations.migrateWorkContractsToWorkModelsIfNeeded(using: context)
-        #if DEBUG
-        MigrationRunner.migrateWorkContractsToWorkModels(context: context)
-        #endif
-        
+
         // 3.7. Legacy Backfill Migrations (one-time migrations)
         // OPTIMIZATION: These are now async and yield periodically to avoid blocking UI
         await DataMigrations.backfillRelationshipsIfNeeded(using: context)

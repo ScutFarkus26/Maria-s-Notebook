@@ -172,16 +172,16 @@ struct ProjectsRootView: View {
         let allSessions = (try? modelContext.fetch(FetchDescriptor<ProjectSession>())) ?? []
         let sessions = allSessions.filter { $0.projectID == clubIDString }
         
-        // Fetch contracts only for these sessions
+        // Fetch work models only for these sessions
         let sessionIDs = Set(sessions.map { $0.id.uuidString })
-        let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
-        let contracts = allContracts.filter {
+        let allWorkModels = (try? modelContext.fetch(FetchDescriptor<WorkModel>())) ?? []
+        let workModels = allWorkModels.filter {
             ($0.sourceContextType == .projectSession || $0.sourceContextType == .bookClubSession) &&
             sessionIDs.contains($0.sourceContextID ?? "")
         }
-        
-        for c in contracts {
-            modelContext.delete(c)
+
+        for w in workModels {
+            modelContext.delete(w)
         }
         for s in sessions {
             modelContext.delete(s)

@@ -325,36 +325,30 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         
         // Fetch all WorkModels and filter in memory (no predicates)
         let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
-        
-        // Also fetch WorkContracts for legacy fallback (read-only)
-        let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
-        
+
         var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
-        
+
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
             let studentSLs = allSLs.filter { $0.studentIDs.contains(student.id.uuidString) }
             let studentIDString = student.id.uuidString
-            
+
             // Filter WorkModels for this student
             let studentWorkModels = allWorkModels.filter { work in
                 (work.participants ?? []).contains { $0.studentID == studentIDString }
             }
-            
-            // Filter WorkContracts for this student (legacy fallback)
-            let studentContracts = allContracts.filter { $0.studentID == studentIDString }
-            
+
             for lesson in lessons {
                 // CloudKit compatibility: Convert UUID to String for comparison
                 let lessonIDString = lesson.id.uuidString
                 let slsForLesson = studentSLs.filter { $0.lessonID == lessonIDString }
-                
+
                 let nonGiven = slsForLesson.filter { !$0.isGiven }
                 let plannedCandidate = nonGiven.first
                 let isScheduled = !nonGiven.isEmpty
-                
+
                 let isPresented = slsForLesson.contains { $0.isGiven }
-                
+
                 // Find WorkModel for this lesson
                 let workModelForLesson = studentWorkModels.first { work in
                     guard let slID = work.studentLessonID,
@@ -364,28 +358,11 @@ class ClassSubjectChecklistViewModel: ObservableObject {
                     }
                     return true
                 }
-                
-                // Fallback to WorkContract for legacy data
-                let contractsForLesson = studentContracts.filter { $0.lessonID == lessonIDString }
-                let openContract = contractsForLesson.first { $0.status == .active || $0.status == .review }
-                let completeContract = contractsForLesson.first { $0.status == .complete }
-                
-                // Prefer WorkModel status
-                let isActive: Bool
-                if let work = workModelForLesson {
-                    isActive = work.isOpen
-                } else {
-                    isActive = (openContract != nil)
-                }
-                
-                let isComplete: Bool
-                if let work = workModelForLesson {
-                    isComplete = (work.status == .complete)
-                } else {
-                    isComplete = (openContract == nil && completeContract != nil)
-                }
-                
-                let contractID = workModelForLesson?.id ?? workModelForLesson?.legacyContractID ?? (openContract ?? completeContract)?.id
+
+                let isActive = workModelForLesson?.isOpen ?? false
+                let isComplete = workModelForLesson?.status == .complete
+
+                let contractID = workModelForLesson?.id
                 
                 let state = StudentChecklistRowState(
                     lessonID: lesson.id,
@@ -537,12 +514,6 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         }
         for work in workModelsToDelete {
             context.delete(work)
-        }
-        // Also delete legacy WorkContracts (read-only fallback)
-        let allContracts = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
-        let contractsToDelete = allContracts.filter { $0.studentID == sidString && $0.lessonID == lidString }
-        for contract in contractsToDelete {
-            context.delete(contract)
         }
         context.safeSave()
         recomputeMatrix(context: context)

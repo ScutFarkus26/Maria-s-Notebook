@@ -178,7 +178,7 @@ struct StudentLessonQuickActionsView: View {
                                 let activeRaw = WorkStatus.active.rawValue
                                 let reviewRaw = WorkStatus.review.rawValue
                                 let followRaw = WorkKind.followUpAssignment.rawValue
-                                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
+                                let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> {
                                     $0.studentID == sid &&
                                     $0.lessonID == lidString &&
                                     ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
@@ -186,7 +186,7 @@ struct StudentLessonQuickActionsView: View {
                                 })
                                 let exists = modelContext.safeFetchFirst(fetch) != nil
                                 if !exists {
-                                    // Create WorkModel instead of WorkContract
+                                    // Create WorkModel
                                     guard let studentUUID = UUID(uuidString: sid),
                                           let lessonUUID = UUID(uuidString: lidString) else { continue }
                                     let repository = WorkRepository(context: modelContext)
@@ -342,7 +342,7 @@ struct StudentLessonQuickActionsView: View {
             let activeRaw = WorkStatus.active.rawValue
             let reviewRaw = WorkStatus.review.rawValue
             let practiceRaw = WorkKind.practiceLesson.rawValue
-            let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
+            let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> {
                 $0.studentID == sid &&
                 $0.lessonID == lidString &&
                 ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
@@ -350,7 +350,7 @@ struct StudentLessonQuickActionsView: View {
             })
             let exists = modelContext.safeFetchFirst(fetch) != nil
             if !exists {
-                // Create WorkModel instead of WorkContract
+                // Create WorkModel
                 guard let studentUUID = UUID(uuidString: sid),
                       let lessonUUID = UUID(uuidString: lidString) else { continue }
                 let repository = WorkRepository(context: modelContext)

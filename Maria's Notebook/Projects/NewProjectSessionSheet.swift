@@ -161,7 +161,7 @@ struct NewProjectSessionSheet: View {
                 let range = week.readingRange.isEmpty ? "" : "Read: \(week.readingRange)"
                 let extras = week.workInstructions.isEmpty ? "" : week.workInstructions
                 // We'll put instructions in the completion note or just implied by the session
-                // For now, we mainly need the WorkContract to exist.
+                // For now, we mainly need the WorkModel to exist.
                 
                 createContract(
                     studentID: sid,
@@ -203,7 +203,7 @@ struct NewProjectSessionSheet: View {
     }
     
     private func createContract(studentID: String, lessonID: UUID, sessionID: UUID, scheduledDate: Date, title: String, instructions: String) {
-        // Create WorkModel instead of WorkContract
+        // Create WorkModel
         guard let studentUUID = UUID(uuidString: studentID) else { return }
         
         let repository = WorkRepository(context: modelContext)
@@ -235,12 +235,9 @@ struct NewProjectSessionSheet: View {
             if workModel.checkIns == nil { workModel.checkIns = [] }
             workModel.checkIns = (workModel.checkIns ?? []) + [checkIn]
         } catch {
-            // WorkModel creation failed - log error but do not create WorkContract
-            // WorkContract is read-only for legacy data
             #if DEBUG
             print("⚠️ Failed to create WorkModel for project session: \(error)")
             #endif
-            // Do not create WorkContract - it is deprecated
         }
     }
 

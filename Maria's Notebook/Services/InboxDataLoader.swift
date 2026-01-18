@@ -123,41 +123,17 @@ final class InboxDataLoader {
     /// Loads notes only for the specified work IDs.
     func loadNotes(for workIDs: Set<UUID>) -> [Note] {
         guard !workIDs.isEmpty else { return [] }
-        
-        // Fetch notes with work relationship (preferred), then filter in Swift
+
+        // Fetch notes with work relationship, then filter in Swift
         let workDescriptor = FetchDescriptor<Note>(
             predicate: #Predicate { $0.work != nil }
         )
         let allNotesWithWork = context.safeFetch(workDescriptor)
-        
-        let workNotes = allNotesWithWork.filter { note in
+
+        return allNotesWithWork.filter { note in
             guard let work = note.work else { return false }
             return workIDs.contains(work.id)
         }
-        
-        // Also fetch legacy workContract notes for backward compatibility
-        let contractDescriptor = FetchDescriptor<Note>(
-            predicate: #Predicate { $0.workContract != nil }
-        )
-        let allNotesWithContract = context.safeFetch(contractDescriptor)
-        
-        let contractNotes = allNotesWithContract.filter { note in
-            // Skip if already included via work relationship
-            if note.work != nil { return false }
-            guard let contract = note.workContract else { return false }
-            // Note: WorkContract IDs may not match WorkModel IDs, but include for legacy data
-            return workIDs.contains(contract.id) || false // Legacy contracts won't match workIDs normally
-        }
-        
-        // Combine and deduplicate
-        var allNotes = workNotes
-        for note in contractNotes {
-            if !allNotes.contains(where: { $0.id == note.id }) {
-                allNotes.append(note)
-            }
-        }
-        
-        return allNotes
     }
     
     /// Loads students by their IDs.

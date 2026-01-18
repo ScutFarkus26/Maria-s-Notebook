@@ -9,7 +9,6 @@ struct BackupEntityRegistry {
         Student.self,
         Lesson.self,
         StudentLesson.self,
-        WorkContract.self,
         WorkPlanItem.self,
         Note.self,
         NonSchoolDay.self,

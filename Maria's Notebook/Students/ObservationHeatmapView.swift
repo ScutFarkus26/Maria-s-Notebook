@@ -87,9 +87,6 @@ struct ObservationHeatmapView: View {
             // 2) Fetch all WorkModels once (preferred)
             let allWorkModels: [WorkModel] = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
             
-            // 2b) Fetch all WorkContracts once (for legacy data)
-            let allContracts: [WorkContract] = (try? context.fetch(FetchDescriptor<WorkContract>())) ?? []
-            
             // 3) Fetch all Notes once
             let allNotes: [Note] = (try? context.fetch(FetchDescriptor<Note>())) ?? []
             
@@ -123,25 +120,17 @@ struct ObservationHeatmapView: View {
                 workIDsByStudentID[work.studentID, default: []].insert(work.id)
             }
             
-            // WorkContracts grouped by studentID (String) -> set of contract IDs (legacy)
-            var contractIDsByStudentID: [String: Set<UUID>] = [:]
-            for contract in allContracts {
-                contractIDsByStudentID[contract.studentID, default: []].insert(contract.id)
-            }
-            
             // Presentations by ID
             var presentationsByID: [UUID: Presentation] = [:]
             for presentation in allPresentations {
                 presentationsByID[presentation.id] = presentation
             }
             
-            // Notes by studentID (from scope, work, workContract, and presentation)
+            // Notes by studentID (from scope, work, and presentation)
             // Group 1: Notes with student scope - map by studentID
             var studentScopedNotesByStudentID: [UUID: [Note]] = [:]
             // Group 2: Notes with work relationships - map by workID
             var workNotesByWorkID: [UUID: Note] = [:]
-            // Group 2b: Notes with workContract relationships - map by contractID (legacy)
-            var contractNotesByContractID: [UUID: Note] = [:]
             // Group 3: Notes with presentation relationships - map by presentationID
             var presentationNotesByPresentationID: [UUID: Note] = [:]
             
@@ -162,20 +151,6 @@ struct ObservationHeatmapView: View {
                         }
                     } else {
                         workNotesByWorkID[work.id] = note
-                    }
-                }
-                
-                // Group 2b: WorkContract notes (legacy - only if work is nil)
-                if note.work == nil, let contract = note.workContract {
-                    // Store the most recent note per contract
-                    if let existing = contractNotesByContractID[contract.id] {
-                        let existingDate = max(existing.updatedAt, existing.createdAt)
-                        let noteDate = max(note.updatedAt, note.createdAt)
-                        if noteDate > existingDate {
-                            contractNotesByContractID[contract.id] = note
-                        }
-                    } else {
-                        contractNotesByContractID[contract.id] = note
                     }
                 }
                 
@@ -215,18 +190,6 @@ struct ObservationHeatmapView: View {
                 if let workIDs = workIDsByStudentID[studentIDString] {
                     for workID in workIDs {
                         if let note = workNotesByWorkID[workID] {
-                            let noteDate = max(note.updatedAt, note.createdAt)
-                            if mostRecentDate == nil || noteDate > mostRecentDate! {
-                                mostRecentDate = noteDate
-                            }
-                        }
-                    }
-                }
-                
-                // 2b) Check WorkContract notes (legacy - only if no WorkModel notes)
-                if let contractIDs = contractIDsByStudentID[studentIDString] {
-                    for contractID in contractIDs {
-                        if let note = contractNotesByContractID[contractID] {
                             let noteDate = max(note.updatedAt, note.createdAt)
                             if mostRecentDate == nil || noteDate > mostRecentDate! {
                                 mostRecentDate = noteDate
@@ -303,35 +266,7 @@ struct ObservationHeatmapView: View {
             }
         }
         
-        // 2) Check Note linked to this student's WorkContracts
-        let sid = student.id.uuidString
-        let workFetch = FetchDescriptor<WorkContract>(
-            predicate: #Predicate<WorkContract> { $0.studentID == sid }
-        )
-        let contracts: [WorkContract] = (try? modelContext.fetch(workFetch)) ?? []
-        let contractIDs = Set(contracts.map { $0.id })
-        
-        if !contractIDs.isEmpty {
-            let noteSort: [SortDescriptor<Note>] = [
-                SortDescriptor(\Note.updatedAt, order: .reverse),
-                SortDescriptor(\Note.createdAt, order: .reverse)
-            ]
-            let noteFetch = FetchDescriptor<Note>(
-                predicate: #Predicate<Note> { $0.workContract != nil },
-                sortBy: noteSort
-            )
-            let notes: [Note] = (try? modelContext.fetch(noteFetch)) ?? []
-            
-            for note in notes {
-                guard let contract = note.workContract, contractIDs.contains(contract.id) else { continue }
-                let noteDate = max(note.updatedAt, note.createdAt)
-                if mostRecentDate == nil || noteDate > mostRecentDate! {
-                    mostRecentDate = noteDate
-                }
-            }
-        }
-        
-        // 3) Check Note linked to Presentations that include this student
+        // 2) Check Note linked to Presentations that include this student
         let studentIDString = student.id.uuidString
         let presentationNoteFetch = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { $0.presentation != nil },

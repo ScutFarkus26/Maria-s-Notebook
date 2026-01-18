@@ -237,8 +237,6 @@ struct WorksAgendaView: View {
     private func openWorksFiltered() -> [WorkModel] {
         // Filter open work in memory (anything NOT .complete)
         var works = openWork
-        // During WorkContract -> WorkModel migration, avoid filtering out work items just because caches haven't loaded yet.
-        // We'll still use studentsByID/lessonsByID for display when available.
         // Optional search (use debounced text for filtering)
         if !debouncedSearchText.trimmed().isEmpty {
             let query = debouncedSearchText.lowercased()

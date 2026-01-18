@@ -22,40 +22,40 @@ import SwiftUI
     // CloudKit compatibility: Relationship arrays must be optional
     @Relationship(deleteRule: .cascade, inverse: \Note.work) var unifiedNotes: [Note]? = []
     
-    // MARK: - Migration-ready fields (for WorkContract compatibility)
-    /// Work kind (migration-ready, aligns with WorkContract.kind)
+    // MARK: - Core Work Fields
+    /// Work kind (practice, follow-up, research)
     var kindRaw: String? = nil
-    /// Work status (migration-ready, aligns with WorkContract.status)
+    /// Work status (active, review, complete)
     var statusRaw: String = WorkStatus.active.rawValue
     /// When the work was assigned (defaults to createdAt if not set)
     var assignedAt: Date = Date()
     /// Last meaningful touch date (for aging calculations)
     var lastTouchedAt: Date? = nil
-    /// Due date (maps from WorkContract.scheduledDate)
+    /// Due date for the work
     var dueAt: Date? = nil
-    /// Completion outcome (migration-ready, aligns with WorkContract.completionOutcome)
+    /// Completion outcome (mastered, needsReview, etc.)
     var completionOutcomeRaw: String? = nil
-    /// Legacy contract ID for traceability during migration
+    /// Legacy contract ID for traceability (from migration)
     var legacyContractID: UUID? = nil
-    /// Student ID (migration-ready, replaces WorkContract.studentID)
+    /// Student ID (CloudKit compatible string)
     var studentID: String = ""
-    /// Lesson ID (migration-ready, replaces WorkContract.lessonID)
+    /// Lesson ID (CloudKit compatible string)
     var lessonID: String = ""
-    /// Presentation ID (migration-ready, replaces WorkContract.presentationID)
+    /// Presentation ID (optional, CloudKit compatible string)
     var presentationID: String? = nil
-    /// Track ID (migration-ready, replaces WorkContract.trackID)
+    /// Track ID (optional, CloudKit compatible string)
     var trackID: String? = nil
-    /// Track step ID (migration-ready, replaces WorkContract.trackStepID)
+    /// Track step ID (optional, CloudKit compatible string)
     var trackStepID: String? = nil
-    /// Scheduled note (migration-ready, replaces WorkContract.scheduledNote)
+    /// Scheduled note
     var scheduledNote: String? = nil
-    /// Scheduled reason raw value (migration-ready, replaces WorkContract.scheduledReasonRaw)
+    /// Scheduled reason raw value
     var scheduledReasonRaw: String? = nil
-    /// Source context type raw value (migration-ready, replaces WorkContract.sourceContextTypeRaw)
+    /// Source context type raw value (e.g., projectSession)
     var sourceContextTypeRaw: String? = nil
-    /// Source context ID (migration-ready, replaces WorkContract.sourceContextID)
+    /// Source context ID (e.g., project session ID)
     var sourceContextID: String? = nil
-    /// Legacy student lesson ID (migration-ready, replaces WorkContract.legacyStudentLessonID)
+    /// Legacy student lesson ID for traceability
     var legacyStudentLessonID: String? = nil
 
     init(
@@ -124,33 +124,33 @@ import SwiftUI
         set { workTypeRaw = newValue.rawValue }
     }
     
-    // MARK: - Migration-ready computed properties
-    
-    /// Work kind (migration-ready, aligns with WorkContract.kind)
+    // MARK: - Computed Properties
+
+    /// Work kind (practice, follow-up, research)
     var kind: WorkKind? {
         get { kindRaw.flatMap { WorkKind(rawValue: $0) } }
         set { kindRaw = newValue?.rawValue }
     }
-    
-    /// Work status (migration-ready, aligns with WorkContract.status)
+
+    /// Work status (active, review, complete)
     var status: WorkStatus {
         get { WorkStatus(rawValue: statusRaw) ?? .active }
         set { statusRaw = newValue.rawValue }
     }
-    
-    /// Completion outcome (migration-ready, aligns with WorkContract.completionOutcome)
+
+    /// Completion outcome (mastered, needsReview, etc.)
     var completionOutcome: CompletionOutcome? {
         get { completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) } }
         set { completionOutcomeRaw = newValue?.rawValue }
     }
-    
-    /// Scheduled reason (migration-ready, aligns with WorkContract.scheduledReason)
+
+    /// Scheduled reason
     var scheduledReason: ScheduledReason? {
         get { scheduledReasonRaw.flatMap { ScheduledReason(rawValue: $0) } }
         set { scheduledReasonRaw = newValue?.rawValue }
     }
-    
-    /// Source context type (migration-ready, aligns with WorkContract.sourceContextType)
+
+    /// Source context type (e.g., projectSession)
     var sourceContextType: WorkSourceContextType? {
         get { sourceContextTypeRaw.flatMap { WorkSourceContextType(rawValue: $0) } }
         set { sourceContextTypeRaw = newValue?.rawValue }
@@ -161,17 +161,15 @@ import SwiftUI
 
     /// A work item is considered open if any participant has not completed their work.
     /// If there are no participants, treat it as open so it appears in triage lists.
-    /// Migration-ready: Also checks status for WorkContract compatibility.
     var isOpen: Bool {
-        // Migration-ready: Check status first (for WorkContract compatibility)
         if status == .complete { return false }
-        // Legacy behavior: If no participants have been assigned, consider it open
+        // If no participants have been assigned, consider it open
         if (participants ?? []).isEmpty { return true }
         // Otherwise open if any participant has not completed
         return (participants ?? []).contains { $0.completedAt == nil }
     }
-    
-    // MARK: - Status Helpers (migration-ready, aligns with WorkContract)
+
+    // MARK: - Status Helpers
     
     /// Convenience computed properties for status checks (not usable in predicates)
     var isActive: Bool { status == .active }

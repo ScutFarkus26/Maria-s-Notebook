@@ -378,7 +378,7 @@ final class TodayViewModel: ObservableObject {
             let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date().addingTimeInterval(-90*24*3600)
             let notesDescriptor = FetchDescriptor<Note>(
                 predicate: #Predicate<Note> { note in
-                    note.createdAt >= notesCutoffDate && (note.work != nil || note.workContract != nil)
+                    note.createdAt >= notesCutoffDate && note.work != nil
                 }
             )
             let fetchedNotes = try context.fetch(notesDescriptor)
@@ -386,17 +386,10 @@ final class TodayViewModel: ObservableObject {
                 if let work = note.work, workIDStrings.contains(work.id.uuidString) {
                     return true
                 }
-                if let contract = note.workContract, workIDStrings.contains(contract.id.uuidString) {
-                    return true
-                }
                 return false
             }
-            let notesByWork = notes.grouped { 
-                if let work = $0.work {
-                    return work.id
-                }
-                // Fallback: use workContract ID for legacy notes
-                return $0.workContract?.id ?? UUID()
+            let notesByWork = notes.grouped {
+                $0.work?.id ?? UUID()
             }
             
             // Process work to build schedule items

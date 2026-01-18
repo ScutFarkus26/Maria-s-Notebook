@@ -120,7 +120,7 @@ final class ProjectSession: Identifiable {
     // CloudKit compatibility: Store UUID as string
     var templateWeekID: String? = nil
 
-    // NOTE: WorkContracts are now queried dynamically via sourceContextID matching this session ID.
+    // NOTE: WorkModels are queried dynamically via sourceContextID matching this session ID.
     
     // Computed properties for backward compatibility with UUID
     var projectIDUUID: UUID? {

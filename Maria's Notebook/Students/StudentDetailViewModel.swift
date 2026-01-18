@@ -25,8 +25,8 @@ final class StudentDetailViewModel: ObservableObject {
     @Published private(set) var masteredLessonIDs: Set<UUID> = []
     @Published private(set) var plannedLessonIDs: Set<UUID> = []
 
-    @Published private(set) var contractsForStudent: [WorkContract] = []
-    @Published private(set) var contractSummary: ContractSummary = .empty
+    @Published private(set) var workModelsForStudent: [WorkModel] = []
+    @Published private(set) var workSummary: WorkSummary = .empty
 
     // MARK: - UI State
     // UI selection and toast state moved from the view
@@ -39,7 +39,7 @@ final class StudentDetailViewModel: ObservableObject {
     init(student: Student) {
         self.student = student
     }
-    
+
     // MARK: - Data Loading
     /// Load lessons and student lessons from the database using FetchDescriptor.
     /// OPTIMIZATION: Only loads studentLessons for this student and lessons referenced by them.
@@ -55,7 +55,7 @@ final class StudentDetailViewModel: ObservableObject {
         )
         let allStudentLessons = (try? modelContext.fetch(studentLessonsDescriptor)) ?? []
         let filteredStudentLessons = allStudentLessons.filter { $0.resolvedStudentIDs.contains(student.id) }
-        
+
         // OPTIMIZATION: Only fetch lessons that are referenced by this student's studentLessons
         let neededLessonIDs = Set(filteredStudentLessons.map { $0.resolvedLessonID })
         let fetchedLessons: [Lesson]
@@ -73,11 +73,11 @@ final class StudentDetailViewModel: ObservableObject {
         } else {
             fetchedLessons = []
         }
-        
+
         // Update published properties
         self.lessons = fetchedLessons
         self.studentLessons = filteredStudentLessons
-        
+
         // Update derived caches
         updateData(lessons: fetchedLessons, studentLessons: filteredStudentLessons)
     }
@@ -109,39 +109,39 @@ final class StudentDetailViewModel: ObservableObject {
         plannedLessonIDs = Set(nextLessonsForStudent.map { $0.lessonID })
     }
 
-    func updateContracts(_ contracts: [WorkContract]) {
+    func updateWorkModels(_ workModels: [WorkModel]) {
         // Set and compute summary
-        self.contractsForStudent = contracts
-        self.contractSummary = Self.computeContractSummary(contracts: contracts)
+        self.workModelsForStudent = workModels
+        self.workSummary = Self.computeWorkSummary(workModels: workModels)
     }
 
-    private static func computeContractSummary(contracts: [WorkContract]) -> ContractSummary {
+    private static func computeWorkSummary(workModels: [WorkModel]) -> WorkSummary {
         var practice = Set<UUID>()
         var follow = Set<UUID>()
         var pending = Set<UUID>()
 
-        for c in contracts where c.status != .complete {
-            guard let lid = UUID(uuidString: c.lessonID) else { continue }
-            if let k = c.kind {
+        for work in workModels where work.status != .complete {
+            guard let lid = UUID(uuidString: work.lessonID) else { continue }
+            if let k = work.kind {
                 switch k {
                 case .practiceLesson: practice.insert(lid)
                 case .followUpAssignment: follow.insert(lid)
                 case .research: break
                 }
             }
-            // Loose pending: no scheduledDate means pending
-            if c.scheduledDate == nil { pending.insert(lid) }
+            // Loose pending: no dueAt means pending
+            if work.dueAt == nil { pending.insert(lid) }
         }
-        return ContractSummary(practiceLessonIDs: practice, followUpLessonIDs: follow, pendingLessonIDs: pending)
+        return WorkSummary(practiceLessonIDs: practice, followUpLessonIDs: follow, pendingLessonIDs: pending)
     }
 
     // MARK: - Types
-    struct ContractSummary {
+    struct WorkSummary {
         let practiceLessonIDs: Set<UUID>
         let followUpLessonIDs: Set<UUID>
         let pendingLessonIDs: Set<UUID>
 
-        static let empty = ContractSummary(
+        static let empty = WorkSummary(
             practiceLessonIDs: [],
             followUpLessonIDs: [],
             pendingLessonIDs: []
@@ -266,14 +266,14 @@ final class StudentDetailViewModel: ObservableObject {
             showToast("Presentation recorded")
         }
     }
-    
+
     // MARK: - Business Logic (moved from View)
-    
+
     /// Fetch work models for the student (non-complete only)
     func fetchWorkModelsForStudent(modelContext: ModelContext) -> [WorkModel] {
         let sid = student.id.uuidString
         let completeStatusRaw = WorkStatus.complete.rawValue
-        
+
         let predicate = #Predicate<WorkModel> { work in
             work.studentID == sid && work.statusRaw != completeStatusRaw
         }
@@ -283,26 +283,19 @@ final class StudentDetailViewModel: ObservableObject {
         )
         return (try? modelContext.fetch(descriptor)) ?? []
     }
-    
-    /// Fetch contracts for the student (non-complete only) - deprecated, use fetchWorkModelsForStudent
-    @available(*, deprecated, message: "Use fetchWorkModelsForStudent instead")
-    func fetchContractsForStudent(modelContext: ModelContext) -> [WorkContract] {
-        // Legacy method - return empty array as WorkContract is read-only
-        return []
-    }
-    
+
     /// Create a draft student lesson, reusing existing if available
     func createDraftStudentLesson(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
         // Reuse an existing unscheduled entry for this lesson+student if it exists
-        if let existing = studentLessons.first(where: { 
-            $0.resolvedLessonID == lesson.id && 
-            $0.scheduledFor == nil && 
-            !$0.isGiven && 
-            Set($0.resolvedStudentIDs) == Set([student.id]) 
+        if let existing = studentLessons.first(where: {
+            $0.resolvedLessonID == lesson.id &&
+            $0.scheduledFor == nil &&
+            !$0.isGiven &&
+            Set($0.resolvedStudentIDs) == Set([student.id])
         }) {
             return existing
         }
-        
+
         let newSL = StudentLesson(
             id: UUID(),
             lessonID: lesson.id,
@@ -319,7 +312,7 @@ final class StudentDetailViewModel: ObservableObject {
         newSL.students = [student]
         modelContext.insert(newSL)
         try? modelContext.save()
-        
+
         // Auto-enroll in track if lesson is created as presented and belongs to a track
         if giveStartGiven {
             GroupTrackService.autoEnrollInTrackIfNeeded(
@@ -328,20 +321,20 @@ final class StudentDetailViewModel: ObservableObject {
                 modelContext: modelContext
             )
         }
-        
+
         return newSL
     }
-    
+
     /// Create or reuse a non-given student lesson
     func createOrReuseNonGivenStudentLesson(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
-        if let existing = studentLessons.first(where: { 
-            $0.resolvedLessonID == lesson.id && 
-            !$0.isGiven && 
-            Set($0.resolvedStudentIDs) == Set([student.id]) 
+        if let existing = studentLessons.first(where: {
+            $0.resolvedLessonID == lesson.id &&
+            !$0.isGiven &&
+            Set($0.resolvedStudentIDs) == Set([student.id])
         }) {
             return existing
         }
-        
+
         let newSL = StudentLesson(
             id: UUID(),
             lessonID: lesson.id,
@@ -358,10 +351,10 @@ final class StudentDetailViewModel: ObservableObject {
         newSL.students = [student]
         modelContext.insert(newSL)
         try? modelContext.save()
-        
+
         return newSL
     }
-    
+
     /// Log a presentation for a lesson
     func logPresentation(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
         let newSL = StudentLesson(
@@ -380,36 +373,35 @@ final class StudentDetailViewModel: ObservableObject {
         newSL.students = [student]
         modelContext.insert(newSL)
         try? modelContext.save()
-        
+
         // Auto-enroll in track if lesson belongs to a track
         GroupTrackService.autoEnrollInTrackIfNeeded(
             lesson: lesson,
             studentIDs: [student.id.uuidString],
             modelContext: modelContext
         )
-        
+
         return newSL
     }
-    
+
     /// Ensure work exists for a lesson, creating WorkModel if needed
-    /// Returns the WorkModel (WorkContract is read-only for legacy data)
     func ensureWork(for lesson: Lesson, presentationStudentLesson: StudentLesson?, modelContext: ModelContext) -> WorkModel? {
         // Check for existing WorkModel first
         let studentLessonID = presentationStudentLesson?.id
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
-        
+
         // Fetch all WorkModels and filter in memory (no predicates)
         let allWorkModels = (try? modelContext.fetch(FetchDescriptor<WorkModel>())) ?? []
         let existingWork = allWorkModels.first { work in
             work.studentLessonID == studentLessonID &&
             (work.statusRaw == activeRaw || work.statusRaw == reviewRaw)
         }
-        
+
         if let existing = existingWork {
             return existing
         }
-        
+
         // Create new WorkModel
         let repository = WorkRepository(context: modelContext)
         do {
@@ -425,36 +417,10 @@ final class StudentDetailViewModel: ObservableObject {
             return nil
         }
     }
-    
-    /// Legacy method: Returns WorkContract for backward compatibility (deprecated)
-    /// Uses WorkLegacyAdapter to map to WorkModel if available.
-    @available(*, deprecated, message: "Use ensureWork instead. WorkContract is deprecated in favor of WorkModel.")
-    func ensureContract(for lesson: Lesson, presentationStudentLesson: StudentLesson?, modelContext: ModelContext) -> WorkContract? {
-        guard let workModel = ensureWork(for: lesson, presentationStudentLesson: presentationStudentLesson, modelContext: modelContext) else {
-            return nil
-        }
-        
-        // Use legacy adapter to find WorkContract if it exists
-        if let legacyID = workModel.legacyContractID {
-            // Fetch all WorkContracts and filter in memory (no predicates)
-            let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
-            return allContracts.first { $0.id == legacyID }
-        }
-        return nil
-    }
-    
-    /// Fetch a WorkModel by ID (primary method)
+
+    /// Fetch a WorkModel by ID
     func fetchWork(by id: UUID, modelContext: ModelContext) -> WorkModel? {
         let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> { $0.id == id })
         return (try? modelContext.fetch(descriptor))?.first
     }
-    
-    /// Fetch a contract by ID (legacy - use fetchWork instead)
-    @available(*, deprecated, message: "Use fetchWork instead. WorkContract is deprecated in favor of WorkModel.")
-    func fetchContract(by id: UUID, modelContext: ModelContext) -> WorkContract? {
-        // Fetch all WorkContracts and filter in memory (no predicates)
-        let allContracts = (try? modelContext.fetch(FetchDescriptor<WorkContract>())) ?? []
-        return allContracts.first { $0.id == id }
-    }
 }
-

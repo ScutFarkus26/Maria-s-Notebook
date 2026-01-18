@@ -1,5 +1,5 @@
 // WorkPlanItem.swift
-// New SwiftData model to plan check-ins for WorkContract without mutating Work itself.
+// SwiftData model to plan check-ins for WorkModel without mutating Work itself.
 
 import Foundation
 import SwiftData
@@ -40,7 +40,7 @@ final class WorkPlanItem: Identifiable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
 
-    // Foreign key to WorkContract (store UUID for light coupling)
+    // Foreign key to WorkModel (store UUID for light coupling)
     // CloudKit compatibility: Store UUID as string
     var workID: String = ""
 

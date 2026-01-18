@@ -1,6 +1,5 @@
 // TodayView.swift
-// Today hub showing reminders, lessons, scheduled check-ins (WorkPlanItem), follow-ups (Stale Contracts), and completions.
-// Updated to use WorkContract and WorkPlanItem instead of legacy WorkCheckIn.
+// Today hub showing reminders, lessons, scheduled check-ins (WorkPlanItem), follow-ups, and completions.
 // Integrated AttendanceView expansion logic with fixed roll-down animation.
 
 import SwiftUI

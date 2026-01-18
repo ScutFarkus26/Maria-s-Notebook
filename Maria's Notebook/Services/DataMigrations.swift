@@ -493,115 +493,17 @@ enum DataMigrations {
         }
     }
     
-    /// Migrate WorkContract records to WorkModel records.
-    /// For each WorkContract that does not already exist as a WorkModel (based on legacyContractID),
-    /// creates a WorkModel using WorkModel.from(contract:in:).
-    /// Also migrates relationships from Note and ScopedNote from workContract to work.
-    /// Idempotent: only migrates contracts that don't already have corresponding WorkModels.
+    /// Backfill WorkModel IDs from StudentLesson where needed.
+    /// Legacy migration from WorkContract is complete - this function now only handles
+    /// WorkModels created via the StudentLesson path that need ID backfill.
     @MainActor
     static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
         do {
-            // Fetch all WorkContract records
-            let contracts = context.safeFetch(FetchDescriptor<WorkContract>())
-            guard !contracts.isEmpty else { return }
-            
-            // Build lookup dictionary for contracts
-            let contractByID = Dictionary(uniqueKeysWithValues: contracts.map { ($0.id, $0) })
-            
-            // Fetch all WorkModel records and build a set of existing legacyContractID values
+            // Fetch all WorkModel records
             let workModels = context.safeFetch(FetchDescriptor<WorkModel>())
-            let existingLegacyContractIDs = Set(workModels.compactMap { $0.legacyContractID })
-            
-            // Count how many we create
-            var createdWorkCount = 0
-            
-            // For each WorkContract that doesn't already exist as a WorkModel, create a WorkModel
-            for (index, contract) in contracts.enumerated() {
-                // Yield every 50 iterations to prevent blocking
-                if index % 50 == 0 && index > 0 {
-                    await Task.yield()
-                }
-                
-                // Skip if this contract already has a corresponding WorkModel
-                guard !existingLegacyContractIDs.contains(contract.id) else { continue }
-                
-                // Create WorkModel using the helper
-                let workModel = WorkModel.from(contract: contract, in: context)
-                
-                // Insert into context
-                context.insert(workModel)
-                createdWorkCount += 1
-            }
-            
-            // Always attempt to migrate Note and ScopedNote relationships (even if createdWorkCount is 0)
-            // Use LegacyWorkAdapter to look up migrated WorkModel by legacy contract ID
-            let adapter = LegacyWorkAdapter(modelContext: context)
-            var migratedNotesCount = 0
-            
-            // Build mapping of legacy contract IDs to WorkModels
-            let allWorkModels = (try? adapter.fetchAllWorkModels()) ?? []
-            let workModelsByContractID = adapter.workModelsByLegacyContractID(workModels: allWorkModels)
-            
-            // Migrate Note relationships - optimized fetch with predicate
-            let notesDescriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.workContract != nil && $0.work == nil })
-            let notes = (try? context.fetch(notesDescriptor)) ?? []
-            for (index, note) in notes.enumerated() {
-                // Yield every 50 iterations to prevent blocking
-                if index % 50 == 0 && index > 0 {
-                    await Task.yield()
-                }
-                
-                // Only migrate if note has workContract but no work
-                guard let workContract = note.workContract, note.work == nil else { continue }
-                
-                // Look up the migrated WorkModel by legacy contract ID
-                guard let workModel = adapter.resolveWorkModel(forLegacyContract: workContract, map: workModelsByContractID) else { continue }
-                
-                // Move the relationship
-                note.work = workModel
-                note.workContract = nil
-                migratedNotesCount += 1
-            }
-            
-            // ScopedNote migration has been completed. All notes are now in the unified Note system.
-            
-            // Backfill IDs for already-migrated WorkModels
-            var backfilledCount = 0
-            for (index, work) in workModels.enumerated() {
-                // Yield every 50 iterations to prevent blocking
-                if index % 50 == 0 && index > 0 {
-                    await Task.yield()
-                }
-                
-                // Only process WorkModels that have a legacyContractID
-                guard let legacyContractID = work.legacyContractID else { continue }
-                
-                // Check if backfill is needed
-                let needsBackfill = work.studentID.isEmpty || work.lessonID.isEmpty || (work.presentationID == nil && contractByID[legacyContractID]?.presentationID != nil)
-                
-                if needsBackfill {
-                    // Find the contract using legacyContractID
-                    guard let contract = contractByID[legacyContractID] else { continue }
-                    
-                    // Backfill IDs from contract
-                    work.studentID = contract.studentID
-                    work.lessonID = contract.lessonID
-                    if let presentationID = contract.presentationID {
-                        work.presentationID = presentationID
-                    }
-                    if let trackID = contract.trackID {
-                        work.trackID = trackID
-                    }
-                    if let trackStepID = contract.trackStepID {
-                        work.trackStepID = trackStepID
-                    }
-                    
-                    backfilledCount += 1
-                }
-            }
-            
-            // Backfill WorkModels that were created using studentLessonID (StudentLesson-based paths) but have empty string IDs.
-            // These cannot be repaired via legacyContractID because they are not migrated from WorkContract.
+            guard !workModels.isEmpty else { return }
+
+            // Backfill WorkModels that were created using studentLessonID but have empty string IDs
             let studentLessons = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
             let studentLessonByID: [UUID: StudentLesson] = Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
 
@@ -612,7 +514,7 @@ enum DataMigrations {
                 if index % 50 == 0 && index > 0 {
                     await Task.yield()
                 }
-                
+
                 guard (work.studentID.isEmpty || work.lessonID.isEmpty), let slID = work.studentLessonID else { continue }
                 guard let sl = studentLessonByID[slID] else { continue }
 
@@ -626,27 +528,14 @@ enum DataMigrations {
                 if work.legacyStudentLessonID == nil { work.legacyStudentLessonID = slID.uuidString }
                 studentLessonBackfilledCount += 1
             }
-            
-            // Save once at the end only if something changed
-            if createdWorkCount > 0 || migratedNotesCount > 0 || backfilledCount > 0 || studentLessonBackfilledCount > 0 {
+
+            // Save if something changed
+            if studentLessonBackfilledCount > 0 {
                 try context.save()
-                
-                // Print logs only when something changed
-                if createdWorkCount > 0 {
-                    print("DataMigrations: Migrated \(createdWorkCount) WorkContract records into WorkModel.")
-                }
-                if migratedNotesCount > 0 {
-                    print("DataMigrations: Migrated \(migratedNotesCount) notes to WorkModel relationships.")
-                }
-                if backfilledCount > 0 {
-                    print("DataMigrations: Backfilled IDs for \(backfilledCount) WorkModel records.")
-                }
-                if studentLessonBackfilledCount > 0 {
-                    print("DataMigrations: Backfilled IDs from StudentLesson for \(studentLessonBackfilledCount) WorkModel records.")
-                }
+                print("DataMigrations: Backfilled IDs from StudentLesson for \(studentLessonBackfilledCount) WorkModel records.")
             }
         } catch {
-            print("DataMigrations: WorkContract -> WorkModel migration failed: \(error.localizedDescription)")
+            print("DataMigrations: WorkModel ID backfill failed: \(error.localizedDescription)")
         }
     }
     

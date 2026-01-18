@@ -265,8 +265,8 @@ final class LessonPickerViewModel: ObservableObject {
             context.insert(studentLesson)
         }
         
-        // WorkContract flow
-        // If marking as given and practice is requested, explode per-student practice contracts via LifecycleService
+        // WorkModel flow
+        // If marking as given and practice is requested, explode per-student practice work via LifecycleService
         if mode == .given && needsPractice {
             let presentedDate = AppCalendar.startOfDay(givenAt ?? Date())
             do {
@@ -341,7 +341,7 @@ final class LessonPickerViewModel: ObservableObject {
             }
         }
 
-        // Create follow-up contracts if specified (both plan and given)
+        // Create follow-up work if specified (both plan and given)
         let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedFollowUp.isEmpty {
             let sidStrings = selectedIDs.map { $0.uuidString }
@@ -351,7 +351,7 @@ final class LessonPickerViewModel: ObservableObject {
                 let activeRaw = WorkStatus.active.rawValue
                 let reviewRaw = WorkStatus.review.rawValue
                 let followRaw = WorkKind.followUpAssignment.rawValue
-                let fetch = FetchDescriptor<WorkContract>(predicate: #Predicate<WorkContract> {
+                let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> {
                     $0.studentID == sid &&
                     $0.lessonID == lidString &&
                     ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
@@ -359,7 +359,6 @@ final class LessonPickerViewModel: ObservableObject {
                 })
                 let exists = ((try? context.fetch(fetch)) ?? []).first != nil
                 if !exists {
-                    // Create WorkModel instead of WorkContract
                     guard let studentUUID = UUID(uuidString: sid),
                           let lessonUUID = UUID(uuidString: lidString) else { continue }
                     let repository = WorkRepository(context: context)

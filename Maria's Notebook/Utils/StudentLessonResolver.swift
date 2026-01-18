@@ -40,23 +40,23 @@ enum StudentLessonResolver {
         return lesson.name
     }
     
-    // MARK: - Contract-Based Resolution
-    
-    /// Resolves both student and lesson names from a WorkContract.
+    // MARK: - Work-Based Resolution
+
+    /// Resolves both student and lesson names from a WorkModel.
     /// - Parameters:
-    ///   - contract: The WorkContract to resolve names from
+    ///   - work: The WorkModel to resolve names from
     ///   - studentsByID: Dictionary mapping student UUIDs to Student objects
     ///   - lessonsByID: Dictionary mapping lesson UUIDs to Lesson objects
     ///   - studentNameStyle: How to format the student name (default: .displayName)
     /// - Returns: Tuple with (studentName, lessonName)
     static func resolveNames(
-        for contract: WorkContract,
+        for work: WorkModel,
         studentsByID: [UUID: Student],
         lessonsByID: [UUID: Lesson],
         studentNameStyle: StudentNameStyle = .displayName
     ) -> (student: String, lesson: String) {
         let studentName: String
-        if let sid = UUID(uuidString: contract.studentID) {
+        if let sid = UUID(uuidString: work.studentID) {
             switch studentNameStyle {
             case .displayName:
                 studentName = displayName(for: sid, studentsByID: studentsByID)
@@ -66,14 +66,14 @@ enum StudentLessonResolver {
         } else {
             studentName = "Student"
         }
-        
+
         let lessonName: String
-        if let lid = UUID(uuidString: contract.lessonID) {
+        if let lid = UUID(uuidString: work.lessonID) {
             lessonName = self.lessonName(for: lid, lessonsByID: lessonsByID)
         } else {
             lessonName = "Lesson"
         }
-        
+
         return (studentName, lessonName)
     }
     

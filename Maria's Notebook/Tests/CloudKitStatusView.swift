@@ -4,6 +4,8 @@ import SwiftData
 import AppKit
 #endif
 
+@testable import Maria_s_Notebook
+
 /// View that displays CloudKit sync status and record counts
 struct CloudKitStatusView: View {
     @Environment(\.modelContext) private var modelContext

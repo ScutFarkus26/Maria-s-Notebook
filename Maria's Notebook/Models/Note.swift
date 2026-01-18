@@ -118,8 +118,6 @@ final class Note: Identifiable {
     @Relationship var work: WorkModel?
     @Relationship var studentLesson: StudentLesson?
     @Relationship var presentation: Presentation?
-    /// @deprecated Use `work` relationship instead. Kept for backward compatibility with legacy WorkContract data.
-    @Relationship var workContract: WorkContract?
     @Relationship var attendanceRecord: AttendanceRecord?
     @Relationship var workCheckIn: WorkCheckIn?
     @Relationship var workCompletionRecord: WorkCompletionRecord?
@@ -167,7 +165,6 @@ final class Note: Identifiable {
         if work != nil { return "work" }
         if studentLesson != nil { return "studentLesson" }
         if presentation != nil { return "presentation" }
-        if workContract != nil { return "workContract" }
         if attendanceRecord != nil { return "attendance" }
         if workCheckIn != nil { return "workCheckIn" }
         if workCompletionRecord != nil { return "workCompletion" }
@@ -195,7 +192,6 @@ final class Note: Identifiable {
         work: WorkModel? = nil,
         studentLesson: StudentLesson? = nil,
         presentation: Presentation? = nil,
-        workContract: WorkContract? = nil,
         attendanceRecord: AttendanceRecord? = nil,
         workCheckIn: WorkCheckIn? = nil,
         workCompletionRecord: WorkCompletionRecord? = nil,
@@ -221,7 +217,6 @@ final class Note: Identifiable {
         self.work = work
         self.studentLesson = studentLesson
         self.presentation = presentation
-        self.workContract = workContract
         self.attendanceRecord = attendanceRecord
         self.workCheckIn = workCheckIn
         self.workCompletionRecord = workCompletionRecord

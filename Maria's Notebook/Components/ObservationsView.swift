@@ -378,12 +378,8 @@ struct ObservationsView: View {
         if note.presentation != nil {
             return "Presentation"
         }
-        // Check work relationship first (preferred), then fallback to workContract for legacy data
         if note.work != nil {
             return "Work: \(note.work?.title ?? "")"
-        }
-        if note.workContract != nil {
-            return "Work Contract"
         }
         if note.attendanceRecord != nil {
             return "Attendance"

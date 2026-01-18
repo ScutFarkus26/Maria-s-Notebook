@@ -17,7 +17,7 @@ struct BackupServiceRoundTripTests {
             Student.self,
             Lesson.self,
             StudentLesson.self,
-            WorkContract.self,
+            WorkModel.self,
             WorkPlanItem.self,
             Note.self,
             NonSchoolDay.self,
@@ -69,12 +69,13 @@ struct BackupServiceRoundTripTests {
             context.insert(sl)
         }
 
-        if canFetch(WorkContract.self, in: context) {
-            let wc = WorkContract(
+        if canFetch(WorkModel.self, in: context) {
+            let work = WorkModel(
+                title: "Test Work",
                 studentID: UUID().uuidString,
                 lessonID: UUID().uuidString
             )
-            context.insert(wc)
+            context.insert(work)
         }
 
         if canFetch(WorkPlanItem.self, in: context) {
@@ -154,7 +155,7 @@ struct BackupServiceRoundTripTests {
             Student.self,
             Lesson.self,
             StudentLesson.self,
-            WorkContract.self,
+            WorkModel.self,
             WorkPlanItem.self,
             Note.self,
             NonSchoolDay.self,
@@ -245,9 +246,9 @@ struct BackupServiceRoundTripTests {
             case is StudentLesson.Type:
                 sourceCount = countEntities(StudentLesson.self, in: sourceContext)
                 destCount = countEntities(StudentLesson.self, in: destContext)
-            case is WorkContract.Type:
-                sourceCount = countEntities(WorkContract.self, in: sourceContext)
-                destCount = countEntities(WorkContract.self, in: destContext)
+            case is WorkModel.Type:
+                sourceCount = countEntities(WorkModel.self, in: sourceContext)
+                destCount = countEntities(WorkModel.self, in: destContext)
             case is WorkPlanItem.Type:
                 sourceCount = countEntities(WorkPlanItem.self, in: sourceContext)
                 destCount = countEntities(WorkPlanItem.self, in: destContext)
