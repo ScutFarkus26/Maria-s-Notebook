@@ -182,8 +182,6 @@ public final class BackupService {
             )
         }
 
-        // WorkContract is deprecated - export empty array for backward compatibility
-        let workContractDTOs: [WorkContractDTO] = []
 
         let workPlanItemDTOs: [WorkPlanItemDTO] = workPlanItems.compactMap { w in
             guard let workIDUUID = UUID(uuidString: w.workID) else { return nil }
@@ -399,7 +397,6 @@ public final class BackupService {
             students: studentDTOs,
             lessons: lessonDTOs,
             studentLessons: studentLessonDTOs,
-            workContracts: workContractDTOs,
             workPlanItems: workPlanItemDTOs,
             scopedNotes: scopedNoteDTOs,
             notes: noteDTOs,
@@ -454,8 +451,6 @@ public final class BackupService {
             "Student": studentDTOs.count,
             "Lesson": lessonDTOs.count,
             "StudentLesson": studentLessonDTOs.count,
-            // WorkContract deprecated - always 0 in new exports
-            "WorkContract": 0,
             "WorkPlanItem": workPlanItemDTOs.count,
             "ScopedNote": scopedNoteDTOs.count,
             "Note": noteDTOs.count,
@@ -626,8 +621,6 @@ public final class BackupService {
             assign("Student", ins: payload.students.count, del: count(Student.self))
             assign("Lesson", ins: payload.lessons.count, del: count(Lesson.self))
             assign("StudentLesson", ins: payload.studentLessons.count, del: count(StudentLesson.self))
-            // WorkContract deprecated - imports are converted to WorkModel
-            assign("WorkContract", ins: payload.workContracts.count, del: 0)
             assign("WorkPlanItem", ins: payload.workPlanItems.count, del: count(WorkPlanItem.self))
             // Removed: ScopedNote
             assign("Note", ins: payload.notes.count, del: count(Note.self))
@@ -692,9 +685,7 @@ public final class BackupService {
                 )
                 assign(key, ins: counts.insert, sk: counts.skip)
             }
-            
-            // WorkContract deprecated - count based on legacyContractID in WorkModel or new inserts
-            assign("WorkContract", ins: payload.workContracts.filter { !exists(WorkModel.self, $0.id) }.count, sk: payload.workContracts.filter { exists(WorkModel.self, $0.id) }.count)
+
             assignCounts("WorkPlanItem", items: payload.workPlanItems, type: WorkPlanItem.self) { $0.id }
             // Removed: ScopedNote count
             assignCounts("Note", items: payload.notes, type: Note.self) { $0.id }
@@ -846,40 +837,6 @@ public final class BackupService {
             modelContext.insert(t)
         }
 
-        // Work Contracts - Import as WorkModels for backward compatibility with old backups
-        for dto in payload.workContracts {
-            // Check if already exists as a WorkModel (by legacyContractID or id)
-            if (try? fetchOne(WorkModel.self, id: dto.id, using: modelContext)) != nil { continue }
-            // Create WorkModel from the legacy WorkContract DTO
-            let work = WorkModel(
-                id: dto.id,
-                title: "",
-                workType: .research,
-                studentLessonID: nil,
-                notes: dto.completionNote ?? "",
-                createdAt: dto.createdAt ?? Date(),
-                completedAt: dto.completedAt,
-                participants: [],
-                kind: dto.kind.flatMap { WorkKind(rawValue: $0) },
-                status: WorkStatus(rawValue: dto.status) ?? .active,
-                assignedAt: dto.createdAt ?? Date(),
-                lastTouchedAt: nil,
-                dueAt: dto.scheduledDate,
-                completionOutcome: dto.completionOutcome.flatMap { CompletionOutcome(rawValue: $0) },
-                legacyContractID: dto.id,
-                studentID: dto.studentID,
-                lessonID: dto.lessonID,
-                presentationID: dto.presentationID,
-                trackID: nil,
-                trackStepID: nil,
-                scheduledNote: dto.scheduledNote,
-                scheduledReason: dto.scheduledReason.flatMap { ScheduledReason(rawValue: $0) },
-                sourceContextType: nil,
-                sourceContextID: nil,
-                legacyStudentLessonID: dto.legacyStudentLessonID
-            )
-            modelContext.insert(work)
-        }
 
         // Work Plan Items
         for dto in payload.workPlanItems {

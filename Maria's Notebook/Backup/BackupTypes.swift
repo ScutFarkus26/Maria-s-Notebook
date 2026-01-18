@@ -186,7 +186,6 @@ public struct BackupPayload: Codable, Sendable {
     public var students: [StudentDTO]
     public var lessons: [LessonDTO]
     public var studentLessons: [StudentLessonDTO]
-    public var workContracts: [WorkContractDTO]
     public var workPlanItems: [WorkPlanItemDTO]
     public var scopedNotes: [ScopedNoteDTO]
     public var notes: [NoteDTO]
@@ -219,7 +218,6 @@ public struct BackupPayload: Codable, Sendable {
         case students
         case lessons
         case studentLessons
-        case workContracts
         case workPlanItems
         case scopedNotes
         case notes
@@ -255,7 +253,6 @@ public struct BackupPayload: Codable, Sendable {
         students: [StudentDTO],
         lessons: [LessonDTO],
         studentLessons: [StudentLessonDTO],
-        workContracts: [WorkContractDTO],
         workPlanItems: [WorkPlanItemDTO],
         scopedNotes: [ScopedNoteDTO],
         notes: [NoteDTO],
@@ -281,7 +278,6 @@ public struct BackupPayload: Codable, Sendable {
         self.students = students
         self.lessons = lessons
         self.studentLessons = studentLessons
-        self.workContracts = workContracts
         self.workPlanItems = workPlanItems
         self.scopedNotes = scopedNotes
         self.notes = notes
@@ -310,7 +306,6 @@ public struct BackupPayload: Codable, Sendable {
         self.students = try container.decode([StudentDTO].self, forKey: .students)
         self.lessons = try container.decode([LessonDTO].self, forKey: .lessons)
         self.studentLessons = try container.decode([StudentLessonDTO].self, forKey: .studentLessons)
-        self.workContracts = try container.decode([WorkContractDTO].self, forKey: .workContracts)
         self.workPlanItems = try container.decode([WorkPlanItemDTO].self, forKey: .workPlanItems)
         self.scopedNotes = try container.decode([ScopedNoteDTO].self, forKey: .scopedNotes)
         self.notes = try container.decode([NoteDTO].self, forKey: .notes)
@@ -386,7 +381,6 @@ public struct BackupPayload: Codable, Sendable {
         try container.encode(students, forKey: .students)
         try container.encode(lessons, forKey: .lessons)
         try container.encode(studentLessons, forKey: .studentLessons)
-        try container.encode(workContracts, forKey: .workContracts)
         try container.encode(workPlanItems, forKey: .workPlanItems)
         try container.encode(scopedNotes, forKey: .scopedNotes)
         try container.encode(notes, forKey: .notes)
@@ -517,22 +511,6 @@ public struct WorkCompletionRecordDTO: Codable, Sendable {
     public var note: String
 }
 
-public struct WorkContractDTO: Codable, Sendable {
-    public var id: UUID
-    public var studentID: String
-    public var lessonID: String
-    public var presentationID: String?
-    public var status: String
-    public var scheduledDate: Date?
-    public var createdAt: Date?
-    public var completedAt: Date?
-    public var kind: String?
-    public var scheduledReason: String?
-    public var scheduledNote: String?
-    public var completionOutcome: String?
-    public var completionNote: String?
-    public var legacyStudentLessonID: String?
-}
 
 public struct WorkPlanItemDTO: Codable, Sendable {
     public var id: UUID
@@ -552,7 +530,6 @@ public struct ScopedNoteDTO: Codable, Sendable {
     public var studentLessonID: UUID?
     public var workID: UUID?
     public var presentationID: UUID?
-    public var workContractID: UUID?
 }
 
 public struct NoteDTO: Codable, Sendable {

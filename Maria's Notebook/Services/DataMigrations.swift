@@ -26,15 +26,6 @@ enum DataMigrations {
         }
     }
 
-    /// Normalize all Work-related dates to start-of-day (strip time) once.
-    /// - WorkModel.createdAt, WorkModel.completedAt
-    /// - WorkParticipantEntity.completedAt
-    /// - WorkCompletionRecord.completedAt
-    /// - WorkCheckIn.date
-    static func normalizeWorkDatesToDateOnlyIfNeeded(using context: ModelContext) {
-        let flagKey = "Migration.workDatesDateOnly.v1"
-        MigrationFlag.markComplete(key: flagKey)
-    }
 
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
@@ -83,13 +74,6 @@ enum DataMigrations {
         }
 
         if changed { context.safeSave() }
-    }
-    
-    /// Backfill Work participants from legacy studentIDs and delete empty Work items if needed.
-    /// Idempotent and safe to call multiple times.
-    static func backfillParticipantsAndDeleteEmptyWorksIfNeeded(using context: ModelContext) {
-        let flagKey = "Migration.workParticipantsBackfillAndPrune.v1"
-        MigrationFlag.markComplete(key: flagKey)
     }
     
     /// Fix CommunityTopic.tags property migration to new storage format.
