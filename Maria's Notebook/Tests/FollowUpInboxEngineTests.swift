@@ -1,9 +1,10 @@
 #if canImport(Testing)
 import Testing
 import Foundation
+import SwiftData
 @testable import Maria_s_Notebook
 
-@Suite("FollowUpInboxItem Tests")
+@Suite("FollowUpInboxItem Tests", .serialized)
 struct FollowUpInboxItemTests {
 
     // MARK: - Kind Tests
@@ -370,7 +371,7 @@ struct FollowUpInboxItemTests {
     }
 }
 
-@Suite("FollowUpInboxEngine.Constants Tests")
+@Suite("FollowUpInboxEngine.Constants Tests", .serialized)
 struct FollowUpInboxEngineConstantsTests {
 
     @Test("Default lessonFollowUpOverdueDays is 7")
@@ -407,7 +408,7 @@ struct FollowUpInboxEngineConstantsTests {
     }
 }
 
-@Suite("FollowUpInboxEngine Edge Cases Tests")
+@Suite("FollowUpInboxEngine Edge Cases Tests", .serialized)
 @MainActor
 struct FollowUpInboxEngineEdgeCasesTests {
 
@@ -429,7 +430,7 @@ struct FollowUpInboxEngineEdgeCasesTests {
     }
 
     private func makeStudent(id: UUID = UUID(), firstName: String = "Test", lastName: String = "Student") -> Student {
-        return Student(id: id, firstName: firstName, lastName: lastName)
+        return Student(id: id, firstName: firstName, lastName: lastName, birthday: TestCalendar.date(year: 2015, month: 6, day: 15))
     }
 
     private func makeLesson(id: UUID = UUID(), name: String = "Test Lesson") -> Lesson {
@@ -560,12 +561,24 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let student = makeStudent()
         let lesson = makeLesson()
 
-        // Lesson presented exactly 7 days ago (default threshold)
-        let sevenDaysAgo = AppCalendar.addingDays(-7, to: Date())
+        // Get the date that is exactly 7 school days ago (default threshold)
+        // The engine counts school days (weekdays only), not calendar days
+        let today = AppCalendar.startOfDay(Date())
+        var schoolDaysBack = 0
+        var cursor = today
+        while schoolDaysBack < 7 {
+            cursor = AppCalendar.addingDays(-1, to: cursor)
+            let weekday = AppCalendar.shared.component(.weekday, from: cursor)
+            if weekday != 1 && weekday != 7 { // Not weekend
+                schoolDaysBack += 1
+            }
+        }
+        let sevenSchoolDaysAgo = cursor
+
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
             studentIDs: [student.id],
-            givenAt: sevenDaysAgo,
+            givenAt: sevenSchoolDaysAgo,
             isPresented: true
         )
 
@@ -590,12 +603,24 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let student = makeStudent()
         let lesson = makeLesson()
 
-        // Lesson presented 8 days ago (1 past default threshold of 7)
-        let eightDaysAgo = AppCalendar.addingDays(-8, to: Date())
+        // Get the date that is 8 school days ago (1 past default threshold of 7)
+        // The engine counts school days (weekdays only), not calendar days
+        let today = AppCalendar.startOfDay(Date())
+        var schoolDaysBack = 0
+        var cursor = today
+        while schoolDaysBack < 8 {
+            cursor = AppCalendar.addingDays(-1, to: cursor)
+            let weekday = AppCalendar.shared.component(.weekday, from: cursor)
+            if weekday != 1 && weekday != 7 { // Not weekend
+                schoolDaysBack += 1
+            }
+        }
+        let eightSchoolDaysAgo = cursor
+
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
             studentIDs: [student.id],
-            givenAt: eightDaysAgo,
+            givenAt: eightSchoolDaysAgo,
             isPresented: true
         )
 
@@ -789,17 +814,30 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let lesson1 = makeLesson(id: UUID(), name: "Lesson 1")
         let lesson2 = makeLesson(id: UUID(), name: "Lesson 2")
 
-        // Create one overdue and one upcoming
+        // Helper to find date N school days ago
+        func schoolDaysAgo(_ n: Int) -> Date {
+            let today = AppCalendar.startOfDay(Date())
+            var count = 0
+            var cursor = today
+            while count < n {
+                cursor = AppCalendar.addingDays(-1, to: cursor)
+                let weekday = AppCalendar.shared.component(.weekday, from: cursor)
+                if weekday != 1 && weekday != 7 { count += 1 }
+            }
+            return cursor
+        }
+
+        // Create one overdue (10 school days > 7 threshold) and one upcoming (5 school days, 2 before threshold)
         let overdueLesson = StudentLesson(
             lessonID: lesson1.id,
             studentIDs: [student.id],
-            givenAt: AppCalendar.addingDays(-10, to: Date()),
+            givenAt: schoolDaysAgo(10),
             isPresented: true
         )
         let upcomingLesson = StudentLesson(
             lessonID: lesson2.id,
             studentIDs: [student.id],
-            givenAt: AppCalendar.addingDays(-5, to: Date()),
+            givenAt: schoolDaysAgo(5),
             isPresented: true
         )
 

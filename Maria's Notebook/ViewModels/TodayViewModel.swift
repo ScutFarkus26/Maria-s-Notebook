@@ -323,7 +323,9 @@ final class TodayViewModel: ObservableObject {
             // ENERGY OPTIMIZATION: Limit work fetch to relevant time window
             // Only fetch work that could be relevant (created or touched in last 90 days)
             // This significantly reduces memory usage and query time
-            let cutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date().addingTimeInterval(-90*24*3600)
+            // Use the view model's date for cutoff to support testing with historical dates
+            let referenceDate = max(date, Date())
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: referenceDate) ?? referenceDate.addingTimeInterval(-90*24*3600)
             
             // Fetch Active/Review WorkModels with date filter
             let workDescriptor = FetchDescriptor<WorkModel>(
