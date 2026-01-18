@@ -46,7 +46,7 @@ struct WorkAgingPolicyTests {
         let note = Note(
             id: UUID(),
             createdAt: createdAt,
-            content: "Test note"
+            body: "Test note"
         )
         if let updated = updatedAt {
             note.updatedAt = updated
@@ -457,7 +457,7 @@ struct WorkAgingPolicyTests {
         let context = ModelContext(container)
 
         let today = AppCalendar.startOfDay(Date())
-        let work = makeWorkModel(dueAt: today, lastTouchedAt: today)
+        let work = makeWorkModel(lastTouchedAt: today, dueAt: today)
 
         let result = WorkAgingPolicy.urgencyBucket(for: work, modelContext: context)
 
@@ -470,7 +470,7 @@ struct WorkAgingPolicyTests {
         let context = ModelContext(container)
 
         let tomorrow = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
-        let work = makeWorkModel(dueAt: tomorrow, lastTouchedAt: AppCalendar.startOfDay(Date()))
+        let work = makeWorkModel(lastTouchedAt: AppCalendar.startOfDay(Date()), dueAt: tomorrow)
 
         let result = WorkAgingPolicy.urgencyBucket(for: work, modelContext: context)
 
@@ -492,10 +492,10 @@ struct WorkAgingPolicyTests {
 
     @Test("urgencyBucket comparison ordering")
     func urgencyBucketOrdering() {
-        #expect(UrgencyBucket.none < UrgencyBucket.upcoming)
-        #expect(UrgencyBucket.upcoming < UrgencyBucket.today)
-        #expect(UrgencyBucket.today < UrgencyBucket.overdue)
-        #expect(UrgencyBucket.overdue < UrgencyBucket.stale)
+        #expect(WorkAgingPolicy.UrgencyBucket.none < WorkAgingPolicy.UrgencyBucket.upcoming)
+        #expect(WorkAgingPolicy.UrgencyBucket.upcoming < WorkAgingPolicy.UrgencyBucket.today)
+        #expect(WorkAgingPolicy.UrgencyBucket.today < WorkAgingPolicy.UrgencyBucket.overdue)
+        #expect(WorkAgingPolicy.UrgencyBucket.overdue < WorkAgingPolicy.UrgencyBucket.stale)
     }
 
     // MARK: - AgingBucket Tests
