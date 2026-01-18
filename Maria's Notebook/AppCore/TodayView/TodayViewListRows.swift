@@ -161,3 +161,55 @@ struct CompletionListRow: View {
         }
     }
 }
+
+struct CalendarEventListRow: View {
+    let event: CalendarEvent
+
+    private var timeString: String {
+        if event.isAllDay {
+            return "All Day"
+        } else {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            formatter.dateStyle = .none
+            return formatter.string(from: event.startDate)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "calendar")
+                .foregroundStyle(.blue)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.title)
+                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                HStack(spacing: 4) {
+                    Text(timeString)
+                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    if let location = event.location, !location.isEmpty {
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "mappin")
+                            .font(.system(size: AppTheme.FontSize.captionSmall))
+                            .foregroundStyle(.secondary)
+                        Text(location)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            Spacer()
+            if event.isAllDay {
+                Text("All Day")
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.blue)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.blue.opacity(0.12)))
+            }
+        }
+    }
+}

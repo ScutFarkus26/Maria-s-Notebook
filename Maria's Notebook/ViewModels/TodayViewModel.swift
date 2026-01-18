@@ -87,6 +87,9 @@ final class TodayViewModel: ObservableObject {
     @Published var overdueReminders: [Reminder] = []
     @Published var anytimeReminders: [Reminder] = []  // Reminders with no due date
 
+    // Calendar events for today
+    @Published var todaysCalendarEvents: [CalendarEvent] = []
+
     @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
     @Published var absentToday: [UUID] = []
     @Published var leftEarlyToday: [UUID] = []
@@ -202,7 +205,10 @@ final class TodayViewModel: ObservableObject {
         
         // Load reminders
         reloadReminders(day: day, nextDay: nextDay)
-        
+
+        // Load calendar events
+        reloadCalendarEvents(day: day, nextDay: nextDay)
+
         // Load attendance
         reloadAttendance(day: day, nextDay: nextDay)
 
@@ -557,7 +563,25 @@ final class TodayViewModel: ObservableObject {
             self.anytimeReminders = []
         }
     }
-    
+
+    private func reloadCalendarEvents(day: Date, nextDay: Date) {
+        do {
+            // Fetch calendar events that overlap with the selected day
+            // An event overlaps if: startDate < nextDay AND endDate > day
+            let descriptor = FetchDescriptor<CalendarEvent>(
+                predicate: #Predicate { event in
+                    event.startDate < nextDay && event.endDate > day
+                },
+                sortBy: [SortDescriptor(\CalendarEvent.startDate)]
+            )
+            let events = try context.fetch(descriptor)
+            self.todaysCalendarEvents = events
+        } catch {
+            print("Error loading calendar events: \(error)")
+            self.todaysCalendarEvents = []
+        }
+    }
+
     private func reloadAttendance(day: Date, nextDay: Date) {
         do {
             let descriptor = FetchDescriptor<AttendanceRecord>(

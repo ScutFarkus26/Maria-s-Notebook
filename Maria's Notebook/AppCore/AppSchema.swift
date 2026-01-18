@@ -30,6 +30,7 @@ struct AppSchema {
         ProjectTemplateWeek.self,
         ProjectWeekRoleAssignment.self,
         Reminder.self,
+        CalendarEvent.self,
         Track.self,
         TrackStep.self,
         StudentTrackEnrollment.self,

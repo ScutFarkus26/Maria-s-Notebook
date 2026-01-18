@@ -16,6 +16,10 @@
 	<string>We need access to your reminders to sync reminders from a specific list to your Today view.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>We need access to your calendars to show today's events in your Today view.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>We need full access to your calendars to show today's events in your Today view.</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

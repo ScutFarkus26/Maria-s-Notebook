@@ -40,6 +40,9 @@ struct SettingsView: View {
                 
                 // MARK: - Reminders Section
                 remindersSection
+
+                // MARK: - Calendar Section
+                calendarSection
                 
                 // MARK: - Data Management Section
                 dataManagementSection
@@ -172,6 +175,16 @@ struct SettingsView: View {
             SettingsCategoryHeader(title: "Reminders")
             SettingsGroup(title: "Reminder Sync", systemImage: "bell.fill") {
                 ReminderSyncSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private var calendarSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "Calendar")
+            SettingsGroup(title: "Calendar Sync", systemImage: "calendar") {
+                CalendarSyncSettingsView()
                     .frame(maxWidth: .infinity)
             }
         }

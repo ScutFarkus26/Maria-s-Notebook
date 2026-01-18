@@ -254,6 +254,8 @@ struct TodayView: View {
                             List {
                                 remindersListSection
 
+                                calendarEventsListSection
+
                                 lessonsListSection
 
                                 checkInsListSection
@@ -350,6 +352,18 @@ struct TodayView: View {
                     } catch {
                         // Silently fail - user can manually sync from settings
                         print("TodayView: Reminder sync failed: \(error.localizedDescription)")
+                    }
+                }
+            }
+            // Sync calendar events when Today view appears
+            Task {
+                let calendarSyncService = CalendarSyncService.shared
+                calendarSyncService.modelContext = modelContext
+                if !calendarSyncService.syncCalendarIdentifiers.isEmpty {
+                    do {
+                        try await calendarSyncService.syncEvents()
+                    } catch {
+                        print("TodayView: Calendar sync failed: \(error.localizedDescription)")
                     }
                 }
             }
@@ -824,7 +838,46 @@ struct TodayView: View {
             print("Error toggling reminder: \(error)")
         }
     }
-    
+
+    // MARK: - Calendar Events Section
+
+    private var calendarEventsListSection: some View {
+        Section {
+            if viewModel.todaysCalendarEvents.isEmpty {
+                ContentUnavailableView("No calendar events", systemImage: "calendar.badge.clock")
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                ForEach(viewModel.todaysCalendarEvents, id: \.id) { event in
+                    CalendarEventListRow(event: event)
+                }
+            }
+        } header: {
+            calendarEventsSectionHeader
+        }
+    }
+
+    @ViewBuilder
+    private var calendarEventsSectionHeader: some View {
+        HStack {
+            Label("Calendar", systemImage: "calendar")
+            Spacer()
+            // Show sync status indicator
+            if CalendarSyncService.shared.isSyncing {
+                ProgressView()
+                    .scaleEffect(0.7)
+            } else if let error = CalendarSyncService.shared.lastSyncError {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help("Sync error: \(error)")
+            } else if let lastSync = CalendarSyncService.shared.lastSuccessfulSync {
+                Text(lastSync, style: .relative)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var lessonsListSection: some View {
         Section {
             if viewModel.todaysLessons.isEmpty {
