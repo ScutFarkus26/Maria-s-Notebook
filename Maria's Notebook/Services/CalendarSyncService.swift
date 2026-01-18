@@ -113,7 +113,7 @@ class CalendarSyncService: ObservableObject {
                         Task { @MainActor in
                             self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
 
-                            if granted && self.syncCalendarIdentifier != nil {
+                            if granted && !self.syncCalendarIdentifiers.isEmpty {
                                 self.startObservingChanges()
                             }
                         }
@@ -135,7 +135,7 @@ class CalendarSyncService: ObservableObject {
                         Task { @MainActor in
                             self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
 
-                            if granted && self.syncCalendarIdentifier != nil {
+                            if granted && !self.syncCalendarIdentifiers.isEmpty {
                                 self.startObservingChanges()
                             }
                         }
