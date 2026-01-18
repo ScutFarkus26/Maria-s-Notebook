@@ -203,12 +203,7 @@ struct NoteEditSheet: View {
         note.includeInReport = includeInReport
         note.isPinned = isPinned
         note.updatedAt = Date()
-        do {
-            try modelContext.save()
-        } catch {
-            // If save fails, still dismiss to avoid trapping the user; log error for debugging
-            print("Error saving note: \(error)")
-        }
+        try? modelContext.save()
         onSaved?()
         dismiss()
     }

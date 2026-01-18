@@ -10,7 +10,6 @@ struct StudentLessonNotesSectionUnified: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: Note? = nil
-    @State private var hasLoggedDebugInfo: Bool = false
     
     // Helper computed values for matching
     private var slID: String {
@@ -253,29 +252,6 @@ struct StudentLessonNotesSectionUnified: View {
                         .foregroundStyle(.accent)
                 }
             }
-            .onAppear {
-                // Debug log for one screen load (Task requirement #5)
-                if !hasLoggedDebugInfo {
-                    let matchedIDs = matchedPresentationIDs
-                    let notesDirect = lessonNotes.count
-                    let notesViaPresentations = presentationNotes.count
-
-                    #if DEBUG
-                    print("=== LessonNotes Debug Log ===")
-                    print("studentLesson.id: \(studentLesson.id.uuidString)")
-                    print("matchedPresentationIDs count: \(matchedIDs.count)")
-                    if !matchedIDs.isEmpty {
-                        print("matchedPresentationIDs: \(matchedIDs.map { $0.uuidString }.joined(separator: ", "))")
-                    }
-                    print("notesDirect count: \(notesDirect)")
-                    print("notesViaPresentations count: \(notesViaPresentations)")
-                    print("=== End Debug Log ===")
-                    #endif
-
-                    hasLoggedDebugInfo = true
-                }
-            }
-            
             // Show lesson-attached Note objects
             if !allUnifiedNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {

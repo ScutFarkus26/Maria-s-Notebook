@@ -94,9 +94,6 @@ enum DataMigrations {
         // Records will be migrated lazily when accessed and saved (tags property setter encodes to _tagsData).
         if !MigrationFlag.isComplete(key: flagKey) {
             MigrationFlag.markComplete(key: flagKey)
-            #if DEBUG
-            print("DataMigrations: CommunityTopic tags migration v2 flag set. Records will be migrated lazily on access.")
-            #endif
         }
     }
     
@@ -118,9 +115,6 @@ enum DataMigrations {
         // Records will be migrated lazily when accessed and saved (studentIDs property setter encodes to _studentIDsData).
         if !MigrationFlag.isComplete(key: flagKey) {
             MigrationFlag.markComplete(key: flagKey)
-            #if DEBUG
-            print("DataMigrations: StudentLesson studentIDs migration flag set. Records will be migrated lazily on access.")
-            #endif
         }
     }
     
@@ -136,9 +130,6 @@ enum DataMigrations {
         // We mark this migration as complete to indicate the schema change is in place.
         if !MigrationFlag.isComplete(key: flagKey) {
             MigrationFlag.markComplete(key: flagKey)
-            #if DEBUG
-            print("DataMigrations: UUID foreign keys to strings migration flag set. Records will be migrated lazily on access.")
-            #endif
         }
     }
     
@@ -159,9 +150,6 @@ enum DataMigrations {
                 
                 // If the value is empty or doesn't look like a UUID string, skip
                 if currentValue.isEmpty {
-                    #if DEBUG
-                    print("WARNING: Skipped invalid AttendanceRecord (ID: \(record.id)) - Value: \(currentValue)")
-                    #endif
                     continue
                 }
                 
@@ -175,14 +163,7 @@ enum DataMigrations {
                 // Try to access it through the underlying CoreData object if possible
                 // For now, we'll skip records that don't match expected format
                 // The store should have been migrated at the CoreData level
-                #if DEBUG
-                print("WARNING: Skipped invalid AttendanceRecord (ID: \(record.id)) - Value: \(currentValue)")
-                #endif
             }
-
-            #if DEBUG
-            print("DataMigrations: AttendanceRecord studentID migration completed. Records will be migrated lazily on access.")
-            #endif
         }
     }
     
@@ -207,9 +188,6 @@ enum DataMigrations {
         
         if repaired > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Repaired \(repaired) StudentLesson records with mismatched scheduledForDay")
-            #endif
         }
     }
     
@@ -246,9 +224,6 @@ enum DataMigrations {
         
         if cleaned > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Cleaned orphaned student IDs from \(cleaned) StudentLesson records")
-            #endif
         }
     }
     
@@ -304,9 +279,6 @@ enum DataMigrations {
         
         if cleaned > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Cleaned orphaned student IDs from \(cleaned) Work records.")
-            #endif
         }
     }
     
@@ -374,9 +346,6 @@ enum DataMigrations {
             if changed {
                 context.safeSave()
             }
-            #if DEBUG
-            print("DataMigrations: Backfilled relationships for StudentLesson records")
-            #endif
         }
     }
 
@@ -417,14 +386,9 @@ enum DataMigrations {
                 }
             }
             
-            if updated > 0 {
-                #if DEBUG
-                print("DataMigrations: Backfilled isPresented flag for \(updated) StudentLesson records")
-                #endif
-            }
         }
     }
-    
+
     /// Backfill scheduledForDay field from scheduledFor.
     /// One-time migration that ensures scheduledForDay matches scheduledFor for all records.
     /// Idempotent: guarded by a UserDefaults flag.
@@ -464,14 +428,9 @@ enum DataMigrations {
                 }
             }
             
-            if fixed > 0 {
-                #if DEBUG
-                print("DataMigrations: Backfilled scheduledForDay for \(fixed) StudentLesson records")
-                #endif
-            }
         }
     }
-    
+
     /// Migrate GroupTrack records to include isExplicitlyDisabled field.
     /// Sets all existing GroupTrack records to isExplicitlyDisabled = false (they remain as tracks).
     /// New default behavior: All groups are tracks (sequential) unless explicitly disabled.
@@ -494,13 +453,6 @@ enum DataMigrations {
             
             if updated > 0 {
                 context.safeSave()
-                #if DEBUG
-                print("DataMigrations: Migrated \(updated) GroupTrack records to new default behavior")
-                #endif
-            } else {
-                #if DEBUG
-                print("DataMigrations: GroupTrack migration completed. All groups are now tracks by default (sequential).")
-                #endif
             }
         }
     }
@@ -544,14 +496,9 @@ enum DataMigrations {
             // Save if something changed
             if studentLessonBackfilledCount > 0 {
                 try context.save()
-                #if DEBUG
-                print("DataMigrations: Backfilled IDs from StudentLesson for \(studentLessonBackfilledCount) WorkModel records.")
-                #endif
             }
         } catch {
-            #if DEBUG
-            print("DataMigrations: WorkModel ID backfill failed: \(error.localizedDescription)")
-            #endif
+            // WorkModel ID backfill failed - continue silently
         }
     }
     
@@ -573,9 +520,6 @@ enum DataMigrations {
             }
             
             guard !presentationsToBackfill.isEmpty else {
-                #if DEBUG
-                print("DataMigrations: All presentations already have legacyStudentLessonID")
-                #endif
                 return
             }
             
@@ -653,13 +597,9 @@ enum DataMigrations {
             if changed {
                 context.safeSave()
             }
-
-            #if DEBUG
-            print("DataMigrations: Backfilled Presentation.legacyStudentLessonID for \(count) presentations")
-            #endif
         }
     }
-    
+
     /// Helper function to choose the best matching StudentLesson for a Presentation.
     /// Selection criteria:
     /// 1. Highest overlap count wins
@@ -920,14 +860,9 @@ enum DataMigrations {
             if changed {
                 context.safeSave()
             }
-
-            // Log summary with strict vs loose pass counts
-            #if DEBUG
-            print("DataMigrations.repairPresentationStudentLessonLinks_v2: scanned=\(totalScanned), updated-strict=\(updatedStrict), updated-loose=\(updatedLoose), skipped-valid=\(skippedValid), unmatched=\(unmatched)")
-            #endif
         }
     }
-    
+
     /// Backfill Note.studentLesson for notes attached to Presentations with legacyStudentLessonID.
     /// Idempotent: only sets studentLesson when it is nil and a matching StudentLesson exists.
     /// Safe to run repeatedly.
@@ -1000,13 +935,9 @@ enum DataMigrations {
             if changed {
                 context.safeSave()
             }
-
-            #if DEBUG
-            print("DataMigrations.backfillNoteStudentLessonFromPresentation: scanned=\(scanned), updated=\(updated), skipped=\(skipped), unmatched=\(unmatched)")
-            #endif
         }
     }
-    
+
     /// Migrate legacy string notes on WorkModels into Note objects.
     /// For each WorkModel with a non-empty `notes` string and empty `unifiedNotes`,
     /// creates a new Note object with the content and clears the legacy notes field.
@@ -1046,12 +977,9 @@ enum DataMigrations {
         // Save the context if any migrations occurred
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy work notes.")
-            #endif
         }
     }
-    
+
     /// Repair scope for notes that were incorrectly set to .all due to UI bugs.
     /// Specifically targets Attendance, WorkCompletion, and StudentMeeting notes.
     static func repairScopeForContextualNotes(using context: ModelContext) async {
@@ -1093,9 +1021,6 @@ enum DataMigrations {
             
             if changed > 0 {
                 context.safeSave()
-                #if DEBUG
-                print("DataMigrations: Repaired scope for \(changed) contextual notes.")
-                #endif
             }
         }
     }
@@ -1142,9 +1067,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy StudentLesson notes.")
-            #endif
         }
     }
 
@@ -1197,9 +1119,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy WorkCheckIn notes.")
-            #endif
         }
     }
 
@@ -1242,9 +1161,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy WorkCompletionRecord notes.")
-            #endif
         }
     }
 
@@ -1285,9 +1201,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy AttendanceRecord notes.")
-            #endif
         }
     }
 
@@ -1320,9 +1233,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy ProjectSession notes.")
-            #endif
         }
     }
 
@@ -1363,9 +1273,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy StudentTrackEnrollment notes.")
-            #endif
         }
     }
 
@@ -1398,9 +1305,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy WorkPlanItem notes.")
-            #endif
         }
     }
 
@@ -1433,9 +1337,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy SchoolDayOverride notes.")
-            #endif
         }
     }
 
@@ -1472,9 +1373,6 @@ enum DataMigrations {
 
         if migratedCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Migrated \(migratedCount) legacy Reminder notes.")
-            #endif
         }
     }
 
@@ -1498,21 +1396,11 @@ enum DataMigrations {
             // Find orphaned files
             let orphanedFiles = imageFilenames.subtracting(referencedPaths)
 
-            var deletedCount = 0
             for filename in orphanedFiles {
                 try? PhotoStorageService.deleteImage(filename: filename)
-                deletedCount += 1
             }
-
-            #if DEBUG
-            if deletedCount > 0 {
-                print("DataMigrations: Cleaned up \(deletedCount) orphaned note images.")
-            }
-            #endif
         } catch {
-            #if DEBUG
-            print("DataMigrations: Failed to cleanup orphaned images: \(error)")
-            #endif
+            // Failed to cleanup orphaned images - continue silently
         }
     }
 
@@ -1544,9 +1432,6 @@ enum DataMigrations {
 
         if createdCount > 0 {
             context.safeSave()
-            #if DEBUG
-            print("DataMigrations: Created student links for \(createdCount) multi-student scoped notes.")
-            #endif
         }
     }
 }

@@ -17,36 +17,12 @@ final class DatabaseErrorCoordinator: ObservableObject {
     func setError(_ error: Error, details: String = "") {
         self.error = error
         self.errorDetails = details.isEmpty ? error.localizedDescription : details
-        
-        // Log the error
-        #if DEBUG
-        print("🔴 DatabaseErrorCoordinator: Database initialization error set")
-        #endif
-        #if DEBUG
-        print("🔴 Error: \(error.localizedDescription)")
-        #endif
-        if !details.isEmpty {
-            #if DEBUG
-            print("🔴 Details: \(details)")
-            #endif
-        }
-        if let nsError = error as NSError? {
-            #if DEBUG
-            print("🔴 Domain: \(nsError.domain), Code: \(nsError.code)")
-            #endif
-            #if DEBUG
-            print("🔴 UserInfo: \(nsError.userInfo)")
-            #endif
-        }
     }
     
     /// Clears the error state
     func clearError() {
         self.error = nil
         self.errorDetails = ""
-        #if DEBUG
-        print("✅ DatabaseErrorCoordinator: Error state cleared")
-        #endif
     }
     
     /// Resets the local database by deleting the store file
@@ -62,10 +38,6 @@ final class DatabaseErrorCoordinator: ObservableObject {
         // Clear error flags
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-
-        #if DEBUG
-        print("✅ DatabaseErrorCoordinator: Local database reset successfully. CloudKit data preserved.")
-        #endif
     }
     
     /// Exports diagnostic information about the error

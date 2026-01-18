@@ -122,9 +122,6 @@ struct PresentationHistoryView: View {
     }()
 
     private func buildCaches() {
-        #if DEBUG
-        let t0 = Date()
-        #endif
         // Build notes count cache from recentNotes (filtered to presentation notes)
         var counts: [String: Int] = [:]
         
@@ -149,10 +146,6 @@ struct PresentationHistoryView: View {
             lTitles[l.id] = LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
         }
         lessonTitleCache = lTitles
-        #if DEBUG
-        let dt = Date().timeIntervalSince(t0) * 1000
-        print("[DEBUG] PresentationHistoryView caches build took \(Int(dt)) ms")
-        #endif
     }
 
     // Resolve title: prefer lessonTitleSnapshot else lookup lesson by ID
@@ -234,18 +227,11 @@ struct PresentationHistoryView: View {
                 }
             }
             .task {
-                #if DEBUG
-                let t0 = Date()
-                #endif
                 loadPresentations(limit: Self.initialLoadCount)
                 if !hasBuiltCachesOnce {
                     buildCaches()
                     hasBuiltCachesOnce = true
                 }
-                #if DEBUG
-                let dt = Date().timeIntervalSince(t0) * 1000
-                print("[DEBUG] PresentationHistoryView initial load took \(Int(dt)) ms")
-                #endif
             }
             .onChange(of: presentationIDs) { _, _ in
                 // Reload when presentations change

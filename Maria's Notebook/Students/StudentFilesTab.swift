@@ -135,9 +135,6 @@ struct StudentFilesTab: View {
                         .buttonStyle(.bordered)
                         
                         Button {
-                            #if DEBUG
-                            print("Add File button tapped")
-                            #endif
                             #if os(macOS)
                             presentMacOpenPanel()
                             #else
@@ -240,9 +237,6 @@ struct StudentFilesTab: View {
             selectedImportData = ImportDataWrapper(url: url, data: data)
             return true
         } catch {
-            #if DEBUG
-            print("Failed to read dropped file: \(error)")
-            #endif
             return false
         }
     }
@@ -319,9 +313,7 @@ struct StudentFilesTab: View {
                 selectedImportData = ImportDataWrapper(url: url, data: data)
             }
         } catch {
-            #if DEBUG
-            print("Failed to load PDF data: \(error)")
-            #endif
+            // Failed to load PDF data - continue silently
         }
     }
     
@@ -396,9 +388,6 @@ struct DocumentCard: View {
     
     private func createTemporaryFileURL() -> URL? {
         guard let pdfData = document.pdfData else {
-            #if DEBUG
-            print("Document has no PDF data")
-            #endif
             return nil
         }
         
@@ -416,9 +405,6 @@ struct DocumentCard: View {
             try pdfData.write(to: tempURL)
             return tempURL
         } catch {
-            #if DEBUG
-            print("Failed to create temporary file for document: \(error)")
-            #endif
             return nil
         }
     }

@@ -140,9 +140,7 @@ extension TodayView {
             // Reload the view model to reflect changes
             viewModel.reload()
         } catch {
-            #if DEBUG
-            print("Error updating attendance status: \(error.localizedDescription)")
-            #endif
+            // Error updating attendance status - continue silently
         }
     }
 
@@ -168,9 +166,6 @@ extension TodayView {
                 // Create new record if it doesn't exist
                 // Verify student exists (should be in studentsByID cache)
                 guard viewModel.studentsByID[studentID] != nil else {
-                    #if DEBUG
-                    print("Warning: Cannot update attendance for student \(studentID) - student not found")
-                    #endif
                     return
                 }
                 let record = AttendanceRecord(studentID: studentID, date: day, status: status)
@@ -183,9 +178,7 @@ extension TodayView {
             // Reload the view model to reflect changes
             viewModel.reload()
         } catch {
-            #if DEBUG
-            print("Error updating attendance status: \(error.localizedDescription)")
-            #endif
+            // Error updating attendance status - continue silently
         }
     }
 
@@ -204,18 +197,10 @@ extension TodayView {
 
             // Two-way sync: Update EventKit with the completion change
             Task {
-                do {
-                    try await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
-                } catch {
-                    #if DEBUG
-                    print("Error syncing reminder completion to EventKit: \(error)")
-                    #endif
-                }
+                try? await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
             }
         } catch {
-            #if DEBUG
-            print("Error toggling reminder: \(error)")
-            #endif
+            // Error toggling reminder - continue silently
         }
     }
 

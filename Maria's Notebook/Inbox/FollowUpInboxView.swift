@@ -77,12 +77,6 @@ struct FollowUpInboxView: View {
             lessons: data.lessons
         )
         
-        #if DEBUG
-        // Debug logging to verify reduced data fetching
-        if let data = inboxData {
-            print("📊 InboxDataLoader: Loaded \(data.studentLessons.count) studentLessons, \(data.students.count) students, \(data.lessons.count) lessons")
-        }
-        #endif
     }
 
     // Simple filter control

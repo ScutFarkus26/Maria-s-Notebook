@@ -114,9 +114,5 @@ final class NoteTemplate: Identifiable {
         }
 
         try? context.save()
-
-        #if DEBUG
-        print("NoteTemplate: Seeded \(builtInTemplates.count) built-in templates.")
-        #endif
     }
 }

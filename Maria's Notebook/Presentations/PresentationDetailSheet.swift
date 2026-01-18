@@ -214,24 +214,15 @@ struct PresentationDetailSheet: View, Identifiable {
             }
         }
         .task { @MainActor in
-            #if DEBUG
-            let t0 = Date()
-            #endif
             isLoading = true
-            do {
-                let pDesc = FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == presentationID })
-                if let fetched = try? modelContext.fetch(pDesc).first {
-                    self.presentation = fetched
-                } else {
-                    self.presentation = nil
-                }
-                reloadNotes()
+            let pDesc = FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == presentationID })
+            if let fetched = try? modelContext.fetch(pDesc).first {
+                self.presentation = fetched
+            } else {
+                self.presentation = nil
             }
+            reloadNotes()
             isLoading = false
-            #if DEBUG
-            let dt = Date().timeIntervalSince(t0) * 1000
-            print("[DEBUG] PresentationDetailSheet fetch took \(Int(dt)) ms for \(presentationID.uuidString)")
-            #endif
         }
     }
 
@@ -325,7 +316,6 @@ struct PresentationDetailSheet: View, Identifiable {
         lessonSubtitleSnapshot: nil
     )
     ctx.insert(p)
-    print("Presentation link set: legacyStudentLessonID=\(p.legacyStudentLessonID ?? "nil")")
     let note = Note(body: "Group was engaged.", scope: .all, presentation: p)
     ctx.insert(note)
     return PresentationDetailSheet(presentationID: p.id)

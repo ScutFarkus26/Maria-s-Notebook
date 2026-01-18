@@ -121,12 +121,6 @@ struct TopicDetailView: View, Identifiable {
             }
         }
         .task(id: topicID) {
-            #if DEBUG
-            if let start = DebugTiming.lastTopicTapAt {
-                let ms = Date().timeIntervalSince(start) * 1000.0
-                print("[DEBUG] First frame after tap: \(String(format: "%.1f", ms)) ms")
-            }
-            #endif
             await vm.load(context: modelContext, topicID: topicID)
         }
     }

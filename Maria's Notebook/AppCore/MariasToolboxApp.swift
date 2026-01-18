@@ -134,29 +134,13 @@ struct MariasToolboxApp: App {
         
         // Check if store exists
         guard fm.fileExists(atPath: url.path) else {
-            #if DEBUG
-            resetLogger.info("Reset: Store file does not exist at \(url.path), nothing to delete")
-            print("🔵 Reset: Store file does not exist, nothing to delete")
-            #endif
             return
         }
         
         // SwiftData stores can be either files or packages (directories on macOS)
         // Remove the item regardless of whether it's a file or directory
-        var isDirectory: ObjCBool = false
-        if fm.fileExists(atPath: url.path, isDirectory: &isDirectory) {
-            #if DEBUG
-            let itemType = isDirectory.boolValue ? "package" : "file"
-            resetLogger.info("Reset: Deleting SwiftData store \(itemType) at \(url.path)")
-            print("🔴 Reset: Deleting SwiftData store \(itemType) at \(url.path)")
-            #endif
-            
+        if fm.fileExists(atPath: url.path) {
             try fm.removeItem(at: url)
-            
-            #if DEBUG
-            resetLogger.info("Reset: Successfully deleted SwiftData store")
-            print("✅ Reset: Successfully deleted SwiftData store")
-            #endif
         }
     }
     
@@ -166,23 +150,17 @@ struct MariasToolboxApp: App {
     /// - Note: This only deletes local data on this device. CloudKit data is NOT affected.
     /// - Important: App restart is required after calling this function.
     static func resetLocalDatabaseInDebug() throws {
-        resetLogger.info("Reset: Starting local database reset (DEBUG only)")
-        print("🔴 Reset: Starting local database reset (DEBUG only)")
-        
         // Delete the persistent store
         try resetPersistentStore()
-        
+
         // Clear error state flags
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
-        
+
         // Clear error state
         initError = nil
         DatabaseErrorCoordinator.shared.clearError()
-        
-        resetLogger.info("Reset: Local database reset complete. Store file deleted, error flags cleared. CloudKit data preserved.")
-        print("✅ Reset: Local database reset complete. Store file deleted, error flags cleared. CloudKit data preserved.")
     }
     
     #if os(macOS)
@@ -204,9 +182,6 @@ struct MariasToolboxApp: App {
                 // Terminate app to restart cleanly
                 NSApplication.shared.terminate(nil)
             } catch {
-                resetLogger.error("Reset: Failed to reset database: \(error.localizedDescription)")
-                print("❌ Reset: Failed to reset database: \(error.localizedDescription)")
-                
                 // Show error alert
                 let errorAlert = NSAlert(error: error)
                 errorAlert.messageText = "Reset Failed"
@@ -228,10 +203,6 @@ struct MariasToolboxApp: App {
         // Clear any error flags
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-
-        #if DEBUG
-        print("SwiftData: Local database reset and CloudKit sync enabled. App restart required.")
-        #endif
     }
 
     static func storeFileURL() -> URL {
@@ -506,7 +477,6 @@ struct MariasToolboxApp: App {
                 }
             } catch {
                 // Re-throw with additional context
-                print("SwiftData: makeContainer failed (inMemory: \(inMemory), cloud: \(cloud)): \(error)")
                 throw error
             }
         }
@@ -579,11 +549,7 @@ struct MariasToolboxApp: App {
             }
         } catch {
             // If even the in-memory fallback fails, we must surface the blocking error view instead of crashing.
-            print("SwiftData: Failed to open SwiftData store: \(error)")
-            print("SwiftData: Error details: \(String(describing: error))")
             if let nsError = error as NSError? {
-                print("SwiftData: NSError domain: \(nsError.domain), code: \(nsError.code)")
-                print("SwiftData: NSError userInfo: \(nsError.userInfo)")
                 
                 // Check if this is a migration error (code 134140 or 134190)
                 if nsError.code == 134140 || nsError.code == 134190 {
@@ -597,23 +563,14 @@ struct MariasToolboxApp: App {
                         // This is the UUID to String migration issue
                         // Try to automatically reset the store if it's safe to do so
                         // (i.e., if there's no important data to preserve)
-                        #if DEBUG
-                        print("SwiftData: Detected AttendanceRecord.studentID migration issue. Attempting automatic store reset...")
-                        #endif
                         do {
                             try MariasToolboxApp.resetPersistentStore()
-                            #if DEBUG
-                            print("SwiftData: Store reset successfully. Retrying with fresh store...")
-                            #endif
                             // Retry creating the container with the fresh store
                             // Preserve CloudKit setting - don't disable it during recovery
                             let enableCloudKit = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
                             let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
                             UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-                            #if DEBUG
-                            print("SwiftData: Successfully opened store after reset.")
-                            #endif
                             return container
                         } catch {
                             // If reset failed, show error message
@@ -640,29 +597,14 @@ struct MariasToolboxApp: App {
             // This allows the app to show the blocking error view even if persistent storage fails
             // NOTE: If SwiftData asserts internally here, we cannot catch it
             do {
-                #if DEBUG
-                print("SwiftData: Attempting final fallback to in-memory container...")
-                #endif
                 let config = ModelConfiguration(isStoredInMemoryOnly: true)
                 let fallbackContainer = try ModelContainer(for: schema, configurations: config)
-                #if DEBUG
-                print("SwiftData: Successfully created fallback in-memory container")
-                #endif
                 // Use safe string representation
                 let errorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                 UserDefaults.standard.set("Persistent storage failed. Using temporary in-memory container. Original error: \(errorDesc)", forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 return fallbackContainer
             } catch let finalError {
-                // Log comprehensive error information
-                print("SwiftData: CRITICAL - Failed to create even an in-memory container")
-                print("SwiftData: Original error: \(error)")
-                print("SwiftData: Final error: \(finalError)")
-                if let nsError = finalError as NSError? {
-                    print("SwiftData: Final NSError domain: \(nsError.domain), code: \(nsError.code)")
-                    print("SwiftData: Final NSError userInfo: \(nsError.userInfo)")
-                }
-                
                 // Set the error so the UI can display it
                 MariasToolboxApp.handleCriticalDatabaseInitError(
                     originalError: error,
@@ -675,15 +617,9 @@ struct MariasToolboxApp: App {
                 // This is a workaround - the error UI doesn't actually need a real container, but SwiftUI's
                 // .modelContainer() modifier requires a non-optional ModelContainer.
                 do {
-                    #if DEBUG
-                    print("SwiftData: Attempting to create minimal empty container for error UI...")
-                    #endif
                     let emptySchema = Schema([])
                     let emptyConfig = ModelConfiguration(isStoredInMemoryOnly: true)
                     let emptyContainer = try ModelContainer(for: emptySchema, configurations: emptyConfig)
-                    #if DEBUG
-                    print("SwiftData: Created minimal empty container for error UI")
-                    #endif
                     
                     // Set the error so the UI can display it
                     MariasToolboxApp.handleCriticalDatabaseInitError(
@@ -746,14 +682,10 @@ struct MariasToolboxApp: App {
             // Configure SQLite to suppress detached signature errors
             MariasToolboxApp.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
             MariasToolboxApp._sharedModelContainer = container
-            // #if DEBUG
-            // print("SwiftData: Container created and cached successfully")
-            // #endif
             return container
         } catch {
             // This should never be reached if createModelContainer handles all errors properly,
             // but we include it as a safety net
-            print("SwiftData: Unexpected error in container initialization: \(error)")
             let errorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
             let unexpectedError = NSError(
                 domain: "MariasNotebook",
@@ -835,7 +767,6 @@ struct MariasToolboxApp: App {
             )
             MariasToolboxApp.initError = testError
             DatabaseErrorCoordinator.shared.setError(testError, details: "This is a simulated error for testing purposes.")
-            print("⚠️ DEBUG: Simulated database initialization failure enabled")
         }
         #endif
     }

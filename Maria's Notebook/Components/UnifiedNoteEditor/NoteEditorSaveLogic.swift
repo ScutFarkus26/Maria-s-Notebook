@@ -139,27 +139,5 @@ extension UnifiedNoteEditor {
         case .general:
             break
         }
-
-        #if DEBUG
-        logDiagnostic(note: note, studentLessonID: studentLessonID, presentationID: presentationID, workID: workID)
-        #endif
     }
-
-    #if DEBUG
-    private func logDiagnostic(note: Note, studentLessonID: String?, presentationID: String?, workID: String?) {
-        print("=== UnifiedNoteEditor.saveNote() Diagnostic ===")
-        print("NoteContext case: \(contextDescription)")
-        print("note.id: \(note.id.uuidString)")
-        if let slID = studentLessonID {
-            print("studentLessonID: \(slID)")
-        }
-        if let pID = presentationID {
-            print("presentationID: \(pID)")
-        }
-        if let wID = workID {
-            print("workID: \(wID)")
-        }
-        print("=== End Diagnostic ===")
-    }
-    #endif
 }

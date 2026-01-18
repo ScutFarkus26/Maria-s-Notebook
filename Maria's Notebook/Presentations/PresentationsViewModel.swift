@@ -6,8 +6,6 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Combine
-#if DEBUG
-#endif
 
 @MainActor
 final class PresentationsViewModel: ObservableObject {
@@ -271,13 +269,6 @@ final class PresentationsViewModel: ObservableObject {
                 inboxItems.append(sl)
             }
         }
-        
-        // TEMP debug prints (DEBUG only)
-        #if DEBUG
-        print("PresentationsView debug: openWorkModels=\(workModels.count)")
-        print("PresentationsView debug: openWorkByPresentationID keys=\(openWorkByPresentationID.keys.count)")
-        print("PresentationsView debug: inboxCount=\(inboxItems.count) onDeckCount=\(blocked.count)")
-        #endif
         
         // Apply inbox ordering to ready lessons
         ready = InboxOrderStore.orderedUnscheduled(from: ready, orderRaw: inboxOrderRaw)

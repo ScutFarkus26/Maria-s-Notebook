@@ -88,9 +88,6 @@ struct TopicRowView: View {
                     let items = try modelContext.fetch(descriptor)
                     solutionCount = items.count
                 } catch {
-                    #if DEBUG
-                    print("[DEBUG] Failed to fetch solution count for topic \(topic.id): \(error)")
-                    #endif
                     solutionCount = 0
                 }
             }

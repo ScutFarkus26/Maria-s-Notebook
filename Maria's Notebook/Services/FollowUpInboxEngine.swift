@@ -96,11 +96,6 @@ struct FollowUpInboxEngine {
         let studentLessonsByID: [UUID: StudentLesson] = studentLessons.toDictionary(by: \.id)
         
         // Fetch open WorkModel records once per compute (cached per refresh scope)
-        #if DEBUG
-        let workModelFetchStart = Date()
-        var workModelFetchCount = 0
-        #endif
-        
         let completeRaw = WorkStatus.complete.rawValue
         let descriptor = FetchDescriptor<WorkModel>(
             predicate: #Predicate { work in
@@ -108,18 +103,9 @@ struct FollowUpInboxEngine {
             },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        #if DEBUG
-        workModelFetchCount += 1
-        #endif
         let allWorkModels = (try? modelContext.fetch(descriptor)) ?? []
         let openWorkModels = allWorkModels.filter { $0.isOpen && $0.status != .complete }
-        
-        #if DEBUG
-        let workModelFetchDuration = Date().timeIntervalSince(workModelFetchStart)
-        print("📊 FollowUpInboxEngine: Fetched \(allWorkModels.count) WorkModels (\(openWorkModels.count) open) in \(String(format: "%.3f", workModelFetchDuration))s (fetch count: \(workModelFetchCount))")
-        assert(workModelFetchCount == 1, "⚠️ FollowUpInboxEngine: Expected 1 WorkModel fetch, got \(workModelFetchCount)")
-        #endif
-        
+
         // Helper: student display name for a set of IDs (single vs group)
         func childName(for ids: [UUID]) -> (UUID?, String) {
             let trimmed = ids
@@ -257,17 +243,7 @@ struct FollowUpInboxEngine {
         let notesByWorkID: [UUID: [Note]] = openWorkModels.reduce(into: [:]) { dict, work in
             dict[work.id] = work.unifiedNotes ?? []
         }
-        
-        #if DEBUG
-        let studentLessonsFetchStart = Date()
-        #endif
-        // StudentLessons are passed in as a parameter (fetched once upstream)
-        // No additional fetch needed here
-        #if DEBUG
-        let studentLessonsFetchDuration = Date().timeIntervalSince(studentLessonsFetchStart)
-        print("📊 FollowUpInboxEngine: Processed \(studentLessons.count) StudentLessons (no additional fetch)")
-        #endif
-        
+
         var addedWorkIDs: Set<UUID> = []
         
         // Rule 2/3: Work check-in stale and review stale (with Upcoming)

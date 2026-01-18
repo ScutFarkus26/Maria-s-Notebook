@@ -41,7 +41,6 @@
 				Tests/CSVUtilsTests.swift,
 				Tests/DataConsistencyTests.swift,
 				Tests/DateCalculationsTests.swift,
-				Tests/DebugTiming.swift,
 				Tests/FloridaGradeCalculatorTests.swift,
 				Tests/FollowUpInboxEngineTests.swift,
 				Tests/GroupTrackServiceTests.swift,

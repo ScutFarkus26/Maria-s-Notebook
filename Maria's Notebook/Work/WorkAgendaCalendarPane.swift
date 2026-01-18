@@ -305,13 +305,6 @@ struct WorkAgendaCalendarPane: View {
             w.dueAt = normalized
         }
         _ = saveCoordinator.save(modelContext, reason: "Create WorkPlanItem")
-        #if DEBUG
-        if let allWork = try? modelContext.fetch(allWorkDescriptor),
-           let w = allWork.first(where: { $0.id == workID }) {
-            let desc = WorkAgingDebug.describe(work: w, modelContext: modelContext)
-            debugPrint("WorkAgingDebug(savePlan):", desc)
-        }
-        #endif
     }
 
     private func reschedulePlanItem(id: UUID, to day: Date) {
