@@ -22,6 +22,9 @@ final class StudentDetailViewModel: ObservableObject {
     @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
     @Published private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
     @Published private(set) var nextLessonsForStudent: [StudentLessonSnapshot] = []
+    /// Lessons that have been presented to this student (based on StudentLesson.isPresented)
+    @Published private(set) var presentedLessonIDs: Set<UUID> = []
+    /// Lessons that this student has mastered (based on LessonPresentation.state == .mastered)
     @Published private(set) var masteredLessonIDs: Set<UUID> = []
     @Published private(set) var plannedLessonIDs: Set<UUID> = []
 
@@ -80,6 +83,21 @@ final class StudentDetailViewModel: ObservableObject {
 
         // Update derived caches
         updateData(lessons: fetchedLessons, studentLessons: filteredStudentLessons)
+
+        // Load mastered lesson IDs from LessonPresentation records
+        loadMasteredLessonIDs(modelContext: modelContext)
+    }
+
+    /// Loads lesson IDs that have been mastered by this student from LessonPresentation records.
+    private func loadMasteredLessonIDs(modelContext: ModelContext) {
+        let studentIDString = student.id.uuidString
+        let allLessonPresentations = (try? modelContext.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+
+        masteredLessonIDs = Set(
+            allLessonPresentations
+                .filter { $0.studentID == studentIDString && $0.state == .mastered }
+                .compactMap { UUID(uuidString: $0.lessonID) }
+        )
     }
 
     // MARK: - Public API
@@ -105,8 +123,9 @@ final class StudentDetailViewModel: ObservableObject {
         nextLessonsForStudent = sortedSL.map { $0.snapshot() }
 
         // Summaries
-        masteredLessonIDs = Set(studentLessons.filter { $0.isPresented && $0.resolvedStudentIDs.contains(student.id) }.map { $0.resolvedLessonID })
+        presentedLessonIDs = Set(studentLessons.filter { $0.isPresented && $0.resolvedStudentIDs.contains(student.id) }.map { $0.resolvedLessonID })
         plannedLessonIDs = Set(nextLessonsForStudent.map { $0.lessonID })
+        // Note: masteredLessonIDs is loaded separately via loadMasteredLessonIDs() to avoid requiring modelContext here
     }
 
     func updateWorkModels(_ workModels: [WorkModel]) {
@@ -229,7 +248,7 @@ final class StudentDetailViewModel: ObservableObject {
     }
 
     func togglePresented(for lesson: Lesson, modelContext: ModelContext) {
-        if masteredLessonIDs.contains(lesson.id) {
+        if presentedLessonIDs.contains(lesson.id) {
             openMastered(for: lesson, modelContext: modelContext)
             return
         }

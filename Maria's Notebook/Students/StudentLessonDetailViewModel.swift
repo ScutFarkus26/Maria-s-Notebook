@@ -21,6 +21,11 @@ final class StudentLessonDetailViewModel {
     }
     var needsAnotherPresentation: Bool
     var selectedStudentIDs: Set<UUID>
+
+    // MARK: - Mastery State
+    /// The mastery state for progress tracking. Only applies when lesson is presented.
+    /// nil = not yet loaded, .presented = shown but not mastered, .mastered = student has mastered
+    var masteryState: LessonPresentationState = .presented
     
     // MARK: - UI State
     var showLessonPicker: Bool = false
@@ -44,7 +49,7 @@ final class StudentLessonDetailViewModel {
     init(studentLesson: StudentLesson, modelContext: ModelContext, autoFocusLessonPicker: Bool = false) {
         self.studentLesson = studentLesson
         self.modelContext = modelContext
-        
+
         // Initialize local state from the model
         // CloudKit compatibility: Convert String lessonID to UUID
         self.editingLessonID = UUID(uuidString: studentLesson.lessonID) ?? UUID()
@@ -56,8 +61,40 @@ final class StudentLessonDetailViewModel {
         self.needsAnotherPresentation = studentLesson.needsAnotherPresentation
         // Convert string IDs to UUIDs for CloudKit compatibility
         self.selectedStudentIDs = Set(studentLesson.studentIDs.compactMap { UUID(uuidString: $0) })
-        
+
         self.showLessonPicker = autoFocusLessonPicker
+
+        // Load mastery state from existing LessonPresentation records
+        self.masteryState = Self.loadMasteryState(
+            lessonID: studentLesson.lessonID,
+            studentIDs: studentLesson.studentIDs,
+            modelContext: modelContext
+        )
+    }
+
+    /// Loads the "highest" mastery state from all students' LessonPresentation records.
+    /// If any student has mastered, returns .mastered. Otherwise returns .presented or the highest state found.
+    private static func loadMasteryState(
+        lessonID: String,
+        studentIDs: [String],
+        modelContext: ModelContext
+    ) -> LessonPresentationState {
+        guard !studentIDs.isEmpty, !lessonID.isEmpty else { return .presented }
+
+        let allLessonPresentations = (try? modelContext.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+        let matching = allLessonPresentations.filter { lp in
+            lp.lessonID == lessonID && studentIDs.contains(lp.studentID)
+        }
+
+        // Return the "highest" state found (mastered > readyForAssessment > practicing > presented)
+        if matching.contains(where: { $0.state == .mastered }) {
+            return .mastered
+        } else if matching.contains(where: { $0.state == .readyForAssessment }) {
+            return .readyForAssessment
+        } else if matching.contains(where: { $0.state == .practicing }) {
+            return .practicing
+        }
+        return .presented
     }
     
     // MARK: - Computed Helpers
@@ -122,7 +159,14 @@ final class StudentLessonDetailViewModel {
                 print("LifecycleService error: \(error)")
                 #endif
             }
-            
+
+            // Update mastery state on LessonPresentation records
+            updateMasteryState(
+                lessonID: studentLesson.lessonID,
+                studentIDs: studentLesson.studentIDs,
+                state: masteryState
+            )
+
             // Auto-enroll students in track if lesson belongs to a track
             if let lesson = studentLesson.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
@@ -370,13 +414,63 @@ final class StudentLessonDetailViewModel {
     func flushNotesAutosaveIfNeeded() {
         notesAutosaveTask?.cancel()
         guard notesDirty else { return }
-        
+
         studentLesson.notes = notes
         try? modelContext.save()
-        
+
         originalNotes = notes
         notesDirty = false
         StudentLessonDetailUtilities.notifyInboxRefresh()
+    }
+
+    // MARK: - Mastery State Management
+
+    /// Updates the mastery state on all LessonPresentation records for this lesson and students.
+    private func updateMasteryState(
+        lessonID: String,
+        studentIDs: [String],
+        state: LessonPresentationState
+    ) {
+        guard !studentIDs.isEmpty, !lessonID.isEmpty else { return }
+
+        let allLessonPresentations = (try? modelContext.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+
+        for studentID in studentIDs {
+            if let existing = allLessonPresentations.first(where: { $0.lessonID == lessonID && $0.studentID == studentID }) {
+                // Update existing record
+                existing.state = state
+                existing.lastObservedAt = Date()
+                if state == .mastered && existing.masteredAt == nil {
+                    existing.masteredAt = Date()
+                } else if state != .mastered {
+                    // If downgrading from mastered, clear masteredAt
+                    existing.masteredAt = nil
+                }
+            } else {
+                // Create new LessonPresentation if it doesn't exist
+                let lp = LessonPresentation(
+                    studentID: studentID,
+                    lessonID: lessonID,
+                    presentationID: nil,
+                    state: state,
+                    presentedAt: Date(),
+                    lastObservedAt: Date(),
+                    masteredAt: state == .mastered ? Date() : nil
+                )
+                modelContext.insert(lp)
+            }
+        }
+
+        // If marking as mastered, check if track is now complete
+        if state == .mastered, let lesson = studentLesson.lesson {
+            for studentID in studentIDs {
+                GroupTrackService.checkAndCompleteTrackIfNeeded(
+                    lesson: lesson,
+                    studentID: studentID,
+                    modelContext: modelContext
+                )
+            }
+        }
     }
 }
 

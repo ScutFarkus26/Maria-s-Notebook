@@ -154,6 +154,14 @@ struct StudentLessonDetailContentView: View {
                     progressButtonsRow
                         .padding(.horizontal, progressButtonsHorizontalPadding)
                         .padding(.top, 16)
+
+                    // 7. Mastery status row (only shown when presented)
+                    if vm.isPresented {
+                        masteryStatusRow
+                            .padding(.horizontal, progressButtonsHorizontalPadding)
+                            .padding(.top, 16)
+                            .padding(.bottom, 24)
+                    }
                 }
             }
         }
@@ -661,8 +669,64 @@ struct StudentLessonDetailContentView: View {
 #endif
     }
     
+    // MARK: - Mastery Status Row
+
+    @ViewBuilder
+    private var masteryStatusRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "star.circle")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 16))
+                Text("Mastery Status")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 12) {
+                Button { vm.masteryState = .presented } label: {
+                    StatePill(
+                        title: "Presented",
+                        systemImage: "eye.fill",
+                        tint: .blue,
+                        active: vm.masteryState == .presented
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button { vm.masteryState = .practicing } label: {
+                    StatePill(
+                        title: "Practicing",
+                        systemImage: "arrow.triangle.2.circlepath",
+                        tint: .purple,
+                        active: vm.masteryState == .practicing
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button { vm.masteryState = .mastered } label: {
+                    StatePill(
+                        title: "Mastered",
+                        systemImage: "checkmark.seal.fill",
+                        tint: .green,
+                        active: vm.masteryState == .mastered
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
     // MARK: - Progress State Logic
-    
+
     private var isJustPresentedActive: Bool {
         if !vm.isPresented { return false }
         guard let date = vm.givenAt else { return false }

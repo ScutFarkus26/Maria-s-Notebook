@@ -4,114 +4,47 @@ import SwiftData
 struct StudentTrackDetailView: View {
     let enrollment: StudentTrackEnrollment
     let track: Track
-    
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    
-    // Query Presentations filtered by trackID and studentIDs
-    @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)])
-    private var allPresentations: [Presentation]
-    
-    // Query WorkModels filtered by trackID and studentID
-    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
-    private var allWorkModels: [WorkModel]
-    
-    // Query Notes filtered by studentTrackEnrollment
-    @Query(sort: [SortDescriptor(\Note.updatedAt, order: .reverse)])
-    private var allNotes: [Note]
-    
-    // CloudKit compatibility: Filter locally using string comparisons
-    private var trackPresentations: [Presentation] {
-        let trackIDString = track.id.uuidString
-        let studentIDString = enrollment.studentID
-        return allPresentations.filter { presentation in
-            presentation.trackID == trackIDString && presentation.studentIDs.contains(studentIDString)
-        }
+
+    // Pre-computed data loaded on appear for better performance
+    @State private var trackLessons: [Lesson] = []
+    @State private var masteredLessonIDs: Set<String> = []
+    @State private var presentedLessonIDs: Set<String> = []
+    @State private var isLoaded = false
+
+    private var masteredCount: Int { masteredLessonIDs.count }
+    private var totalLessons: Int { trackLessons.count }
+
+    private var progressPercent: Int {
+        guard totalLessons > 0 else { return 0 }
+        return Int((Double(masteredCount) / Double(totalLessons)) * 100)
     }
-    
-    private var trackWorkModels: [WorkModel] {
-        let trackIDString = track.id.uuidString
-        let studentIDString = enrollment.studentID
-        return allWorkModels.filter { work in
-            work.trackID == trackIDString && work.studentID == studentIDString
-        }
-    }
-    
-    private var trackNotes: [Note] {
-        // Filter notes that have this enrollment as their studentTrackEnrollment
-        return allNotes.filter { note in
-            note.studentTrackEnrollment?.id == enrollment.id
-        }
-    }
-    
-    // Unified timeline items
-    private struct TimelineItem: Identifiable {
-        let id: UUID
-        let date: Date
-        let type: ItemType
-        
-        enum ItemType {
-            case presentation(Presentation)
-            case work(WorkModel)
-            case note(Note)
-        }
-    }
-    
-    private var timelineItems: [TimelineItem] {
-        var items: [TimelineItem] = []
-        
-        // Add presentations
-        for presentation in trackPresentations {
-            items.append(TimelineItem(
-                id: presentation.id,
-                date: presentation.presentedAt,
-                type: .presentation(presentation)
-            ))
-        }
-        
-        // Add work models
-        for work in trackWorkModels {
-            // Use completedAt if available, otherwise createdAt
-            let date = work.completedAt ?? work.createdAt
-            items.append(TimelineItem(
-                id: work.id,
-                date: date,
-                type: .work(work)
-            ))
-        }
-        
-        // Add notes
-        for note in trackNotes {
-            items.append(TimelineItem(
-                id: note.id,
-                date: note.updatedAt,
-                type: .note(note)
-            ))
-        }
-        
-        // Sort by date (newest first)
-        return items.sorted { $0.date > $1.date }
-    }
-    
-    // Stats counts
-    private var presentationCount: Int { trackPresentations.count }
-    private var workCount: Int { trackWorkModels.count }
-    private var noteCount: Int { trackNotes.count }
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header with stats
-                    headerSection
-                    
-                    Divider()
-                    
-                    // Timeline
-                    timelineSection
+                if isLoaded {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // Celebration header for completed tracks
+                        if !enrollment.isActive {
+                            completionCelebration
+                        }
+
+                        // Progress section
+                        progressSection
+
+                        // Lessons list
+                        lessonsSection
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 100)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
             }
             .navigationTitle(track.title)
             #if os(iOS)
@@ -124,198 +57,292 @@ struct StudentTrackDetailView: View {
                     }
                 }
             }
+            .task {
+                loadData()
+            }
         }
     }
-    
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let startedAt = enrollment.startedAt {
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar")
-                        .foregroundStyle(.secondary)
-                    Text("Started: \(Self.dateFormatter.string(from: startedAt))")
+
+    private func loadData() {
+        // Parse subject and group from track title (format: "Subject — Group")
+        let parts = track.title.components(separatedBy: " — ")
+        guard parts.count == 2 else {
+            isLoaded = true
+            return
+        }
+
+        let subject = parts[0].trimmingCharacters(in: .whitespaces)
+        let group = parts[1].trimmingCharacters(in: .whitespaces)
+        let studentID = enrollment.studentID
+
+        // Fetch lessons for this subject/group
+        let allLessons = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+        trackLessons = allLessons
+            .filter { lesson in
+                lesson.subject.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(subject) == .orderedSame &&
+                lesson.group.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(group) == .orderedSame
+            }
+            .sorted { $0.orderInGroup < $1.orderInGroup }
+
+        // Fetch LessonPresentations for this student
+        let lessonIDStrings = Set(trackLessons.map { $0.id.uuidString })
+        let allPresentations = (try? modelContext.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+        let studentPresentations = allPresentations.filter { lp in
+            lp.studentID == studentID && lessonIDStrings.contains(lp.lessonID)
+        }
+
+        presentedLessonIDs = Set(studentPresentations.map { $0.lessonID })
+        masteredLessonIDs = Set(studentPresentations.filter { $0.state == .mastered }.map { $0.lessonID })
+
+        isLoaded = true
+    }
+
+    // MARK: - Celebration Header
+
+    private var completionCelebration: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                // Background glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [.yellow.opacity(0.3), .yellow.opacity(0.05), .clear],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 60
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+
+                // Trophy icon
+                Image(systemName: "trophy.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.yellow, .orange],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+
+            VStack(spacing: 4) {
+                Text("Track Completed!")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+
+                if let startedAt = enrollment.startedAt {
+                    Text("Started \(Self.dateFormatter.string(from: startedAt))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
-            
-            HStack(spacing: 16) {
-                statBadge(count: presentationCount, label: "Presentations", color: .orange)
-                statBadge(count: workCount, label: "Work", color: .blue)
-                statBadge(count: noteCount, label: "Observations", color: .yellow)
-            }
-        }
-    }
-    
-    private func statBadge(count: Int, label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text("\(count)")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .foregroundStyle(color)
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 20)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [.yellow.opacity(0.1), .orange.opacity(0.05)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.yellow.opacity(0.3), .orange.opacity(0.2)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+    }
+
+    // MARK: - Progress Section
+
+    private var progressSection: some View {
+        VStack(spacing: 16) {
+            // Big progress ring
+            ZStack {
+                // Background circle
+                Circle()
+                    .stroke(Color.green.opacity(0.15), lineWidth: 12)
+                    .frame(width: 100, height: 100)
+
+                // Progress circle
+                Circle()
+                    .trim(from: 0, to: CGFloat(masteredCount) / CGFloat(max(totalLessons, 1)))
+                    .stroke(
+                        LinearGradient(
+                            colors: [.green, .mint],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                    )
+                    .frame(width: 100, height: 100)
+                    .rotationEffect(.degrees(-90))
+
+                // Center text
+                VStack(spacing: 0) {
+                    Text("\(progressPercent)")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text("%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Stats row
+            HStack(spacing: 24) {
+                statPill(
+                    icon: "checkmark.circle.fill",
+                    value: "\(masteredCount)",
+                    label: "Mastered",
+                    color: .green
+                )
+
+                statPill(
+                    icon: "book.fill",
+                    value: "\(totalLessons)",
+                    label: "Total",
+                    color: .blue
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+    }
+
+    private func statPill(icon: String, value: String, label: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(color)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
                 .fill(color.opacity(0.1))
         )
     }
-    
-    private var timelineSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Timeline")
-                .font(.headline)
-                .foregroundStyle(.primary)
-            
-            if timelineItems.isEmpty {
-                emptyTimelineView
+
+    // MARK: - Lessons Section
+
+    private var lessonsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "list.bullet.circle.fill")
+                    .foregroundStyle(.blue)
+                Text("Lessons")
+                    .font(.headline)
+            }
+
+            if trackLessons.isEmpty {
+                emptyLessonsView
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(timelineItems) { item in
-                        timelineRow(item: item)
+                VStack(spacing: 8) {
+                    ForEach(Array(trackLessons.enumerated()), id: \.element.id) { index, lesson in
+                        lessonRow(lesson: lesson, index: index + 1)
                     }
                 }
             }
         }
     }
-    
-    private var emptyTimelineView: some View {
-        ContentUnavailableView {
-            Label("No Activity", systemImage: "clock")
-                .foregroundStyle(.secondary)
-        } description: {
-            Text("No presentations, work, or observations recorded for this track yet.")
+
+    private var emptyLessonsView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "tray")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary.opacity(0.5))
+
+            Text("No lessons found")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
     }
-    
-    private func timelineRow(item: TimelineItem) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Color indicator
-            Circle()
-                .fill(colorForType(item.type))
-                .frame(width: 12, height: 12)
-                .padding(.top, 4)
-            
-            VStack(alignment: .leading, spacing: 6) {
-                // Date
-                Text(Self.dateFormatter.string(from: item.date))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                
-                // Content based on type
-                switch item.type {
-                case .presentation(let presentation):
-                    presentationRow(presentation)
-                case .work(let contract):
-                    workRow(contract)
-                case .note(let note):
-                    noteRow(note)
+
+    private func lessonRow(lesson: Lesson, index: Int) -> some View {
+        let lessonID = lesson.id.uuidString
+        let isMastered = masteredLessonIDs.contains(lessonID)
+        let isPresented = presentedLessonIDs.contains(lessonID)
+
+        return HStack(spacing: 12) {
+            // Step number or checkmark
+            ZStack {
+                Circle()
+                    .fill(isMastered ? Color.green : (isPresented ? Color.orange.opacity(0.2) : Color.secondary.opacity(0.1)))
+                    .frame(width: 32, height: 32)
+
+                if isMastered {
+                    Image(systemName: "checkmark")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                } else {
+                    Text("\(index)")
+                        .font(.caption.bold())
+                        .foregroundStyle(isPresented ? .orange : .secondary)
                 }
             }
-            
+
+            // Lesson name
+            VStack(alignment: .leading, spacing: 2) {
+                Text(lesson.name)
+                    .font(.subheadline)
+                    .fontWeight(isMastered ? .medium : .regular)
+                    .foregroundStyle(isMastered ? .primary : .secondary)
+
+                if isMastered {
+                    Label("Mastered", systemImage: "star.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                } else if isPresented {
+                    Label("In Progress", systemImage: "arrow.triangle.2.circlepath")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
+
             Spacer()
+
+            // Status indicator
+            if isMastered {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+            }
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(isMastered ? Color.green.opacity(0.08) : Color.primary.opacity(0.02))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(colorForType(item.type).opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(isMastered ? Color.green.opacity(0.2) : Color.clear, lineWidth: 1)
         )
     }
-    
-    private func presentationRow(_ presentation: Presentation) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "person.3.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                Text("Presentation")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.orange)
-            }
-            
-            if UUID(uuidString: presentation.lessonID) != nil {
-                Text(presentation.lessonTitleSnapshot ?? "Lesson")
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-            } else {
-                Text("Lesson")
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-            }
-        }
-    }
-    
-    private func workRow(_ work: WorkModel) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "briefcase.fill")
-                    .font(.caption)
-                    .foregroundStyle(.blue)
-                Text("Work")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.blue)
-            }
-            
-            Text(work.title.isEmpty ? "Work" : work.title)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-            
-            HStack(spacing: 4) {
-                Text(work.status.rawValue.capitalized)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if work.status == .complete, work.completedAt != nil {
-                    Text("• Completed")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-    
-    private func noteRow(_ note: Note) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "note.text")
-                    .font(.caption)
-                    .foregroundStyle(.yellow)
-                Text("Observation")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.yellow)
-            }
-            
-            Text(note.body)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .lineLimit(3)
-        }
-    }
-    
-    private func colorForType(_ type: TimelineItem.ItemType) -> Color {
-        switch type {
-        case .presentation:
-            return .orange
-        case .work:
-            return .blue
-        case .note:
-            return .yellow
-        }
-    }
-    
+
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()
         df.dateStyle = .medium
@@ -327,13 +354,13 @@ struct StudentTrackDetailView: View {
 #Preview {
     let container = ModelContainer.preview
     let context = container.mainContext
-    let track = Track(title: "Math Fundamentals")
+    let track = Track(title: "Math — Fundamentals")
     let student = Student(firstName: "Alan", lastName: "Turing", birthday: Date(), level: .upper)
     let enrollment = StudentTrackEnrollment(
         studentID: student.id.uuidString,
         trackID: track.id.uuidString,
         startedAt: Date(),
-        isActive: true
+        isActive: false
     )
     context.insert(track)
     context.insert(student)

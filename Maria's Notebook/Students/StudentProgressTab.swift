@@ -43,7 +43,9 @@ struct StudentProgressTab: View {
     
     @Query(sort: [SortDescriptor(\Lesson.name)])
     private var allLessons: [Lesson]
-    
+
+    @Query private var allLessonPresentations: [LessonPresentation]
+
     // MARK: - State
     @State private var selectedEnrollment: StudentTrackEnrollment?
     @State private var selectedProject: Project?
@@ -272,28 +274,54 @@ struct StudentProgressTab: View {
         
         let trackColor = trackColorForTitle(track.title)
         let hasNotes = enrollment.notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-        
-        // Calculate progress based on TrackSteps and Presentations
-        let trackSteps = allTrackSteps
-            .filter { $0.track?.id == track.id }
-            .sorted { $0.orderIndex < $1.orderIndex }
-        
-        let completedStepIDs = Set(presentations
-            .compactMap { $0.trackStepID }
-            .filter { stepID in
-                trackSteps.contains { $0.id.uuidString == stepID }
-            })
-        
+
+        // Calculate progress based on TrackSteps and LessonPresentation records
+        // Use track.steps relationship if available, otherwise filter from all steps
+        let trackSteps: [TrackStep] = {
+            if let steps = track.steps, !steps.isEmpty {
+                return steps.sorted { $0.orderIndex < $1.orderIndex }
+            }
+            // Fallback to filtering from all steps
+            return allTrackSteps
+                .filter { $0.track?.id == track.id }
+                .sorted { $0.orderIndex < $1.orderIndex }
+        }()
+
+        // Get lesson IDs for this track's steps
+        let trackLessonIDs = Set(trackSteps.compactMap { $0.lessonTemplateID?.uuidString })
+
+        // Get this student's LessonPresentation records for track lessons
+        let studentLessonPresentations = allLessonPresentations.filter {
+            $0.studentID == studentIDString && trackLessonIDs.contains($0.lessonID)
+        }
+
+        // Count mastered lessons (LessonPresentation.state == .mastered)
+        let masteredLessonIDs = Set(studentLessonPresentations
+            .filter { $0.state == .mastered }
+            .map { $0.lessonID })
+
+        // presentedLessonIDs available for future use if needed
+        // let presentedLessonIDs = Set(studentLessonPresentations.map { $0.lessonID })
+
+        // Find which steps are completed (lesson is mastered)
+        let completedStepIDs = Set(trackSteps
+            .filter { step in
+                guard let lessonID = step.lessonTemplateID?.uuidString else { return false }
+                return masteredLessonIDs.contains(lessonID)
+            }
+            .map { $0.id.uuidString })
+
         let masteredCount = completedStepIDs.count
         let totalSteps = trackSteps.count
         let progressPercent = totalSteps > 0 ? Double(masteredCount) / Double(totalSteps) : 0.0
         let isComplete = masteredCount == totalSteps && totalSteps > 0
-        
-        // Find current/next step (first uncompleted step)
+
+        // Find current/next step (first step whose lesson is not mastered)
         let currentStep = trackSteps.first { step in
-            !completedStepIDs.contains(step.id.uuidString)
+            guard let lessonID = step.lessonTemplateID?.uuidString else { return true }
+            return !masteredLessonIDs.contains(lessonID)
         }
-        
+
         let currentLesson = currentStep?.lessonTemplateID.flatMap { lessonID in
             allLessons.first { $0.id == lessonID }
         }
@@ -689,8 +717,15 @@ struct StudentProgressTab: View {
                     lineWidth: enrollment.isActive ? 2 : 1
                 )
         )
+        .onAppear {
+            // Auto-complete: If track is 100% mastered and enrollment is still active, mark it as complete
+            if isComplete && enrollment.isActive {
+                enrollment.isActive = false
+                try? modelContext.save()
+            }
+        }
     }
-    
+
     // MARK: - Helper Functions
     private func trackColorForTitle(_ title: String) -> Color {
         // Generate a consistent color based on the track title

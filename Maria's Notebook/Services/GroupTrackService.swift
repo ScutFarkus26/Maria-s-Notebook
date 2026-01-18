@@ -365,4 +365,60 @@ struct GroupTrackService {
         // Save changes
         try? modelContext.save()
     }
+
+    // MARK: - Track Completion
+
+    /// Check if a track is complete for a student and mark the enrollment as inactive if so.
+    /// A track is complete when all lessons in the track have been mastered by the student.
+    /// - Parameters:
+    ///   - lesson: The lesson that was just mastered (used to find the track)
+    ///   - studentID: The student's UUID string
+    ///   - modelContext: The model context for database operations
+    static func checkAndCompleteTrackIfNeeded(
+        lesson: Lesson,
+        studentID: String,
+        modelContext: ModelContext
+    ) {
+        // Check if this lesson belongs to a track
+        guard isTrack(subject: lesson.subject, group: lesson.group, modelContext: modelContext) else {
+            return
+        }
+
+        // Get the Track object
+        guard let track = try? getTrack(subject: lesson.subject, group: lesson.group, modelContext: modelContext) else {
+            return
+        }
+
+        // Get all lessons in this track
+        let allLessons = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+        let trackLessons = allLessons.filter { l in
+            l.subject.trimmed().caseInsensitiveCompare(lesson.subject.trimmed()) == .orderedSame &&
+            l.group.trimmed().caseInsensitiveCompare(lesson.group.trimmed()) == .orderedSame
+        }
+
+        guard !trackLessons.isEmpty else { return }
+
+        // Get all LessonPresentation records for this student
+        let allLessonPresentations = (try? modelContext.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+        let studentPresentations = allLessonPresentations.filter { $0.studentID == studentID }
+
+        // Check if all lessons in the track are mastered
+        let trackLessonIDs = Set(trackLessons.map { $0.id.uuidString })
+        let masteredLessonIDs = Set(studentPresentations
+            .filter { $0.state == .mastered && trackLessonIDs.contains($0.lessonID) }
+            .map { $0.lessonID })
+
+        let allMastered = trackLessonIDs.isSubset(of: masteredLessonIDs)
+
+        guard allMastered else { return }
+
+        // All lessons mastered - mark enrollment as inactive (completed)
+        let trackID = track.id.uuidString
+        let allEnrollments = (try? modelContext.fetch(FetchDescriptor<StudentTrackEnrollment>())) ?? []
+
+        if let enrollment = allEnrollments.first(where: { $0.studentID == studentID && $0.trackID == trackID && $0.isActive }) {
+            enrollment.isActive = false
+            try? modelContext.save()
+        }
+    }
 }

@@ -430,28 +430,72 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
-        guard let work = findOrCreateWork(student: student, lesson: lesson, context: context) else { return }
-        work.status = .complete
-        work.completedAt = Date()
+        let studentIDString = student.id.uuidString
+        let lessonIDString = lesson.id.uuidString
+
+        // First, ensure the lesson is marked as presented (so it shows in the checklist)
+        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        if findGivenLessonContaining(student: studentIDString, in: allSLs) == nil {
+            // Not yet presented - add student to a given lesson
+            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
+        }
+
+        // Optionally create/update WorkModel if one exists
+        if let work = findOrCreateWork(student: student, lesson: lesson, context: context) {
+            work.status = .complete
+            work.completedAt = Date()
+        }
+
+        // Create/update LessonPresentation with mastered state
+        upsertLessonPresentation(
+            studentID: studentIDString,
+            lessonID: lessonIDString,
+            state: .mastered,
+            context: context
+        )
+
+        // Auto-enroll in track if lesson belongs to a track
+        GroupTrackService.autoEnrollInTrackIfNeeded(
+            lesson: lesson,
+            studentIDs: [studentIDString],
+            modelContext: context
+        )
+
+        // Check if track is now complete and move to history if so
+        GroupTrackService.checkAndCompleteTrackIfNeeded(
+            lesson: lesson,
+            studentID: studentIDString,
+            modelContext: context
+        )
+
         context.safeSave()
         recomputeMatrix(context: context)
     }
-    
+
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
         let studentID = student.id
         let lessonID = lesson.id
         let studentIDString = studentID.uuidString
         let lessonIDString = lessonID.uuidString
-        
+
         let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
-        
+
         // Check if student is already in a given lesson
         if let existing = findGivenLessonContaining(student: studentIDString, in: allSLs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
+            // Remove LessonPresentation when toggling off
+            deleteLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, context: context)
         } else {
             addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
+            // Create LessonPresentation with presented state
+            upsertLessonPresentation(
+                studentID: studentIDString,
+                lessonID: lessonIDString,
+                state: .presented,
+                context: context
+            )
         }
-        
+
         context.safeSave()
         recomputeMatrix(context: context)
     }
@@ -515,6 +559,9 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         for work in workModelsToDelete {
             context.delete(work)
         }
+        // Delete LessonPresentation for this student/lesson
+        deleteLessonPresentation(studentID: sidString, lessonID: lidString, context: context)
+
         context.safeSave()
         recomputeMatrix(context: context)
     }
@@ -555,6 +602,59 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             presentationID: nil,
             scheduledDate: nil
         )
+    }
+
+    // MARK: - LessonPresentation Helpers
+
+    /// Creates or updates a LessonPresentation record for progress tracking.
+    /// If the record exists and we're setting a "higher" state (e.g., mastered > presented), it updates.
+    /// If the record exists with mastered state and we're setting presented, it leaves mastered intact.
+    private func upsertLessonPresentation(
+        studentID: String,
+        lessonID: String,
+        state: LessonPresentationState,
+        context: ModelContext
+    ) {
+        let allLessonPresentations = (try? context.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+        let existing = allLessonPresentations.first { lp in
+            lp.studentID == studentID && lp.lessonID == lessonID
+        }
+
+        if let existing = existing {
+            // Only upgrade state (presented -> mastered), never downgrade
+            if state == .mastered && existing.state != .mastered {
+                existing.state = .mastered
+                existing.masteredAt = Date()
+            }
+            existing.lastObservedAt = Date()
+        } else {
+            // Create new LessonPresentation
+            let lp = LessonPresentation(
+                studentID: studentID,
+                lessonID: lessonID,
+                presentationID: nil,
+                state: state,
+                presentedAt: Date(),
+                lastObservedAt: Date(),
+                masteredAt: state == .mastered ? Date() : nil
+            )
+            context.insert(lp)
+        }
+    }
+
+    /// Deletes the LessonPresentation record for a student/lesson combination.
+    private func deleteLessonPresentation(
+        studentID: String,
+        lessonID: String,
+        context: ModelContext
+    ) {
+        let allLessonPresentations = (try? context.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+        let toDelete = allLessonPresentations.filter { lp in
+            lp.studentID == studentID && lp.lessonID == lessonID
+        }
+        for lp in toDelete {
+            context.delete(lp)
+        }
     }
 }
 
