@@ -32,48 +32,26 @@ struct MariasToolboxApp: App {
     /// Returns the CloudKit container identifier from entitlements
     /// This must match the container ID in the entitlements file
     static func getCloudKitContainerID() -> String? {
-        // Use the container ID from entitlements: iCloud.DanielSDeBerry.MariasNoteBook
-        // This is more reliable than constructing from bundle ID
-        return "iCloud.DanielSDeBerry.MariasNoteBook"
+        CloudKitConfigurationService.getContainerID()
     }
-    
+
     /// Returns a summary of CloudKit sync status
     static func getCloudKitStatus() -> (enabled: Bool, active: Bool, containerID: String) {
-        let enabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
-        let active = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
-        let containerID = getCloudKitContainerID() ?? "Unknown"
-        return (enabled: enabled, active: active, containerID: containerID)
+        let status = CloudKitConfigurationService.getStatus()
+        return (enabled: status.enabled, active: status.active, containerID: status.containerID)
     }
     
     // MARK: - Error Handling Helpers
-    
+
     /// Centralized error handling for database initialization failures.
-    /// Sets error state, updates UserDefaults, and notifies DatabaseErrorCoordinator.
-    /// - Parameters:
-    ///   - error: The error that occurred
-    ///   - description: Optional custom error description. If nil, uses error.localizedDescription
+    /// Delegates to DatabaseInitializationService.
     @MainActor
     static func handleDatabaseInitError(_ error: Error, description: String? = nil) {
-        let errorDescription = description ?? ((error as NSError?)?.localizedDescription ?? String(describing: error))
-        let nsError = error as NSError? ?? NSError(
-            domain: "MariasNotebook",
-            code: 5000,
-            userInfo: [NSLocalizedDescriptionKey: errorDescription]
-        )
-        
-        MariasToolboxApp.initError = nsError
-        DatabaseErrorCoordinator.shared.setError(nsError)
-        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-        UserDefaults.standard.set(errorDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
+        DatabaseInitializationService.handleDatabaseInitError(error, description: description)
     }
-    
+
     /// Handles critical database initialization failure with multiple error contexts.
-    /// Used when multiple errors occur in sequence (e.g., original error + fallback error).
-    /// - Parameters:
-    ///   - originalError: The first error that occurred
-    ///   - finalError: The final error (e.g., from fallback attempt)
-    ///   - emptyContainerError: Optional error from attempting to create empty container
-    ///   - errorCode: Custom error code (default: 5002)
+    /// Delegates to DatabaseInitializationService.
     @MainActor
     static func handleCriticalDatabaseInitError(
         originalError: Error,
@@ -81,32 +59,12 @@ struct MariasToolboxApp: App {
         emptyContainerError: Error? = nil,
         errorCode: Int = 5002
     ) {
-        let originalDesc = (originalError as NSError?)?.localizedDescription ?? String(describing: originalError)
-        let finalDesc = (finalError as NSError?)?.localizedDescription ?? "N/A"
-        let emptyErrorDesc = (emptyContainerError as NSError?)?.localizedDescription ?? "N/A"
-        
-        let errorMessage: String
-        if emptyContainerError != nil {
-            errorMessage = "Critical database initialization failure. Failed to create even an empty container. This indicates a severe system issue. Original: \(originalDesc). Final: \(finalDesc). Empty container error: \(emptyErrorDesc). Please try resetting the database or reinstalling the app."
-        } else if finalError != nil {
-            errorMessage = "Critical database initialization failure. The app cannot create a database container. Original: \(originalDesc). Final: \(finalDesc). Please try resetting the database or reinstalling the app."
-        } else {
-            errorMessage = "Critical database initialization failure. Original: \(originalDesc). Please try resetting the database or reinstalling the app."
-        }
-        
-        let criticalError = NSError(
-            domain: "MariasNotebook",
-            code: errorCode,
-            userInfo: [NSLocalizedDescriptionKey: errorMessage]
+        DatabaseInitializationService.handleCriticalDatabaseInitError(
+            originalError: originalError,
+            finalError: finalError,
+            emptyContainerError: emptyContainerError,
+            errorCode: errorCode
         )
-        
-        MariasToolboxApp.initError = criticalError
-        let details = emptyContainerError != nil 
-            ? "Original: \(originalDesc). Final: \(finalDesc). Empty container error: \(emptyErrorDesc)"
-            : "Original: \(originalDesc). Final: \(finalDesc)"
-        DatabaseErrorCoordinator.shared.setError(criticalError, details: details)
-        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-        UserDefaults.standard.set(criticalError.localizedDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
     }
     
     // Track initialization errors to show in the UI
@@ -127,40 +85,15 @@ struct MariasToolboxApp: App {
 
     /// Deletes the SwiftData persistent store file/package.
     /// This only deletes local data on this device and does NOT delete CloudKit data.
-    /// If CloudKit is enabled, data will re-sync from iCloud after app restart.
     static func resetPersistentStore() throws {
-        let url = storeFileURL()
-        let fm = FileManager.default
-        
-        // Check if store exists
-        guard fm.fileExists(atPath: url.path) else {
-            return
-        }
-        
-        // SwiftData stores can be either files or packages (directories on macOS)
-        // Remove the item regardless of whether it's a file or directory
-        if fm.fileExists(atPath: url.path) {
-            try fm.removeItem(at: url)
-        }
+        try DatabaseInitializationService.resetPersistentStore()
     }
-    
+
     #if DEBUG
     /// Resets the local database by deleting SwiftData store files and clearing related state.
-    /// This is a DEBUG-only function that performs a complete reset and logs the event.
-    /// - Note: This only deletes local data on this device. CloudKit data is NOT affected.
-    /// - Important: App restart is required after calling this function.
+    /// This is a DEBUG-only function that performs a complete reset.
     static func resetLocalDatabaseInDebug() throws {
-        // Delete the persistent store
-        try resetPersistentStore()
-
-        // Clear error state flags
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
-
-        // Clear error state
-        initError = nil
-        DatabaseErrorCoordinator.shared.clearError()
+        try DatabaseInitializationService.resetLocalDatabaseInDebug()
     }
     
     #if os(macOS)
@@ -194,84 +127,22 @@ struct MariasToolboxApp: App {
     #endif
     
     static func resetLocalDatabaseAndForceCloudKitSync() throws {
-        // Reset the local store
-        try resetPersistentStore()
-        
-        // Ensure CloudKit is enabled
-        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.enableCloudKitSync)
-
-        // Clear any error flags
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        try DatabaseInitializationService.resetLocalDatabaseAndForceCloudKitSync()
     }
 
     static func storeFileURL() -> URL {
-        let fm = FileManager.default
-        // Application support directory should always be available, but handle gracefully if not
-        guard let appSupport = try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
-            // Fallback to temporary directory if application support is unavailable
-            return fm.temporaryDirectory.appendingPathComponent("SwiftData.store", isDirectory: false)
-        }
-        let bundleID = Bundle.main.bundleIdentifier ?? "MariasNotebook"
-        let containerDir = appSupport.appendingPathComponent(bundleID, isDirectory: true)
-        try? fm.createDirectory(at: containerDir, withIntermediateDirectories: true)
-        // IMPORTANT: return a file URL for the SwiftData store package. Do not pre-create it.
-        return containerDir.appendingPathComponent("SwiftData.store", isDirectory: false)
+        DatabaseInitializationService.storeFileURL()
     }
-    
-    /// Attempts to migrate AttendanceRecord.studentID from UUID to String using CoreData APIs.
-    /// This is a workaround for SwiftData's inability to automatically migrate type changes.
-    /// Returns true if migration was successful or not needed, false if migration failed.
+
+    /// Attempts to migrate AttendanceRecord.studentID from UUID to String.
+    /// Returns true if migration was successful or not needed.
     static func attemptAttendanceRecordMigrationIfNeeded() -> Bool {
-        let storeURL = storeFileURL()
-        let fm = FileManager.default
-        
-        // Check if store exists
-        guard fm.fileExists(atPath: storeURL.path) else {
-            return true // No store to migrate
-        }
-        
-        // Check if migration flag is already set
-        let migrationFlagKey = "Migration.attendanceRecordStudentIDCoreData.v1"
-        if UserDefaults.standard.bool(forKey: migrationFlagKey) {
-            return true // Already migrated
-        }
-        
-        // Note: Manual CoreData migration is complex and requires:
-        // 1. Loading the old model (with UUID studentID)
-        // 2. Loading the new model (with String studentID)
-        // 3. Creating a mapping model
-        // 4. Performing the migration
-        // 
-        // Since SwiftData doesn't expose the underlying CoreData model easily,
-        // and we can't easily create a mapping model programmatically,
-        // the best approach is to let SwiftData fail with a clear error message,
-        // and provide the user with an option to reset the store.
-        //
-        // For now, we'll return true to allow SwiftData to attempt opening.
-        // If it fails, the error handler will provide clear instructions.
-        return true
+        DatabaseInitializationService.attemptAttendanceRecordMigrationIfNeeded()
     }
 
     /// Configures SQLite to suppress detached signature logging errors.
-    /// These errors occur when SQLite tries to access /private/var/db/DetachedSignatures
-    /// which doesn't exist on some systems. This function is called after container creation
-    /// as a placeholder for potential future configuration.
-    /// 
-    /// Note: The main fix is setting the environment variable in init() before SQLite initializes.
-    /// These errors are harmless and occur at SQLite library initialization time, so they may
-    /// still appear even with this configuration. However, setting environment variables early in
-    /// app initialization provides the best chance of suppressing them.
     static func configureSQLiteToSuppressDetachedSignatureErrors(for container: ModelContainer) {
-        // The environment variable is set in init() for maximum effect.
-        // SQLite signature logging happens very early, so the environment variable
-        // in init() is the primary mechanism. This function serves as a placeholder
-        // for potential future configuration if SwiftData exposes more SQLite options.
-        // 
-        // Note: SwiftData's ModelContext doesn't expose the underlying Core Data
-        // NSPersistentStoreCoordinator directly, so we can't configure SQLite pragmas here.
-        // The environment variable approach is the best available option.
-        _ = container // Mark as used, serves as a hook point for future improvements
+        DatabaseInitializationService.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
     }
     
     /// Creates a ModelContainer with comprehensive error handling.

@@ -1,0 +1,94 @@
+import Foundation
+import SwiftData
+
+// MARK: - Observations Data Loader
+
+/// Loads and manages note data for the ObservationsView.
+enum ObservationsDataLoader {
+
+    // MARK: - Load All Notes
+
+    /// Loads all notes from the database.
+    ///
+    /// - Parameters:
+    ///   - context: Model context for fetching
+    ///   - contextTextProvider: Closure to generate context text for a note
+    /// - Returns: Array of UnifiedObservationItem sorted by date (newest first)
+    static func loadAllNotes(
+        context: ModelContext,
+        contextTextProvider: (Note) -> String?
+    ) -> [UnifiedObservationItem] {
+        var allItems: [UnifiedObservationItem] = []
+
+        do {
+            let noteFetch = FetchDescriptor<Note>(
+                sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
+            )
+            let notes: [Note] = try context.fetch(noteFetch)
+            for note in notes {
+                let studentIDs = studentIDsFromScope(note.scope)
+                let contextText = contextTextProvider(note)
+                allItems.append(UnifiedObservationItem(
+                    id: note.id,
+                    date: note.createdAt,
+                    body: note.body,
+                    category: note.category,
+                    includeInReport: note.includeInReport,
+                    imagePath: note.imagePath,
+                    contextText: contextText,
+                    studentIDs: studentIDs,
+                    source: .note(note)
+                ))
+            }
+        } catch {
+            #if DEBUG
+            print("Error fetching Note objects: \(error)")
+            #endif
+        }
+
+        // Sort by date (newest first)
+        allItems.sort { $0.date > $1.date }
+
+        return allItems
+    }
+
+    // MARK: - Load Students
+
+    /// Loads students for the given note items.
+    ///
+    /// - Parameters:
+    ///   - items: Items containing student IDs
+    ///   - existingCache: Existing student cache to avoid re-fetching
+    ///   - context: Model context for fetching
+    /// - Returns: Updated student cache
+    static func loadStudents(
+        for items: [UnifiedObservationItem],
+        existingCache: [UUID: Student],
+        context: ModelContext
+    ) -> [UUID: Student] {
+        let idsNeeded = Set(items.flatMap { $0.studentIDs })
+        let missing = idsNeeded.filter { existingCache[$0] == nil }
+        guard !missing.isEmpty else { return existingCache }
+
+        var updatedCache = existingCache
+        do {
+            let descriptor = FetchDescriptor<Student>(predicate: #Predicate { missing.contains($0.id) })
+            let fetched = try context.fetch(descriptor)
+            for s in fetched { updatedCache[s.id] = s }
+        } catch {
+            // Fallback: no-op on error
+        }
+
+        return updatedCache
+    }
+
+    // MARK: - Private Helpers
+
+    private static func studentIDsFromScope(_ scope: NoteScope) -> [UUID] {
+        switch scope {
+        case .all: return []
+        case .student(let id): return [id]
+        case .students(let ids): return ids
+        }
+    }
+}

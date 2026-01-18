@@ -1,0 +1,125 @@
+import Foundation
+import SwiftData
+
+// MARK: - Students Filter Service
+
+/// Service for computing filtered and sorted student lists.
+enum StudentsFilterService {
+
+    // MARK: - Compute Hidden Test Student IDs
+
+    /// Computes the set of student IDs that should be hidden based on test student settings.
+    ///
+    /// - Parameters:
+    ///   - students: All students
+    ///   - showTestStudents: Whether to show test students
+    ///   - testStudentNamesRaw: Raw string of test student names
+    /// - Returns: Set of UUIDs for students that should be hidden
+    static func computeHiddenTestStudentIDs(
+        students: [Student],
+        showTestStudents: Bool,
+        testStudentNamesRaw: String
+    ) -> Set<UUID> {
+        guard !showTestStudents else { return [] }
+
+        let lower = testStudentNamesRaw.lowercased()
+        let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
+        let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        let hiddenNames = Set(tokens)
+
+        let ids = students.compactMap { s -> UUID? in
+            let name = s.fullName.normalizedForComparison()
+            return hiddenNames.contains(name) ? s.id : nil
+        }
+
+        return Set(ids)
+    }
+
+    // MARK: - Compute Present Now IDs
+
+    /// Computes the set of student IDs that are currently present.
+    ///
+    /// - Parameters:
+    ///   - attendanceRecords: Today's attendance records
+    ///   - hiddenTestStudentIDs: IDs to exclude from result
+    /// - Returns: Set of present student UUIDs
+    static func computePresentNowIDs(
+        attendanceRecords: [AttendanceRecord],
+        hiddenTestStudentIDs: Set<UUID>
+    ) -> Set<UUID> {
+        let cal = Calendar.current
+        let now = Date()
+        let today = cal.startOfDay(for: now)
+
+        let todaysPresent = attendanceRecords.filter { rec in
+            cal.isDate(rec.date, inSameDayAs: today) && (rec.status == .present || rec.status == .tardy)
+        }
+
+        // CloudKit compatibility: Convert String studentIDs to UUIDs
+        var ids = Set(todaysPresent.compactMap { UUID(uuidString: $0.studentID) })
+        ids.subtract(hiddenTestStudentIDs)
+        return ids
+    }
+
+    // MARK: - Compute Days Since Last Lesson
+
+    /// Computes days since last lesson for each student.
+    ///
+    /// - Parameters:
+    ///   - students: All students
+    ///   - studentLessons: All student lessons
+    ///   - lessons: Lessons dictionary by ID
+    ///   - modelContext: Model context for school days calculation
+    ///   - calendar: Calendar for date calculations
+    /// - Returns: Dictionary mapping student ID to days since last lesson
+    static func computeDaysSinceLastLesson(
+        students: [Student],
+        studentLessons: [StudentLesson],
+        lessons: [UUID: Lesson],
+        modelContext: ModelContext,
+        calendar: Calendar
+    ) -> [UUID: Int] {
+        var result: [UUID: Int] = [:]
+
+        func norm(_ s: String) -> String { s.normalizedForComparison() }
+
+        let excludedLessonIDs: Set<UUID> = {
+            let ids = lessons.values.filter { l in
+                let s = norm(l.subject)
+                let g = norm(l.group)
+                return s == "parsha" || g == "parsha"
+            }.map { $0.id }
+            return Set(ids)
+        }()
+
+        let given = studentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
+
+        var lastDateByStudent: [UUID: Date] = [:]
+        for sl in given {
+            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+            for sid in sl.resolvedStudentIDs {
+                if let existing = lastDateByStudent[sid] {
+                    if when > existing { lastDateByStudent[sid] = when }
+                } else {
+                    lastDateByStudent[sid] = when
+                }
+            }
+        }
+
+        for s in students {
+            if let last = lastDateByStudent[s.id] {
+                let days = LessonAgeHelper.schoolDaysSinceCreation(
+                    createdAt: last,
+                    asOf: Date(),
+                    using: modelContext,
+                    calendar: calendar
+                )
+                result[s.id] = days
+            } else {
+                result[s.id] = -1
+            }
+        }
+
+        return result
+    }
+}

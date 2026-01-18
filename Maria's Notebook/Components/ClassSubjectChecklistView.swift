@@ -402,6 +402,10 @@ struct CellIdentifier: Hashable {
 }
 
 // MARK: - ViewModel
+// Delegates to:
+// - ChecklistMatrixBuilder: Matrix state computation
+// - ChecklistBatchActionExecutor: Batch operations
+// - ChecklistDragSelectionManager: Drag selection (used in view)
 @MainActor
 class ClassSubjectChecklistViewModel: ObservableObject {
     @Published var students: [Student] = []
@@ -417,7 +421,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     @Published var selectedCells: Set<CellIdentifier> = []
     var isSelectionMode: Bool { !selectedCells.isEmpty }
     private let lessonsLogic = LessonsViewModel()
-    
+
     // MARK: - Name Display Helpers
     private func normalizedFirstName(_ name: String) -> String {
         name.trimmed().lowercased()
@@ -443,44 +447,44 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             return firstTrimmed
         }
     }
-    
+
     func loadData(context: ModelContext) {
         let studentFetch = FetchDescriptor<Student>(sortBy: [SortDescriptor(\.birthday)])
-        let fetched = (try? context.fetch(studentFetch)) ?? []
+        let fetched = context.safeFetch(studentFetch)
         self.allStudents = fetched
         self.students = fetched
-        
+
         let allLessonsFetch = FetchDescriptor<Lesson>()
-        let allLessons = (try? context.fetch(allLessonsFetch)) ?? []
+        let allLessons = context.safeFetch(allLessonsFetch)
         self.availableSubjects = lessonsLogic.subjects(from: allLessons)
-        
+
         if selectedSubject.isEmpty, let first = availableSubjects.first {
             selectedSubject = first
         }
         refreshMatrix(context: context)
     }
-    
+
     func applyVisibilityFilter(context: ModelContext, show: Bool, namesRaw: String) {
         self.students = TestStudentsFilter.filterVisible(allStudents, show: show, namesRaw: namesRaw)
         recomputeMatrix(context: context)
     }
-    
+
     func refreshMatrix(context: ModelContext) {
         guard !selectedSubject.isEmpty else { return }
         let sub = selectedSubject.trimmed()
-        let allLessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
+        let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
         self.lessons = allLessons.filter { $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame }
         self.orderedGroups = lessonsLogic.groups(for: sub, lessons: self.lessons)
         recomputeMatrix(context: context)
     }
-    
+
     func lessonsIn(group: String) -> [Lesson] {
         let groupTrimmed = group.trimmed()
         return lessons.filter {
             $0.group.trimmed().localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
         }.sorted { $0.orderInGroup < $1.orderInGroup }
     }
-    
+
     func state(for student: Student, lesson: Lesson) -> StudentChecklistRowState? {
         return matrixStates[student.id]?[lesson.id]
     }
@@ -504,160 +508,91 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         selectedCells.contains(CellIdentifier(studentID: student.id, lessonID: lesson.id))
     }
 
-    // MARK: - Batch Actions
+    // MARK: - Batch Actions (delegated to ChecklistBatchActionExecutor)
 
     func batchAddToInbox(context: ModelContext) {
-        for cell in selectedCells {
-            guard let student = students.first(where: { $0.id == cell.studentID }),
-                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
-            let state = matrixStates[cell.studentID]?[cell.lessonID]
-            // Only add if not already scheduled
-            if state?.isScheduled != true {
-                toggleScheduledNoRecompute(student: student, lesson: lesson, context: context)
-            }
-        }
-        context.safeSave()
+        ChecklistBatchActionExecutor.batchAddToInbox(
+            selectedCells: selectedCells,
+            students: students,
+            lessons: lessons,
+            matrixStates: matrixStates,
+            context: context
+        )
         recomputeMatrix(context: context)
         clearSelection()
     }
 
     func batchMarkPresented(context: ModelContext) {
-        for cell in selectedCells {
-            guard let student = students.first(where: { $0.id == cell.studentID }),
-                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
-            let state = matrixStates[cell.studentID]?[cell.lessonID]
-            // Only mark presented if not already presented
-            if state?.isPresented != true {
-                togglePresentedNoRecompute(student: student, lesson: lesson, context: context)
-            }
-        }
-        context.safeSave()
+        ChecklistBatchActionExecutor.batchMarkPresented(
+            selectedCells: selectedCells,
+            students: students,
+            lessons: lessons,
+            matrixStates: matrixStates,
+            context: context
+        )
         recomputeMatrix(context: context)
         clearSelection()
     }
 
     func batchMarkMastered(context: ModelContext) {
-        for cell in selectedCells {
-            guard let student = students.first(where: { $0.id == cell.studentID }),
-                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
-            let state = matrixStates[cell.studentID]?[cell.lessonID]
-            // Only mark mastered if not already complete
-            if state?.isComplete != true {
-                markCompleteNoRecompute(student: student, lesson: lesson, context: context)
-            }
-        }
-        context.safeSave()
+        ChecklistBatchActionExecutor.batchMarkMastered(
+            selectedCells: selectedCells,
+            students: students,
+            lessons: lessons,
+            matrixStates: matrixStates,
+            context: context
+        )
         recomputeMatrix(context: context)
         clearSelection()
     }
 
     func batchClearStatus(context: ModelContext) {
-        for cell in selectedCells {
-            guard let student = students.first(where: { $0.id == cell.studentID }),
-                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
-            clearStatusNoRecompute(student: student, lesson: lesson, context: context)
-        }
-        context.safeSave()
+        ChecklistBatchActionExecutor.batchClearStatus(
+            selectedCells: selectedCells,
+            students: students,
+            lessons: lessons,
+            context: context
+        )
         recomputeMatrix(context: context)
         clearSelection()
     }
 
+    // MARK: - Matrix Computation (delegated to ChecklistMatrixBuilder)
+
     func recomputeMatrix(context: ModelContext) {
-        let lessonIDs = Set(lessons.map { $0.id })
-        guard !lessonIDs.isEmpty else { matrixStates = [:]; return }
-        
-        // CloudKit compatibility: Convert UUIDs to strings for comparison
-        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
-        let slDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { lessonIDStrings.contains($0.lessonID) })
-        let allSLs = (try? context.fetch(slDescriptor)) ?? []
-        
-        // Fetch all WorkModels and filter in memory (no predicates)
-        let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
-
-        var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
-
-        for student in students {
-            var studentRow: [UUID: StudentChecklistRowState] = [:]
-            let studentSLs = allSLs.filter { $0.studentIDs.contains(student.id.uuidString) }
-            let studentIDString = student.id.uuidString
-
-            // Filter WorkModels for this student
-            let studentWorkModels = allWorkModels.filter { work in
-                (work.participants ?? []).contains { $0.studentID == studentIDString }
-            }
-
-            for lesson in lessons {
-                // CloudKit compatibility: Convert UUID to String for comparison
-                let lessonIDString = lesson.id.uuidString
-                let slsForLesson = studentSLs.filter { $0.lessonID == lessonIDString }
-
-                let nonGiven = slsForLesson.filter { !$0.isGiven }
-                let plannedCandidate = nonGiven.first
-                let isScheduled = !nonGiven.isEmpty
-
-                let isPresented = slsForLesson.contains { $0.isGiven }
-
-                // Find WorkModel for this lesson
-                let workModelForLesson = studentWorkModels.first { work in
-                    guard let slID = work.studentLessonID,
-                          let sl = studentSLs.first(where: { $0.id == slID }),
-                          UUID(uuidString: sl.lessonID) == lesson.id else {
-                        return false
-                    }
-                    return true
-                }
-
-                let isActive = workModelForLesson?.isOpen ?? false
-                let isComplete = workModelForLesson?.status == .complete
-
-                let contractID = workModelForLesson?.id
-                
-                let state = StudentChecklistRowState(
-                    lessonID: lesson.id,
-                    plannedItemID: plannedCandidate?.id,
-                    presentationLogID: nil,
-                    contractID: contractID,
-                    isScheduled: isScheduled,
-                    isPresented: isPresented,
-                    isActive: isActive,
-                    isComplete: isComplete,
-                    lastActivityDate: nil,
-                    isStale: false
-                )
-                studentRow[lesson.id] = state
-            }
-            newMatrix[student.id] = studentRow
-        }
-        self.matrixStates = newMatrix
+        guard !lessons.isEmpty else { matrixStates = [:]; return }
+        self.matrixStates = ChecklistMatrixBuilder.buildMatrix(
+            students: students,
+            lessons: lessons,
+            context: context
+        )
     }
-    
+
+    // MARK: - Individual Cell Actions
+
     func toggleScheduled(student: Student, lesson: Lesson, context: ModelContext) {
         toggleScheduledNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    /// Internal version that skips save/recompute for batch operations
     private func toggleScheduledNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
         let lessonIDString = lesson.id.uuidString
         let studentIDString = student.id.uuidString
 
         let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
 
-        // Check if student is already in an unscheduled lesson
         if let existing = findUnscheduledLessonContaining(student: studentIDString, in: allSLs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
         } else {
             addStudentToUnscheduledLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
         }
     }
-    
-    // MARK: - Helper Methods for toggleScheduled
-    
+
     private func findUnscheduledLessonContaining(student: String, in lessons: [StudentLesson]) -> StudentLesson? {
         lessons.first(where: { !$0.isGiven && $0.studentIDs.contains(student) })
     }
-    
+
     private func removeStudentFromLesson(student: String, lesson: StudentLesson, context: ModelContext) {
         var ids = lesson.studentIDs
         ids.removeAll { $0 == student }
@@ -667,7 +602,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             lesson.studentIDs = ids
         }
     }
-    
+
     private func addStudentToUnscheduledLesson(student: Student, studentIDString: String, lesson: Lesson, in allSLs: [StudentLesson], context: ModelContext) {
         if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
             if !group.studentIDs.contains(studentIDString) {
@@ -678,52 +613,30 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             context.insert(newSL)
         }
     }
-    
+
     func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
         markCompleteNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    /// Internal version that skips save/recompute for batch operations
     private func markCompleteNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
         let studentIDString = student.id.uuidString
         let lessonIDString = lesson.id.uuidString
 
-        // First, ensure the lesson is marked as presented (so it shows in the checklist)
         let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
         if findGivenLessonContaining(student: studentIDString, in: allSLs) == nil {
-            // Not yet presented - add student to a given lesson
             addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
         }
 
-        // Optionally create/update WorkModel if one exists
         if let work = findOrCreateWork(student: student, lesson: lesson, context: context) {
             work.status = .complete
             work.completedAt = Date()
         }
 
-        // Create/update LessonPresentation with mastered state
-        upsertLessonPresentation(
-            studentID: studentIDString,
-            lessonID: lessonIDString,
-            state: .mastered,
-            context: context
-        )
-
-        // Auto-enroll in track if lesson belongs to a track
-        GroupTrackService.autoEnrollInTrackIfNeeded(
-            lesson: lesson,
-            studentIDs: [studentIDString],
-            modelContext: context
-        )
-
-        // Check if track is now complete and move to history if so
-        GroupTrackService.checkAndCompleteTrackIfNeeded(
-            lesson: lesson,
-            studentID: studentIDString,
-            modelContext: context
-        )
+        upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .mastered, context: context)
+        GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
+        GroupTrackService.checkAndCompleteTrackIfNeeded(lesson: lesson, studentID: studentIDString, modelContext: context)
     }
 
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
@@ -732,126 +645,92 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         recomputeMatrix(context: context)
     }
 
-    /// Internal version that skips save/recompute for batch operations
     private func togglePresentedNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
         let studentIDString = student.id.uuidString
         let lessonIDString = lesson.id.uuidString
 
         let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
 
-        // Check if student is already in a given lesson
         if let existing = findGivenLessonContaining(student: studentIDString, in: allSLs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
-            // Remove LessonPresentation when toggling off
             deleteLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, context: context)
         } else {
             addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
-            // Create LessonPresentation with presented state
-            upsertLessonPresentation(
-                studentID: studentIDString,
-                lessonID: lessonIDString,
-                state: .presented,
-                context: context
-            )
+            upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .presented, context: context)
         }
     }
-    
-    // MARK: - Helper Methods for togglePresented
-    
+
     private func findGivenLessonContaining(student: String, in lessons: [StudentLesson]) -> StudentLesson? {
         lessons.first(where: { $0.isGiven && $0.studentIDs.contains(student) })
     }
-    
+
     private func addStudentToGivenLesson(student: Student, studentIDString: String, lesson: Lesson, in allSLs: [StudentLesson], context: ModelContext) {
         let today = Date()
         if let group = allSLs.first(where: { $0.isGiven && ($0.givenAt ?? Date.distantPast).isSameDay(as: today) }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
-                // Auto-enroll student in track if lesson belongs to a track
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson,
-                    studentIDs: [studentIDString],
-                    modelContext: context
-                )
+                GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
             }
         } else {
             let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true)
             context.insert(newSL)
-            // Auto-enroll student in track if lesson belongs to a track
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lesson: lesson,
-                studentIDs: [studentIDString],
-                modelContext: context
-            )
+            GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
         }
     }
-    
+
     func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
         clearStatusNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    /// Internal version that skips save/recompute for batch operations
     private func clearStatusNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
         let lid = lesson.id
         let sidString = student.id.uuidString
-        // CloudKit compatibility: Convert UUID to String for comparison
         let lidString = lid.uuidString
-        let sls = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lidString }))) ?? []
+
+        let sls = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lidString }))
         for sl in sls where sl.studentIDs.contains(sidString) {
             var newIDs = sl.studentIDs
             newIDs.removeAll { $0 == sidString }
             if newIDs.isEmpty { context.delete(sl) } else { sl.studentIDs = newIDs }
         }
-        // Delete WorkModels for this student/lesson
-        let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
+
+        let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
         let workModelsToDelete = allWorkModels.filter { work in
-            // Check if student is a participant
             let hasStudent = (work.participants ?? []).contains { $0.studentID == sidString }
             guard hasStudent else { return false }
-            // Check if work is for this lesson (via studentLessonID)
             guard let slID = work.studentLessonID,
                   let sl = sls.first(where: { $0.id == slID }),
-                  UUID(uuidString: sl.lessonID) == lid else {
-                return false
-            }
+                  UUID(uuidString: sl.lessonID) == lid else { return false }
             return true
         }
         for work in workModelsToDelete {
             context.delete(work)
         }
-        // Delete LessonPresentation for this student/lesson
+
         deleteLessonPresentation(studentID: sidString, lessonID: lidString, context: context)
     }
-    
+
     private func findOrCreateWork(student: Student, lesson: Lesson, context: ModelContext) -> WorkModel? {
         let sid = student.id
         let lid = lesson.id
-        
-        // Fetch all WorkModels and filter in memory
-        let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
-        
-        // Find existing WorkModel for this student/lesson
+        let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
+
         let existingWork = allWorkModels.first { work in
-            // Check if student is a participant
             let hasStudent = (work.participants ?? []).contains { $0.studentID == sid.uuidString }
             guard hasStudent else { return false }
-            // Check if work is for this lesson (via studentLessonID)
             guard let slID = work.studentLessonID else { return false }
-            let allSLs = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
+            let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>())
             guard let sl = allSLs.first(where: { $0.id == slID }),
-                  UUID(uuidString: sl.lessonID) == lid else {
-                return false
-            }
+                  UUID(uuidString: sl.lessonID) == lid else { return false }
             return true
         }
-        
+
         if let existing = existingWork {
             return existing
         }
-        
-        // Create new WorkModel
+
         let repository = WorkRepository(context: context)
         return try? repository.createWork(
             studentID: sid,
@@ -865,29 +744,19 @@ class ClassSubjectChecklistViewModel: ObservableObject {
 
     // MARK: - LessonPresentation Helpers
 
-    /// Creates or updates a LessonPresentation record for progress tracking.
-    /// If the record exists and we're setting a "higher" state (e.g., mastered > presented), it updates.
-    /// If the record exists with mastered state and we're setting presented, it leaves mastered intact.
-    private func upsertLessonPresentation(
-        studentID: String,
-        lessonID: String,
-        state: LessonPresentationState,
-        context: ModelContext
-    ) {
-        let allLessonPresentations = (try? context.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+    private func upsertLessonPresentation(studentID: String, lessonID: String, state: LessonPresentationState, context: ModelContext) {
+        let allLessonPresentations = context.safeFetch(FetchDescriptor<LessonPresentation>())
         let existing = allLessonPresentations.first { lp in
             lp.studentID == studentID && lp.lessonID == lessonID
         }
 
         if let existing = existing {
-            // Only upgrade state (presented -> mastered), never downgrade
             if state == .mastered && existing.state != .mastered {
                 existing.state = .mastered
                 existing.masteredAt = Date()
             }
             existing.lastObservedAt = Date()
         } else {
-            // Create new LessonPresentation
             let lp = LessonPresentation(
                 studentID: studentID,
                 lessonID: lessonID,
@@ -901,13 +770,8 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         }
     }
 
-    /// Deletes the LessonPresentation record for a student/lesson combination.
-    private func deleteLessonPresentation(
-        studentID: String,
-        lessonID: String,
-        context: ModelContext
-    ) {
-        let allLessonPresentations = (try? context.fetch(FetchDescriptor<LessonPresentation>())) ?? []
+    private func deleteLessonPresentation(studentID: String, lessonID: String, context: ModelContext) {
+        let allLessonPresentations = context.safeFetch(FetchDescriptor<LessonPresentation>())
         let toDelete = allLessonPresentations.filter { lp in
             lp.studentID == studentID && lp.lessonID == lessonID
         }

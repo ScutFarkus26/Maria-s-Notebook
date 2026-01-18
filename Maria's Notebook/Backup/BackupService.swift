@@ -1176,134 +1176,22 @@ public final class BackupService {
         return nil
     }
 
+    // MARK: - Payload Extraction (delegated to BackupPayloadExtractor)
+
     private func extractPayloadBytes(from envelopeData: Data) throws -> Data? {
-        guard let jsonString = String(data: envelopeData, encoding: .utf8) else { return nil }
-        let payloadKeyPattern = "\"payload\""
-        var searchRange = jsonString.startIndex..<jsonString.endIndex
-        while let keyRange = jsonString.range(of: payloadKeyPattern, range: searchRange) {
-            var checkIndex = keyRange.lowerBound
-            if checkIndex > jsonString.startIndex {
-                checkIndex = jsonString.index(before: checkIndex)
-                while checkIndex > jsonString.startIndex && jsonString[checkIndex].isWhitespace {
-                    checkIndex = jsonString.index(before: checkIndex)
-                }
-                if checkIndex >= jsonString.startIndex && (jsonString[checkIndex] == "{" || jsonString[checkIndex] == ",") {
-                    return extractPayloadValue(from: jsonString, startingAt: keyRange.upperBound)
-                }
-            } else if checkIndex == jsonString.startIndex {
-                return extractPayloadValue(from: jsonString, startingAt: keyRange.upperBound)
-            }
-            searchRange = keyRange.upperBound..<jsonString.endIndex
-        }
-        return nil
-    }
-    
-    private func extractPayloadValue(from jsonString: String, startingAt: String.Index) -> Data? {
-        var searchStart = startingAt
-        while searchStart < jsonString.endIndex && jsonString[searchStart].isWhitespace {
-            searchStart = jsonString.index(after: searchStart)
-        }
-        guard searchStart < jsonString.endIndex && jsonString[searchStart] == ":" else { return nil }
-        searchStart = jsonString.index(after: searchStart)
-        while searchStart < jsonString.endIndex && jsonString[searchStart].isWhitespace {
-            searchStart = jsonString.index(after: searchStart)
-        }
-        guard searchStart < jsonString.endIndex && jsonString[searchStart] == "{" else { return nil }
-        var braceCount = 0
-        var inString = false
-        var escapeNext = false
-        let valueStart = searchStart
-        var valueEnd = searchStart
-        for i in jsonString[searchStart...].indices {
-            let char = jsonString[i]
-            if escapeNext { escapeNext = false; continue }
-            if char == "\\" { escapeNext = true; continue }
-            if char == "\"" { inString.toggle(); continue }
-            if !inString {
-                if char == "{" { braceCount += 1 } else if char == "}" {
-                    braceCount -= 1
-                    if braceCount == 0 {
-                        valueEnd = jsonString.index(after: i)
-                        break
-                    }
-                }
-            }
-        }
-        guard braceCount == 0 else { return nil }
-        let payloadJsonString = String(jsonString[valueStart..<valueEnd])
-        return payloadJsonString.data(using: .utf8)
+        try BackupPayloadExtractor.extractPayloadBytes(from: envelopeData)
     }
 
     // Compression, decompression, encryption, and key derivation methods moved to BackupCodec
 
-    private static let preferenceKeys: [String] = [
-        "AttendanceEmail.enabled",
-        "AttendanceEmail.to",
-        "LessonAge.warningDays",
-        "LessonAge.overdueDays",
-        "WorkAge.warningDays",
-        "WorkAge.overdueDays",
-        "LessonAge.freshColorHex",
-        "LessonAge.warningColorHex",
-        "LessonAge.overdueColorHex",
-        "WorkAge.freshColorHex",
-        "WorkAge.warningColorHex",
-        "WorkAge.overdueColorHex",
-        "Backup.encrypt",
-        "LastBackupTimeInterval",
-        "lastBackupTimeInterval"
-    ]
+    // MARK: - Preferences (delegated to BackupPreferencesService)
 
     private func buildPreferencesDTO() -> PreferencesDTO {
-        let syncedStore = SyncedPreferencesStore.shared
-        let defaults = UserDefaults.standard
-        var map: [String: PreferenceValueDTO] = [:]
-        for key in Self.preferenceKeys {
-            let obj: Any?
-            if syncedStore.isSynced(key: key) {
-                obj = syncedStore.get(key: key)
-            } else {
-                obj = defaults.object(forKey: key)
-            }
-            if let obj = obj {
-                switch obj {
-                case let b as Bool: map[key] = .bool(b)
-                case let i as Int: map[key] = .int(i)
-                case let d as Double: map[key] = .double(d)
-                case let s as String: map[key] = .string(s)
-                case let data as Data: map[key] = .data(data)
-                case let date as Date: map[key] = .date(date)
-                default: map[key] = .string(String(describing: obj))
-                }
-            }
-        }
-        return PreferencesDTO(values: map)
+        BackupPreferencesService.buildPreferencesDTO()
     }
 
     private func applyPreferencesDTO(_ dto: PreferencesDTO) {
-        let syncedStore = SyncedPreferencesStore.shared
-        let defaults = UserDefaults.standard
-        for (key, value) in dto.values {
-            if syncedStore.isSynced(key: key) {
-                switch value {
-                case .bool(let b): syncedStore.set(b, forKey: key)
-                case .int(let i): syncedStore.set(i, forKey: key)
-                case .double(let d): syncedStore.set(d, forKey: key)
-                case .string(let s): syncedStore.set(s, forKey: key)
-                case .data(let data): syncedStore.set(data as Any?, forKey: key)
-                case .date(let date): syncedStore.set(date.timeIntervalSinceReferenceDate, forKey: key)
-                }
-            } else {
-                switch value {
-                case .bool(let b): defaults.set(b, forKey: key)
-                case .int(let i): defaults.set(i, forKey: key)
-                case .double(let d): defaults.set(d, forKey: key)
-                case .string(let s): defaults.set(s, forKey: key)
-                case .data(let data): defaults.set(data, forKey: key)
-                case .date(let date): defaults.set(date, forKey: key)
-                }
-            }
-        }
+        BackupPreferencesService.applyPreferencesDTO(dto)
     }
 
     private func deleteAll(modelContext: ModelContext) throws {

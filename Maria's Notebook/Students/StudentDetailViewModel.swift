@@ -92,10 +92,11 @@ final class StudentDetailViewModel: ObservableObject {
     private func loadMasteredLessonIDs(modelContext: ModelContext) {
         let studentIDString = student.id.uuidString
         // PERFORMANCE: Use predicate to filter at database level instead of loading all records
-        let masteredState = LessonPresentationState.mastered
+        // Note: Must use stateRaw (stored property) not state (computed property) in predicates
+        let masteredStateRaw = LessonPresentationState.mastered.rawValue
         let descriptor = FetchDescriptor<LessonPresentation>(
             predicate: #Predicate { lp in
-                lp.studentID == studentIDString && lp.state == masteredState
+                lp.studentID == studentIDString && lp.stateRaw == masteredStateRaw
             }
         )
         let masteredPresentations = (try? modelContext.fetch(descriptor)) ?? []

@@ -5,6 +5,11 @@ import SwiftData
 import FoundationModels
 #endif
 
+// Delegates to:
+// - MeetingPersistenceService: UserDefaults/SwiftData coordination
+// - MeetingSummaryGenerator: AI summary generation
+// - MeetingWorkSnapshotHelper: Work statistics computation
+
 struct StudentMeetingsTab: View {
     let student: Student
 
@@ -64,58 +69,38 @@ struct StudentMeetingsTab: View {
         DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none)
     }
 
-    // MARK: - Computed helpers for contracts and lessons
+    // MARK: - Computed helpers for contracts and lessons (delegated to MeetingWorkSnapshotHelper)
 
     private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
 
-    private var workModelsForStudent: [WorkModel] {
-        let sid = student.id.uuidString
-        return allWorkModels.filter { $0.studentID == sid }
+    private var workStats: (open: [WorkModel], overdue: [WorkModel], recentCompleted: [WorkModel]) {
+        MeetingWorkSnapshotHelper.computeWorkStats(
+            for: student.id,
+            allWorkModels: allWorkModels,
+            workOverdueDays: workOverdueDays
+        )
     }
 
-    private var openWorkModelsForStudent: [WorkModel] {
-        workModelsForStudent.filter { $0.status != .complete }
-    }
-
-    private var overdueWorkModelsForStudent: [WorkModel] {
-        let threshold = Calendar.current.date(byAdding: .day, value: -workOverdueDays, to: Date()) ?? Date.distantPast
-        return workModelsForStudent.filter { $0.status != .complete && $0.createdAt < threshold }
-    }
-
-    private var recentCompletedWorkModelsForStudent: [WorkModel] {
-        let threshold = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
-        return workModelsForStudent.filter { $0.status == .complete && ($0.completedAt ?? .distantPast) >= threshold }
-    }
+    private var openWorkModelsForStudent: [WorkModel] { workStats.open }
+    private var overdueWorkModelsForStudent: [WorkModel] { workStats.overdue }
+    private var recentCompletedWorkModelsForStudent: [WorkModel] { workStats.recentCompleted }
 
     private var openWorkCountText: String { openWorkModelsForStudent.isEmpty ? "—" : "\(openWorkModelsForStudent.count)" }
     private var overdueWorkCountText: String { overdueWorkModelsForStudent.isEmpty ? "—" : "\(overdueWorkModelsForStudent.count)" }
     private var recentlyCompletedWorkCountText: String { recentCompletedWorkModelsForStudent.isEmpty ? "—" : "\(recentCompletedWorkModelsForStudent.count)" }
-    
-    // MARK: - Lessons since last meeting
-    
+
+    // MARK: - Lessons since last meeting (delegated to MeetingWorkSnapshotHelper)
+
     private var lastMeetingDate: Date? {
         meetingItems.first?.date
     }
-    
+
     private var lessonsSinceLastMeetingForStudent: [StudentLesson] {
-        let studentIDString = student.id.uuidString
-        let cutoffDate = lastMeetingDate ?? Date.distantPast
-        
-        return allStudentLessons.filter { studentLesson in
-            // Check if this student is in the lesson
-            guard studentLesson.studentIDs.contains(studentIDString) else { return false }
-            
-            // Check if lesson was given after the last meeting
-            if let givenAt = studentLesson.givenAt {
-                return givenAt > cutoffDate
-            }
-            // Also check if it was marked as presented after the last meeting
-            if studentLesson.isPresented {
-                return studentLesson.createdAt > cutoffDate
-            }
-            
-            return false
-        }
+        MeetingWorkSnapshotHelper.lessonsSinceLastMeeting(
+            for: student.id,
+            lastMeetingDate: lastMeetingDate,
+            allStudentLessons: allStudentLessons
+        )
     }
 
     // MARK: - Body
@@ -481,34 +466,33 @@ struct StudentMeetingsTab: View {
         .padding(.vertical, 2)
     }
 
-    // MARK: - Persistence (UserDefaults for current, SwiftData for history)
-
-    private var currentPrefix: String { "StudentMeetings.current." + student.id.uuidString }
-    private var historyKey: String { "StudentMeetings.history." + student.id.uuidString }
+    // MARK: - Persistence (delegated to MeetingPersistenceService)
 
     private var isCurrentEmpty: Bool {
-        reflectionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        focusText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        requestsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        guideNotesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        currentMeetingData.isEmpty
+    }
+
+    private var currentMeetingData: MeetingPersistenceService.CurrentMeetingData {
+        MeetingPersistenceService.CurrentMeetingData(
+            isCompleted: isCompleted,
+            reflectionText: reflectionText,
+            focusText: focusText,
+            requestsText: requestsText,
+            guideNotesText: guideNotesText
+        )
     }
 
     private func loadCurrentFromDefaults() {
-        let d = UserDefaults.standard
-        isCompleted = d.bool(forKey: currentPrefix + ".completed")
-        reflectionText = d.string(forKey: currentPrefix + ".reflection") ?? ""
-        focusText = d.string(forKey: currentPrefix + ".focus") ?? ""
-        requestsText = d.string(forKey: currentPrefix + ".requests") ?? ""
-        guideNotesText = d.string(forKey: currentPrefix + ".guideNotes") ?? ""
+        let data = MeetingPersistenceService.loadCurrent(studentID: student.id)
+        isCompleted = data.isCompleted
+        reflectionText = data.reflectionText
+        focusText = data.focusText
+        requestsText = data.requestsText
+        guideNotesText = data.guideNotesText
     }
 
     private func saveCurrentToDefaults() {
-        let d = UserDefaults.standard
-        d.set(isCompleted, forKey: currentPrefix + ".completed")
-        d.set(reflectionText, forKey: currentPrefix + ".reflection")
-        d.set(focusText, forKey: currentPrefix + ".focus")
-        d.set(requestsText, forKey: currentPrefix + ".requests")
-        d.set(guideNotesText, forKey: currentPrefix + ".guideNotes")
+        MeetingPersistenceService.saveCurrent(studentID: student.id, data: currentMeetingData)
     }
 
     private func clearCurrent() {
@@ -517,55 +501,25 @@ struct StudentMeetingsTab: View {
         focusText = ""
         requestsText = ""
         guideNotesText = ""
-        saveCurrentToDefaults()
+        MeetingPersistenceService.clearCurrent(studentID: student.id)
     }
 
     private func migrateHistoryIfNeeded() {
-        // If we already have SwiftData meetings for this student, skip migration
-        if !meetingItems.isEmpty { return }
-        let d = UserDefaults.standard
-        guard let data = d.data(forKey: historyKey) else { return }
-        do {
-            let decoded = try JSONDecoder().decode([LegacyMeetingEntry].self, from: data)
-            var inserted = 0
-            for entry in decoded {
-                let m = StudentMeeting(
-                    studentID: student.id,
-                    date: entry.date,
-                    completed: entry.completed,
-                    reflection: entry.reflection,
-                    focus: entry.focus,
-                    requests: entry.requests,
-                    guideNotes: entry.guideNotes
-                )
-                modelContext.insert(m)
-                inserted += 1
-            }
-            if inserted > 0 { try? modelContext.save() }
-            d.removeObject(forKey: historyKey)
-        } catch {
-            // If decoding fails, leave defaults as-is
-        }
+        MeetingPersistenceService.migrateHistoryIfNeeded(
+            studentID: student.id,
+            existingMeetings: meetingItems,
+            context: modelContext
+        )
     }
 
     private func saveCurrentToHistory() {
-        let trimmedReflection = reflectionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedFocus = focusText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedRequests = requestsText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedGuide = guideNotesText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !(trimmedReflection.isEmpty && trimmedFocus.isEmpty && trimmedRequests.isEmpty && trimmedGuide.isEmpty) else { return }
-        let entry = StudentMeeting(
+        if MeetingPersistenceService.saveToHistory(
             studentID: student.id,
-            date: Date(),
-            completed: isCompleted,
-            reflection: trimmedReflection,
-            focus: trimmedFocus,
-            requests: trimmedRequests,
-            guideNotes: trimmedGuide
-        )
-        modelContext.insert(entry)
-        try? modelContext.save()
-        clearCurrent()
+            data: currentMeetingData,
+            context: modelContext
+        ) {
+            clearCurrent()
+        }
     }
 
     private func beginEdit(_ item: StudentMeeting) {
@@ -654,114 +608,26 @@ struct StudentMeetingsTab: View {
         )
     }
 
-    // MARK: - Types & Formatters
-
-    private struct LegacyMeetingEntry: Identifiable, Codable {
-        let id: UUID
-        let date: Date
-        let completed: Bool
-        let reflection: String
-        let focus: String
-        let requests: String
-        let guideNotes: String
-    }
+    // MARK: - Summary Generation (delegated to MeetingSummaryGenerator)
 
     private var isAIEnabled: Bool {
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        if #available(macOS 26.0, *) {
-            return true
-        }
-        #endif
-        return false
+        MeetingSummaryGenerator.isAIEnabled
     }
-    
+
     private func summary(for item: StudentMeeting) -> String {
-        // Fallback summary when AI hasn't generated one yet
-        return generateFallbackSummary(for: item)
+        MeetingSummaryGenerator.generateFallbackSummary(for: item)
     }
-    
-    private func generateFallbackSummary(for item: StudentMeeting) -> String {
-        // For single-line display, prefer the most important field first
-        let focusTrim = item.focus.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !focusTrim.isEmpty { 
-            return focusTrim.count > 60 ? String(focusTrim.prefix(57)) + "..." : focusTrim
-        }
-        let reflTrim = item.reflection.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !reflTrim.isEmpty { 
-            return reflTrim.count > 60 ? String(reflTrim.prefix(57)) + "..." : reflTrim
-        }
-        let reqTrim = item.requests.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !reqTrim.isEmpty { 
-            return reqTrim.count > 60 ? String(reqTrim.prefix(57)) + "..." : reqTrim
-        }
-        let guideTrim = item.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !guideTrim.isEmpty { 
-            return guideTrim.count > 60 ? String(guideTrim.prefix(57)) + "..." : guideTrim
-        }
-        return "Meeting"
-    }
-    
+
     private func generateSummary(for item: StudentMeeting) async {
-        let manualSummary = generateFallbackSummary(for: item)
-        
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        guard #available(macOS 26.0, *) else {
-            setSummary(manualSummary, for: item.id, isAIGenerated: false)
-            return
-        }
-        
-        // Don't burn AI tokens if the content is very short
-        let totalLength = item.reflection.count + item.guideNotes.count + item.focus.count + item.requests.count
-        guard totalLength > 30 else {
-            setSummary(manualSummary, for: item.id, isAIGenerated: false)
-            return
-        }
-        
         generatingSummaries.insert(item.id)
-        
-        let context = """
-        Student Reflection: \(item.reflection)
-        Focus: \(item.focus)
-        Requests: \(item.requests)
-        Guide Notes: \(item.guideNotes)
-        """
-        
-        let instructions = "You are a Montessori guide assistant. Summarize this student meeting outcomes and sentiment in 2 sentences."
-        let session = LanguageModelSession(instructions: instructions)
-        
-        do {
-            let stream = session.streamResponse(
-                to: "Summarize this meeting:\n\(context)",
-                generating: MeetingSummary.self
-            )
-            
-            var aiGenerated = false
-            for try await partial in stream {
-                if let overview = partial.content.overview, !overview.isEmpty {
-                    setSummary(overview, for: item.id, isAIGenerated: true)
-                    aiGenerated = true
-                }
-            }
-            
-            if !aiGenerated {
-                // If stream completed but no summary was generated, use fallback
-                setSummary(manualSummary, for: item.id, isAIGenerated: false)
-            }
-        } catch {
-            #if DEBUG
-            print("AI Summary failed: \(error)")
-            #endif
-            setSummary(manualSummary, for: item.id, isAIGenerated: false)
+
+        await MeetingSummaryGenerator.generateSummary(for: item) { [item] text, isAI in
+            setSummary(text, for: item.id, isAIGenerated: isAI)
         }
-        
+
         generatingSummaries.remove(item.id)
-        
-        #else
-        // Fallback: AI disabled
-        setSummary(manualSummary, for: item.id, isAIGenerated: false)
-        #endif
     }
-    
+
     @MainActor
     private func setSummary(_ text: String, for meetingID: UUID, isAIGenerated: Bool = false) {
         meetingSummaries[meetingID] = text

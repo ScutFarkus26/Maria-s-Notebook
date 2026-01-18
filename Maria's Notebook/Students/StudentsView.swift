@@ -97,67 +97,30 @@ struct StudentsView<WorkloadContent: View>: View {
 
     // Logic helpers
     private var hiddenTestStudentIDs: Set<UUID> {
-        guard showTestStudents == false else { return [] }
-        let lower = testStudentNamesRaw.lowercased()
-        let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
-        let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        let hiddenNames = Set(tokens)
-        let ids = students.compactMap { s -> UUID? in
-            let name = s.fullName.normalizedForComparison()
-            return hiddenNames.contains(name) ? s.id : nil
-        }
-        return Set(ids)
+        StudentsFilterService.computeHiddenTestStudentIDs(
+            students: students,
+            showTestStudents: showTestStudents,
+            testStudentNamesRaw: testStudentNamesRaw
+        )
     }
 
     private var presentNowIDs: Set<UUID> {
-        let cal = Calendar.current
-        let now = Date()
-        let today = cal.startOfDay(for: now)
-        let todays = cachedAttendanceRecords.filter { rec in
-            cal.isDate(rec.date, inSameDayAs: today) && (rec.status == .present || rec.status == .tardy)
-        }
-        // CloudKit compatibility: Convert String studentIDs to UUIDs
-        var ids = Set(todays.compactMap { UUID(uuidString: $0.studentID) })
-        ids.subtract(hiddenTestStudentIDs)
-        return ids
+        StudentsFilterService.computePresentNowIDs(
+            attendanceRecords: cachedAttendanceRecords,
+            hiddenTestStudentIDs: hiddenTestStudentIDs
+        )
     }
     
     private var presentNowCount: Int { presentNowIDs.count }
 
     private var daysSinceLastLessonByStudent: [UUID: Int] {
-        var result: [UUID: Int] = [:]
-        // ... (Existing logic for calculation)
-        let excludedLessonIDs: Set<UUID> = {
-            func norm(_ s: String) -> String { s.normalizedForComparison() }
-            let ids = cachedLessons.values.filter { l in
-                let s = norm(l.subject)
-                let g = norm(l.group)
-                return s == "parsha" || g == "parsha"
-            }.map { $0.id }
-            return Set(ids)
-        }()
-
-        let given = cachedStudentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
-        var lastDateByStudent: [UUID: Date] = [:]
-        for sl in given {
-            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
-            for sid in sl.resolvedStudentIDs {
-                if let existing = lastDateByStudent[sid] {
-                    if when > existing { lastDateByStudent[sid] = when }
-                } else {
-                    lastDateByStudent[sid] = when
-                }
-            }
-        }
-        for s in students {
-            if let last = lastDateByStudent[s.id] {
-                let days = LessonAgeHelper.schoolDaysSinceCreation(createdAt: last, asOf: Date(), using: modelContext, calendar: calendar)
-                result[s.id] = days
-            } else {
-                result[s.id] = -1
-            }
-        }
-        return result
+        StudentsFilterService.computeDaysSinceLastLesson(
+            students: students,
+            studentLessons: cachedStudentLessons,
+            lessons: cachedLessons,
+            modelContext: modelContext,
+            calendar: calendar
+        )
     }
 
     // Computed property to get effective sort order based on mode
@@ -976,7 +939,7 @@ struct StudentsView<WorkloadContent: View>: View {
     // MARK: - Logic Helpers
     
     // MARK: - On-Demand Data Loading
-    
+
     /// Loads data on-demand based on current mode and filters
     @MainActor
     private func loadDataOnDemand() async {
@@ -987,25 +950,10 @@ struct StudentsView<WorkloadContent: View>: View {
             cachedLessons = [:]
             return
         }
-        
-        // Load attendanceRecords - always load in roster mode to show "Present Now" count in sidebar
-        // Fetch only today's attendance records
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let tomorrow = cal.date(byAdding: .day, value: 1, to: today) ?? today
-        do {
-            let descriptor = FetchDescriptor<AttendanceRecord>(
-                predicate: #Predicate { rec in
-                    rec.date >= today && rec.date < tomorrow
-                },
-                sortBy: [SortDescriptor(\.date, order: .forward)]
-            )
-            cachedAttendanceRecords = try modelContext.fetch(descriptor)
-        } catch {
-            cachedAttendanceRecords = modelContext.safeFetch(FetchDescriptor<AttendanceRecord>())
-                .filter { cal.isDate($0.date, inSameDayAs: today) }
-        }
-        
+
+        // Load today's attendance records using the data loader
+        cachedAttendanceRecords = StudentsDataLoader.loadTodaysAttendance(context: modelContext)
+
         // Clear studentLessons cache (no longer needed for lastLesson mode)
         cachedStudentLessons = []
         cachedLessons = [:]

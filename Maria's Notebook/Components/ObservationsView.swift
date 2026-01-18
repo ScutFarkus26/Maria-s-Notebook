@@ -27,23 +27,9 @@ struct NotesNarrative {
 }
 #endif
 
-// Unified note item for displaying all note types
-private struct UnifiedObservationItem: Identifiable {
-    let id: UUID
-    let date: Date
-    let body: String
-    let category: NoteCategory
-    let includeInReport: Bool
-    let imagePath: String?
-    let contextText: String?
-    let studentIDs: [UUID]
-    
-    // Source tracking for editing
-    enum Source {
-        case note(Note)
-    }
-    let source: Source
-}
+// UnifiedObservationItem moved to Observations/UnifiedObservationItem.swift
+// Data loading delegated to ObservationsDataLoader
+// Filtering delegated to ObservationsFilterService
 
 struct ObservationsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -65,10 +51,9 @@ struct ObservationsView: View {
     @State private var hasMore: Bool = true
     @State private var lastCursorDate: Date? = nil // fetch notes where createdAt < lastCursorDate
 
-    // Filters (applied in-memory)
-    enum ScopeFilter: String, CaseIterable, Identifiable { case all = "All", studentSpecific = "Student-specific", allStudents = "All students"; var id: String { rawValue } }
+    // Filters (applied in-memory) - uses ObservationsFilterService.ScopeFilter
     @State private var selectedCategory: NoteCategory? = nil
-    @State private var selectedScope: ScopeFilter = .all
+    @State private var selectedScope: ObservationsFilterService.ScopeFilter = .all
     @State private var searchText: String = ""
     // Selection state for multi-select summarize
     @State private var isSelecting: Bool = false
@@ -261,7 +246,7 @@ struct ObservationsView: View {
             }
 
             Menu {
-                ForEach(ScopeFilter.allCases) { sf in
+                ForEach(ObservationsFilterService.ScopeFilter.allCases) { sf in
                     Button(action: { selectedScope = sf }) {
                         HStack {
                             if selectedScope == sf {
@@ -429,25 +414,15 @@ struct ObservationsView: View {
         return trimmed
     }
 
-    // MARK: - Data
+    // MARK: - Data (delegated to ObservationsFilterService and ObservationsDataLoader)
 
     private var filteredItems: [UnifiedObservationItem] {
-        var result = loadedItems
-        if let cat = selectedCategory {
-            result = result.filter { $0.category == cat }
-        }
-        switch selectedScope {
-        case .all: break
-        case .studentSpecific:
-            result = result.filter { !$0.studentIDs.isEmpty }
-        case .allStudents:
-            result = result.filter { $0.studentIDs.isEmpty }
-        }
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !query.isEmpty {
-            result = result.filter { $0.body.localizedCaseInsensitiveContains(query) }
-        }
-        return result
+        ObservationsFilterService.filter(
+            items: loadedItems,
+            category: selectedCategory,
+            scope: selectedScope,
+            searchText: searchText
+        )
     }
 
     private func loadFirstPageIfNeeded() {
@@ -455,7 +430,7 @@ struct ObservationsView: View {
             Task { await loadAllNotes() }
         }
     }
-    
+
     private func reloadAllNotes() {
         loadedItems = []
         lastCursorDate = nil
@@ -468,64 +443,20 @@ struct ObservationsView: View {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-        
-        var allItems: [UnifiedObservationItem] = []
-        
-        // 1. Fetch all Note objects
-        do {
-            let noteFetch = FetchDescriptor<Note>(
-                sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
-            )
-            let notes: [Note] = try modelContext.fetch(noteFetch)
-            for note in notes {
-                let studentIDs = studentIDsFromScope(note.scope)
-                let context = contextText(for: note)
-                allItems.append(UnifiedObservationItem(
-                    id: note.id,
-                    date: note.createdAt,
-                    body: note.body,
-                    category: note.category,
-                    includeInReport: note.includeInReport,
-                    imagePath: note.imagePath,
-                    contextText: context,
-                    studentIDs: studentIDs,
-                    source: .note(note)
-                ))
-            }
-        } catch {
-            #if DEBUG
-            print("Error fetching Note objects: \(error)")
-            #endif
-        }
-        
-        // Legacy note types (ScopedNote, WorkNote, MeetingNote) have been migrated to Note objects
-        // They are now included in the Note fetch above
-        
-        // Sort all items by date (newest first)
-        allItems.sort { $0.date > $1.date }
-        
-        loadedItems = allItems
-        hasMore = false // We load everything at once for now
+
+        loadedItems = ObservationsDataLoader.loadAllNotes(
+            context: modelContext,
+            contextTextProvider: { contextText(for: $0) }
+        )
+        hasMore = false
         loadStudentsIfNeeded(for: filteredItems)
     }
-    
-    private func studentIDsFromScope(_ scope: NoteScope) -> [UUID] {
-        switch scope {
-        case .all: return []
-        case .student(let id): return [id]
-        case .students(let ids): return ids
-        }
-    }
-    
 
     private var loadMoreRow: some View {
-        // Since we load all notes at once, this row is not needed
-        // But keeping it for potential future pagination
         EmptyView()
     }
 
     // MARK: - Helpers
-
 
     private func displayName(for student: Student) -> String {
         let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -536,16 +467,11 @@ struct ObservationsView: View {
 
     @MainActor
     private func loadStudentsIfNeeded(for items: [UnifiedObservationItem]) {
-        let idsNeeded = Set(items.flatMap { $0.studentIDs })
-        let missing = idsNeeded.filter { studentsByID[$0] == nil }
-        guard !missing.isEmpty else { return }
-        do {
-            let descriptor = FetchDescriptor<Student>(predicate: #Predicate { missing.contains($0.id) })
-            let fetched = try modelContext.fetch(descriptor)
-            for s in fetched { studentsByID[s.id] = s }
-        } catch {
-            // Fallback: no-op on error
-        }
+        studentsByID = ObservationsDataLoader.loadStudents(
+            for: items,
+            existingCache: studentsByID,
+            context: modelContext
+        )
     }
     
     private func contextForNote(_ note: Note) -> UnifiedNoteEditor.NoteContext {

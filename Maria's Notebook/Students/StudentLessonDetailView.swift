@@ -728,15 +728,24 @@ struct StudentLessonDetailContentView: View {
     // MARK: - Progress State Logic
 
     private var isJustPresentedActive: Bool {
-        if !vm.isPresented { return false }
-        guard let date = vm.givenAt else { return false }
-        return calendar.isDateInToday(date)
+        StudentLessonProgressHelper.isJustPresentedActive(
+            isPresented: vm.isPresented,
+            givenAt: vm.givenAt,
+            calendar: calendar
+        )
     }
     private var isPreviouslyPresentedActive: Bool {
-        vm.isPresented && !isJustPresentedActive
+        StudentLessonProgressHelper.isPreviouslyPresentedActive(
+            isPresented: vm.isPresented,
+            givenAt: vm.givenAt,
+            calendar: calendar
+        )
     }
     private var isNeedsAnotherActive: Bool {
-        vm.needsAnotherPresentation && !vm.isPresented
+        StudentLessonProgressHelper.isNeedsAnotherActive(
+            needsAnotherPresentation: vm.needsAnotherPresentation,
+            isPresented: vm.isPresented
+        )
     }
     private func selectJustPresented() {
         vm.isPresented = true
@@ -758,105 +767,34 @@ struct StudentLessonDetailContentView: View {
     }
     
     // MARK: - Assignments Logic
-    
+
     private func createFollowUpAssignments(_ assignments: [PostPresentationAssignmentsSheet.AssignmentEntry]) {
-        let lessonID = (vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID)
-        let activeRaw = WorkStatus.active.rawValue
-        let reviewRaw = WorkStatus.review.rawValue
-        let followRaw = WorkKind.followUpAssignment.rawValue
-
-        for entry in assignments {
-            let studentUUID = entry.studentID
-            
-            // Fetch all WorkModels and filter in memory (no predicates)
-            let allWorkModels = (try? modelContext.fetch(FetchDescriptor<WorkModel>())) ?? []
-            
-            // Find existing WorkModel for this student/lesson with follow-up kind
-            let existingWork = allWorkModels.first { work in
-                // Check if student is a participant
-                let hasStudent = (work.participants ?? []).contains { $0.studentID == studentUUID.uuidString }
-                guard hasStudent else { return false }
-                
-                // Check if work is for this lesson (via studentLessonID)
-                guard let slID = work.studentLessonID,
-                      let sl = studentLessonsAll.first(where: { $0.id == slID }),
-                      UUID(uuidString: sl.lessonID) == lessonID else {
-                    return false
-                }
-                
-                // Check status and kind
-                return (work.statusRaw == activeRaw || work.statusRaw == reviewRaw) &&
-                       (work.kindRaw ?? "") == followRaw
-            }
-
-            // Get user-entered assignment name
-            let trimmed = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            let work: WorkModel
-            if let existing = existingWork {
-                work = existing
-            } else {
-                // Create new WorkModel
-                let repository = WorkRepository(context: modelContext)
-                guard let created = try? repository.createWork(
-                    studentID: studentUUID,
-                    lessonID: lessonID,
-                    title: trimmed,
-                    kind: .followUpAssignment,
-                    presentationID: nil,
-                    scheduledDate: nil
-                ) else {
-                    continue
-                }
-                work = created
-            }
-            
-            // Update notes if provided
-            if !trimmed.isEmpty {
-                work.notes = trimmed
-            }
-
-            // Schedule check-in if provided
-            if let sched = entry.schedule {
-                let normalized = AppCalendar.startOfDay(sched.date)
-                let checkInKind = PostPresentationAssignmentsSheet.ScheduleKind.checkIn
-                
-                // Check if check-in already exists
-                let existingCheckIns = work.checkIns ?? []
-                let hasCheckIn = existingCheckIns.contains { checkIn in
-                    AppCalendar.startOfDay(checkIn.date) == normalized && checkIn.status == .scheduled
-                }
-                
-                if !hasCheckIn {
-                    let purpose: String = (sched.kind == checkInKind) ? "Progress check" : "Due date"
-                    let checkIn = WorkCheckIn(
-                        workID: work.id,
-                        date: normalized,
-                        status: .scheduled,
-                        purpose: purpose,
-                        note: "",
-                        work: work
-                    )
-                    modelContext.insert(checkIn)
-                    if work.checkIns == nil { work.checkIns = [] }
-                    work.checkIns = (work.checkIns ?? []) + [checkIn]
-                }
-            }
-        }
+        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
+        StudentLessonAssignmentService.createFollowUpAssignments(
+            assignments,
+            lessonID: lessonID,
+            studentLessonsAll: studentLessonsAll,
+            modelContext: modelContext
+        )
     }
     
     // MARK: - Absent Logic
     private var scheduledAttendanceDay: Date { AppCalendar.startOfDay(Date()) }
 
     private var absentStudentIDs: Set<UUID> {
-        let statuses = modelContext.attendanceStatuses(for: Array(vm.selectedStudentIDs), on: scheduledAttendanceDay)
-        return Set(statuses.compactMap { (key: UUID, value: AttendanceStatus) in
-            value == .absent ? key : nil
-        })
+        StudentLessonAbsentHelper.computeAbsentStudentIDs(
+            selectedStudentIDs: vm.selectedStudentIDs,
+            scheduledDay: scheduledAttendanceDay,
+            modelContext: modelContext
+        )
     }
 
     private var canMoveAbsentStudents: Bool {
-        return selectedStudentsList.count > 1 && !vm.isPresented && !absentStudentIDs.isEmpty
+        StudentLessonAbsentHelper.canMoveAbsentStudents(
+            studentCount: selectedStudentsList.count,
+            isPresented: vm.isPresented,
+            absentStudentIDs: absentStudentIDs
+        )
     }
 
     private func openMoveAbsentStudents() {
