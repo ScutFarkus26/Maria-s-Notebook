@@ -16,6 +16,10 @@ struct SettingsView: View {
     @State private var showTrackPopulator = false
     @State private var isRunningRepair = false
     @State private var repairMessage: String?
+    @State private var showOrphanedWorkDiagnostic = false
+    @State private var orphanedWorkResult: OrphanedWorkDiagnostic.DiagnosticResult?
+    @State private var lessonSearchText = ""
+    @State private var lessonSearchResults: [Lesson] = []
 
     private var overviewColumns: [GridItem] {
         // Use 2 columns on iPhone (compact), 4 columns on iPad (regular)
@@ -233,12 +237,101 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(isRunningRepair)
-                    
+
                     if let message = repairMessage {
                         Text(message)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+            }
+            SettingsGroup(title: "Orphaned Work Diagnostic", systemImage: "exclamationmark.triangle") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Button(action: {
+                        orphanedWorkResult = OrphanedWorkDiagnostic.run(context: modelContext)
+                        showOrphanedWorkDiagnostic = true
+                        // Also print to console for detailed view
+                        OrphanedWorkDiagnostic.printReport(context: modelContext)
+                    }) {
+                        HStack {
+                            Text("Run Orphaned Work Diagnostic")
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+
+                    if showOrphanedWorkDiagnostic, let result = orphanedWorkResult {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Total Work Items: \(result.totalWorkItems)")
+                            Text("Valid Lesson Links: \(result.workItemsWithValidLessons)")
+                            Text("Orphaned (missing lesson): \(result.orphanedWorkItems)")
+                                .foregroundStyle(result.orphanedWorkItems > 0 ? .red : .green)
+                            Text("Existing Lessons: \(result.existingLessons)")
+                        }
+                        .font(.caption)
+
+                        if !result.missingLessonIDs.isEmpty {
+                            Divider()
+                            Text("Missing Lesson IDs:")
+                                .font(.caption.bold())
+                            ForEach(Array(result.missingLessonIDs.keys.sorted()), id: \.self) { lessonID in
+                                let count = result.missingLessonIDs[lessonID] ?? 0
+                                let shortID = String(lessonID.prefix(6)).uppercased()
+                                Text("  Lesson \(shortID): \(count) work item(s)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    Text("Search Lessons")
+                        .font(.caption.bold())
+                    HStack {
+                        TextField("Search (e.g., geometry)", text: $lessonSearchText)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Search") {
+                            lessonSearchResults = OrphanedWorkDiagnostic.searchLessons(
+                                matching: lessonSearchText,
+                                context: modelContext
+                            )
+                            // Also print to console
+                            OrphanedWorkDiagnostic.printLessonSearch(matching: lessonSearchText, context: modelContext)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(lessonSearchText.isEmpty)
+                    }
+
+                    if !lessonSearchResults.isEmpty {
+                        Text("Found \(lessonSearchResults.count) lesson(s):")
+                            .font(.caption)
+                        ForEach(lessonSearchResults.prefix(10)) { lesson in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(lesson.name)
+                                    .font(.caption.bold())
+                                Text("Subject: \(lesson.subject.isEmpty ? "(none)" : lesson.subject), Group: \(lesson.group.isEmpty ? "(none)" : lesson.group)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        if lessonSearchResults.count > 10 {
+                            Text("... and \(lessonSearchResults.count - 10) more (see console)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if !lessonSearchText.isEmpty && lessonSearchResults.isEmpty {
+                        Text("No lessons found matching '\(lessonSearchText)'")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button("List All Subjects") {
+                        OrphanedWorkDiagnostic.printSubjects(context: modelContext)
+                    }
+                    .buttonStyle(.bordered)
+                    .font(.caption)
                 }
             }
         }

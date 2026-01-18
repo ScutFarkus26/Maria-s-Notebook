@@ -40,10 +40,14 @@
 				Tests/CSVUtilsTests.swift,
 				Tests/DateCalculationsTests.swift,
 				Tests/DebugTiming.swift,
+				Tests/FloridaGradeCalculatorTests.swift,
 				Tests/FollowUpInboxEngineTests.swift,
 				Tests/ModelRoundTripTests.swift,
 				Tests/StringFuzzyMatchTests.swift,
+				Tests/TestCalendar.swift,
 				Tests/TodayViewModelTests.swift,
+				Tests/TrackProgressResolverTests.swift,
+				Tests/WorkAgingPolicyTests.swift,
 			);
 			target = 51F9242C2F1C43F900E480A1 /* Maria's Notebook Tests */;
 		};
