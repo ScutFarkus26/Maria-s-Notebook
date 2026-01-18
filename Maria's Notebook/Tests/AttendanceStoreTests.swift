@@ -4,7 +4,7 @@ import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
-@Suite("AttendanceStore Tests")
+@Suite("AttendanceStore Tests", .serialized)
 @MainActor
 struct AttendanceStoreTests {
 
@@ -20,7 +20,7 @@ struct AttendanceStoreTests {
     }
 
     private func makeStudent(id: UUID = UUID(), firstName: String = "Test", lastName: String = "Student") -> Student {
-        return Student(id: id, firstName: firstName, lastName: lastName)
+        return Student(id: id, firstName: firstName, lastName: lastName, birthday: TestCalendar.date(year: 2015, month: 6, day: 15))
     }
 
     // MARK: - loadOrCreateRecords Tests
@@ -258,7 +258,7 @@ struct AttendanceStoreTests {
     @Test("updateNote converts empty string to nil")
     func updateNoteEmptyToNil() throws {
         let container = try makeContainer()
-        let context = ModelContext(context)
+        let context = ModelContext(container)
 
         let record = AttendanceRecord(studentID: UUID(), date: Date(), note: "Original note")
         context.insert(record)

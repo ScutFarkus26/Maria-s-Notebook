@@ -5,7 +5,7 @@ import Foundation
 
 @testable import Maria_s_Notebook
 
-@Suite("BackupService Round-Trip Tests")
+@Suite("BackupService Round-Trip Tests", .serialized)
 @MainActor
 struct BackupServiceRoundTripTests {
 
