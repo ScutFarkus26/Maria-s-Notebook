@@ -115,6 +115,9 @@ struct TodayView: View {
     // Attendance Expansion State
     @State private var isAttendanceExpanded = false
 
+    // Toast Notifications
+    @State private var toastMessage: String? = nil
+
     // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window to avoid loading the entire database.
     // This significantly reduces memory usage and database query overhead by monitoring only lessons and plan items
     // that could affect the Today screen's display for the current date.
@@ -292,51 +295,57 @@ struct TodayView: View {
                         Divider()
                         #endif
                         
-                        // Modified Attendance Section
-                        VStack(spacing: 0) {
-                            attendanceStrip
-                                .zIndex(1) // Keep the strip above the animation
-                                .padding(.horizontal, 16)
-                                .padding(.bottom, isAttendanceExpanded ? 0 : 10)
-                            
-                            // Wrapping in a clipped VStack ensures the view "rolls down" from the bottom of the strip
-                            // instead of sliding from the top of the entire container (behind the strip).
+                        // Modified Attendance Section - when expanded, fill remaining space
+                        if isAttendanceExpanded {
                             VStack(spacing: 0) {
-                                if isAttendanceExpanded {
-                                    AttendanceExpandedView(
-                                        date: viewModel.date,
-                                        isNonSchoolDay: isNonSchoolDaySync(viewModel.date),
-                                        onChange: {
-                                            // When attendance changes in the expanded view, reload the Today summary
-                                            viewModel.reload()
-                                        }
-                                    )
+                                attendanceStrip
                                     .padding(.horizontal, 16)
-                                    .padding(.bottom, 16)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
-                                }
+
+                                AttendanceExpandedView(
+                                    date: viewModel.date,
+                                    isNonSchoolDay: isNonSchoolDaySync(viewModel.date),
+                                    onChange: {
+                                        // When attendance changes in the expanded view, reload the Today summary
+                                        viewModel.reload()
+                                    },
+                                    onToast: { message in
+                                        toast(message)
+                                    }
+                                )
+                                .padding(.horizontal, 16)
+                                .transition(.move(edge: .top).combined(with: .opacity))
                             }
-                            .clipped() // Clip content to this wrapper's bounds (hiding it when "behind" the strip)
-                            .zIndex(0)
+                            .frame(maxHeight: .infinity)
+                            .padding(.top, 10)
+                        } else {
+                            // Collapsed state - just show the strip
+                            VStack(spacing: 0) {
+                                attendanceStrip
+                                    .padding(.horizontal, 16)
+                                    .padding(.bottom, 10)
+                            }
+                            .padding(.top, 10)
                         }
-                        .padding(.top, 10)
                         
-                        List {
-                            remindersListSection
-                            
-                            lessonsListSection
-                            
-                            checkInsListSection
-                            
-                            inProgressListSection
-                            
-                            completedListSection
-                            
-                            recentObservationsSection
+                        // Only show List when attendance is not expanded
+                        if !isAttendanceExpanded {
+                            List {
+                                remindersListSection
+
+                                lessonsListSection
+
+                                checkInsListSection
+
+                                inProgressListSection
+
+                                completedListSection
+
+                                recentObservationsSection
+                            }
+                            #if os(iOS)
+                            .listStyle(.insetGrouped)
+                            #endif
                         }
-                        #if os(iOS)
-                        .listStyle(.insetGrouped)
-                        #endif
                     }
                     .navigationTitle("Today")
                     #if os(iOS)
@@ -484,8 +493,24 @@ struct TodayView: View {
             .presentationDragIndicator(.visible)
 #endif
         }
+        .overlay(alignment: .top) {
+            if let message = toastMessage {
+                Text(message)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.black.opacity(0.85))
+                    )
+                    .foregroundColor(.white)
+                    .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+            }
+        }
     }
-    
+
     private var recentObservationsSection: some View {
         Section {
             if viewModel.recentNotes.isEmpty {
@@ -614,7 +639,21 @@ struct TodayView: View {
             }
         } label: {
             HStack(spacing: 12) {
-                statChip(title: "Present", count: viewModel.attendanceSummary.presentCount, color: .green)
+                // Primary stat: In Class (Present + Tardy)
+                HStack(spacing: 8) {
+                    Text("In Class")
+                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text("\(viewModel.attendanceSummary.presentCount)")
+                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule().fill(Color.accentColor.opacity(0.12))
+                        )
+                }
+
+                statChip(title: "Tardy", count: viewModel.attendanceSummary.tardyCount, color: .blue)
                 statChip(title: "Absent", count: viewModel.attendanceSummary.absentCount, color: .red)
                 statChip(title: "Left Early", count: viewModel.attendanceSummary.leftEarlyCount, color: .purple)
 
@@ -914,6 +953,17 @@ struct TodayView: View {
         guard let uuid = UUID(uuidString: work.lessonID) else { return "Lesson" }
         return nameForLesson(uuid)
     }
+
+    private func toast(_ message: String) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                toastMessage = nil
+            }
+        }
+    }
 }
 
 // MARK: - Attendance Expanded View Logic
@@ -921,6 +971,7 @@ private struct AttendanceExpandedView: View {
     let date: Date
     let isNonSchoolDay: Bool
     let onChange: () -> Void
+    let onToast: (String) -> Void
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
@@ -1063,8 +1114,9 @@ private struct AttendanceExpandedView: View {
                     _ = saveCoordinator.save(modelContext, reason: "Update reason")
                 }
             )
-            .frame(height: 700) // Increased height to ensure more students are visible
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             loadData()
         }
@@ -1087,7 +1139,18 @@ private struct AttendanceExpandedView: View {
                 absent: names(for: .absent),
                 date: date
             ) { result, error in
-                // Handle result if needed
+                switch result {
+                case .sent:
+                    onToast("Email sent")
+                case .saved:
+                    onToast("Draft saved")
+                case .failed:
+                    onToast("Failed to send: \(error?.localizedDescription ?? "Unknown error")")
+                case .cancelled:
+                    break
+                @unknown default:
+                    break
+                }
             }
             .ignoresSafeArea()
 #endif
@@ -1124,7 +1187,9 @@ private struct AttendanceExpandedView: View {
             tardy: tardy,
             absent: absent,
             date: date
-        ) { _ in }
+        ) { success in
+            onToast(success ? "Email sent" : "Failed to send email")
+        }
 #endif
     }
 }
