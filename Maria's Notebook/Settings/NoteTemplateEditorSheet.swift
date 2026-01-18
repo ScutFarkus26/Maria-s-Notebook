@@ -1,0 +1,161 @@
+// NoteTemplateEditorSheet.swift
+// Create or edit a note template
+
+import SwiftUI
+import SwiftData
+
+struct NoteTemplateEditorSheet: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    let template: NoteTemplate?
+    var onSaved: () -> Void
+
+    @State private var titleText: String = ""
+    @State private var bodyText: String = ""
+    @State private var category: NoteCategory = .general
+
+    private var isEditing: Bool { template != nil }
+
+    init(template: NoteTemplate?, onSaved: @escaping () -> Void) {
+        self.template = template
+        self.onSaved = onSaved
+        if let template = template {
+            _titleText = State(initialValue: template.title)
+            _bodyText = State(initialValue: template.body)
+            _category = State(initialValue: template.category)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Title", text: $titleText, prompt: Text("e.g., Completed independently"))
+                        #if os(iOS)
+                        .textInputAutocapitalization(.sentences)
+                        #endif
+                } header: {
+                    Text("Title")
+                } footer: {
+                    Text("Short text shown as a quick-insert button")
+                }
+
+                Section {
+                    TextEditor(text: $bodyText)
+                        .frame(minHeight: 120)
+                } header: {
+                    Text("Template Text")
+                } footer: {
+                    Text("Full text that will be inserted into the note")
+                }
+
+                Section {
+                    Picker("Category", selection: $category) {
+                        ForEach(NoteCategory.allCases, id: \.self) { cat in
+                            HStack {
+                                Circle()
+                                    .fill(categoryColor(for: cat))
+                                    .frame(width: 10, height: 10)
+                                Text(cat.rawValue.capitalized)
+                            }
+                            .tag(cat)
+                        }
+                    }
+                    #if os(iOS)
+                    .pickerStyle(.navigationLink)
+                    #endif
+                } header: {
+                    Text("Default Category")
+                } footer: {
+                    Text("Category to auto-select when using this template")
+                }
+            }
+            .navigationTitle(isEditing ? "Edit Template" : "New Template")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        save()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!canSave)
+                }
+            }
+        }
+        #if os(iOS)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        #endif
+        #if os(macOS)
+        .frame(minWidth: 450, minHeight: 400)
+        #endif
+    }
+
+    // MARK: - Helpers
+
+    private var canSave: Bool {
+        !titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func save() {
+        let trimmedTitle = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let existing = template {
+            // Update existing template
+            existing.title = trimmedTitle
+            existing.body = trimmedBody
+            existing.category = category
+        } else {
+            // Create new template
+            // Get the next sort order for custom templates
+            let customCount = (try? modelContext.fetchCount(
+                FetchDescriptor<NoteTemplate>(
+                    predicate: #Predicate<NoteTemplate> { !$0.isBuiltIn }
+                )
+            )) ?? 0
+
+            let newTemplate = NoteTemplate(
+                title: trimmedTitle,
+                body: trimmedBody,
+                category: category,
+                sortOrder: 100 + customCount, // Custom templates start at 100
+                isBuiltIn: false
+            )
+            modelContext.insert(newTemplate)
+        }
+
+        try? modelContext.save()
+        onSaved()
+        dismiss()
+    }
+
+    private func categoryColor(for category: NoteCategory) -> Color {
+        switch category {
+        case .academic: return .blue
+        case .behavioral: return .orange
+        case .social: return .purple
+        case .emotional: return .pink
+        case .health: return .green
+        case .attendance: return .teal
+        case .general: return .gray
+        }
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    NoteTemplateEditorSheet(template: nil) {
+        print("Saved!")
+    }
+}

@@ -28,20 +28,42 @@ public struct UnifiedNoteItem: Identifiable {
     public let imagePath: String?
     public let reportedBy: String?
     public let reporterName: String?
+    public let isPinned: Bool
 }
 
 // MARK: - View Model
 @MainActor
 final class StudentNotesViewModel: ObservableObject {
     private let student: Student
-    private let modelContext: ModelContext
+    let modelContext: ModelContext
 
     @Published var items: [UnifiedNoteItem] = []
+
+    // Pagination support
+    private let pageSize: Int = 30
+    @Published private(set) var displayedItemCount: Int = 0
+    @Published private(set) var hasMoreItems: Bool = true
+
+    var displayedItems: [UnifiedNoteItem] {
+        Array(items.prefix(displayedItemCount))
+    }
 
     init(student: Student, modelContext: ModelContext) {
         self.student = student
         self.modelContext = modelContext
         fetchAllNotes()
+    }
+
+    func loadInitialPage() {
+        displayedItemCount = min(pageSize, items.count)
+        hasMoreItems = displayedItemCount < items.count
+    }
+
+    func loadMoreIfNeeded() {
+        guard hasMoreItems else { return }
+        let newCount = min(displayedItemCount + pageSize, items.count)
+        displayedItemCount = newCount
+        hasMoreItems = newCount < items.count
     }
 
     // MARK: - Fetch
@@ -118,7 +140,8 @@ final class StudentNotesViewModel: ObservableObject {
                 includeInReport: note.includeInReport,
                 imagePath: note.imagePath,
                 reportedBy: note.reportedBy,
-                reporterName: note.reporterName
+                reporterName: note.reporterName,
+                isPinned: note.isPinned
             )
         }
         aggregated.append(contentsOf: generalItems)
@@ -159,7 +182,8 @@ final class StudentNotesViewModel: ObservableObject {
                     includeInReport: note.includeInReport,
                     imagePath: note.imagePath,
                     reportedBy: note.reportedBy,
-                    reporterName: note.reporterName
+                    reporterName: note.reporterName,
+                    isPinned: note.isPinned
                 )
             }
             aggregated.append(contentsOf: workItems)
@@ -205,7 +229,8 @@ final class StudentNotesViewModel: ObservableObject {
                 includeInReport: note.includeInReport,
                 imagePath: note.imagePath,
                 reportedBy: note.reportedBy,
-                reporterName: note.reporterName
+                reporterName: note.reporterName,
+                isPinned: note.isPinned
             )
         }
         aggregated.append(contentsOf: presentationItems)
@@ -250,7 +275,8 @@ final class StudentNotesViewModel: ObservableObject {
                 includeInReport: false,
                 imagePath: nil,
                 reportedBy: nil,
-                reporterName: nil
+                reporterName: nil,
+                isPinned: false
             )
         }
         aggregated.append(contentsOf: attendanceStringItems)
@@ -282,7 +308,8 @@ final class StudentNotesViewModel: ObservableObject {
                 includeInReport: note.includeInReport,
                 imagePath: note.imagePath,
                 reportedBy: note.reportedBy,
-                reporterName: note.reporterName
+                reporterName: note.reporterName,
+                isPinned: note.isPinned
             )
         }
         aggregated.append(contentsOf: linkedAttItems)
@@ -293,6 +320,9 @@ final class StudentNotesViewModel: ObservableObject {
             uniqueMap[item.id] = item
         }
         self.items = Array(uniqueMap.values).sorted { $0.date > $1.date }
+
+        // Reset pagination
+        loadInitialPage()
     }
     
     private func makeMeetingNote(_ meeting: StudentMeeting, body: String, context: String) -> UnifiedNoteItem {
@@ -308,7 +338,8 @@ final class StudentNotesViewModel: ObservableObject {
             includeInReport: false,
             imagePath: nil,
             reportedBy: nil,
-            reporterName: nil
+            reporterName: nil,
+            isPinned: false
         )
     }
 
@@ -358,7 +389,7 @@ final class StudentNotesViewModel: ObservableObject {
     private func buildLessonNameLookup(forWorkModels workModels: [WorkModel]) -> [String: String] {
         let lessonIDs = Set(workModels.compactMap { UUID(uuidString: $0.lessonID) })
         guard !lessonIDs.isEmpty else { return [:] }
-        
+
         let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
         let lessons = allLessons.filter { lessonIDs.contains($0.id) }
         var byID: [UUID: Lesson] = [:]
@@ -376,5 +407,51 @@ final class StudentNotesViewModel: ObservableObject {
             }
         }
         return map
+    }
+
+    // MARK: - Batch Operations
+
+    func batchDelete(ids: Set<UUID>) {
+        for id in ids {
+            if let note = fetchNote(id: id) {
+                note.deleteAssociatedImage()
+                modelContext.delete(note)
+            }
+        }
+        try? modelContext.save()
+        items.removeAll { ids.contains($0.id) }
+    }
+
+    func batchUpdateCategory(_ category: NoteCategory, for ids: Set<UUID>) {
+        for id in ids {
+            if let note = fetchNote(id: id) {
+                note.category = category
+                note.updatedAt = Date()
+            }
+        }
+        try? modelContext.save()
+        fetchAllNotes()
+    }
+
+    func batchToggleReportFlag(for ids: Set<UUID>) {
+        for id in ids {
+            if let note = fetchNote(id: id) {
+                note.includeInReport.toggle()
+                note.updatedAt = Date()
+            }
+        }
+        try? modelContext.save()
+        fetchAllNotes()
+    }
+
+    func batchTogglePin(for ids: Set<UUID>) {
+        for id in ids {
+            if let note = fetchNote(id: id) {
+                note.isPinned.toggle()
+                note.updatedAt = Date()
+            }
+        }
+        try? modelContext.save()
+        fetchAllNotes()
     }
 }

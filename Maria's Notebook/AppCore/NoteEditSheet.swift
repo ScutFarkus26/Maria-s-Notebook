@@ -17,6 +17,7 @@ struct NoteEditSheet: View {
     @State private var bodyText: String
     @State private var category: NoteCategory
     @State private var includeInReport: Bool
+    @State private var isPinned: Bool
 
     init(note: Note, onSaved: (() -> Void)? = nil) {
         self.note = note
@@ -24,6 +25,7 @@ struct NoteEditSheet: View {
         _bodyText = State(initialValue: note.body)
         _category = State(initialValue: note.category)
         _includeInReport = State(initialValue: note.includeInReport)
+        _isPinned = State(initialValue: note.isPinned)
     }
 
     var body: some View {
@@ -135,18 +137,33 @@ struct NoteEditSheet: View {
                         }
                     }
                     
-                    // Toggle and image indicator in a row
-                    HStack(spacing: 20) {
-                        Toggle(isOn: $includeInReport) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "flag.fill")
-                                    .font(.system(size: 12))
-                                Text("Flag for Report")
-                                    .font(.system(size: 15, design: .rounded))
+                    // Toggles and image indicator
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 20) {
+                            Toggle(isOn: $isPinned) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "pin.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.orange)
+                                    Text("Pin to Top")
+                                        .font(.system(size: 15, design: .rounded))
+                                }
                             }
+                            .toggleStyle(.switch)
+
+                            Toggle(isOn: $includeInReport) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "flag.fill")
+                                        .font(.system(size: 12))
+                                    Text("Flag for Report")
+                                        .font(.system(size: 15, design: .rounded))
+                                }
+                            }
+                            .toggleStyle(.switch)
+
+                            Spacer()
                         }
-                        .toggleStyle(.switch)
-                        
+
                         if let path = note.imagePath, !path.isEmpty {
                             HStack(spacing: 6) {
                                 Image(systemName: "photo.fill")
@@ -156,8 +173,6 @@ struct NoteEditSheet: View {
                             }
                             .foregroundStyle(.secondary)
                         }
-                        
-                        Spacer()
                     }
                 }
                 .padding(.horizontal, 28)
@@ -186,6 +201,7 @@ struct NoteEditSheet: View {
         note.body = trimmed
         note.category = category
         note.includeInReport = includeInReport
+        note.isPinned = isPinned
         note.updatedAt = Date()
         do {
             try modelContext.save()

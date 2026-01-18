@@ -19,15 +19,25 @@ struct StudentNoteRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // 1. Leading Icon
-            ZStack {
-                Circle()
-                    .fill(item.color.opacity(0.15))
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: iconName(for: item.source))
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(item.color)
+            // 1. Leading Icon with optional pin indicator
+            ZStack(alignment: .topTrailing) {
+                ZStack {
+                    Circle()
+                        .fill(item.color.opacity(0.15))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: iconName(for: item.source))
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(item.color)
+                }
+
+                // Pin indicator
+                if item.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.orange)
+                        .offset(x: 4, y: -4)
+                }
             }
 
             // 2. Center Content
@@ -189,9 +199,10 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 includeInReport: false,
                 imagePath: nil,
                 reportedBy: nil,
-                reporterName: nil
+                reporterName: nil,
+                isPinned: true
             ))
-            
+
             StudentNoteRowView(item: UnifiedNoteItem(
                 id: UUID(),
                 date: Date().addingTimeInterval(-86400),
@@ -204,9 +215,10 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 includeInReport: true,
                 imagePath: nil,
                 reportedBy: nil,
-                reporterName: nil
+                reporterName: nil,
+                isPinned: false
             ))
-            
+
             StudentNoteRowView(item: UnifiedNoteItem(
                 id: UUID(),
                 date: Date().addingTimeInterval(-172800),
@@ -219,7 +231,8 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 includeInReport: false,
                 imagePath: nil,
                 reportedBy: "parent",
-                reporterName: "Mom"
+                reporterName: "Mom",
+                isPinned: false
             ))
         }
     }

@@ -10,6 +10,7 @@ struct StudentNotesTab: View {
     // 1. Efficient Hybrid Fetch: Get notes for this student OR global notes
     @Query private var notes: [Note]
     @State private var showingSmartAssistant = false
+    @State private var showingReportGenerator = false
 
     init(student: Student) {
         self.student = student
@@ -29,6 +30,13 @@ struct StudentNotesTab: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        showingReportGenerator = true
+                    } label: {
+                        Label("Generate Report", systemImage: "doc.text")
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
                         showingSmartAssistant = true
                     } label: {
                         Label("AI Assistant", systemImage: "sparkles")
@@ -42,6 +50,9 @@ struct StudentNotesTab: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
                     #endif
+            }
+            .sheet(isPresented: $showingReportGenerator) {
+                ReportGeneratorView(student: student)
             }
     }
 }

@@ -76,7 +76,13 @@ private struct StudentNotesTimelineList: View {
     @State private var selectedCategories: Set<NoteCategory> = []
     @State private var showingCategoryFilter: Bool = false
 
-    var filteredItems: [UnifiedNoteItem] {
+    // Batch selection state
+    @State private var isSelecting: Bool = false
+    @State private var selectedNoteIDs: Set<UUID> = []
+    @State private var showingDeleteConfirmation: Bool = false
+
+    // All filtered items (for counting)
+    var allFilteredItems: [UnifiedNoteItem] {
         var items = viewModel.items
 
         // Apply report filter
@@ -101,13 +107,46 @@ private struct StudentNotesTimelineList: View {
         return items
     }
 
+    // Paginated filtered items for display
+    var filteredItems: [UnifiedNoteItem] {
+        Array(allFilteredItems.prefix(displayedCount))
+    }
+
+    // Pagination state
+    @State private var displayedCount: Int = 30
+    private let pageSize: Int = 30
+
+    var hasMoreItems: Bool {
+        displayedCount < allFilteredItems.count
+    }
+
+    private func loadMoreItems() {
+        let newCount = min(displayedCount + pageSize, allFilteredItems.count)
+        withAnimation {
+            displayedCount = newCount
+        }
+    }
+
+    private func resetPagination() {
+        displayedCount = pageSize
+    }
+
     private var hasActiveFilters: Bool {
         !selectedCategories.isEmpty || !debouncedSearchText.isEmpty || selectedFilter == .reportItems
     }
-    
-    // Group items by month and year
+
+    // Separate pinned and unpinned items
+    private var pinnedItems: [UnifiedNoteItem] {
+        filteredItems.filter { $0.isPinned }
+    }
+
+    private var unpinnedItems: [UnifiedNoteItem] {
+        filteredItems.filter { !$0.isPinned }
+    }
+
+    // Group unpinned items by month and year
     private var groupedItems: [(key: String, items: [UnifiedNoteItem])] {
-        let items = filteredItems
+        let items = unpinnedItems
         let grouped = items.grouped { monthYearKey(for: $0.date) }
         .mapValues { items in
             items.sorted { $0.date > $1.date } // Sort items within each group (newest first)
@@ -152,6 +191,7 @@ private struct StudentNotesTimelineList: View {
             // Search Bar
             DebouncedSearchField("Search notes...", text: $searchText) { debounced in
                 debouncedSearchText = debounced
+                resetPagination()
             }
             .padding(.horizontal)
             .padding(.top, 8)
@@ -167,6 +207,7 @@ private struct StudentNotesTimelineList: View {
                             ) {
                                 withAnimation {
                                     selectedFilter = filter
+                                    resetPagination()
                                 }
                             }
                         }
@@ -219,52 +260,39 @@ private struct StudentNotesTimelineList: View {
                 .frame(maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0, pinnedViews: []) {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        // Pinned Notes Section
+                        if !pinnedItems.isEmpty {
+                            Section {
+                                ForEach(pinnedItems) { item in
+                                    noteRow(for: item)
+                                }
+                            } header: {
+                                pinnedSectionHeader
+                            }
+                        }
+
+                        // Monthly grouped sections
                         ForEach(groupedItems, id: \.key) { group in
-                            // Section Header
-                            VStack(alignment: .leading, spacing: 8) {
+                            Section {
+                                ForEach(group.items) { item in
+                                    noteRow(for: item)
+                                }
+                            } header: {
                                 Text(monthYearHeader(for: group.key))
                                     .font(.headline)
                                     .foregroundStyle(.primary)
                                     .textCase(nil)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 16)
-                                    .padding(.top, 16)
-                                    .padding(.bottom, 8)
-                                
-                                // Section Items
-                                ForEach(group.items) { item in
-                                    Button {
-                                        if let note = resolveEditableNote(from: item) {
-                                            noteBeingEdited = note
-                                        }
-                                    } label: {
-                                        StudentNoteRowView(item: item)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .contextMenu {
-                                        if let note = resolveEditableNote(from: item) {
-                                            Button {
-                                                noteBeingEdited = note
-                                            } label: {
-                                                Label("Edit Note", systemImage: "pencil")
-                                            }
-                                            
-                                            Button(role: .destructive) {
-                                                viewModel.delete(item: item)
-                                            } label: {
-                                                Label("Delete Note", systemImage: "trash")
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 4)
-                                    
-                                    Divider()
-                                        .padding(.leading, 16)
-                                }
+                                    .padding(.vertical, 12)
+                                    .background(.background)
                             }
+                        }
+
+                        // Load More trigger
+                        if hasMoreItems {
+                            loadMoreButton
                         }
                     }
                 }
@@ -298,6 +326,118 @@ private struct StudentNotesTimelineList: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         #endif
+        }
+        .toolbar {
+            // Selection mode toggle
+            ToolbarItem(placement: .automatic) {
+                Button(isSelecting ? "Done" : "Select") {
+                    withAnimation {
+                        if isSelecting {
+                            selectedNoteIDs.removeAll()
+                        }
+                        isSelecting.toggle()
+                    }
+                }
+            }
+
+            // Batch actions menu (only when selecting and items are selected)
+            if isSelecting && !selectedNoteIDs.isEmpty {
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Button(role: .destructive) {
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete (\(selectedNoteIDs.count))", systemImage: "trash")
+                        }
+
+                        Divider()
+
+                        Menu {
+                            ForEach(NoteCategory.allCases, id: \.self) { category in
+                                Button {
+                                    batchUpdateCategory(to: category)
+                                } label: {
+                                    Label(category.rawValue.capitalized, systemImage: categoryIcon(for: category))
+                                }
+                            }
+                        } label: {
+                            Label("Change Category", systemImage: "tag")
+                        }
+
+                        Button {
+                            batchToggleReportFlag()
+                        } label: {
+                            Label("Toggle Report Flag", systemImage: "flag")
+                        }
+
+                        Button {
+                            batchTogglePin()
+                        } label: {
+                            Label("Toggle Pin", systemImage: "pin")
+                        }
+                    } label: {
+                        Label("Actions", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            "Delete \(selectedNoteIDs.count) note\(selectedNoteIDs.count == 1 ? "" : "s")?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                batchDelete()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This action cannot be undone.")
+        }
+    }
+
+    // MARK: - Batch Operations
+
+    private func batchDelete() {
+        withAnimation {
+            viewModel.batchDelete(ids: selectedNoteIDs)
+            selectedNoteIDs.removeAll()
+            isSelecting = false
+        }
+    }
+
+    private func batchUpdateCategory(to category: NoteCategory) {
+        withAnimation {
+            viewModel.batchUpdateCategory(category, for: selectedNoteIDs)
+            selectedNoteIDs.removeAll()
+            isSelecting = false
+        }
+    }
+
+    private func batchToggleReportFlag() {
+        withAnimation {
+            viewModel.batchToggleReportFlag(for: selectedNoteIDs)
+            selectedNoteIDs.removeAll()
+            isSelecting = false
+        }
+    }
+
+    private func batchTogglePin() {
+        withAnimation {
+            viewModel.batchTogglePin(for: selectedNoteIDs)
+            selectedNoteIDs.removeAll()
+            isSelecting = false
+        }
+    }
+
+    private func categoryIcon(for category: NoteCategory) -> String {
+        switch category {
+        case .academic: return "book.fill"
+        case .behavioral: return "hand.raised.fill"
+        case .social: return "person.2.fill"
+        case .emotional: return "heart.fill"
+        case .health: return "cross.fill"
+        case .attendance: return "calendar"
+        case .general: return "note.text"
         }
     }
     
@@ -333,6 +473,133 @@ private struct StudentNotesTimelineList: View {
         return viewModel.note(by: item.id)
     }
 
+    // MARK: - Note Row
+
+    @ViewBuilder
+    private func noteRow(for item: UnifiedNoteItem) -> some View {
+        HStack(spacing: 12) {
+            // Selection checkbox (only in selection mode)
+            if isSelecting {
+                Button {
+                    toggleSelection(for: item.id)
+                } label: {
+                    Image(systemName: selectedNoteIDs.contains(item.id)
+                          ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(selectedNoteIDs.contains(item.id)
+                                         ? Color.accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Note content
+            Button {
+                if isSelecting {
+                    toggleSelection(for: item.id)
+                } else if let note = resolveEditableNote(from: item) {
+                    noteBeingEdited = note
+                }
+            } label: {
+                StudentNoteRowView(item: item)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .contextMenu {
+            if !isSelecting, let note = resolveEditableNote(from: item) {
+                Button {
+                    noteBeingEdited = note
+                } label: {
+                    Label("Edit Note", systemImage: "pencil")
+                }
+
+                Button {
+                    togglePin(note)
+                } label: {
+                    Label(note.isPinned ? "Unpin" : "Pin to Top",
+                          systemImage: note.isPinned ? "pin.slash" : "pin")
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    viewModel.delete(item: item)
+                } label: {
+                    Label("Delete Note", systemImage: "trash")
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+
+        Divider()
+            .padding(.leading, isSelecting ? 52 : 16)
+    }
+
+    private func toggleSelection(for id: UUID) {
+        if selectedNoteIDs.contains(id) {
+            selectedNoteIDs.remove(id)
+        } else {
+            selectedNoteIDs.insert(id)
+        }
+    }
+
+    // MARK: - Load More Button
+
+    private var loadMoreButton: some View {
+        Button {
+            loadMoreItems()
+        } label: {
+            HStack {
+                Spacer()
+                VStack(spacing: 4) {
+                    Text("Load More")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("\(allFilteredItems.count - displayedCount) more notes")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 16)
+            .background(Color.accentColor.opacity(0.08))
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Pinned Section Header
+
+    private var pinnedSectionHeader: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "pin.fill")
+                .font(.subheadline)
+                .foregroundStyle(.orange)
+            Text("Pinned")
+                .font(.headline)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.orange.opacity(0.08))
+    }
+
+    // MARK: - Pin/Unpin
+
+    @MainActor
+    private func togglePin(_ note: Note) {
+        withAnimation {
+            note.isPinned.toggle()
+            note.updatedAt = Date()
+            try? viewModel.modelContext.save()
+            viewModel.fetchAllNotes()
+        }
+    }
+
     // MARK: - Category Filter Section
 
     private var categoryFilterSection: some View {
@@ -349,6 +616,7 @@ private struct StudentNotesTimelineList: View {
                             } else {
                                 selectedCategories.insert(category)
                             }
+                            resetPagination()
                         }
                     }
                 }
@@ -358,6 +626,7 @@ private struct StudentNotesTimelineList: View {
                     Button {
                         withAnimation {
                             selectedCategories.removeAll()
+                            resetPagination()
                         }
                     } label: {
                         Text("Clear")
@@ -377,7 +646,7 @@ private struct StudentNotesTimelineList: View {
 
     private var activeFiltersSummary: some View {
         HStack {
-            Text("Showing \(filteredItems.count) of \(viewModel.items.count) notes")
+            Text("Showing \(allFilteredItems.count) of \(viewModel.items.count) notes")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -389,6 +658,7 @@ private struct StudentNotesTimelineList: View {
                     debouncedSearchText = ""
                     selectedCategories.removeAll()
                     selectedFilter = .all
+                    resetPagination()
                 }
             } label: {
                 Text("Clear All")
