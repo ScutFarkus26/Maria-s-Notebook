@@ -12,17 +12,32 @@ import AppKit
 #endif
 import Combine
 
+// MARK: - Preference Key for Cell Frames
+fileprivate struct CellFramePreference: PreferenceKey {
+    static var defaultValue: [CellIdentifier: CGRect] = [:]
+    static func reduce(value: inout [CellIdentifier: CGRect], nextValue: () -> [CellIdentifier: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
 struct ClassSubjectChecklistView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = ClassSubjectChecklistViewModel()
-    
+
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
-    
+
     // Grid Configuration
     private let studentColumnWidth: CGFloat = 120
     private let lessonColumnWidth: CGFloat = 200
     private let rowHeight: CGFloat = 44
+
+    // Drag selection state
+    @State private var cellFrames: [CellIdentifier: CGRect] = [:]
+    @State private var dragStart: CGPoint? = nil
+    @State private var dragCurrent: CGPoint? = nil
+    @State private var isDragging: Bool = false
+    @GestureState private var dragGestureActive: Bool = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -45,7 +60,60 @@ struct ClassSubjectChecklistView: View {
             .backgroundPlatform()
             
             Divider()
-            
+
+            // MARK: - Batch Actions Toolbar
+            if viewModel.isSelectionMode {
+                HStack(spacing: 12) {
+                    Text("\(viewModel.selectedCells.count) selected")
+                        .font(.system(.subheadline, design: .rounded).weight(.medium))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        viewModel.batchAddToInbox(context: modelContext)
+                    } label: {
+                        Label("Add to Inbox", systemImage: "tray")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        viewModel.batchMarkPresented(context: modelContext)
+                    } label: {
+                        Label("Presented", systemImage: "checkmark")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        viewModel.batchMarkMastered(context: modelContext)
+                    } label: {
+                        Label("Mastered", systemImage: "checkmark.circle.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+
+                    Button {
+                        viewModel.batchClearStatus(context: modelContext)
+                    } label: {
+                        Label("Clear", systemImage: "xmark.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+
+                    Button {
+                        viewModel.clearSelection()
+                    } label: {
+                        Text("Cancel")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.accentColor.opacity(0.05))
+
+                Divider()
+            }
+
             // MARK: - 2D Scrollable Grid
             ScrollView([.horizontal, .vertical]) {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
@@ -94,15 +162,29 @@ struct ClassSubjectChecklistView: View {
                                     // Grid Cells
                                     ForEach(viewModel.students) { student in
                                         let state = viewModel.state(for: student, lesson: lesson)
+                                        let cellId = CellIdentifier(studentID: student.id, lessonID: lesson.id)
                                         ClassChecklistSmartCell(
                                             state: state,
+                                            isSelected: viewModel.isSelected(student: student, lesson: lesson),
+                                            isSelectionMode: viewModel.isSelectionMode,
+                                            isDragSelecting: isDragging,
                                             onTap: { viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext) },
+                                            onSelect: { viewModel.toggleSelection(student: student, lesson: lesson) },
                                             onMarkComplete: { viewModel.markComplete(student: student, lesson: lesson, context: modelContext) },
                                             onMarkPresented: { viewModel.togglePresented(student: student, lesson: lesson, context: modelContext) },
                                             onClear: { viewModel.clearStatus(student: student, lesson: lesson, context: modelContext) }
                                         )
                                         .frame(width: studentColumnWidth, height: rowHeight)
                                         .borderSeparated()
+                                        .background(
+                                            GeometryReader { proxy in
+                                                Color.clear
+                                                    .preference(
+                                                        key: CellFramePreference.self,
+                                                        value: [cellId: proxy.frame(in: .named("gridSpace"))]
+                                                    )
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -110,6 +192,52 @@ struct ClassSubjectChecklistView: View {
                     }
                 }
             }
+            .coordinateSpace(name: "gridSpace")
+            .onPreferenceChange(CellFramePreference.self) { prefs in
+                DispatchQueue.main.async {
+                    cellFrames = prefs
+                }
+            }
+            .overlay(
+                // Drag selection rectangle overlay
+                Group {
+                    if let start = dragStart, let current = dragCurrent {
+                        let rect = CGRect(
+                            x: min(start.x, current.x),
+                            y: min(start.y, current.y),
+                            width: abs(current.x - start.x),
+                            height: abs(current.y - start.y)
+                        )
+                        Rectangle()
+                            .fill(Color.accentColor.opacity(0.1))
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.accentColor, lineWidth: 1)
+                            )
+                            .frame(width: rect.width, height: rect.height)
+                            .position(x: rect.midX, y: rect.midY)
+                    }
+                }
+            )
+            .gesture(
+                DragGesture(minimumDistance: 10, coordinateSpace: .named("gridSpace"))
+                    .updating($dragGestureActive) { _, state, _ in
+                        state = true
+                    }
+                    .onChanged { value in
+                        if dragStart == nil {
+                            dragStart = value.startLocation
+                            isDragging = true
+                        }
+                        dragCurrent = value.location
+                        updateDragSelection()
+                    }
+                    .onEnded { _ in
+                        dragStart = nil
+                        dragCurrent = nil
+                        isDragging = false
+                    }
+            )
             .coordinateSpace(name: "scrollSpace")
         }
         .onAppear {
@@ -126,7 +254,27 @@ struct ClassSubjectChecklistView: View {
             viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
         }
     }
-    
+
+    // MARK: - Drag Selection Helper
+    private func updateDragSelection() {
+        guard let start = dragStart, let current = dragCurrent else { return }
+
+        let dragRect = CGRect(
+            x: min(start.x, current.x),
+            y: min(start.y, current.y),
+            width: abs(current.x - start.x),
+            height: abs(current.y - start.y)
+        )
+
+        var newSelection = Set<CellIdentifier>()
+        for (cellId, frame) in cellFrames {
+            if dragRect.intersects(frame) {
+                newSelection.insert(cellId)
+            }
+        }
+        viewModel.selectedCells = newSelection
+    }
+
     // MARK: - Header Row (Pinned Vertically)
     private var headerRow: some View {
         HStack(spacing: 0) {
@@ -179,32 +327,42 @@ struct StickyLeftItem<Content: View>: View {
     }
 }
 
-// MARK: - THE SMART CELL (Unchanged)
+// MARK: - THE SMART CELL
 struct ClassChecklistSmartCell: View {
     @Environment(\.modelContext) private var modelContext
 
     let state: StudentChecklistRowState?
-    
+    let isSelected: Bool
+    let isSelectionMode: Bool
+    var isDragSelecting: Bool = false
+
     var onTap: () -> Void
+    var onSelect: () -> Void
     var onMarkComplete: () -> Void
     var onMarkPresented: () -> Void
     var onClear: () -> Void
-    
+
     var body: some View {
         let isComplete = state?.isComplete ?? false
         let isPresented = state?.isPresented ?? false
         let isScheduled = state?.isScheduled ?? false
-        
+
         let isInboxPlan: Bool = {
             guard isScheduled, let pid = state?.plannedItemID else { return false }
             let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == pid })
             let sl = (try? modelContext.fetch(fetch))?.first
             return sl?.scheduledFor == nil
         }()
-        
+
         ZStack {
+            // Selection highlight background
+            if isSelected {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.accentColor.opacity(0.15))
+            }
+
             Color.clear.contentShape(Rectangle()) // Hit area
-            
+
             if isComplete {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Color.green)
@@ -222,8 +380,32 @@ struct ClassChecklistSmartCell: View {
                     .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
                     .frame(width: 16, height: 16)
             }
+
+            // Selection indicator
+            if isSelected {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Color.accentColor)
+                            .font(.caption)
+                            .background(Circle().fill(Color.white).padding(-1))
+                    }
+                    Spacer()
+                }
+                .padding(4)
+            }
         }
-        .onTapGesture { onTap() }
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+                .padding(2)
+        )
+        .onTapGesture {
+            // Don't process taps while drag selecting
+            guard !isDragSelecting else { return }
+            onSelect()
+        }
         .contextMenu {
             Button { onTap() } label: { Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "calendar") }
             Button { onMarkPresented() } label: { Label("Mark Presented", systemImage: "checkmark") }
@@ -234,7 +416,13 @@ struct ClassChecklistSmartCell: View {
     }
 }
 
-// MARK: - ViewModel (Unchanged)
+// MARK: - Cell Identifier for Multi-Selection
+struct CellIdentifier: Hashable {
+    let studentID: UUID
+    let lessonID: UUID
+}
+
+// MARK: - ViewModel
 @MainActor
 class ClassSubjectChecklistViewModel: ObservableObject {
     @Published var students: [Student] = []
@@ -243,8 +431,12 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     @Published var orderedGroups: [String] = []
     @Published var availableSubjects: [String] = []
     @Published var selectedSubject: String = ""
-    
+
     @Published var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
+
+    // MARK: - Multi-Selection State
+    @Published var selectedCells: Set<CellIdentifier> = []
+    var isSelectionMode: Bool { !selectedCells.isEmpty }
     private let lessonsLogic = LessonsViewModel()
     
     // MARK: - Name Display Helpers
@@ -313,7 +505,76 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     func state(for student: Student, lesson: Lesson) -> StudentChecklistRowState? {
         return matrixStates[student.id]?[lesson.id]
     }
-    
+
+    // MARK: - Multi-Selection Methods
+
+    func toggleSelection(student: Student, lesson: Lesson) {
+        let id = CellIdentifier(studentID: student.id, lessonID: lesson.id)
+        if selectedCells.contains(id) {
+            selectedCells.remove(id)
+        } else {
+            selectedCells.insert(id)
+        }
+    }
+
+    func clearSelection() {
+        selectedCells.removeAll()
+    }
+
+    func isSelected(student: Student, lesson: Lesson) -> Bool {
+        selectedCells.contains(CellIdentifier(studentID: student.id, lessonID: lesson.id))
+    }
+
+    // MARK: - Batch Actions
+
+    func batchAddToInbox(context: ModelContext) {
+        for cell in selectedCells {
+            guard let student = students.first(where: { $0.id == cell.studentID }),
+                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
+            let state = matrixStates[cell.studentID]?[cell.lessonID]
+            // Only add if not already scheduled
+            if state?.isScheduled != true {
+                toggleScheduled(student: student, lesson: lesson, context: context)
+            }
+        }
+        clearSelection()
+    }
+
+    func batchMarkPresented(context: ModelContext) {
+        for cell in selectedCells {
+            guard let student = students.first(where: { $0.id == cell.studentID }),
+                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
+            let state = matrixStates[cell.studentID]?[cell.lessonID]
+            // Only mark presented if not already presented
+            if state?.isPresented != true {
+                togglePresented(student: student, lesson: lesson, context: context)
+            }
+        }
+        clearSelection()
+    }
+
+    func batchMarkMastered(context: ModelContext) {
+        for cell in selectedCells {
+            guard let student = students.first(where: { $0.id == cell.studentID }),
+                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
+            let state = matrixStates[cell.studentID]?[cell.lessonID]
+            // Only mark mastered if not already complete
+            if state?.isComplete != true {
+                markComplete(student: student, lesson: lesson, context: context)
+            }
+        }
+        clearSelection()
+    }
+
+    func batchClearStatus(context: ModelContext) {
+        for cell in selectedCells {
+            guard let student = students.first(where: { $0.id == cell.studentID }),
+                  let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
+            clearStatus(student: student, lesson: lesson, context: context)
+        }
+        clearSelection()
+    }
+
     func recomputeMatrix(context: ModelContext) {
         let lessonIDs = Set(lessons.map { $0.id })
         guard !lessonIDs.isEmpty else { matrixStates = [:]; return }
