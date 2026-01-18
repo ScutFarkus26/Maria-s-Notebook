@@ -98,7 +98,8 @@ struct WorkAgingPolicyTests {
     @Test("lastMeaningfulTouchDate ignores future check-ins")
     func lastTouchIgnoresFutureCheckIns() {
         let assignDate = TestCalendar.date(year: 2025, month: 1, day: 1)
-        let futureDate = TestCalendar.date(year: 2025, month: 12, day: 31)
+        // Use a date that will always be in the future relative to when the test runs
+        let futureDate = AppCalendar.addingDays(30, to: Date())
         let work = makeWorkModel(assignedAt: assignDate)
         let checkIns = [makeCheckIn(workID: work.id, date: futureDate, status: .completed)]
 
@@ -177,8 +178,7 @@ struct WorkAgingPolicyTests {
         let work = makeWorkModel(assignedAt: lastTouch, lastTouchedAt: lastTouch)
 
         // Mock today as Friday Jan 17
-        let originalDate = Date()
-        defer { /* Can't easily mock Date() in tests, so we accept current date */ }
+        // Note: Can't easily mock Date() in tests, so we accept current date
 
         let result = WorkAgingPolicy.daysSinceLastTouch(for: work, modelContext: context)
 
@@ -482,8 +482,14 @@ struct WorkAgingPolicyTests {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let pastDue = TestCalendar.date(year: 2024, month: 1, day: 1)
-        let work = makeWorkModel(assignedAt: TestCalendar.date(year: 2023, month: 12, day: 1), dueAt: pastDue)
+        // Use recent dates so the work is overdue but not stale
+        // Touch it recently (today) so staleness doesn't apply
+        // Due date was 2 days ago, but last touch was before due date
+        let today = AppCalendar.startOfDay(Date())
+        let twoDaysAgo = AppCalendar.addingDays(-2, to: today)
+        let threeDaysAgo = AppCalendar.addingDays(-3, to: today)
+        // lastTouchedAt is today (fresh), dueAt was 2 days ago, but we haven't touched since before due
+        let work = makeWorkModel(assignedAt: threeDaysAgo, lastTouchedAt: threeDaysAgo, dueAt: twoDaysAgo)
 
         let result = WorkAgingPolicy.urgencyBucket(for: work, modelContext: context)
 
