@@ -432,7 +432,7 @@ private struct RootDetailContent: View {
             case .today:
                 TodayView(context: modelContext)
             case .attendance:
-                AttendanceView()
+                TodayView(context: modelContext)
             case .note:
                 // Note tab opens QuickNoteSheet immediately when selected
                 Color.clear
@@ -498,9 +498,6 @@ private struct RootSidebar: View {
                 NavigationLink(value: RootView.NavigationItem.today) {
                     Label("Today", systemImage: "sun.max")
                 }
-                NavigationLink(value: RootView.NavigationItem.attendance) {
-                    Label("Attendance", systemImage: "checklist")
-                }
             }
             
             // Section 2: Classroom
@@ -550,11 +547,6 @@ private struct RootSidebar: View {
             Section("Daily") {
                 Button { selection = .today } label: {
                     Label("Today", systemImage: "sun.max")
-                }
-                .buttonStyle(.plain)
-                
-                Button { selection = .attendance } label: {
-                    Label("Attendance", systemImage: "checklist")
                 }
                 .buttonStyle(.plain)
             }

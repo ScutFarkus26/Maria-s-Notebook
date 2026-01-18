@@ -30,6 +30,7 @@ final class TodayViewModel: ObservableObject {
     /// Lightweight counts shown in the Today header.
     struct AttendanceSummary {
         var presentCount: Int = 0
+        var tardyCount: Int = 0
         var absentCount: Int = 0
         var leftEarlyCount: Int = 0
     }
@@ -580,6 +581,7 @@ final class TodayViewModel: ObservableObject {
             self.studentsByID = studentsByID
             
             var present = 0
+            var tardy = 0
             var absent = 0
             var leftEarly = 0
             var absentIDs: Set<UUID> = []
@@ -590,7 +592,10 @@ final class TodayViewModel: ObservableObject {
                       let s = self.studentsByID[studentIDUUID] else { continue }
                 if !levelFilter.matches(s.level) { continue }
                 switch rec.status {
-                case .present, .tardy: present += 1
+                case .present:
+                    present += 1
+                case .tardy:
+                    tardy += 1
                 case .absent:
                     absent += 1
                     absentIDs.insert(studentIDUUID)
@@ -600,7 +605,7 @@ final class TodayViewModel: ObservableObject {
                 case .unmarked: break
                 }
             }
-            attendanceSummary = AttendanceSummary(presentCount: present, absentCount: absent, leftEarlyCount: leftEarly)
+            attendanceSummary = AttendanceSummary(presentCount: present + tardy, tardyCount: tardy, absentCount: absent, leftEarlyCount: leftEarly)
             self.absentToday = Array(absentIDs)
             self.leftEarlyToday = Array(leftEarlyIDs)
         } catch {

@@ -12,6 +12,7 @@ import AppKit
 import UIKit
 #endif
 
+@available(*, deprecated, message: "Use TodayView with embedded attendance instead. This standalone view will be removed in a future version.")
 struct AttendanceView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass

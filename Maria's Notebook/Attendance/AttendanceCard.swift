@@ -272,7 +272,7 @@ struct AttendanceCard: View {
             }
             .padding(10)
         }
-        .frame(minHeight: 88)
+        .frame(minHeight: 80)
         .background(background)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
