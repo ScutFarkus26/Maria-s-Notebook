@@ -4,6 +4,7 @@ import Foundation
 @testable import Maria_s_Notebook
 
 @Suite("FloridaGradeCalculator Tests")
+@MainActor
 struct FloridaGradeCalculatorTests {
 
     // MARK: - schoolYearStart Tests

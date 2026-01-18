@@ -2,6 +2,7 @@
 import Testing
 import Foundation
 import SwiftData
+import SwiftUI
 @testable import Maria_s_Notebook
 
 // MARK: - StudentNotesViewModel Initialization Tests

@@ -96,7 +96,7 @@ struct LessonSourceTests {
 
     @Test("Lesson source can be set to personal")
     func sourceCanBeSetToPersonal() {
-        var lesson = makeTestLesson()
+        let lesson = makeTestLesson()
         lesson.source = .personal
 
         #expect(lesson.source == .personal)
@@ -329,7 +329,7 @@ struct LessonDefaultWorkKindTests {
 
     @Test("defaultWorkKind can be set")
     func defaultWorkKindCanBeSet() {
-        var lesson = makeTestLesson()
+        let lesson = makeTestLesson()
         lesson.defaultWorkKind = .practiceLesson
 
         #expect(lesson.defaultWorkKind == .practiceLesson)
@@ -337,7 +337,7 @@ struct LessonDefaultWorkKindTests {
 
     @Test("defaultWorkKind can be cleared")
     func defaultWorkKindCanBeCleared() {
-        var lesson = makeTestLesson()
+        let lesson = makeTestLesson()
         lesson.defaultWorkKind = .followUpAssignment
         lesson.defaultWorkKind = nil
 

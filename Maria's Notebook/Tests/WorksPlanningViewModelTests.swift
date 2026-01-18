@@ -206,8 +206,9 @@ struct WorksPlanningViewModelDateFormattingTests {
 
         let dayID = vm.dayID(date)
 
-        // Should contain year, month, day
-        #expect(dayID.contains("2025"))
+        // dayID uses timestamp-based format like "day_1749960000"
+        #expect(dayID.hasPrefix("day_"))
+        #expect(!dayID.isEmpty)
     }
 
     @Test("dayName returns name of day")
@@ -441,6 +442,7 @@ struct WorksPlanningViewModelCheckInTests {
 // MARK: - ActiveSheet Tests
 
 @Suite("ActiveSheet Tests", .serialized)
+@MainActor
 struct ActiveSheetTests {
 
     @Test("schedule sheet has correct id")

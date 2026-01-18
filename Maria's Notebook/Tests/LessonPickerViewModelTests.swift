@@ -531,6 +531,7 @@ struct LessonPickerViewModelResetTests {
 // MARK: - GiveLessonMode Tests
 
 @Suite("GiveLessonMode Tests", .serialized)
+@MainActor
 struct GiveLessonModeTests {
 
     @Test("GiveLessonMode.plan is hashable")

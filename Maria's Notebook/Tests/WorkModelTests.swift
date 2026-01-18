@@ -454,9 +454,6 @@ struct WorkModelTests {
     @Test("WorkModel normalizes createdAt to start of day")
     func normalizesCreatedAtDate() {
         // WorkModel normalizes createdAt to start of day in init
-        let date = TestCalendar.date(year: 2025, month: 1, day: 15, hour: 14, minute: 30)
-        let expectedDay = TestCalendar.startOfDay(year: 2025, month: 1, day: 15)
-
         // Use the WorkModel() default initializer which uses the current date
         let work = WorkModel()
 

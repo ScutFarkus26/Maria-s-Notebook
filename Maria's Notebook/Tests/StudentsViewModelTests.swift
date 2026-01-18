@@ -582,6 +582,7 @@ struct StudentsFilterTests {
 // MARK: - SortOrder Tests
 
 @Suite("StudentSortOrder Tests", .serialized)
+@MainActor
 struct StudentSortOrderTests {
 
     @Test("SortOrder.manual is hashable")

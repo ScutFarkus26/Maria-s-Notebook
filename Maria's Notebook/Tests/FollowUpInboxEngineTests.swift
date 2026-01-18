@@ -5,6 +5,7 @@ import SwiftData
 @testable import Maria_s_Notebook
 
 @Suite("FollowUpInboxItem Tests", .serialized)
+@MainActor
 struct FollowUpInboxItemTests {
 
     // MARK: - Kind Tests
