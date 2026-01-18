@@ -1,0 +1,236 @@
+// AttendanceExpandedView.swift
+// Expanded attendance grid view for TodayView
+
+import SwiftUI
+import SwiftData
+#if os(iOS)
+import MessageUI
+#endif
+
+/// Attendance Expanded View Logic
+struct AttendanceExpandedView: View {
+    let date: Date
+    let isNonSchoolDay: Bool
+    let onChange: () -> Void
+    let onToast: (String) -> Void
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+
+    @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)])
+    private var allStudents: [Student]
+
+    @StateObject private var viewModel = AttendanceViewModel()
+
+    @SyncedAppStorage("AttendanceEmail.enabled") private var emailEnabled: Bool = true
+    @State private var showMailSheet = false
+    @State private var toastMessage: String? = nil
+    @State private var isEditing: Bool = true
+    @State private var localSortKey: AttendanceViewModel.SortKey = .lastName
+
+    // Persistence for locking
+    private static let lockKeyPrefix = "Attendance.locked."
+    private static let lockDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.calendar = .current
+        df.locale = .current
+        df.timeZone = .current
+        df.dateFormat = "yyyy-MM-dd"
+        return df
+    }()
+
+    private let syncedStore = SyncedPreferencesStore.shared
+
+    private func lockKey(for date: Date) -> String {
+        let day = AppCalendar.startOfDay(date)
+        let s = AttendanceExpandedView.lockDateFormatter.string(from: day)
+        return AttendanceExpandedView.lockKeyPrefix + s
+    }
+
+    private func isLocked(for date: Date) -> Bool {
+        syncedStore.bool(forKey: lockKey(for: date))
+    }
+
+    private func setLocked(_ locked: Bool, for date: Date) {
+        let key = lockKey(for: date)
+        if locked {
+            syncedStore.set(true, forKey: key)
+        } else {
+            syncedStore.remove(key: key)
+        }
+    }
+
+    private var filteredStudents: [Student] {
+        let visible = viewModel.visibleStudents(from: allStudents)
+        return viewModel.sortedAndFiltered(students: visible)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+
+            // Action Bar
+            HStack(spacing: 12) {
+                // Sort
+                Picker("Sort", selection: $localSortKey) {
+                    Text("First").tag(AttendanceViewModel.SortKey.firstName)
+                    Text("Last").tag(AttendanceViewModel.SortKey.lastName)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 160)
+
+                Spacer()
+
+                // Lock
+                Button {
+                    isEditing.toggle()
+                    setLocked(!isEditing, for: date)
+                } label: {
+                    Label(isEditing ? "Lock" : "Unlock", systemImage: isEditing ? "lock.fill" : "lock.open")
+                }
+                .buttonStyle(.bordered)
+                .help(isEditing ? "Lock this day" : "Unlock this day")
+
+                // Reset
+                Button {
+                    viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Reset day")
+                    onChange()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isNonSchoolDay || !isEditing)
+                .help("Reset Day")
+
+                // Mark All Present
+                Button("Mark All Present") {
+                    viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Mark all present")
+                    onChange()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isNonSchoolDay || !isEditing)
+
+                // Email
+                if emailEnabled {
+                    Button {
+                        prepareAttendanceEmail()
+                    } label: {
+                        Label("Email", systemImage: "envelope")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isNonSchoolDay)
+                }
+            }
+            .padding(.vertical, 10)
+
+            // Grid
+            if isNonSchoolDay {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                    Text("Non-school day. Attendance optional.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.bottom, 8)
+            }
+
+            AttendanceGrid(
+                students: filteredStudents,
+                recordsByStudent: viewModel.recordsByStudent,
+                onCycleStatus: { student in
+                    viewModel.cycleStatus(for: student, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Update status")
+                    onChange()
+                },
+                onUpdateNote: { student, note in
+                    viewModel.updateNote(for: student, note: note, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Update note")
+                },
+                onUpdateAbsenceReason: { student, reason in
+                    viewModel.updateAbsenceReason(for: student, reason: reason, modelContext: modelContext)
+                    _ = saveCoordinator.save(modelContext, reason: "Update reason")
+                }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            loadData()
+        }
+        .onChange(of: date) { _, _ in
+            loadData()
+        }
+        .onChange(of: allStudents.map { $0.id }) { _, _ in
+            loadData()
+        }
+        .onChange(of: localSortKey) { _, newValue in
+            DispatchQueue.main.async {
+                viewModel.sortKey = newValue
+            }
+        }
+        .sheet(isPresented: $showMailSheet) {
+#if os(iOS)
+            AttendanceEmail.composerForCurrentPrefs(
+                present: names(for: .present),
+                tardy: names(for: .tardy),
+                absent: names(for: .absent),
+                date: date
+            ) { result, error in
+                switch result {
+                case .sent:
+                    onToast("Email sent")
+                case .saved:
+                    onToast("Draft saved")
+                case .failed:
+                    onToast("Failed to send: \(error?.localizedDescription ?? "Unknown error")")
+                case .cancelled:
+                    break
+                @unknown default:
+                    break
+                }
+            }
+            .ignoresSafeArea()
+#endif
+        }
+    }
+
+    private func loadData() {
+        viewModel.load(for: date, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
+        isEditing = !isLocked(for: date)
+        localSortKey = viewModel.sortKey
+    }
+
+    private func names(for status: AttendanceStatus) -> [String] {
+        filteredStudents.compactMap { s in
+            if let rec = viewModel.recordsByStudent[s.id.uuidString], rec.status == status {
+                return s.fullName
+            }
+            return nil
+        }
+        .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func prepareAttendanceEmail() {
+        let present = names(for: .present)
+        let tardy = names(for: .tardy)
+        let absent = names(for: .absent)
+#if os(iOS)
+        if MFMailComposeViewController.canSendMail() {
+            showMailSheet = true
+        }
+#else
+        AttendanceEmail.sendUsingMailAppForCurrentPrefs(
+            present: present,
+            tardy: tardy,
+            absent: absent,
+            date: date
+        ) { success in
+            onToast(success ? "Email sent" : "Failed to send email")
+        }
+#endif
+    }
+}

@@ -55,10 +55,8 @@ final class TodayViewModel: ObservableObject {
     private var calendar: Calendar
     
     // MARK: - School Day Cache
-    // Cache for NonSchoolDay and SchoolDayOverride records to avoid repeated database fetches
-    private var cachedNonSchoolDays: Set<Date> = []
-    private var cachedSchoolDayOverrides: Set<Date> = []
-    private var cachedYearRange: ClosedRange<Int>?
+    // Use shared SchoolDayCache to avoid repeated database fetches
+    private var schoolDayCache = SchoolDayCache()
 
     // MARK: - Inputs
     @Published var date: Date {
@@ -684,108 +682,40 @@ final class TodayViewModel: ObservableObject {
         }
     }
     
-    /// Caches school day data for a 2-year window around the given date
-    /// This prevents hundreds of database fetches when iterating through dates
-    private func cacheSchoolDayData(for date: Date) {
-        let cal = AppCalendar.shared
-        let year = cal.component(.year, from: date)
-        let yearRange = (year - 1)...(year + 1)
-        
-        // Check if we already have cached data for this year range
-        if let cachedRange = cachedYearRange,
-           cachedRange.contains(year) {
-            return // Cache is still valid
-        }
-        
-        // Calculate date range for 2-year window (1 year before to 1 year after)
-        guard let startDate = cal.date(from: DateComponents(year: year - 1, month: 1, day: 1)),
-              let endDate = cal.date(from: DateComponents(year: year + 2, month: 1, day: 1)) else {
-            return
-        }
-        
-        let startOfWindow = AppCalendar.startOfDay(startDate)
-        let endOfWindow = AppCalendar.startOfDay(endDate)
-        
-        // Fetch all NonSchoolDay records in the window
-        do {
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(
-                predicate: #Predicate<NonSchoolDay> { nsd in
-                    nsd.date >= startOfWindow && nsd.date < endOfWindow
-                }
-            )
-            let nonSchoolDays = try context.fetch(nsDescriptor)
-            cachedNonSchoolDays = Set(nonSchoolDays.map { AppCalendar.startOfDay($0.date) })
-        } catch {
-            cachedNonSchoolDays = []
-        }
-        
-        // Fetch all SchoolDayOverride records in the window
-        do {
-            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(
-                predicate: #Predicate<SchoolDayOverride> { sdo in
-                    sdo.date >= startOfWindow && sdo.date < endOfWindow
-                }
-            )
-            let overrides = try context.fetch(ovDescriptor)
-            cachedSchoolDayOverrides = Set(overrides.map { AppCalendar.startOfDay($0.date) })
-        } catch {
-            cachedSchoolDayOverrides = []
-        }
-        
-        cachedYearRange = yearRange
-    }
-    
     /// Synchronous helper that determines if a date is a non-school day using cached data.
     private func isNonSchoolDaySync(_ date: Date) -> Bool {
-        let day = AppCalendar.startOfDay(date)
-        let cal = AppCalendar.shared
-
-        // 1) Explicit non-school day wins (check cache)
-        if cachedNonSchoolDays.contains(day) {
-            return true
-        }
-
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday = cal.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-
-        // 3) Weekend override makes it a school day (check cache)
-        if cachedSchoolDayOverrides.contains(day) {
-            return false
-        }
-        
-        return true
+        schoolDayCache.cacheSchoolDayData(for: date, modelContext: context)
+        return schoolDayCache.isNonSchoolDay(date)
     }
-    
+
     /// Synchronous helper that returns the next school day strictly after the given date.
     private func nextSchoolDaySync(after date: Date) -> Date {
         // Cache school day data once at the start to avoid repeated database fetches
-        cacheSchoolDayData(for: date)
-        
+        schoolDayCache.cacheSchoolDayData(for: date, modelContext: context)
+
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
         // Start from the following day
         d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         // Safety cap to avoid infinite loops in case of data errors
         for _ in 0..<730 { // up to ~2 years
-            if !isNonSchoolDaySync(d) { return d }
+            if !schoolDayCache.isNonSchoolDay(d) { return d }
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
         return cal.startOfDay(for: date)
     }
-    
+
     /// Synchronous helper that returns the previous school day strictly before the given date.
     private func previousSchoolDaySync(before date: Date) -> Date {
         // Cache school day data once at the start to avoid repeated database fetches
-        cacheSchoolDayData(for: date)
-        
+        schoolDayCache.cacheSchoolDayData(for: date, modelContext: context)
+
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
         // Start from the previous day
         d = cal.date(byAdding: .day, value: -1, to: d) ?? d
         for _ in 0..<730 { // up to ~2 years
-            if !isNonSchoolDaySync(d) { return d }
+            if !schoolDayCache.isNonSchoolDay(d) { return d }
             d = cal.date(byAdding: .day, value: -1, to: d) ?? d
         }
         return cal.startOfDay(for: date)

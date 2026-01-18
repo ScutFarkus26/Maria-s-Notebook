@@ -12,6 +12,8 @@ public final class BackupService {
         public var id: String { rawValue }
     }
 
+    private let codec = BackupCodec()
+
     public init() {}
     
     // MARK: - Size Estimation
@@ -443,10 +445,10 @@ public final class BackupService {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = .sortedKeys
         let payloadBytes = try encoder.encode(payload)
-        let sha = sha256Hex(payloadBytes)
+        let sha = codec.sha256Hex(payloadBytes)
 
         progress(BackupProgress.progress(for: .encoding), "Compressing data…")
-        let compressedPayloadBytes = try compressData(payloadBytes)
+        let compressedPayloadBytes = try codec.compress(payloadBytes)
         
         let finalPayload: BackupPayload?
         let finalEncrypted: Data?
@@ -455,17 +457,7 @@ public final class BackupService {
 
         if let password = password, !password.isEmpty {
             progress(BackupProgress.progress(for: .encrypting), "Encrypting data…")
-            let saltKey = SymmetricKey(size: .bits256)
-            let salt = saltKey.withUnsafeBytes { Data($0) }
-            
-            let key = deriveKey(password: password, salt: salt)
-            
-            let sealedBox = try AES.GCM.seal(compressedPayloadBytes, using: key)
-            guard let combined = sealedBox.combined else {
-                throw NSError(domain: "BackupService", code: 1100, userInfo: [NSLocalizedDescriptionKey: "Encryption failed (could not combine data)."])
-            }
-            
-            finalEncrypted = salt + combined
+            finalEncrypted = try codec.encrypt(compressedPayloadBytes, password: password)
             finalPayload = nil
             finalCompressed = nil
             compressionUsed = BackupFile.compressionAlgorithm
@@ -597,23 +589,16 @@ public final class BackupService {
             }
         } else if let compressed = envelope.compressedPayload {
             progress(0.15, "Decompressing data…")
-            payloadBytes = try decompressData(compressed)
+            payloadBytes = try codec.decompress(compressed)
         } else if let enc = envelope.encryptedPayload {
             guard let password = password, !password.isEmpty else {
                 throw NSError(domain: "BackupService", code: 1103, userInfo: [NSLocalizedDescriptionKey: "This backup is encrypted. Please provide a password."])
             }
-            guard enc.count > 32 else {
-                throw NSError(domain: "BackupService", code: 1104, userInfo: [NSLocalizedDescriptionKey: "Corrupted encrypted data."])
-            }
-            let salt = enc.prefix(32)
-            let ciphertext = enc.dropFirst(32)
-            let key = deriveKey(password: password, salt: Data(salt))
             progress(0.15, "Decrypting data…")
-            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
-            let decryptedBytes = try AES.GCM.open(sealedBox, using: key)
+            let decryptedBytes = try codec.decrypt(enc, password: password)
             if isCompressed {
                 progress(0.17, "Decompressing data…")
-                payloadBytes = try decompressData(decryptedBytes)
+                payloadBytes = try codec.decompress(decryptedBytes)
             } else {
                 payloadBytes = decryptedBytes
             }
@@ -626,7 +611,7 @@ public final class BackupService {
         let shouldValidateChecksum = !bypassEnabled
         
         if shouldValidateChecksum && !envelope.manifest.sha256.isEmpty {
-            let sha = sha256Hex(payloadBytes)
+            let sha = codec.sha256Hex(payloadBytes)
             guard sha == envelope.manifest.sha256 else {
                 throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch."])
             }
@@ -800,18 +785,14 @@ public final class BackupService {
             }
         } else if let compressed = envelope.compressedPayload {
             progress(0.15, "Decompressing data…")
-            payloadBytes = try decompressData(compressed)
+            payloadBytes = try codec.decompress(compressed)
         } else if let enc = envelope.encryptedPayload {
             guard let password = password, !password.isEmpty else {
                 throw NSError(domain: "BackupService", code: 1103, userInfo: [NSLocalizedDescriptionKey: "Encrypted backup."])
             }
-            let salt = enc.prefix(32)
-            let ciphertext = enc.dropFirst(32)
-            let key = deriveKey(password: password, salt: Data(salt))
-            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
-            let decryptedBytes = try AES.GCM.open(sealedBox, using: key)
+            let decryptedBytes = try codec.decrypt(enc, password: password)
             if isCompressed {
-                payloadBytes = try decompressData(decryptedBytes)
+                payloadBytes = try codec.decompress(decryptedBytes)
             } else {
                 payloadBytes = decryptedBytes
             }
@@ -1233,11 +1214,6 @@ public final class BackupService {
         return nil
     }
 
-    private func sha256Hex(_ data: Data) -> String {
-        let digest = SHA256.hash(data: data)
-        return digest.map { String(format: "%02x", $0) }.joined()
-    }
-    
     private func extractPayloadBytes(from envelopeData: Data) throws -> Data? {
         guard let jsonString = String(data: envelopeData, encoding: .utf8) else { return nil }
         let payloadKeyPattern = "\"payload\""
@@ -1296,49 +1272,7 @@ public final class BackupService {
         return payloadJsonString.data(using: .utf8)
     }
 
-    private func compressData(_ data: Data) throws -> Data {
-        let bufferSize = data.count + (data.count / 10) + 64
-        let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { destinationBuffer.deallocate() }
-        
-        return try data.withUnsafeBytes { sourceRawBuffer in
-            guard let sourceBuffer = sourceRawBuffer.bindMemory(to: UInt8.self).baseAddress else {
-                throw NSError(domain: "BackupService", code: 1200, userInfo: [NSLocalizedDescriptionKey: "Compression failed: could not access source memory"])
-            }
-            let compressedSize = compression_encode_buffer(destinationBuffer, bufferSize, sourceBuffer, data.count, nil, COMPRESSION_LZFSE)
-            guard compressedSize > 0 else {
-                throw NSError(domain: "BackupService", code: 1200, userInfo: [NSLocalizedDescriptionKey: "Compression failed"])
-            }
-            return Data(bytes: destinationBuffer, count: compressedSize)
-        }
-    }
-    
-    private func decompressData(_ data: Data) throws -> Data {
-        var bufferSize = data.count * 4
-        let maxAttempts = 3
-        var attempt = 0
-        return try data.withUnsafeBytes { sourceRawBuffer in
-            guard let sourceBuffer = sourceRawBuffer.bindMemory(to: UInt8.self).baseAddress else {
-                throw NSError(domain: "BackupService", code: 1201, userInfo: [NSLocalizedDescriptionKey: "Decompression failed: could not access source memory"])
-            }
-            while attempt < maxAttempts {
-                let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-                defer { destinationBuffer.deallocate() }
-                let decompressedSize = compression_decode_buffer(destinationBuffer, bufferSize, sourceBuffer, data.count, nil, COMPRESSION_LZFSE)
-                if decompressedSize > 0 && decompressedSize < bufferSize {
-                    return Data(bytes: destinationBuffer, count: decompressedSize)
-                }
-                bufferSize *= 2
-                attempt += 1
-            }
-            throw NSError(domain: "BackupService", code: 1201, userInfo: [NSLocalizedDescriptionKey: "Decompression failed: buffer size insufficient"])
-        }
-    }
-    
-    private func deriveKey(password: String, salt: Data) -> SymmetricKey {
-        let inputKey = SymmetricKey(data: password.data(using: .utf8)!)
-        return HKDF<SHA256>.deriveKey(inputKeyMaterial: inputKey, salt: salt, outputByteCount: 32)
-    }
+    // Compression, decompression, encryption, and key derivation methods moved to BackupCodec
 
     private static let preferenceKeys: [String] = [
         "AttendanceEmail.enabled",
