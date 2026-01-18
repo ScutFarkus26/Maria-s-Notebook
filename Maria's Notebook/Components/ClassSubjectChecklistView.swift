@@ -198,27 +198,6 @@ struct ClassSubjectChecklistView: View {
                     cellFrames = prefs
                 }
             }
-            .overlay(
-                // Drag selection rectangle overlay
-                Group {
-                    if let start = dragStart, let current = dragCurrent {
-                        let rect = CGRect(
-                            x: min(start.x, current.x),
-                            y: min(start.y, current.y),
-                            width: abs(current.x - start.x),
-                            height: abs(current.y - start.y)
-                        )
-                        Rectangle()
-                            .fill(Color.accentColor.opacity(0.1))
-                            .overlay(
-                                Rectangle()
-                                    .stroke(Color.accentColor, lineWidth: 1)
-                            )
-                            .frame(width: rect.width, height: rect.height)
-                            .position(x: rect.midX, y: rect.midY)
-                    }
-                }
-            )
             .gesture(
                 DragGesture(minimumDistance: 10, coordinateSpace: .named("gridSpace"))
                     .updating($dragGestureActive) { _, state, _ in
@@ -534,9 +513,11 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             let state = matrixStates[cell.studentID]?[cell.lessonID]
             // Only add if not already scheduled
             if state?.isScheduled != true {
-                toggleScheduled(student: student, lesson: lesson, context: context)
+                toggleScheduledNoRecompute(student: student, lesson: lesson, context: context)
             }
         }
+        context.safeSave()
+        recomputeMatrix(context: context)
         clearSelection()
     }
 
@@ -547,9 +528,11 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             let state = matrixStates[cell.studentID]?[cell.lessonID]
             // Only mark presented if not already presented
             if state?.isPresented != true {
-                togglePresented(student: student, lesson: lesson, context: context)
+                togglePresentedNoRecompute(student: student, lesson: lesson, context: context)
             }
         }
+        context.safeSave()
+        recomputeMatrix(context: context)
         clearSelection()
     }
 
@@ -560,9 +543,11 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             let state = matrixStates[cell.studentID]?[cell.lessonID]
             // Only mark mastered if not already complete
             if state?.isComplete != true {
-                markComplete(student: student, lesson: lesson, context: context)
+                markCompleteNoRecompute(student: student, lesson: lesson, context: context)
             }
         }
+        context.safeSave()
+        recomputeMatrix(context: context)
         clearSelection()
     }
 
@@ -570,8 +555,10 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
                   let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
-            clearStatus(student: student, lesson: lesson, context: context)
+            clearStatusNoRecompute(student: student, lesson: lesson, context: context)
         }
+        context.safeSave()
+        recomputeMatrix(context: context)
         clearSelection()
     }
 
@@ -645,22 +632,24 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func toggleScheduled(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentID = student.id
-        let lessonID = lesson.id
-        let lessonIDString = lessonID.uuidString
-        let studentIDString = studentID.uuidString
-        
+        toggleScheduledNoRecompute(student: student, lesson: lesson, context: context)
+        context.safeSave()
+        recomputeMatrix(context: context)
+    }
+
+    /// Internal version that skips save/recompute for batch operations
+    private func toggleScheduledNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
+        let lessonIDString = lesson.id.uuidString
+        let studentIDString = student.id.uuidString
+
         let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
-        
+
         // Check if student is already in an unscheduled lesson
         if let existing = findUnscheduledLessonContaining(student: studentIDString, in: allSLs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
         } else {
             addStudentToUnscheduledLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
         }
-        
-        context.safeSave()
-        recomputeMatrix(context: context)
     }
     
     // MARK: - Helper Methods for toggleScheduled
@@ -691,6 +680,13 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
+        markCompleteNoRecompute(student: student, lesson: lesson, context: context)
+        context.safeSave()
+        recomputeMatrix(context: context)
+    }
+
+    /// Internal version that skips save/recompute for batch operations
+    private func markCompleteNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
         let studentIDString = student.id.uuidString
         let lessonIDString = lesson.id.uuidString
 
@@ -728,16 +724,18 @@ class ClassSubjectChecklistViewModel: ObservableObject {
             studentID: studentIDString,
             modelContext: context
         )
+    }
 
+    func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
+        togglePresentedNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentID = student.id
-        let lessonID = lesson.id
-        let studentIDString = studentID.uuidString
-        let lessonIDString = lessonID.uuidString
+    /// Internal version that skips save/recompute for batch operations
+    private func togglePresentedNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
+        let studentIDString = student.id.uuidString
+        let lessonIDString = lesson.id.uuidString
 
         let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
 
@@ -756,9 +754,6 @@ class ClassSubjectChecklistViewModel: ObservableObject {
                 context: context
             )
         }
-
-        context.safeSave()
-        recomputeMatrix(context: context)
     }
     
     // MARK: - Helper Methods for togglePresented
@@ -792,9 +787,15 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     }
     
     func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
+        clearStatusNoRecompute(student: student, lesson: lesson, context: context)
+        context.safeSave()
+        recomputeMatrix(context: context)
+    }
+
+    /// Internal version that skips save/recompute for batch operations
+    private func clearStatusNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
         let lid = lesson.id
-        let sid = student.id
-        let sidString = sid.uuidString
+        let sidString = student.id.uuidString
         // CloudKit compatibility: Convert UUID to String for comparison
         let lidString = lid.uuidString
         let sls = (try? context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lidString }))) ?? []
@@ -822,9 +823,6 @@ class ClassSubjectChecklistViewModel: ObservableObject {
         }
         // Delete LessonPresentation for this student/lesson
         deleteLessonPresentation(studentID: sidString, lessonID: lidString, context: context)
-
-        context.safeSave()
-        recomputeMatrix(context: context)
     }
     
     private func findOrCreateWork(student: Student, lesson: Lesson, context: ModelContext) -> WorkModel? {
