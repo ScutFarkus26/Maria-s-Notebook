@@ -100,7 +100,7 @@ extension TodayView {
                 Text(lastSync, style: .relative)
                     .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.secondary)
-                    .accessibilityLabel("Last synced \(lastSync, style: .relative) ago")
+                    .accessibilityLabel("Last synced")
             }
         }
         .accessibilityElement(children: .combine)
@@ -143,7 +143,7 @@ extension TodayView {
                 Text(lastSync, style: .relative)
                     .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.secondary)
-                    .accessibilityLabel("Last synced \(lastSync, style: .relative) ago")
+                    .accessibilityLabel("Last synced")
             }
         }
         .accessibilityElement(children: .combine)

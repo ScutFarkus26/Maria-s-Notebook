@@ -307,7 +307,7 @@ private struct StudentNotesTimelineList: View {
                 Button(action: addNote) {
                     Image(systemName: "paperplane.fill")
                         .font(.headline)
-                        .foregroundColor(canAdd ? .accentColor : .secondary)
+                        .foregroundStyle(canAdd ? Color.accentColor : Color.secondary)
                 }
                 .disabled(!canAdd)
             }
@@ -663,7 +663,7 @@ private struct StudentNotesTimelineList: View {
             } label: {
                 Text("Clear All")
                     .font(.caption)
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
             }
             .buttonStyle(.plain)
         }
