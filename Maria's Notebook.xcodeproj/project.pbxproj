@@ -35,7 +35,6 @@
 			membershipExceptions = (
 				Tests/AgeUtilsTests.swift,
 				Tests/AttendanceModelsTests.swift,
-				Tests/CloudKitStatusView.swift,
 				Tests/CompileAudit.swift,
 				Tests/CSVUtilsTests.swift,
 				Tests/DateCalculationsTests.swift,
