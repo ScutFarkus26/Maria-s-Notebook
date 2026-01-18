@@ -85,6 +85,7 @@ final class TodayViewModel: ObservableObject {
     // Reminders for today
     @Published var todaysReminders: [Reminder] = []
     @Published var overdueReminders: [Reminder] = []
+    @Published var anytimeReminders: [Reminder] = []  // Reminders with no due date
 
     @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
     @Published var absentToday: [UUID] = []
@@ -505,7 +506,7 @@ final class TodayViewModel: ObservableObject {
     private func reloadReminders(day: Date, nextDay: Date) {
         do {
             let startOfDay = AppCalendar.startOfDay(day)
-            
+
             // Fetch all incomplete reminders (date filtering is done in memory to avoid forced unwraps in predicate)
             let incompleteDescriptor = FetchDescriptor<Reminder>(
                 predicate: #Predicate { r in
@@ -513,18 +514,24 @@ final class TodayViewModel: ObservableObject {
                 }
             )
             let allReminders = try context.fetch(incompleteDescriptor)
-            
-            // Separate into overdue and due today
+
+            // Separate into overdue, due today, and anytime (no due date)
             // Overdue = reminders due before the selected date
             // Due today = reminders due on the selected date
+            // Anytime = reminders with no due date
             var overdue: [Reminder] = []
             var today: [Reminder] = []
-            
+            var anytime: [Reminder] = []
+
             for reminder in allReminders {
-                guard let dueDate = reminder.dueDate else { continue }
+                guard let dueDate = reminder.dueDate else {
+                    // No due date - add to anytime list
+                    anytime.append(reminder)
+                    continue
+                }
                 // Use AppCalendar for consistent date normalization
                 let dueDay = AppCalendar.startOfDay(dueDate)
-                
+
                 if dueDay >= startOfDay && dueDay < nextDay {
                     // Due on the selected date
                     today.append(reminder)
@@ -533,18 +540,21 @@ final class TodayViewModel: ObservableObject {
                     overdue.append(reminder)
                 }
             }
-            
-            // Sort by due date
+
+            // Sort by due date (overdue and today) or by title (anytime)
             overdue.sort { ($0.dueDate ?? Date.distantPast) < ($1.dueDate ?? Date.distantPast) }
             today.sort { ($0.dueDate ?? Date.distantPast) < ($1.dueDate ?? Date.distantPast) }
-            
+            anytime.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+
             self.overdueReminders = overdue
             self.todaysReminders = today
-            
+            self.anytimeReminders = anytime
+
         } catch {
             print("Error loading reminders: \(error)")
             self.overdueReminders = []
             self.todaysReminders = []
+            self.anytimeReminders = []
         }
     }
     

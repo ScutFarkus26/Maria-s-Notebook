@@ -344,7 +344,7 @@ struct TodayView: View {
             Task {
                 let syncService = ReminderSyncService.shared
                 syncService.modelContext = modelContext
-                if syncService.syncListName != nil {
+                if syncService.syncListIdentifier != nil || syncService.syncListName != nil {
                     do {
                         try await syncService.syncReminders()
                     } catch {
@@ -712,12 +712,17 @@ struct TodayView: View {
     
     private var remindersListSection: some View {
         Section {
-            if viewModel.overdueReminders.isEmpty && viewModel.todaysReminders.isEmpty {
+            if viewModel.overdueReminders.isEmpty && viewModel.todaysReminders.isEmpty && viewModel.anytimeReminders.isEmpty {
                 ContentUnavailableView("No reminders", systemImage: "bell.slash")
                     .listRowBackground(Color.clear)
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
+                // Overdue reminders (with visual indicator)
                 if !viewModel.overdueReminders.isEmpty {
+                    Text("Overdue")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.red)
+                        .listRowBackground(Color.clear)
                     ForEach(viewModel.overdueReminders) { reminder in
                         ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
                             .swipeActions(edge: .leading) {
@@ -730,8 +735,35 @@ struct TodayView: View {
                             }
                     }
                 }
+                // Today's reminders
                 if !viewModel.todaysReminders.isEmpty {
+                    if !viewModel.overdueReminders.isEmpty {
+                        Text("Due Today")
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .listRowBackground(Color.clear)
+                    }
                     ForEach(viewModel.todaysReminders) { reminder in
+                        ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    toggleReminder(reminder)
+                                } label: {
+                                    Label("Complete", systemImage: "checkmark")
+                                }
+                                .tint(.green)
+                            }
+                    }
+                }
+                // Anytime reminders (no due date)
+                if !viewModel.anytimeReminders.isEmpty {
+                    if !viewModel.overdueReminders.isEmpty || !viewModel.todaysReminders.isEmpty {
+                        Text("Anytime")
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .listRowBackground(Color.clear)
+                    }
+                    ForEach(viewModel.anytimeReminders) { reminder in
                         ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
                             .swipeActions(edge: .leading) {
                                 Button {
@@ -745,10 +777,31 @@ struct TodayView: View {
                 }
             }
         } header: {
-            Label("Reminders", systemImage: "bell.fill")
+            remindersSectionHeader
         }
     }
-    
+
+    @ViewBuilder
+    private var remindersSectionHeader: some View {
+        HStack {
+            Label("Reminders", systemImage: "bell.fill")
+            Spacer()
+            // Show sync status indicator
+            if ReminderSyncService.shared.isSyncing {
+                ProgressView()
+                    .scaleEffect(0.7)
+            } else if let error = ReminderSyncService.shared.lastSyncError {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help("Sync error: \(error)")
+            } else if let lastSync = ReminderSyncService.shared.lastSuccessfulSync {
+                Text(lastSync, style: .relative)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func toggleReminder(_ reminder: Reminder) {
         if reminder.isCompleted {
             reminder.markIncomplete()
@@ -758,6 +811,15 @@ struct TodayView: View {
         do {
             try modelContext.save()
             viewModel.reload()
+
+            // Two-way sync: Update EventKit with the completion change
+            Task {
+                do {
+                    try await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
+                } catch {
+                    print("Error syncing reminder completion to EventKit: \(error)")
+                }
+            }
         } catch {
             print("Error toggling reminder: \(error)")
         }

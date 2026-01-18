@@ -11,15 +11,15 @@ class ReminderSyncService: ObservableObject {
     
     private let eventStore = EKEventStore()
     var modelContext: ModelContext?
-    
-    /// The name of the Reminders list to sync from
+
+    /// The identifier of the Reminders list to sync from (more robust than name)
     /// If nil, syncing is disabled
-    var syncListName: String? {
+    var syncListIdentifier: String? {
         didSet {
-            UserDefaults.standard.set(syncListName, forKey: "ReminderSync.syncListName")
+            UserDefaults.standard.set(syncListIdentifier, forKey: "ReminderSync.syncListIdentifier")
             // Restart observation if sync is enabled/disabled
             Task { @MainActor in
-                if self.syncListName != nil && self.hasFullAccess {
+                if self.syncListIdentifier != nil && self.hasFullAccess {
                     self.startObservingChanges()
                 } else {
                     self.stopObservingChangesOnMainActor()
@@ -27,22 +27,44 @@ class ReminderSyncService: ObservableObject {
             }
         }
     }
-    
+
+    /// The display name of the Reminders list (for UI display only)
+    /// Stored alongside identifier for convenience
+    var syncListName: String? {
+        didSet {
+            UserDefaults.standard.set(syncListName, forKey: "ReminderSync.syncListName")
+        }
+    }
+
     /// Whether EventKit access has been authorized
     @Published var authorizationStatus: EKAuthorizationStatus = .notDetermined
-    
+
     // MARK: - Change Observation
     private var changeObserver: NSObjectProtocol?
     private var isObserving = false
-    
+
     init(modelContext: ModelContext? = nil) {
         self.modelContext = modelContext
+        self.syncListIdentifier = UserDefaults.standard.string(forKey: "ReminderSync.syncListIdentifier")
         self.syncListName = UserDefaults.standard.string(forKey: "ReminderSync.syncListName")
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
-        
+
+        // Migrate from name-only storage to identifier-based storage
+        migrateToIdentifierBasedStorage()
+
         // Start observing if we have access and a sync list configured
-        if syncListName != nil && hasFullAccess {
+        if syncListIdentifier != nil && hasFullAccess {
             startObservingChanges()
+        }
+    }
+
+    /// Migrate from legacy name-based storage to identifier-based storage
+    private func migrateToIdentifierBasedStorage() {
+        // If we have a name but no identifier, try to find the calendar and store its identifier
+        if syncListIdentifier == nil, let name = syncListName, !name.isEmpty, hasFullAccess {
+            if let calendar = findReminderList(named: name) {
+                syncListIdentifier = calendar.calendarIdentifier
+            }
         }
     }
     
@@ -130,37 +152,68 @@ class ReminderSyncService: ObservableObject {
     
     /// Sync reminders from the configured Reminders list
     /// This should be called when the user has configured a sync list and wants to pull reminders
-    func syncReminders() async throws {
+    /// - Parameter force: If true, bypasses the throttle interval (use for explicit user actions like "Sync Now")
+    func syncReminders(force: Bool = false) async throws {
         // Throttle: Skip if called too soon (within 10 minutes of last sync)
         // This prevents redundant syncing when the view appears multiple times
+        // Can be bypassed with force=true for explicit user actions
         let throttleInterval: TimeInterval = 10 * 60 // 10 minutes
-        if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < throttleInterval {
+        if !force, let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < throttleInterval {
             return // Skip sync - called too soon
         }
-        
+
+        // Update sync status
+        isSyncing = true
+        lastSyncError = nil
+
+        do {
+            try await performSync()
+            // Update status on success
+            lastSuccessfulSync = Date()
+            lastSyncError = nil
+        } catch {
+            lastSyncError = error.localizedDescription
+            isSyncing = false
+            throw error
+        }
+
+        isSyncing = false
+    }
+
+    /// Internal sync implementation
+    private func performSync() async throws {
         // Check authorization
         guard hasFullAccess else {
             throw ReminderSyncError.notAuthorized
         }
-        
+
         // Check if modelContext is available
         guard let modelContext = modelContext else {
             throw ReminderSyncError.modelContextUnavailable
         }
-        
-        // Check if sync is configured
-        guard let listName = syncListName, !listName.isEmpty else {
+
+        // Check if sync is configured (prefer identifier, fall back to name for migration)
+        guard syncListIdentifier != nil || (syncListName != nil && !syncListName!.isEmpty) else {
             throw ReminderSyncError.noSyncListConfigured
         }
-        
-        // Find the target calendar (Reminders list)
-        guard let targetCalendar = findReminderList(named: listName) else {
-            throw ReminderSyncError.listNotFound(listName)
+
+        // Find the target calendar (Reminders list) - prefer identifier lookup
+        let targetCalendar: EKCalendar?
+        if let identifier = syncListIdentifier {
+            targetCalendar = findReminderList(byIdentifier: identifier)
+        } else if let name = syncListName {
+            targetCalendar = findReminderList(named: name)
+        } else {
+            targetCalendar = nil
         }
-        
+
+        guard let targetCalendar else {
+            throw ReminderSyncError.listNotFound(syncListName ?? "Unknown")
+        }
+
         // Fetch all reminders from the target list
         let predicate = eventStore.predicateForReminders(in: [targetCalendar])
-        
+
         // Use the Sendable DTO to retrieve data safely
         let ekRemindersData = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[ReminderSyncData]?, Error>) in
             eventStore.fetchReminders(matching: predicate) { reminders in
@@ -168,7 +221,7 @@ class ReminderSyncService: ObservableObject {
                     continuation.resume(returning: nil)
                     return
                 }
-                
+
                 // Map to Sendable struct inside the closure
                 let safeData = reminders.map { reminder in
                     ReminderSyncData(
@@ -185,23 +238,23 @@ class ReminderSyncService: ObservableObject {
                 continuation.resume(returning: safeData)
             }
         }
-        
+
         guard let syncData = ekRemindersData else {
             return
         }
-        
-        // Get all existing reminders from our database
+
+        // Get all existing reminders from our database that were synced from this calendar
         let existingReminders = try fetchAllReminders()
         let existingByEKID = Dictionary<String, Reminder>(uniqueKeysWithValues: existingReminders.compactMap { rem in
             guard let ekID = rem.eventKitReminderID else { return nil }
             return (ekID, rem)
         })
-        
+
         // Sync each reminder using the safe data
         var syncedCount = 0
         for data in syncData {
             if let existing = existingByEKID[data.calendarItemIdentifier] {
-                // Update existing reminder
+                // Update existing reminder (handles re-uncompleted reminders too)
                 updateReminder(existing, from: data)
                 syncedCount += 1
             } else {
@@ -211,40 +264,61 @@ class ReminderSyncService: ObservableObject {
                 syncedCount += 1
             }
         }
-        
-        // Mark reminders that no longer exist in EventKit as deleted
+
+        // Delete reminders that no longer exist in EventKit (orphan cleanup)
         let currentEKIDs = Set(syncData.map { $0.calendarItemIdentifier })
         for existing in existingReminders {
             if let ekID = existing.eventKitReminderID,
                !currentEKIDs.contains(ekID),
                existing.eventKitCalendarID == targetCalendar.calendarIdentifier {
-                // Reminder was deleted in EventKit - mark as completed or remove
-                // For now, we'll just update it to reflect it's gone
-                existing.lastSyncedAt = Date()
+                // Reminder was deleted in EventKit - remove from local database
+                modelContext.delete(existing)
             }
         }
-        
+
         try modelContext.save()
-        
+
         // Update last sync time after successful sync
         lastSyncTime = Date()
     }
     
-    /// Get all available Reminders lists
+    /// Represents a Reminders list with both identifier and display name
+    struct ReminderListInfo: Identifiable, Hashable {
+        let identifier: String
+        let name: String
+        var id: String { identifier }
+    }
+
+    /// Get all available Reminders lists with their identifiers
+    func getAvailableReminderListsWithIdentifiers() -> [ReminderListInfo] {
+        guard hasFullAccess else {
+            return []
+        }
+
+        let calendars = eventStore.calendars(for: .reminder)
+        return calendars.map { ReminderListInfo(identifier: $0.calendarIdentifier, name: $0.title) }
+    }
+
+    /// Get all available Reminders lists (legacy, returns names only)
     func getAvailableReminderLists() -> [String] {
         guard hasFullAccess else {
             return []
         }
-        
+
         let calendars = eventStore.calendars(for: .reminder)
         return calendars.map { $0.title }
     }
-    
+
     // MARK: - Private Helpers
-    
+
     private func findReminderList(named name: String) -> EKCalendar? {
         let calendars = eventStore.calendars(for: .reminder)
         return calendars.first { $0.title == name }
+    }
+
+    private func findReminderList(byIdentifier identifier: String) -> EKCalendar? {
+        let calendars = eventStore.calendars(for: .reminder)
+        return calendars.first { $0.calendarIdentifier == identifier }
     }
     
     private func fetchAllReminders() throws -> [Reminder] {
@@ -287,7 +361,7 @@ class ReminderSyncService: ObservableObject {
     private func startObservingChanges() {
         guard !isObserving else { return }
         guard hasFullAccess else { return }
-        guard syncListName != nil else { return }
+        guard syncListIdentifier != nil || syncListName != nil else { return }
         
         // Observe EventKit store changes
         // Note: EKEventStoreChangedNotification is posted when reminders/events change
@@ -324,8 +398,8 @@ class ReminderSyncService: ObservableObject {
     
     /// Handle EventKit store changes by syncing reminders
     private func handleEventStoreChanged() async {
-        // Only sync if we have a configured list and access
-        guard let listName = syncListName, !listName.isEmpty else { return }
+        // Only sync if we have a configured list (identifier or name) and access
+        guard syncListIdentifier != nil || (syncListName != nil && !syncListName!.isEmpty) else { return }
         guard hasFullAccess else { return }
         guard modelContext != nil else { return }
         
@@ -346,6 +420,39 @@ class ReminderSyncService: ObservableObject {
     }
     
     private var lastSyncTime: Date?
+
+    /// Published sync status for UI visibility
+    @Published var lastSuccessfulSync: Date?
+    @Published var lastSyncError: String?
+    @Published var isSyncing: Bool = false
+
+    // MARK: - Two-Way Sync: Update EventKit from Local Changes
+
+    /// Update a reminder's completion status in EventKit
+    /// Call this when the user toggles completion in the app
+    func updateReminderCompletionInEventKit(_ reminder: Reminder) async throws {
+        guard hasFullAccess else {
+            throw ReminderSyncError.notAuthorized
+        }
+
+        guard let ekID = reminder.eventKitReminderID else {
+            // Not synced from EventKit, nothing to update
+            return
+        }
+
+        // Fetch the EKReminder by identifier
+        guard let ekReminder = eventStore.calendarItem(withIdentifier: ekID) as? EKReminder else {
+            // Reminder no longer exists in EventKit
+            return
+        }
+
+        // Update completion status
+        ekReminder.isCompleted = reminder.isCompleted
+        ekReminder.completionDate = reminder.completedAt
+
+        // Save to EventKit
+        try eventStore.save(ekReminder, commit: true)
+    }
 }
 
 enum ReminderSyncError: LocalizedError {

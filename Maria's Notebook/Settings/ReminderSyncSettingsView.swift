@@ -6,26 +6,26 @@ import EventKit
 public struct ReminderSyncSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var syncService: ReminderSyncService
-    @State private var selectedListName: String = ""
-    @State private var availableLists: [String] = []
+    @State private var selectedListIdentifier: String = ""
+    @State private var availableLists: [ReminderSyncService.ReminderListInfo] = []
     @State private var isRefreshing: Bool = false
     @State private var lastSyncStatus: String? = nil
-    
+
     public init() {
         // Use the shared instance
         _syncService = StateObject(wrappedValue: ReminderSyncService.shared)
     }
-    
+
     private var needsAuthorization: Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
             return syncService.authorizationStatus != .fullAccess
         } else {
-            return syncService.authorizationStatus == .notDetermined || 
-                   syncService.authorizationStatus == .denied || 
+            return syncService.authorizationStatus == .notDetermined ||
+                   syncService.authorizationStatus == .denied ||
                    syncService.authorizationStatus == .restricted
         }
     }
-    
+
     public var body: some View {
         Form {
             Section("Reminder Sync") {
@@ -34,7 +34,7 @@ public struct ReminderSyncSettingsView: View {
                         Text("Reminder access is required to sync reminders.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        
+
                         if isRefreshing {
                             HStack {
                                 ProgressView()
@@ -51,7 +51,7 @@ public struct ReminderSyncSettingsView: View {
                             }
                             .buttonStyle(.borderedProminent)
                         }
-                        
+
                         if let status = lastSyncStatus {
                             Text(status)
                                 .font(.footnote)
@@ -61,16 +61,22 @@ public struct ReminderSyncSettingsView: View {
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
                         if !availableLists.isEmpty {
-                            Picker("Sync from Reminders List", selection: $selectedListName) {
+                            Picker("Sync from Reminders List", selection: $selectedListIdentifier) {
                                 Text("None (Disable Sync)").tag("")
-                                ForEach(availableLists, id: \.self) { listName in
-                                    Text(listName).tag(listName)
+                                ForEach(availableLists) { listInfo in
+                                    Text(listInfo.name).tag(listInfo.identifier)
                                 }
                             }
-                            .onChange(of: selectedListName) { _, newValue in
-                                syncService.syncListName = newValue.isEmpty ? nil : newValue
+                            .onChange(of: selectedListIdentifier) { _, newValue in
+                                if newValue.isEmpty {
+                                    syncService.syncListIdentifier = nil
+                                    syncService.syncListName = nil
+                                } else if let listInfo = availableLists.first(where: { $0.identifier == newValue }) {
+                                    syncService.syncListIdentifier = listInfo.identifier
+                                    syncService.syncListName = listInfo.name
+                                }
                             }
-                            
+
                             HStack {
                                 Button("Refresh Lists") {
                                     Task {
@@ -78,16 +84,23 @@ public struct ReminderSyncSettingsView: View {
                                     }
                                 }
                                 .buttonStyle(.bordered)
-                                
+
                                 Spacer()
-                                
+
                                 Button("Sync Now") {
                                     Task {
                                         await syncReminders()
                                     }
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .disabled(selectedListName.isEmpty || isRefreshing)
+                                .disabled(selectedListIdentifier.isEmpty || isRefreshing)
+                            }
+
+                            // Show last sync time if available
+                            if let lastSync = syncService.lastSuccessfulSync {
+                                Text("Last synced: \(lastSync, style: .relative) ago")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
                             }
                         } else {
                             Button("Load Reminders Lists") {
@@ -97,14 +110,14 @@ public struct ReminderSyncSettingsView: View {
                             }
                             .buttonStyle(.bordered)
                         }
-                        
+
                         if let status = lastSyncStatus {
                             Text(status)
                                 .font(.footnote)
                                 .foregroundStyle(status.contains("Error") || status.contains("Failed") ? .red : .secondary)
                         }
-                        
-                        Text("Reminders from the selected list will appear in your Today view. You can manually sync or reminders will sync when you add a new reminder to the selected list.")
+
+                        Text("Reminders from the selected list will appear in your Today view. You can manually sync or reminders will sync automatically when changes are detected.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -114,7 +127,7 @@ public struct ReminderSyncSettingsView: View {
         .onAppear {
             // Update shared syncService with real modelContext
             syncService.modelContext = modelContext
-            selectedListName = syncService.syncListName ?? ""
+            selectedListIdentifier = syncService.syncListIdentifier ?? ""
             Task {
                 await loadAvailableLists()
             }
@@ -154,11 +167,11 @@ public struct ReminderSyncSettingsView: View {
         await MainActor.run {
             isRefreshing = true
         }
-        
+
         let lists = await MainActor.run {
-            syncService.getAvailableReminderLists()
+            syncService.getAvailableReminderListsWithIdentifiers()
         }
-        
+
         await MainActor.run {
             availableLists = lists
             isRefreshing = false
@@ -173,9 +186,10 @@ public struct ReminderSyncSettingsView: View {
             isRefreshing = true
             lastSyncStatus = "Syncing..."
         }
-        
+
         do {
-            try await syncService.syncReminders()
+            // Use force: true to bypass throttle for explicit user action
+            try await syncService.syncReminders(force: true)
             await MainActor.run {
                 lastSyncStatus = "Sync completed successfully"
                 isRefreshing = false
