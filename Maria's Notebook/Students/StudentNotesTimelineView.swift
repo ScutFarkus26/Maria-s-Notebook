@@ -58,26 +58,51 @@ struct StudentNotesTimelineView: View {
 private struct StudentNotesTimelineList: View {
     @ObservedObject var viewModel: StudentNotesViewModel
     @Environment(\.calendar) private var calendar
-    
+
     enum NoteFilter: String, CaseIterable, Identifiable {
         case all = "All Notes"
         case reportItems = "Report Items Only"
-        
+
         var id: String { rawValue }
     }
-    
+
     @State private var selectedFilter: NoteFilter = .all
     @State private var newNoteText: String = ""
     @State private var noteBeingEdited: Note? = nil
 
+    // Search and category filtering state
+    @State private var searchText: String = ""
+    @State private var debouncedSearchText: String = ""
+    @State private var selectedCategories: Set<NoteCategory> = []
+    @State private var showingCategoryFilter: Bool = false
+
     var filteredItems: [UnifiedNoteItem] {
-        let items = viewModel.items
-        switch selectedFilter {
-        case .all:
-            return items
-        case .reportItems:
-            return items.filter { $0.includeInReport }
+        var items = viewModel.items
+
+        // Apply report filter
+        if selectedFilter == .reportItems {
+            items = items.filter { $0.includeInReport }
         }
+
+        // Apply category filter
+        if !selectedCategories.isEmpty {
+            items = items.filter { selectedCategories.contains($0.category) }
+        }
+
+        // Apply search filter
+        if !debouncedSearchText.isEmpty {
+            let searchLower = debouncedSearchText.lowercased()
+            items = items.filter {
+                $0.body.localizedCaseInsensitiveContains(searchLower) ||
+                $0.contextText.localizedCaseInsensitiveContains(searchLower)
+            }
+        }
+
+        return items
+    }
+
+    private var hasActiveFilters: Bool {
+        !selectedCategories.isEmpty || !debouncedSearchText.isEmpty || selectedFilter == .reportItems
     }
     
     // Group items by month and year
@@ -124,25 +149,61 @@ private struct StudentNotesTimelineList: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header: Filter Pills
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(NoteFilter.allCases) { filter in
-                        PillButton(
-                            title: filter.rawValue,
-                            isSelected: selectedFilter == filter
-                        ) {
-                            withAnimation {
-                                selectedFilter = filter
+            // Search Bar
+            DebouncedSearchField("Search notes...", text: $searchText) { debounced in
+                debouncedSearchText = debounced
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+
+            // Header: Filter Pills and Category Button
+            HStack(spacing: 12) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(NoteFilter.allCases) { filter in
+                            PillButton(
+                                title: filter.rawValue,
+                                isSelected: selectedFilter == filter
+                            ) {
+                                withAnimation {
+                                    selectedFilter = filter
+                                }
                             }
                         }
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+
+                // Category filter button
+                Button {
+                    showingCategoryFilter.toggle()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                        if !selectedCategories.isEmpty {
+                            Text("\(selectedCategories.count)")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .foregroundStyle(selectedCategories.isEmpty ? .secondary : Color.accentColor)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Filter by category")
             }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
             .background(.background)
-            
+
+            // Category filter chips (collapsible)
+            if showingCategoryFilter {
+                categoryFilterSection
+            }
+
+            // Active filters summary
+            if hasActiveFilters {
+                activeFiltersSummary
+            }
+
             Divider()
 
             // List Content - Using ScrollView + LazyVStack to avoid nested List issues
@@ -253,6 +314,9 @@ private struct StudentNotesTimelineList: View {
     }
     
     private var emptyStateMessage: String {
+        if hasActiveFilters {
+            return "No notes match your current filters."
+        }
         switch selectedFilter {
         case .all:
             return "This student has no notes recorded yet."
@@ -267,6 +331,142 @@ private struct StudentNotesTimelineList: View {
         // Now we simply attempt to look up the Note by ID.
         // If it returns a valid Note object (whether attached to Work, Lesson, or General), it will be editable.
         return viewModel.note(by: item.id)
+    }
+
+    // MARK: - Category Filter Section
+
+    private var categoryFilterSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(NoteCategory.allCases, id: \.self) { category in
+                    CategoryFilterChip(
+                        category: category,
+                        isSelected: selectedCategories.contains(category)
+                    ) {
+                        withAnimation {
+                            if selectedCategories.contains(category) {
+                                selectedCategories.remove(category)
+                            } else {
+                                selectedCategories.insert(category)
+                            }
+                        }
+                    }
+                }
+
+                // Clear all button
+                if !selectedCategories.isEmpty {
+                    Button {
+                        withAnimation {
+                            selectedCategories.removeAll()
+                        }
+                    } label: {
+                        Text("Clear")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+        .background(Color.primary.opacity(0.03))
+    }
+
+    // MARK: - Active Filters Summary
+
+    private var activeFiltersSummary: some View {
+        HStack {
+            Text("Showing \(filteredItems.count) of \(viewModel.items.count) notes")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button {
+                withAnimation {
+                    searchText = ""
+                    debouncedSearchText = ""
+                    selectedCategories.removeAll()
+                    selectedFilter = .all
+                }
+            } label: {
+                Text("Clear All")
+                    .font(.caption)
+                    .foregroundColor(.accentColor)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+        .background(Color.accentColor.opacity(0.08))
+    }
+}
+
+// MARK: - Category Filter Chip
+
+private struct CategoryFilterChip: View {
+    let category: NoteCategory
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: categoryIcon)
+                    .font(.caption)
+                Text(categoryLabel)
+                    .font(.caption)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? categoryColor.opacity(0.2) : Color.primary.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(isSelected ? categoryColor : Color.clear, lineWidth: 1)
+            )
+            .foregroundStyle(isSelected ? categoryColor : .secondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var categoryLabel: String {
+        switch category {
+        case .academic: return "Academic"
+        case .behavioral: return "Behavioral"
+        case .social: return "Social"
+        case .emotional: return "Emotional"
+        case .health: return "Health"
+        case .attendance: return "Attendance"
+        case .general: return "General"
+        }
+    }
+
+    private var categoryIcon: String {
+        switch category {
+        case .academic: return "book.fill"
+        case .behavioral: return "hand.raised.fill"
+        case .social: return "person.2.fill"
+        case .emotional: return "heart.fill"
+        case .health: return "cross.fill"
+        case .attendance: return "calendar"
+        case .general: return "note.text"
+        }
+    }
+
+    private var categoryColor: Color {
+        switch category {
+        case .academic: return .blue
+        case .behavioral: return .orange
+        case .social: return .purple
+        case .emotional: return .pink
+        case .health: return .red
+        case .attendance: return .green
+        case .general: return .gray
+        }
     }
 }
 

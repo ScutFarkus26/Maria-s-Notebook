@@ -91,6 +91,8 @@ struct UnifiedNoteEditor: View {
     #endif
 
     @State var imagePath: String? = nil
+    /// Tracks the original image path when editing an existing note, for cleanup when image changes
+    @State var originalImagePath: String? = nil
 
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     @State var isSuggesting: Bool = false

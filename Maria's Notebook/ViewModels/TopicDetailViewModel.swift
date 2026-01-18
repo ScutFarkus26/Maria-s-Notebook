@@ -166,6 +166,8 @@ final class TopicDetailViewModel: ObservableObject {
     func deleteNote(context: ModelContext, _ note: Note) {
         if let idx = notes.firstIndex(where: { $0.id == note.id }) {
             notes.remove(at: idx)
+            // Clean up associated image file before deleting the note
+            note.deleteAssociatedImage()
             context.delete(note)
         }
     }

@@ -64,20 +64,27 @@ final class StudentNotesViewModel: ObservableObject {
             sortBy: noteSort
         )
         let primaryNotes: [Note] = (try? modelContext.fetch(primaryFetch)) ?? []
-        
-        // Also fetch notes with .students([UUID]) scope
-        let multiStudentFetch = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { note in
-                note.scopeIsAll == false && note.searchIndexStudentID == nil
-            },
-            sortBy: noteSort
+
+        // Fetch notes with multi-student scope using NoteStudentLink for efficiency
+        // This replaces the previous in-memory filtering approach
+        // Note: studentIDString already declared above
+        let linkFetch = FetchDescriptor<NoteStudentLink>(
+            predicate: #Predicate<NoteStudentLink> { link in
+                link.studentID == studentIDString
+            }
         )
-        let multiStudentNotes: [Note] = (try? modelContext.fetch(multiStudentFetch)) ?? []
-        // Filter in memory for .students([UUID]) scope
-        let filteredMultiStudentNotes = multiStudentNotes.filter { $0.scope.applies(to: student.id) }
-        
-        // Combine results
-        let visibleNotes = primaryNotes + filteredMultiStudentNotes
+        let links: [NoteStudentLink] = (try? modelContext.fetch(linkFetch)) ?? []
+        let linkedNotes = links.compactMap { $0.note }
+
+        // Combine results, deduplicating by note ID
+        var seenIDs = Set(primaryNotes.map { $0.id })
+        var visibleNotes = primaryNotes
+        for note in linkedNotes {
+            if !seenIDs.contains(note.id) {
+                seenIDs.insert(note.id)
+                visibleNotes.append(note)
+            }
+        }
         
         // FILTERING: Exclude notes attached to specific contexts that have their own fetch blocks.
         // This prevents "leaking" notes from other students if they were created with 'All' scope.
@@ -327,6 +334,8 @@ final class StudentNotesViewModel: ObservableObject {
     // MARK: - Delete
     func delete(item: UnifiedNoteItem) {
         if let note = fetchNote(id: item.id) {
+            // Clean up associated image file before deleting the note
+            note.deleteAssociatedImage()
             modelContext.delete(note)
             try? modelContext.save()
             items.removeAll { $0.id == item.id }

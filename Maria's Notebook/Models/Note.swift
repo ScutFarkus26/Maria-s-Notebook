@@ -129,6 +129,11 @@ final class Note: Identifiable {
     @Relationship var schoolDayOverride: SchoolDayOverride?
     @Relationship var studentTrackEnrollment: StudentTrackEnrollment?
 
+    /// Junction records for efficient multi-student scope queries.
+    /// Automatically maintained when scope is set to `.students([UUID])`.
+    @Relationship(deleteRule: .cascade, inverse: \NoteStudentLink.note)
+    var studentLinks: [NoteStudentLink]? = []
+
     // Computed, Codable scope
     @MainActor var scope: NoteScope {
         get { 
@@ -250,7 +255,41 @@ final class Note: Identifiable {
         guard let data = scopeBlob else { return nil }
         return try? JSONDecoder().decode(NoteScope.self, from: data)
     }
-}
 
-// TODO: Migrate any legacy string notes on Lesson/Work into Note objects when ready.
+    // MARK: - Image Management
+
+    /// Deletes the associated image file from disk if one exists.
+    /// Call this before deleting the Note to prevent orphaned images.
+    func deleteAssociatedImage() {
+        guard let imagePath = imagePath, !imagePath.isEmpty else { return }
+        try? PhotoStorageService.deleteImage(filename: imagePath)
+    }
+
+    // MARK: - Student Links Management
+
+    /// Syncs the studentLinks relationship to match the current scope.
+    /// Call this after setting scope to `.students([UUID])` and inserting the note.
+    /// This enables efficient database-level queries for multi-student scoped notes.
+    @MainActor
+    func syncStudentLinks(in context: ModelContext) {
+        let currentScope = decodeScope() ?? .all
+
+        // Clear existing links first
+        for link in studentLinks ?? [] {
+            context.delete(link)
+        }
+        studentLinks = []
+
+        // Create new links for multi-student scope
+        if case .students(let ids) = currentScope {
+            var newLinks: [NoteStudentLink] = []
+            for studentID in ids {
+                let link = NoteStudentLink(noteID: self.id, studentID: studentID, note: self)
+                context.insert(link)
+                newLinks.append(link)
+            }
+            studentLinks = newLinks
+        }
+    }
+}
 

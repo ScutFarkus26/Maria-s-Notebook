@@ -1099,4 +1099,454 @@ enum DataMigrations {
             }
         }
     }
+
+    // MARK: - Legacy Notes Migration Functions
+
+    /// Migrate legacy string notes on StudentLesson into Note objects.
+    /// For each StudentLesson with a non-empty `notes` string and empty `unifiedNotes`,
+    /// creates a new Note object with the content and clears the legacy notes field.
+    /// Idempotent: only processes StudentLessons that haven't been migrated yet.
+    @MainActor
+    static func migrateLegacyStudentLessonNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate<StudentLesson> { sl in
+                !sl.notes.isEmpty
+            }
+        )
+        let studentLessons = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for sl in studentLessons {
+            // Check if unifiedNotes is empty - skip if already migrated
+            guard (sl.unifiedNotes ?? []).isEmpty else { continue }
+
+            // Determine scope from the first student ID if available
+            let studentUUIDs = sl.studentIDs.compactMap { UUID(uuidString: $0) }
+            let scope: NoteScope = studentUUIDs.count == 1 ? .student(studentUUIDs[0]) :
+                                   studentUUIDs.count > 1 ? .students(studentUUIDs) : .all
+
+            // Create a new Note object
+            let note = Note(
+                createdAt: sl.createdAt,
+                body: sl.notes,
+                scope: scope,
+                category: .general,
+                studentLesson: sl
+            )
+
+            context.insert(note)
+            sl.notes = ""
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy StudentLesson notes.")
+            #endif
+        }
+    }
+
+    /// Migrate legacy string notes on WorkCheckIn into Note objects.
+    @MainActor
+    static func migrateLegacyWorkCheckInNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<WorkCheckIn>(
+            predicate: #Predicate<WorkCheckIn> { wci in
+                !wci.note.isEmpty
+            }
+        )
+        let checkIns = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for checkIn in checkIns {
+            // Check if notes relationship is empty - skip if already migrated
+            guard (checkIn.notes ?? []).isEmpty else { continue }
+
+            // Determine scope from associated work's students if available
+            var scope: NoteScope = .all
+            if let work = checkIn.work {
+                // Get student IDs from participants or fall back to singular studentID
+                var studentUUIDs: [UUID] = []
+                if let participants = work.participants, !participants.isEmpty {
+                    studentUUIDs = participants.compactMap { UUID(uuidString: $0.studentID) }
+                } else if let studentUUID = UUID(uuidString: work.studentID) {
+                    studentUUIDs = [studentUUID]
+                }
+
+                if studentUUIDs.count == 1 {
+                    scope = .student(studentUUIDs[0])
+                } else if studentUUIDs.count > 1 {
+                    scope = .students(studentUUIDs)
+                }
+            }
+
+            let note = Note(
+                createdAt: checkIn.date,
+                body: checkIn.note,
+                scope: scope,
+                category: .general,
+                workCheckIn: checkIn
+            )
+
+            context.insert(note)
+            checkIn.note = ""
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy WorkCheckIn notes.")
+            #endif
+        }
+    }
+
+    /// Migrate legacy string notes on WorkCompletionRecord into Note objects.
+    @MainActor
+    static func migrateLegacyWorkCompletionRecordNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<WorkCompletionRecord>(
+            predicate: #Predicate<WorkCompletionRecord> { wcr in
+                !wcr.note.isEmpty
+            }
+        )
+        let records = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for record in records {
+            // Check if notes relationship is empty - skip if already migrated
+            guard (record.notes ?? []).isEmpty else { continue }
+
+            // Scope to the specific student
+            let scope: NoteScope
+            if let studentUUID = UUID(uuidString: record.studentID) {
+                scope = .student(studentUUID)
+            } else {
+                scope = .all
+            }
+
+            let note = Note(
+                createdAt: record.completedAt,
+                body: record.note,
+                scope: scope,
+                category: .general,
+                workCompletionRecord: record
+            )
+
+            context.insert(note)
+            record.note = ""
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy WorkCompletionRecord notes.")
+            #endif
+        }
+    }
+
+    /// Migrate legacy string notes on AttendanceRecord into Note objects.
+    @MainActor
+    static func migrateLegacyAttendanceNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<AttendanceRecord>()
+        let records = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for record in records {
+            // Check if note has content
+            guard let legacyNote = record.note, !legacyNote.isEmpty else { continue }
+            // Check if notes relationship is empty - skip if already migrated
+            guard (record.notes ?? []).isEmpty else { continue }
+
+            // Scope to the specific student
+            let scope: NoteScope
+            if let studentUUID = UUID(uuidString: record.studentID) {
+                scope = .student(studentUUID)
+            } else {
+                scope = .all
+            }
+
+            let note = Note(
+                createdAt: record.date,
+                body: legacyNote,
+                scope: scope,
+                category: .attendance,
+                attendanceRecord: record
+            )
+
+            context.insert(note)
+            record.note = nil
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy AttendanceRecord notes.")
+            #endif
+        }
+    }
+
+    /// Migrate legacy string notes on ProjectSession into Note objects.
+    @MainActor
+    static func migrateLegacyProjectSessionNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<ProjectSession>()
+        let sessions = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for session in sessions {
+            // Check if notes has content
+            guard let legacyNotes = session.notes, !legacyNotes.isEmpty else { continue }
+            // Check if noteItems relationship is empty - skip if already migrated
+            guard (session.noteItems ?? []).isEmpty else { continue }
+
+            let note = Note(
+                createdAt: session.meetingDate,
+                body: legacyNotes,
+                scope: .all,
+                category: .general,
+                projectSession: session
+            )
+
+            context.insert(note)
+            session.notes = nil
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy ProjectSession notes.")
+            #endif
+        }
+    }
+
+    /// Migrate legacy string notes on StudentTrackEnrollment into Note objects.
+    @MainActor
+    static func migrateLegacyStudentTrackEnrollmentNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<StudentTrackEnrollment>()
+        let enrollments = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for enrollment in enrollments {
+            // Check if notes has content
+            guard let legacyNotes = enrollment.notes, !legacyNotes.isEmpty else { continue }
+            // Check if richNotes relationship is empty - skip if already migrated
+            guard (enrollment.richNotes ?? []).isEmpty else { continue }
+
+            // Scope to the specific student
+            let scope: NoteScope
+            if let studentUUID = UUID(uuidString: enrollment.studentID) {
+                scope = .student(studentUUID)
+            } else {
+                scope = .all
+            }
+
+            let note = Note(
+                createdAt: enrollment.createdAt,
+                body: legacyNotes,
+                scope: scope,
+                category: .general,
+                studentTrackEnrollment: enrollment
+            )
+
+            context.insert(note)
+            enrollment.notes = nil
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy StudentTrackEnrollment notes.")
+            #endif
+        }
+    }
+
+    /// Migrate legacy string notes on WorkPlanItem into Note objects.
+    @MainActor
+    static func migrateLegacyWorkPlanItemNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<WorkPlanItem>()
+        let items = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for item in items {
+            // Check if note has content
+            guard let legacyNote = item.note, !legacyNote.isEmpty else { continue }
+            // Check if notes relationship is empty - skip if already migrated
+            guard (item.notes ?? []).isEmpty else { continue }
+
+            let note = Note(
+                createdAt: item.createdAt,
+                body: legacyNote,
+                scope: .all,
+                category: .general,
+                workPlanItem: item
+            )
+
+            context.insert(note)
+            item.note = nil
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy WorkPlanItem notes.")
+            #endif
+        }
+    }
+
+    /// Migrate legacy string notes on SchoolDayOverride into Note objects.
+    @MainActor
+    static func migrateLegacySchoolDayOverrideNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<SchoolDayOverride>()
+        let overrides = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for override in overrides {
+            // Check if note has content
+            guard let legacyNote = override.note, !legacyNote.isEmpty else { continue }
+            // Check if notes relationship is empty - skip if already migrated
+            guard (override.notes ?? []).isEmpty else { continue }
+
+            let note = Note(
+                createdAt: override.date,
+                body: legacyNote,
+                scope: .all,
+                category: .general,
+                schoolDayOverride: override
+            )
+
+            context.insert(note)
+            override.note = nil
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy SchoolDayOverride notes.")
+            #endif
+        }
+    }
+
+    /// Migrate legacy string notes on Reminder into Note objects.
+    /// Note: Reminders sync with EventKit, so notes field may be populated from external source.
+    /// This migration preserves the sync behavior by not clearing notes field for EventKit-synced reminders.
+    @MainActor
+    static func migrateLegacyReminderNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<Reminder>()
+        let reminders = context.safeFetch(fetch)
+
+        var migratedCount = 0
+
+        for reminder in reminders {
+            // Check if notes has content
+            guard let legacyNotes = reminder.notes, !legacyNotes.isEmpty else { continue }
+            // Check if noteItems relationship is empty - skip if already migrated
+            guard (reminder.noteItems ?? []).isEmpty else { continue }
+            // Skip EventKit-synced reminders to preserve external sync behavior
+            guard reminder.eventKitReminderID == nil else { continue }
+
+            let note = Note(
+                createdAt: reminder.createdAt,
+                body: legacyNotes,
+                scope: .all,
+                category: .general,
+                reminder: reminder
+            )
+
+            context.insert(note)
+            reminder.notes = nil
+            migratedCount += 1
+        }
+
+        if migratedCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Migrated \(migratedCount) legacy Reminder notes.")
+            #endif
+        }
+    }
+
+    /// Clean up orphaned note images that are no longer referenced by any Note.
+    /// This should be run after note deletions to reclaim disk space.
+    @MainActor
+    static func cleanupOrphanedNoteImages(using context: ModelContext) {
+        do {
+            let photosDir = try PhotoStorageService.photosDirectory()
+            let fm = FileManager.default
+
+            // Get all files in the Note Photos directory
+            let files = try fm.contentsOfDirectory(at: photosDir, includingPropertiesForKeys: nil)
+            let imageFilenames = Set(files.map { $0.lastPathComponent })
+
+            // Get all image paths referenced by notes
+            let notesFetch = FetchDescriptor<Note>()
+            let notes = context.safeFetch(notesFetch)
+            let referencedPaths = Set(notes.compactMap { $0.imagePath })
+
+            // Find orphaned files
+            let orphanedFiles = imageFilenames.subtracting(referencedPaths)
+
+            var deletedCount = 0
+            for filename in orphanedFiles {
+                try? PhotoStorageService.deleteImage(filename: filename)
+                deletedCount += 1
+            }
+
+            #if DEBUG
+            if deletedCount > 0 {
+                print("DataMigrations: Cleaned up \(deletedCount) orphaned note images.")
+            }
+            #endif
+        } catch {
+            #if DEBUG
+            print("DataMigrations: Failed to cleanup orphaned images: \(error)")
+            #endif
+        }
+    }
+
+    /// Create NoteStudentLink records for existing notes with multi-student scope.
+    /// This enables efficient database-level queries instead of in-memory filtering.
+    @MainActor
+    static func createNoteStudentLinksForExistingNotes(using context: ModelContext) {
+        let fetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { note in
+                // Notes with multi-student scope have scopeIsAll=false and searchIndexStudentID=nil
+                note.scopeIsAll == false && note.searchIndexStudentID == nil
+            }
+        )
+        let notes = context.safeFetch(fetch)
+
+        var createdCount = 0
+
+        for note in notes {
+            // Skip if links already exist
+            guard (note.studentLinks ?? []).isEmpty else { continue }
+
+            // Sync the student links based on current scope
+            note.syncStudentLinks(in: context)
+
+            if !(note.studentLinks ?? []).isEmpty {
+                createdCount += 1
+            }
+        }
+
+        if createdCount > 0 {
+            context.safeSave()
+            #if DEBUG
+            print("DataMigrations: Created student links for \(createdCount) multi-student scoped notes.")
+            #endif
+        }
+    }
 }

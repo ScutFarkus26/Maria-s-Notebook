@@ -17,6 +17,7 @@ extension UnifiedNoteEditor {
                 surfacingBanner
                 studentSelectionSection
             }
+            templatePickerSection
             categorySelectionSection
             noteBodySection
             reportToggleSection
@@ -433,4 +434,169 @@ extension UnifiedNoteEditor {
             .disabled(!canSave)
         }
     }
+
+    // MARK: - Template Picker Section
+
+    var templatePickerSection: some View {
+        TemplatePickerView { template in
+            insertTemplate(template)
+        }
+    }
+
+    private func insertTemplate(_ template: NoteTemplate) {
+        // If body is empty, replace entirely; otherwise append
+        if bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            bodyText = template.body
+            category = template.category
+        } else {
+            // Append template text with a space separator
+            bodyText = bodyText.trimmingCharacters(in: .whitespacesAndNewlines) + " " + template.body
+        }
+    }
 }
+
+// MARK: - Template Picker View
+
+private struct TemplatePickerView: View {
+    @Query(sort: [
+        SortDescriptor(\NoteTemplate.sortOrder),
+        SortDescriptor(\NoteTemplate.title)
+    ]) var templates: [NoteTemplate]
+
+    let onSelect: (NoteTemplate) -> Void
+
+    @State private var isExpanded: Bool = false
+    @State private var selectedCategory: NoteCategory? = nil
+
+    var filteredTemplates: [NoteTemplate] {
+        if let cat = selectedCategory {
+            return templates.filter { $0.category == cat }
+        }
+        return templates
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Header with expand/collapse
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Text("Quick Insert")
+                        .font(AppTheme.ScaledFont.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(isExpanded ? "Double tap to collapse" : "Double tap to expand template options")
+
+            if isExpanded {
+                // Category filter
+                categoryFilterRow
+
+                // Template chips
+                if filteredTemplates.isEmpty {
+                    Text("No templates available")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .padding(.vertical, 4)
+                } else {
+                    templateChipsGrid
+                }
+            }
+        }
+    }
+
+    private var categoryFilterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                // "All" chip
+                Button {
+                    withAnimation {
+                        selectedCategory = nil
+                    }
+                } label: {
+                    Text("All")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(selectedCategory == nil ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+                        )
+                        .foregroundStyle(selectedCategory == nil ? Color.accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+
+                // Category chips
+                ForEach(NoteCategory.allCases, id: \.self) { cat in
+                    let count = templates.filter { $0.category == cat }.count
+                    if count > 0 {
+                        Button {
+                            withAnimation {
+                                selectedCategory = (selectedCategory == cat) ? nil : cat
+                            }
+                        } label: {
+                            Text(cat.rawValue.capitalized)
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(selectedCategory == cat ? categoryColor(cat).opacity(0.2) : Color.secondary.opacity(0.1))
+                                )
+                                .foregroundStyle(selectedCategory == cat ? categoryColor(cat) : .secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private var templateChipsGrid: some View {
+        FlowLayout(spacing: 6) {
+            ForEach(filteredTemplates) { template in
+                Button {
+                    onSelect(template)
+                } label: {
+                    Text(template.title)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(categoryColor(template.category).opacity(0.12))
+                        )
+                        .foregroundStyle(categoryColor(template.category))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(template.title)
+                .accessibilityHint("Double tap to insert: \(template.body)")
+            }
+        }
+    }
+
+    private func categoryColor(_ category: NoteCategory) -> Color {
+        switch category {
+        case .academic: return .blue
+        case .behavioral: return .orange
+        case .social: return .purple
+        case .emotional: return .pink
+        case .health: return .red
+        case .attendance: return .green
+        case .general: return .gray
+        }
+    }
+}
+
+// Note: Uses FlowLayout from /Components/FlowLayout.swift

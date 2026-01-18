@@ -102,6 +102,8 @@ extension UnifiedNoteEditor {
             category = note.category
             includeInReport = note.includeInReport
             imagePath = note.imagePath
+            // Store original image path for cleanup if image changes
+            originalImagePath = note.imagePath
 
             switch note.scope {
             case .student(let id):
@@ -129,6 +131,20 @@ extension UnifiedNoteEditor {
 
     // MARK: - Photo Handling
 
+    /// Deletes the previous image if it differs from the original (to prevent orphaned files)
+    private func cleanupPreviousImageIfNeeded(newPath: String?) {
+        // If we have an existing imagePath that's different from both:
+        // 1. The new path we're setting
+        // 2. The original path (which belongs to the existing note)
+        // Then we need to delete it to prevent orphaned files
+        if let existingPath = imagePath,
+           !existingPath.isEmpty,
+           existingPath != newPath,
+           existingPath != originalImagePath {
+            try? PhotoStorageService.deleteImage(filename: existingPath)
+        }
+    }
+
     func handlePhotoChange(_ newItem: PhotosPickerItem?) {
         Task {
             if let newItem = newItem {
@@ -137,7 +153,10 @@ extension UnifiedNoteEditor {
                     if let image = NSImage(data: data) {
                         selectedImage = image
                         do {
-                            imagePath = try PhotoStorageService.saveImage(image)
+                            let newPath = try PhotoStorageService.saveImage(image)
+                            // Clean up any intermediate image that might have been selected
+                            cleanupPreviousImageIfNeeded(newPath: newPath)
+                            imagePath = newPath
                         } catch {
                             #if DEBUG
                             print("Error saving image: \(error)")
@@ -153,6 +172,8 @@ extension UnifiedNoteEditor {
                     #endif
                 }
             } else {
+                // User cleared the image
+                cleanupPreviousImageIfNeeded(newPath: nil)
                 selectedImage = nil
                 imagePath = nil
             }
@@ -163,7 +184,10 @@ extension UnifiedNoteEditor {
     func handleCameraImage(_ image: UIImage) {
         selectedImage = image
         do {
-            imagePath = try PhotoStorageService.saveImage(image)
+            let newPath = try PhotoStorageService.saveImage(image)
+            // Clean up any intermediate image that might have been selected
+            cleanupPreviousImageIfNeeded(newPath: newPath)
+            imagePath = newPath
         } catch {
             #if DEBUG
             print("Error saving image: \(error)")

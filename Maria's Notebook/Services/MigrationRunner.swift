@@ -15,5 +15,27 @@ enum MigrationRunner {
 
         // Clean orphaned student IDs from WorkModel records
         await DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
+
+        // Migrate all legacy string notes to unified Note objects
+        Task { @MainActor in
+            DataMigrations.migrateLegacyStudentLessonNotes(using: context)
+            DataMigrations.migrateLegacyWorkCheckInNotes(using: context)
+            DataMigrations.migrateLegacyWorkCompletionRecordNotes(using: context)
+            DataMigrations.migrateLegacyAttendanceNotes(using: context)
+            DataMigrations.migrateLegacyProjectSessionNotes(using: context)
+            DataMigrations.migrateLegacyStudentTrackEnrollmentNotes(using: context)
+            DataMigrations.migrateLegacyWorkPlanItemNotes(using: context)
+            DataMigrations.migrateLegacySchoolDayOverrideNotes(using: context)
+            DataMigrations.migrateLegacyReminderNotes(using: context)
+
+            // Clean up any orphaned note images after migrations
+            DataMigrations.cleanupOrphanedNoteImages(using: context)
+
+            // Create NoteStudentLink records for efficient multi-student scope queries
+            DataMigrations.createNoteStudentLinksForExistingNotes(using: context)
+
+            // Seed built-in note templates
+            NoteTemplate.seedBuiltInTemplates(in: context)
+        }
     }
 }

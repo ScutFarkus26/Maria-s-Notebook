@@ -40,12 +40,23 @@ extension UnifiedNoteEditor {
     }
 
     private func updateExistingNote(_ existing: Note, body: String, scope: NoteScope) -> Note {
+        // Clean up old image if it changed
+        if let oldPath = originalImagePath,
+           !oldPath.isEmpty,
+           oldPath != imagePath {
+            try? PhotoStorageService.deleteImage(filename: oldPath)
+        }
+
         existing.body = body
         existing.category = category
         existing.includeInReport = includeInReport
         existing.imagePath = imagePath
         existing.updatedAt = Date()
         existing.scope = scope
+
+        // Sync student links for multi-student scope queries
+        existing.syncStudentLinks(in: modelContext)
+
         return existing
     }
 
@@ -61,6 +72,10 @@ extension UnifiedNoteEditor {
         applyContextRelationship(to: note)
 
         modelContext.insert(note)
+
+        // Sync student links for multi-student scope queries
+        note.syncStudentLinks(in: modelContext)
+
         return note
     }
 
