@@ -180,6 +180,7 @@ struct UnifiedNoteEditor: View {
     }
     #endif
 
+    #if os(iOS)
     private var iOSLayout: some View {
         NavigationStack {
             ScrollView {
@@ -189,9 +190,7 @@ struct UnifiedNoteEditor: View {
                 .padding(24)
             }
             .navigationTitle(contextTitle)
-            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
-            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -210,6 +209,7 @@ struct UnifiedNoteEditor: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
+    #endif
 
     // MARK: - Event Handlers
 
