@@ -433,8 +433,8 @@ final class TodayViewModel: ObservableObject {
         var newToday: [ContractScheduleItem] = []
         var newStale: [ContractFollowUpItem] = []
         
-        let startToday = Date().startOfDay
-        
+        let startToday = self.date.startOfDay
+
         for work in workItems {
             // Filter by Level
             if let sid = UUID(uuidString: work.studentID),
@@ -469,8 +469,8 @@ final class TodayViewModel: ObservableObject {
             }
             
             // --- Due Today Logic ---
-            // Explicitly scheduled for today
-            if let todayItem = sortedPlans.first(where: { $0.scheduledDate.isSameDay(as: Date()) }) {
+            // Explicitly scheduled for today (use self.date, not Date(), to support testing with historical dates)
+            if let todayItem = sortedPlans.first(where: { $0.scheduledDate.isSameDay(as: self.date) }) {
                 newToday.append(ContractScheduleItem(work: work, planItem: todayItem))
                 isOverdueOrToday = true
             }
