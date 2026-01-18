@@ -37,12 +37,16 @@ enum BackupDestination {
             if stale {
                 // If the system tells us the bookmark is stale (e.g. folder moved/renamed),
                 // but we successfully resolved it, re-save it immediately to fix the link.
+                #if DEBUG
                 print("BackupDestination: Bookmark is stale. Refreshing...")
+                #endif
                 try? setDefaultFolder(url)
             }
             return url
         } catch {
+            #if DEBUG
             print("BackupDestination: Failed to resolve backup folder bookmark: \(error)")
+            #endif
             return nil
         }
     }

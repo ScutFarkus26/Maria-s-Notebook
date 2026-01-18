@@ -67,11 +67,13 @@ enum PerformanceLogger {
         if ms > 100 {
             message += " ⚠️"
         }
-        
+
         logger.info("\(message)")
+        #if DEBUG
         print(message)
+        #endif
     }
-    
+
     /// Logs a screen's query results after @Query properties have loaded.
     /// - Parameters:
     ///   - screenName: Name of the screen/component
@@ -81,17 +83,21 @@ enum PerformanceLogger {
         for (queryName, count) in itemCounts.sorted(by: { $0.key < $1.key }) {
             message += "\n  • \(queryName): \(count)"
         }
-        
+
         logger.info("\(message)")
+        #if DEBUG
         print(message)
+        #endif
     }
-    
+
     /// Starts monitoring the main RunLoop for hangs/stutters.
     /// Logs a warning if the main thread is blocked for more than 100ms.
     static func startStutterDetection() {
+        #if DEBUG
         // DISABLED: The current implementation uses CFRunLoopObserver with .allActivities
         // which is causing _os_unfair_lock_recursive_abort crashes on the main thread.
         print("⚠️ Stutter detection disabled to prevent recursive locking crashes")
+        #endif
         
         /*
         #if DEBUG

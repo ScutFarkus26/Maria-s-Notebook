@@ -259,7 +259,8 @@ struct StudentLessonNotesSectionUnified: View {
                     let matchedIDs = matchedPresentationIDs
                     let notesDirect = lessonNotes.count
                     let notesViaPresentations = presentationNotes.count
-                    
+
+                    #if DEBUG
                     print("=== LessonNotes Debug Log ===")
                     print("studentLesson.id: \(studentLesson.id.uuidString)")
                     print("matchedPresentationIDs count: \(matchedIDs.count)")
@@ -269,7 +270,8 @@ struct StudentLessonNotesSectionUnified: View {
                     print("notesDirect count: \(notesDirect)")
                     print("notesViaPresentations count: \(notesViaPresentations)")
                     print("=== End Debug Log ===")
-                    
+                    #endif
+
                     hasLoggedDebugInfo = true
                 }
             }

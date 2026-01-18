@@ -351,7 +351,9 @@ struct TodayView: View {
                         try await syncService.syncReminders()
                     } catch {
                         // Silently fail - user can manually sync from settings
+                        #if DEBUG
                         print("TodayView: Reminder sync failed: \(error.localizedDescription)")
+                        #endif
                     }
                 }
             }
@@ -363,7 +365,9 @@ struct TodayView: View {
                     do {
                         try await calendarSyncService.syncEvents()
                     } catch {
+                        #if DEBUG
                         print("TodayView: Calendar sync failed: \(error.localizedDescription)")
+                        #endif
                     }
                 }
             }
@@ -642,7 +646,7 @@ struct TodayView: View {
     private func markTardy(_ studentID: UUID) {
         let (day, _) = AppCalendar.dayRange(for: viewModel.date)
         let store = AttendanceStore(context: modelContext, calendar: calendar)
-        
+
         do {
             var descriptor = FetchDescriptor<AttendanceRecord>(
                 predicate: #Predicate { rec in
@@ -650,7 +654,7 @@ struct TodayView: View {
                 }
             )
             descriptor.fetchLimit = 1
-            
+
             let records = try modelContext.fetch(descriptor)
             if let record = records.first {
                 // Update existing record
@@ -661,21 +665,23 @@ struct TodayView: View {
                 let record = AttendanceRecord(studentID: studentID, date: day, status: .tardy)
                 modelContext.insert(record)
             }
-            
+
             // Save changes
             try modelContext.save()
-            
+
             // Reload the view model to reflect changes
             viewModel.reload()
         } catch {
+            #if DEBUG
             print("Error updating attendance status: \(error.localizedDescription)")
+            #endif
         }
     }
     
     private func updateAttendanceStatus(for studentID: UUID, to status: AttendanceStatus) {
         let store = AttendanceStore(context: modelContext, calendar: calendar)
         let day = AppCalendar.startOfDay(viewModel.date)
-        
+
         // Fetch or create the attendance record
         do {
             var descriptor = FetchDescriptor<AttendanceRecord>(
@@ -684,7 +690,7 @@ struct TodayView: View {
                 }
             )
             descriptor.fetchLimit = 1
-            
+
             let records = try modelContext.fetch(descriptor)
             if let record = records.first {
                 // Update existing record
@@ -693,20 +699,24 @@ struct TodayView: View {
                 // Create new record if it doesn't exist
                 // Verify student exists (should be in studentsByID cache)
                 guard viewModel.studentsByID[studentID] != nil else {
+                    #if DEBUG
                     print("Warning: Cannot update attendance for student \(studentID) - student not found")
+                    #endif
                     return
                 }
                 let record = AttendanceRecord(studentID: studentID, date: day, status: status)
                 modelContext.insert(record)
             }
-            
+
             // Save changes
             try modelContext.save()
-            
+
             // Reload the view model to reflect changes
             viewModel.reload()
         } catch {
+            #if DEBUG
             print("Error updating attendance status: \(error.localizedDescription)")
+            #endif
         }
     }
 
@@ -831,11 +841,15 @@ struct TodayView: View {
                 do {
                     try await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
                 } catch {
+                    #if DEBUG
                     print("Error syncing reminder completion to EventKit: \(error)")
+                    #endif
                 }
             }
         } catch {
+            #if DEBUG
             print("Error toggling reminder: \(error)")
+            #endif
         }
     }
 

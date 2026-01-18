@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 import SwiftData
 
@@ -158,3 +159,4 @@ enum OrphanedWorkDiagnostic {
 private func *(lhs: String, rhs: Int) -> String {
     return String(repeating: lhs, count: rhs)
 }
+#endif

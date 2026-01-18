@@ -259,7 +259,9 @@ struct MeetingSummaryCard: View {
                 }
             }
         } catch {
+            #if DEBUG
             print("AI Summary failed: \(error)")
+            #endif
             setSummary(manualSummary)
         }
         isGenerating = false

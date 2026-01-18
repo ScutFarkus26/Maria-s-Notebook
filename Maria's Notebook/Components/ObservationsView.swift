@@ -493,7 +493,9 @@ struct ObservationsView: View {
                 ))
             }
         } catch {
+            #if DEBUG
             print("Error fetching Note objects: \(error)")
+            #endif
         }
         
         // Legacy note types (ScopedNote, WorkNote, MeetingNote) have been migrated to Note objects

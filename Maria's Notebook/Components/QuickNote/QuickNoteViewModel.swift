@@ -254,7 +254,9 @@ class QuickNoteViewModel: ObservableObject {
         do {
             self.attachedImagePath = try PhotoStorageService.saveImage(image)
         } catch {
+            #if DEBUG
             print("Failed to save image: \(error)")
+            #endif
         }
     }
     

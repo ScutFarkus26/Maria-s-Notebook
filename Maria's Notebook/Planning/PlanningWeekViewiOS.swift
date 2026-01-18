@@ -79,7 +79,7 @@ struct PlanningWeekViewiOS: View {
             ]
         )
         students = (try? modelContext.fetch(studentsDescriptor)) ?? []
-        
+
         #if DEBUG
         let loadTime = Date().timeIntervalSince(startTime)
         print("📱 PlanningWeekViewiOS loaded \(inboxLessons.count) inbox items, \(lessons.count) lessons, \(students.count) students in \(String(format: "%.3f", loadTime))s (Manual fetch)")

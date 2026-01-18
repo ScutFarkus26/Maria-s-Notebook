@@ -748,7 +748,9 @@ struct StudentMeetingsTab: View {
                 setSummary(manualSummary, for: item.id, isAIGenerated: false)
             }
         } catch {
+            #if DEBUG
             print("AI Summary failed: \(error)")
+            #endif
             setSummary(manualSummary, for: item.id, isAIGenerated: false)
         }
         

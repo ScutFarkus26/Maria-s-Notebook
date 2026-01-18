@@ -87,7 +87,9 @@ struct GroupTrackSettingsSheet: View {
                 isSequential = true
             }
         } catch {
+            #if DEBUG
             print("Failed to load track settings: \(error)")
+            #endif
             // On error, default to true (is a track, sequential)
             isTrack = true
             isSequential = true
@@ -117,7 +119,9 @@ struct GroupTrackSettingsSheet: View {
             try modelContext.save()
             dismiss()
         } catch {
+            #if DEBUG
             print("Failed to save track settings: \(error)")
+            #endif
         }
     }
 }

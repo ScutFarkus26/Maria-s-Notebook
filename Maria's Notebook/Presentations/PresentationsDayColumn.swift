@@ -218,7 +218,9 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
             }
             try modelContext.save()
         } catch {
+            #if DEBUG
             print("Presentations schedule save failed: \(error)")
+            #endif
         }
     }
 

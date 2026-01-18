@@ -111,7 +111,9 @@ struct LifecycleService {
                 lessonSubtitleSnapshot: subtitle
             )
             modelContext.insert(presentation)
+            #if DEBUG
             print("Presentation link set: legacyStudentLessonID=\(presentation.legacyStudentLessonID ?? "nil")")
+            #endif
         }
 
         // Legacy note migration has been completed. All notes are now in the unified Note system.
@@ -390,7 +392,7 @@ struct LifecycleService {
                     }
                 }
             } catch {
-                // If recordPresentationAndExplodeWork fails (e.g., lesson not found), 
+                // If recordPresentationAndExplodeWork fails (e.g., lesson not found),
                 // still try to create LessonPresentation record directly
                 #if DEBUG
                 print("⚠️ Failed to create Presentation for StudentLesson \(studentLesson.id): \(error)")

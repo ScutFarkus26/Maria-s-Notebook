@@ -10,7 +10,9 @@ extension ModelContext {
         do {
             try save()
         } catch {
+            #if DEBUG
             print("⚠️ ModelContext save failed: \(error.localizedDescription)")
+            #endif
             // Optionally: send to crash reporting service
         }
     }

@@ -571,7 +571,9 @@ struct LessonsRootView: View {
         do {
             try modelContext.save()
         } catch {
+            #if DEBUG
             print("Failed to save lesson reorder: \(error)")
+            #endif
         }
     }
     

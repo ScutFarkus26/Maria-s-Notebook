@@ -224,11 +224,11 @@ struct MariasToolboxApp: App {
         
         // Ensure CloudKit is enabled
         UserDefaults.standard.set(true, forKey: UserDefaultsKeys.enableCloudKitSync)
-        
+
         // Clear any error flags
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-        
+
         #if DEBUG
         print("SwiftData: Local database reset and CloudKit sync enabled. App restart required.")
         #endif

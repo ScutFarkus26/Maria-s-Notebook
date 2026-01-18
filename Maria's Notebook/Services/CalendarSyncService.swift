@@ -380,7 +380,9 @@ class CalendarSyncService: ObservableObject {
             try await syncEvents()
             lastSyncTime = Date()
         } catch {
+            #if DEBUG
             print("CalendarSyncService: Automatic sync failed: \(error.localizedDescription)")
+            #endif
         }
     }
 

@@ -291,7 +291,9 @@ private struct InboxDropDelegate: DropDelegate {
                         do {
                             try modelContext.save()
                         } catch {
+                            #if DEBUG
                             print("Presentations inbox unschedule save failed: \(error)")
+                            #endif
                         }
                     }
                 }

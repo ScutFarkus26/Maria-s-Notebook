@@ -1079,7 +1079,9 @@ public final class BackupService {
         if let results = try? context.fetch(FetchDescriptor<T>()) {
             return results
         }
+        #if DEBUG
         print("BackupService: Warning - Could not fetch \(String(describing: type)). Skipping this entity type.")
+        #endif
         return []
     }
 

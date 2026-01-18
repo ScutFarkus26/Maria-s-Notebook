@@ -118,7 +118,9 @@ final class StudentLessonDetailViewModel {
                     modelContext: modelContext
                 )
             } catch {
+                #if DEBUG
                 print("LifecycleService error: \(error)")
+                #endif
             }
             
             // Auto-enroll students in track if lesson belongs to a track
@@ -171,7 +173,9 @@ final class StudentLessonDetailViewModel {
 
             onDone?()
         } catch {
+            #if DEBUG
             print("Failed to save student lesson: \(error)")
+            #endif
         }
     }
     

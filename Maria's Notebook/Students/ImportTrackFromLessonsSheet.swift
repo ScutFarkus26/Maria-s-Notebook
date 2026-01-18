@@ -149,7 +149,9 @@ struct ImportTrackFromLessonsSheet: View {
             let descriptor = FetchDescriptor<Lesson>()
             allLessonsFetched = try modelContext.fetch(descriptor)
         } catch {
+            #if DEBUG
             print("Failed to fetch lessons: \(error)")
+            #endif
             return
         }
         
@@ -198,7 +200,9 @@ struct ImportTrackFromLessonsSheet: View {
             onImport?(newTrack.id)
             dismiss()
         } catch {
+            #if DEBUG
             print("Failed to import track: \(error)")
+            #endif
         }
     }
 }

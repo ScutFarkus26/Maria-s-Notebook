@@ -202,9 +202,11 @@ struct StudentsView<WorkloadContent: View>: View {
                 seenIDs.insert(student.id)
             }
         }
-        
+
         if !duplicates.isEmpty {
+            #if DEBUG
             print("found duplicate ID: \(duplicates)")
+            #endif
         }
     }
 

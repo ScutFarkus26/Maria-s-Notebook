@@ -415,7 +415,9 @@ class ReminderSyncService: ObservableObject {
             lastSyncTime = Date()
         } catch {
             // Silently log errors for automatic sync (user can manually sync if needed)
+            #if DEBUG
             print("ReminderSyncService: Automatic sync failed: \(error.localizedDescription)")
+            #endif
         }
     }
     

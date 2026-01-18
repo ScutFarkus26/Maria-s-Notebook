@@ -410,9 +410,11 @@ final class TodayViewModel: ObservableObject {
             self.overdueSchedule = overdue.sorted { $0.planItem.scheduledDate < $1.planItem.scheduledDate }
             self.todaysSchedule = today.sorted { $0.planItem.scheduledDate < $1.planItem.scheduledDate }
             self.staleFollowUps = Array(stale.sorted { $0.daysSinceTouch > $1.daysSinceTouch }.prefix(15)) // Most stale first
-            
+
         } catch {
+            #if DEBUG
             print("Error fetching work/plans: \(error)")
+            #endif
             self.overdueSchedule = []
             self.todaysSchedule = []
             self.staleFollowUps = []
@@ -557,7 +559,9 @@ final class TodayViewModel: ObservableObject {
             self.anytimeReminders = anytime
 
         } catch {
+            #if DEBUG
             print("Error loading reminders: \(error)")
+            #endif
             self.overdueReminders = []
             self.todaysReminders = []
             self.anytimeReminders = []
@@ -577,7 +581,9 @@ final class TodayViewModel: ObservableObject {
             let events = try context.fetch(descriptor)
             self.todaysCalendarEvents = events
         } catch {
+            #if DEBUG
             print("Error loading calendar events: \(error)")
+            #endif
             self.todaysCalendarEvents = []
         }
     }

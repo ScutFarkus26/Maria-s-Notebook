@@ -110,7 +110,9 @@ struct BackupRestoreSectionView: View {
                             try BackupDestination.setDefaultFolder(url)
                             viewModel.loadDefaultFolderName()
                         } catch {
+                            #if DEBUG
                             print("Error setting default folder: \(error)")
+                            #endif
                         }
                     }
                 case .failure:

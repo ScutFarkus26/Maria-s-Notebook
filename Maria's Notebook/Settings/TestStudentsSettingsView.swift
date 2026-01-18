@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 struct TestStudentsSettingsView: View {
@@ -87,4 +88,5 @@ private struct ExclusionItem: View {
 #Preview {
     TestStudentsSettingsView()
 }
+#endif
 

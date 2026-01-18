@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 import SwiftData
 
@@ -435,3 +436,4 @@ struct TrackRow: View {
             StudentTrackEnrollment.self
         ])
 }
+#endif

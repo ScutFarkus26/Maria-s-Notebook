@@ -692,7 +692,9 @@ struct UnifiedNoteEditor: View {
                         do {
                             imagePath = try PhotoStorageService.saveImage(image)
                         } catch {
+                            #if DEBUG
                             print("Error saving image: \(error)")
+                            #endif
                             selectedImage = nil
                             selectedPhoto = nil
                         }
@@ -716,7 +718,9 @@ struct UnifiedNoteEditor: View {
         do {
             imagePath = try PhotoStorageService.saveImage(image)
         } catch {
+            #if DEBUG
             print("Error saving image: \(error)")
+            #endif
             selectedImage = nil
         }
     }
@@ -1021,6 +1025,7 @@ struct UnifiedNoteEditor: View {
             }
             
             // Task requirement #1: Add one-time diagnostic log
+            #if DEBUG
             print("=== UnifiedNoteEditor.saveNote() Diagnostic ===")
             print("NoteContext case: \(contextDescription)")
             print("note.id: \(note.id.uuidString)")
@@ -1034,6 +1039,7 @@ struct UnifiedNoteEditor: View {
                 print("workID: \(wID)")
             }
             print("=== End Diagnostic ===")
+            #endif
             
             modelContext.insert(note)
         }
