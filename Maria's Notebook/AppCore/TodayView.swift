@@ -44,6 +44,9 @@ struct TodayView: View {
     // MARK: - Attendance State
     @State var isAttendanceExpanded = false
 
+    // MARK: - Section Collapse State
+    @State var isObservationsCollapsed = false
+
     // MARK: - Toast State
     @State var toastMessage: String? = nil
 
@@ -188,6 +191,9 @@ struct TodayView: View {
     }
 
     private var listContent: some View {
+        #if os(macOS)
+        twoColumnLayout
+        #else
         List {
             remindersListSection
             calendarEventsListSection
@@ -197,10 +203,35 @@ struct TodayView: View {
             completedListSection
             recentObservationsSection
         }
-        #if os(iOS)
         .listStyle(.insetGrouped)
         #endif
     }
+
+    #if os(macOS)
+    private var twoColumnLayout: some View {
+        HStack(alignment: .top, spacing: 0) {
+            // Left column: Reminders + Calendar + Completed + Observations
+            List {
+                remindersListSection
+                calendarEventsListSection
+                completedListSection
+                recentObservationsSection
+            }
+            .listStyle(.inset)
+            .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
+
+            Divider()
+
+            // Right column: Lessons + Needs Attention
+            List {
+                lessonsListSection
+                checkInsListSection
+                inProgressListSection
+            }
+            .listStyle(.inset)
+        }
+    }
+    #endif
 
     #if os(iOS)
     @ToolbarContentBuilder

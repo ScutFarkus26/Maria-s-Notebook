@@ -3,6 +3,20 @@
 
 import SwiftUI
 
+// MARK: - Subtle Row Button Style
+
+struct SubtleRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == SubtleRowButtonStyle {
+    static var subtleRow: SubtleRowButtonStyle { SubtleRowButtonStyle() }
+}
+
 // MARK: - List Row Components
 
 struct ReminderListRow: View {
@@ -22,33 +36,50 @@ struct ReminderListRow: View {
         return label
     }
 
+    private var checkboxView: some View {
+        let borderColor: Color = reminder.isCompleted ? .clear : .secondary.opacity(0.4)
+        let fillColor: Color = reminder.isCompleted ? Color.accentColor.opacity(0.15) : .clear
+
+        return Circle()
+            .strokeBorder(borderColor, lineWidth: 1.5)
+            .background(Circle().fill(fillColor))
+            .overlay {
+                if reminder.isCompleted {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .frame(width: 20, height: 20)
+            .accessibilityHidden(true)
+    }
+
     var body: some View {
         Button(action: onToggle) {
-            HStack(spacing: 10) {
-                Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(reminder.isCompleted ? .green : .secondary)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 12) {
+                checkboxView
+
+                VStack(alignment: .leading, spacing: 4) {
                     Text(reminder.title)
-                        .font(AppTheme.ScaledFont.bodySemibold)
-                        .foregroundStyle(.primary)
-                        .strikethrough(reminder.isCompleted)
+                        .font(AppTheme.ScaledFont.callout)
+                        .foregroundStyle(reminder.isCompleted ? .tertiary : .primary)
+                        .strikethrough(reminder.isCompleted, color: Color.secondary.opacity(0.5))
                     if let dueDate = reminder.dueDate {
                         Text(dueDate, style: .time)
-                            .font(AppTheme.ScaledFont.captionSmall)
-                            .foregroundStyle(.secondary)
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(.tertiary)
                     }
                     if let notes = reminder.notes, !notes.isEmpty {
                         Text(notes)
-                            .font(AppTheme.ScaledFont.captionSmall)
-                            .foregroundStyle(.secondary)
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }
                 }
                 Spacer()
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.subtleRow)
         .sensoryFeedback(.success, trigger: reminder.isCompleted)
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityHint(reminder.isCompleted ? "Double tap to mark as incomplete" : "Double tap to mark as complete")
@@ -73,28 +104,22 @@ struct LessonListRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "text.book.closed")
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 if !studentNames.trimmed().isEmpty {
                     Text(studentNames)
-                        .font(AppTheme.ScaledFont.bodySemibold)
-                        .foregroundStyle(.primary)
+                        .font(AppTheme.ScaledFont.callout)
+                        .foregroundStyle(isPresented ? .tertiary : .primary)
                 }
                 Text(lessonName)
                     .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
             Spacer()
             if isPresented {
-                Text("Presented")
-                    .font(AppTheme.ScaledFont.captionSmallSemibold)
-                    .foregroundStyle(.green)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.green.opacity(0.12)))
+                Text("Done")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
         }
@@ -124,37 +149,29 @@ struct ContractScheduleListRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 10) {
-                Image(systemName: item.planItem.reason?.icon ?? "bell")
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(studentName)
-                        .font(AppTheme.ScaledFont.bodySemibold)
+                        .font(AppTheme.ScaledFont.callout)
                         .foregroundStyle(.primary)
                     Text(lessonName)
                         .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.tertiary)
 
-                    HStack(spacing: 4) {
-                        Text(item.planItem.reason?.label ?? "Check-In")
-                        if let note = item.planItem.note, !note.isEmpty {
-                            Text("• \(note)")
-                        }
+                    if let note = item.planItem.note, !note.isEmpty {
+                        Text(note)
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
                     }
-                    .font(AppTheme.ScaledFont.captionSmall)
-                    .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text(item.planItem.scheduledDate, style: .date)
-                    .font(AppTheme.ScaledFont.captionSmallSemibold)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.orange.opacity(0.12)))
-                    .accessibilityHidden(true)
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.subtleRow)
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityHint("Double tap to view work details")
     }
@@ -172,25 +189,22 @@ struct ContractFollowUpListRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 10) {
-                Image(systemName: "arrow.clockwise")
-                    .foregroundStyle(.purple)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(studentName)
-                        .font(AppTheme.ScaledFont.bodySemibold)
+                        .font(AppTheme.ScaledFont.callout)
                         .foregroundStyle(.primary)
                     Text(lessonName)
                         .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(item.daysSinceTouch) days since update")
-                        .font(AppTheme.ScaledFont.captionSmall)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.tertiary)
                 }
                 Spacer()
+                Text("\(item.daysSinceTouch)d ago")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.subtleRow)
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityHint("Double tap to view work details and add follow-up")
     }
@@ -214,22 +228,20 @@ struct CompletionListRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(studentName)
-                    .font(AppTheme.ScaledFont.bodySemibold)
-                    .foregroundStyle(.primary)
+                    .font(AppTheme.ScaledFont.callout)
+                    .foregroundStyle(.tertiary)
                 Text(lessonName)
                     .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.quaternary)
             }
             Spacer()
             if hasNotes {
-                Image(systemName: "note.text")
-                    .foregroundStyle(.secondary)
+                Image(systemName: "text.alignleft")
+                    .font(.caption)
+                    .foregroundStyle(.quaternary)
                     .accessibilityHidden(true)
             }
         }
@@ -244,7 +256,7 @@ struct CalendarEventListRow: View {
 
     private var timeString: String {
         if event.isAllDay {
-            return "All Day"
+            return "All day"
         } else {
             let formatter = DateFormatter()
             formatter.timeStyle = .short
@@ -267,42 +279,26 @@ struct CalendarEventListRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "calendar")
-                .foregroundStyle(.blue)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(event.title)
-                    .font(AppTheme.ScaledFont.bodySemibold)
+                    .font(AppTheme.ScaledFont.callout)
                     .foregroundStyle(.primary)
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     Text(timeString)
-                        .font(AppTheme.ScaledFont.captionSmall)
-                        .foregroundStyle(.secondary)
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.tertiary)
                     if let location = event.location, !location.isEmpty {
-                        Text("•")
-                            .foregroundStyle(.secondary)
-                        Image(systemName: "mappin")
-                            .font(AppTheme.ScaledFont.captionSmall)
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
+                        Text("·")
+                            .foregroundStyle(.quaternary)
                         Text(location)
-                            .font(AppTheme.ScaledFont.captionSmall)
-                            .foregroundStyle(.secondary)
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }
                 }
             }
             Spacer()
-            if event.isAllDay {
-                Text("All Day")
-                    .font(AppTheme.ScaledFont.captionSmallSemibold)
-                    .foregroundStyle(.blue)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.blue.opacity(0.12)))
-                    .accessibilityHidden(true)
-            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabelText)

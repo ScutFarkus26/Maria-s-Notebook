@@ -11,61 +11,65 @@ extension TodayView {
     // MARK: - Header (macOS)
 
     var header: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                Text("Today")
-                    .font(.system(size: AppTheme.FontSize.titleMedium, weight: .bold, design: .rounded))
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                // Date navigation - simplified
+                HStack(spacing: 8) {
+                    Button {
+                        let prev = previousSchoolDaySync(before: viewModel.date)
+                        viewModel.date = AppCalendar.startOfDay(prev)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+
+                    DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
+                        let coerced = nearestSchoolDaySync(to: newValue)
+                        viewModel.date = AppCalendar.startOfDay(coerced)
+                    }), displayedComponents: .date)
+                    .datePickerStyle(.field)
+                    .labelsHidden()
+
+                    Button {
+                        let next = nextSchoolDaySync(after: viewModel.date)
+                        viewModel.date = AppCalendar.startOfDay(next)
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+
+                    if !Calendar.current.isDateInToday(viewModel.date) {
+                        Button {
+                            let today = Date()
+                            let coerced = nearestSchoolDaySync(to: today)
+                            viewModel.date = AppCalendar.startOfDay(coerced)
+                        } label: {
+                            Text("Today")
+                                .font(AppTheme.ScaledFont.caption)
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
                 Spacer()
+
+                // Level filter - more subtle
                 Picker("Level", selection: $viewModel.levelFilter) {
                     ForEach(TodayViewModel.LevelFilter.allCases, id: \.self) { f in
                         Text(f.rawValue).tag(f)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 240)
-            }
-            HStack(spacing: 12) {
-                Button {
-                    let prev = previousSchoolDaySync(before: viewModel.date)
-                    viewModel.date = AppCalendar.startOfDay(prev)
-                } label: { Image(systemName: "chevron.left") }
-                .buttonStyle(.plain)
-
-                DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
-                    let coerced = nearestSchoolDaySync(to: newValue)
-                    viewModel.date = AppCalendar.startOfDay(coerced)
-                }), displayedComponents: .date)
-#if os(macOS)
-                .datePickerStyle(.field)
-#else
-                .datePickerStyle(.compact)
-#endif
-
-                Button {
-                    let next = nextSchoolDaySync(after: viewModel.date)
-                    viewModel.date = AppCalendar.startOfDay(next)
-                } label: { Image(systemName: "chevron.right") }
-                .buttonStyle(.plain)
-
-                Button("Today") {
-                    let today = Date()
-                    let coerced = nearestSchoolDaySync(to: today)
-                    viewModel.date = AppCalendar.startOfDay(coerced)
-                }
-                .buttonStyle(.plain)
-            }
-            HStack(spacing: 8) {
-                Text(viewModel.date, format: Date.FormatStyle().weekday(.abbreviated).month(.abbreviated).day())
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                Text("Lessons: \(viewModel.todaysLessons.count)")
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                Spacer()
+                .frame(maxWidth: 200)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
     }
 
     // MARK: - Attendance Strip
