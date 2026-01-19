@@ -746,33 +746,26 @@ struct MariasToolboxApp: App {
                 }
             }
 
-            // 3. VIEW ACTIONS (View Menu)
-            // Quick Navigation Shortcuts for main tabs
-            CommandGroup(after: .sidebar) {
-                Divider()
-                
-                // Quick Navigation Shortcuts
+            // 3. GO MENU (Navigation)
+            // Dedicated menu for navigating between app sections
+            CommandMenu("Go") {
                 Button("Today") { appRouter.navigateTo(.today) }
                     .keyboardShortcut("1", modifiers: .command)
-                
+
                 Button("Presentations") { appRouter.navigateTo(.planningAgenda) }
                     .keyboardShortcut("2", modifiers: .command)
 
                 Button("Students") { appRouter.navigateTo(.students) }
                     .keyboardShortcut("3", modifiers: .command)
-                    
+
                 Button("Lessons") { appRouter.navigateTo(.lessons) }
                     .keyboardShortcut("4", modifiers: .command)
-                    
+
                 Button("Logs") { appRouter.navigateTo(.logs) }
                     .keyboardShortcut("5", modifiers: .command)
-                    
-                Divider()
-                
-                Button("Open Attendance") {
-                    appRouter.navigateTo(.attendance)
-                }
-                .keyboardShortcut("0", modifiers: [.command])
+
+                Button("Attendance") { appRouter.navigateTo(.attendance) }
+                    .keyboardShortcut("6", modifiers: .command)
             }
             
             // 4. STANDARD SETTINGS (App Menu)
