@@ -2,12 +2,8 @@ import SwiftUI
 
 struct LogsView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Logs")
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
-
+        VStack(spacing: 0) {
+            ViewHeader(title: "Logs")
             Divider()
 
             ContentUnavailableView(
@@ -17,7 +13,6 @@ struct LogsView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.horizontal, 16)
     }
 }
 

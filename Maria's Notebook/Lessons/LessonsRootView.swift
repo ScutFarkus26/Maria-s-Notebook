@@ -122,20 +122,35 @@ struct LessonsRootView: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 0) {
-            subjectsColumn
-                .frame(width: 280)
-
+        VStack(spacing: 0) {
+            ViewHeader(title: "Lessons") {
+                Picker("Mode", selection: Binding(
+                    get: { displayMode },
+                    set: { displayModeRaw = $0.rawValue }
+                )) {
+                    ForEach(LessonsDisplayMode.allCases) { mode in
+                        Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 180)
+            }
             Divider()
+            HStack(spacing: 0) {
+                subjectsColumn
+                    .frame(width: 280)
 
-            lessonsContentColumn
-                .frame(maxWidth: .infinity)
-
-            if let selectedLesson = selectedLessonDetail {
                 Divider()
-                lessonDetailPane(lesson: selectedLesson)
-                    .frame(width: 520)
-                    .transition(.move(edge: .trailing))
+
+                lessonsContentColumn
+                    .frame(maxWidth: .infinity)
+
+                if let selectedLesson = selectedLessonDetail {
+                    Divider()
+                    lessonDetailPane(lesson: selectedLesson)
+                        .frame(width: 520)
+                        .transition(.move(edge: .trailing))
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

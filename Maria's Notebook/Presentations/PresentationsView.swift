@@ -231,42 +231,46 @@ struct PresentationsView: View {
                 }
             } else {
                 // macOS / iPad Layout: Existing Split View
-                GeometryReader { proxy in
-                    let inboxHeight = proxy.size.height * (isCalendarMinimized ? 1.0 : 0.5)
-                    let calendarHeight = proxy.size.height * 0.5
-                    
-                    VStack(spacing: 0) {
-                        // Top: Inbox
-                        PresentationsInboxView(
-                            readyLessons: readyLessons,
-                            blockedLessons: blockedLessons,
-                            getBlockingContracts: getBlockingContracts,
-                            filteredSnapshot: filteredSnapshot,
-                            missWindow: missWindow,
-                            missWindowRaw: $missWindowRaw,
-                            selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
-                            isInboxTargeted: $isInboxTargeted,
-                            isCalendarMinimized: $isCalendarMinimized
-                        )
-                        .frame(height: inboxHeight)
+                VStack(spacing: 0) {
+                    ViewHeader(title: "Presentations")
+                    Divider()
+                    GeometryReader { proxy in
+                        let inboxHeight = proxy.size.height * (isCalendarMinimized ? 1.0 : 0.5)
+                        let calendarHeight = proxy.size.height * 0.5
 
-                        if !isCalendarMinimized {
-                            Divider()
-                            // Bottom: Calendar strip
-                            PresentationsCalendarStrip(
-                                days: days,
-                                startDate: $startDate,
-                                isNonSchool: isNonSchool,
-                                onClear: { sl in
-                                    sl.scheduledFor = nil
-                                    try? modelContext.save()
-                                },
-                                onSelect: { sl in
-                                    selectedStudentLessonForDetail = sl
-                                }
+                        VStack(spacing: 0) {
+                            // Top: Inbox
+                            PresentationsInboxView(
+                                readyLessons: readyLessons,
+                                blockedLessons: blockedLessons,
+                                getBlockingContracts: getBlockingContracts,
+                                filteredSnapshot: filteredSnapshot,
+                                missWindow: missWindow,
+                                missWindowRaw: $missWindowRaw,
+                                selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
+                                isInboxTargeted: $isInboxTargeted,
+                                isCalendarMinimized: $isCalendarMinimized
                             )
-                            .frame(height: calendarHeight)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            .frame(height: inboxHeight)
+
+                            if !isCalendarMinimized {
+                                Divider()
+                                // Bottom: Calendar strip
+                                PresentationsCalendarStrip(
+                                    days: days,
+                                    startDate: $startDate,
+                                    isNonSchool: isNonSchool,
+                                    onClear: { sl in
+                                        sl.scheduledFor = nil
+                                        try? modelContext.save()
+                                    },
+                                    onSelect: { sl in
+                                        selectedStudentLessonForDetail = sl
+                                    }
+                                )
+                                .frame(height: calendarHeight)
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            }
                         }
                     }
                 }

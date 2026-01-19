@@ -42,12 +42,7 @@ struct ClassSubjectChecklistView: View {
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Page Header / Controls
-            HStack {
-                Text("Checklist")
-                    .font(.system(.largeTitle, design: .rounded).weight(.heavy))
-                
-                Spacer()
-                
+            ViewHeader(title: "Checklist") {
                 Picker("Subject", selection: $viewModel.selectedSubject) {
                     ForEach(viewModel.availableSubjects, id: \.self) { sub in
                         Text(sub).tag(sub)
@@ -56,9 +51,7 @@ struct ClassSubjectChecklistView: View {
                 .pickerStyle(.menu)
                 .frame(width: 150)
             }
-            .padding()
-            .backgroundPlatform()
-            
+
             Divider()
 
             // MARK: - Batch Actions Toolbar

@@ -49,16 +49,27 @@ struct ProjectsRootView: View {
 
     // MARK: - Body
     var body: some View {
-        HStack(spacing: 0) {
-            // MARK: Sidebar
-            projectsSidebar
-                .frame(width: 280)
-
+        VStack(spacing: 0) {
+            ViewHeader(title: "Projects") {
+                Button {
+                    showNewSheet = true
+                } label: {
+                    Label("Add Project", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
+            }
             Divider()
+            HStack(spacing: 0) {
+                // MARK: Sidebar
+                projectsSidebar
+                    .frame(width: 280)
 
-            // MARK: Detail Area
-            projectDetailContent
-                .frame(maxWidth: .infinity)
+                Divider()
+
+                // MARK: Detail Area
+                projectDetailContent
+                    .frame(maxWidth: .infinity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showNewSheet) {

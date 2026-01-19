@@ -11,9 +11,9 @@ extension TodayView {
     // MARK: - Header (macOS)
 
     var header: some View {
-        VStack(spacing: 12) {
+        ViewHeader(title: "Today") {
             HStack(spacing: 16) {
-                // Date navigation - simplified
+                // Date navigation
                 HStack(spacing: 8) {
                     Button {
                         let prev = previousSchoolDaySync(before: viewModel.date)
@@ -56,9 +56,7 @@ extension TodayView {
                     }
                 }
 
-                Spacer()
-
-                // Level filter - more subtle
+                // Level filter
                 Picker("Level", selection: $viewModel.levelFilter) {
                     ForEach(TodayViewModel.LevelFilter.allCases, id: \.self) { f in
                         Text(f.rawValue).tag(f)
@@ -68,8 +66,6 @@ extension TodayView {
                 .frame(maxWidth: 200)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
     }
 
     // MARK: - Attendance Strip

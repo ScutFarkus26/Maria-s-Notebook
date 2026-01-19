@@ -49,16 +49,20 @@ struct LogsMenuRootView: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 0) {
-            // MARK: Sidebar
-            logsSidebar
-                .frame(width: 280)
-
+        VStack(spacing: 0) {
+            ViewHeader(title: "Logs")
             Divider()
+            HStack(spacing: 0) {
+                // MARK: Sidebar
+                logsSidebar
+                    .frame(width: 280)
 
-            // MARK: Content Area
-            logsContent
-                .frame(maxWidth: .infinity)
+                Divider()
+
+                // MARK: Content Area
+                logsContent
+                    .frame(maxWidth: .infinity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

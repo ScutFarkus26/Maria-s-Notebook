@@ -33,65 +33,68 @@ struct SettingsView: View {
         // FIX: Removed NavigationStack wrapper. This view is presented within an existing
         // NavigationStack (More Menu) or NavigationSplitView Detail (iPad), so it should
         // not create its own stack.
-        ScrollView {
-            VStack(spacing: 24) {
-                // MARK: - School Configuration Section
-                schoolConfigurationSection
-                
-                // MARK: - Students Section
-                studentsSection
-                
-                // MARK: - Attendance Section
-                attendanceSection
-                
-                // MARK: - Reminders Section
-                remindersSection
+        VStack(spacing: 0) {
+            ViewHeader(title: "Settings")
+            Divider()
+            ScrollView {
+                VStack(spacing: 24) {
+                    // MARK: - School Configuration Section
+                    schoolConfigurationSection
 
-                // MARK: - Calendar Section
-                calendarSection
+                    // MARK: - Students Section
+                    studentsSection
 
-                // MARK: - Notes Section
-                notesSection
+                    // MARK: - Attendance Section
+                    attendanceSection
 
-                // MARK: - Data Management Section
-                dataManagementSection
-                
-                // MARK: - Overview Section
-                SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
-                    // Row 1: Core (Existing)
-                    OverviewStatsGrid(
-                        studentsCount: statsViewModel.studentsCount,
-                        lessonsCount: statsViewModel.lessonsCount,
-                        plannedCount: statsViewModel.plannedCount,
-                        givenCount: statsViewModel.givenCount,
-                        columns: overviewColumns
-                    )
-                    
-                    Divider()
-                    
-                    // Row 2: Detail (New)
-                    LazyVGrid(columns: overviewColumns, spacing: 16) {
-                        StatCard(title: "Work Items", value: "\(statsViewModel.workModelsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
-                        StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "paintpalette.fill")
-                        StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
-                        StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
+                    // MARK: - Reminders Section
+                    remindersSection
+
+                    // MARK: - Calendar Section
+                    calendarSection
+
+                    // MARK: - Notes Section
+                    notesSection
+
+                    // MARK: - Data Management Section
+                    dataManagementSection
+
+                    // MARK: - Overview Section
+                    SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
+                        // Row 1: Core (Existing)
+                        OverviewStatsGrid(
+                            studentsCount: statsViewModel.studentsCount,
+                            lessonsCount: statsViewModel.lessonsCount,
+                            plannedCount: statsViewModel.plannedCount,
+                            givenCount: statsViewModel.givenCount,
+                            columns: overviewColumns
+                        )
+
+                        Divider()
+
+                        // Row 2: Detail (New)
+                        LazyVGrid(columns: overviewColumns, spacing: 16) {
+                            StatCard(title: "Work Items", value: "\(statsViewModel.workModelsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
+                            StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "paintpalette.fill")
+                            StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
+                            StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
+                        }
                     }
-                }
-                
-                // MARK: - iCloud Status Section
-                iCloudStatusSection
 
-                #if DEBUG
-                // MARK: - Debug Section
-                debugSection
-                #endif
+                    // MARK: - iCloud Status Section
+                    iCloudStatusSection
+
+                    #if DEBUG
+                    // MARK: - Debug Section
+                    debugSection
+                    #endif
+                }
+                .frame(maxWidth: 900)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: 900)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Settings")
         #if DEBUG
         .sheet(isPresented: $showTrackPopulator) {
             NavigationStack {

@@ -204,25 +204,31 @@ struct StudentsView<WorkloadContent: View>: View {
             } else if shouldUseGridView {
                 // Full-screen grid view for age/birthday modes or lastLesson sort order
                 NavigationStack {
-                    Group {
-                        #if os(iOS)
-                        if horizontalSizeClass == .compact {
-                            // iPhone: Show placeholder views
-                            placeholderContentForMode
-                        } else {
-                            // iPad: Show grid view
-                            rosterGridContent
-                        }
-                        #else
-                        // macOS: Show grid view
-                        rosterGridContent
+                    VStack(spacing: 0) {
+                        #if os(macOS)
+                        ViewHeader(title: "Students")
+                        Divider()
                         #endif
+                        Group {
+                            #if os(iOS)
+                            if horizontalSizeClass == .compact {
+                                // iPhone: Show placeholder views
+                                placeholderContentForMode
+                            } else {
+                                // iPad: Show grid view
+                                rosterGridContent
+                            }
+                            #else
+                            // macOS: Show grid view
+                            rosterGridContent
+                            #endif
+                        }
                     }
-                    .navigationTitle("Students")
                     .toolbar {
                         toolbarContent
                     }
 #if os(iOS)
+                    .navigationTitle("Students")
                     .navigationBarTitleDisplayMode(.inline)
 #endif
                 }
@@ -260,14 +266,17 @@ struct StudentsView<WorkloadContent: View>: View {
                 #else
                 // macOS: Use two-pane layout (student list + detail)
                 NavigationStack {
-                    HStack(spacing: 0) {
-                        threePaneSidebar
-                            .frame(width: 360)
+                    VStack(spacing: 0) {
+                        ViewHeader(title: "Students")
                         Divider()
-                        threePaneContent
-                            .frame(maxWidth: .infinity)
+                        HStack(spacing: 0) {
+                            threePaneSidebar
+                                .frame(width: 360)
+                            Divider()
+                            threePaneContent
+                                .frame(maxWidth: .infinity)
+                        }
                     }
-                    .navigationTitle("Students")
                     .toolbar {
                         toolbarContent
                     }

@@ -181,32 +181,30 @@ struct WorksAgendaView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                Text("Open Work").font(.title3.weight(.semibold))
-                Spacer()
-                #if os(iOS)
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isCalendarMinimized.toggle()
+        VStack(spacing: 0) {
+            ViewHeader(title: "Open Work") {
+                HStack(spacing: 12) {
+                    #if os(iOS)
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isCalendarMinimized.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(8)
+                            .background(Color.primary.opacity(0.1))
+                            .clipShape(Circle())
                     }
-                } label: {
-                    Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(8)
-                        .background(Color.primary.opacity(0.1))
-                        .clipShape(Circle())
+                    #endif
+                    Picker("Sort", selection: $sortMode) {
+                        ForEach(WorkAgendaSortMode.allCases) { m in Text(m.rawValue).tag(m) }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 420)
                 }
-                #endif
-                Picker("Sort", selection: $sortMode) {
-                    ForEach(WorkAgendaSortMode.allCases) { m in Text(m.rawValue).tag(m) }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 420)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField("Search students or lessons", text: $searchText)
@@ -221,6 +219,7 @@ struct WorksAgendaView: View {
             .background(Color.primary.opacity(0.04))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
+            .padding(.bottom, 8)
             .onChange(of: searchText) { _, newValue in
                 searchDebounceTask?.cancel()
                 searchDebounceTask = Task { @MainActor in
