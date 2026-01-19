@@ -34,7 +34,7 @@ enum TodayScheduleBuilder {
         planItemsByWork: [UUID: [WorkPlanItem]],
         notesByWork: [UUID: [Note]],
         studentsByID: [UUID: Student],
-        levelFilter: TodayViewModel.LevelFilter,
+        levelFilter: LevelFilter,
         referenceDate: Date,
         modelContext: ModelContext
     ) -> ScheduleResult {
