@@ -126,7 +126,7 @@ struct ProjectsRootView: View {
             }
         }
         .listStyle(.sidebar)
-        .searchable(text: $searchText, placement: .sidebar)
+        .searchable(text: $searchText)
         .navigationTitle("Projects")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
