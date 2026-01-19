@@ -587,6 +587,9 @@ struct MariasToolboxApp: App {
                     appDelegate.setModelContainer(sharedModelContainer)
                     #endif
                     await bootstrapper.bootstrap(modelContainer: sharedModelContainer)
+
+                    // Configure CloudKit sync status monitoring
+                    CloudKitSyncStatusService.shared.configure(with: sharedModelContainer)
                 }
             }
             #if os(macOS)

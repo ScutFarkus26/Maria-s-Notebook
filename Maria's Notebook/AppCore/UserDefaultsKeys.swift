@@ -11,7 +11,9 @@ enum UserDefaultsKeys {
     static let enableCloudKitSync = "EnableCloudKitSync"
     static let cloudKitActive = "CloudKitActive"
     static let cloudKitLastErrorDescription = "CloudKitLastErrorDescription"
-    
+    static let cloudKitLastSuccessfulSyncDate = "CloudKitSync.lastSuccessfulSyncDate"
+    static let cloudKitLastSyncError = "CloudKitSync.lastSyncError"
+
     // MARK: - Planning
     static let planningRootViewMode = "PlanningRootView.mode"
     static let planningInboxOrder = "PlanningInbox.order"
