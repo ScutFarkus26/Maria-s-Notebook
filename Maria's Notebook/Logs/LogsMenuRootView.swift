@@ -2,7 +2,6 @@ import SwiftUI
 
 struct LogsMenuRootView: View {
     enum Mode: String, CaseIterable, Identifiable {
-        case lessons = "Lessons Log"
         case presentations = "Presentation History"
         case works = "Works Log"
         case observations = "Observations"
@@ -11,7 +10,6 @@ struct LogsMenuRootView: View {
 
         var icon: String {
             switch self {
-            case .lessons: return "book.fill"
             case .presentations: return "calendar.badge.clock"
             case .works: return "hammer.fill"
             case .observations: return "eye.fill"
@@ -20,7 +18,6 @@ struct LogsMenuRootView: View {
 
         var color: Color {
             switch self {
-            case .lessons: return .blue
             case .presentations: return .purple
             case .works: return .orange
             case .observations: return .teal
@@ -28,10 +25,10 @@ struct LogsMenuRootView: View {
         }
     }
 
-    @AppStorage("LogsMenuRootView.mode") private var modeRaw: String = Mode.lessons.rawValue
+    @AppStorage("LogsMenuRootView.mode") private var modeRaw: String = Mode.presentations.rawValue
 
     private var mode: Mode {
-        get { Mode(rawValue: modeRaw) ?? .lessons }
+        get { Mode(rawValue: modeRaw) ?? .presentations }
         nonmutating set { modeRaw = newValue.rawValue }
     }
 
@@ -85,8 +82,6 @@ struct LogsMenuRootView: View {
     @ViewBuilder
     private var logsContent: some View {
         switch mode {
-        case .lessons:
-            StudentLessonsRootView()
         case .presentations:
             PresentationHistoryView()
         case .works:
