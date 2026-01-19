@@ -196,7 +196,7 @@ private struct WorkloadContentView: View {
                 result[sid, default: (0,0,0)].practice += 1
             case .followUpAssignment:
                 result[sid, default: (0,0,0)].follow += 1
-            case .research:
+            case .research, .report:
                 result[sid, default: (0,0,0)].research += 1
             case nil:
                 result[sid, default: (0,0,0)].follow += 1

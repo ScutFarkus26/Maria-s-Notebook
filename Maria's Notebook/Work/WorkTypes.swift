@@ -10,6 +10,7 @@ public enum WorkKind: String, Codable, CaseIterable, Hashable, Identifiable {
     case practiceLesson
     case followUpAssignment
     case research
+    case report
 
     public var id: String { rawValue }
 
@@ -18,6 +19,7 @@ public enum WorkKind: String, Codable, CaseIterable, Hashable, Identifiable {
         case .practiceLesson: return "Practice"
         case .followUpAssignment: return "Follow-Up"
         case .research: return "Project"
+        case .report: return "Report"
         }
     }
 }

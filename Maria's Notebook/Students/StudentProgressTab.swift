@@ -49,6 +49,7 @@ struct StudentProgressTab: View {
     // MARK: - State
     @State private var selectedEnrollment: StudentTrackEnrollment?
     @State private var selectedProject: Project?
+    @State private var selectedReport: WorkModel?
     @State private var filterSheet: FilterSheet? = nil
     
     // MARK: - Filter Sheet State
@@ -91,6 +92,13 @@ struct StudentProgressTab: View {
     private var tracksByID: [String: Track] {
         Dictionary(uniqueKeysWithValues: allTracks.map { ($0.id.uuidString, $0) })
     }
+
+    private var activeReports: [WorkModel] {
+        let sid = student.id.uuidString
+        return allWorkModels.filter {
+            $0.studentID == sid && $0.kind == .report && $0.status != .complete
+        }
+    }
     
     // MARK: - Body
     
@@ -116,9 +124,29 @@ struct StudentProgressTab: View {
                     .padding(.horizontal, 4)
                 }
                 
-                // 2. Tracks Section with detailed cards
+                // 2. Reports Section
+                if !activeReports.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Active Reports", systemImage: "doc.text.fill")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+
+                        ForEach(activeReports) { report in
+                            reportCard(report: report)
+                                .padding(.horizontal, 4)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedReport = report
+                                }
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                }
+
+                // 3. Tracks Section with detailed cards
                 if activeEnrollments.isEmpty {
-                    if activeProjects.isEmpty {
+                    if activeProjects.isEmpty && activeReports.isEmpty {
                         emptyStateView
                             .padding(.top, 60)
                     }
@@ -146,6 +174,12 @@ struct StudentProgressTab: View {
         .sheet(item: $selectedProject) { project in
             ProjectDetailView(club: project)
                 .studentDetailSheetSizing()
+        }
+        .sheet(item: $selectedReport) { report in
+            WorkDetailContainerView(workID: report.id) {
+                selectedReport = nil
+            }
+            .studentDetailSheetSizing()
         }
         .sheet(item: $filterSheet) { sheet in
             switch sheet {
@@ -742,11 +776,11 @@ struct StudentProgressTab: View {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(color)
-            
+
             Text("\(count)")
                 .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
-            
+
             Text(label)
                 .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
                 .foregroundStyle(.secondary)
@@ -760,6 +794,278 @@ struct StudentProgressTab: View {
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(color.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Report Card
+    @ViewBuilder
+    private func reportCard(report: WorkModel) -> some View {
+        let reportColor = Color.green
+        let progress = report.stepProgress
+        let totalSteps = progress.total
+        let completedSteps = progress.completed
+        let progressPercent = totalSteps > 0 ? Double(completedSteps) / Double(totalSteps) : 0.0
+        let isComplete = completedSteps == totalSteps && totalSteps > 0
+
+        // Get report title - use work title or lesson name
+        let reportTitle: String = {
+            let title = report.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !title.isEmpty { return title }
+            if let lessonID = UUID(uuidString: report.lessonID),
+               let lesson = allLessons.first(where: { $0.id == lessonID }) {
+                return lesson.name
+            }
+            return "Untitled Report"
+        }()
+
+        // Find the current/next step
+        let orderedSteps = report.orderedSteps
+        let currentStep = orderedSteps.first { $0.completedAt == nil }
+
+        VStack(alignment: .leading, spacing: 16) {
+            // Header with report icon and title
+            HStack(spacing: 12) {
+                // Report icon/indicator
+                ZStack {
+                    Circle()
+                        .fill(reportColor.opacity(0.15))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: "doc.text.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(reportColor)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(reportTitle)
+                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Text("Assigned \(report.assignedAt, style: .relative)")
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                // Status badge
+                if isComplete {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.green, Color.green.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                } else {
+                    ZStack {
+                        Circle()
+                            .fill(Color.secondary.opacity(0.15))
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "circle")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // Progress visualization
+            if totalSteps > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Progress stats
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Text("\(completedSteps)")
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .foregroundStyle(reportColor)
+
+                        Text("/ \(totalSteps) steps")
+                            .font(.system(size: 20, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Text("\(Int(progressPercent * 100))%")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(progressPercent >= 1.0 ? .green : .primary)
+                    }
+
+                    // Progress bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // Background
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.secondary.opacity(0.15))
+                                .frame(height: 12)
+
+                            // Progress fill
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: isComplete
+                                            ? [Color.green, Color.green.opacity(0.8)]
+                                            : [reportColor, reportColor.opacity(0.7)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(
+                                    width: {
+                                        let w = geometry.size.width
+                                        let val = w * progressPercent
+                                        return (w.isFinite && val.isFinite && val > 0) ? min(w, val) : 0
+                                    }(),
+                                    height: 12
+                                )
+                        }
+                    }
+                    .frame(height: 12)
+
+                    // Step dots visualization (if 15 or fewer steps)
+                    if totalSteps > 0 && totalSteps <= 15 {
+                        HStack(spacing: 6) {
+                            ForEach(0..<totalSteps, id: \.self) { index in
+                                let step = orderedSteps[safe: index]
+                                let isStepCompleted = step?.completedAt != nil
+
+                                Circle()
+                                    .fill(isStepCompleted ? reportColor : Color.secondary.opacity(0.2))
+                                    .frame(width: 10, height: 10)
+                                    .overlay {
+                                        if isStepCompleted {
+                                            Circle()
+                                                .stroke(reportColor.opacity(0.3), lineWidth: 2)
+                                                .scaleEffect(1.3)
+                                        }
+                                    }
+                            }
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+
+            // Current/Next step
+            if let currentStep = currentStep, totalSteps > 0 {
+                Divider()
+                    .padding(.vertical, 4)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(reportColor.opacity(0.7))
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Next Step")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        Text(currentStep.title.isEmpty ? "Step \(currentStep.orderIndex + 1)" : currentStep.title)
+                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+
+                        if !currentStep.instructions.isEmpty {
+                            Text(currentStep.instructions)
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(reportColor.opacity(0.08))
+                )
+            } else if isComplete && totalSteps > 0 {
+                Divider()
+                    .padding(.vertical, 4)
+
+                HStack(spacing: 10) {
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.orange, Color.yellow],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    Text("All steps complete!")
+                        .font(.system(size: AppTheme.FontSize.callout, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.green, Color.green.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+
+                    Spacer()
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.green.opacity(0.1))
+                )
+            } else if totalSteps == 0 {
+                // No steps defined yet
+                HStack(spacing: 10) {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary.opacity(0.7))
+
+                    Text("No steps added yet")
+                        .font(.system(size: AppTheme.FontSize.callout, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.secondary.opacity(0.08))
+                )
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(cardBackgroundColor)
+                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            reportColor.opacity(0.3),
+                            reportColor.opacity(0.15)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 2
+                )
         )
     }
 }

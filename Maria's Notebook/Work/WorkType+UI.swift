@@ -7,6 +7,7 @@ extension WorkModel.WorkType {
         case .research: return .teal
         case .followUp: return .orange
         case .practice: return .purple
+        case .report: return .green
         }
     }
 }

@@ -31,6 +31,8 @@ struct WorkModelDetailSheet: View {
     @State private var showScheduleSheet: Bool = false
     @State private var showPlannedBanner: Bool = false
     @State private var showDeleteAlert: Bool = false
+    @State private var showAddStepSheet: Bool = false
+    @State private var stepBeingEdited: WorkStep? = nil
 
     @State private var status: WorkStatus
     @State private var workKind: WorkKind
@@ -83,6 +85,7 @@ struct WorkModelDetailSheet: View {
                             headerSection()
                             Divider()
                             if status == .complete { completionSection(); Divider() }
+                            if workKind == .report { stepsSection(); Divider() }
                             calendarSection()
                             Divider()
                             notesSection()
@@ -131,6 +134,16 @@ struct WorkModelDetailSheet: View {
                 }
                 .alert("Delete?", isPresented: $showDeleteAlert) {
                     Button("Delete", role: .destructive) { deleteWork() }
+                }
+                .sheet(isPresented: $showAddStepSheet) {
+                    WorkStepEditorSheet(work: work, existingStep: nil) {
+                        // Step was added - force refresh
+                    }
+                }
+                .sheet(item: $stepBeingEdited) { step in
+                    WorkStepEditorSheet(work: work, existingStep: step) {
+                        stepBeingEdited = nil
+                    }
                 }
             } else {
                 ContentUnavailableView("Work not found", systemImage: "doc.questionmark")
@@ -194,6 +207,7 @@ struct WorkModelDetailSheet: View {
                     Text("Practice").tag(WorkKind.practiceLesson)
                     Text("Follow-Up").tag(WorkKind.followUpAssignment)
                     Text("Project").tag(WorkKind.research)
+                    Text("Report").tag(WorkKind.report)
                 }
                 .labelsHidden()
                 .controlSize(.small)
@@ -229,6 +243,47 @@ struct WorkModelDetailSheet: View {
                 ForEach(CompletionOutcome.allCases, id: \.self) { Text(labelForOutcome($0)).tag($0 as CompletionOutcome?) }
             }
             TextField("Notes", text: $completionNote).textFieldStyle(.roundedBorder)
+        }
+    }
+
+    @ViewBuilder private func stepsSection() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Steps").font(.headline)
+                Spacer()
+                Button {
+                    showAddStepSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+
+            if let work = work {
+                let orderedSteps = work.orderedSteps
+                if orderedSteps.isEmpty {
+                    Text("No steps yet. Add steps to this report.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .italic()
+                } else {
+                    ForEach(orderedSteps) { step in
+                        WorkStepRow(step: step) {
+                            stepBeingEdited = step
+                        }
+                    }
+                }
+
+                // Progress indicator
+                let progress = work.stepProgress
+                if progress.total > 0 {
+                    HStack {
+                        Spacer()
+                        Text("\(progress.completed)/\(progress.total) steps complete")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
     }
 

@@ -31,6 +31,7 @@ struct WorksLogView: View {
         case .research: return ("magnifyingglass", .teal)
         case .followUp: return ("bolt.fill", .orange)
         case .practice: return ("arrow.triangle.2.circlepath", .purple)
+        case .report: return ("doc.text", .green)
         }
     }
 

@@ -13,6 +13,7 @@ struct StudentWorkPill: View {
         switch item.work.kind {
         case .practiceLesson: return .purple
         case .followUpAssignment: return .orange
+        case .report: return .green
         default: return .teal
         }
     }

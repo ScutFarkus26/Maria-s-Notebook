@@ -151,7 +151,7 @@ final class StudentDetailViewModel: ObservableObject {
                 switch k {
                 case .practiceLesson: practice.insert(lid)
                 case .followUpAssignment: follow.insert(lid)
-                case .research: break
+                case .research, .report: break
                 }
             }
             // Loose pending: no dueAt means pending

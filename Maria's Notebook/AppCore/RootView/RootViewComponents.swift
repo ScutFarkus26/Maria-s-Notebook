@@ -942,6 +942,7 @@ struct QuickNewWorkItemSheet: View {
             case .practice: return .practiceLesson
             case .followUp: return .followUpAssignment
             case .research: return .research
+            case .report: return .report
             }
         }()
 

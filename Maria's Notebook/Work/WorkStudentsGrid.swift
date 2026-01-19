@@ -85,6 +85,7 @@ private struct StudentWorkCard: View {
         case .practiceLesson: return .purple
         case .followUpAssignment: return .orange
         case .research: return .teal // UI Label: Project
+        case .report: return .green
         case nil: return .secondary
         }
     }

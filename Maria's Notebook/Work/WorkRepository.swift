@@ -49,6 +49,7 @@ struct WorkRepository {
                 case .practiceLesson: return .practice
                 case .followUpAssignment: return .followUp
                 case .research: return .research
+                case .report: return .report
                 }
             }
             // Default based on presentationID presence

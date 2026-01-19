@@ -7,6 +7,7 @@ import SwiftUI
         case research = "Research"
         case followUp = "Follow Up"
         case practice = "Practice"
+        case report = "Report"
     }
 
     var id: UUID = UUID()
@@ -19,6 +20,7 @@ import SwiftUI
     var completedAt: Date? = nil
     @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn]? = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkStep.work) var steps: [WorkStep]? = []
     // CloudKit compatibility: Relationship arrays must be optional
     @Relationship(deleteRule: .cascade, inverse: \Note.work) var unifiedNotes: [Note]? = []
     
@@ -198,5 +200,31 @@ import SwiftUI
         } else {
             participants = (participants ?? []) + [WorkParticipantEntity(studentID: studentID, completedAt: normalized, work: self)]
         }
+    }
+
+    // MARK: - Step Helpers
+
+    /// Returns steps sorted by orderIndex
+    var orderedSteps: [WorkStep] {
+        (steps ?? []).sorted { $0.orderIndex < $1.orderIndex }
+    }
+
+    /// Returns true if all steps are completed (or if there are no steps)
+    var allStepsCompleted: Bool {
+        let s = steps ?? []
+        guard !s.isEmpty else { return true }
+        return s.allSatisfy { $0.completedAt != nil }
+    }
+
+    /// Returns step completion progress as (completed, total)
+    var stepProgress: (completed: Int, total: Int) {
+        let s = steps ?? []
+        let completed = s.filter { $0.completedAt != nil }.count
+        return (completed, s.count)
+    }
+
+    /// Returns true if this is a report-type work
+    var isReport: Bool {
+        kind == .report
     }
 }
