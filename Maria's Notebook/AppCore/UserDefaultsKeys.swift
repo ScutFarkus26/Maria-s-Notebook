@@ -20,6 +20,27 @@ enum UserDefaultsKeys {
     static let backupEncrypt = "Backup.encrypt"
     static let backupAllowChecksumBypass = "Backup.allowChecksumBypass"
     static let lastBackupTimeInterval = "lastBackupTimeInterval"
+
+    // MARK: - Auto Backup
+    static let autoBackupEnabled = "AutoBackup.enabled"
+    static let autoBackupRetentionCount = "AutoBackup.retentionCount"
+    static let autoBackupScheduledEnabled = "AutoBackup.scheduledEnabled"
+    static let autoBackupIntervalHours = "AutoBackup.intervalHours"
+    static let autoBackupLastScheduledDate = "AutoBackup.lastScheduledDate"
+
+    // MARK: - Incremental Backup
+    static let incrementalBackupLastDate = "IncrementalBackup.lastDate"
+    static let incrementalBackupLastID = "IncrementalBackup.lastID"
+
+    // MARK: - Backup Integrity
+    static let backupIntegrityAutoVerifyEnabled = "BackupIntegrity.autoVerifyEnabled"
+    static let backupIntegrityWarningDaysThreshold = "BackupIntegrity.warningDaysThreshold"
+
+    // MARK: - Backup Notifications
+    static let backupNotificationsEnabled = "BackupNotifications.enabled"
+    static let backupNotificationsShowSuccess = "BackupNotifications.showSuccess"
+    static let backupNotificationsShowFailure = "BackupNotifications.showFailure"
+    static let backupNotificationsShowHealthWarnings = "BackupNotifications.showHealthWarnings"
     
     // MARK: - Attendance
     static let attendanceEmailEnabled = "AttendanceEmail.enabled"

@@ -30,13 +30,14 @@
 			);
 			target = 5141E7F42ED77B0F004F918F /* Maria's Notebook */;
 		};
-		51F924422F1C440200E480A1 /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook Tests" target */ = {
+		51D2D3EC2F1DE9B600F5C9BF /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook Tests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Tests/AgeUtilsTests.swift,
 				Tests/AttendanceModelsTests.swift,
 				Tests/AttendanceStoreTests.swift,
 				Tests/AttendanceViewModelTests.swift,
+				Tests/BackupServicesTests.swift,
 				Tests/CompileAudit.swift,
 				Tests/CSVUtilsTests.swift,
 				Tests/DataConsistencyTests.swift,
@@ -87,7 +88,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				5141E8022ED77B10004F918F /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook" target */,
-				51F924422F1C440200E480A1 /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook Tests" target */,
+				51D2D3EC2F1DE9B600F5C9BF /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook Tests" target */,
 			);
 			path = "Maria's Notebook";
 			sourceTree = "<group>";
