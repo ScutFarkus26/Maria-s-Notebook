@@ -1,25 +1,21 @@
 import SwiftUI
 import SwiftData
 
-struct StudentWorkPill: View {
+/// Pill mode content for WorkCard
+/// Displays: color bar, lesson title, student chips with absence indicators, check-in note
+/// Used in Today view for scheduled work items
+struct WorkCardPillContent: View {
+    let config: WorkCard.PillModeConfig
+
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
 
-    let item: ScheduledItem
-    let nameForStudentID: (UUID) -> String
-    let absentTodayIDs: Set<UUID>
-
-    private var workTypeColor: Color {
-        switch item.work.kind {
-        case .practiceLesson: return .purple
-        case .followUpAssignment: return .orange
-        case .report: return .green
-        default: return .teal
-        }
+    private var workKind: WorkCardWorkKind {
+        WorkCardWorkKind(from: config.item.work.kind)
     }
 
     private var lessonTitle: String {
-        if let lid = UUID(uuidString: item.work.lessonID) {
+        if let lid = UUID(uuidString: config.item.work.lessonID) {
             let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lid })
             if let lesson = try? modelContext.fetch(fetch).first {
                 let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -30,40 +26,24 @@ struct StudentWorkPill: View {
     }
 
     private var studentChips: [(UUID, String, Bool)] {
-        let isToday = calendar.isDate(item.checkIn.scheduledDate, inSameDayAs: Date())
-        guard let sid = UUID(uuidString: item.work.studentID) else { return [] }
-        let name = nameForStudentID(sid).trimmingCharacters(in: .whitespacesAndNewlines)
-        let absent = isToday && absentTodayIDs.contains(sid)
+        let isToday = calendar.isDate(config.item.checkIn.scheduledDate, inSameDayAs: Date())
+        guard let sid = UUID(uuidString: config.item.work.studentID) else { return [] }
+        let name = config.nameForStudentID(sid).trimmingCharacters(in: .whitespacesAndNewlines)
+        let absent = isToday && config.absentTodayIDs.contains(sid)
         return name.isEmpty ? [] : [(sid, name, absent)]
-    }
-
-    struct ChipView: View {
-        let label: String
-        let isAbsent: Bool
-        let tint: Color
-
-        var body: some View {
-            Text(label)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                .foregroundStyle(isAbsent ? .secondary : .primary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(tint.opacity(isAbsent ? 0.06 : 0.15)))
-                .overlay(Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1))
-        }
     }
 
     var body: some View {
         HStack(spacing: 0) {
             Rectangle()
-                .fill(workTypeColor)
+                .fill(workKind.color)
                 .frame(width: UIConstants.ageIndicatorWidth)
                 .opacity(1.0)
                 .accessibilityHidden(true)
 
             HStack(alignment: .top, spacing: 8) {
                 Circle()
-                    .fill(workTypeColor)
+                    .fill(workKind.color)
                     .frame(width: 6, height: 6)
                     .padding(.top, 6)
 
@@ -78,13 +58,13 @@ struct StudentWorkPill: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 ForEach(studentChips, id: \.0) { chip in
-                                    ChipView(label: chip.1, isAbsent: chip.2, tint: workTypeColor)
+                                    StudentChipView(label: chip.1, isAbsent: chip.2, tint: workKind.color)
                                 }
                             }
                         }
                     }
 
-                    let purpose = (item.checkIn.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let purpose = (config.item.checkIn.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                     if !purpose.isEmpty {
                         Text(purpose)
                             .font(.caption2)
@@ -102,6 +82,23 @@ struct StudentWorkPill: View {
     }
 }
 
+/// Student chip for pill mode
+private struct StudentChipView: View {
+    let label: String
+    let isAbsent: Bool
+    let tint: Color
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            .foregroundStyle(isAbsent ? .secondary : .primary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(tint.opacity(isAbsent ? 0.06 : 0.15)))
+            .overlay(Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1))
+    }
+}
+
 #Preview {
-    Text("Preview not available without project models")
+    Text("Preview requires ScheduledItem model")
 }

@@ -163,7 +163,7 @@ struct StudentMeetingsTab: View {
             get: { selectedWorkID.map { WorkIDWrapper(id: $0) } },
             set: { selectedWorkID = $0?.id }
         )) { wrapper in
-            WorkDetailContainerView(workID: wrapper.id) {
+            WorkDetailView(workID: wrapper.id) {
                 selectedWorkID = nil
             }
         }

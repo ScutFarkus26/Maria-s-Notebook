@@ -1,29 +1,29 @@
 import SwiftUI
 import SwiftData
 import Foundation
-#if DEBUG
-#endif
 
-struct WorkModelDetailSheet: View {
+/// Unified detail view for viewing and editing work items
+/// Replaces: WorkModelDetailSheet, WorkDetailWindowContainer, WorkDetailContainerView
+struct WorkDetailView: View {
     let workID: UUID
     var onDone: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
-    
+
     @State private var work: WorkModel? = nil
-    
+
     // OPTIMIZATION: Load only related lessons and students instead of all
     @State private var relatedLesson: Lesson? = nil
     @State private var relatedLessons: [Lesson] = [] // For NextLessonResolver - same subject/group
     @State private var relatedStudent: Student? = nil
-    
+
     @State private var workModelNotes: [Note] = [] // Unified notes - loaded via relationship
     @Query private var presentations: [Presentation]
     @Query private var planItems: [WorkPlanItem]
     @Query private var peerWorks: [WorkModel]
-    
+
     @State private var resolvedPresentationID: UUID? = nil
     @State private var showPresentationNotes: Bool = true
     @State private var showAddNoteSheet: Bool = false
@@ -39,7 +39,7 @@ struct WorkModelDetailSheet: View {
     @State private var workTitle: String = ""
     @State private var completionOutcome: CompletionOutcome? = nil
     @State private var completionNote: String = ""
-    
+
     @State private var newPlanDate: Date = Date()
     @State private var newPlanReason: WorkPlanItem.Reason = .progressCheck
     @State private var newPlanNote: String = ""
@@ -52,7 +52,7 @@ struct WorkModelDetailSheet: View {
         let items = planItems.filter { $0.workID == workIDString }
         return WorkScheduleDateLogic.compute(forPlanItems: items)
     }
-    
+
     private var likelyNextLesson: Lesson? {
         guard let work = work,
               let currentLessonID = UUID(uuidString: work.lessonID),
@@ -69,13 +69,13 @@ struct WorkModelDetailSheet: View {
         _completionOutcome = State(initialValue: nil)
         _completionNote = State(initialValue: "")
         _workKind = State(initialValue: .practiceLesson)
-        
+
         let workIDString = workID.uuidString
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workIDString })
         // Query for peer works - will filter by lessonID after work is loaded
         _peerWorks = Query()
     }
-    
+
     var body: some View {
         Group {
             if let work = work {
@@ -89,7 +89,7 @@ struct WorkModelDetailSheet: View {
                             calendarSection()
                             Divider()
                             notesSection()
-                            
+
                             Button(role: .destructive) { showDeleteAlert = true } label: {
                                 Label("Delete Work", systemImage: "trash")
                             }.frame(maxWidth: .infinity).padding(.top, 20)
@@ -159,7 +159,7 @@ struct WorkModelDetailSheet: View {
                 loadWorkNotes()
                 #if DEBUG
                 PerformanceLogger.logScreenLoad(
-                    screenName: "WorkModelDetailSheet",
+                    screenName: "WorkDetailView",
                     itemCounts: [
                         "lessons": relatedLessons.count,
                         "students": relatedStudent != nil ? 1 : 0,
@@ -175,11 +175,11 @@ struct WorkModelDetailSheet: View {
             }
         }
     }
-    
+
     private func loadWork() {
         let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
         work = try? modelContext.fetch(descriptor).first
-        
+
         if let work = work {
             status = work.status
             workTitle = work.title
@@ -199,7 +199,7 @@ struct WorkModelDetailSheet: View {
                 .padding(8)
                 .background(Color.primary.opacity(0.05))
                 .cornerRadius(8)
-            
+
             HStack {
                 Label(lessonTitle(), systemImage: "book.closed").font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
@@ -217,7 +217,7 @@ struct WorkModelDetailSheet: View {
                 HStack(spacing: 0) {
                     statusBtn(.active, "Active"); statusBtn(.review, "Review"); statusBtn(.complete, "Complete")
                 }.background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
-                
+
                 if status != .complete, likelyNextLesson != nil {
                     Button { showScheduleSheet = true } label: {
                         Image(systemName: "lock.open.fill").padding(8).background(Color.accentColor.opacity(0.1)).cornerRadius(8)
@@ -300,12 +300,12 @@ struct WorkModelDetailSheet: View {
     @ViewBuilder private func notesSection() -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Text("Notes").font(.headline); Spacer(); Button("+") { showAddNoteSheet = true } }
-            
+
             // Show unified notes
             ForEach(workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
                 noteRow(note)
             }
-            
+
             if workModelNotes.isEmpty {
                 Text("No notes yet.")
                     .font(.subheadline)
@@ -314,7 +314,7 @@ struct WorkModelDetailSheet: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func noteRow(_ note: Note) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -349,7 +349,7 @@ struct WorkModelDetailSheet: View {
             }
         }
     }
-    
+
 
     private func save() {
         guard let work = work else { return }
@@ -363,7 +363,7 @@ struct WorkModelDetailSheet: View {
     }
 
     private func close() { onDone?() ?? dismiss() }
-    
+
     private func deleteWork() {
         guard let work = work else { return }
         modelContext.delete(work)
@@ -381,20 +381,20 @@ struct WorkModelDetailSheet: View {
     /// OPTIMIZATION: Load only related lessons and students on demand
     private func loadRelatedData() {
         guard let work = work else { return }
-        
+
         // Load the specific lesson
         if let lessonID = UUID(uuidString: work.lessonID) {
             let lessonDescriptor = FetchDescriptor<Lesson>(
                 predicate: #Predicate<Lesson> { $0.id == lessonID }
             )
             relatedLesson = modelContext.safeFetchFirst(lessonDescriptor)
-            
+
             // If we found the lesson, load lessons in the same subject/group for NextLessonResolver
             if let lesson = relatedLesson {
                 let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
                 let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !subject.isEmpty, !group.isEmpty else { return }
-                
+
                 // Load all lessons and filter in memory (predicates don't support trimmingCharacters or caseInsensitiveCompare)
                 let allLessonsDescriptor = FetchDescriptor<Lesson>(
                     sortBy: [SortDescriptor(\.orderInGroup)]
@@ -408,7 +408,7 @@ struct WorkModelDetailSheet: View {
                 }
             }
         }
-        
+
         // Load the specific student
         if let studentID = UUID(uuidString: work.studentID) {
             let studentDescriptor = FetchDescriptor<Student>(
@@ -417,7 +417,7 @@ struct WorkModelDetailSheet: View {
             relatedStudent = modelContext.safeFetchFirst(studentDescriptor)
         }
     }
-    
+
     private func studentName() -> String {
         return relatedStudent?.firstName ?? "Student"
     }
@@ -432,7 +432,7 @@ struct WorkModelDetailSheet: View {
     }
 
     private func reloadPresentationNotes() { /* Logic for ScopedNotes */ }
-    
+
     /// Load work notes via relationships
     private func loadWorkNotes() {
         guard let work = work else { return }
@@ -449,7 +449,34 @@ struct WorkModelDetailSheet: View {
     }
 }
 
+// MARK: - Sheet Presentation Extension
+
+extension View {
+    /// Present work detail as a sheet with platform-adaptive sizing
+    func workDetailSheet(workID: Binding<UUID?>, onDone: (() -> Void)? = nil) -> some View {
+        self.sheet(isPresented: Binding(
+            get: { workID.wrappedValue != nil },
+            set: { if !$0 { workID.wrappedValue = nil } }
+        )) {
+            if let id = workID.wrappedValue {
+                WorkDetailView(workID: id, onDone: {
+                    workID.wrappedValue = nil
+                    onDone?()
+                })
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizingFitted()
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
+            }
+        }
+    }
+}
+
 // MARK: - Helpers
+
 private struct NextLessonResolver {
     static func resolveNextLesson(from currentID: UUID, lessons: [Lesson]) -> Lesson? {
         guard let current = lessons.first(where: { $0.id == currentID }) else { return nil }

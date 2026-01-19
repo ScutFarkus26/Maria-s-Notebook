@@ -11,6 +11,10 @@ import SwiftUI
 import SwiftData
 import Combine
 
+extension UUID: @retroactive Identifiable {
+    public var id: UUID { self }
+}
+
 /// Top-level container that manages app-wide navigation between Students, Albums, Planning, Today, Logs, and Settings.
 struct RootView: View {
     // MARK: - Navigation Items
@@ -142,6 +146,7 @@ struct RootView: View {
     @State private var isShowingQuickNote = false
     @State private var isShowingNewPresentation = false
     @State private var isShowingNewWorkItem = false
+    @State private var workDetailIDToOpen: UUID?
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -196,7 +201,22 @@ struct RootView: View {
             QuickNewPresentationSheet()
         }
         .sheet(isPresented: $isShowingNewWorkItem) {
-            QuickNewWorkItemSheet()
+            QuickNewWorkItemSheet { workID in
+                // Delay slightly to allow sheet dismiss animation to complete
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    workDetailIDToOpen = workID
+                }
+            }
+        }
+        .sheet(item: $workDetailIDToOpen) { workID in
+            WorkDetailView(workID: workID, onDone: { workDetailIDToOpen = nil })
+            #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizingFitted()
+            #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            #endif
         }
     #if os(macOS)
         .background(EnsureResizableWindow(minSize: NSSize(width: 900, height: 600)))

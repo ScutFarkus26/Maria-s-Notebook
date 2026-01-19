@@ -89,7 +89,7 @@ struct TodayView: View {
             viewModel.reload()
         }
         .sheet(id: $selectedWorkID) { id in
-            WorkDetailContainerView(workID: id) {
+            WorkDetailView(workID: id) {
                 selectedWorkID = nil
                 viewModel.reload()
             }

@@ -182,14 +182,14 @@ struct FollowUpInboxView: View {
             let targetID = token.id
             let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == targetID })
             if let workModel = try? modelContext.fetch(workModelFetch).first {
-                WorkDetailContainerView(workID: workModel.id) {
+                WorkDetailView(workID: workModel.id) {
                     selectedContract = nil
                 }
             } else {
                 // Fallback: try to find WorkModel by legacyContractID (if not yet migrated)
                 let legacyFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == targetID })
                 if let workModel = try? modelContext.fetch(legacyFetch).first {
-                    WorkDetailContainerView(workID: workModel.id) {
+                    WorkDetailView(workID: workModel.id) {
                         selectedContract = nil
                     }
                 } else {
@@ -198,7 +198,7 @@ struct FollowUpInboxView: View {
             }
         }
         .sheet(item: $selectedWork) { token in
-            WorkDetailContainerView(workID: token.id) {
+            WorkDetailView(workID: token.id) {
                 selectedWork = nil
             }
         }

@@ -1,16 +1,10 @@
 import SwiftUI
-import SwiftData
 
-struct WorkCardView: View {
-    let work: WorkModel
-    let lessonTitle: String
-    let studentDisplay: String
-    let needsAttention: Bool
-    let metadata: String
-    let ageSchoolDays: Int
-    let onOpen: (WorkModel) -> Void
-    let onMarkCompleted: (WorkModel) -> Void
-    let onScheduleToday: (WorkModel) -> Void
+/// Grid mode content for WorkCard
+/// Displays: age indicator bar, title, student name, status, needs attention badge
+/// Supports: tap to open, context menu, drag for calendar scheduling
+struct WorkCardGridContent: View {
+    let config: WorkCard.GridModeConfig
 
     @SyncedAppStorage("WorkAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
     @SyncedAppStorage("WorkAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
@@ -19,10 +13,11 @@ struct WorkCardView: View {
     @SyncedAppStorage("WorkAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
 
     private var ageStatus: LessonAgeStatus {
-        if ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }
-        if ageSchoolDays >= max(0, ageWarningDays) { return .warning }
+        if config.ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }
+        if config.ageSchoolDays >= max(0, ageWarningDays) { return .warning }
         return .fresh
     }
+
     private var ageColor: Color {
         switch ageStatus {
         case .fresh: return ColorUtils.color(from: ageFreshColorHex)
@@ -32,7 +27,7 @@ struct WorkCardView: View {
     }
 
     private var kindText: String {
-        switch work.status {
+        switch config.work.status {
         case .active: return "Practice"
         case .review: return "Follow-Up"
         case .complete: return "Completed"
@@ -40,11 +35,11 @@ struct WorkCardView: View {
     }
 
     private var displayTitle: String {
-        let trimmedTitle = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = config.work.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedTitle.isEmpty {
             return trimmedTitle
         }
-        return lessonTitle
+        return config.lessonTitle
     }
 
     var body: some View {
@@ -52,7 +47,7 @@ struct WorkCardView: View {
             Rectangle()
                 .fill(ageColor)
                 .frame(width: UIConstants.ageIndicatorWidth)
-                .opacity(work.status == .complete ? 0.0 : 1.0)
+                .opacity(config.work.status == .complete ? 0.0 : 1.0)
                 .accessibilityHidden(true)
 
             HStack(spacing: 10) {
@@ -62,7 +57,7 @@ struct WorkCardView: View {
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(2)
                         Spacer()
-                        if needsAttention {
+                        if config.needsAttention {
                             Text("Needs Attention")
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.white)
@@ -73,7 +68,7 @@ struct WorkCardView: View {
                         }
                     }
                     HStack(spacing: 8) {
-                        Text(studentDisplay)
+                        Text(config.studentDisplay)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -86,7 +81,7 @@ struct WorkCardView: View {
                         Text("•")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("\(ageSchoolDays)d")
+                        Text("\(config.ageSchoolDays)d")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -99,18 +94,18 @@ struct WorkCardView: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06)))
         .contentShape(Rectangle())
-        .onTapGesture { onOpen(work) }
+        .onTapGesture { config.onOpen(config.work) }
         .contextMenu {
-            Button("Open", systemImage: "arrow.forward.circle") { onOpen(work) }
-            Button("Mark Completed", systemImage: "checkmark.circle") { onMarkCompleted(work) }
+            Button("Open", systemImage: "arrow.forward.circle") { config.onOpen(config.work) }
+            Button("Mark Completed", systemImage: "checkmark.circle") { config.onMarkCompleted(config.work) }
             Menu("Schedule", systemImage: "calendar") {
-                Button("Today") { onScheduleToday(work) }
+                Button("Today") { config.onScheduleToday(config.work) }
             }
         }
-        .draggable(WorkAgendaDragPayload.work(work.id).stringRepresentation) {
+        .draggable(WorkAgendaDragPayload.work(config.work.id).stringRepresentation) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(displayTitle).font(.subheadline)
-                Text(studentDisplay).font(.caption).foregroundStyle(.secondary)
+                Text(config.studentDisplay).font(.caption).foregroundStyle(.secondary)
             }
             .padding(8)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.06)))
@@ -119,12 +114,11 @@ struct WorkCardView: View {
 }
 
 #Preview {
-    WorkCardView(
+    WorkCard.grid(
         work: WorkModel(status: .active, studentID: UUID().uuidString, lessonID: UUID().uuidString),
         lessonTitle: "Long Division",
         studentDisplay: "Ada Lovelace",
         needsAttention: true,
-        metadata: "7d • Practice",
         ageSchoolDays: 7,
         onOpen: { _ in },
         onMarkCompleted: { _ in },
@@ -132,4 +126,3 @@ struct WorkCardView: View {
     )
     .padding()
 }
-

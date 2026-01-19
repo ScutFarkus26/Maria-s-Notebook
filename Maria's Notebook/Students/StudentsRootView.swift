@@ -64,7 +64,7 @@ struct StudentsRootView: View {
             set: { if !$0 { selectedWork = nil } }
         )) {
             if let work = selectedWork {
-                WorkModelDetailSheet(workID: work.id) {
+                WorkDetailView(workID: work.id) {
                     selectedWork = nil
                 }
                 #if os(macOS)

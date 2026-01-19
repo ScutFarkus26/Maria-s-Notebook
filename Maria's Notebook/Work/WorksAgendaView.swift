@@ -151,7 +151,7 @@ struct WorksAgendaView: View {
                     let id = token.workID
                     let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
                     if let w = try? modelContext.fetch(fetch).first {
-                        WorkDetailWindowContainer(workID: w.id)
+                        WorkDetailView(workID: w.id)
                             .id(token.id)
                     } else {
                         ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")

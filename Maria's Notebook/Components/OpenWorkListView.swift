@@ -33,15 +33,6 @@ struct OpenWorkListView: View {
         openWorks.paginated(using: pagination)
     }
 
-    private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
-        switch type {
-        case .research: return ("magnifyingglass", .teal)
-        case .followUp: return ("bolt.fill", .orange)
-        case .practice: return ("arrow.triangle.2.circlepath", .purple)
-        case .report: return ("doc.text", .green)
-        }
-    }
-
     private func linkedStudentLesson(for work: WorkModel) -> StudentLesson? {
         guard let id = work.studentLessonID else { return nil }
         return studentLessonsByID[id]
@@ -78,11 +69,12 @@ struct OpenWorkListView: View {
 
     @ViewBuilder
     private func workDetailSheetContent(for work: WorkModel) -> some View {
-        WorkDetailContainerView(workID: work.id) {
+        WorkDetailView(workID: work.id, onDone: {
             selectedWork = nil
-        }
+        })
         #if os(macOS)
         .frame(minWidth: 720, minHeight: 640)
+        .presentationSizingFitted()
         #else
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
@@ -93,35 +85,14 @@ struct OpenWorkListView: View {
         NavigationStack {
             List {
                 ForEach(displayedWorks) { work in
-                    Button {
-                        selectedWork = work
-                    } label: {
-                        HStack(spacing: 12) {
-                            let (icon, color) = iconAndColor(for: work.workType)
-                            Image(systemName: icon)
-                                .foregroundStyle(color)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(workTitle(work))
-                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                    .lineLimit(1)
-                                Text(workSubtitle(work))
-                                    .font(.system(size: 13, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            let openCount = (work.participants ?? []).filter { $0.completedAt == nil }.count
-                            if openCount > 0 {
-                                Text("\(openCount)")
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Capsule().fill(color.opacity(0.15)))
-                                    .foregroundStyle(color)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
+                    let openCount = (work.participants ?? []).filter { $0.completedAt == nil }.count
+                    WorkCard.list(
+                        work: work,
+                        title: workTitle(work),
+                        subtitle: workSubtitle(work),
+                        badge: openCount > 0 ? .openCount(openCount) : nil,
+                        onOpen: { w in selectedWork = w }
+                    )
                 }
 
                 // Pagination footer

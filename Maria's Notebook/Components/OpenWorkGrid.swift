@@ -30,12 +30,11 @@ struct OpenWorkGrid: View {
                             ForEach(section.items, id: \.id) { item in
                                 let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: item.work, checkIns: item.work.checkIns, notes: item.work.unifiedNotes)
                                 let ageSchoolDays = LessonAgeHelper.schoolDaysSinceCreation(createdAt: lastTouch, asOf: Date(), using: modelContext, calendar: calendar)
-                                WorkCardView(
+                                WorkCard.grid(
                                     work: item.work,
                                     lessonTitle: item.title,
                                     studentDisplay: item.student,
                                     needsAttention: item.needsAttention,
-                                    metadata: item.metadata,
                                     ageSchoolDays: ageSchoolDays,
                                     onOpen: onOpen,
                                     onMarkCompleted: onMarkCompleted,
@@ -219,12 +218,11 @@ struct OpenWorkGrid: View {
         )
         .previewEnvironment(using: container)
         
-        WorkCardView(
+        WorkCard.grid(
             work: WorkModel(status: .active, studentID: UUID().uuidString, lessonID: UUID().uuidString),
             lessonTitle: "Long Division",
             studentDisplay: "Ada Lovelace",
             needsAttention: true,
-            metadata: "7d • Practice",
             ageSchoolDays: 7,
             onOpen: { _ in },
             onMarkCompleted: { _ in },

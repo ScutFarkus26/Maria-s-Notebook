@@ -176,7 +176,7 @@ struct StudentProgressTab: View {
                 .studentDetailSheetSizing()
         }
         .sheet(item: $selectedReport) { report in
-            WorkDetailContainerView(workID: report.id) {
+            WorkDetailView(workID: report.id) {
                 selectedReport = nil
             }
             .studentDetailSheetSizing()

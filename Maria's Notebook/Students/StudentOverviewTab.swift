@@ -99,12 +99,11 @@ struct StudentOverviewTab: View {
                             .padding(.vertical, 12)
                     } else {
                         ForEach(contractsCache, id: \.id) { work in
-                            WorkCardView(
+                            WorkCard.grid(
                                 work: work,
                                 lessonTitle: lessonName(for: work),
                                 studentDisplay: studentDisplay(for: work),
                                 needsAttention: needsAttention(for: work),
-                                metadata: metadata(for: work),
                                 ageSchoolDays: ageSchoolDays(for: work),
                                 onOpen: { w in
                                     selectedWorkID = w.id

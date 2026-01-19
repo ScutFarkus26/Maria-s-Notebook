@@ -360,7 +360,7 @@ struct StudentLessonPill: View {
             ))
         }
         .sheet(item: $selectedWorkForDetail) { work in
-            WorkDetailContainerView(workID: work.id) {
+            WorkDetailView(workID: work.id) {
                 selectedWorkForDetail = nil
             }
             #if os(macOS)
