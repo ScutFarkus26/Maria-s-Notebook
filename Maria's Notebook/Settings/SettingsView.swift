@@ -41,8 +41,10 @@ struct SettingsView: View {
                     // MARK: - School Configuration Section
                     schoolConfigurationSection
 
+                    #if DEBUG
                     // MARK: - Students Section
                     studentsSection
+                    #endif
 
                     // MARK: - Attendance Section
                     attendanceSection
@@ -136,30 +138,17 @@ struct SettingsView: View {
     }
 
     // Extracted sections to reduce type-checker complexity
+    #if DEBUG
     private var studentsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Students")
-            #if DEBUG
             SettingsGroup(title: "Test Students", systemImage: "person.2.slash") {
                 TestStudentsSettingsView()
                     .frame(maxWidth: .infinity)
             }
-            #endif
-            SettingsGroup(title: "Curriculum Tracks", systemImage: "list.number") {
-                NavigationLink(destination: TrackListView()) {
-                    HStack {
-                        Text("Manage Tracks")
-                        Spacer()
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-            SettingsGroup(title: "Progress Sync", systemImage: "arrow.triangle.2.circlepath") {
-                ProgressSyncSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
         }
     }
+    #endif
 
     private var dataManagementSection: some View {
         VStack(alignment: .leading, spacing: 0) {

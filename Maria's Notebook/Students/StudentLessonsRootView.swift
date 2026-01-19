@@ -104,56 +104,61 @@ struct StudentLessonsRootView: View {
         case .all:
             if let lessonIDs = subjectLessonIDs {
                 // Filter by subject only (exclude hidden undated by default)
+                // Note: isGiven is a computed property, so we inline its logic here for SwiftData predicate compatibility
                 predicate = #Predicate<StudentLesson> { sl in
-                    sl.lesson != nil && 
-                    !(sl.isGiven && sl.givenAt == nil) && 
+                    sl.lesson != nil &&
+                    !((sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil) &&
                     lessonIDs.contains(sl.lesson!.id)
                 }
             } else {
                 // No filter - but exclude hidden undated
+                // Note: isGiven is a computed property, so we inline its logic here for SwiftData predicate compatibility
                 predicate = #Predicate<StudentLesson> { sl in
-                    !(sl.isGiven && sl.givenAt == nil)
+                    !((sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil)
                 }
             }
         case .completed:
             // isGiven && givenAt != nil
+            // Note: isGiven is a computed property (isPresented || givenAt != nil), so we inline its logic here
             if let lessonIDs = subjectLessonIDs {
                 predicate = #Predicate<StudentLesson> { sl in
-                    sl.lesson != nil && 
-                    sl.isGiven && 
-                    sl.givenAt != nil && 
+                    sl.lesson != nil &&
+                    (sl.isPresented || sl.givenAt != nil) &&
+                    sl.givenAt != nil &&
                     lessonIDs.contains(sl.lesson!.id)
                 }
             } else {
                 predicate = #Predicate<StudentLesson> { sl in
-                    sl.isGiven && sl.givenAt != nil
+                    (sl.isPresented || sl.givenAt != nil) && sl.givenAt != nil
                 }
             }
         case .notCompleted:
             // !isGiven
+            // Note: isGiven is a computed property (isPresented || givenAt != nil), so we inline its logic here
             if let lessonIDs = subjectLessonIDs {
                 predicate = #Predicate<StudentLesson> { sl in
-                    sl.lesson != nil && 
-                    !sl.isGiven && 
+                    sl.lesson != nil &&
+                    !(sl.isPresented || sl.givenAt != nil) &&
                     lessonIDs.contains(sl.lesson!.id)
                 }
             } else {
                 predicate = #Predicate<StudentLesson> { sl in
-                    !sl.isGiven
+                    !(sl.isPresented || sl.givenAt != nil)
                 }
             }
         case .hiddenUndated:
             // isGiven && givenAt == nil
+            // Note: isGiven is a computed property (isPresented || givenAt != nil), so we inline its logic here
             if let lessonIDs = subjectLessonIDs {
                 predicate = #Predicate<StudentLesson> { sl in
-                    sl.lesson != nil && 
-                    sl.isGiven && 
-                    sl.givenAt == nil && 
+                    sl.lesson != nil &&
+                    (sl.isPresented || sl.givenAt != nil) &&
+                    sl.givenAt == nil &&
                     lessonIDs.contains(sl.lesson!.id)
                 }
             } else {
                 predicate = #Predicate<StudentLesson> { sl in
-                    sl.isGiven && sl.givenAt == nil
+                    (sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil
                 }
             }
         }
