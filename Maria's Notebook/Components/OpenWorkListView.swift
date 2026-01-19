@@ -12,7 +12,10 @@ struct OpenWorkListView: View {
     @Query private var studentLessons: [StudentLesson]
 
     @State private var selectedWork: WorkModel? = nil
-    
+
+    // Pagination state
+    @StateObject private var pagination = PaginationState(pageSize: 50)
+
     private var lessonsByID: [UUID: Lesson] {
         Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
     }
@@ -23,6 +26,11 @@ struct OpenWorkListView: View {
 
     private var openWorks: [WorkModel] {
         allWorks.filter { $0.isOpen }
+    }
+
+    /// Paginated open works for display
+    private var displayedWorks: [WorkModel] {
+        openWorks.paginated(using: pagination)
     }
 
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
@@ -82,38 +90,53 @@ struct OpenWorkListView: View {
 
     var body: some View {
         NavigationStack {
-            List(openWorks) { work in
-                Button {
-                    selectedWork = work
-                } label: {
-                    HStack(spacing: 12) {
-                        let (icon, color) = iconAndColor(for: work.workType)
-                        Image(systemName: icon)
-                            .foregroundStyle(color)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(workTitle(work))
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                .lineLimit(1)
-                            Text(workSubtitle(work))
-                                .font(.system(size: 13, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        let openCount = (work.participants ?? []).filter { $0.completedAt == nil }.count
-                        if openCount > 0 {
-                            Text("\(openCount)")
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Capsule().fill(color.opacity(0.15)))
+            List {
+                ForEach(displayedWorks) { work in
+                    Button {
+                        selectedWork = work
+                    } label: {
+                        HStack(spacing: 12) {
+                            let (icon, color) = iconAndColor(for: work.workType)
+                            Image(systemName: icon)
                                 .foregroundStyle(color)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(workTitle(work))
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                    .lineLimit(1)
+                                Text(workSubtitle(work))
+                                    .font(.system(size: 13, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            let openCount = (work.participants ?? []).filter { $0.completedAt == nil }.count
+                            if openCount > 0 {
+                                Text("\(openCount)")
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Capsule().fill(color.opacity(0.15)))
+                                    .foregroundStyle(color)
+                            }
                         }
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+
+                // Pagination footer
+                if pagination.totalCount > 0 {
+                    Section {
+                        PaginatedListFooter(state: pagination, itemName: "open works")
+                    }
+                }
             }
             .navigationTitle("Open Work")
+            .onChange(of: openWorks.count) { _, newCount in
+                pagination.updateTotal(newCount)
+            }
+            .onAppear {
+                pagination.updateTotal(openWorks.count)
+            }
         }
         // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
         .sheet(isPresented: Binding(

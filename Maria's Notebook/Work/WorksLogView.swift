@@ -4,18 +4,26 @@ import SwiftData
 struct WorksLogView: View {
     @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
     private var allWorks: [WorkModel]
-    
+
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
-    
+
     @State private var selectedWork: WorkModel? = nil
-    
+
+    // Pagination state
+    @StateObject private var pagination = PaginationState(pageSize: 50)
+
     private var lessonsByID: [UUID: Lesson] {
         Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
     }
 
     private var studentLessonsByID: [UUID: StudentLesson] {
         Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
+    }
+
+    /// Paginated works for display
+    private var displayedWorks: [WorkModel] {
+        allWorks.paginated(using: pagination)
     }
 
     private func iconAndColor(for type: WorkModel.WorkType) -> (String, Color) {
@@ -72,34 +80,49 @@ struct WorksLogView: View {
         .presentationDragIndicator(.visible)
         #endif
     }
-    
+
     var body: some View {
-        List(allWorks.prefix(200)) { work in
-            Button {
-                selectedWork = work
-            } label: {
-                HStack(spacing: 12) {
-                    let (icon, color) = iconAndColor(for: work.workType)
-                    Image(systemName: icon)
-                        .foregroundStyle(color)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(workTitle(work))
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .lineLimit(1)
-                        Text(workSubtitle(work))
-                            .font(.system(size: 13, design: .rounded))
+        List {
+            ForEach(displayedWorks) { work in
+                Button {
+                    selectedWork = work
+                } label: {
+                    HStack(spacing: 12) {
+                        let (icon, color) = iconAndColor(for: work.workType)
+                        Image(systemName: icon)
+                            .foregroundStyle(color)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(workTitle(work))
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .lineLimit(1)
+                            Text(workSubtitle(work))
+                                .font(.system(size: 13, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text(work.isOpen ? "active" : "complete")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
                     }
-                    Spacer()
-                    Text(work.isOpen ? "active" : "complete")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Pagination footer
+            if pagination.totalCount > 0 {
+                Section {
+                    PaginatedListFooter(state: pagination, itemName: "works")
                 }
             }
-            .buttonStyle(.plain)
         }
         .navigationTitle("Works Log")
+        .onChange(of: allWorks.count) { _, newCount in
+            pagination.updateTotal(newCount)
+        }
+        .onAppear {
+            pagination.updateTotal(allWorks.count)
+        }
         .sheet(isPresented: Binding(
             get: { selectedWork != nil },
             set: { if !$0 { selectedWork = nil } }
