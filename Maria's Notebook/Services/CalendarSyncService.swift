@@ -34,32 +34,6 @@ class CalendarSyncService: ObservableObject {
         }
     }
 
-    /// Legacy single calendar identifier (for migration)
-    @available(*, deprecated, message: "Use syncCalendarIdentifiers instead")
-    var syncCalendarIdentifier: String? {
-        get { syncCalendarIdentifiers.first }
-        set {
-            if let value = newValue {
-                syncCalendarIdentifiers = [value]
-            } else {
-                syncCalendarIdentifiers = []
-            }
-        }
-    }
-
-    /// Legacy single calendar name (for migration)
-    @available(*, deprecated, message: "Use syncCalendarNames instead")
-    var syncCalendarName: String? {
-        get { syncCalendarNames.first }
-        set {
-            if let value = newValue {
-                syncCalendarNames = [value]
-            } else {
-                syncCalendarNames = []
-            }
-        }
-    }
-
     /// Whether EventKit access has been authorized
     @Published var authorizationStatus: EKAuthorizationStatus = .notDetermined
 

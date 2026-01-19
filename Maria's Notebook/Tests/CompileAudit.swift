@@ -33,9 +33,6 @@ struct CompileAudit {
     // Using typealiases to View.Body forces the compiler to resolve the view body type,
     // which triggers type-checking at compile-time without executing any code.
 
-    // PillButton 2.swift
-    typealias _Audit_PillNavButton_Body = PillNavButton.Body
-
     // StudentLessonDetailView.swift
     typealias _Audit_StudentLessonDetailView_Body = StudentLessonDetailView.Body
 
@@ -44,9 +41,6 @@ struct CompileAudit {
 
     // TodayView.swift
     typealias _Audit_TodayView_Body = TodayView.Body
-
-    // AttendanceView.swift
-    typealias _Audit_AttendanceView_Body = AttendanceView.Body
 
     // LessonsRootView.swift
     typealias _Audit_LessonsRootView_Body = LessonsRootView.Body
@@ -59,12 +53,6 @@ struct CompileAudit {
     typealias _Audit_StudentChipsList_Body = StudentChipsList.Body
     typealias _Audit_StatusSection_Body = StatusSection.Body
     typealias _Audit_KeyboardShortcutsOverlay_Body = KeyboardShortcutsOverlay.Body
-
-    // MARK: - Pill Buttons (PillButton 2.swift)
-    static func auditPillButtons() {
-        touchType(PillNavButton.self)
-        touchBody(PillNavButton.self)
-    }
 
     // MARK: - Settings and Admin (SettingsView.swift)
     static func auditSettingsViews() {
@@ -101,12 +89,6 @@ struct CompileAudit {
     static func auditToday() {
         touchType(TodayView.self)
         touchBody(TodayView.self)
-    }
-
-    // MARK: - Attendance (AttendanceView.swift)
-    static func auditAttendance() {
-        touchType(AttendanceView.self)
-        touchBody(AttendanceView.self)
     }
 
     // MARK: - Lessons Root (LessonsRootView.swift)

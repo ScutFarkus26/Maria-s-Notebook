@@ -15,20 +15,6 @@ import AppKit
 
 @main
 struct MariasToolboxApp: App {
-    // MARK: - UserDefaults Keys (deprecated - use UserDefaultsKeys instead)
-    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
-    static let useInMemoryFlagKey = UserDefaultsKeys.useInMemoryStoreOnce
-    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
-    static let ephemeralSessionFlagKey = UserDefaultsKeys.ephemeralSessionFlag
-    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
-    static let lastStoreErrorDescriptionKey = UserDefaultsKeys.lastStoreErrorDescription
-    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
-    static let allowLocalStoreFallbackKey = UserDefaultsKeys.allowLocalStoreFallback
-    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
-    static let enableCloudKitKey = UserDefaultsKeys.enableCloudKitSync
-    @available(*, deprecated, message: "Use UserDefaultsKeys instead")
-    static let cloudKitActiveKey = UserDefaultsKeys.cloudKitActive
-    
     /// Returns the CloudKit container identifier from entitlements
     /// This must match the container ID in the entitlements file
     static func getCloudKitContainerID() -> String? {
@@ -159,32 +145,19 @@ struct MariasToolboxApp: App {
         // 4. Missing inverse relationships when one side specifies inverse:
         // 5. Invalid property types (e.g., using types SwiftData doesn't support)
         
-        // #if DEBUG
-        // print("SwiftData: Starting container initialization...")
-        // #endif
-        
         // Get schema - if SwiftData asserts here, it's a schema definition problem
         let schema = AppSchema.schema
-        // #if DEBUG
-        // print("SwiftData: Schema accessed successfully")
-        // #endif
         
         let useInMemory = UserDefaults.standard.bool(forKey: UserDefaultsKeys.useInMemoryStoreOnce)
         let _ = UserDefaults.standard.bool(forKey: UserDefaultsKeys.allowLocalStoreFallback)
         
         // Helper to create container with defensive error handling
         func makeContainer(inMemory: Bool, url: URL? = nil, cloud: Bool = false) throws -> ModelContainer {
-            // #if DEBUG
-            // print("SwiftData: Attempting to create container (inMemory: \(inMemory), cloud: \(cloud))...")
-            // #endif
             do {
                 if inMemory {
                     let config = ModelConfiguration(isStoredInMemoryOnly: true)
                     // SwiftData may assert here if the schema is invalid
                     let container = try ModelContainer(for: schema, configurations: config)
-                    // #if DEBUG
-                    // print("SwiftData: Successfully created in-memory container")
-                    // #endif
                     return container
                 } else if cloud {
                     // Use the container ID from entitlements (must match entitlements file)
@@ -201,9 +174,6 @@ struct MariasToolboxApp: App {
                     
                     // Check if iCloud is available before attempting CloudKit container creation
                     if FileManager.default.ubiquityIdentityToken == nil {
-                        // #if DEBUG
-                        // print("SwiftData: iCloud is not available (not signed in). Skipping CloudKit container creation.")
-                        // #endif
                         // Store error state
                         let errorMessage = "Not signed into iCloud. Please sign in to System Settings > Apple ID > iCloud to enable sync."
                         UserDefaults.standard.set(errorMessage, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
@@ -215,9 +185,6 @@ struct MariasToolboxApp: App {
                     }
                     
                     guard let containerID = MariasToolboxApp.getCloudKitContainerID() else {
-                        // #if DEBUG
-                        // print("SwiftData: Missing CloudKit container identifier. Falling back to local store without CloudKit.")
-                        // #endif
                         let errorMessage = "Missing CloudKit container identifier. CloudKit sync cannot be initialized."
                         UserDefaults.standard.set(errorMessage, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
                         let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
@@ -228,35 +195,15 @@ struct MariasToolboxApp: App {
 
                     #if swift(>=6.0)
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-                        // #if DEBUG
-                        // print("SwiftData: CloudKit configuration:")
-                        // print("  - Container ID: \(containerID)")
-                        // print("  - Store URL: \(storeURL.path)")
-                        // print("  - Database: Private")
-                        // #endif
                         do {
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                             let container = try ModelContainer(for: schema, configurations: config)
-                            // #if DEBUG
-                            // print("SwiftData: ✅ CloudKit container created successfully!")
-                            // print("SwiftData: CloudKit sync is now active. Changes will sync across devices.")
-                            // print("SwiftData: Note: CoreData+CloudKit error messages about 'store was removed' are expected")
-                            // print("SwiftData:   and harmless - they occur during SwiftData's internal initialization.")
-                            // #endif
                             UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
                             // Clear any previous error since CloudKit is now active
                             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
                             return container
                         } catch {
-                            // CloudKit initialization failed - log detailed error and fall back to local store
-                            // #if DEBUG
-                            // print("SwiftData: ⚠️ CloudKit initialization failed: \(error)")
-                            // if let nsError = error as NSError? {
-                            //     print("SwiftData: Error domain: \(nsError.domain), code: \(nsError.code)")
-                            //     print("SwiftData: Error userInfo: \(nsError.userInfo)")
-                            // }
-                            // print("SwiftData: Falling back to local store without CloudKit sync.")
-                            // #endif
+                            // CloudKit initialization failed - fall back to local store
                             // Store the error for display in the UI
                             let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
                             if let nsError = error as NSError? {
@@ -283,35 +230,15 @@ struct MariasToolboxApp: App {
                     }
                     #else
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-                        // #if DEBUG
-                        // print("SwiftData: CloudKit configuration:")
-                        // print("  - Container ID: \(containerID)")
-                        // print("  - Store URL: \(storeURL.path)")
-                        // print("  - Database: Private")
-                        // #endif
                         do {
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                             let container = try ModelContainer(for: schema, configurations: config)
-                            // #if DEBUG
-                            // print("SwiftData: ✅ CloudKit container created successfully!")
-                            // print("SwiftData: CloudKit sync is now active. Changes will sync across devices.")
-                            // print("SwiftData: Note: CoreData+CloudKit error messages about 'store was removed' are expected")
-                            // print("SwiftData:   and harmless - they occur during SwiftData's internal initialization.")
-                            // #endif
                             UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
                             // Clear any previous error since CloudKit is now active
                             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
                             return container
                         } catch {
-                            // CloudKit initialization failed - log detailed error and fall back to local store
-                            // #if DEBUG
-                            // print("SwiftData: ⚠️ CloudKit initialization failed: \(error)")
-                            // if let nsError = error as NSError? {
-                            //     print("SwiftData: Error domain: \(nsError.domain), code: \(nsError.code)")
-                            //     print("SwiftData: Error userInfo: \(nsError.userInfo)")
-                            // }
-                            // print("SwiftData: Falling back to local store without CloudKit sync.")
-                            // #endif
+                            // CloudKit initialization failed - fall back to local store
                             // Store the error for display in the UI
                             let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
                             if let nsError = error as NSError? {
@@ -358,17 +285,10 @@ struct MariasToolboxApp: App {
             
             let _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
             if useInMemory {
-                // #if DEBUG
-                // print("SwiftData: Creating in-memory store...")
-                // #endif
-                // We already validated the schema, so this should work
                 let container = try makeContainer(inMemory: true)
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                 UserDefaults.standard.set("Using temporary in-memory store on next launch.", forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
-                // #if DEBUG
-                // print("SwiftData: Using in-memory store.")
-                // #endif
                 return container
             } else {
                 // Validate store file before attempting to open
@@ -383,38 +303,16 @@ struct MariasToolboxApp: App {
                             userInfo: [NSLocalizedDescriptionKey: "Store file exists but is not readable. The database may be corrupted or locked by another process."]
                         )
                     }
-                    // #if DEBUG
-                    // print("SwiftData: Store file exists at \(storeURL.path)")
-                    // #endif
-                } else {
-                    // #if DEBUG
-                    // print("SwiftData: Store file does not exist, will create new store at \(storeURL.path)")
-                    // #endif
                 }
                 
                 // CloudKit compatibility: All model fixes are complete. Enable CloudKit by default.
                 // Users can disable it via the settings toggle if needed.
                 let enableCloudKit = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
-                // #if DEBUG
-                // if enableCloudKit {
-                //     print("SwiftData: Creating CloudKit-enabled container...")
-                // } else {
-                //     print("SwiftData: Creating local storage container (CloudKit disabled - set '\(UserDefaultsKeys.enableCloudKitSync)' UserDefaults flag to enable)...")
-                // }
-                // #endif
                 let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
                 UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-                if enableCloudKit {
-                    // cloudKitActiveKey is set in makeContainer when CloudKit is successfully initialized
-                    // #if DEBUG
-                    // print("SwiftData: ✅ Using CloudKit-enabled storage.")
-                    // #endif
-                } else {
+                if !enableCloudKit {
                     UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
-                    // #if DEBUG
-                    // print("SwiftData: Using local storage.")
-                    // #endif
                 }
                 return container
             }
@@ -543,11 +441,7 @@ struct MariasToolboxApp: App {
         // - Check for invalid property types or annotations
         //
         // NOTE: We cannot catch SwiftData's internal assertions - they crash immediately.
-        // #if DEBUG
-        // print("SwiftData: Accessing sharedModelContainer - will create container now...")
-        // print("SwiftData: If crash occurs here, check schema definition in AppSchema.swift")
-        // #endif
-        
+
         do {
             let container = try MariasToolboxApp.createModelContainer()
             // Configure SQLite to suppress detached signature errors

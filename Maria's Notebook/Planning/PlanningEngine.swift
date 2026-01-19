@@ -42,14 +42,4 @@ enum PlanningEngine {
         let startOfDay = AppCalendar.startOfDay(day)
         return calendar.date(byAdding: .hour, value: period.baseHour, to: startOfDay) ?? startOfDay
     }
-
-    @available(*, deprecated, message: "Legacy WorkModel-based planning helpers have been retired. Returns empty.")
-    static func unscheduledWorks(_ works: [WorkModel]) -> [WorkModel] {
-        return []
-    }
-
-    @available(*, deprecated, message: "Legacy WorkModel-based planning helpers have been retired. Returns empty.")
-    static func groupedItems(works: [WorkModel], calendar: Calendar) -> [DayKey: [ScheduledItem]] {
-        return [:]
-    }
 }
