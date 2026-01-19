@@ -140,6 +140,8 @@ struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @State private var isShowingQuickNote = false
+    @State private var isShowingNewPresentation = false
+    @State private var isShowingNewWorkItem = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -181,10 +183,20 @@ struct RootView: View {
         .onChange(of: appRouter.selectedTab, handleSelectedTabChange)
         .saveErrorAlert()
         .overlay(alignment: .bottomTrailing) {
-            QuickNoteGlassButton(isShowingSheet: $isShowingQuickNote)
+            QuickNoteGlassButton(
+                isShowingSheet: $isShowingQuickNote,
+                isShowingPresentationSheet: $isShowingNewPresentation,
+                isShowingWorkItemSheet: $isShowingNewWorkItem
+            )
         }
         .sheet(isPresented: $isShowingQuickNote) {
             QuickNoteSheet()
+        }
+        .sheet(isPresented: $isShowingNewPresentation) {
+            QuickNewPresentationSheet()
+        }
+        .sheet(isPresented: $isShowingNewWorkItem) {
+            QuickNewWorkItemSheet()
         }
     #if os(macOS)
         .background(EnsureResizableWindow(minSize: NSSize(width: 900, height: 600)))

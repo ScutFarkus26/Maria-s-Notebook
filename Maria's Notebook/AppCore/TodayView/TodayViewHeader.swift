@@ -29,7 +29,11 @@ extension TodayView {
                         let coerced = nearestSchoolDaySync(to: newValue)
                         viewModel.date = AppCalendar.startOfDay(coerced)
                     }), displayedComponents: .date)
+                    #if os(macOS)
                     .datePickerStyle(.field)
+                    #else
+                    .datePickerStyle(.compact)
+                    #endif
                     .labelsHidden()
 
                     Button {
