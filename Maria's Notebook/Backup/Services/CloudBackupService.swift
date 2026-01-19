@@ -179,7 +179,10 @@ public final class CloudBackupService {
 
         var backups: [CloudBackupInfo] = []
 
-        for case let fileURL as URL in enumerator {
+        // Collect URLs first to avoid makeIterator() in async context (Swift 6 requirement)
+        let fileURLs = enumerator.allObjects.compactMap { $0 as? URL }
+
+        for fileURL in fileURLs {
             guard fileURL.pathExtension == BackupFile.fileExtension else { continue }
 
             do {

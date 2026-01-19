@@ -117,7 +117,7 @@ class AutoBackupManager: ObservableObject {
     /// Performs a scheduled backup
     private func performScheduledBackup() async {
         guard let modelContext = modelContext else { return }
-        await performBackup(modelContext: modelContext, trigger: .scheduled, prefix: "ScheduledBackup")
+        _ = await performBackup(modelContext: modelContext, trigger: .scheduled, prefix: "ScheduledBackup")
     }
 
     // MARK: - App Quit Backup
@@ -126,7 +126,7 @@ class AutoBackupManager: ObservableObject {
     /// This runs on the main thread (acceptable since app is closing).
     func performBackupOnQuit(modelContext: ModelContext) async {
         guard isEnabled else { return }
-        await performBackup(modelContext: modelContext, trigger: .appQuit, prefix: "AutoBackup")
+        _ = await performBackup(modelContext: modelContext, trigger: .appQuit, prefix: "AutoBackup")
     }
 
     // MARK: - Pre-Destructive Backup

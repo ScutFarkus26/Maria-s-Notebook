@@ -203,7 +203,7 @@ struct EntityFetcherRegistry {
 @MainActor
 struct BatchEntityFetcher {
 
-    static let defaultBatchSize = 1000
+    nonisolated static let defaultBatchSize = 1000
 
     /// Fetches all entities of a type in batches to prevent memory issues
     static func fetchInBatches<T: PersistentModel>(

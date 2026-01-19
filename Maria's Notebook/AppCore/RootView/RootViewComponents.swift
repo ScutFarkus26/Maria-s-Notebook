@@ -718,27 +718,23 @@ struct QuickNewPresentationSheet: View {
         guard let lessonID = selectedLessonID else { return }
         isSaving = true
 
-        do {
-            let studentIDStrings = selectedStudentIDs.map { $0.uuidString }
-            let presentation = Presentation(
-                createdAt: Date(),
-                presentedAt: presentedAt,
-                lessonID: lessonID.uuidString,
-                studentIDs: studentIDStrings
-            )
+        let studentIDStrings = selectedStudentIDs.map { $0.uuidString }
+        let presentation = Presentation(
+            createdAt: Date(),
+            presentedAt: presentedAt,
+            lessonID: lessonID.uuidString,
+            studentIDs: studentIDStrings
+        )
 
-            // Snapshot lesson info
-            if let lesson = selectedLesson {
-                presentation.lessonTitleSnapshot = lesson.name
-                presentation.lessonSubtitleSnapshot = lesson.subheading
-            }
-
-            modelContext.insert(presentation)
-            _ = saveCoordinator.save(modelContext, reason: "Quick New Presentation")
-            dismiss()
-        } catch {
-            isSaving = false
+        // Snapshot lesson info
+        if let lesson = selectedLesson {
+            presentation.lessonTitleSnapshot = lesson.name
+            presentation.lessonSubtitleSnapshot = lesson.subheading
         }
+
+        modelContext.insert(presentation)
+        _ = saveCoordinator.save(modelContext, reason: "Quick New Presentation")
+        dismiss()
     }
 }
 
