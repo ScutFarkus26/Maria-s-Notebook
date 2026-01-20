@@ -51,20 +51,15 @@ final class StudentLessonDetailActions: ObservableObject {
             sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
         }
         guard !exists else { return }
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
+        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
             lessonID: next.id,
-            studentIDs: Array(sameStudents),
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+            studentIDs: Array(sameStudents)
         )
-        newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-        newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+        StudentLessonFactory.attachRelationships(
+            to: newStudentLesson,
+            lesson: lessons.first(where: { $0.id == next.id }),
+            students: studentsAll.filter { sameStudents.contains($0.id) }
+        )
         context.insert(newStudentLesson)
         StudentLessonDetailUtilities.notifyInboxRefresh()
     }
@@ -84,20 +79,15 @@ final class StudentLessonDetailActions: ObservableObject {
             sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
         }
         if !exists {
-            let newStudentLesson = StudentLesson(
-                id: UUID(),
+            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
                 lessonID: next.id,
-                studentIDs: Array(selectedStudentIDs),
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
+                studentIDs: Array(selectedStudentIDs)
             )
-            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-            newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+            StudentLessonFactory.attachRelationships(
+                to: newStudentLesson,
+                lesson: lessons.first(where: { $0.id == next.id }),
+                students: studentsAll.filter { sameStudents.contains($0.id) }
+            )
             context.insert(newStudentLesson)
             context.safeSave()
             StudentLessonDetailUtilities.notifyInboxRefresh()
@@ -128,20 +118,15 @@ final class StudentLessonDetailActions: ObservableObject {
             ex.students = studentsAll.filter { targetSet.contains($0.id) }
             ex.lesson = currentLesson
         } else {
-            let newStudentLesson = StudentLesson(
-                id: UUID(),
+            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
                 lessonID: currentLesson.id,
-                studentIDs: Array(targetSet),
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
+                studentIDs: Array(targetSet)
             )
-            newStudentLesson.students = studentsAll.filter { targetSet.contains($0.id) }
-            newStudentLesson.lesson = currentLesson
+            StudentLessonFactory.attachRelationships(
+                to: newStudentLesson,
+                lesson: currentLesson,
+                students: studentsAll.filter { targetSet.contains($0.id) }
+            )
             context.insert(newStudentLesson)
         }
 

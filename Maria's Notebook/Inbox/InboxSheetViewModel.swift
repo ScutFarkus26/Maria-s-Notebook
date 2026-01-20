@@ -190,20 +190,12 @@ final class InboxSheetViewModel: ObservableObject {
             let lessonObj = (try? modelContext.fetch(lessonFetch))?.first
             let studentObj = (try? modelContext.fetch(studentFetch))?.first
 
-            let new = StudentLesson(
-                id: UUID(),
-                lessonID: lessonID,
-                studentIDs: [studentID],
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
+            let new = StudentLessonFactory.makeUnscheduled(lessonID: lessonID, studentIDs: [studentID])
+            StudentLessonFactory.attachRelationships(
+                to: new,
+                lesson: lessonObj,
+                students: studentObj.map { [$0] } ?? []
             )
-            new.lesson = lessonObj
-            if let s = studentObj { new.students = [s] }
             modelContext.insert(new)
             return new
         }()

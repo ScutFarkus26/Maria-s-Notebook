@@ -331,20 +331,16 @@ struct LessonProgressSection: View {
         let startOfDay = calendar.startOfDay(for: date)
         let scheduled = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
 
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
+        let newStudentLesson = StudentLessonFactory.makeScheduled(
             lessonID: lesson.id,
             studentIDs: Array(selectedStudentIDs),
-            createdAt: Date(),
-            scheduledFor: scheduled,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+            scheduledFor: scheduled
         )
-        newStudentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
-        newStudentLesson.lesson = lesson
+        StudentLessonFactory.attachRelationships(
+            to: newStudentLesson,
+            lesson: lesson,
+            students: studentsAll.filter { selectedStudentIDs.contains($0.id) }
+        )
         modelContext.insert(newStudentLesson)
 
         do { try modelContext.save() } catch {}
@@ -373,20 +369,15 @@ struct LessonProgressSection: View {
             sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
         }
         if !exists {
-            let newStudentLesson = StudentLesson(
-                id: UUID(),
+            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
                 lessonID: next.id,
-                studentIDs: Array(selectedStudentIDs),
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
+                studentIDs: Array(selectedStudentIDs)
             )
-            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-            newStudentLesson.lesson = lessonsAll.first(where: { $0.id == next.id })
+            StudentLessonFactory.attachRelationships(
+                to: newStudentLesson,
+                lesson: lessonsAll.first(where: { $0.id == next.id }),
+                students: studentsAll.filter { sameStudents.contains($0.id) }
+            )
             modelContext.insert(newStudentLesson)
             try? modelContext.save()
         }

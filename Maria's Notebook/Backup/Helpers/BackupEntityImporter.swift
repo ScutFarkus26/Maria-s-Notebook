@@ -156,13 +156,14 @@ enum BackupEntityImporter {
             // Skip if already exists
             if (try? studentLessonCheck(dto.id)) != nil { continue }
 
-            let studentLesson = StudentLesson(
+            let studentLesson = StudentLessonFactory.makeFromBackup(
                 id: dto.id,
                 lessonID: dto.lessonID,
                 studentIDs: dto.studentIDs,
                 createdAt: dto.createdAt,
                 scheduledFor: dto.scheduledFor,
                 givenAt: dto.givenAt,
+                isPresented: dto.givenAt != nil,
                 notes: dto.notes,
                 needsPractice: dto.needsPractice,
                 needsAnotherPresentation: dto.needsAnotherPresentation,

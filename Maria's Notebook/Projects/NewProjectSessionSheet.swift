@@ -127,11 +127,10 @@ struct NewProjectSessionSheet: View {
                         existing.scheduledForDay = scheduledDay
                     }
                 } else {
-                    let newSL = StudentLesson(
+                    let newSL = StudentLessonFactory.makeScheduled(
                         lessonID: lessonID,
                         studentIDs: memberUUIDs,
-                        scheduledFor: scheduledDay,
-                        isPresented: false
+                        scheduledFor: scheduledDay
                     )
                     modelContext.insert(newSL)
                 }

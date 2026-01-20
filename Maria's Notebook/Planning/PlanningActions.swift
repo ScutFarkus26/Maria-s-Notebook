@@ -29,21 +29,15 @@ enum PlanningActions {
         }
         guard !exists else { return }
 
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
+        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
             lessonID: next.id,
-            studentIDs: sl.studentIDs.compactMap { UUID(uuidString: $0) },
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+            studentIDs: sl.studentIDs.compactMap { UUID(uuidString: $0) }
         )
-        newStudentLesson.students = students.filter { sameStudents.contains($0.id) }
-        newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
-        newStudentLesson.syncSnapshotsFromRelationships()
+        StudentLessonFactory.attachRelationships(
+            to: newStudentLesson,
+            lesson: lessons.first(where: { $0.id == next.id }),
+            students: students.filter { sameStudents.contains($0.id) }
+        )
         context.insert(newStudentLesson)
         context.safeSave()
     }

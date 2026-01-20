@@ -109,21 +109,15 @@ struct StudentLessonQuickActionsView: View {
                             sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && !sl.isGiven
                         }
                         if !exists {
-                            let newStudentLesson = StudentLesson(
-                                id: UUID(),
+                            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
                                 lessonID: next.id,
-                                studentIDs: studentLesson.resolvedStudentIDs,
-                                createdAt: Date(),
-                                scheduledFor: nil,
-                                givenAt: nil,
-                                isPresented: false,
-                                notes: "",
-                                needsPractice: false,
-                                needsAnotherPresentation: false,
-                                followUpWork: ""
+                                studentIDs: studentLesson.resolvedStudentIDs
                             )
-                            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
-                            newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+                            StudentLessonFactory.attachRelationships(
+                                to: newStudentLesson,
+                                lesson: lessons.first(where: { $0.id == next.id }),
+                                students: studentsAll.filter { sameStudents.contains($0.id) }
+                            )
                             modelContext.insert(newStudentLesson)
                             saveCoordinator.save(modelContext, reason: "Planning next lesson")
                         }
@@ -262,21 +256,15 @@ struct StudentLessonQuickActionsView: View {
                         sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
                     }
                     if !exists {
-                        let newSL = StudentLesson(
-                            id: UUID(),
+                        let newSL = StudentLessonFactory.makeUnscheduled(
                             lessonID: next.id,
-                            studentIDs: Array(sameStudents),
-                            createdAt: Date(),
-                            scheduledFor: nil,
-                            givenAt: nil,
-                            isPresented: false,
-                            notes: "",
-                            needsPractice: false,
-                            needsAnotherPresentation: false,
-                            followUpWork: ""
+                            studentIDs: Array(sameStudents)
                         )
-                        newSL.students = studentsAll.filter { sameStudents.contains($0.id) }
-                        newSL.lesson = lessons.first(where: { $0.id == next.id })
+                        StudentLessonFactory.attachRelationships(
+                            to: newSL,
+                            lesson: lessons.first(where: { $0.id == next.id }),
+                            students: studentsAll.filter { sameStudents.contains($0.id) }
+                        )
                         modelContext.insert(newSL)
                         saveCoordinator.save(modelContext, reason: "Auto-creating next lesson")
                         appRouter.refreshPlanningInbox()
@@ -304,23 +292,15 @@ struct StudentLessonQuickActionsView: View {
                 sl.resolvedLessonID == currentLessonID && Set(sl.resolvedStudentIDs) == sameStudents && !sl.isGiven
             }
             if !exists {
-                let newPresentation = StudentLesson(
-                    id: UUID(),
+                let newPresentation = StudentLessonFactory.makeUnscheduled(
                     lessonID: currentLessonID,
-                    studentIDs: studentLesson.resolvedStudentIDs,
-                    createdAt: Date(),
-                    scheduledFor: nil,
-                    givenAt: nil,
-                    isPresented: false,
-                    notes: "",
-                    needsPractice: false,
-                    needsAnotherPresentation: false,
-                    followUpWork: ""
+                    studentIDs: studentLesson.resolvedStudentIDs
                 )
-                newPresentation.students = studentsAll.filter { studentLesson.resolvedStudentIDs.contains($0.id) }
-                if let lessonIDUUID = UUID(uuidString: studentLesson.lessonID) {
-                    newPresentation.lesson = lessons.first(where: { $0.id == lessonIDUUID })
-                }
+                StudentLessonFactory.attachRelationships(
+                    to: newPresentation,
+                    lesson: UUID(uuidString: studentLesson.lessonID).flatMap { lid in lessons.first(where: { $0.id == lid }) },
+                    students: studentsAll.filter { studentLesson.resolvedStudentIDs.contains($0.id) }
+                )
                 modelContext.insert(newPresentation)
             }
         }

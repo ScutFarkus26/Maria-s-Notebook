@@ -121,21 +121,15 @@ extension LessonsRootView {
             return
         }
 
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
+        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
             lessonID: lesson.id,
-            studentIDs: studentUUIDs,
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+            studentIDs: studentUUIDs
         )
-        newStudentLesson.students = students
-        newStudentLesson.lesson = lesson
-
+        StudentLessonFactory.attachRelationships(
+            to: newStudentLesson,
+            lesson: lesson,
+            students: students
+        )
         modelContext.insert(newStudentLesson)
         _ = saveCoordinator.save(modelContext, reason: "Plan presentation")
 

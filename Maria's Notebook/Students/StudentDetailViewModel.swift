@@ -208,19 +208,11 @@ final class StudentDetailViewModel: ObservableObject {
         if let existing = latestStudentLesson(for: lesson.id, studentID: student.id) {
             return existing
         }
-        let created = StudentLesson(
+        let created = StudentLessonFactory.insertUnscheduled(
             lessonID: lesson.id,
             studentIDs: [student.id],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            isPresented: false,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+            into: modelContext
         )
-        modelContext.insert(created)
         saveCoordinator.save(modelContext, reason: "Creating student lesson")
         return created
     }
@@ -265,18 +257,11 @@ final class StudentDetailViewModel: ObservableObject {
                 saveCoordinator: saveCoordinator
             )
         } else {
-            let sl = StudentLesson(
+            let sl = StudentLessonFactory.makePresented(
                 lessonID: lesson.id,
-                studentIDs: [student.id],
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                isPresented: true,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
+                studentIDs: [student.id]
             )
+            sl.isPresented = true
             modelContext.insert(sl)
             if saveCoordinator.save(modelContext, reason: "Recording presentation") {
                 showToast("Presentation recorded")
@@ -320,19 +305,12 @@ final class StudentDetailViewModel: ObservableObject {
             return existing
         }
 
-        let newSL = StudentLesson(
-            id: UUID(),
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: giveStartGiven ? Date() : nil,
-            isPresented: giveStartGiven,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
+        let newSL: StudentLesson
+        if giveStartGiven {
+            newSL = StudentLessonFactory.makePresented(lessonID: lesson.id, studentIDs: [student.id])
+        } else {
+            newSL = StudentLessonFactory.makeUnscheduled(lessonID: lesson.id, studentIDs: [student.id])
+        }
         newSL.students = [student]
         modelContext.insert(newSL)
         saveCoordinator.save(modelContext, reason: "Creating draft student lesson")
@@ -360,19 +338,7 @@ final class StudentDetailViewModel: ObservableObject {
             return existing
         }
 
-        let newSL = StudentLesson(
-            id: UUID(),
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            isPresented: false,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
+        let newSL = StudentLessonFactory.makeUnscheduled(lessonID: lesson.id, studentIDs: [student.id])
         newSL.students = [student]
         modelContext.insert(newSL)
         saveCoordinator.save(modelContext, reason: "Creating student lesson")
@@ -382,19 +348,8 @@ final class StudentDetailViewModel: ObservableObject {
 
     /// Log a presentation for a lesson
     func logPresentation(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> StudentLesson {
-        let newSL = StudentLesson(
-            id: UUID(),
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            isPresented: true,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
-        )
+        let newSL = StudentLessonFactory.makePresented(lessonID: lesson.id, studentIDs: [student.id])
+        newSL.isPresented = true
         newSL.students = [student]
         modelContext.insert(newSL)
         saveCoordinator.save(modelContext, reason: "Logging presentation")

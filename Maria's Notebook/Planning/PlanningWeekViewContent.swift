@@ -211,20 +211,15 @@ struct PlanningWeekViewContent: View {
         
         guard !exists else { return }
 
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
+        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
             lessonID: next.id,
-            studentIDs: sl.studentIDs.compactMap { UUID(uuidString: $0) },
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+            studentIDs: sl.studentIDs.compactMap { UUID(uuidString: $0) }
         )
-        newStudentLesson.students = students.filter { sameStudents.contains($0.id) }
-        newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
+        StudentLessonFactory.attachRelationships(
+            to: newStudentLesson,
+            lesson: lessons.first(where: { $0.id == next.id }),
+            students: students.filter { sameStudents.contains($0.id) }
+        )
         modelContext.insert(newStudentLesson)
         saveCoordinator.save(modelContext, reason: "Planning next lesson")
         onRefreshNeeded?()
@@ -274,17 +269,9 @@ struct PlanningWeekViewContent: View {
                         }
                     },
                     onAddNew: {
-                        let newSL = StudentLesson(
-                            lesson: nil,
-                            students: [],
-                            createdAt: Date(),
-                            scheduledFor: nil,
-                            givenAt: nil,
-                            isPresented: false,
-                            notes: "",
-                            needsPractice: false,
-                            needsAnotherPresentation: false,
-                            followUpWork: ""
+                        let newSL = StudentLessonFactory.makeUnscheduled(
+                            lessonID: UUID(),
+                            studentIDs: []
                         )
                         newSL.syncSnapshotsFromRelationships()
                         modelContext.insert(newSL)

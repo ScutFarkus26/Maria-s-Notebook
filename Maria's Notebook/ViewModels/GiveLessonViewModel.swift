@@ -228,16 +228,9 @@ final class LessonPickerViewModel: ObservableObject {
             studentLesson = match
             isNew = false
         } else {
-            studentLesson = StudentLesson(
+            studentLesson = StudentLessonFactory.makeUnscheduled(
                 lessonID: finalLesson.id,
-                studentIDs: selectedIDs,
-                scheduledFor: nil,
-                givenAt: nil,
-                isPresented: false,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
+                studentIDs: selectedIDs
             )
             isNew = true
         }

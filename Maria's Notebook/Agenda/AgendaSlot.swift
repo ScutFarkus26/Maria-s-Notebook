@@ -352,7 +352,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         if let ex = existing {
                             targetSL = ex
                         } else {
-                            let new = StudentLesson(id: UUID(), lessonID: lessonID, studentIDs: [studentID], createdAt: Date(), scheduledFor: nil, givenAt: nil, notes: "", needsPractice: false, needsAnotherPresentation: false, followUpWork: "")
+                            let new = StudentLessonFactory.makeUnscheduled(lessonID: lessonID, studentIDs: [studentID])
                             let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
                             let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
                             new.lesson = (try? modelContext.fetch(lessonFetch))?.first

@@ -115,8 +115,11 @@ enum ChecklistBatchActionExecutor {
                     group.studentIDs.append(studentIDString)
                 }
             } else {
-                let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), scheduledFor: nil)
-                context.insert(newSL)
+                _ = StudentLessonFactory.insertUnscheduled(
+                    lessonID: lesson.id,
+                    studentIDs: [student.id],
+                    into: context
+                )
             }
         }
     }
@@ -211,8 +214,11 @@ enum ChecklistBatchActionExecutor {
                 GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
             }
         } else {
-            let newSL = StudentLesson(lessonID: lesson.id, studentIDs: [student.id], createdAt: Date(), givenAt: Date(), isPresented: true)
-            context.insert(newSL)
+            _ = StudentLessonFactory.insertPresented(
+                lessonID: lesson.id,
+                studentIDs: [student.id],
+                into: context
+            )
             GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
         }
     }

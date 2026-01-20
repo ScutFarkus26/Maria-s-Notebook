@@ -312,19 +312,15 @@ final class StudentLessonDetailViewModel {
         }
         
         if !exists {
-            let newStudentLesson = StudentLesson(
-                id: UUID(),
+            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
                 lessonID: editingLessonID,
-                studentIDs: Array(sameStudents),
-                createdAt: Date(),
-                scheduledFor: nil,
-                givenAt: nil,
-                notes: "",
-                needsPractice: false,
-                needsAnotherPresentation: false,
-                followUpWork: ""
+                studentIDs: Array(sameStudents)
             )
-            newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+            StudentLessonFactory.attachRelationships(
+                to: newStudentLesson,
+                lesson: nil,
+                students: studentsAll.filter { sameStudents.contains($0.id) }
+            )
         }
     }
     
@@ -345,20 +341,15 @@ final class StudentLessonDetailViewModel {
         }
         if exists { return }
 
-        let newStudentLesson = StudentLesson(
-            id: UUID(),
+        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
             lessonID: next.id,
-            studentIDs: Array(sameStudents),
-            createdAt: Date(),
-            scheduledFor: nil,
-            givenAt: nil,
-            isPresented: false,
-            notes: "",
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: ""
+            studentIDs: Array(sameStudents)
         )
-        newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
+        StudentLessonFactory.attachRelationships(
+            to: newStudentLesson,
+            lesson: nil,
+            students: studentsAll.filter { sameStudents.contains($0.id) }
+        )
         modelContext.insert(newStudentLesson)
         saveCoordinator.save(modelContext, reason: "Scheduling next lesson")
         StudentLessonDetailUtilities.notifyInboxRefresh()
