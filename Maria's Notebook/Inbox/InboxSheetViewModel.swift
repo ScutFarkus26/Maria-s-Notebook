@@ -1,0 +1,278 @@
+// InboxSheetViewModel.swift
+// ViewModel for InboxSheetView - handles consolidation and drop logic
+
+import SwiftUI
+import SwiftData
+import Combine
+
+@MainActor
+final class InboxSheetViewModel: ObservableObject {
+    // MARK: - Published State
+    @Published var selected: Set<UUID> = []
+    @Published var toastMessage: String? = nil
+
+    // MARK: - Callbacks
+    var onUpdateOrder: ((String) -> Void)?
+
+    // MARK: - Computed Properties
+
+    var isSelectionMode: Bool {
+        !selected.isEmpty
+    }
+
+    func canConsolidate(orderedUnscheduledLessons: [StudentLesson]) -> Bool {
+        let selectedSLs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
+        let groups = Dictionary(grouping: selectedSLs, by: { $0.lessonID })
+        return groups.values.contains { $0.count >= 2 }
+    }
+
+    // MARK: - Selection Actions
+
+    func toggleSelection(_ id: UUID) {
+        if selected.contains(id) {
+            selected.remove(id)
+        } else {
+            selected.insert(id)
+        }
+    }
+
+    func clearSelection() {
+        selected.removeAll()
+    }
+
+    // MARK: - Consolidation
+
+    func consolidateSelected(
+        orderedUnscheduledLessons: [StudentLesson],
+        studentLessons: [StudentLesson],
+        inboxOrderRaw: Binding<String>,
+        modelContext: ModelContext,
+        appRouter: AppRouter
+    ) {
+        let selectedSLs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
+        guard !selectedSLs.isEmpty else { return }
+
+        let groups = Dictionary(grouping: selectedSLs, by: { $0.resolvedLessonID })
+        var consolidatedGroups = 0
+        var deletedIDs: [UUID] = []
+        let currentOrder = orderedUnscheduledLessons.map(\.id)
+
+        for (_, group) in groups {
+            guard group.count >= 2 else { continue }
+            consolidatedGroups += 1
+
+            let groupIDs = group.map(\.id)
+            guard let targetID = currentOrder.first(where: { groupIDs.contains($0) }),
+                  let target = studentLessons.first(where: { $0.id == targetID }) else { continue }
+
+            var union = Set<UUID>(target.resolvedStudentIDs)
+            for sl in group { union.formUnion(sl.resolvedStudentIDs) }
+            let remainingIDs = Array(union)
+
+            if remainingIDs.isEmpty {
+                deletedIDs.append(targetID)
+                modelContext.delete(target)
+            } else {
+                target.studentIDs = remainingIDs.map { $0.uuidString }
+                let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
+                let fetched = (try? modelContext.fetch(fetch)) ?? []
+                target.students = fetched
+            }
+
+            for sl in group where sl.id != targetID {
+                deletedIDs.append(sl.id)
+                modelContext.delete(sl)
+            }
+        }
+
+        try? modelContext.save()
+
+        var newOrder = currentOrder
+        for id in deletedIDs { newOrder.removeAll { $0 == id } }
+        let serialized = InboxOrderStore.serialize(newOrder)
+        inboxOrderRaw.wrappedValue = serialized
+        onUpdateOrder?(serialized)
+
+        let msg = consolidatedGroups == 1 ? "Consolidated 1 lesson" : "Consolidated \(consolidatedGroups) lessons"
+        showToast(msg)
+
+        selected.removeAll()
+        appRouter.refreshPlanningInbox()
+    }
+
+    // MARK: - Toast
+
+    func showToast(_ message: String) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                self?.toastMessage = nil
+            }
+        }
+    }
+
+    // MARK: - Drop Handling
+
+    func handleDrop(
+        providers: [NSItemProvider],
+        location: CGPoint,
+        studentLessons: [StudentLesson],
+        orderedUnscheduledLessons: [StudentLesson],
+        itemFrames: [UUID: CGRect],
+        inboxOrderRaw: Binding<String>,
+        modelContext: ModelContext
+    ) -> Bool {
+        guard let itemProvider = providers.first else { return false }
+        if itemProvider.canLoadObject(ofClass: NSString.self) {
+            _ = itemProvider.loadObject(ofClass: NSString.self) { [weak self] reading, _ in
+                guard let ns = reading as? NSString else { return }
+                let raw = ns as String
+                Task { @MainActor [weak self] in
+                    if raw.hasPrefix("STUDENT_TO_INBOX:") {
+                        self?.handleStudentToInboxDrop(
+                            payload: raw,
+                            location: location,
+                            studentLessons: studentLessons,
+                            orderedUnscheduledLessons: orderedUnscheduledLessons,
+                            itemFrames: itemFrames,
+                            inboxOrderRaw: inboxOrderRaw,
+                            modelContext: modelContext
+                        )
+                    } else if let droppedId = UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                        self?.handleLessonDrop(
+                            droppedId: droppedId,
+                            location: location,
+                            studentLessons: studentLessons,
+                            orderedUnscheduledLessons: orderedUnscheduledLessons,
+                            itemFrames: itemFrames,
+                            inboxOrderRaw: inboxOrderRaw,
+                            modelContext: modelContext
+                        )
+                    }
+                }
+            }
+            return true
+        }
+        return false
+    }
+
+    private func handleStudentToInboxDrop(
+        payload: String,
+        location: CGPoint,
+        studentLessons: [StudentLesson],
+        orderedUnscheduledLessons: [StudentLesson],
+        itemFrames: [UUID: CGRect],
+        inboxOrderRaw: Binding<String>,
+        modelContext: ModelContext
+    ) {
+        let parts = payload.split(separator: ":")
+        guard parts.count == 4,
+              parts[0] == "STUDENT_TO_INBOX",
+              let sourceID = UUID(uuidString: String(parts[1])),
+              let lessonID = UUID(uuidString: String(parts[2])),
+              let studentID = UUID(uuidString: String(parts[3])) else { return }
+
+        // Find or create an unscheduled single-student StudentLesson
+        let targetSL: StudentLesson = {
+            let matchesLesson = { (sl: StudentLesson) in sl.resolvedLessonID == lessonID }
+            let isUnscheduled = { (sl: StudentLesson) in sl.scheduledFor == nil && !sl.isGiven }
+            let matchesStudent = { (sl: StudentLesson) in Set(sl.resolvedStudentIDs) == Set([studentID]) }
+
+            if let existing = studentLessons.first(where: { sl in
+                matchesLesson(sl) && isUnscheduled(sl) && matchesStudent(sl)
+            }) {
+                return existing
+            }
+
+            let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+            let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+            let lessonObj = (try? modelContext.fetch(lessonFetch))?.first
+            let studentObj = (try? modelContext.fetch(studentFetch))?.first
+
+            let new = StudentLesson(
+                id: UUID(),
+                lessonID: lessonID,
+                studentIDs: [studentID],
+                createdAt: Date(),
+                scheduledFor: nil,
+                givenAt: nil,
+                notes: "",
+                needsPractice: false,
+                needsAnotherPresentation: false,
+                followUpWork: ""
+            )
+            new.lesson = lessonObj
+            if let s = studentObj { new.students = [s] }
+            modelContext.insert(new)
+            return new
+        }()
+
+        // Remove the student from the source
+        let sourceDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
+        if let src = try? modelContext.fetch(sourceDescriptor).first {
+            let studentIDString = studentID.uuidString
+            src.studentIDs.removeAll { $0 == studentIDString }
+            src.students.removeAll { $0.id == studentID }
+            if src.studentIDs.isEmpty {
+                modelContext.delete(src)
+            }
+        }
+
+        // Insert into inbox order
+        let currentOrder = orderedUnscheduledLessons.map(\.id)
+        var framesByID: [UUID: CGRect] = [:]
+        for id in currentOrder {
+            if let frame = itemFrames[id] { framesByID[id] = frame }
+        }
+        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: framesByID)
+        var newOrder = currentOrder
+        newOrder.removeAll(where: { $0 == targetSL.id })
+        let boundedIndex = max(0, min(insertionIndex, newOrder.count))
+        newOrder.insert(targetSL.id, at: boundedIndex)
+        let serialized = InboxOrderStore.serialize(newOrder)
+        inboxOrderRaw.wrappedValue = serialized
+        onUpdateOrder?(serialized)
+        try? modelContext.save()
+    }
+
+    private func handleLessonDrop(
+        droppedId: UUID,
+        location: CGPoint,
+        studentLessons: [StudentLesson],
+        orderedUnscheduledLessons: [StudentLesson],
+        itemFrames: [UUID: CGRect],
+        inboxOrderRaw: Binding<String>,
+        modelContext: ModelContext
+    ) {
+        let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == droppedId })
+        guard let sl = (try? modelContext.fetch(descriptor).first) ?? studentLessons.first(where: { $0.id == droppedId }) else { return }
+
+        let currentOrder = orderedUnscheduledLessons.map(\.id)
+        var framesByID: [UUID: CGRect] = [:]
+        for id in currentOrder {
+            if let frame = itemFrames[id] { framesByID[id] = frame }
+        }
+        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: framesByID)
+        var newOrder = currentOrder.filter { currentOrder.contains($0) }
+
+        // If scheduled, clear scheduledFor
+        if sl.scheduledFor != nil {
+            let targetId = droppedId
+            let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetId })
+            if let lesson = try? modelContext.fetch(descriptor).first {
+                lesson.scheduledFor = nil
+                try? modelContext.save()
+            }
+        }
+
+        newOrder.removeAll(where: { $0 == droppedId })
+        let boundedIndex = max(0, min(insertionIndex, newOrder.count))
+        newOrder.insert(droppedId, at: boundedIndex)
+        let serialized = InboxOrderStore.serialize(newOrder)
+        inboxOrderRaw.wrappedValue = serialized
+        onUpdateOrder?(serialized)
+        try? modelContext.save()
+    }
+}

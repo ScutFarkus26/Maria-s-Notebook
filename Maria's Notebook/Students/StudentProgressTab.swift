@@ -11,53 +11,22 @@ import UIKit
 
 struct StudentProgressTab: View {
     let student: Student
-    
-    @Environment(\.modelContext) private var modelContext
-    
-    // MARK: - Queries
-    
-    // Enrollments
-    @Query(sort: [SortDescriptor(\StudentTrackEnrollment.createdAt, order: .reverse)])
-    private var allEnrollments: [StudentTrackEnrollment]
-    
-    // Tracks lookup
-    @Query(sort: [SortDescriptor(\Track.title)])
-    private var allTracks: [Track]
-    
-    // Projects
-    @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)])
-    private var allProjects: [Project]
-    
-    // Additional queries for track details
-    @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)])
-    private var allPresentations: [Presentation]
-    
-    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
-    private var allWorkModels: [WorkModel]
-    
-    @Query(sort: [SortDescriptor(\Note.updatedAt, order: .reverse)])
-    private var allNotes: [Note]
-    
-    @Query(sort: [SortDescriptor(\TrackStep.orderIndex)])
-    private var allTrackSteps: [TrackStep]
-    
-    @Query(sort: [SortDescriptor(\Lesson.name)])
-    private var allLessons: [Lesson]
 
-    @Query private var allLessonPresentations: [LessonPresentation]
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var viewModel = StudentProgressTabViewModel()
 
     // MARK: - State
     @State private var selectedEnrollment: StudentTrackEnrollment?
     @State private var selectedProject: Project?
     @State private var selectedReport: WorkModel?
     @State private var filterSheet: FilterSheet? = nil
-    
+
     // MARK: - Filter Sheet State
     enum FilterSheet: Identifiable {
         case presentations(StudentTrackEnrollment, Track)
         case work(StudentTrackEnrollment, Track)
         case notes(StudentTrackEnrollment, Track)
-        
+
         var id: String {
             switch self {
             case .presentations(let enrollment, _):
@@ -70,50 +39,20 @@ struct StudentProgressTab: View {
         }
     }
     
-    // MARK: - Computed Properties
-    private var cardBackgroundColor: Color {
-        #if os(macOS)
-        return Color(NSColor.windowBackgroundColor)
-        #else
-        return Color(uiColor: .systemBackground)
-        #endif
-    }
-    
-    private var activeEnrollments: [StudentTrackEnrollment] {
-        let sid = student.id.uuidString
-        return allEnrollments.filter { $0.studentID == sid && $0.isActive }
-    }
-    
-    private var activeProjects: [Project] {
-        let sid = student.id.uuidString
-        return allProjects.filter { $0.memberStudentIDs.contains(sid) && $0.isActive }
-    }
-    
-    private var tracksByID: [String: Track] {
-        Dictionary(uniqueKeysWithValues: allTracks.map { ($0.id.uuidString, $0) })
-    }
-
-    private var activeReports: [WorkModel] {
-        let sid = student.id.uuidString
-        return allWorkModels.filter {
-            $0.studentID == sid && $0.kind == .report && $0.status != .complete
-        }
-    }
-    
     // MARK: - Body
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 // 1. Projects Section
-                if !activeProjects.isEmpty {
+                if !viewModel.activeProjects.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Active Projects", systemImage: "book.closed.fill")
                             .font(.headline)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)
-                        
-                        ForEach(activeProjects) { project in
+
+                        ForEach(viewModel.activeProjects) { project in
                             projectRow(project)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -123,16 +62,16 @@ struct StudentProgressTab: View {
                     }
                     .padding(.horizontal, 4)
                 }
-                
+
                 // 2. Reports Section
-                if !activeReports.isEmpty {
+                if !viewModel.activeReports.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Active Reports", systemImage: "doc.text.fill")
                             .font(.headline)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)
 
-                        ForEach(activeReports) { report in
+                        ForEach(viewModel.activeReports) { report in
                             reportCard(report: report)
                                 .padding(.horizontal, 4)
                                 .contentShape(Rectangle())
@@ -145,14 +84,14 @@ struct StudentProgressTab: View {
                 }
 
                 // 3. Tracks Section with detailed cards
-                if activeEnrollments.isEmpty {
-                    if activeProjects.isEmpty && activeReports.isEmpty {
+                if viewModel.activeEnrollments.isEmpty {
+                    if viewModel.activeProjects.isEmpty && viewModel.activeReports.isEmpty {
                         emptyStateView
                             .padding(.top, 60)
                     }
                 } else {
-                    ForEach(activeEnrollments) { enrollment in
-                        if let track = tracksByID[enrollment.trackID] {
+                    ForEach(viewModel.activeEnrollments) { enrollment in
+                        if let track = viewModel.tracksByID[enrollment.trackID] {
                             enrollmentCard(enrollment: enrollment, track: track)
                                 .padding(.horizontal, 4)
                                 .onTapGesture {
@@ -164,9 +103,12 @@ struct StudentProgressTab: View {
             }
             .padding(.vertical, 16)
         }
+        .onAppear {
+            viewModel.configure(for: student, context: modelContext)
+        }
         // Sheets
         .sheet(item: $selectedEnrollment) { enrollment in
-            if let track = tracksByID[enrollment.trackID] {
+            if let track = viewModel.tracksByID[enrollment.trackID] {
                 StudentTrackDetailView(enrollment: enrollment, track: track)
                     .studentDetailSheetSizing()
             }
@@ -182,44 +124,11 @@ struct StudentProgressTab: View {
             .studentDetailSheetSizing()
         }
         .sheet(item: $filterSheet) { sheet in
-            switch sheet {
-            case .presentations(let enrollment, let track):
-                TrackFilteredListView(
-                    enrollment: enrollment,
-                    track: track,
-                    filterType: .presentations,
-                    allPresentations: allPresentations,
-                    allWorkModels: allWorkModels,
-                    allNotes: allNotes,
-                    allLessons: allLessons,
-                    onDismiss: { filterSheet = nil }
-                )
-                .studentDetailSheetSizing()
-            case .work(let enrollment, let track):
-                TrackFilteredListView(
-                    enrollment: enrollment,
-                    track: track,
-                    filterType: .work,
-                    allPresentations: allPresentations,
-                    allWorkModels: allWorkModels,
-                    allNotes: allNotes,
-                    allLessons: allLessons,
-                    onDismiss: { filterSheet = nil }
-                )
-                .studentDetailSheetSizing()
-            case .notes(let enrollment, let track):
-                TrackFilteredListView(
-                    enrollment: enrollment,
-                    track: track,
-                    filterType: .notes,
-                    allPresentations: allPresentations,
-                    allWorkModels: allWorkModels,
-                    allNotes: allNotes,
-                    allLessons: allLessons,
-                    onDismiss: { filterSheet = nil }
-                )
-                .studentDetailSheetSizing()
-            }
+            TrackFilteredListSheet(
+                sheet: sheet,
+                student: student,
+                onDismiss: { filterSheet = nil }
+            )
         }
     }
     
@@ -278,88 +187,27 @@ struct StudentProgressTab: View {
         enrollment: StudentTrackEnrollment,
         track: Track
     ) -> some View {
-        let studentIDString = student.id.uuidString
-        let trackIDString = track.id.uuidString
-        
-        // Get stats for this track enrollment
-        let presentations = allPresentations.filter {
-            $0.trackID == trackIDString && $0.studentIDs.contains(studentIDString)
-        }
-        let workModels = allWorkModels.filter {
-            $0.trackID == trackIDString && $0.studentID == studentIDString
-        }
-        let notes = allNotes.filter {
-            $0.studentTrackEnrollment?.id == enrollment.id
-        }
-        
-        let presentationCount = presentations.count
-        let workCount = workModels.count
-        let noteCount = notes.count
-        let totalActivity = presentationCount + workCount + noteCount
-        
-        // Get last activity date
-        let lastActivityDate: Date? = {
-            var dates: [Date] = []
-            dates.append(contentsOf: presentations.map { $0.presentedAt })
-            dates.append(contentsOf: workModels.compactMap { $0.completedAt ?? $0.createdAt })
-            dates.append(contentsOf: notes.map { $0.updatedAt })
-            return dates.max()
-        }()
-        
-        let trackColor = trackColorForTitle(track.title)
+        // Get stats and progress from viewModel
+        let stats = viewModel.trackStats(for: enrollment, track: track)
+        let progress = viewModel.trackProgress(for: track)
+
+        let presentationCount = stats.presentationCount
+        let workCount = stats.workCount
+        let noteCount = stats.noteCount
+        let totalActivity = stats.totalActivity
+        let lastActivityDate = stats.lastActivityDate
+
+        let trackColor = viewModel.trackColor(for: track.title)
         let hasNotes = enrollment.notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
 
-        // Calculate progress based on TrackSteps and LessonPresentation records
-        // Use track.steps relationship if available, otherwise filter from all steps
-        let trackSteps: [TrackStep] = {
-            if let steps = track.steps, !steps.isEmpty {
-                return steps.sorted { $0.orderIndex < $1.orderIndex }
-            }
-            // Fallback to filtering from all steps
-            return allTrackSteps
-                .filter { $0.track?.id == track.id }
-                .sorted { $0.orderIndex < $1.orderIndex }
-        }()
+        let trackSteps = progress.trackSteps
+        let completedStepIDs = progress.completedStepIDs
+        let masteredCount = progress.masteredCount
+        let totalSteps = progress.totalSteps
+        let progressPercent = progress.progressPercent
+        let isComplete = progress.isComplete
+        let currentLesson = progress.currentLesson
 
-        // Get lesson IDs for this track's steps
-        let trackLessonIDs = Set(trackSteps.compactMap { $0.lessonTemplateID?.uuidString })
-
-        // Get this student's LessonPresentation records for track lessons
-        let studentLessonPresentations = allLessonPresentations.filter {
-            $0.studentID == studentIDString && trackLessonIDs.contains($0.lessonID)
-        }
-
-        // Count mastered lessons (LessonPresentation.state == .mastered)
-        let masteredLessonIDs = Set(studentLessonPresentations
-            .filter { $0.state == .mastered }
-            .map { $0.lessonID })
-
-        // presentedLessonIDs available for future use if needed
-        // let presentedLessonIDs = Set(studentLessonPresentations.map { $0.lessonID })
-
-        // Find which steps are completed (lesson is mastered)
-        let completedStepIDs = Set(trackSteps
-            .filter { step in
-                guard let lessonID = step.lessonTemplateID?.uuidString else { return false }
-                return masteredLessonIDs.contains(lessonID)
-            }
-            .map { $0.id.uuidString })
-
-        let masteredCount = completedStepIDs.count
-        let totalSteps = trackSteps.count
-        let progressPercent = totalSteps > 0 ? Double(masteredCount) / Double(totalSteps) : 0.0
-        let isComplete = masteredCount == totalSteps && totalSteps > 0
-
-        // Find current/next step (first step whose lesson is not mastered)
-        let currentStep = trackSteps.first { step in
-            guard let lessonID = step.lessonTemplateID?.uuidString else { return true }
-            return !masteredLessonIDs.contains(lessonID)
-        }
-
-        let currentLesson = currentStep?.lessonTemplateID.flatMap { lessonID in
-            allLessons.first { $0.id == lessonID }
-        }
-        
         VStack(alignment: .leading, spacing: 16) {
             // Header with track icon and title
             HStack(spacing: 12) {
@@ -734,7 +582,7 @@ struct StudentProgressTab: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(cardBackgroundColor)
+                .fill(viewModel.cardBackgroundColor)
                 .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
         )
         .overlay(
@@ -752,23 +600,8 @@ struct StudentProgressTab: View {
                 )
         )
         .onAppear {
-            // Auto-complete: If track is 100% mastered and enrollment is still active, mark it as complete
-            if isComplete && enrollment.isActive {
-                enrollment.isActive = false
-                try? modelContext.save()
-            }
+            viewModel.autoCompleteTrackIfNeeded(enrollment: enrollment, progress: progress, context: modelContext)
         }
-    }
-
-    // MARK: - Helper Functions
-    private func trackColorForTitle(_ title: String) -> Color {
-        // Generate a consistent color based on the track title
-        let hash = title.hash
-        let colors: [Color] = [
-            .blue, .purple, .pink, .orange, .green, .mint, .teal, .cyan, .indigo
-        ]
-        let index = abs(hash) % colors.count
-        return colors[index]
     }
     
     private func statBadge(count: Int, label: String, icon: String, color: Color) -> some View {
@@ -807,16 +640,8 @@ struct StudentProgressTab: View {
         let progressPercent = totalSteps > 0 ? Double(completedSteps) / Double(totalSteps) : 0.0
         let isComplete = completedSteps == totalSteps && totalSteps > 0
 
-        // Get report title - use work title or lesson name
-        let reportTitle: String = {
-            let title = report.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !title.isEmpty { return title }
-            if let lessonID = UUID(uuidString: report.lessonID),
-               let lesson = allLessons.first(where: { $0.id == lessonID }) {
-                return lesson.name
-            }
-            return "Untitled Report"
-        }()
+        // Get report title from viewModel
+        let reportTitle = viewModel.reportTitle(for: report)
 
         // Find the current/next step
         let orderedSteps = report.orderedSteps
@@ -1050,7 +875,7 @@ struct StudentProgressTab: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(cardBackgroundColor)
+                .fill(viewModel.cardBackgroundColor)
                 .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
         )
         .overlay(
@@ -1067,5 +892,56 @@ struct StudentProgressTab: View {
                     lineWidth: 2
                 )
         )
+    }
+}
+
+// MARK: - Track Filtered List Sheet Wrapper
+/// Wrapper view that fetches its own data for TrackFilteredListView
+private struct TrackFilteredListSheet: View {
+    let sheet: StudentProgressTab.FilterSheet
+    let student: Student
+    let onDismiss: () -> Void
+
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        let (enrollment, track, filterType) = extractParams()
+
+        // Fetch data on-demand
+        let allPresentations = modelContext.safeFetch(FetchDescriptor<Presentation>(
+            sortBy: [SortDescriptor(\.presentedAt, order: .reverse)]
+        ))
+        let allWorkModels = modelContext.safeFetch(FetchDescriptor<WorkModel>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        ))
+        let allNotes = modelContext.safeFetch(FetchDescriptor<Note>(
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        ))
+        let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>(
+            sortBy: [SortDescriptor(\.name)]
+        ))
+
+        TrackFilteredListView(
+            enrollment: enrollment,
+            track: track,
+            filterType: filterType,
+            allPresentations: allPresentations,
+            allWorkModels: allWorkModels,
+            allNotes: allNotes,
+            allLessons: allLessons,
+            onDismiss: onDismiss
+        )
+        .studentDetailSheetSizing()
+    }
+
+    private func extractParams() -> (StudentTrackEnrollment, Track, TrackFilterType) {
+        switch sheet {
+        case .presentations(let enrollment, let track):
+            return (enrollment, track, .presentations)
+        case .work(let enrollment, let track):
+            return (enrollment, track, .work)
+        case .notes(let enrollment, let track):
+            return (enrollment, track, .notes)
+        }
     }
 }
