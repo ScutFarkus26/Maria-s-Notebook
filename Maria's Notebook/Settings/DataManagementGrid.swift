@@ -214,7 +214,7 @@ struct DataManagementGrid: View {
         .fileImporter(
             isPresented: $showingImporter,
             allowedContentTypes: [
-                UTType(exportedAs: "com.marias-toolbox.backup"),
+                UTType(exportedAs: "com.marias-notebook.backup"),
                 UTType(filenameExtension: "mbk") ?? .data
             ]
         ) { result in
@@ -228,7 +228,7 @@ struct DataManagementGrid: View {
         .fileExporter(
             isPresented: $showingExporter,
             document: viewModel.exportData.map { BackupPackageDocument(data: $0) },
-            contentType: UTType(exportedAs: "com.marias-toolbox.backup"),
+            contentType: UTType(exportedAs: "com.marias-notebook.backup"),
             defaultFilename: viewModel.defaultBackupFilename()
         ) { _ in }
         .fileImporter(
@@ -300,7 +300,7 @@ struct DataManagementGrid: View {
         panel.canCreateDirectories = false
         if #available(macOS 12.0, *) {
             panel.allowedContentTypes = [
-                UTType(exportedAs: "com.marias-toolbox.backup"),
+                UTType(exportedAs: "com.marias-notebook.backup"),
                 UTType(filenameExtension: "mbk") ?? .data
             ]
         } else {

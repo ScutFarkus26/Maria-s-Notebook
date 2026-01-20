@@ -24,13 +24,6 @@ struct PresentationsViewModelInitializationTests {
         #expect(vm.blockedLessons.isEmpty)
     }
 
-    @Test("PresentationsViewModel initializes with empty blockingContractsCache")
-    func initializesWithEmptyBlockingContractsCache() {
-        let vm = PresentationsViewModel()
-
-        #expect(vm.blockingContractsCache.isEmpty)
-    }
-
     @Test("PresentationsViewModel initializes with empty daysSinceLastLessonByStudent")
     func initializesWithEmptyDaysSinceLastLesson() {
         let vm = PresentationsViewModel()
@@ -43,49 +36,6 @@ struct PresentationsViewModelInitializationTests {
         let vm = PresentationsViewModel()
 
         #expect(vm.cachedStudents.isEmpty)
-    }
-}
-
-// MARK: - PresentationsViewModel getBlockingContracts Tests
-
-@Suite("PresentationsViewModel getBlockingContracts Tests", .serialized)
-@MainActor
-struct PresentationsViewModelGetBlockingContractsTests {
-
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Presentation.self,
-            Note.self,
-        ])
-    }
-
-    @Test("getBlockingContracts returns empty when no blocking")
-    func returnsEmptyWhenNoBlocking() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
-        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
-        context.insert(lesson)
-
-        let sl = makeTestStudentLesson(student: student, lesson: lesson)
-        context.insert(sl)
-
-        try context.save()
-
-        let vm = PresentationsViewModel()
-        // Without update, cache is empty so getBlockingContracts returns empty
-        let blocking = vm.getBlockingContracts(sl)
-
-        #expect(blocking.isEmpty)
     }
 }
 

@@ -231,7 +231,7 @@ struct RootView: View {
             EphemeralStoreWarningBanner()
         }
 
-        let cloudStatus = MariasToolboxApp.getCloudKitStatus()
+        let cloudStatus = MariasNotebookApp.getCloudKitStatus()
         if cloudStatus.enabled && !cloudStatus.active {
             CloudKitSyncWarningBanner()
         }

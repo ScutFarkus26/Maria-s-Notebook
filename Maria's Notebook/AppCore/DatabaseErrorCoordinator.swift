@@ -29,11 +29,11 @@ final class DatabaseErrorCoordinator: ObservableObject {
     /// This only deletes local data on this device and does NOT delete CloudKit data.
     func resetLocalDatabase() throws {
         // Delete the persistent store (includes logging)
-        try MariasToolboxApp.resetPersistentStore()
+        try MariasNotebookApp.resetPersistentStore()
         
         // Clear error state
         clearError()
-        MariasToolboxApp.initError = nil
+        MariasNotebookApp.initError = nil
         
         // Clear error flags
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
@@ -99,7 +99,7 @@ final class DatabaseErrorCoordinator: ObservableObject {
         diagnostics.append("")
         
         // Store URL
-        let storeURL = MariasToolboxApp.storeFileURL()
+        let storeURL = MariasNotebookApp.storeFileURL()
         diagnostics.append("Store URL: \(storeURL.path)")
         let fileManager = FileManager.default
         diagnostics.append("Store exists: \(fileManager.fileExists(atPath: storeURL.path))")

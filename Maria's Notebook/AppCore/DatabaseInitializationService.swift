@@ -62,7 +62,7 @@ enum DatabaseInitializationService {
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
 
-        MariasToolboxApp.initError = nil
+        MariasNotebookApp.initError = nil
         DatabaseErrorCoordinator.shared.clearError()
     }
     #endif
@@ -115,7 +115,7 @@ enum DatabaseInitializationService {
             userInfo: [NSLocalizedDescriptionKey: errorDescription]
         )
 
-        MariasToolboxApp.initError = nsError
+        MariasNotebookApp.initError = nsError
         DatabaseErrorCoordinator.shared.setError(nsError)
         UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
         UserDefaults.standard.set(errorDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
@@ -148,7 +148,7 @@ enum DatabaseInitializationService {
             userInfo: [NSLocalizedDescriptionKey: errorMessage]
         )
 
-        MariasToolboxApp.initError = criticalError
+        MariasNotebookApp.initError = criticalError
         let details = emptyContainerError != nil
             ? "Original: \(originalDesc). Final: \(finalDesc). Empty container error: \(emptyErrorDesc)"
             : "Original: \(originalDesc). Final: \(finalDesc)"

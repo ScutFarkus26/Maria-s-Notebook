@@ -10,7 +10,7 @@ import UIKit
 
 // Define the custom UTType matching Info.plist
 extension UTType {
-    static let mariasBackup = UTType(exportedAs: "com.marias-toolbox.backup")
+    static let mariasBackup = UTType(exportedAs: "com.marias-notebook.backup")
 }
 
 struct BackupRestoreSectionView: View {

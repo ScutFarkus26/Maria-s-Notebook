@@ -1,5 +1,5 @@
 //
-//  MariasToolboxApp.swift
+//  MariasNotebookApp.swift
 //  Maria's Notebook
 //
 //  Created by Danny De Berry on 11/26/25.
@@ -14,7 +14,7 @@ import AppKit
 #endif
 
 @main
-struct MariasToolboxApp: App {
+struct MariasNotebookApp: App {
     /// Returns the CloudKit container identifier from entitlements
     /// This must match the container ID in the entitlements file
     static func getCloudKitContainerID() -> String? {
@@ -161,7 +161,7 @@ struct MariasToolboxApp: App {
                     return container
                 } else if cloud {
                     // Use the container ID from entitlements (must match entitlements file)
-                    let storeURL = url ?? MariasToolboxApp.storeFileURL()
+                    let storeURL = url ?? MariasNotebookApp.storeFileURL()
                     
                     // Validate store URL is not /dev/null or invalid
                     guard storeURL.path != "/dev/null" && !storeURL.path.isEmpty else {
@@ -184,7 +184,7 @@ struct MariasToolboxApp: App {
                         return container
                     }
                     
-                    guard let containerID = MariasToolboxApp.getCloudKitContainerID() else {
+                    guard let containerID = MariasNotebookApp.getCloudKitContainerID() else {
                         let errorMessage = "Missing CloudKit container identifier. CloudKit sync cannot be initialized."
                         UserDefaults.standard.set(errorMessage, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
                         let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
@@ -267,7 +267,7 @@ struct MariasToolboxApp: App {
                 } else {
                     // Explicitly disable CloudKit for SwiftData (we use CloudDocuments for file storage instead)
                     let config = ModelConfiguration(
-                        url: url ?? MariasToolboxApp.storeFileURL(),
+                        url: url ?? MariasNotebookApp.storeFileURL(),
                         cloudKitDatabase: .none
                     )
                     UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
@@ -281,7 +281,7 @@ struct MariasToolboxApp: App {
 
         do {
             // Attempt migration before opening store (if needed)
-            _ = MariasToolboxApp.attemptAttendanceRecordMigrationIfNeeded()
+            _ = MariasNotebookApp.attemptAttendanceRecordMigrationIfNeeded()
             
             let _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
             if useInMemory {
@@ -292,7 +292,7 @@ struct MariasToolboxApp: App {
                 return container
             } else {
                 // Validate store file before attempting to open
-                let storeURL = MariasToolboxApp.storeFileURL()
+                let storeURL = MariasNotebookApp.storeFileURL()
                 let fm = FileManager.default
                 if fm.fileExists(atPath: storeURL.path) {
                     // Check if the store file is readable
@@ -333,7 +333,7 @@ struct MariasToolboxApp: App {
                         // Try to automatically reset the store if it's safe to do so
                         // (i.e., if there's no important data to preserve)
                         do {
-                            try MariasToolboxApp.resetPersistentStore()
+                            try MariasNotebookApp.resetPersistentStore()
                             // Retry creating the container with the fresh store
                             // Preserve CloudKit setting - don't disable it during recovery
                             let enableCloudKit = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
@@ -350,16 +350,16 @@ struct MariasToolboxApp: App {
                                     NSLocalizedDescriptionKey: "Database schema migration required. The AttendanceRecord.studentID property needs to be migrated from UUID to String format. Automatic reset failed. Please use 'Reset Local Database' manually to resolve this."
                                 ]
                             )
-                            MariasToolboxApp.handleDatabaseInitError(migrationError)
+                            MariasNotebookApp.handleDatabaseInitError(migrationError)
                         }
                     } else {
-                        MariasToolboxApp.handleDatabaseInitError(error)
+                        MariasNotebookApp.handleDatabaseInitError(error)
                     }
                 } else {
-                    MariasToolboxApp.handleDatabaseInitError(error)
+                    MariasNotebookApp.handleDatabaseInitError(error)
                 }
             } else {
-                MariasToolboxApp.handleDatabaseInitError(error)
+                MariasNotebookApp.handleDatabaseInitError(error)
             }
             
             // As a last resort, try to create an in-memory container
@@ -375,7 +375,7 @@ struct MariasToolboxApp: App {
                 return fallbackContainer
             } catch let finalError {
                 // Set the error so the UI can display it
-                MariasToolboxApp.handleCriticalDatabaseInitError(
+                MariasNotebookApp.handleCriticalDatabaseInitError(
                     originalError: error,
                     finalError: finalError,
                     errorCode: 5001
@@ -391,7 +391,7 @@ struct MariasToolboxApp: App {
                     let emptyContainer = try ModelContainer(for: emptySchema, configurations: emptyConfig)
                     
                     // Set the error so the UI can display it
-                    MariasToolboxApp.handleCriticalDatabaseInitError(
+                    MariasNotebookApp.handleCriticalDatabaseInitError(
                         originalError: error,
                         finalError: finalError,
                         errorCode: 5001
@@ -401,7 +401,7 @@ struct MariasToolboxApp: App {
                 } catch let emptyContainerError {
                     // Even creating an empty container failed - this should never happen
                     // Set error state instead of crashing so user can recover
-                    MariasToolboxApp.handleCriticalDatabaseInitError(
+                    MariasNotebookApp.handleCriticalDatabaseInitError(
                         originalError: error,
                         finalError: finalError,
                         emptyContainerError: emptyContainerError,
@@ -409,7 +409,7 @@ struct MariasToolboxApp: App {
                     )
                     // We still need to return something, so rethrow and let the caller handle it
                     // The caller (sharedModelContainer) will catch this and handle it
-                    if let criticalError = MariasToolboxApp.initError as NSError? {
+                    if let criticalError = MariasNotebookApp.initError as NSError? {
                         throw criticalError
                     } else {
                         throw emptyContainerError
@@ -427,7 +427,7 @@ struct MariasToolboxApp: App {
     
     @MainActor
     var sharedModelContainer: ModelContainer {
-        if let existing = MariasToolboxApp._sharedModelContainer {
+        if let existing = MariasNotebookApp._sharedModelContainer {
             return existing
         }
         
@@ -443,10 +443,10 @@ struct MariasToolboxApp: App {
         // NOTE: We cannot catch SwiftData's internal assertions - they crash immediately.
 
         do {
-            let container = try MariasToolboxApp.createModelContainer()
+            let container = try MariasNotebookApp.createModelContainer()
             // Configure SQLite to suppress detached signature errors
-            MariasToolboxApp.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
-            MariasToolboxApp._sharedModelContainer = container
+            MariasNotebookApp.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
+            MariasNotebookApp._sharedModelContainer = container
             return container
         } catch {
             // This should never be reached if createModelContainer handles all errors properly,
@@ -457,7 +457,7 @@ struct MariasToolboxApp: App {
                 code: 6000,
                 userInfo: [NSLocalizedDescriptionKey: "Unexpected error during container initialization: \(errorDesc)"]
             )
-            MariasToolboxApp.initError = unexpectedError
+            MariasNotebookApp.initError = unexpectedError
             DatabaseErrorCoordinator.shared.setError(unexpectedError, details: errorDesc)
             
             // Create an empty container so the app can show the error UI
@@ -530,7 +530,7 @@ struct MariasToolboxApp: App {
                     NSLocalizedDescriptionKey: "DEBUG: Simulated database initialization failure. This is a test error to verify the recovery UI. Clear the 'DEBUG_SimulateDatabaseInitFailure' UserDefaults flag to restore normal operation."
                 ]
             )
-            MariasToolboxApp.initError = testError
+            MariasNotebookApp.initError = testError
             DatabaseErrorCoordinator.shared.setError(testError, details: "This is a simulated error for testing purposes.")
         }
         #endif
@@ -540,7 +540,7 @@ struct MariasToolboxApp: App {
         WindowGroup("", id: "mainWindow") {
             Group {
                 // Show database error view if there's an initialization error
-                if databaseErrorCoordinator.error != nil || MariasToolboxApp.initError != nil {
+                if databaseErrorCoordinator.error != nil || MariasNotebookApp.initError != nil {
                     DatabaseErrorView(errorCoordinator: databaseErrorCoordinator, appRouter: appRouter)
                 } else {
                     // NORMAL APP FLOW
@@ -577,12 +577,12 @@ struct MariasToolboxApp: App {
             }
             .task {
                 // Sync initError to error coordinator if not already set
-                if databaseErrorCoordinator.error == nil, let error = MariasToolboxApp.initError {
+                if databaseErrorCoordinator.error == nil, let error = MariasNotebookApp.initError {
                     databaseErrorCoordinator.setError(error)
                 }
                 
                 // Only bootstrap if the store loaded successfully
-                if MariasToolboxApp.initError == nil {
+                if MariasNotebookApp.initError == nil {
                     #if os(macOS)
                     appDelegate.setModelContainer(sharedModelContainer)
                     #endif
@@ -707,10 +707,10 @@ struct MariasToolboxApp: App {
                     
                     Button("Reset Local Database…", role: .destructive) {
                         #if os(macOS)
-                        MariasToolboxApp.requestResetLocalDatabaseWithConfirmation()
+                        MariasNotebookApp.requestResetLocalDatabaseWithConfirmation()
                         #else
                         // On iOS, this would need a different approach (not available via menu)
-                        try? MariasToolboxApp.resetLocalDatabaseInDebug()
+                        try? MariasNotebookApp.resetLocalDatabaseInDebug()
                         #endif
                     }
                     #endif

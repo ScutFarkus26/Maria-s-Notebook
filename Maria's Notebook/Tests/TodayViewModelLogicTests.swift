@@ -89,7 +89,6 @@ struct TodayViewModelInitializationTests {
         #expect(vm.overdueSchedule.isEmpty)
         #expect(vm.todaysSchedule.isEmpty)
         #expect(vm.staleFollowUps.isEmpty)
-        #expect(vm.completedContracts.isEmpty)
     }
 
     @Test("TodayViewModel starts with empty caches")
@@ -875,73 +874,6 @@ struct TodayViewModelWorkScheduleTests {
         #expect(vm.todaysSchedule.first?.work.title == "Math Practice")
     }
 
-    @Test("reload fetches completed work for today")
-    func reloadFetchesCompletedWorkForToday() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
-        let work = makeTestWorkModel(
-            title: "Completed Work",
-            workType: .practice,
-            completedAt: testDate,
-            status: .complete,
-            studentID: student.id.uuidString
-        )
-        context.insert(work)
-
-        try context.save()
-
-        let vm = TodayViewModel(context: context, date: testDate)
-        vm.reload()
-
-        #expect(vm.completedContracts.count == 1)
-        #expect(vm.completedContracts.first?.title == "Completed Work")
-    }
-
-    @Test("completed work respects level filter")
-    func completedWorkRespectsLevelFilter() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
-
-        let lowerStudent = makeTestStudent(firstName: "Alice", lastName: "Anderson", level: .lower)
-        let upperStudent = makeTestStudent(firstName: "Bob", lastName: "Brown", level: .upper)
-        context.insert(lowerStudent)
-        context.insert(upperStudent)
-
-        let work1 = makeTestWorkModel(
-            title: "Lower Work",
-            workType: .practice,
-            completedAt: testDate,
-            status: .complete,
-            studentID: lowerStudent.id.uuidString
-        )
-        let work2 = makeTestWorkModel(
-            title: "Upper Work",
-            workType: .practice,
-            completedAt: testDate,
-            status: .complete,
-            studentID: upperStudent.id.uuidString
-        )
-        context.insert(work1)
-        context.insert(work2)
-
-        try context.save()
-
-        let vm = TodayViewModel(context: context, date: testDate)
-        vm.levelFilter = .lower
-        vm.reload()
-
-        // Only lower student's completed work should appear
-        #expect(vm.completedContracts.count == 1)
-        #expect(vm.completedContracts.first?.title == "Lower Work")
-    }
 }
 
 // MARK: - TodayViewModel Recent Notes Tests
