@@ -71,13 +71,13 @@ struct OpenWorkGrid: View {
     }
 
     // MARK: - Derived items
-    private struct Item: Identifiable { let id = UUID(); let _id: UUID; let work: WorkModel; let title: String; let student: String; let needsAttention: Bool; let metadata: String }
+    private struct WorkGridItem: Identifiable { let id = UUID(); let workID: UUID; let work: WorkModel; let title: String; let student: String; let needsAttention: Bool; let metadata: String }
 
     // Group items by current sort mode; preserve overall order by grouping in the order items first appear
-    private var groupedSections: [(key: String, items: [Item])] {
+    private var groupedSections: [(key: String, items: [WorkGridItem])] {
         let items = sortedWorks
         var order: [String] = []
-        var buckets: [String: [Item]] = [:]
+        var buckets: [String: [WorkGridItem]] = [:]
         for it in items {
             let key = groupKey(for: it)
             if buckets[key] == nil { order.append(key); buckets[key] = [] }
@@ -86,7 +86,7 @@ struct OpenWorkGrid: View {
         return order.map { key in (key: key, items: buckets[key] ?? []) }
     }
 
-    private func groupKey(for item: Item) -> String {
+    private func groupKey(for item: WorkGridItem) -> String {
         switch sortMode {
         case .lesson:
             return item.title
@@ -109,13 +109,13 @@ struct OpenWorkGrid: View {
         else { return "30+ days" }
     }
 
-    private var sortedWorks: [Item] {
-        let mapped: [Item] = works.map { w in
+    private var sortedWorks: [WorkGridItem] {
+        let mapped: [WorkGridItem] = works.map { w in
             let title = lessonTitle(forLessonID: w.lessonID)
             let student = studentName(for: w)
             let meta = metadata(for: w)
             let attention = needsAttention(for: w)
-            return Item(_id: w.id, work: w, title: title, student: student, needsAttention: attention, metadata: meta)
+            return WorkGridItem(workID: w.id, work: w, title: title, student: student, needsAttention: attention, metadata: meta)
         }
         switch sortMode {
         case .lesson:

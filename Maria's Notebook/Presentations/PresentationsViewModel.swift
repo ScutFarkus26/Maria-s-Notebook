@@ -17,7 +17,7 @@ final class PresentationsViewModel: ObservableObject {
     
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
     var cachedStudents: [Student] {
-        self._cachedStudents
+        self.cachedStudentsStorage
     }
     
     // MARK: - Dependencies (passed in update method)
@@ -30,7 +30,7 @@ final class PresentationsViewModel: ObservableObject {
     private var cachedWorkModels: [WorkModel] = []
     private var cachedPresentations: [Presentation] = []
     private var cachedStudentLessons: [StudentLesson] = []
-    private var _cachedStudents: [Student] = []
+    private var cachedStudentsStorage: [Student] = []
     private var lastStudentLessonChangeKeys: Set<StudentLessonChangeKey> = []
     private var lastLessonsIDs: Set<UUID> = []
     private var lastWorkModelIDs: Set<UUID> = []
@@ -200,7 +200,7 @@ final class PresentationsViewModel: ObservableObject {
         cachedLessons = lessons
         cachedWorkModels = workModels
         cachedPresentations = presentations
-        _cachedStudents = students
+        cachedStudentsStorage = students
         lastUpdateDate = Date()
         
         // Filter visible students

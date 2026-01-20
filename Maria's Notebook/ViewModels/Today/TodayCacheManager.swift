@@ -16,18 +16,18 @@ final class TodayCacheManager {
 
     // MARK: - Duplicate Names Cache
 
-    private var _cachedDuplicateFirstNames: Set<String>?
+    private var cachedDuplicateFirstNames: Set<String>?
 
     /// Returns first names that appear more than once among cached students.
     var duplicateFirstNames: Set<String> {
-        if let cached = _cachedDuplicateFirstNames {
+        if let cached = cachedDuplicateFirstNames {
             return cached
         }
         let firsts = studentsByID.values.map { $0.firstName.trimmed().lowercased() }
         var counts: [String: Int] = [:]
         for f in firsts { counts[f, default: 0] += 1 }
         let duplicates = Set(counts.filter { $0.value > 1 }.map { $0.key })
-        _cachedDuplicateFirstNames = duplicates
+        cachedDuplicateFirstNames = duplicates
         return duplicates
     }
 
@@ -40,7 +40,7 @@ final class TodayCacheManager {
     /// Updates the students cache with new values.
     func updateStudents(_ students: [UUID: Student]) {
         studentsByID = students
-        _cachedDuplicateFirstNames = nil
+        cachedDuplicateFirstNames = nil
     }
 
     /// Merges additional students into the cache.
@@ -48,7 +48,7 @@ final class TodayCacheManager {
         for student in students {
             studentsByID[student.id] = student
         }
-        _cachedDuplicateFirstNames = nil
+        cachedDuplicateFirstNames = nil
     }
 
     /// Updates the lessons cache with new values.
@@ -106,7 +106,7 @@ final class TodayCacheManager {
             for student in visibleStudents {
                 studentsByID[student.id] = student
             }
-            _cachedDuplicateFirstNames = nil
+            cachedDuplicateFirstNames = nil
         } catch {
             // Fallback: fetch all if predicate fails
             let allStudents = context.safeFetch(FetchDescriptor<Student>())
@@ -114,7 +114,7 @@ final class TodayCacheManager {
             for student in visibleStudents where ids.contains(student.id) {
                 studentsByID[student.id] = student
             }
-            _cachedDuplicateFirstNames = nil
+            cachedDuplicateFirstNames = nil
         }
     }
 
@@ -149,6 +149,6 @@ final class TodayCacheManager {
         studentsByID = [:]
         lessonsByID = [:]
         workByID = [:]
-        _cachedDuplicateFirstNames = nil
+        cachedDuplicateFirstNames = nil
     }
 }
