@@ -76,7 +76,7 @@ struct StudentDetailView: View {
 
     @ViewBuilder
     private func lessonGiveSheet(for lesson: Lesson) -> some View {
-        let newSL: StudentLesson = vm.createDraftStudentLesson(for: lesson, modelContext: modelContext)
+        let newSL: StudentLesson = vm.createDraftStudentLesson(for: lesson, modelContext: modelContext, saveCoordinator: saveCoordinator)
         StudentLessonDetailView(studentLesson: newSL) {
             vm.selectedLessonForGive = nil
             vm.loadData(modelContext: modelContext)

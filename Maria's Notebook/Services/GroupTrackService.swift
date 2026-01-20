@@ -339,10 +339,12 @@ struct GroupTrackService {
     ///   - lesson: The lesson that was scheduled/presented
     ///   - studentIDs: Array of student UUID strings to enroll
     ///   - modelContext: The model context for database operations
+    ///   - saveCoordinator: Optional save coordinator for error handling (uses silent fallback if nil)
     static func autoEnrollInTrackIfNeeded(
         lesson: Lesson,
         studentIDs: [String],
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator? = nil
     ) {
         // Check if this lesson belongs to a track (using new default behavior)
         guard isTrack(subject: lesson.subject, group: lesson.group, modelContext: modelContext) else {
@@ -392,7 +394,11 @@ struct GroupTrackService {
         }
         
         // Save changes
-        try? modelContext.save()
+        if let coordinator = saveCoordinator {
+            coordinator.save(modelContext, reason: "Auto-enrolling in track")
+        } else {
+            try? modelContext.save()
+        }
     }
 
     // MARK: - Track Completion
@@ -403,10 +409,12 @@ struct GroupTrackService {
     ///   - lesson: The lesson that was just mastered (used to find the track)
     ///   - studentID: The student's UUID string
     ///   - modelContext: The model context for database operations
+    ///   - saveCoordinator: Optional save coordinator for error handling (uses silent fallback if nil)
     static func checkAndCompleteTrackIfNeeded(
         lesson: Lesson,
         studentID: String,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator? = nil
     ) {
         // Check if this lesson belongs to a track
         guard isTrack(subject: lesson.subject, group: lesson.group, modelContext: modelContext) else {
@@ -447,7 +455,11 @@ struct GroupTrackService {
 
         if let enrollment = allEnrollments.first(where: { $0.studentID == studentID && $0.trackID == trackID && $0.isActive }) {
             enrollment.isActive = false
-            try? modelContext.save()
+            if let coordinator = saveCoordinator {
+                coordinator.save(modelContext, reason: "Completing track enrollment")
+            } else {
+                try? modelContext.save()
+            }
         }
     }
 }

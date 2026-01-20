@@ -517,4 +517,169 @@ struct ErrorRecoveryTests {
     }
 }
 
+// MARK: - ToastService Tests
+
+@Suite("ToastService Tests", .serialized)
+@MainActor
+struct ToastServiceTests {
+
+    @Test("showInfo displays info toast")
+    func showInfoDisplaysToast() async {
+        let service = ToastService.preview
+
+        service.showInfo("Test message")
+
+        #expect(service.currentToast != nil)
+        #expect(service.currentToast?.message == "Test message")
+        #expect(service.currentToast?.type == .info)
+    }
+
+    @Test("showSuccess displays success toast")
+    func showSuccessDisplaysToast() async {
+        let service = ToastService.preview
+
+        service.showSuccess("Success!")
+
+        #expect(service.currentToast != nil)
+        #expect(service.currentToast?.type == .success)
+    }
+
+    @Test("showWarning displays warning toast")
+    func showWarningDisplaysToast() async {
+        let service = ToastService.preview
+
+        service.showWarning("Warning!")
+
+        #expect(service.currentToast != nil)
+        #expect(service.currentToast?.type == .warning)
+    }
+
+    @Test("showError displays error toast")
+    func showErrorDisplaysToast() async {
+        let service = ToastService.preview
+
+        service.showError("Error!")
+
+        #expect(service.currentToast != nil)
+        #expect(service.currentToast?.type == .error)
+    }
+
+    @Test("dismiss clears current toast")
+    func dismissClearsToast() async {
+        let service = ToastService.preview
+
+        service.showInfo("Test")
+        #expect(service.currentToast != nil)
+
+        service.dismiss()
+
+        // Allow animation to complete
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        #expect(service.currentToast == nil)
+    }
+
+    @Test("clearAll clears all toasts")
+    func clearAllClearsToasts() async {
+        let service = ToastService.preview
+
+        service.showInfo("First")
+        service.showInfo("Second")
+        service.showInfo("Third")
+
+        service.clearAll()
+
+        // Allow animation to complete
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        #expect(service.currentToast == nil)
+    }
+
+    @Test("ToastType has correct background colors")
+    func toastTypeBackgroundColors() {
+        #expect(ToastType.success.backgroundColor != ToastType.error.backgroundColor)
+        #expect(ToastType.info.backgroundColor != ToastType.warning.backgroundColor)
+    }
+
+    @Test("ToastType has correct icons")
+    func toastTypeIcons() {
+        #expect(ToastType.success.iconName == "checkmark.circle.fill")
+        #expect(ToastType.error.iconName == "xmark.circle.fill")
+        #expect(ToastType.warning.iconName == "exclamationmark.triangle.fill")
+        #expect(ToastType.info.iconName == nil)
+    }
+}
+
+// MARK: - SaveCoordinator Integration Tests
+
+@Suite("SaveCoordinator Integration Tests", .serialized)
+@MainActor
+struct SaveCoordinatorIntegrationTests {
+
+    private func makeContainer() throws -> ModelContainer {
+        return try makeTestContainer(for: [
+            Student.self,
+            Note.self,
+        ])
+    }
+
+    @Test("save returns true on success")
+    func saveReturnsTrueOnSuccess() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        let coordinator = SaveCoordinator()
+
+        let student = makeTestStudent()
+        context.insert(student)
+
+        let result = coordinator.save(context, reason: "Test save")
+
+        #expect(result == true)
+        #expect(coordinator.lastSaveError == nil)
+    }
+
+    @Test("save skips when no changes")
+    func saveSkipsWhenNoChanges() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        let coordinator = SaveCoordinator()
+
+        // No changes made to context
+        let result = coordinator.save(context)
+
+        #expect(result == true)
+    }
+
+    @Test("clearError clears error state")
+    func clearErrorClearsState() throws {
+        let coordinator = SaveCoordinator()
+
+        // Manually set error state for testing
+        coordinator.lastSaveErrorMessage = "Test error"
+        coordinator.isShowingSaveError = true
+
+        coordinator.clearError()
+
+        #expect(coordinator.lastSaveError == nil)
+        #expect(coordinator.lastSaveErrorMessage == nil)
+        #expect(coordinator.isShowingSaveError == false)
+    }
+
+    @Test("saveWithToast shows success toast on success")
+    func saveWithToastShowsSuccessToast() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        let coordinator = SaveCoordinator()
+
+        let student = makeTestStudent()
+        context.insert(student)
+
+        let result = coordinator.saveWithToast(context, successMessage: "Saved!")
+
+        #expect(result == true)
+        // Toast should be shown (we can check ToastService.shared)
+        #expect(ToastService.shared.currentToast?.message == "Saved!")
+    }
+}
+
 #endif

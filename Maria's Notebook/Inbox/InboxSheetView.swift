@@ -22,6 +22,7 @@ public struct InboxSheetView: View {
   @Environment(\.calendar) private var calendar
   @Environment(\.appRouter) private var appRouter
   @Environment(\.modelContext) private var modelContext
+  @EnvironmentObject private var saveCoordinator: SaveCoordinator
   @StateObject private var viewModel = InboxSheetViewModel()
 
   @State private var itemFrames: [UUID: CGRect] = [:]
@@ -106,7 +107,8 @@ public struct InboxSheetView: View {
               studentLessons: studentLessons,
               inboxOrderRaw: $inboxOrderRaw,
               modelContext: modelContext,
-              appRouter: appRouter
+              appRouter: appRouter,
+              saveCoordinator: saveCoordinator
             )
           } label: {
             Label("Consolidate Selected", systemImage: "arrow.triangle.merge")
@@ -174,7 +176,8 @@ public struct InboxSheetView: View {
               orderedUnscheduledLessons: orderedUnscheduledLessons,
               itemFrames: baseFrames ?? itemFrames,
               inboxOrderRaw: $inboxOrderRaw,
-              modelContext: modelContext
+              modelContext: modelContext,
+              saveCoordinator: saveCoordinator
             )
           }
         ))

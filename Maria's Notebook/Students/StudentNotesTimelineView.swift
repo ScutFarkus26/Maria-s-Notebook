@@ -27,6 +27,7 @@ extension StudentNotesViewModel {
 struct StudentNotesTimelineView: View {
     let student: Student
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @State private var viewModel: StudentNotesViewModel?
 
     var body: some View {
@@ -39,7 +40,7 @@ struct StudentNotesTimelineView: View {
         }
         .onAppear {
             if viewModel == nil {
-                let newViewModel = StudentNotesViewModel(student: student, modelContext: modelContext)
+                let newViewModel = StudentNotesViewModel(student: student, modelContext: modelContext, saveCoordinator: saveCoordinator)
                 // Set up the note lookup function
                 newViewModel.itemsNoteLookup = { id in
                     newViewModel.note(by: id)

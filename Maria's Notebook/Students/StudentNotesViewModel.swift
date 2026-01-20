@@ -36,6 +36,7 @@ public struct UnifiedNoteItem: Identifiable {
 final class StudentNotesViewModel: ObservableObject {
     private let student: Student
     let modelContext: ModelContext
+    private let saveCoordinator: SaveCoordinator
 
     @Published var items: [UnifiedNoteItem] = []
 
@@ -48,9 +49,10 @@ final class StudentNotesViewModel: ObservableObject {
         Array(items.prefix(displayedItemCount))
     }
 
-    init(student: Student, modelContext: ModelContext) {
+    init(student: Student, modelContext: ModelContext, saveCoordinator: SaveCoordinator) {
         self.student = student
         self.modelContext = modelContext
+        self.saveCoordinator = saveCoordinator
         fetchAllNotes()
     }
 
@@ -354,11 +356,8 @@ final class StudentNotesViewModel: ObservableObject {
         )
         modelContext.insert(newNote)
 
-        do {
-            try modelContext.save()
+        if saveCoordinator.save(modelContext, reason: "Adding note") {
             fetchAllNotes()
-        } catch {
-            print("Error saving new note: \(error)")
         }
     }
 
@@ -368,8 +367,9 @@ final class StudentNotesViewModel: ObservableObject {
             // Clean up associated image file before deleting the note
             note.deleteAssociatedImage()
             modelContext.delete(note)
-            try? modelContext.save()
-            items.removeAll { $0.id == item.id }
+            if saveCoordinator.save(modelContext, reason: "Deleting note") {
+                items.removeAll { $0.id == item.id }
+            }
         }
     }
 
@@ -418,8 +418,9 @@ final class StudentNotesViewModel: ObservableObject {
                 modelContext.delete(note)
             }
         }
-        try? modelContext.save()
-        items.removeAll { ids.contains($0.id) }
+        if saveCoordinator.save(modelContext, reason: "Batch deleting notes") {
+            items.removeAll { ids.contains($0.id) }
+        }
     }
 
     func batchUpdateCategory(_ category: NoteCategory, for ids: Set<UUID>) {
@@ -429,8 +430,9 @@ final class StudentNotesViewModel: ObservableObject {
                 note.updatedAt = Date()
             }
         }
-        try? modelContext.save()
-        fetchAllNotes()
+        if saveCoordinator.save(modelContext, reason: "Updating note categories") {
+            fetchAllNotes()
+        }
     }
 
     func batchToggleReportFlag(for ids: Set<UUID>) {
@@ -440,8 +442,9 @@ final class StudentNotesViewModel: ObservableObject {
                 note.updatedAt = Date()
             }
         }
-        try? modelContext.save()
-        fetchAllNotes()
+        if saveCoordinator.save(modelContext, reason: "Toggling report flags") {
+            fetchAllNotes()
+        }
     }
 
     func batchTogglePin(for ids: Set<UUID>) {
@@ -451,7 +454,8 @@ final class StudentNotesViewModel: ObservableObject {
                 note.updatedAt = Date()
             }
         }
-        try? modelContext.save()
-        fetchAllNotes()
+        if saveCoordinator.save(modelContext, reason: "Toggling pin status") {
+            fetchAllNotes()
+        }
     }
 }

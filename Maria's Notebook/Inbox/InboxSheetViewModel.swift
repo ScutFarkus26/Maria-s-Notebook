@@ -47,7 +47,8 @@ final class InboxSheetViewModel: ObservableObject {
         studentLessons: [StudentLesson],
         inboxOrderRaw: Binding<String>,
         modelContext: ModelContext,
-        appRouter: AppRouter
+        appRouter: AppRouter,
+        saveCoordinator: SaveCoordinator
     ) {
         let selectedSLs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
         guard !selectedSLs.isEmpty else { return }
@@ -85,7 +86,7 @@ final class InboxSheetViewModel: ObservableObject {
             }
         }
 
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Consolidating lessons")
 
         var newOrder = currentOrder
         for id in deletedIDs { newOrder.removeAll { $0 == id } }
@@ -103,14 +104,8 @@ final class InboxSheetViewModel: ObservableObject {
     // MARK: - Toast
 
     func showToast(_ message: String) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-            toastMessage = message
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            withAnimation(.easeInOut(duration: 0.25)) {
-                self?.toastMessage = nil
-            }
-        }
+        // Delegate to centralized ToastService
+        ToastService.shared.showInfo(message)
     }
 
     // MARK: - Drop Handling
@@ -122,7 +117,8 @@ final class InboxSheetViewModel: ObservableObject {
         orderedUnscheduledLessons: [StudentLesson],
         itemFrames: [UUID: CGRect],
         inboxOrderRaw: Binding<String>,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator
     ) -> Bool {
         guard let itemProvider = providers.first else { return false }
         if itemProvider.canLoadObject(ofClass: NSString.self) {
@@ -138,7 +134,8 @@ final class InboxSheetViewModel: ObservableObject {
                             orderedUnscheduledLessons: orderedUnscheduledLessons,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: modelContext
+                            modelContext: modelContext,
+                            saveCoordinator: saveCoordinator
                         )
                     } else if let droppedId = UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
                         self?.handleLessonDrop(
@@ -148,7 +145,8 @@ final class InboxSheetViewModel: ObservableObject {
                             orderedUnscheduledLessons: orderedUnscheduledLessons,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: modelContext
+                            modelContext: modelContext,
+                            saveCoordinator: saveCoordinator
                         )
                     }
                 }
@@ -165,7 +163,8 @@ final class InboxSheetViewModel: ObservableObject {
         orderedUnscheduledLessons: [StudentLesson],
         itemFrames: [UUID: CGRect],
         inboxOrderRaw: Binding<String>,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator
     ) {
         let parts = payload.split(separator: ":")
         guard parts.count == 4,
@@ -234,7 +233,7 @@ final class InboxSheetViewModel: ObservableObject {
         let serialized = InboxOrderStore.serialize(newOrder)
         inboxOrderRaw.wrappedValue = serialized
         onUpdateOrder?(serialized)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Handling student to inbox drop")
     }
 
     private func handleLessonDrop(
@@ -244,7 +243,8 @@ final class InboxSheetViewModel: ObservableObject {
         orderedUnscheduledLessons: [StudentLesson],
         itemFrames: [UUID: CGRect],
         inboxOrderRaw: Binding<String>,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator
     ) {
         let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == droppedId })
         guard let sl = (try? modelContext.fetch(descriptor).first) ?? studentLessons.first(where: { $0.id == droppedId }) else { return }
@@ -263,7 +263,7 @@ final class InboxSheetViewModel: ObservableObject {
             let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetId })
             if let lesson = try? modelContext.fetch(descriptor).first {
                 lesson.scheduledFor = nil
-                try? modelContext.save()
+                saveCoordinator.save(modelContext, reason: "Clearing scheduled date")
             }
         }
 
@@ -273,6 +273,6 @@ final class InboxSheetViewModel: ObservableObject {
         let serialized = InboxOrderStore.serialize(newOrder)
         inboxOrderRaw.wrappedValue = serialized
         onUpdateOrder?(serialized)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Handling lesson drop")
     }
 }

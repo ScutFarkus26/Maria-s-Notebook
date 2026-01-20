@@ -9,7 +9,7 @@ final class SaveCoordinator: ObservableObject {
     // Since this class is @MainActor, this publisher becomes MainActor-isolated,
     // which matches how ObservableObject is typically used in SwiftUI.
     let objectWillChange = ObservableObjectPublisher()
-    
+
     @Published var lastSaveError: Error?
     @Published var lastSaveErrorMessage: String?
     @Published var isShowingSaveError: Bool = false
@@ -48,6 +48,36 @@ final class SaveCoordinator: ObservableObject {
             }
             return false
         }
+    }
+
+    /// Perform a save and show a success toast if it succeeds.
+    /// - Parameters:
+    ///   - context: The `ModelContext` to save.
+    ///   - successMessage: Message to show in toast on success.
+    ///   - reason: Optional, short description of why the save is occurring (shown to the user on failure).
+    /// - Returns: `true` if the save succeeded; `false` if it failed.
+    @discardableResult
+    func saveWithToast(_ context: ModelContext, successMessage: String, reason: String? = nil) -> Bool {
+        let success = save(context, reason: reason)
+        if success {
+            ToastService.shared.showSuccess(successMessage)
+        }
+        return success
+    }
+
+    /// Perform a save and show an info toast if it succeeds.
+    /// - Parameters:
+    ///   - context: The `ModelContext` to save.
+    ///   - infoMessage: Message to show in toast on success.
+    ///   - reason: Optional, short description of why the save is occurring (shown to the user on failure).
+    /// - Returns: `true` if the save succeeded; `false` if it failed.
+    @discardableResult
+    func saveWithInfoToast(_ context: ModelContext, infoMessage: String, reason: String? = nil) -> Bool {
+        let success = save(context, reason: reason)
+        if success {
+            ToastService.shared.showInfo(infoMessage)
+        }
+        return success
     }
 
     /// Clear any previously captured error state and dismiss the alert.

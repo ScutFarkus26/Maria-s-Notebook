@@ -175,12 +175,8 @@ final class StudentDetailViewModel: ObservableObject {
 
     // MARK: - UI Actions moved from View
     func showToast(_ message: String) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-            toastMessage = message
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation(.easeInOut) { self.toastMessage = nil }
-        }
+        // Delegate to centralized ToastService
+        ToastService.shared.showInfo(message)
     }
 
     func latestStudentLesson(for lessonID: UUID, studentID: UUID) -> StudentLesson? {
@@ -208,7 +204,7 @@ final class StudentDetailViewModel: ObservableObject {
         }.first
     }
 
-    func ensureStudentLesson(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
+    func ensureStudentLesson(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> StudentLesson {
         if let existing = latestStudentLesson(for: lesson.id, studentID: student.id) {
             return existing
         }
@@ -225,7 +221,7 @@ final class StudentDetailViewModel: ObservableObject {
             followUpWork: ""
         )
         modelContext.insert(created)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Creating student lesson")
         return created
     }
 
@@ -253,19 +249,20 @@ final class StudentDetailViewModel: ObservableObject {
         }
     }
 
-    func togglePresented(for lesson: Lesson, modelContext: ModelContext) {
+    func togglePresented(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) {
         if presentedLessonIDs.contains(lesson.id) {
             openMastered(for: lesson, modelContext: modelContext)
             return
         }
         if let upcoming = upcomingStudentLesson(for: lesson.id, studentID: student.id) {
             upcoming.isPresented = true
-            try? modelContext.save()
+            saveCoordinator.save(modelContext, reason: "Recording presentation")
             // Auto-enroll in track if lesson belongs to a track
             GroupTrackService.autoEnrollInTrackIfNeeded(
                 lesson: lesson,
                 studentIDs: [student.id.uuidString],
-                modelContext: modelContext
+                modelContext: modelContext,
+                saveCoordinator: saveCoordinator
             )
         } else {
             let sl = StudentLesson(
@@ -281,14 +278,16 @@ final class StudentDetailViewModel: ObservableObject {
                 followUpWork: ""
             )
             modelContext.insert(sl)
-            try? modelContext.save()
+            if saveCoordinator.save(modelContext, reason: "Recording presentation") {
+                showToast("Presentation recorded")
+            }
             // Auto-enroll in track if lesson belongs to a track
             GroupTrackService.autoEnrollInTrackIfNeeded(
                 lesson: lesson,
                 studentIDs: [student.id.uuidString],
-                modelContext: modelContext
+                modelContext: modelContext,
+                saveCoordinator: saveCoordinator
             )
-            showToast("Presentation recorded")
         }
     }
 
@@ -310,7 +309,7 @@ final class StudentDetailViewModel: ObservableObject {
     }
 
     /// Create a draft student lesson, reusing existing if available
-    func createDraftStudentLesson(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
+    func createDraftStudentLesson(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> StudentLesson {
         // Reuse an existing unscheduled entry for this lesson+student if it exists
         if let existing = studentLessons.first(where: {
             $0.resolvedLessonID == lesson.id &&
@@ -336,14 +335,15 @@ final class StudentDetailViewModel: ObservableObject {
         )
         newSL.students = [student]
         modelContext.insert(newSL)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Creating draft student lesson")
 
         // Auto-enroll in track if lesson is created as presented and belongs to a track
         if giveStartGiven {
             GroupTrackService.autoEnrollInTrackIfNeeded(
                 lesson: lesson,
                 studentIDs: [student.id.uuidString],
-                modelContext: modelContext
+                modelContext: modelContext,
+                saveCoordinator: saveCoordinator
             )
         }
 
@@ -351,7 +351,7 @@ final class StudentDetailViewModel: ObservableObject {
     }
 
     /// Create or reuse a non-given student lesson
-    func createOrReuseNonGivenStudentLesson(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
+    func createOrReuseNonGivenStudentLesson(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> StudentLesson {
         if let existing = studentLessons.first(where: {
             $0.resolvedLessonID == lesson.id &&
             !$0.isGiven &&
@@ -375,13 +375,13 @@ final class StudentDetailViewModel: ObservableObject {
         )
         newSL.students = [student]
         modelContext.insert(newSL)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Creating student lesson")
 
         return newSL
     }
 
     /// Log a presentation for a lesson
-    func logPresentation(for lesson: Lesson, modelContext: ModelContext) -> StudentLesson {
+    func logPresentation(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> StudentLesson {
         let newSL = StudentLesson(
             id: UUID(),
             lessonID: lesson.id,
@@ -397,13 +397,14 @@ final class StudentDetailViewModel: ObservableObject {
         )
         newSL.students = [student]
         modelContext.insert(newSL)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Logging presentation")
 
         // Auto-enroll in track if lesson belongs to a track
         GroupTrackService.autoEnrollInTrackIfNeeded(
             lesson: lesson,
             studentIDs: [student.id.uuidString],
-            modelContext: modelContext
+            modelContext: modelContext,
+            saveCoordinator: saveCoordinator
         )
 
         return newSL

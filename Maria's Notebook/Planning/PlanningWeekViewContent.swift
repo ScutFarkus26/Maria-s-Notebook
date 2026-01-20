@@ -8,6 +8,7 @@ struct PlanningWeekViewContent: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
     
     // Data provided by the platform-specific parent view
     let inboxLessons: [StudentLesson]
@@ -84,7 +85,7 @@ struct PlanningWeekViewContent: View {
                         if let current = fetchStudentLesson(by: id) {
                             if current.lesson == nil && current.studentIDs.isEmpty {
                                 modelContext.delete(current)
-                                try? modelContext.save()
+                                saveCoordinator.save(modelContext, reason: "Deleting empty draft")
                                 onRefreshNeeded?()
                             }
                         }
@@ -117,7 +118,7 @@ struct PlanningWeekViewContent: View {
                 onPlanNext: { sl in planNextLesson(for: sl) },
                 onUpdateOrder: { newOrderRaw in
                     inboxOrderRaw = newOrderRaw
-                    try? modelContext.save()
+                    saveCoordinator.save(modelContext, reason: "Updating inbox order")
                     onRefreshNeeded?()
                 }
             )
@@ -225,7 +226,7 @@ struct PlanningWeekViewContent: View {
         newStudentLesson.students = students.filter { sameStudents.contains($0.id) }
         newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
         modelContext.insert(newStudentLesson)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Planning next lesson")
         onRefreshNeeded?()
     }
     
@@ -244,7 +245,7 @@ struct PlanningWeekViewContent: View {
                 onPlanNext: { sl in planNextLesson(for: sl) },
                 onUpdateOrder: { newOrderRaw in
                     inboxOrderRaw = newOrderRaw
-                    try? modelContext.save()
+                    saveCoordinator.save(modelContext, reason: "Updating inbox order")
                     onRefreshNeeded?()
                 }
             )
@@ -287,7 +288,7 @@ struct PlanningWeekViewContent: View {
                         )
                         newSL.syncSnapshotsFromRelationships()
                         modelContext.insert(newSL)
-                        try? modelContext.save()
+                        saveCoordinator.save(modelContext, reason: "Creating new presentation")
                         activeSheet = .giveLessonDraft(newSL.id)
                         onRefreshNeeded?()
                     }

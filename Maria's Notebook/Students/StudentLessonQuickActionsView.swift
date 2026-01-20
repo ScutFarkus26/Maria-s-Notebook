@@ -5,6 +5,7 @@ struct StudentLessonQuickActionsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @Query(sort: \Lesson.name, animation: .default)
     private var lessons: [Lesson]
@@ -124,7 +125,7 @@ struct StudentLessonQuickActionsView: View {
                             newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
                             newStudentLesson.lesson = lessons.first(where: { $0.id == next.id })
                             modelContext.insert(newStudentLesson)
-                            try? modelContext.save()
+                            saveCoordinator.save(modelContext, reason: "Planning next lesson")
                         }
                         didPlanNext = true
                         showPlannedBanner = true
@@ -201,7 +202,7 @@ struct StudentLessonQuickActionsView: View {
                                     workModel?.notes = trimmed
                                 }
                             }
-                            try? modelContext.save()
+                            saveCoordinator.save(modelContext, reason: "Adding follow-up work")
                         }
                         showFollowUpSheet = false
                     }
@@ -235,7 +236,8 @@ struct StudentLessonQuickActionsView: View {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
                     lesson: lesson,
                     studentIDs: studentLesson.studentIDs,
-                    modelContext: modelContext
+                    modelContext: modelContext,
+                    saveCoordinator: saveCoordinator
                 )
             }
         }
@@ -276,7 +278,7 @@ struct StudentLessonQuickActionsView: View {
                         newSL.students = studentsAll.filter { sameStudents.contains($0.id) }
                         newSL.lesson = lessons.first(where: { $0.id == next.id })
                         modelContext.insert(newSL)
-                        try? modelContext.save()
+                        saveCoordinator.save(modelContext, reason: "Auto-creating next lesson")
                         appRouter.refreshPlanningInbox()
                     }
                 }
@@ -323,11 +325,7 @@ struct StudentLessonQuickActionsView: View {
             }
         }
 
-        do {
-            try modelContext.save()
-        } catch {
-            // Handle error as appropriate for your app
-        }
+        saveCoordinator.save(modelContext, reason: "Saving quick actions")
 
         onDone?() ?? dismiss()
     }
@@ -365,7 +363,7 @@ struct StudentLessonQuickActionsView: View {
                 createdAny = true
             }
         }
-        if createdAny { try? modelContext.save() }
+        if createdAny { saveCoordinator.save(modelContext, reason: "Adding practice work") }
     }
 
     private var plannedBanner: some View {

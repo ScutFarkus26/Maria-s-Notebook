@@ -9,19 +9,20 @@ import AppKit
 
 struct StudentLessonDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    
+    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+
     // Live Queries
     @Query private var lessons: [Lesson]
     @Query private var studentsAll: [Student]
     @Query private var studentLessonsAll: [StudentLesson]
-    
+
     let studentLesson: StudentLesson
     let autoFocusLessonPicker: Bool
     var onDone: (() -> Void)? = nil
-    
+
     // ViewModel is optional and initialized in onAppear
     @State private var vm: StudentLessonDetailViewModel?
-    
+
     // Child ViewModel (LessonPicker)
     // We initialize it with a dummy state; it will be configured in onAppear
     @StateObject private var lessonPickerVM = LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: UUID())
@@ -54,6 +55,7 @@ struct StudentLessonDetailView: View {
                 let newVM = StudentLessonDetailViewModel(
                     studentLesson: studentLesson,
                     modelContext: modelContext,
+                    saveCoordinator: saveCoordinator,
                     autoFocusLessonPicker: autoFocusLessonPicker
                 )
                 self.vm = newVM

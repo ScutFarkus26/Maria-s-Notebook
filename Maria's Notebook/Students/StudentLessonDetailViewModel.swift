@@ -8,6 +8,7 @@ final class StudentLessonDetailViewModel {
     // MARK: - Dependencies
     var studentLesson: StudentLesson
     var modelContext: ModelContext
+    var saveCoordinator: SaveCoordinator
     
     // MARK: - Editable State
     var editingLessonID: UUID
@@ -46,9 +47,10 @@ final class StudentLessonDetailViewModel {
     private var notesAutosaveTask: Task<Void, Never>? = nil
 
     // MARK: - Initialization
-    init(studentLesson: StudentLesson, modelContext: ModelContext, autoFocusLessonPicker: Bool = false) {
+    init(studentLesson: StudentLesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator, autoFocusLessonPicker: Bool = false) {
         self.studentLesson = studentLesson
         self.modelContext = modelContext
+        self.saveCoordinator = saveCoordinator
 
         // Initialize local state from the model
         // CloudKit compatibility: Convert String lessonID to UUID
@@ -172,18 +174,20 @@ final class StudentLessonDetailViewModel {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
                     lesson: lesson,
                     studentIDs: studentLesson.studentIDs,
-                    modelContext: modelContext
+                    modelContext: modelContext,
+                    saveCoordinator: saveCoordinator
                 )
             }
         }
-        
+
         // Auto-enroll when lesson is scheduled (if not already presented)
         if !nowGiven, studentLesson.scheduledFor != nil {
             if let lesson = studentLesson.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
                     lesson: lesson,
                     studentIDs: studentLesson.studentIDs,
-                    modelContext: modelContext
+                    modelContext: modelContext,
+                    saveCoordinator: saveCoordinator
                 )
             }
         }
@@ -204,35 +208,30 @@ final class StudentLessonDetailViewModel {
         )
 
         // 4. Persist
-        do {
-            try modelContext.save()
-            
+        if saveCoordinator.save(modelContext, reason: "Saving student lesson") {
             // Reset autosave state
             notesAutosaveTask?.cancel()
             originalNotes = notes
             notesDirty = false
-            
+
             // Notify system
             StudentLessonDetailUtilities.notifyInboxRefresh()
 
             onDone?()
-        } catch {
-            #if DEBUG
-            print("Failed to save student lesson: \(error)")
-            #endif
         }
     }
     
     /// A lightweight save for autosaving notes or minor updates
     func saveImmediate(studentsAll: [Student], lessons: [Lesson], calendar: Calendar) {
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Auto-saving student lesson")
     }
 
     /// Deletes the student lesson
     func delete(onDone: (() -> Void)? = nil) {
         let id = studentLesson.id
         let ctx = modelContext
+        let coordinator = saveCoordinator
 
         // Execute callback immediately to dismiss UI
         onDone?()
@@ -244,7 +243,7 @@ final class StudentLessonDetailViewModel {
                 // Access relationship to avoid faults before deletion
                 _ = toDelete.studentIDs
                 ctx.delete(toDelete)
-                try? ctx.save()
+                coordinator.save(ctx, reason: "Deleting student lesson")
             }
             StudentLessonDetailUtilities.notifyInboxRefresh()
         }
@@ -278,8 +277,8 @@ final class StudentLessonDetailViewModel {
         let remainingUUIDs = Set(studentLesson.resolvedStudentIDs).subtracting(studentsToMove)
         studentLesson.studentIDs = remainingUUIDs.map { $0.uuidString }
         studentLesson.students = studentsAll.filter { remainingUUIDs.contains($0.id) }
-        try? modelContext.save()
-        
+        saveCoordinator.save(modelContext, reason: "Moving students to inbox")
+
         StudentLessonDetailUtilities.notifyInboxRefresh()
 
         // UI Updates
@@ -361,7 +360,7 @@ final class StudentLessonDetailViewModel {
         )
         newStudentLesson.students = studentsAll.filter { sameStudents.contains($0.id) }
         modelContext.insert(newStudentLesson)
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Scheduling next lesson")
         StudentLessonDetailUtilities.notifyInboxRefresh()
     }
     
@@ -402,21 +401,21 @@ final class StudentLessonDetailViewModel {
                 // We will update the `StudentLesson` object directly here.
                 
                 studentLesson.notes = notes
-                try? modelContext.save()
-                
+                saveCoordinator.save(modelContext, reason: "Auto-saving notes")
+
                 originalNotes = notes
                 notesDirty = false
                 StudentLessonDetailUtilities.notifyInboxRefresh()
             }
         }
     }
-    
+
     func flushNotesAutosaveIfNeeded() {
         notesAutosaveTask?.cancel()
         guard notesDirty else { return }
 
         studentLesson.notes = notes
-        try? modelContext.save()
+        saveCoordinator.save(modelContext, reason: "Saving notes")
 
         originalNotes = notes
         notesDirty = false
@@ -467,7 +466,8 @@ final class StudentLessonDetailViewModel {
                 GroupTrackService.checkAndCompleteTrackIfNeeded(
                     lesson: lesson,
                     studentID: studentID,
-                    modelContext: modelContext
+                    modelContext: modelContext,
+                    saveCoordinator: saveCoordinator
                 )
             }
         }
