@@ -237,14 +237,6 @@ struct TodayView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Picker("Level", selection: $viewModel.levelFilter) {
-                ForEach(TodayViewModel.LevelFilter.allCases, id: \.self) { f in
-                    Text(f.rawValue).tag(f)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 200)
-
             Button {
                 let prev = previousSchoolDaySync(before: viewModel.date)
                 viewModel.date = AppCalendar.startOfDay(prev)

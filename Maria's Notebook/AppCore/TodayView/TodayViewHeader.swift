@@ -59,15 +59,6 @@ extension TodayView {
                         .buttonStyle(.plain)
                     }
                 }
-
-                // Level filter
-                Picker("Level", selection: $viewModel.levelFilter) {
-                    ForEach(TodayViewModel.LevelFilter.allCases, id: \.self) { f in
-                        Text(f.rawValue).tag(f)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 200)
             }
         }
     }
