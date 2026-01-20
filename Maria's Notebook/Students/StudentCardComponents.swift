@@ -274,6 +274,9 @@ struct LastLessonStudentCard: View {
     let student: Student
     let days: Int
 
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var bob = false
+
     private var displayName: String {
         let parts = student.fullName.split(separator: " ")
         guard let first = parts.first else { return student.fullName }
@@ -281,33 +284,174 @@ struct LastLessonStudentCard: View {
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
-    private var headline: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(days < 0 ? "—" : "\(days)")
-                .font(.system(size: 44, weight: .black, design: .rounded))
-                .foregroundStyle(.primary)
-            Text("since last lesson")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
+    private var firstNameOnly: String {
+        let parts = student.fullName.split(separator: " ")
+        return parts.first.map(String.init) ?? student.fullName
+    }
+
+    // Computed property to determine if animation should run (only when scene is active)
+    private var isAnimating: Bool {
+        scenePhase == .active
+    }
+
+    // Warm, inviting gradient - like a cozy classroom
+    private var gradientColors: [Color] {
+        if days < 0 {
+            // New student - exciting purple/blue for discovery
+            return [.purple, .indigo, .blue]
+        } else {
+            // Warm, encouraging tones - ready to learn!
+            return [.orange, .pink, .purple]
         }
-        .accessibilityLabel(days < 0 ? "No lessons yet" : "\(days) days since last lesson")
+    }
+
+    // Friendly decorative overlay with learning symbols
+    private var decorativeOverlay: some View {
+        ZStack {
+            // Books, pencils, stars - symbols of learning and achievement
+            ForEach(0..<12, id: \.self) { i in
+                Group {
+                    switch i % 4 {
+                    case 0:
+                        Image(systemName: "book.fill")
+                    case 1:
+                        Image(systemName: "pencil")
+                    case 2:
+                        Image(systemName: "star.fill")
+                    default:
+                        Image(systemName: "lightbulb.fill")
+                    }
+                }
+                .font(.system(size: CGFloat(Int.random(in: 10...16))))
+                .foregroundStyle(.white.opacity(0.3))
+                .rotationEffect(.degrees(Double(Int.random(in: -20...20))))
+                .offset(x: CGFloat(Int.random(in: -140...140)), y: CGFloat(Int.random(in: -60...60)))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var headerIcon: some View {
+        Image(systemName: days < 0 ? "sparkles" : "hand.wave.fill")
+            .font(.title2)
+            .foregroundStyle(.white)
+            .offset(y: bob ? -3 : 3)
+            .animation(
+                isAnimating ? .easeInOut(duration: 1.4).repeatForever(autoreverses: true) : nil,
+                value: bob
+            )
+            .accessibilityHidden(true)
+    }
+
+    private var daysBadge: some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(colors: [.white.opacity(0.3), .white.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
+                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+
+            VStack(spacing: 2) {
+                if days < 0 {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("New!")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                } else {
+                    Text("\(days)")
+                        .font(.system(size: 40, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                        .offset(y: bob ? -2 : 2)
+                        .animation(
+                            isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+                            value: bob
+                        )
+                    Text(days == 1 ? "day" : "days")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+            }
+        }
+        .frame(width: 100, height: 100)
+        .accessibilityLabel(days < 0 ? "New student, no lessons yet" : "\(days) \(days == 1 ? "day" : "days") since last lesson")
+    }
+
+    private var statusMessage: String {
+        if days < 0 {
+            return "Ready for first lesson!"
+        } else {
+            return "Ready to learn!"
+        }
+    }
+
+    private var levelColor: Color {
+        AppColors.color(forLevel: student.level)
+    }
+
+    private var levelBadge: some View {
+        HStack(spacing: 6) {
+            Circle().fill(levelColor).frame(width: 6, height: 6)
+            Text(student.level.rawValue)
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .foregroundStyle(levelColor)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Color.white.opacity(0.18)))
+        .accessibilityLabel("Level: \(student.level.rawValue)")
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(displayName)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-            headline
-            Spacer(minLength: 0)
+        ZStack(alignment: .topLeading) {
+            LinearGradient(colors: gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
+                .overlay(decorativeOverlay.opacity(0.22))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
+                    Text(displayName)
+                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer(minLength: 0)
+                    headerIcon
+                }
+
+                daysBadge
+                    .frame(maxWidth: .infinity)
+
+                Text(statusMessage)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .frame(maxWidth: .infinity)
+
+                Spacer(minLength: 0)
+
+                HStack {
+                    levelBadge
+                }
+            }
+            .padding(14)
         }
-        .padding(14)
         .frame(minHeight: 100)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.cardBackground)
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.06), lineWidth: 1))
-                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
-        )
+        .drawingGroup()
+        .onAppear { bob = true }
+        .onChange(of: scenePhase) { _, newPhase in
+            // ENERGY OPTIMIZATION: Only animate when scene is active
+            if newPhase == .active {
+                bob = true
+            } else {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    bob = false
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -79,6 +79,7 @@ struct StudentsView<WorkloadContent: View>: View {
         case "manual": return .manual
         case "age": return .age
         case "birthday": return .birthday
+        case "lastLesson": return .lastLesson
         default: return .alphabetical
         }
     }
@@ -114,10 +115,8 @@ struct StudentsView<WorkloadContent: View>: View {
     private var presentNowCount: Int { presentNowIDs.count }
 
     private var daysSinceLastLessonByStudent: [UUID: Int] {
-        StudentsFilterService.computeDaysSinceLastLesson(
+        StudentsFilterService.computeDaysSinceLastPresentation(
             students: students,
-            studentLessons: cachedStudentLessons,
-            lessons: cachedLessons,
             modelContext: modelContext,
             calendar: calendar
         )
@@ -131,8 +130,7 @@ struct StudentsView<WorkloadContent: View>: View {
         case .birthday:
             return .birthday
         case .lastLesson:
-            // Last lesson mode removed - fallback to alphabetical
-            return .alphabetical
+            return .lastLesson
         case .roster:
             return sortOrder
         case .workOverview, .observationHeatmap:
@@ -142,7 +140,7 @@ struct StudentsView<WorkloadContent: View>: View {
     
     private var filteredStudents: [Student] {
         let currentSortOrder = effectiveSortOrder
-        return viewModel.filteredStudents(
+        let base = viewModel.filteredStudents(
             modelContext: modelContext,
             filter: selectedFilter,
             sortOrder: currentSortOrder,
@@ -151,6 +149,27 @@ struct StudentsView<WorkloadContent: View>: View {
             showTestStudents: showTestStudents,
             testStudentNames: testStudentNamesRaw
         )
+
+        // Apply lastLesson sorting in-memory (requires access to presentation data)
+        if currentSortOrder == .lastLesson {
+            let daysMap = daysSinceLastLessonByStudent
+            return base.sorted { lhs, rhs in
+                let lDays = daysMap[lhs.id] ?? -1
+                let rDays = daysMap[rhs.id] ?? -1
+                // Students with no presentations (-1) go first, then sort by most days since last presentation
+                if lDays == -1 && rDays == -1 {
+                    return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
+                }
+                if lDays == -1 { return true }
+                if rDays == -1 { return false }
+                if lDays == rDays {
+                    return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
+                }
+                return lDays > rDays // More days = needs lesson more urgently
+            }
+        }
+
+        return base
     }
     
     // Temporary helper to check for duplicate IDs
@@ -1012,8 +1031,8 @@ struct StudentsView<WorkloadContent: View>: View {
                     students: filteredStudents,
                     isBirthdayMode: effectiveSortOrder == .birthday,
                     isAgeMode: effectiveSortOrder == .age,
-                    isLastLessonMode: false,
-                    lastLessonDays: [:],
+                    isLastLessonMode: effectiveSortOrder == .lastLesson,
+                    lastLessonDays: effectiveSortOrder == .lastLesson ? daysSinceLastLessonByStudent : [:],
                     isManualMode: false,
                     onTapStudent: { student in
                         selectedStudentForSheet = student
@@ -1203,8 +1222,7 @@ struct StudentsView<WorkloadContent: View>: View {
         } else if newMode == .birthday {
             studentsSortOrderRaw = "birthday"
         } else if newMode == .lastLesson {
-            // Last lesson mode removed - use alphabetical as fallback
-            studentsSortOrderRaw = "alphabetical"
+            studentsSortOrderRaw = "lastLesson"
         } else if (oldMode == .age || oldMode == .birthday || oldMode == .lastLesson) && newMode == .roster {
             // When switching back to roster from age/birthday/lastLesson, default to alphabetical
             if studentsSortOrderRaw == "age" || studentsSortOrderRaw == "birthday" || studentsSortOrderRaw == "lastLesson" {

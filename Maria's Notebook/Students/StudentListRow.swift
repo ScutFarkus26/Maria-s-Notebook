@@ -97,6 +97,26 @@ struct StudentListRow: View {
             Text(ageDisplayString)
                 .font(.system(size: AppTheme.FontSize.titleSmall, weight: .black, design: .rounded))
                 .foregroundStyle(.primary)
+        case .lastLesson:
+            // Show days since last lesson
+            if let days = daysSinceLastLesson {
+                if days == -1 {
+                    Text("No lessons")
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.orange)
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.badge.exclamationmark")
+                            .foregroundStyle(days >= 7 ? .red : days >= 3 ? .orange : .secondary)
+                            .font(.system(size: 14))
+                        Text("\(days)d")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .foregroundStyle(days >= 7 ? .red : days >= 3 ? .orange : .secondary)
+                    }
+                }
+            } else {
+                EmptyView()
+            }
         case .alphabetical, .manual:
             // No trailing badge for default modes (level shown as secondary text)
             EmptyView()
@@ -108,7 +128,7 @@ struct StudentListRow: View {
     @ViewBuilder
     private var secondaryText: some View {
         switch sortOrder {
-        case .birthday, .age:
+        case .birthday, .age, .lastLesson:
             // No secondary text for these modes (the trailing badge shows the info)
             EmptyView()
         case .alphabetical, .manual:

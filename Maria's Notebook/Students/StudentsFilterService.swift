@@ -61,9 +61,10 @@ enum StudentsFilterService {
         return ids
     }
 
-    // MARK: - Compute Days Since Last Lesson
+    // MARK: - Compute Days Since Last Lesson (Deprecated - uses StudentLesson)
 
     /// Computes days since last lesson for each student.
+    /// @deprecated Use computeDaysSinceLastPresentation instead.
     ///
     /// - Parameters:
     ///   - students: All students
@@ -117,6 +118,75 @@ enum StudentsFilterService {
                 result[s.id] = days
             } else {
                 result[s.id] = -1
+            }
+        }
+
+        return result
+    }
+
+    // MARK: - Compute Days Since Last Presentation
+
+    /// Computes days since last presentation for each student using LessonPresentation records.
+    ///
+    /// - Parameters:
+    ///   - students: All students
+    ///   - modelContext: Model context for fetching presentations and school days calculation
+    ///   - calendar: Calendar for date calculations
+    /// - Returns: Dictionary mapping student ID to days since last presentation (-1 if no presentation)
+    static func computeDaysSinceLastPresentation(
+        students: [Student],
+        modelContext: ModelContext,
+        calendar: Calendar
+    ) -> [UUID: Int] {
+        // Fetch all LessonPresentation records
+        let descriptor = FetchDescriptor<LessonPresentation>(
+            sortBy: [SortDescriptor(\LessonPresentation.presentedAt, order: .reverse)]
+        )
+        let presentations = modelContext.safeFetch(descriptor)
+
+        // Fetch lessons to exclude (parsha lessons)
+        let lessonsDescriptor = FetchDescriptor<Lesson>()
+        let allLessons = modelContext.safeFetch(lessonsDescriptor)
+        let excludedLessonIDs: Set<String> = {
+            func norm(_ s: String) -> String { s.normalizedForComparison() }
+            let ids = allLessons.filter { l in
+                let s = norm(l.subject)
+                let g = norm(l.group)
+                return s == "parsha" || g == "parsha"
+            }.map { $0.id.uuidString }
+            return Set(ids)
+        }()
+
+        // Filter out excluded lessons
+        let relevantPresentations = presentations.filter { !excludedLessonIDs.contains($0.lessonID) }
+
+        // Build a map of student ID to most recent presentation date
+        var lastDateByStudent: [UUID: Date] = [:]
+        for lp in relevantPresentations {
+            guard let studentUUID = UUID(uuidString: lp.studentID) else { continue }
+            let when = lp.presentedAt
+            if let existing = lastDateByStudent[studentUUID] {
+                if when > existing {
+                    lastDateByStudent[studentUUID] = when
+                }
+            } else {
+                lastDateByStudent[studentUUID] = when
+            }
+        }
+
+        // Compute days since last presentation for each student
+        var result: [UUID: Int] = [:]
+        for student in students {
+            if let lastDate = lastDateByStudent[student.id] {
+                let days = LessonAgeHelper.schoolDaysSinceCreation(
+                    createdAt: lastDate,
+                    asOf: Date(),
+                    using: modelContext,
+                    calendar: calendar
+                )
+                result[student.id] = days
+            } else {
+                result[student.id] = -1 // No presentation found
             }
         }
 

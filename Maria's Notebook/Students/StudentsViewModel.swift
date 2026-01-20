@@ -49,7 +49,7 @@ struct StudentsViewModel {
                     SortDescriptor(\.birthday, order: .reverse),
                     SortDescriptor(\.manualOrder)
                 ]
-            case .birthday:
+            case .birthday, .lastLesson:
                 // Complex sorts that require calculations - will sort in-memory
                 // Use manualOrder as initial sort to maintain some order
                 return [SortDescriptor(\.manualOrder)]
@@ -121,6 +121,9 @@ struct StudentsViewModel {
                 if l == r { return lhs.manualOrder < rhs.manualOrder }
                 return l < r
             }
+        case .lastLesson:
+            // Last lesson sorting is done in StudentsView where presentation data is available
+            return fetched
         }
     }
 
