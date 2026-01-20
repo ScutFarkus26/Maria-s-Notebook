@@ -114,34 +114,31 @@ struct FollowUpInboxEngine {
             }
             return (nil, trimmed.isEmpty ? "Student" : "Group")
         }
-        
-        // Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches
+
+        // PERFORMANCE: Pre-fetch ALL school day data ONCE to avoid N+1 queries in schoolDaysSince loop
+        let nonSchoolDaysSet: Set<Date> = Set(
+            modelContext.safeFetch(FetchDescriptor<NonSchoolDay>()).map { AppCalendar.startOfDay($0.date) }
+        )
+        let schoolDayOverridesSet: Set<Date> = Set(
+            modelContext.safeFetch(FetchDescriptor<SchoolDayOverride>()).map { AppCalendar.startOfDay($0.date) }
+        )
+
+        // Synchronous helper that determines if a date is a non-school day using pre-fetched data (O(1) lookup)
         func isNonSchoolDaySync(_ date: Date) -> Bool {
             let day = AppCalendar.startOfDay(date)
-            
+
             // 1) Explicit non-school day wins
-            do {
-                let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
-                let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
-                if !nonSchoolDays.isEmpty { return true }
-            } catch {
-                // On fetch error, fall back to weekend logic below
-            }
-            
+            if nonSchoolDaysSet.contains(day) { return true }
+
             // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
             let cal = AppCalendar.shared
             let weekday = cal.component(.weekday, from: day)
             let isWeekend = (weekday == 1 || weekday == 7)
             guard isWeekend else { return false }
-            
+
             // 3) Weekend override makes it a school day
-            do {
-                let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
-                let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
-                if !overrides.isEmpty { return false }
-            } catch {
-                // If override fetch fails, assume weekend remains non-school
-            }
+            if schoolDayOverridesSet.contains(day) { return false }
+
             return true
         }
         

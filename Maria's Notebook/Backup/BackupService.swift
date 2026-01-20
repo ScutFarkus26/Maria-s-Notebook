@@ -17,73 +17,17 @@ public final class BackupService {
     public init() {}
     
     // MARK: - Size Estimation
-    
+
     /// Estimates the backup size in bytes based on current entity counts.
+    /// Delegates to BackupSizeEstimator for the actual calculation.
     public func estimateBackupSize(modelContext: ModelContext) -> Int64 {
-        var counts: [String: Int] = [:]
-        counts["Student"] = safeFetch(Student.self, using: modelContext).count
-        counts["Lesson"] = safeFetch(Lesson.self, using: modelContext).count
-        counts["StudentLesson"] = safeFetch(StudentLesson.self, using: modelContext).count
-        // WorkContract removed - not exported anymore
-        counts["WorkPlanItem"] = safeFetch(WorkPlanItem.self, using: modelContext).count
-        // Removed: ScopedNote
-        counts["Note"] = safeFetch(Note.self, using: modelContext).count
-        counts["NonSchoolDay"] = safeFetch(NonSchoolDay.self, using: modelContext).count
-        counts["SchoolDayOverride"] = safeFetch(SchoolDayOverride.self, using: modelContext).count
-        counts["StudentMeeting"] = safeFetch(StudentMeeting.self, using: modelContext).count
-        counts["Presentation"] = safeFetch(Presentation.self, using: modelContext).count
-        counts["CommunityTopic"] = safeFetch(CommunityTopic.self, using: modelContext).count
-        counts["ProposedSolution"] = safeFetch(ProposedSolution.self, using: modelContext).count
-        // Removed: MeetingNote
-        counts["CommunityAttachment"] = safeFetch(CommunityAttachment.self, using: modelContext).count
-        counts["AttendanceRecord"] = safeFetch(AttendanceRecord.self, using: modelContext).count
-        counts["WorkCompletionRecord"] = safeFetch(WorkCompletionRecord.self, using: modelContext).count
-        counts["Project"] = safeFetch(Project.self, using: modelContext).count
-        counts["ProjectAssignmentTemplate"] = safeFetch(ProjectAssignmentTemplate.self, using: modelContext).count
-        counts["ProjectSession"] = safeFetch(ProjectSession.self, using: modelContext).count
-        counts["ProjectRole"] = safeFetch(ProjectRole.self, using: modelContext).count
-        counts["ProjectTemplateWeek"] = safeFetch(ProjectTemplateWeek.self, using: modelContext).count
-        counts["ProjectWeekRoleAssignment"] = safeFetch(ProjectWeekRoleAssignment.self, using: modelContext).count
-        
-        return estimateBackupSizeFromCounts(counts)
+        BackupSizeEstimator.estimateBackupSize(modelContext: modelContext)
     }
-    
+
     /// Estimates backup size from entity counts dictionary.
+    /// Delegates to BackupSizeEstimator for the actual calculation.
     public func estimateBackupSizeFromCounts(_ counts: [String: Int]) -> Int64 {
-        let averageBytesPerEntity: [String: Int] = [
-            "Student": 600,
-            "Lesson": 2500,
-            "StudentLesson": 300,
-            // WorkContract removed - not exported anymore
-            "WorkPlanItem": 500,
-            "Note": 300,
-            "NonSchoolDay": 200,
-            "SchoolDayOverride": 200,
-            "StudentMeeting": 1200,
-            "Presentation": 800,
-            "CommunityTopic": 1500,
-            "ProposedSolution": 1000,
-            "CommunityAttachment": 600,
-            "AttendanceRecord": 300,
-            "WorkCompletionRecord": 400,
-            "Project": 2000,
-            "ProjectAssignmentTemplate": 2500,
-            "ProjectSession": 1500,
-            "ProjectRole": 1200,
-            "ProjectTemplateWeek": 1800,
-            "ProjectWeekRoleAssignment": 300
-        ]
-        
-        let uncompressedSize = counts.reduce(0) { total, pair in
-            let averageSize = averageBytesPerEntity[pair.key] ?? 1000
-            return total + (averageSize * pair.value)
-        }
-        
-        let envelopeOverhead: Int64 = 2048
-        let compressionRatio = 3.0
-        let compressedSize = Int64(Double(uncompressedSize) / compressionRatio)
-        
-        return compressedSize + envelopeOverhead
+        BackupSizeEstimator.estimateFromCounts(counts)
     }
 
     // MARK: - Export
@@ -130,265 +74,29 @@ public final class BackupService {
         let projectWeeks: [ProjectTemplateWeek] = safeFetchInBatches(ProjectTemplateWeek.self, using: modelContext)
         let projectWeekAssignments: [ProjectWeekRoleAssignment] = safeFetchInBatches(ProjectWeekRoleAssignment.self, using: modelContext)
 
-        // Map to DTOs
-        let studentDTOs: [StudentDTO] = students.map { s in
-            let level: StudentDTO.Level = (s.level == .upper) ? .upper : .lower
-            return StudentDTO(
-                id: s.id,
-                firstName: s.firstName,
-                lastName: s.lastName,
-                birthday: s.birthday,
-                dateStarted: s.dateStarted,
-                level: level,
-                nextLessons: s.nextLessonUUIDs,
-                manualOrder: s.manualOrder,
-                createdAt: nil,
-                updatedAt: nil
-            )
-        }
-
-        let lessonDTOs: [LessonDTO] = lessons.map { l in
-            LessonDTO(
-                id: l.id,
-                name: l.name,
-                subject: l.subject,
-                group: l.group,
-                orderInGroup: l.orderInGroup,
-                subheading: l.subheading,
-                writeUp: l.writeUp,
-                createdAt: nil,
-                updatedAt: nil,
-                pagesFileRelativePath: l.pagesFileRelativePath
-            )
-        }
-
-        let studentLessonDTOs: [StudentLessonDTO] = studentLessons.compactMap { sl in
-            guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else {
-                return nil
-            }
-            return StudentLessonDTO(
-                id: sl.id,
-                lessonID: lessonIDUUID,
-                studentIDs: sl.resolvedStudentIDs,
-                createdAt: sl.createdAt,
-                scheduledFor: sl.scheduledFor,
-                givenAt: sl.givenAt,
-                isPresented: sl.isPresented,
-                notes: sl.notes,
-                needsPractice: sl.needsPractice,
-                needsAnotherPresentation: sl.needsAnotherPresentation,
-                followUpWork: sl.followUpWork,
-                studentGroupKey: nil
-            )
-        }
-
-
-        let workPlanItemDTOs: [WorkPlanItemDTO] = workPlanItems.compactMap { w in
-            guard let workIDUUID = UUID(uuidString: w.workID) else { return nil }
-            return WorkPlanItemDTO(
-                id: w.id,
-                workID: workIDUUID,
-                scheduledDate: w.scheduledDate,
-                reason: w.reasonRaw ?? (w.reason?.rawValue ?? ""),
-                note: w.note
-            )
-        }
-
-        // Removed: ScopedNote DTO mapping (pass empty array)
-        let scopedNoteDTOs: [ScopedNoteDTO] = []
-
-        let noteDTOs: [NoteDTO] = notes.map { n in
-            let scopeString: String
-            if let data = try? JSONEncoder().encode(n.scope) {
-                scopeString = String(data: data, encoding: .utf8) ?? "{}"
-            } else {
-                scopeString = "{}"
-            }
-            
-            return NoteDTO(
-                id: n.id,
-                createdAt: n.createdAt,
-                updatedAt: n.updatedAt,
-                body: n.body,
-                isPinned: n.isPinned,
-                scope: scopeString,
-                lessonID: n.lesson?.id,
-                imagePath: n.imagePath
-            )
-        }
-
-        let nonSchoolDTOs: [NonSchoolDayDTO] = nonSchoolDays.map { d in
-            NonSchoolDayDTO(id: d.id, date: d.date, reason: d.reason)
-        }
-
-        let schoolOverrideDTOs: [SchoolDayOverrideDTO] = schoolDayOverrides.map { o in
-            SchoolDayOverrideDTO(id: o.id, date: o.date, note: o.note)
-        }
-
-        let studentMeetingDTOs: [StudentMeetingDTO] = studentMeetings.compactMap { m in
-            guard let studentIDUUID = UUID(uuidString: m.studentID) else { return nil }
-            return StudentMeetingDTO(
-                id: m.id,
-                studentID: studentIDUUID,
-                date: m.date,
-                completed: m.completed,
-                reflection: m.reflection,
-                focus: m.focus,
-                requests: m.requests,
-                guideNotes: m.guideNotes
-            )
-        }
-
-        let presentationDTOs: [PresentationDTO] = presentations.map { p in
-            PresentationDTO(
-                id: p.id,
-                createdAt: p.createdAt,
-                presentedAt: p.presentedAt,
-                lessonID: p.lessonID,
-                studentIDs: p.studentIDs,
-                legacyStudentLessonID: p.legacyStudentLessonID,
-                lessonTitleSnapshot: p.lessonTitleSnapshot,
-                lessonSubtitleSnapshot: p.lessonSubtitleSnapshot
-            )
-        }
-
-        let topicDTOs: [CommunityTopicDTO] = communityTopics.map { t in
-            CommunityTopicDTO(
-                id: t.id,
-                title: t.title,
-                issueDescription: t.issueDescription,
-                createdAt: t.createdAt,
-                addressedDate: t.addressedDate,
-                resolution: t.resolution,
-                raisedBy: t.raisedBy,
-                tags: t.tags
-            )
-        }
-
-        let solutionDTOs: [ProposedSolutionDTO] = proposedSolutions.map { s in
-            ProposedSolutionDTO(
-                id: s.id,
-                topicID: s.topic?.id,
-                title: s.title,
-                details: s.details,
-                proposedBy: s.proposedBy,
-                createdAt: s.createdAt,
-                isAdopted: s.isAdopted
-            )
-        }
-
-        // Removed: MeetingNote DTO mapping (pass empty array)
-        let meetingNoteDTOs: [MeetingNoteDTO] = []
-
-        let attachmentDTOs: [CommunityAttachmentDTO] = communityAttachments.map { a in
-            CommunityAttachmentDTO(
-                id: a.id,
-                topicID: a.topic?.id,
-                filename: a.filename,
-                kind: a.kind.rawValue,
-                createdAt: a.createdAt
-            )
-        }
-
-        let attendanceDTOs: [AttendanceRecordDTO] = attendance.compactMap { a in
-            guard let studentIDUUID = UUID(uuidString: a.studentID) else { return nil }
-            return AttendanceRecordDTO(
-                id: a.id,
-                studentID: studentIDUUID,
-                date: a.date,
-                status: a.status.rawValue,
-                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue,
-                note: a.note
-            )
-        }
-
-        let workCompletionDTOs: [WorkCompletionRecordDTO] = workCompletions.compactMap { r in
-            guard let workIDUUID = UUID(uuidString: r.workID),
-                  let studentIDUUID = UUID(uuidString: r.studentID) else { return nil }
-            return WorkCompletionRecordDTO(
-                id: r.id,
-                workID: workIDUUID,
-                studentID: studentIDUUID,
-                completedAt: r.completedAt,
-                note: r.note
-            )
-        }
-
-        let projectDTOs: [ProjectDTO] = projects.map { c in
-            ProjectDTO(
-                id: c.id,
-                createdAt: c.createdAt,
-                title: c.title,
-                bookTitle: c.bookTitle,
-                memberStudentIDs: c.memberStudentIDs
-            )
-        }
-
-        let projectTemplateDTOs: [ProjectAssignmentTemplateDTO] = projectTemplates.compactMap { t in
-            guard let projectIDUUID = UUID(uuidString: t.projectID) else { return nil }
-            return ProjectAssignmentTemplateDTO(
-                id: t.id,
-                createdAt: t.createdAt,
-                projectID: projectIDUUID,
-                title: t.title,
-                instructions: t.instructions,
-                isShared: t.isShared,
-                defaultLinkedLessonID: t.defaultLinkedLessonID
-            )
-        }
-
-        let projectSessionDTOs: [ProjectSessionDTO] = projectSessions.compactMap { s in
-            guard let projectIDUUID = UUID(uuidString: s.projectID) else { return nil }
-            let templateWeekIDUUID = s.templateWeekID.flatMap { UUID(uuidString: $0) }
-            return ProjectSessionDTO(
-                id: s.id,
-                createdAt: s.createdAt,
-                projectID: projectIDUUID,
-                meetingDate: s.meetingDate,
-                chapterOrPages: s.chapterOrPages,
-                notes: s.notes,
-                agendaItemsJSON: s.agendaItemsJSON,
-                templateWeekID: templateWeekIDUUID
-            )
-        }
-
-        let projectRoleDTOs: [ProjectRoleDTO] = projectRoles.compactMap { r in
-            guard let projectIDUUID = UUID(uuidString: r.projectID) else { return nil }
-            return ProjectRoleDTO(
-                id: r.id,
-                createdAt: r.createdAt,
-                projectID: projectIDUUID,
-                title: r.title,
-                summary: r.summary,
-                instructions: r.instructions
-            )
-        }
-
-        let projectWeekDTOs: [ProjectTemplateWeekDTO] = projectWeeks.compactMap { w in
-            guard let projectIDUUID = UUID(uuidString: w.projectID) else { return nil }
-            return ProjectTemplateWeekDTO(
-                id: w.id,
-                createdAt: w.createdAt,
-                projectID: projectIDUUID,
-                weekIndex: w.weekIndex,
-                readingRange: w.readingRange,
-                agendaItemsJSON: w.agendaItemsJSON,
-                linkedLessonIDsJSON: w.linkedLessonIDsJSON,
-                workInstructions: w.workInstructions
-            )
-        }
-
-        let projectWeekAssignDTOs: [ProjectWeekRoleAssignmentDTO] = projectWeekAssignments.compactMap { a in
-            guard let weekIDUUID = UUID(uuidString: a.weekID),
-                  let roleIDUUID = UUID(uuidString: a.roleID) else { return nil }
-            return ProjectWeekRoleAssignmentDTO(
-                id: a.id,
-                createdAt: a.createdAt,
-                weekID: weekIDUUID,
-                studentID: a.studentID,
-                roleID: roleIDUUID
-            )
-        }
+        // Map to DTOs using BackupDTOTransformers
+        let studentDTOs = BackupDTOTransformers.toDTOs(students)
+        let lessonDTOs = BackupDTOTransformers.toDTOs(lessons)
+        let studentLessonDTOs = BackupDTOTransformers.toDTOs(studentLessons)
+        let workPlanItemDTOs = BackupDTOTransformers.toDTOs(workPlanItems)
+        let scopedNoteDTOs: [ScopedNoteDTO] = [] // Removed entity
+        let noteDTOs = BackupDTOTransformers.toDTOs(notes)
+        let nonSchoolDTOs = BackupDTOTransformers.toDTOs(nonSchoolDays)
+        let schoolOverrideDTOs = BackupDTOTransformers.toDTOs(schoolDayOverrides)
+        let studentMeetingDTOs = BackupDTOTransformers.toDTOs(studentMeetings)
+        let presentationDTOs = BackupDTOTransformers.toDTOs(presentations)
+        let topicDTOs = BackupDTOTransformers.toDTOs(communityTopics)
+        let solutionDTOs = BackupDTOTransformers.toDTOs(proposedSolutions)
+        let meetingNoteDTOs: [MeetingNoteDTO] = [] // Removed entity
+        let attachmentDTOs = BackupDTOTransformers.toDTOs(communityAttachments)
+        let attendanceDTOs = BackupDTOTransformers.toDTOs(attendance)
+        let workCompletionDTOs = BackupDTOTransformers.toDTOs(workCompletions)
+        let projectDTOs = BackupDTOTransformers.toDTOs(projects)
+        let projectTemplateDTOs = BackupDTOTransformers.toDTOs(projectTemplates)
+        let projectSessionDTOs = BackupDTOTransformers.toDTOs(projectSessions)
+        let projectRoleDTOs = BackupDTOTransformers.toDTOs(projectRoles)
+        let projectWeekDTOs = BackupDTOTransformers.toDTOs(projectWeeks)
+        let projectWeekAssignDTOs = BackupDTOTransformers.toDTOs(projectWeekAssignments)
 
         let preferences = buildPreferencesDTO()
 
@@ -603,122 +311,26 @@ public final class BackupService {
         }
 
         progress(0.50, "Analyzing…")
-        func count<T: PersistentModel>(_ type: T.Type) -> Int { ((try? modelContext.fetch(FetchDescriptor<T>())) ?? []).count }
-        func exists<T: PersistentModel>(_ type: T.Type, _ id: UUID) -> Bool { ((try? fetchOne(type, id: id, using: modelContext)) ?? nil) != nil }
 
-        var inserts: [String: Int] = [:]
-        var skips: [String: Int] = [:]
-        var deletes: [String: Int] = [:]
-        var warnings: [String] = []
-
-        func assign(_ key: String, ins: Int, sk: Int = 0, del: Int = 0) {
-            inserts[key] = ins
-            skips[key] = sk
-            deletes[key] = del
-        }
-
-        if mode == .replace {
-            assign("Student", ins: payload.students.count, del: count(Student.self))
-            assign("Lesson", ins: payload.lessons.count, del: count(Lesson.self))
-            assign("StudentLesson", ins: payload.studentLessons.count, del: count(StudentLesson.self))
-            assign("WorkPlanItem", ins: payload.workPlanItems.count, del: count(WorkPlanItem.self))
-            // Removed: ScopedNote
-            assign("Note", ins: payload.notes.count, del: count(Note.self))
-            assign("NonSchoolDay", ins: payload.nonSchoolDays.count, del: count(NonSchoolDay.self))
-            assign("SchoolDayOverride", ins: payload.schoolDayOverrides.count, del: count(SchoolDayOverride.self))
-            assign("StudentMeeting", ins: payload.studentMeetings.count, del: count(StudentMeeting.self))
-            assign("Presentation", ins: payload.presentations.count, del: count(Presentation.self))
-            assign("CommunityTopic", ins: payload.communityTopics.count, del: count(CommunityTopic.self))
-            assign("ProposedSolution", ins: payload.proposedSolutions.count, del: count(ProposedSolution.self))
-            // Removed: MeetingNote
-            assign("CommunityAttachment", ins: payload.communityAttachments.count, del: count(CommunityAttachment.self))
-            assign("AttendanceRecord", ins: payload.attendance.count, del: count(AttendanceRecord.self))
-            assign("WorkCompletionRecord", ins: payload.workCompletions.count, del: count(WorkCompletionRecord.self))
-            assign("Project", ins: payload.projects.count, del: count(Project.self))
-            assign("ProjectAssignmentTemplate", ins: payload.projectAssignmentTemplates.count, del: count(ProjectAssignmentTemplate.self))
-            assign("ProjectSession", ins: payload.projectSessions.count, del: count(ProjectSession.self))
-            assign("ProjectRole", ins: payload.projectRoles.count, del: count(ProjectRole.self))
-            assign("ProjectTemplateWeek", ins: payload.projectTemplateWeeks.count, del: count(ProjectTemplateWeek.self))
-            assign("ProjectWeekRoleAssignment", ins: payload.projectWeekRoleAssignments.count, del: count(ProjectWeekRoleAssignment.self))
-        } else {
-            // Merge
-            let studentCounts = BackupCountHelpers.countInsertAndSkip(
-                items: payload.students,
-                type: Student.self,
-                modelContext: modelContext,
-                exists: { exists(Student.self, $0.id) }
-            )
-            assign("Student", ins: studentCounts.insert, sk: studentCounts.skip)
-            
-            let lessonCounts = BackupCountHelpers.countInsertAndSkip(
-                items: payload.lessons,
-                type: Lesson.self,
-                modelContext: modelContext,
-                exists: { exists(Lesson.self, $0.id) }
-            )
-            assign("Lesson", ins: lessonCounts.insert, sk: lessonCounts.skip)
-
-            let lessonsInStore = Set(((try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []).map { $0.id })
-            let lessonsInPayload = Set(payload.lessons.map { $0.id })
-            let studentLessonAnalysis = payload.studentLessons.reduce(into: (ins: 0, sk: 0, missingLesson: 0)) { acc, sl in
-                let hasLesson = lessonsInStore.contains(sl.lessonID) || lessonsInPayload.contains(sl.lessonID)
-                if !hasLesson {
-                    acc.sk += 1
-                    acc.missingLesson += 1
-                } else if exists(StudentLesson.self, sl.id) {
-                    acc.sk += 1
-                } else {
-                    acc.ins += 1
-                }
+        // Use BackupPreviewAnalyzer to compute insert/skip/delete counts
+        let analysis = BackupPreviewAnalyzer.analyze(
+            payload: payload,
+            modelContext: modelContext,
+            mode: mode,
+            entityExists: { [self] type, id in
+                ((try? self.fetchOne(type, id: id, using: modelContext)) ?? nil) != nil
             }
-            assign("StudentLesson", ins: studentLessonAnalysis.ins, sk: studentLessonAnalysis.sk)
-            if studentLessonAnalysis.missingLesson > 0 {
-                warnings.append("\(studentLessonAnalysis.missingLesson) StudentLesson records reference missing Lessons and will be skipped.")
-            }
-
-            func assignCounts<T>(_ key: String, items: [T], type: any PersistentModel.Type, idExtractor: (T) -> UUID) {
-                let counts = BackupCountHelpers.countInsertAndSkip(
-                    items: items,
-                    type: type,
-                    modelContext: modelContext,
-                    exists: { exists(type, idExtractor($0)) }
-                )
-                assign(key, ins: counts.insert, sk: counts.skip)
-            }
-
-            assignCounts("WorkPlanItem", items: payload.workPlanItems, type: WorkPlanItem.self) { $0.id }
-            // Removed: ScopedNote count
-            assignCounts("Note", items: payload.notes, type: Note.self) { $0.id }
-            assignCounts("NonSchoolDay", items: payload.nonSchoolDays, type: NonSchoolDay.self) { $0.id }
-            assignCounts("SchoolDayOverride", items: payload.schoolDayOverrides, type: SchoolDayOverride.self) { $0.id }
-            assignCounts("StudentMeeting", items: payload.studentMeetings, type: StudentMeeting.self) { $0.id }
-            assignCounts("Presentation", items: payload.presentations, type: Presentation.self) { $0.id }
-            assignCounts("CommunityTopic", items: payload.communityTopics, type: CommunityTopic.self) { $0.id }
-            assignCounts("ProposedSolution", items: payload.proposedSolutions, type: ProposedSolution.self) { $0.id }
-            // Removed: MeetingNote count
-            assign("CommunityAttachment", ins: payload.communityAttachments.filter { !exists(CommunityAttachment.self, $0.id) }.count, sk: payload.communityAttachments.filter { exists(CommunityAttachment.self, $0.id) }.count)
-            assign("AttendanceRecord", ins: payload.attendance.filter { !exists(AttendanceRecord.self, $0.id) }.count, sk: payload.attendance.filter { exists(AttendanceRecord.self, $0.id) }.count)
-            assign("WorkCompletionRecord", ins: payload.workCompletions.filter { !exists(WorkCompletionRecord.self, $0.id) }.count, sk: payload.workCompletions.filter { exists(WorkCompletionRecord.self, $0.id) }.count)
-            assign("Project", ins: payload.projects.filter { !exists(Project.self, $0.id) }.count, sk: payload.projects.filter { exists(Project.self, $0.id) }.count)
-            assign("ProjectAssignmentTemplate", ins: payload.projectAssignmentTemplates.filter { !exists(ProjectAssignmentTemplate.self, $0.id) }.count, sk: payload.projectAssignmentTemplates.filter { exists(ProjectAssignmentTemplate.self, $0.id) }.count)
-            assign("ProjectSession", ins: payload.projectSessions.filter { !exists(ProjectSession.self, $0.id) }.count, sk: payload.projectSessions.filter { exists(ProjectSession.self, $0.id) }.count)
-            assign("ProjectRole", ins: payload.projectRoles.filter { !exists(ProjectRole.self, $0.id) }.count, sk: payload.projectRoles.filter { exists(ProjectRole.self, $0.id) }.count)
-            assign("ProjectTemplateWeek", ins: payload.projectTemplateWeeks.filter { !exists(ProjectTemplateWeek.self, $0.id) }.count, sk: payload.projectTemplateWeeks.filter { exists(ProjectTemplateWeek.self, $0.id) }.count)
-            assign("ProjectWeekRoleAssignment", ins: payload.projectWeekRoleAssignments.filter { !exists(ProjectWeekRoleAssignment.self, $0.id) }.count, sk: payload.projectWeekRoleAssignments.filter { exists(ProjectWeekRoleAssignment.self, $0.id) }.count)
-        }
-
-        let totalInserts = inserts.values.reduce(0, +)
-        let totalDeletes = deletes.values.reduce(0, +)
+        )
 
         progress(1.0, "Done")
         return RestorePreview(
             mode: mode.rawValue,
-            entityInserts: inserts,
-            entitySkips: skips,
-            entityDeletes: deletes,
-            totalInserts: totalInserts,
-            totalDeletes: totalDeletes,
-            warnings: warnings
+            entityInserts: analysis.inserts,
+            entitySkips: analysis.skips,
+            entityDeletes: analysis.deletes,
+            totalInserts: analysis.totalInserts,
+            totalDeletes: analysis.totalDeletes,
+            warnings: analysis.warnings
         )
     }
 
@@ -807,198 +419,145 @@ public final class BackupService {
         }
 
         progress(0.65, "Importing records…")
-        var studentsByID: [UUID: Student] = [:]
 
-        // Students
-        for dto in payload.students {
-            if (try? fetchOne(Student.self, id: dto.id, using: modelContext)) != nil { continue }
-            let s = Student(id: dto.id, firstName: dto.firstName, lastName: dto.lastName, birthday: dto.birthday, level: dto.level == .upper ? .upper : .lower)
-            s.dateStarted = dto.dateStarted
-            s.nextLessons = dto.nextLessons.map { $0.uuidString }
-            s.manualOrder = dto.manualOrder
-            modelContext.insert(s)
-            studentsByID[s.id] = s
-        }
+        // Import all entities using BackupEntityImporter
+        // Note: fetchOne is passed as a closure to avoid storing ModelContext in the importer
+        let studentsByID = try BackupEntityImporter.importStudents(
+            payload.students,
+            into: modelContext,
+            existingCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }
+        )
 
-        // Lessons
-        for dto in payload.lessons {
-            if (try? fetchOne(Lesson.self, id: dto.id, using: modelContext)) != nil { continue }
-            let l = Lesson(id: dto.id, name: dto.name, subject: dto.subject, group: dto.group, orderInGroup: dto.orderInGroup, subheading: dto.subheading, writeUp: dto.writeUp)
-            if let pages = dto.pagesFileRelativePath { l.pagesFileRelativePath = pages }
-            modelContext.insert(l)
-        }
+        try BackupEntityImporter.importLessons(
+            payload.lessons,
+            into: modelContext,
+            existingCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+        )
 
-        // Community Topics
-        for dto in payload.communityTopics {
-            if (try? fetchOne(CommunityTopic.self, id: dto.id, using: modelContext)) != nil { continue }
-            let t = CommunityTopic(id: dto.id, title: dto.title, issueDescription: dto.issueDescription, createdAt: dto.createdAt, addressedDate: dto.addressedDate, resolution: dto.resolution)
-            t.raisedBy = dto.raisedBy
-            t.tags = dto.tags
-            modelContext.insert(t)
-        }
+        try BackupEntityImporter.importCommunityTopics(
+            payload.communityTopics,
+            into: modelContext,
+            existingCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
+        )
 
+        try BackupEntityImporter.importWorkPlanItems(
+            payload.workPlanItems,
+            into: modelContext,
+            existingCheck: { try fetchOne(WorkPlanItem.self, id: $0, using: modelContext) }
+        )
 
-        // Work Plan Items
-        for dto in payload.workPlanItems {
-            if (try? fetchOne(WorkPlanItem.self, id: dto.id, using: modelContext)) != nil { continue }
-            let item = WorkPlanItem(workID: dto.workID, scheduledDate: dto.scheduledDate, reason: nil, note: dto.note)
-            item.id = dto.id
-            item.reasonRaw = dto.reason.isEmpty ? nil : dto.reason
-            item.note = dto.note
-            modelContext.insert(item)
-        }
+        try BackupEntityImporter.importStudentLessons(
+            payload.studentLessons,
+            into: modelContext,
+            studentLessonCheck: { try fetchOne(StudentLesson.self, id: $0, using: modelContext) },
+            lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) },
+            studentCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }
+        )
 
-        // Student Lessons
-        for dto in payload.studentLessons {
-            let lessonExists = (try? fetchOne(Lesson.self, id: dto.lessonID, using: modelContext)) ?? nil
-            if lessonExists == nil { continue }
-            if (try? fetchOne(StudentLesson.self, id: dto.id, using: modelContext)) != nil { continue }
-            let sl = StudentLesson(id: dto.id, lessonID: dto.lessonID, studentIDs: dto.studentIDs, createdAt: dto.createdAt, scheduledFor: dto.scheduledFor, givenAt: dto.givenAt, notes: dto.notes, needsPractice: dto.needsPractice, needsAnotherPresentation: dto.needsAnotherPresentation, followUpWork: dto.followUpWork)
-            var linked: [Student] = []
-            for sid in dto.studentIDs {
-                if let s = (try? fetchOne(Student.self, id: sid, using: modelContext)) ?? nil { linked.append(s) }
-            }
-            if !linked.isEmpty { sl.students = linked }
-            modelContext.insert(sl)
-        }
+        try BackupEntityImporter.importNotes(
+            payload.notes,
+            into: modelContext,
+            existingCheck: { try fetchOne(Note.self, id: $0, using: modelContext) },
+            lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+        )
 
-        // Removed: ScopedNote import loop (Legacy notes are dropped during restore)
+        try BackupEntityImporter.importNonSchoolDays(
+            payload.nonSchoolDays,
+            into: modelContext,
+            existingCheck: { try fetchOne(NonSchoolDay.self, id: $0, using: modelContext) }
+        )
 
-        // Notes
-        for dto in payload.notes {
-            if (try? fetchOne(Note.self, id: dto.id, using: modelContext)) != nil { continue }
-            let n = Note(id: dto.id, createdAt: dto.createdAt, updatedAt: dto.updatedAt, body: dto.body, imagePath: dto.imagePath)
-            n.isPinned = dto.isPinned
-            if let data = dto.scope.data(using: .utf8), let s = try? JSONDecoder().decode(NoteScope.self, from: data) {
-                n.scope = s
-            }
-            if let lID = dto.lessonID, let l = (try? fetchOne(Lesson.self, id: lID, using: modelContext)) ?? nil {
-                n.lesson = l
-            }
-            modelContext.insert(n)
-        }
+        try BackupEntityImporter.importSchoolDayOverrides(
+            payload.schoolDayOverrides,
+            into: modelContext,
+            existingCheck: { try fetchOne(SchoolDayOverride.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.nonSchoolDays {
-            if (try? fetchOne(NonSchoolDay.self, id: dto.id, using: modelContext)) != nil { continue }
-            let d = NonSchoolDay(id: dto.id, date: dto.date)
-            d.reason = dto.reason
-            modelContext.insert(d)
-        }
+        try BackupEntityImporter.importStudentMeetings(
+            payload.studentMeetings,
+            into: modelContext,
+            existingCheck: { try fetchOne(StudentMeeting.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.schoolDayOverrides {
-            if (try? fetchOne(SchoolDayOverride.self, id: dto.id, using: modelContext)) != nil { continue }
-            let o = SchoolDayOverride(id: dto.id, date: dto.date)
-            o.note = dto.note
-            modelContext.insert(o)
-        }
+        // Fetch all student lessons once for presentation legacy ID matching
+        let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
+        try BackupEntityImporter.importPresentations(
+            payload.presentations,
+            into: modelContext,
+            existingCheck: { try fetchOne(Presentation.self, id: $0, using: modelContext) },
+            allStudentLessons: allStudentLessons
+        )
 
-        for dto in payload.studentMeetings {
-            if (try? fetchOne(StudentMeeting.self, id: dto.id, using: modelContext)) != nil { continue }
-            let m = StudentMeeting(id: dto.id, studentID: dto.studentID, date: dto.date)
-            m.completed = dto.completed
-            m.reflection = dto.reflection
-            m.focus = dto.focus
-            m.requests = dto.requests
-            m.guideNotes = dto.guideNotes
-            modelContext.insert(m)
-        }
+        try BackupEntityImporter.importProposedSolutions(
+            payload.proposedSolutions,
+            into: modelContext,
+            existingCheck: { try fetchOne(ProposedSolution.self, id: $0, using: modelContext) },
+            topicCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.presentations {
-            if (try? fetchOne(Presentation.self, id: dto.id, using: modelContext)) != nil { continue }
-            let p = Presentation(id: dto.id, createdAt: dto.createdAt, presentedAt: dto.presentedAt, lessonID: dto.lessonID, studentIDs: dto.studentIDs)
-            p.legacyStudentLessonID = dto.legacyStudentLessonID
-            p.lessonTitleSnapshot = dto.lessonTitleSnapshot
-            p.lessonSubtitleSnapshot = dto.lessonSubtitleSnapshot
-            if p.legacyStudentLessonID == nil {
-                let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
-                if let matchingSL = allStudentLessons.first(where: { sl in
-                    sl.lessonID == dto.lessonID && Set(sl.studentIDs) == Set(dto.studentIDs)
-                }) {
-                    p.legacyStudentLessonID = matchingSL.id.uuidString
-                }
-            }
-            modelContext.insert(p)
-        }
+        try BackupEntityImporter.importCommunityAttachments(
+            payload.communityAttachments,
+            into: modelContext,
+            existingCheck: { try fetchOne(CommunityAttachment.self, id: $0, using: modelContext) },
+            topicCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.proposedSolutions {
-            if (try? fetchOne(ProposedSolution.self, id: dto.id, using: modelContext)) != nil { continue }
-            let s = ProposedSolution(id: dto.id, title: dto.title, details: dto.details, proposedBy: dto.proposedBy, createdAt: dto.createdAt, isAdopted: dto.isAdopted, topic: nil)
-            if let tid = dto.topicID, let t = (try? fetchOne(CommunityTopic.self, id: tid, using: modelContext)) ?? nil {
-                s.topic = t
-            }
-            modelContext.insert(s)
-        }
+        try BackupEntityImporter.importAttendanceRecords(
+            payload.attendance,
+            into: modelContext,
+            existingCheck: { try fetchOne(AttendanceRecord.self, id: $0, using: modelContext) }
+        )
 
-        // Removed: MeetingNote import loop (Legacy notes dropped)
+        try BackupEntityImporter.importWorkCompletionRecords(
+            payload.workCompletions,
+            into: modelContext,
+            existingCheck: { try fetchOne(WorkCompletionRecord.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.communityAttachments {
-            if (try? fetchOne(CommunityAttachment.self, id: dto.id, using: modelContext)) != nil { continue }
-            let a = CommunityAttachment(id: dto.id, filename: dto.filename, kind: CommunityAttachment.Kind(rawValue: dto.kind) ?? .file, data: nil, createdAt: dto.createdAt, topic: nil)
-            if let tid = dto.topicID, let t = (try? fetchOne(CommunityTopic.self, id: tid, using: modelContext)) ?? nil {
-                a.topic = t
-            }
-            modelContext.insert(a)
-        }
+        try BackupEntityImporter.importProjects(
+            payload.projects,
+            into: modelContext,
+            existingCheck: { try fetchOne(Project.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.attendance {
-            if (try? fetchOne(AttendanceRecord.self, id: dto.id, using: modelContext)) != nil { continue }
-            let absenceReason = dto.absenceReason.flatMap { AbsenceReason(rawValue: $0) } ?? .none
-            let a = AttendanceRecord(id: dto.id, studentID: dto.studentID, date: dto.date, status: AttendanceStatus(rawValue: dto.status) ?? .unmarked, absenceReason: absenceReason, note: dto.note)
-            modelContext.insert(a)
-        }
+        try BackupEntityImporter.importProjectRoles(
+            payload.projectRoles,
+            into: modelContext,
+            existingCheck: { try fetchOne(ProjectRole.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.workCompletions {
-            if (try? fetchOne(WorkCompletionRecord.self, id: dto.id, using: modelContext)) != nil { continue }
-            let r = WorkCompletionRecord(id: dto.id, workID: dto.workID, studentID: dto.studentID, completedAt: dto.completedAt, note: dto.note)
-            modelContext.insert(r)
-        }
+        try BackupEntityImporter.importProjectTemplateWeeks(
+            payload.projectTemplateWeeks,
+            into: modelContext,
+            existingCheck: { try fetchOne(ProjectTemplateWeek.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.projects {
-            if (try? fetchOne(Project.self, id: dto.id, using: modelContext)) != nil { continue }
-            let c = Project(id: dto.id, createdAt: dto.createdAt, title: dto.title, bookTitle: dto.bookTitle, memberStudentIDs: dto.memberStudentIDs)
-            modelContext.insert(c)
-        }
+        try BackupEntityImporter.importProjectAssignmentTemplates(
+            payload.projectAssignmentTemplates,
+            into: modelContext,
+            existingCheck: { try fetchOne(ProjectAssignmentTemplate.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.projectRoles {
-            if (try? fetchOne(ProjectRole.self, id: dto.id, using: modelContext)) != nil { continue }
-            let r = ProjectRole(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, title: dto.title, summary: dto.summary, instructions: dto.instructions)
-            modelContext.insert(r)
-        }
+        try BackupEntityImporter.importProjectWeekRoleAssignments(
+            payload.projectWeekRoleAssignments,
+            into: modelContext,
+            existingCheck: { try fetchOne(ProjectWeekRoleAssignment.self, id: $0, using: modelContext) },
+            weekCheck: { try fetchOne(ProjectTemplateWeek.self, id: $0, using: modelContext) }
+        )
 
-        for dto in payload.projectTemplateWeeks {
-            if (try? fetchOne(ProjectTemplateWeek.self, id: dto.id, using: modelContext)) != nil { continue }
-            let w = ProjectTemplateWeek(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, weekIndex: dto.weekIndex, readingRange: dto.readingRange, agendaItemsJSON: dto.agendaItemsJSON, linkedLessonIDsJSON: dto.linkedLessonIDsJSON, workInstructions: dto.workInstructions)
-            modelContext.insert(w)
-        }
-
-        for dto in payload.projectAssignmentTemplates {
-            if (try? fetchOne(ProjectAssignmentTemplate.self, id: dto.id, using: modelContext)) != nil { continue }
-            let t = ProjectAssignmentTemplate(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, title: dto.title, instructions: dto.instructions, isShared: dto.isShared, defaultLinkedLessonID: dto.defaultLinkedLessonID)
-            modelContext.insert(t)
-        }
-
-        for dto in payload.projectWeekRoleAssignments {
-            if (try? fetchOne(ProjectWeekRoleAssignment.self, id: dto.id, using: modelContext)) != nil { continue }
-            let a = ProjectWeekRoleAssignment(id: dto.id, createdAt: dto.createdAt, weekID: dto.weekID, studentID: dto.studentID, roleID: dto.roleID, week: nil)
-            if let w = (try? fetchOne(ProjectTemplateWeek.self, id: dto.weekID, using: modelContext)) ?? nil {
-                a.week = w
-            }
-            modelContext.insert(a)
-        }
-
-        for dto in payload.projectSessions {
-            if (try? fetchOne(ProjectSession.self, id: dto.id, using: modelContext)) != nil { continue }
-            let s = ProjectSession(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, meetingDate: dto.meetingDate, chapterOrPages: dto.chapterOrPages, notes: dto.notes, agendaItemsJSON: dto.agendaItemsJSON, templateWeekID: dto.templateWeekID)
-            modelContext.insert(s)
-        }
+        try BackupEntityImporter.importProjectSessions(
+            payload.projectSessions,
+            into: modelContext,
+            existingCheck: { try fetchOne(ProjectSession.self, id: $0, using: modelContext) }
+        )
 
         progress(0.90, "Saving…")
         try modelContext.save()
         
         progress(0.92, "Repairing denormalized fields…")
-        let allStudentLessons = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+        let studentLessonsForRepair = try modelContext.fetch(FetchDescriptor<StudentLesson>())
         var repairedCount = 0
-        for sl in allStudentLessons {
+        for sl in studentLessonsForRepair {
             let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
             if sl.scheduledForDay != correct {
                 sl.scheduledForDay = correct

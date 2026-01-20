@@ -122,6 +122,35 @@ struct GroupTrackService {
         from lessons: [Lesson],
         modelContext: ModelContext
     ) throws -> [(subject: String, group: String, isSequential: Bool)] {
+        // PERFORMANCE: Fetch all GroupTracks ONCE to avoid N+1 queries in the loop below
+        let allTracks = try modelContext.fetch(FetchDescriptor<GroupTrack>())
+        let tracksByKey: [String: GroupTrack] = Dictionary(
+            uniqueKeysWithValues: allTracks.map { track in
+                let key = "\(track.subject.trimmed().lowercased())|\(track.group.trimmed().lowercased())"
+                return (key, track)
+            }
+        )
+
+        // In-memory helper: check if a group is a track (using cached data)
+        func isTrackCached(subject: String, group: String) -> Bool {
+            let key = "\(subject.trimmed().lowercased())|\(group.trimmed().lowercased())"
+            if let track = tracksByKey[key] {
+                return !track.isExplicitlyDisabled
+            }
+            // No record exists = default behavior = is a track
+            return true
+        }
+
+        // In-memory helper: get effective settings (using cached data)
+        func getSettingsCached(subject: String, group: String) -> (isSequential: Bool, isExplicitlyDisabled: Bool) {
+            let key = "\(subject.trimmed().lowercased())|\(group.trimmed().lowercased())"
+            if let track = tracksByKey[key] {
+                return (isSequential: track.isSequential, isExplicitlyDisabled: track.isExplicitlyDisabled)
+            }
+            // Default: sequential, not disabled
+            return (isSequential: true, isExplicitlyDisabled: false)
+        }
+
         // Get all unique (subject, group) combinations from lessons
         // Use a dictionary to deduplicate (subject, group) pairs
         var uniqueGroupsDict: [String: (subject: String, group: String)] = [:]
@@ -135,21 +164,21 @@ struct GroupTrackService {
             }
         }
         let uniqueGroups = Array(uniqueGroupsDict.values)
-        
-        // Build list of available tracks
+
+        // Build list of available tracks using cached lookups (O(1) per iteration)
         var availableTracks: [(subject: String, group: String, isSequential: Bool)] = []
-        
+
         for (subject, group) in uniqueGroups {
             // Check if this group is a track (all groups are tracks by default unless explicitly disabled)
-            guard isTrack(subject: subject, group: group, modelContext: modelContext) else {
+            guard isTrackCached(subject: subject, group: group) else {
                 continue // Skip explicitly disabled groups
             }
-            
+
             // Get effective settings (sequential by default if no record exists)
-            let settings = try getEffectiveTrackSettings(subject: subject, group: group, modelContext: modelContext)
+            let settings = getSettingsCached(subject: subject, group: group)
             availableTracks.append((subject: subject, group: group, isSequential: settings.isSequential))
         }
-        
+
         // Sort by subject, then group
         return availableTracks.sorted { lhs, rhs in
             if lhs.subject != rhs.subject {

@@ -59,7 +59,7 @@ struct StudentsView<WorkloadContent: View>: View {
     
     // MARK: - State for CSV Import
     @State private var showingStudentCSVImporter: Bool = false
-    @State private var importAlert: ImportAlert? = nil
+    @State private var importAlert: StudentsCSVImportHandler.ImportAlert? = nil
     @State private var mappingHeaders: [String] = []
     @State private var pendingMapping: StudentCSVImporter.Mapping? = nil
     @State private var pendingFileURL: URL? = nil
@@ -67,12 +67,6 @@ struct StudentsView<WorkloadContent: View>: View {
     @State private var showingMappingSheet: Bool = false
     @State private var isParsing: Bool = false
     @State private var parsingTask: Task<Void, Never>? = nil
-
-    private struct ImportAlert: Identifiable {
-        let id = UUID()
-        let title: String
-        let message: String
-    }
 
     // MARK: - Computed Properties (Roster)
     private var sortOrder: SortOrder {
@@ -632,63 +626,10 @@ struct StudentsView<WorkloadContent: View>: View {
             // iPhone layout for compact size class
             if mode == .roster {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Section("Sort") {
-                            Button {
-                                withAnimation { studentsSortOrderRaw = "alphabetical" }
-                            } label: {
-                                Label("A–Z", systemImage: "textformat.abc")
-                                if effectiveSortOrder == .alphabetical {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            Button {
-                                withAnimation { studentsSortOrderRaw = "manual" }
-                            } label: {
-                                Label("Manual", systemImage: "arrow.up.arrow.down")
-                                if effectiveSortOrder == .manual {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-
-                        Section("Filter") {
-                            Button {
-                                withAnimation { studentsFilterRaw = "all" }
-                            } label: {
-                                Label("All", systemImage: "person.3.fill")
-                                if selectedFilter == .all {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            Button {
-                                withAnimation { studentsFilterRaw = "presentNow" }
-                            } label: {
-                                Label("Present Now", systemImage: "checkmark.circle.fill")
-                                if selectedFilter == .presentNow {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            Button {
-                                withAnimation { studentsFilterRaw = "upper" }
-                            } label: {
-                                Label("Upper", systemImage: "circle.fill")
-                                if selectedFilter == .upper {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            Button {
-                                withAnimation { studentsFilterRaw = "lower" }
-                            } label: {
-                                Label("Lower", systemImage: "circle.fill")
-                                if selectedFilter == .lower {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    } label: {
-                        Label("Options", systemImage: "ellipsis.circle")
-                    }
+                    StudentsSortFilterMenu(
+                        sortOrderRaw: $studentsSortOrderRaw,
+                        filterRaw: $studentsFilterRaw
+                    )
                 }
 
                 if effectiveSortOrder == .manual {
@@ -752,71 +693,15 @@ struct StudentsView<WorkloadContent: View>: View {
         #if os(iOS)
         if horizontalSizeClass == .compact {
             // iPhone layout: Use menus instead of segmented picker
-            // REMOVED mode switch menu per instructions
-            
-            // Sort and Filter controls moved to top of second pane in roster mode
-            // (iPhone compact layout still uses single pane, so controls remain in toolbar for now)
+            // Sort and Filter controls for roster mode
             if mode == .roster && horizontalSizeClass == .compact {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Section("Sort") {
-                            Button {
-                                withAnimation { studentsSortOrderRaw = "alphabetical" }
-                            } label: {
-                                Label("A–Z", systemImage: "textformat.abc")
-                                if effectiveSortOrder == .alphabetical {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            Button {
-                                withAnimation { studentsSortOrderRaw = "manual" }
-                            } label: {
-                                Label("Manual", systemImage: "arrow.up.arrow.down")
-                                if effectiveSortOrder == .manual {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                        
-                        Section("Filter") {
-                            Button {
-                                withAnimation { studentsFilterRaw = "all" }
-                            } label: {
-                                Label("All", systemImage: "person.3.fill")
-                                if selectedFilter == .all {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            Button {
-                                withAnimation { studentsFilterRaw = "presentNow" }
-                            } label: {
-                                Label("Present Now", systemImage: "checkmark.circle.fill")
-                                if selectedFilter == .presentNow {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            Button {
-                                withAnimation { studentsFilterRaw = "upper" }
-                            } label: {
-                                Label("Upper", systemImage: "circle.fill")
-                                if selectedFilter == .upper {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            Button {
-                                withAnimation { studentsFilterRaw = "lower" }
-                            } label: {
-                                Label("Lower", systemImage: "circle.fill")
-                                if selectedFilter == .lower {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    } label: {
-                        Label("Options", systemImage: "ellipsis.circle")
-                    }
+                    StudentsSortFilterMenu(
+                        sortOrderRaw: $studentsSortOrderRaw,
+                        filterRaw: $studentsFilterRaw
+                    )
                 }
-                
+
                 if effectiveSortOrder == .manual {
                     ToolbarItem(placement: .navigationBarLeading) {
                         EditButton()
@@ -1180,51 +1065,58 @@ struct StudentsView<WorkloadContent: View>: View {
     // MARK: - CSV Handlers
 
     private func handleFileImport(_ result: Result<URL, Error>) {
-        do {
-            let url = try result.get()
-            parsingTask?.cancel()
-            isParsing = true
-            parsingTask = StudentsImportCoordinator.startHeaderScan(from: url, onParsed: { headers, mapping in
-                self.pendingFileURL = url
+        isParsing = true
+        let importResult = StudentsCSVImportHandler.handleFileImport(
+            result,
+            cancellingTask: parsingTask,
+            onHeadersScanned: { headers, mapping, fileURL in
+                self.pendingFileURL = fileURL
                 self.mappingHeaders = headers
                 self.pendingMapping = mapping
                 self.showingMappingSheet = true
-            }, onError: { error in
-                self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-            }, onFinally: {
+            },
+            onError: { alert in
+                self.importAlert = alert
+            },
+            onFinally: {
                 self.isParsing = false
                 self.parsingTask = nil
-            })
-        } catch {
-            importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-            isParsing = false
-            parsingTask = nil
+            }
+        )
+        parsingTask = importResult.task
+        if let error = importResult.immediateError {
+            importAlert = error
         }
     }
 
     private func handleMappingConfirm(_ mapping: StudentCSVImporter.Mapping) {
-        guard let fileURL = pendingFileURL else { return }
-        parsingTask?.cancel()
         isParsing = true
-        parsingTask = StudentsImportCoordinator.startMappedParse(from: fileURL, mapping: mapping, students: self.students, onParsed: { parsed in
-            self.pendingParsedImport = parsed
-            self.showingMappingSheet = false
-        }, onError: { error in
-            self.importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-            self.showingMappingSheet = false
-        }, onFinally: {
-            self.isParsing = false
-            self.parsingTask = nil
-        })
+        parsingTask = StudentsCSVImportHandler.handleMappingConfirm(
+            mapping: mapping,
+            fileURL: pendingFileURL,
+            students: students,
+            cancellingTask: parsingTask,
+            onParsed: { parsed in
+                self.pendingParsedImport = parsed
+                self.showingMappingSheet = false
+            },
+            onError: { alert in
+                self.importAlert = alert
+                self.showingMappingSheet = false
+            },
+            onFinally: {
+                self.isParsing = false
+                self.parsingTask = nil
+            }
+        )
     }
 
     private func handleImportCommit(_ filtered: StudentCSVImporter.Parsed) {
-        do {
-            let result = try ImportCommitService.commitStudents(parsed: filtered, into: modelContext, existingStudents: students)
-            importAlert = ImportAlert(title: result.title, message: result.message)
-        } catch {
-            importAlert = ImportAlert(title: "Import Failed", message: error.localizedDescription)
-        }
+        importAlert = StudentsCSVImportHandler.handleImportCommit(
+            filtered,
+            modelContext: modelContext,
+            existingStudents: students
+        )
         pendingParsedImport = nil
     }
 }
