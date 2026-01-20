@@ -81,26 +81,69 @@ struct WorkDetailView: View {
             if let work = work {
                 VStack(spacing: 0) {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 24) {
                             headerSection()
-                            Divider()
-                            if status == .complete { completionSection(); Divider() }
-                            if workKind == .report { stepsSection(); Divider() }
-                            calendarSection()
-                            Divider()
-                            notesSection()
 
-                            Button(role: .destructive) { showDeleteAlert = true } label: {
-                                Label("Delete Work", systemImage: "trash")
-                            }.frame(maxWidth: .infinity).padding(.top, 20)
-                        }.padding(24)
+                            if status == .complete { completionSection() }
+                            if workKind == .report { stepsSection() }
+                            notesSection()
+                            calendarSection()
+                        }.padding(28)
                     }
                     Divider()
-                    HStack {
-                        Button("Cancel") { close() }
+                    HStack(spacing: 12) {
+                        Button {
+                            showDeleteAlert = true
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.red)
+                                .padding(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.red.opacity(0.1))
+                                )
+                        }
+                        .buttonStyle(.plain)
+
                         Spacer()
-                        Button("Save") { save() }.buttonStyle(.borderedProminent)
-                    }.padding(16).background(.bar)
+
+                        Button {
+                            close()
+                        } label: {
+                            Text("Cancel")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.primary.opacity(0.05))
+                                )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            save()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Save")
+                                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.accentColor)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(20)
+                    .background(.bar)
                 }
                 .sheet(isPresented: $showScheduleSheet) {
                     WorkModelScheduleNextLessonSheet(work: work) { showPlannedBanner = true }
@@ -196,109 +239,249 @@ struct WorkDetailView: View {
 
     @ViewBuilder
     private func headerSection() -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Row 1: Student name + Work title
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+        VStack(spacing: 20) {
+            // Hero section with student avatar and work kind badge
+            VStack(spacing: 14) {
+                // Student avatar circle
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [workKind.color.opacity(0.8), workKind.color],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 80, height: 80)
+                        .shadow(color: workKind.color.opacity(0.3), radius: 12, x: 0, y: 6)
+
+                    Image(systemName: workKind.iconName)
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+
+                // Student name
                 Text(studentName())
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .layoutPriority(1)
+                    .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
+
+                // Lesson info pill
+                Label(lessonTitle(), systemImage: "book.closed.fill")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Color.primary.opacity(0.06)))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 8)
+
+            // Work title field
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Title")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
                 TextField("Work Title", text: $workTitle)
-                    .font(.title3)
-                    .padding(8)
-                    .background(Color.primary.opacity(0.05))
-                    .cornerRadius(8)
+                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.primary.opacity(0.04))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
             }
 
-            // Row 2: Lesson info
-            Label(lessonTitle(), systemImage: "book.closed")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            // Work kind segmented control
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Type")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
 
-            // Row 3: Work kind buttons
-            HStack(spacing: 0) {
-                ForEach(WorkKind.allCases) { kind in
-                    kindBtn(kind)
+                HStack(spacing: 8) {
+                    ForEach(WorkKind.allCases) { kind in
+                        kindPill(kind)
+                    }
                 }
             }
-            .background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
 
-            // Row 4: Status buttons
-            HStack(spacing: 12) {
-                HStack(spacing: 0) {
+            // Status pills
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Status")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
                     ForEach(WorkStatus.allCases) { s in
-                        statusBtn(s)
+                        statusPill(s)
                     }
-                }
-                .background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
 
-                if status != .complete, likelyNextLesson != nil {
-                    Button { showScheduleSheet = true } label: {
-                        Image(systemName: "lock.open.fill")
-                            .padding(8)
-                            .background(Color.accentColor.opacity(0.1))
-                            .cornerRadius(8)
+                    Spacer()
+
+                    if status != .complete, likelyNextLesson != nil {
+                        Button { showScheduleSheet = true } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "lock.open.fill")
+                                Text("Unlock")
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule()
+                                    .fill(Color.accentColor.opacity(0.12))
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
         }
     }
 
-    @ViewBuilder private func kindBtn(_ kind: WorkKind) -> some View {
+    @ViewBuilder private func kindPill(_ kind: WorkKind) -> some View {
         let isSelected = workKind == kind
-        Button(kind.shortLabel) {
-            workKind = kind
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                workKind = kind
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: kind.iconName)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(kind.shortLabel)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(isSelected ? .white : kind.color)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(isSelected ? kind.color : kind.color.opacity(0.12))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(kind.color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
+            )
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(isSelected ? kind.color.opacity(0.1) : Color.clear)
-        .foregroundStyle(isSelected ? kind.color : .primary)
+        .buttonStyle(.plain)
     }
 
-    @ViewBuilder private func statusBtn(_ s: WorkStatus) -> some View {
+    @ViewBuilder private func statusPill(_ s: WorkStatus) -> some View {
         let isSelected = status == s
-        Button(s.displayName) {
-            status = s
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                status = s
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: s.iconName)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(s.displayName)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(isSelected ? .white : s.color)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(isSelected ? s.color : s.color.opacity(0.12))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(s.color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
+            )
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(isSelected ? s.color.opacity(0.1) : Color.clear)
-        .foregroundStyle(isSelected ? s.color : .primary)
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder private func completionSection() -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Picker("Outcome", selection: $completionOutcome) {
-                Text("Select...").tag(nil as CompletionOutcome?)
-                ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
-                    Text(outcome.displayName).tag(outcome as CompletionOutcome?)
+        DetailSectionCard(title: "Completion", icon: "checkmark.seal.fill", accentColor: .green) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Outcome picker styled as pills
+                Text("Outcome")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                FlowLayout(spacing: 8) {
+                    ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
+                        let isSelected = completionOutcome == outcome
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                completionOutcome = outcome
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: outcome.iconName)
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(outcome.displayName)
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundStyle(isSelected ? .white : outcome.color)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(isSelected ? outcome.color : outcome.color.opacity(0.12))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
+
+                // Completion note
+                TextField("Add a completion note...", text: $completionNote)
+                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.primary.opacity(0.04))
+                    )
             }
-            TextField("Notes", text: $completionNote).textFieldStyle(.roundedBorder)
         }
     }
 
     @ViewBuilder private func stepsSection() -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Steps").font(.headline)
-                Spacer()
-                Button {
-                    showAddStepSheet = true
-                } label: {
-                    Image(systemName: "plus")
+        DetailSectionCard(
+            title: "Steps",
+            icon: "list.bullet.clipboard.fill",
+            accentColor: .green,
+            trailing: {
+                Button { showAddStepSheet = true } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.green)
                 }
+                .buttonStyle(.plain)
             }
-
+        ) {
             if let work = work {
                 let orderedSteps = work.orderedSteps
                 if orderedSteps.isEmpty {
-                    Text("No steps yet. Add steps to this report.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .italic()
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "checklist")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.tertiary)
+                            Text("No steps yet")
+                                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            Text("Add steps to track progress")
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 16)
+                        Spacer()
+                    }
                 } else {
-                    ForEach(orderedSteps) { step in
-                        WorkStepRow(step: step) {
-                            stepBeingEdited = step
+                    VStack(spacing: 8) {
+                        ForEach(orderedSteps) { step in
+                            WorkStepRow(step: step) {
+                                stepBeingEdited = step
+                            }
                         }
                     }
                 }
@@ -306,77 +489,156 @@ struct WorkDetailView: View {
                 // Progress indicator
                 let progress = work.stepProgress
                 if progress.total > 0 {
-                    HStack {
-                        Spacer()
-                        Text("\(progress.completed)/\(progress.total) steps complete")
-                            .font(.caption)
+                    HStack(spacing: 10) {
+                        ProgressView(value: Double(progress.completed), total: Double(progress.total))
+                            .progressViewStyle(.linear)
+                            .tint(.green)
+
+                        Text("\(progress.completed)/\(progress.total)")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.top, 8)
                 }
             }
         }
     }
 
     @ViewBuilder private func calendarSection() -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Calendar").font(.headline)
-            HStack {
-                DatePicker("", selection: $newPlanDate, displayedComponents: .date).labelsHidden()
-                Button("Add") { addPlan() }.buttonStyle(.bordered)
+        DetailSectionCard(title: "Schedule Check-In", icon: "calendar.badge.plus", accentColor: .blue) {
+            HStack(spacing: 12) {
+                DatePicker("", selection: $newPlanDate, displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        addPlan()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .bold))
+                        Text("Add")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule()
+                            .fill(Color.blue)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
             }
         }
     }
 
     @ViewBuilder private func notesSection() -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack { Text("Notes").font(.headline); Spacer(); Button("+") { showAddNoteSheet = true } }
-
-            // Show unified notes
-            ForEach(workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
-                noteRow(note)
+        DetailSectionCard(
+            title: "Notes",
+            icon: "note.text",
+            accentColor: .purple,
+            trailing: {
+                Button { showAddNoteSheet = true } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.purple)
+                }
+                .buttonStyle(.plain)
             }
-
+        ) {
             if workModelNotes.isEmpty {
-                Text("No notes yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .italic()
+                HStack {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Image(systemName: "note.text")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.tertiary)
+                        Text("No notes yet")
+                            .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                            .foregroundStyle(.secondary)
+                        Text("Add notes to track progress")
+                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 16)
+                    Spacer()
+                }
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                        noteRow(note)
+                    }
+                }
             }
         }
     }
 
     @ViewBuilder
     private func noteRow(_ note: Note) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(note.body)
-                .font(.body)
-            HStack {
+                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
                 if note.category != .general {
-                    Text(note.category.rawValue.capitalized)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color.secondary.opacity(0.1))
-                        )
-                }
-                Text(note.createdAt, style: .date)
-                    .font(.caption)
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(categoryColor(for: note.category))
+                            .frame(width: 6, height: 6)
+                        Text(note.category.rawValue.capitalized)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                    }
                     .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(categoryColor(for: note.category).opacity(0.1))
+                    )
+                }
+
+                Text(note.createdAt, style: .date)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .foregroundStyle(.tertiary)
+
                 Spacer()
+
+                Button {
+                    noteBeingEdited = note
+                } label: {
+                    Image(systemName: "pencil.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(8)
-        .background(Color.primary.opacity(0.04))
-        .cornerRadius(8)
-        .contextMenu {
-            Button {
-                noteBeingEdited = note
-            } label: {
-                Label("Edit Note", systemImage: "pencil")
-            }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.primary.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        )
+    }
+
+    private func categoryColor(for category: NoteCategory) -> Color {
+        switch category {
+        case .general: return .gray
+        case .behavioral: return .orange
+        case .academic: return .blue
+        case .social: return .green
+        case .emotional: return .pink
+        case .health: return .red
+        case .attendance: return .purple
         }
     }
 
@@ -470,6 +732,60 @@ struct WorkDetailView: View {
         workModelNotes = Array(work.unifiedNotes ?? [])
     }
 
+}
+
+// MARK: - Detail Section Card
+
+/// Reusable card component for detail view sections
+private struct DetailSectionCard<Content: View, Trailing: View>: View {
+    let title: String
+    let icon: String
+    let accentColor: Color
+    let trailing: () -> Trailing
+    let content: () -> Content
+
+    init(
+        title: String,
+        icon: String,
+        accentColor: Color,
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.title = title
+        self.icon = icon
+        self.accentColor = accentColor
+        self.trailing = trailing
+        self.content = content
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Header
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(accentColor)
+
+                Text(title)
+                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+
+                Spacer()
+
+                trailing()
+            }
+
+            content()
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.primary.opacity(0.02))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        )
+    }
 }
 
 // MARK: - Sheet Presentation Extension
