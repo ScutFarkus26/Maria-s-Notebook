@@ -155,8 +155,6 @@ struct WorkDetailView: View {
         .onAppear {
             loadWork()
             if work != nil {
-                loadRelatedData()
-                loadWorkNotes()
                 #if DEBUG
                 PerformanceLogger.logScreenLoad(
                     screenName: "WorkDetailView",
@@ -178,53 +176,82 @@ struct WorkDetailView: View {
 
     private func loadWork() {
         let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
-        work = try? modelContext.fetch(descriptor).first
+        let fetchedWork = try? modelContext.fetch(descriptor).first
+        work = fetchedWork
 
-        if let work = work {
-            status = work.status
-            workTitle = work.title
-            workKind = work.kind ?? .practiceLesson
-            completionOutcome = work.completionOutcome
+        if let fetchedWork = fetchedWork {
+            status = fetchedWork.status
+            workTitle = fetchedWork.title
+            workKind = fetchedWork.kind ?? .practiceLesson
+            completionOutcome = fetchedWork.completionOutcome
             // Note: WorkModel doesn't have completionNote field, so we'll leave it empty
             completionNote = ""
+
+            // Load related data immediately after work is loaded
+            // Pass the work directly since @State hasn't updated yet
+            loadRelatedData(for: fetchedWork)
+            loadWorkNotes(for: fetchedWork)
         }
     }
 
     @ViewBuilder
     private func headerSection() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(studentName()).font(.system(size: 34, weight: .bold, design: .rounded))
-            TextField("Work Title", text: $workTitle)
-                .font(.title2)
-                .padding(8)
-                .background(Color.primary.opacity(0.05))
-                .cornerRadius(8)
-
-            HStack {
-                Label(lessonTitle(), systemImage: "book.closed").font(.subheadline).foregroundStyle(.secondary)
-                Spacer()
-                Picker("Kind", selection: $workKind) {
-                    Text("Practice").tag(WorkKind.practiceLesson)
-                    Text("Follow-Up").tag(WorkKind.followUpAssignment)
-                    Text("Project").tag(WorkKind.research)
-                    Text("Report").tag(WorkKind.report)
-                }
-                .labelsHidden()
-                .controlSize(.small)
+        VStack(alignment: .leading, spacing: 16) {
+            // Row 1: Student name + Work title
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(studentName())
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .layoutPriority(1)
+                TextField("Work Title", text: $workTitle)
+                    .font(.title3)
+                    .padding(8)
+                    .background(Color.primary.opacity(0.05))
+                    .cornerRadius(8)
             }
 
+            // Row 2: Lesson info
+            Label(lessonTitle(), systemImage: "book.closed")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            // Row 3: Work kind buttons
+            HStack(spacing: 0) {
+                kindBtn(.practiceLesson, "Practice")
+                kindBtn(.followUpAssignment, "Follow-Up")
+                kindBtn(.research, "Project")
+                kindBtn(.report, "Report")
+            }
+            .background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
+
+            // Row 4: Status buttons
             HStack(spacing: 12) {
                 HStack(spacing: 0) {
-                    statusBtn(.active, "Active"); statusBtn(.review, "Review"); statusBtn(.complete, "Complete")
-                }.background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
+                    statusBtn(.active, "Active")
+                    statusBtn(.review, "Review")
+                    statusBtn(.complete, "Complete")
+                }
+                .background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
 
                 if status != .complete, likelyNextLesson != nil {
                     Button { showScheduleSheet = true } label: {
-                        Image(systemName: "lock.open.fill").padding(8).background(Color.accentColor.opacity(0.1)).cornerRadius(8)
+                        Image(systemName: "lock.open.fill")
+                            .padding(8)
+                            .background(Color.accentColor.opacity(0.1))
+                            .cornerRadius(8)
                     }
                 }
             }
         }
+    }
+
+    @ViewBuilder private func kindBtn(_ kind: WorkKind, _ label: String) -> some View {
+        Button(label) {
+            workKind = kind
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(workKind == kind ? Color.accentColor.opacity(0.1) : Color.clear)
+        .foregroundStyle(workKind == kind ? Color.accentColor : .primary)
     }
 
     @ViewBuilder private func statusBtn(_ s: WorkStatus, _ label: String) -> some View {
@@ -379,8 +406,15 @@ struct WorkDetailView: View {
     }
 
     /// OPTIMIZATION: Load only related lessons and students on demand
-    private func loadRelatedData() {
-        guard let work = work else { return }
+    private func loadRelatedData(for workModel: WorkModel? = nil) {
+        guard let work = workModel ?? self.work else { return }
+
+        // Load the specific student first (most important for display)
+        if let studentID = UUID(uuidString: work.studentID) {
+            let allStudentsDescriptor = FetchDescriptor<Student>()
+            let allStudents = modelContext.safeFetch(allStudentsDescriptor)
+            relatedStudent = allStudents.first { $0.id == studentID }
+        }
 
         // Load the specific lesson
         if let lessonID = UUID(uuidString: work.lessonID) {
@@ -393,33 +427,26 @@ struct WorkDetailView: View {
             if let lesson = relatedLesson {
                 let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
                 let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !subject.isEmpty, !group.isEmpty else { return }
-
-                // Load all lessons and filter in memory (predicates don't support trimmingCharacters or caseInsensitiveCompare)
-                let allLessonsDescriptor = FetchDescriptor<Lesson>(
-                    sortBy: [SortDescriptor(\.orderInGroup)]
-                )
-                let allLessons = modelContext.safeFetch(allLessonsDescriptor)
-                relatedLessons = allLessons.filter { l in
-                    let lSubject = l.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let lGroup = l.group.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return lSubject.caseInsensitiveCompare(subject) == .orderedSame &&
-                           lGroup.caseInsensitiveCompare(group) == .orderedSame
+                // Only load related lessons if subject/group are non-empty
+                if !subject.isEmpty && !group.isEmpty {
+                    // Load all lessons and filter in memory (predicates don't support trimmingCharacters or caseInsensitiveCompare)
+                    let allLessonsDescriptor = FetchDescriptor<Lesson>(
+                        sortBy: [SortDescriptor(\.orderInGroup)]
+                    )
+                    let allLessons = modelContext.safeFetch(allLessonsDescriptor)
+                    relatedLessons = allLessons.filter { l in
+                        let lSubject = l.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let lGroup = l.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                        return lSubject.caseInsensitiveCompare(subject) == .orderedSame &&
+                               lGroup.caseInsensitiveCompare(group) == .orderedSame
+                    }
                 }
             }
-        }
-
-        // Load the specific student
-        if let studentID = UUID(uuidString: work.studentID) {
-            let studentDescriptor = FetchDescriptor<Student>(
-                predicate: #Predicate<Student> { $0.id == studentID }
-            )
-            relatedStudent = modelContext.safeFetchFirst(studentDescriptor)
         }
     }
 
     private func studentName() -> String {
-        return relatedStudent?.firstName ?? "Student"
+        relatedStudent?.firstName ?? "Student"
     }
 
     private func lessonTitle() -> String {
@@ -434,8 +461,8 @@ struct WorkDetailView: View {
     private func reloadPresentationNotes() { /* Logic for ScopedNotes */ }
 
     /// Load work notes via relationships
-    private func loadWorkNotes() {
-        guard let work = work else { return }
+    private func loadWorkNotes(for workModel: WorkModel? = nil) {
+        guard let work = workModel ?? self.work else { return }
         // Load notes via relationships
         workModelNotes = Array(work.unifiedNotes ?? [])
     }
