@@ -223,6 +223,27 @@ struct ObservationsView: View {
     private var filterBar: some View {
         HStack(spacing: 12) {
             Menu {
+                ForEach(ObservationsFilterService.ScopeFilter.allCases) { sf in
+                    Button(action: { selectedScope = sf }) {
+                        HStack {
+                            if selectedScope == sf {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(sf.rawValue)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.3")
+                    Text(selectedScope.rawValue)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+            }
+
+            Menu {
                 Button("All Categories") { selectedCategory = nil }
                 Divider()
                 ForEach(NoteCategory.allCases, id: \.self) { cat in
@@ -239,27 +260,6 @@ struct ObservationsView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "line.3.horizontal.decrease.circle")
                     Text(selectedCategoryLabel)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
-            }
-
-            Menu {
-                ForEach(ObservationsFilterService.ScopeFilter.allCases) { sf in
-                    Button(action: { selectedScope = sf }) {
-                        HStack {
-                            if selectedScope == sf {
-                                Image(systemName: "checkmark")
-                            }
-                            Text(sf.rawValue)
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.3")
-                    Text(selectedScope.rawValue)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)

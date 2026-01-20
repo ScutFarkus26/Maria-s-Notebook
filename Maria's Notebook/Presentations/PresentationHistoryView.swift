@@ -31,6 +31,11 @@ struct PresentationHistoryView: View {
     @State private var lessonTitleCache: [UUID: String] = [:]
     @State private var hasBuiltCachesOnce: Bool = false
 
+    // Filter state
+    @State private var selectedStudentIDs: Set<UUID> = []
+    @State private var selectedSubjects: Set<String> = []
+    @State private var searchText: String = ""
+
     @AppStorage("PresentationHistory.nameDisplayStyle") private var nameDisplayStyleRaw: String = "firstLastInitial"
     private enum NameDisplayStyle: String { case initials, firstLastInitial }
     private var nameDisplayStyle: NameDisplayStyle { NameDisplayStyle(rawValue: nameDisplayStyleRaw) ?? .firstLastInitial }
@@ -57,13 +62,52 @@ struct PresentationHistoryView: View {
         Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
     }
 
+    // Available subjects from lessons (sorted, non-empty only)
+    private var availableSubjects: [String] {
+        let subjects = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) })
+            .filter { !$0.isEmpty }
+        return subjects.sorted()
+    }
+
+    // Filtered presentations
+    private var filteredPresentations: [Presentation] {
+        loadedPresentations.filter { p in
+            // Student filter
+            if !selectedStudentIDs.isEmpty {
+                let presentationStudentIDs = Set(p.studentIDs.compactMap { UUID(uuidString: $0) })
+                if presentationStudentIDs.isDisjoint(with: selectedStudentIDs) { return false }
+            }
+
+            // Subject filter
+            if !selectedSubjects.isEmpty {
+                if let lessonID = CloudKitUUID.uuid(from: p.lessonID),
+                   let lesson = lessonsByID[lessonID] {
+                    let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !selectedSubjects.contains(subject) { return false }
+                } else {
+                    // No lesson found, exclude if filtering by subject
+                    return false
+                }
+            }
+
+            // Search filter
+            if !searchText.isEmpty {
+                let titleText = title(for: p).lowercased()
+                let query = searchText.lowercased()
+                if !titleText.contains(query) { return false }
+            }
+
+            return true
+        }
+    }
+
     // Group presentations by day (start of day)
     private func dayKey(_ date: Date) -> Date {
         calendar.startOfDay(for: date)
     }
 
     private var groupedByDay: [(day: Date, items: [Presentation])] {
-        let dict = Dictionary(grouping: loadedPresentations) { p in
+        let dict = Dictionary(grouping: filteredPresentations) { p in
             dayKey(p.presentedAt)
         }
         .mapValues { arr in arr.sorted { lhs, rhs in lhs.presentedAt > rhs.presentedAt } }
@@ -171,17 +215,122 @@ struct PresentationHistoryView: View {
         }
     }
 
+    // MARK: - Filter Labels
+
+    private var selectedStudentLabel: String {
+        if selectedStudentIDs.isEmpty {
+            return "All Students"
+        } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
+                  let student = students.first(where: { $0.id == id }) {
+            return displayName(for: student)
+        } else {
+            return "\(selectedStudentIDs.count) Students"
+        }
+    }
+
+    private var selectedSubjectLabel: String {
+        if selectedSubjects.isEmpty {
+            return "All Subjects"
+        } else if selectedSubjects.count == 1, let subject = selectedSubjects.first {
+            return subject
+        } else {
+            return "\(selectedSubjects.count) Subjects"
+        }
+    }
+
+    // MARK: - Filter Bar
+
+    private var filterBar: some View {
+        HStack(spacing: 12) {
+            // Student Menu (multi-select)
+            Menu {
+                Button("All Students") { selectedStudentIDs.removeAll() }
+                Divider()
+                ForEach(students) { student in
+                    Button(action: {
+                        if selectedStudentIDs.contains(student.id) {
+                            selectedStudentIDs.remove(student.id)
+                        } else {
+                            selectedStudentIDs.insert(student.id)
+                        }
+                    }) {
+                        HStack {
+                            if selectedStudentIDs.contains(student.id) {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(displayName(for: student))
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.3")
+                    Text(selectedStudentLabel)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+            }
+
+            // Subject Menu (multi-select)
+            Menu {
+                Button("All Subjects") { selectedSubjects.removeAll() }
+                Divider()
+                ForEach(availableSubjects, id: \.self) { subject in
+                    Button(action: {
+                        if selectedSubjects.contains(subject) {
+                            selectedSubjects.remove(subject)
+                        } else {
+                            selectedSubjects.insert(subject)
+                        }
+                    }) {
+                        HStack {
+                            if selectedSubjects.contains(subject) {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(subject)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                    Text(selectedSubjectLabel)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+    }
+
+    // MARK: - Main Content
+
     private var mainContent: some View {
-        Group {
-            if loadedPresentations.isEmpty {
-                ContentUnavailableView(
-                    "No Presentations Yet",
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text("Present lessons to see them here.")
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                presentationsList
+        VStack(spacing: 8) {
+            filterBar
+
+            Group {
+                if loadedPresentations.isEmpty {
+                    ContentUnavailableView(
+                        "No Presentations Yet",
+                        systemImage: "clock.arrow.circlepath",
+                        description: Text("Present lessons to see them here.")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if filteredPresentations.isEmpty {
+                    ContentUnavailableView(
+                        "No Matching Presentations",
+                        systemImage: "magnifyingglass",
+                        description: Text("Try adjusting your filters.")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    presentationsList
+                }
             }
         }
     }
@@ -221,6 +370,7 @@ struct PresentationHistoryView: View {
 
     var body: some View {
         mainContent
+            .searchable(text: $searchText)
             .sheet(item: $selectedPresentation) { p in
                 PresentationDetailSheet(presentationID: p.id) {
                     selectedPresentation = nil

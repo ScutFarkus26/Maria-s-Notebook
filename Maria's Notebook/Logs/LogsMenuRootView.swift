@@ -2,8 +2,10 @@ import SwiftUI
 
 struct LogsMenuRootView: View {
     enum Mode: String, CaseIterable, Identifiable {
-        case presentations = "Presentation History"
-        case works = "Works Log"
+        case presentations = "Presentations"
+        case works = "Works"
+        case attendance = "Attendance"
+        case meetings = "Meetings"
         case observations = "Observations"
 
         var id: String { rawValue }
@@ -12,6 +14,8 @@ struct LogsMenuRootView: View {
             switch self {
             case .presentations: return "calendar.badge.clock"
             case .works: return "hammer.fill"
+            case .attendance: return "checklist"
+            case .meetings: return "person.2.circle"
             case .observations: return "eye.fill"
             }
         }
@@ -20,6 +24,8 @@ struct LogsMenuRootView: View {
             switch self {
             case .presentations: return .purple
             case .works: return .orange
+            case .attendance: return .green
+            case .meetings: return .blue
             case .observations: return .teal
             }
         }
@@ -86,6 +92,10 @@ struct LogsMenuRootView: View {
             PresentationHistoryView()
         case .works:
             WorksLogView()
+        case .attendance:
+            AttendanceLogView()
+        case .meetings:
+            MeetingsLogView()
         case .observations:
             ObservationsView()
         }
