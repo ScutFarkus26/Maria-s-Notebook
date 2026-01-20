@@ -30,25 +30,9 @@ struct WorkCheckInRow: View {
     }
     
     private var statusIcon: some View {
-        Image(systemName: statusIconName)
-            .foregroundStyle(statusColor)
+        Image(systemName: checkIn.status.iconName)
+            .foregroundStyle(checkIn.status.color)
             .font(.system(size: 18))
-    }
-    
-    private var statusIconName: String {
-        switch checkIn.status {
-        case .completed: return "checkmark.circle.fill"
-        case .skipped: return "xmark.circle.fill"
-        case .scheduled: return "clock"
-        }
-    }
-    
-    private var statusColor: Color {
-        switch checkIn.status {
-        case .completed: return .green
-        case .skipped: return .red
-        case .scheduled: return .orange
-        }
     }
     
     private var checkInHeader: some View {
@@ -112,29 +96,19 @@ struct WorkCheckInRow: View {
             } label: {
                 Label("Add/Edit Note", systemImage: "note.text")
             }
-            
+
             Divider()
-            
-            Button {
-                onSetStatus(checkIn.id, .completed)
-            } label: {
-                Label("Mark Completed", systemImage: "checkmark.circle")
+
+            ForEach(WorkCheckInStatus.allCases, id: \.self) { status in
+                Button {
+                    onSetStatus(checkIn.id, status)
+                } label: {
+                    Label(status.menuActionLabel, systemImage: status.iconName)
+                }
             }
-            
-            Button {
-                onSetStatus(checkIn.id, .scheduled)
-            } label: {
-                Label("Mark Scheduled", systemImage: "clock")
-            }
-            
-            Button {
-                onSetStatus(checkIn.id, .skipped)
-            } label: {
-                Label("Mark Skipped", systemImage: "xmark.circle")
-            }
-            
+
             Divider()
-            
+
             Button(role: .destructive) {
                 onDelete(checkIn)
             } label: {

@@ -105,28 +105,23 @@ struct WorkCompletionHistoryView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            let record = records[index]
+        let recordsToDelete = offsets.map { records[$0] }
+        deleteRecords(recordsToDelete)
+    }
+
+    private func delete(record: WorkCompletionRecord) {
+        deleteRecords([record])
+    }
+
+    private func deleteRecords(_ recordsToDelete: [WorkCompletionRecord]) {
+        for record in recordsToDelete {
             modelContext.delete(record)
         }
         do {
             try modelContext.save()
-            records.remove(atOffsets: offsets)
+            let idsToRemove = Set(recordsToDelete.map { $0.id })
+            records.removeAll { idsToRemove.contains($0.id) }
         } catch {
-            // In case of failure, reload to reflect actual state.
-            Task { await reload() }
-        }
-    }
-    
-    private func delete(record: WorkCompletionRecord) {
-        modelContext.delete(record)
-        do {
-            try modelContext.save()
-            if let idx = records.firstIndex(where: { $0.id == record.id }) {
-                records.remove(at: idx)
-            }
-        } catch {
-            // In case of failure, reload to reflect actual state.
             Task { await reload() }
         }
     }

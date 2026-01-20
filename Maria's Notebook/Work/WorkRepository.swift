@@ -5,6 +5,51 @@ import SwiftData
 struct WorkRepository {
     let context: ModelContext
 
+    // MARK: - Track Linking Helper
+
+    /// Links a work item to its associated track and step if the lesson belongs to a track
+    private func linkWorkToTrack(_ work: WorkModel, lessonID: UUID) {
+        guard let lesson = try? context.fetch(FetchDescriptor<Lesson>(
+            predicate: #Predicate { $0.id == lessonID }
+        )).first else { return }
+
+        let subject = lesson.subject.trimmed()
+        let group = lesson.group.trimmed()
+
+        guard !subject.isEmpty, !group.isEmpty,
+              GroupTrackService.isTrack(subject: subject, group: group, modelContext: context),
+              let track = try? GroupTrackService.getOrCreateTrack(
+                  subject: subject,
+                  group: group,
+                  modelContext: context
+              ) else { return }
+
+        work.trackID = track.id.uuidString
+
+        let allSteps = (try? context.fetch(FetchDescriptor<TrackStep>())) ?? []
+        if let step = allSteps.first(where: {
+            $0.track?.id == track.id && $0.lessonTemplateID == lessonID
+        }) {
+            work.trackStepID = step.id.uuidString
+        }
+    }
+
+    /// Resolves the studentLessonID for a work item
+    private func resolveStudentLessonID(studentID: UUID, lessonID: UUID, presentationID: UUID?) -> UUID? {
+        if let presentationID = presentationID {
+            return presentationID
+        }
+
+        let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate { sl in
+                sl.lessonID == lessonID.uuidString
+            }
+        )
+        return (try? context.fetch(descriptor))?
+            .first(where: { $0.studentIDs.contains(studentID.uuidString) })?
+            .id
+    }
+
     // MARK: - Fetch
 
     /// Fetch WorkModel by ID
@@ -42,41 +87,9 @@ struct WorkRepository {
         presentationID: UUID? = nil,
         scheduledDate: Date? = nil
     ) throws -> WorkModel {
-        // Map WorkKind to WorkType
-        let workType: WorkModel.WorkType = {
-            if let kind = kind {
-                switch kind {
-                case .practiceLesson: return .practice
-                case .followUpAssignment: return .followUp
-                case .research: return .research
-                case .report: return .report
-                }
-            }
-            // Default based on presentationID presence
-            if presentationID != nil {
-                return .practice
-            }
-            return .followUp
-        }()
-        
-        // Determine studentLessonID from presentationID if available
-        var studentLessonID: UUID? = presentationID
-        
-        // If presentationID is not available, try to find the StudentLesson
-        if studentLessonID == nil {
-            // Fetch candidates by lessonID (studentIDs is @Transient and can't be queried in SwiftData)
-            let descriptor = FetchDescriptor<StudentLesson>(
-                predicate: #Predicate { sl in
-                    sl.lessonID == lessonID.uuidString
-                }
-            )
-            // Filter in memory using the computed studentIDs property
-            if let sl = (try? context.fetch(descriptor))?.first(where: { $0.studentIDs.contains(studentID.uuidString) }) {
-                studentLessonID = sl.id
-            }
-        }
-        
-        // Create WorkModel
+        let workType = kind?.asWorkType ?? (presentationID != nil ? .practice : .followUp)
+        let studentLessonID = resolveStudentLessonID(studentID: studentID, lessonID: lessonID, presentationID: presentationID)
+
         let work = WorkModel(
             id: UUID(),
             title: title ?? "",
@@ -86,7 +99,6 @@ struct WorkRepository {
             createdAt: Date(),
             completedAt: nil,
             participants: [],
-            // Migration-ready fields
             kind: kind,
             status: .active,
             assignedAt: Date(),
@@ -95,48 +107,20 @@ struct WorkRepository {
             completionOutcome: nil,
             legacyContractID: nil
         )
-        
-        // Ensure identity fields are always populated for the new WorkModel.
-        // These are required for Open Work and other UI to resolve student/lesson/presentation.
+
+        // Populate identity fields for UI resolution
         work.studentID = studentID.uuidString
         work.lessonID = lessonID.uuidString
         work.presentationID = presentationID?.uuidString
         work.legacyStudentLessonID = studentLessonID?.uuidString
-        
-        // Create participant for the student
-        let participant = WorkParticipantEntity(
-            studentID: studentID,
-            completedAt: nil,
-            work: work
-        )
+
+        // Create participant
+        let participant = WorkParticipantEntity(studentID: studentID, completedAt: nil, work: work)
         work.participants = [participant]
-        
-        // Link work to Track if lesson belongs to a track
-        if let lesson = try? context.fetch(FetchDescriptor<Lesson>(
-            predicate: #Predicate { $0.id == lessonID }
-        )).first {
-            let subject = lesson.subject.trimmed()
-            let group = lesson.group.trimmed()
-            if !subject.isEmpty && !group.isEmpty,
-               GroupTrackService.isTrack(subject: subject, group: group, modelContext: context),
-               let track = try? GroupTrackService.getOrCreateTrack(
-                   subject: subject,
-                   group: group,
-                   modelContext: context
-               ) {
-                // Set track ID on WorkModel
-                work.trackID = track.id.uuidString
-                
-                // Find the TrackStep for this lesson
-                let allSteps = (try? context.fetch(FetchDescriptor<TrackStep>())) ?? []
-                if let step = allSteps.first(where: {
-                    $0.track?.id == track.id && $0.lessonTemplateID == lessonID
-                }) {
-                    work.trackStepID = step.id.uuidString
-                }
-            }
-        }
-        
+
+        // Link to track if applicable
+        linkWorkToTrack(work, lessonID: lessonID)
+
         context.insert(work)
         try context.save()
         return work

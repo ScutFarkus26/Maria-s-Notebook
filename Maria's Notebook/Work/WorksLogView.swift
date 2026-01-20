@@ -41,8 +41,9 @@ struct WorksLogView: View {
     private func workTitle(_ work: WorkModel) -> String {
         let title = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if !title.isEmpty { return title }
-        if let lesson = linkedLesson(for: work) { return "\(work.workType.rawValue): \(lesson.name)" }
-        return work.workType.rawValue
+        let kindLabel = work.kind?.shortLabel ?? work.workType.rawValue
+        if let lesson = linkedLesson(for: work) { return "\(kindLabel): \(lesson.name)" }
+        return kindLabel
     }
 
     private func workSubtitle(_ work: WorkModel) -> String {

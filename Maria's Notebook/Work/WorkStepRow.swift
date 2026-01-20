@@ -12,8 +12,8 @@ struct WorkStepRow: View {
             Button {
                 toggleCompletion()
             } label: {
-                Image(systemName: step.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(step.isCompleted ? .green : .secondary)
+                Image(systemName: step.iconName)
+                    .foregroundStyle(step.statusColor)
                     .font(.system(size: 20))
             }
             .buttonStyle(.plain)

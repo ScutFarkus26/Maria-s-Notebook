@@ -31,31 +31,15 @@ struct WorkCheckInSummary: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("\(counts.completed)/\(counts.total)")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.green.opacity(0.12))
+            statusBadge(
+                status: .completed,
+                text: "\(counts.completed)/\(counts.total)"
             )
 
             if counts.upcoming > 0 {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock")
-                        .foregroundStyle(.orange)
-                    Text("\(counts.upcoming)")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.orange.opacity(0.12))
+                statusBadge(
+                    status: .scheduled,
+                    text: "\(counts.upcoming)"
                 )
                 .accessibilityLabel("Upcoming check-ins: \(counts.upcoming)")
             }
@@ -65,6 +49,21 @@ struct WorkCheckInSummary: View {
             counts.upcoming > 0 ?
             "Check-ins: \(counts.completed) of \(counts.total) completed. \(counts.upcoming) upcoming." :
             "Check-ins: \(counts.completed) of \(counts.total) completed."
+        )
+    }
+
+    private func statusBadge(status: WorkCheckInStatus, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: status.iconName)
+                .foregroundStyle(status.color)
+            Text(text)
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(status.color.opacity(0.12))
         )
     }
 }

@@ -109,3 +109,100 @@ public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Iden
         }
     }
 }
+
+// MARK: - WorkKind Styling
+
+public extension WorkKind {
+    /// Standard color for this work kind used throughout the app
+    var color: Color {
+        switch self {
+        case .practiceLesson: return .purple
+        case .followUpAssignment: return .orange
+        case .research: return .teal
+        case .report: return .green
+        }
+    }
+
+    /// System icon name for this work kind
+    var iconName: String {
+        switch self {
+        case .practiceLesson: return "pencil.circle"
+        case .followUpAssignment: return "arrow.uturn.forward.circle"
+        case .research: return "magnifyingglass.circle"
+        case .report: return "doc.text"
+        }
+    }
+
+    /// Short label suitable for compact displays
+    var shortLabel: String {
+        switch self {
+        case .practiceLesson: return "Practice"
+        case .followUpAssignment: return "Follow-Up"
+        case .research: return "Project"
+        case .report: return "Report"
+        }
+    }
+
+}
+
+// MARK: - WorkKind to WorkType Conversion (Internal)
+
+extension WorkKind {
+    /// Convert to legacy WorkModel.WorkType for backward compatibility
+    var asWorkType: WorkModel.WorkType {
+        switch self {
+        case .practiceLesson: return .practice
+        case .followUpAssignment: return .followUp
+        case .research: return .research
+        case .report: return .report
+        }
+    }
+}
+
+// MARK: - WorkStatus Styling
+
+public extension WorkStatus {
+    /// Standard color for this status
+    var color: Color {
+        switch self {
+        case .active: return .blue
+        case .review: return .orange
+        case .complete: return .green
+        }
+    }
+
+    /// System icon name for this status
+    var iconName: String {
+        switch self {
+        case .active: return "circle"
+        case .review: return "eye.circle"
+        case .complete: return "checkmark.circle.fill"
+        }
+    }
+}
+
+// MARK: - CompletionOutcome Styling
+
+public extension CompletionOutcome {
+    /// Standard color for this outcome
+    var color: Color {
+        switch self {
+        case .mastered: return .green
+        case .needsMorePractice: return .orange
+        case .needsReview: return .yellow
+        case .incomplete: return .red
+        case .notApplicable: return .gray
+        }
+    }
+
+    /// System icon name for this outcome
+    var iconName: String {
+        switch self {
+        case .mastered: return "star.fill"
+        case .needsMorePractice: return "arrow.clockwise"
+        case .needsReview: return "eye"
+        case .incomplete: return "xmark.circle"
+        case .notApplicable: return "minus.circle"
+        }
+    }
+}

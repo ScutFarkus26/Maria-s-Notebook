@@ -3,23 +3,28 @@ import SwiftData
 
 /// Unified work display card supporting multiple display modes
 struct WorkCard: View {
-    let mode: WorkCardDisplayMode
+    let config: WorkCardConfig
 
-    // Grid mode properties
-    private var gridConfig: GridModeConfig?
+    // MARK: - Configuration Types
 
-    // List mode properties
-    private var listConfig: ListModeConfig?
+    /// Type-safe configuration for all WorkCard display modes
+    enum WorkCardConfig {
+        case grid(GridConfig)
+        case list(ListConfig)
+        case pill(PillConfig)
+        case compact(CompactConfig)
 
-    // Pill mode properties
-    private var pillConfig: PillModeConfig?
+        var displayMode: WorkCardDisplayMode {
+            switch self {
+            case .grid: return .grid
+            case .list: return .list
+            case .pill: return .pill
+            case .compact: return .compact
+            }
+        }
+    }
 
-    // Compact mode properties
-    private var compactConfig: CompactModeConfig?
-
-    // MARK: - Grid Mode Config
-
-    struct GridModeConfig {
+    struct GridConfig {
         let work: WorkModel
         let lessonTitle: String
         let studentDisplay: String
@@ -28,77 +33,111 @@ struct WorkCard: View {
         let onOpen: (WorkModel) -> Void
         let onMarkCompleted: (WorkModel) -> Void
         let onScheduleToday: (WorkModel) -> Void
+
+        init(
+            work: WorkModel,
+            lessonTitle: String,
+            studentDisplay: String,
+            needsAttention: Bool = false,
+            ageSchoolDays: Int = 0,
+            onOpen: @escaping (WorkModel) -> Void,
+            onMarkCompleted: @escaping (WorkModel) -> Void = { _ in },
+            onScheduleToday: @escaping (WorkModel) -> Void = { _ in }
+        ) {
+            self.work = work
+            self.lessonTitle = lessonTitle
+            self.studentDisplay = studentDisplay
+            self.needsAttention = needsAttention
+            self.ageSchoolDays = ageSchoolDays
+            self.onOpen = onOpen
+            self.onMarkCompleted = onMarkCompleted
+            self.onScheduleToday = onScheduleToday
+        }
     }
 
-    // MARK: - List Mode Config
-
-    struct ListModeConfig {
+    struct ListConfig {
         let work: WorkModel
         let title: String
         let subtitle: String
         let badge: WorkCardBadge?
         let onOpen: (WorkModel) -> Void
+
+        init(
+            work: WorkModel,
+            title: String,
+            subtitle: String,
+            badge: WorkCardBadge? = nil,
+            onOpen: @escaping (WorkModel) -> Void
+        ) {
+            self.work = work
+            self.title = title
+            self.subtitle = subtitle
+            self.badge = badge
+            self.onOpen = onOpen
+        }
     }
 
-    // MARK: - Pill Mode Config
-
-    struct PillModeConfig {
+    struct PillConfig {
         let item: ScheduledItem
         let nameForStudentID: (UUID) -> String
         let absentTodayIDs: Set<UUID>
+
+        init(
+            item: ScheduledItem,
+            nameForStudentID: @escaping (UUID) -> String,
+            absentTodayIDs: Set<UUID> = []
+        ) {
+            self.item = item
+            self.nameForStudentID = nameForStudentID
+            self.absentTodayIDs = absentTodayIDs
+        }
     }
 
-    // MARK: - Compact Mode Config
-
-    struct CompactModeConfig {
+    struct CompactConfig {
         let work: WorkModel
         let title: String
         let workType: WorkCardWorkType
         let participants: [WorkCardParticipant]
         let onToggle: (WorkModel, UUID) -> Void
+
+        init(
+            work: WorkModel,
+            title: String,
+            workType: WorkCardWorkType,
+            participants: [WorkCardParticipant],
+            onToggle: @escaping (WorkModel, UUID) -> Void
+        ) {
+            self.work = work
+            self.title = title
+            self.workType = workType
+            self.participants = participants
+            self.onToggle = onToggle
+        }
     }
 
-    // MARK: - Private Initializer
+    // MARK: - Initializer
 
-    private init(
-        mode: WorkCardDisplayMode,
-        gridConfig: GridModeConfig? = nil,
-        listConfig: ListModeConfig? = nil,
-        pillConfig: PillModeConfig? = nil,
-        compactConfig: CompactModeConfig? = nil
-    ) {
-        self.mode = mode
-        self.gridConfig = gridConfig
-        self.listConfig = listConfig
-        self.pillConfig = pillConfig
-        self.compactConfig = compactConfig
+    init(config: WorkCardConfig) {
+        self.config = config
     }
 
     // MARK: - Body
 
     var body: some View {
-        switch mode {
-        case .grid:
-            if let config = gridConfig {
-                WorkCardGridContent(config: config)
-            }
-        case .list:
-            if let config = listConfig {
-                WorkCardListContent(config: config)
-            }
-        case .pill:
-            if let config = pillConfig {
-                WorkCardPillContent(config: config)
-            }
-        case .compact:
-            if let config = compactConfig {
-                WorkCardCompactContent(config: config)
-            }
+        switch config {
+        case .grid(let gridConfig):
+            WorkCardGridContent(config: gridConfig)
+        case .list(let listConfig):
+            WorkCardListContent(config: listConfig)
+        case .pill(let pillConfig):
+            WorkCardPillContent(config: pillConfig)
+        case .compact(let compactConfig):
+            WorkCardCompactContent(config: compactConfig)
         }
     }
 }
 
-// MARK: - Convenience Initializers
+// MARK: - Convenience Factory Methods
 
 extension WorkCard {
     /// Grid mode - replaces WorkCardView
@@ -106,25 +145,22 @@ extension WorkCard {
         work: WorkModel,
         lessonTitle: String,
         studentDisplay: String,
-        needsAttention: Bool,
-        ageSchoolDays: Int,
+        needsAttention: Bool = false,
+        ageSchoolDays: Int = 0,
         onOpen: @escaping (WorkModel) -> Void,
         onMarkCompleted: @escaping (WorkModel) -> Void = { _ in },
         onScheduleToday: @escaping (WorkModel) -> Void = { _ in }
     ) -> WorkCard {
-        WorkCard(
-            mode: .grid,
-            gridConfig: GridModeConfig(
-                work: work,
-                lessonTitle: lessonTitle,
-                studentDisplay: studentDisplay,
-                needsAttention: needsAttention,
-                ageSchoolDays: ageSchoolDays,
-                onOpen: onOpen,
-                onMarkCompleted: onMarkCompleted,
-                onScheduleToday: onScheduleToday
-            )
-        )
+        WorkCard(config: .grid(GridConfig(
+            work: work,
+            lessonTitle: lessonTitle,
+            studentDisplay: studentDisplay,
+            needsAttention: needsAttention,
+            ageSchoolDays: ageSchoolDays,
+            onOpen: onOpen,
+            onMarkCompleted: onMarkCompleted,
+            onScheduleToday: onScheduleToday
+        )))
     }
 
     /// List mode - replaces inline rows in OpenWorkListView/WorksLogView
@@ -135,32 +171,26 @@ extension WorkCard {
         badge: WorkCardBadge? = nil,
         onOpen: @escaping (WorkModel) -> Void
     ) -> WorkCard {
-        WorkCard(
-            mode: .list,
-            listConfig: ListModeConfig(
-                work: work,
-                title: title,
-                subtitle: subtitle,
-                badge: badge,
-                onOpen: onOpen
-            )
-        )
+        WorkCard(config: .list(ListConfig(
+            work: work,
+            title: title,
+            subtitle: subtitle,
+            badge: badge,
+            onOpen: onOpen
+        )))
     }
 
     /// Pill mode - replaces StudentWorkPill
     static func pill(
         item: ScheduledItem,
         nameForStudentID: @escaping (UUID) -> String,
-        absentTodayIDs: Set<UUID>
+        absentTodayIDs: Set<UUID> = []
     ) -> WorkCard {
-        WorkCard(
-            mode: .pill,
-            pillConfig: PillModeConfig(
-                item: item,
-                nameForStudentID: nameForStudentID,
-                absentTodayIDs: absentTodayIDs
-            )
-        )
+        WorkCard(config: .pill(PillConfig(
+            item: item,
+            nameForStudentID: nameForStudentID,
+            absentTodayIDs: absentTodayIDs
+        )))
     }
 
     /// Compact mode - replaces LinkedWorkSection items
@@ -171,15 +201,21 @@ extension WorkCard {
         participants: [WorkCardParticipant],
         onToggle: @escaping (WorkModel, UUID) -> Void
     ) -> WorkCard {
-        WorkCard(
-            mode: .compact,
-            compactConfig: CompactModeConfig(
-                work: work,
-                title: title,
-                workType: workType,
-                participants: participants,
-                onToggle: onToggle
-            )
-        )
+        WorkCard(config: .compact(CompactConfig(
+            work: work,
+            title: title,
+            workType: workType,
+            participants: participants,
+            onToggle: onToggle
+        )))
     }
+}
+
+// MARK: - Legacy Type Aliases (for backward compatibility)
+
+extension WorkCard {
+    typealias GridModeConfig = GridConfig
+    typealias ListModeConfig = ListConfig
+    typealias PillModeConfig = PillConfig
+    typealias CompactModeConfig = CompactConfig
 }

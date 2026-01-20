@@ -81,13 +81,7 @@ private struct StudentWorkCard: View {
 
     private func kindColor(_ kind: WorkKind?) -> Color {
         if monochrome { return .primary }
-        switch kind {
-        case .practiceLesson: return .purple
-        case .followUpAssignment: return .orange
-        case .research: return .teal // UI Label: Project
-        case .report: return .green
-        case nil: return .secondary
-        }
+        return kind?.color ?? .secondary
     }
     
     private var cardBackgroundColor: Color {
@@ -120,9 +114,9 @@ private struct StudentWorkCard: View {
                     .onTapGesture { onTapStudent(summary.student) }
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {
-                    CountBadge(count: summary.practiceOpen, color: monochrome ? .primary : .purple, monochrome: monochrome, dense: dense || ultraDense)
-                    CountBadge(count: summary.followUpOpen, color: monochrome ? .primary : .orange, monochrome: monochrome, dense: dense || ultraDense)
-                    CountBadge(count: summary.researchOpen, color: monochrome ? .primary : .teal, monochrome: monochrome, dense: dense || ultraDense)
+                    CountBadge(count: summary.practiceOpen, color: monochrome ? .primary : WorkKind.practiceLesson.color, monochrome: monochrome, dense: dense || ultraDense)
+                    CountBadge(count: summary.followUpOpen, color: monochrome ? .primary : WorkKind.followUpAssignment.color, monochrome: monochrome, dense: dense || ultraDense)
+                    CountBadge(count: summary.researchOpen, color: monochrome ? .primary : WorkKind.research.color, monochrome: monochrome, dense: dense || ultraDense)
                 }
             }
 
@@ -175,20 +169,23 @@ private struct CountBadge: View {
 }
 
 struct WorkTypeLegend: View {
+    /// Work kinds to display in the legend (excludes report by default for this view)
+    private let displayKinds: [WorkKind] = [.practiceLesson, .followUpAssignment, .research]
+
     var body: some View {
         HStack(spacing: 16) {
-            legendItem(color: .purple, label: "Practice")
-            legendItem(color: .orange, label: "Follow-Up")
-            legendItem(color: .teal, label: "Projects")
+            ForEach(displayKinds) { kind in
+                legendItem(kind: kind)
+            }
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(.secondary)
     }
 
-    private func legendItem(color: Color, label: String) -> some View {
+    private func legendItem(kind: WorkKind) -> some View {
         HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 8, height: 8)
-            Text(label)
+            Circle().fill(kind.color).frame(width: 8, height: 8)
+            Text(kind.shortLabel)
         }
     }
 }

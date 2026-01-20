@@ -216,19 +216,18 @@ struct WorkDetailView: View {
 
             // Row 3: Work kind buttons
             HStack(spacing: 0) {
-                kindBtn(.practiceLesson, "Practice")
-                kindBtn(.followUpAssignment, "Follow-Up")
-                kindBtn(.research, "Project")
-                kindBtn(.report, "Report")
+                ForEach(WorkKind.allCases) { kind in
+                    kindBtn(kind)
+                }
             }
             .background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
 
             // Row 4: Status buttons
             HStack(spacing: 12) {
                 HStack(spacing: 0) {
-                    statusBtn(.active, "Active")
-                    statusBtn(.review, "Review")
-                    statusBtn(.complete, "Complete")
+                    ForEach(WorkStatus.allCases) { s in
+                        statusBtn(s)
+                    }
                 }
                 .background(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
 
@@ -244,30 +243,34 @@ struct WorkDetailView: View {
         }
     }
 
-    @ViewBuilder private func kindBtn(_ kind: WorkKind, _ label: String) -> some View {
-        Button(label) {
+    @ViewBuilder private func kindBtn(_ kind: WorkKind) -> some View {
+        let isSelected = workKind == kind
+        Button(kind.shortLabel) {
             workKind = kind
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(workKind == kind ? Color.accentColor.opacity(0.1) : Color.clear)
-        .foregroundStyle(workKind == kind ? Color.accentColor : .primary)
+        .background(isSelected ? kind.color.opacity(0.1) : Color.clear)
+        .foregroundStyle(isSelected ? kind.color : .primary)
     }
 
-    @ViewBuilder private func statusBtn(_ s: WorkStatus, _ label: String) -> some View {
-        Button(label) {
+    @ViewBuilder private func statusBtn(_ s: WorkStatus) -> some View {
+        let isSelected = status == s
+        Button(s.displayName) {
             status = s
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(status == s ? Color.accentColor.opacity(0.1) : Color.clear)
-        .foregroundStyle(status == s ? Color.accentColor : .primary)
+        .background(isSelected ? s.color.opacity(0.1) : Color.clear)
+        .foregroundStyle(isSelected ? s.color : .primary)
     }
 
     @ViewBuilder private func completionSection() -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Picker("Outcome", selection: $completionOutcome) {
                 Text("Select...").tag(nil as CompletionOutcome?)
-                ForEach(CompletionOutcome.allCases, id: \.self) { Text(labelForOutcome($0)).tag($0 as CompletionOutcome?) }
+                ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
+                    Text(outcome.displayName).tag(outcome as CompletionOutcome?)
+                }
             }
             TextField("Notes", text: $completionNote).textFieldStyle(.roundedBorder)
         }
@@ -467,13 +470,6 @@ struct WorkDetailView: View {
         workModelNotes = Array(work.unifiedNotes ?? [])
     }
 
-    private func labelForOutcome(_ o: CompletionOutcome) -> String {
-        switch o {
-        case .mastered: return "Mastered"
-        case .needsMorePractice: return "Keep Practicing"
-        default: return o.rawValue.capitalized
-        }
-    }
 }
 
 // MARK: - Sheet Presentation Extension

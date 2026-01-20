@@ -46,6 +46,17 @@ struct WorksAgendaView: View {
     // MEMORY OPTIMIZATION: Load lessons and students on-demand based on contracts
     private var lessonsByID: [UUID: Lesson] { lessonsByIDCache }
     private var studentsByID: [UUID: Student] { studentsByIDCache }
+
+    /// Combined trigger for data reload - changes when any relevant data changes
+    private var dataReloadTrigger: Int {
+        var hasher = Hasher()
+        hasher.combine(openWork.map { $0.id })
+        hasher.combine(lessonIDs)
+        hasher.combine(studentIDs)
+        hasher.combine(showTestStudents)
+        hasher.combine(testStudentNamesRaw)
+        return hasher.finalize()
+    }
     
     private func loadLessonsAndStudentsIfNeeded() {
         // Collect IDs from open work
@@ -162,20 +173,7 @@ struct WorksAgendaView: View {
         .onAppear {
             loadLessonsAndStudentsIfNeeded()
         }
-        .onChange(of: openWork.map { $0.id }) { _, _ in
-            // Reload when work changes
-            loadLessonsAndStudentsIfNeeded()
-        }
-        .onChange(of: lessonIDs) { _, _ in
-            loadLessonsAndStudentsIfNeeded()
-        }
-        .onChange(of: studentIDs) { _, _ in
-            loadLessonsAndStudentsIfNeeded()
-        }
-        .onChange(of: showTestStudents) { _, _ in
-            loadLessonsAndStudentsIfNeeded()
-        }
-        .onChange(of: testStudentNamesRaw) { _, _ in
+        .onChange(of: dataReloadTrigger) { _, _ in
             loadLessonsAndStudentsIfNeeded()
         }
     }

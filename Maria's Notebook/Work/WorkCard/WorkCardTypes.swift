@@ -17,6 +17,7 @@ struct WorkCardParticipant: Identifiable {
 }
 
 /// Work type visual attributes
+/// Uses WorkKind styling for consistency across the app
 enum WorkCardWorkType {
     case research
     case followUp
@@ -32,26 +33,27 @@ enum WorkCardWorkType {
         }
     }
 
-    var icon: String {
+    /// Convert to WorkKind for consistent styling
+    private var asWorkKind: WorkKind {
         switch self {
-        case .research: return "magnifyingglass"
-        case .followUp: return "bolt.fill"
-        case .practice: return "arrow.triangle.2.circlepath"
-        case .report: return "doc.text"
+        case .research: return .research
+        case .followUp: return .followUpAssignment
+        case .practice: return .practiceLesson
+        case .report: return .report
         }
     }
 
+    var icon: String {
+        asWorkKind.iconName
+    }
+
     var color: Color {
-        switch self {
-        case .research: return .teal
-        case .followUp: return .orange
-        case .practice: return .purple
-        case .report: return .green
-        }
+        asWorkKind.color
     }
 }
 
 /// Work kind visual attributes (for pill mode)
+/// Wrapper that uses WorkKind styling for consistency
 enum WorkCardWorkKind {
     case practiceLesson
     case followUpAssignment
@@ -63,16 +65,22 @@ enum WorkCardWorkKind {
         case .practiceLesson: self = .practiceLesson
         case .followUpAssignment: self = .followUpAssignment
         case .report: self = .report
-        default: self = .other
+        case .research: self = .other
+        case nil: self = .other
+        }
+    }
+
+    /// Convert to WorkKind for consistent styling
+    private var asWorkKind: WorkKind? {
+        switch self {
+        case .practiceLesson: return .practiceLesson
+        case .followUpAssignment: return .followUpAssignment
+        case .report: return .report
+        case .other: return .research
         }
     }
 
     var color: Color {
-        switch self {
-        case .practiceLesson: return .purple
-        case .followUpAssignment: return .orange
-        case .report: return .green
-        case .other: return .teal
-        }
+        asWorkKind?.color ?? .secondary
     }
 }

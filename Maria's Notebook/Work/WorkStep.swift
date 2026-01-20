@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 /// WorkStep model representing a single step in a Report-type WorkModel.
 /// Steps are ordered by orderIndex to ensure deterministic progression.
@@ -31,6 +32,18 @@ final class WorkStep: Identifiable {
 
     /// Computed convenience for completion check
     var isCompleted: Bool { completedAt != nil }
+
+    // MARK: - Styling
+
+    /// Icon name based on completion status
+    var iconName: String {
+        isCompleted ? "checkmark.circle.fill" : "circle"
+    }
+
+    /// Color based on completion status
+    var statusColor: Color {
+        isCompleted ? .green : .secondary
+    }
 
     init(
         id: UUID = UUID(),

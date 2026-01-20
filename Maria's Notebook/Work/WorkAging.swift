@@ -74,48 +74,8 @@ enum WorkAgingPolicy {
         notes: [Note]? = nil
     ) -> Int {
         let last = lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
-        let startToday = AppCalendar.startOfDay(Date())
-        let startLast = AppCalendar.startOfDay(last)
-        var days = 0
-        var cursor = startLast
-        while cursor < startToday {
-            if !isNonSchoolDaySync(cursor, using: modelContext) {
-                days += 1
-            }
-            cursor = AppCalendar.addingDays(1, to: cursor)
-            if days > 36500 { break }
-        }
-        return max(0, days)
-    }
-    
-    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
-    nonisolated private static func isNonSchoolDaySync(_ date: Date, using context: ModelContext) -> Bool {
-        let cal = AppCalendar.shared
-        let day = AppCalendar.startOfDay(date)
-        
-        // 1) Explicit non-school day wins
-        do {
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
-            let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            // On fetch error, fall back to weekend logic below
-        }
-        
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday = cal.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-        
-        // 3) Weekend override makes it a school day
-        do {
-            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
-            let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
-        } catch {
-            // If override fetch fails, assume weekend remains non-school
-        }
-        return true
+        let today = AppCalendar.startOfDay(Date())
+        return SchoolDayChecker.schoolDaysBetween(start: last, end: today, using: modelContext)
     }
     
     /// Maps day difference to an AgingBucket using school days.
