@@ -80,68 +80,6 @@ struct StudentListRow: View {
     
     // MARK: - Trailing Badge/Status
     
-    @ViewBuilder
-    private var trailingContent: some View {
-        switch sortOrder {
-        case .birthday:
-            HStack(spacing: 6) {
-                // Cake icon
-                Image(systemName: "birthday.cake.fill")
-                    .foregroundStyle(.pink)
-                    .font(.system(size: 16))
-                Text(birthdayDateString)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-        case .age:
-            Text(ageDisplayString)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .black, design: .rounded))
-                .foregroundStyle(.primary)
-        case .lastLesson:
-            // Show days since last lesson
-            if let days = daysSinceLastLesson {
-                if days == -1 {
-                    Text("No lessons")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.orange)
-                } else {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.badge.exclamationmark")
-                            .foregroundStyle(days >= 7 ? .red : days >= 3 ? .orange : .secondary)
-                            .font(.system(size: 14))
-                        Text("\(days)d")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                            .foregroundStyle(days >= 7 ? .red : days >= 3 ? .orange : .secondary)
-                    }
-                }
-            } else {
-                EmptyView()
-            }
-        case .alphabetical, .manual:
-            // No trailing badge for default modes (level shown as secondary text)
-            EmptyView()
-        }
-    }
-    
-    // MARK: - Secondary Text
-    
-    @ViewBuilder
-    private var secondaryText: some View {
-        switch sortOrder {
-        case .birthday, .age, .lastLesson:
-            // No secondary text for these modes (the trailing badge shows the info)
-            EmptyView()
-        case .alphabetical, .manual:
-            // Show level as secondary text for default modes
-            HStack(spacing: 4) {
-                Circle().fill(levelColor).frame(width: 6, height: 6)
-                Text(student.level.rawValue)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-    
     var body: some View {
         HStack(spacing: 12) {
             // Avatar circle with initials
@@ -156,25 +94,18 @@ struct StudentListRow: View {
                         )
                     )
                     .frame(width: 40, height: 40)
-                
+
                 Text(initials)
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
             }
-            
-            // Name and secondary text
-            VStack(alignment: .leading, spacing: 2) {
-                Text(student.fullName)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary)
-                
-                secondaryText
-            }
-            
+
+            // Name only
+            Text(student.fullName)
+                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+
             Spacer()
-            
-            // Trailing badge/status
-            trailingContent
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)

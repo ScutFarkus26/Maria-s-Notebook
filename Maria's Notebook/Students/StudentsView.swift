@@ -40,6 +40,7 @@ struct StudentsView<WorkloadContent: View>: View {
     @State private var cachedAttendanceRecords: [AttendanceRecord] = []
     @State private var cachedStudentLessons: [StudentLesson] = []
     @State private var cachedLessons: [UUID: Lesson] = [:]
+    @State private var cachedDaysSinceLastLesson: [UUID: Int] = [:]
     
     private let viewModel = StudentsViewModel()
 
@@ -114,13 +115,8 @@ struct StudentsView<WorkloadContent: View>: View {
     
     private var presentNowCount: Int { presentNowIDs.count }
 
-    private var daysSinceLastLessonByStudent: [UUID: Int] {
-        StudentsFilterService.computeDaysSinceLastPresentation(
-            students: students,
-            modelContext: modelContext,
-            calendar: calendar
-        )
-    }
+    // OPTIMIZATION: Use cached version instead of recomputing on every view update
+    private var daysSinceLastLessonByStudent: [UUID: Int] { cachedDaysSinceLastLesson }
 
     // Computed property to get effective sort order based on mode
     private var effectiveSortOrder: SortOrder {
@@ -193,100 +189,90 @@ struct StudentsView<WorkloadContent: View>: View {
     }
 
     // MARK: - Body
-    
+
+    // MARK: - macOS Mode-Specific Content (no NavigationStack wrapper)
+    #if os(macOS)
+    @ViewBuilder
+    private var macOSModeContent: some View {
+        switch mode {
+        case .observationHeatmap:
+            ObservationHeatmapView()
+        case .workOverview:
+            workloadContent
+        case .age, .birthday, .lastLesson:
+            rosterGridContent
+        case .roster:
+            HStack(spacing: 0) {
+                threePaneSidebar
+                    .frame(width: 360)
+                Divider()
+                threePaneContent
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+    #endif
+
     private var mainContent: some View {
-        return Group {
+        #if os(macOS)
+        // macOS: Single NavigationStack with switching content for smooth transitions
+        NavigationStack {
+            VStack(spacing: 0) {
+                ViewHeader(title: "Students") {
+                    modePickerContent
+
+                    Spacer()
+                        .frame(width: 24)
+
+                    addStudentButton
+                }
+                Divider()
+                macOSModeContent
+            }
+        }
+        #else
+        // iOS: Keep existing structure for different layout needs
+        Group {
             if mode == .observationHeatmap {
                 // Full-screen dashboard view - no split needed
                 NavigationStack {
-                    VStack(spacing: 0) {
-                        #if os(macOS)
-                        ViewHeader(title: "Students") {
-                            modePickerContent
-
-                            Spacer()
-                                .frame(width: 24)
-
-                            addStudentButton
-                        }
-                        Divider()
-                        #endif
-                        ObservationHeatmapView()
-                    }
-                    #if os(iOS)
+                    ObservationHeatmapView()
                     .navigationTitle("Observations")
                     .toolbar {
                         fullScreenModeToolbar
                     }
                     .navigationBarTitleDisplayMode(.inline)
-                    #endif
                 }
             } else if mode == .workOverview {
                 // Full-screen dashboard view - no split needed
                 NavigationStack {
-                    VStack(spacing: 0) {
-                        #if os(macOS)
-                        ViewHeader(title: "Students") {
-                            modePickerContent
-
-                            Spacer()
-                                .frame(width: 24)
-
-                            addStudentButton
-                        }
-                        Divider()
-                        #endif
-                        workloadContent
-                    }
-                    #if os(iOS)
+                    workloadContent
                     .navigationTitle("Open Work")
                     .toolbar {
                         fullScreenModeToolbar
                     }
                     .navigationBarTitleDisplayMode(.inline)
-                    #endif
                 }
             } else if shouldUseGridView {
                 // Full-screen grid view for age/birthday modes or lastLesson sort order
                 NavigationStack {
-                    VStack(spacing: 0) {
-                        #if os(macOS)
-                        ViewHeader(title: "Students") {
-                            modePickerContent
-
-                            Spacer()
-                                .frame(width: 24)
-
-                            addStudentButton
-                        }
-                        Divider()
-                        #endif
-                        Group {
-                            #if os(iOS)
-                            if horizontalSizeClass == .compact {
-                                // iPhone: Show placeholder views
-                                placeholderContentForMode
-                            } else {
-                                // iPad: Show grid view
-                                rosterGridContent
-                            }
-                            #else
-                            // macOS: Show grid view
+                    Group {
+                        if horizontalSizeClass == .compact {
+                            // iPhone: Show placeholder views
+                            placeholderContentForMode
+                        } else {
+                            // iPad: Show grid view
                             rosterGridContent
-                            #endif
                         }
                     }
-                    #if os(iOS)
                     .toolbar {
                         iOSToolbarContent
                     }
                     .navigationTitle("Students")
                     .navigationBarTitleDisplayMode(.inline)
-                    #endif
                 }
             } else if mode == .roster {
                 // Three-pane layout for Roster mode
-                #if os(iOS)
                 if horizontalSizeClass == .compact {
                     // iPhone: Use single pane with sheet for details
                     NavigationStack {
@@ -315,29 +301,6 @@ struct StudentsView<WorkloadContent: View>: View {
                         }
                     }
                 }
-                #else
-                // macOS: Use two-pane layout (student list + detail)
-                NavigationStack {
-                    VStack(spacing: 0) {
-                        ViewHeader(title: "Students") {
-                            modePickerContent
-
-                            Spacer()
-                                .frame(width: 24)
-
-                            addStudentButton
-                        }
-                        Divider()
-                        HStack(spacing: 0) {
-                            threePaneSidebar
-                                .frame(width: 360)
-                            Divider()
-                            threePaneContent
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-                #endif
             } else {
                 // Fallback: List-detail split (kept for safety)
                 NavigationSplitView {
@@ -349,14 +312,13 @@ struct StudentsView<WorkloadContent: View>: View {
                             .toolbar {
                                 toolbarContent
                             }
-#if os(iOS)
                             .navigationBarTitleDisplayMode(.inline)
-#endif
                     }
                 }
                 .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 420)
             }
         }
+        #endif
     }
     
     // MARK: - Grid View Support
@@ -633,10 +595,10 @@ struct StudentsView<WorkloadContent: View>: View {
     private var modePickerContent: some View {
         Picker("Mode", selection: $mode) {
             Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
+            Label("Open Work", systemImage: "doc.text").tag(StudentMode.workOverview)
             Label("Ages", systemImage: "calendar").tag(StudentMode.age)
             Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
             Label("Needs Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
-            Label("Open Work", systemImage: "doc.text").tag(StudentMode.workOverview)
             Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
         }
         .pickerStyle(.segmented)
@@ -771,30 +733,14 @@ struct StudentsView<WorkloadContent: View>: View {
         if horizontalSizeClass != .compact {
             // iPad layout: Use segmented picker
             ToolbarItem(placement: .automatic) {
-                Picker("Mode", selection: $mode) {
-                    Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
-                    Label("Ages", systemImage: "calendar").tag(StudentMode.age)
-                    Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
-                    Label("Needs Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
-                    Label("Open Work", systemImage: "doc.text").tag(StudentMode.workOverview)
-                    Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
-                }
-                .pickerStyle(.segmented)
-                .controlSize(.regular)
+                modePickerContent
+                    .controlSize(.regular)
             }
         }
         #else
         // macOS layout: Use segmented picker
         ToolbarItem(placement: .automatic) {
-            Picker("Mode", selection: $mode) {
-                Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
-                Label("Ages", systemImage: "calendar").tag(StudentMode.age)
-                Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
-                Label("Needs Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
-                Label("Open Work", systemImage: "doc.text").tag(StudentMode.workOverview)
-                Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
-            }
-            .pickerStyle(.segmented)
+            modePickerContent
         }
         #endif
     }
@@ -880,16 +826,8 @@ struct StudentsView<WorkloadContent: View>: View {
         } else {
             // iPad layout: Use segmented picker
             ToolbarItem(placement: .automatic) {
-                Picker("Mode", selection: $mode) {
-                    Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
-                    Label("Ages", systemImage: "calendar").tag(StudentMode.age)
-                    Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
-                    Label("Needs Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
-                    Label("Open Work", systemImage: "doc.text").tag(StudentMode.workOverview)
-                    Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
-                }
-                .pickerStyle(.segmented)
-                .controlSize(.regular)
+                modePickerContent
+                    .controlSize(.regular)
             }
 
             // Sort and Filter controls moved to top of second pane in roster mode
@@ -898,15 +836,7 @@ struct StudentsView<WorkloadContent: View>: View {
         #else
         // macOS layout: Use segmented picker
         ToolbarItem(placement: .automatic) {
-            Picker("Mode", selection: $mode) {
-                Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
-                Label("Ages", systemImage: "calendar").tag(StudentMode.age)
-                Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
-                Label("Needs Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
-                Label("Open Work", systemImage: "doc.text").tag(StudentMode.workOverview)
-                Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
-            }
-            .pickerStyle(.segmented)
+            modePickerContent
         }
 
         // Sort and Filter controls moved to top of second pane in roster mode
@@ -1148,11 +1078,24 @@ struct StudentsView<WorkloadContent: View>: View {
             cachedAttendanceRecords = []
             cachedStudentLessons = []
             cachedLessons = [:]
+            cachedDaysSinceLastLesson = [:]
             return
         }
 
         // Load today's attendance records using the data loader
         cachedAttendanceRecords = StudentsDataLoader.loadTodaysAttendance(context: modelContext)
+
+        // Load days since last lesson only when in lastLesson mode or roster mode
+        // (roster mode needs it for the list row display)
+        if mode == .lastLesson || mode == .roster {
+            cachedDaysSinceLastLesson = StudentsFilterService.computeDaysSinceLastPresentation(
+                students: students,
+                modelContext: modelContext,
+                calendar: calendar
+            )
+        } else {
+            cachedDaysSinceLastLesson = [:]
+        }
 
         // Clear studentLessons cache (no longer needed for lastLesson mode)
         cachedStudentLessons = []
