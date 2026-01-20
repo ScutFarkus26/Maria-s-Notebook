@@ -312,9 +312,22 @@ struct PDFKitView: NSViewRepresentable {
     }
 
     func updateNSView(_ pdfView: PDFView, context: Context) {
-        if let document = PDFDocument(data: data) {
+        // Skip if data hasn't changed (compare by hash to avoid redundant updates)
+        let newHash = data.hashValue
+        if context.coordinator.lastDataHash == newHash { return }
+        context.coordinator.lastDataHash = newHash
+
+        // Defer document assignment to next run loop to avoid layout recursion
+        guard let document = PDFDocument(data: data) else { return }
+        DispatchQueue.main.async {
             pdfView.document = document
         }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    class Coordinator {
+        var lastDataHash: Int?
     }
 }
 #endif

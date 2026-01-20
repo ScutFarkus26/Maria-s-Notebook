@@ -467,12 +467,19 @@ struct PDFPageViewRepresentable: NSViewRepresentable {
     
     func updateNSView(_ nsView: PDFView, context: Context) {
         // Ensure the view stays in sync with the page
+        // Defer document/navigation changes to next run loop to avoid layout recursion
         if let existingDocument = page.document {
             if nsView.document !== existingDocument {
-                nsView.document = existingDocument
-                nsView.go(to: page)
+                let targetPage = page
+                DispatchQueue.main.async {
+                    nsView.document = existingDocument
+                    nsView.go(to: targetPage)
+                }
             } else if nsView.currentPage !== page {
-                nsView.go(to: page)
+                let targetPage = page
+                DispatchQueue.main.async {
+                    nsView.go(to: targetPage)
+                }
             }
         }
     }
