@@ -57,11 +57,6 @@ final class WorksPlanningViewModel {
         startDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }
 
-    func unscheduledWorks(from works: [WorkModel]) -> [WorkModel] {
-        // Deprecated: Legacy WorkModel-based planning helpers have been retired. Return empty as per deprecation note.
-        return []
-    }
-
     // Fixed: calling AppCalendar directly since PlanningEngine.dayID was removed
     func dayID(_ day: Date) -> String { AppCalendar.dayID(day) }
     
@@ -69,11 +64,6 @@ final class WorksPlanningViewModel {
     func dayNumber(_ day: Date) -> String { PlanningEngine.dayNumber(day) }
     func dayShortLabel(_ day: Date) -> String { PlanningEngine.dayShortLabel(day) }
     func isNonSchool(_ day: Date) -> Bool { isNonSchoolDay(day) }
-
-    func groupedItems(works: [WorkModel]) -> [DayKey: [ScheduledItem]] {
-        // Deprecated: Legacy WorkModel-based planning helpers have been retired. Return empty as per deprecation note.
-        return [:]
-    }
 
     func scheduleCheckIn(for workID: UUID, on date: Date, context: ModelContext, saveCoordinator: SaveCoordinator) throws {
         let service = checkInServiceFactory(context)

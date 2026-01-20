@@ -61,69 +61,6 @@ enum StudentsFilterService {
         return ids
     }
 
-    // MARK: - Compute Days Since Last Lesson (Deprecated - uses StudentLesson)
-
-    /// Computes days since last lesson for each student.
-    /// @deprecated Use computeDaysSinceLastPresentation instead.
-    ///
-    /// - Parameters:
-    ///   - students: All students
-    ///   - studentLessons: All student lessons
-    ///   - lessons: Lessons dictionary by ID
-    ///   - modelContext: Model context for school days calculation
-    ///   - calendar: Calendar for date calculations
-    /// - Returns: Dictionary mapping student ID to days since last lesson
-    static func computeDaysSinceLastLesson(
-        students: [Student],
-        studentLessons: [StudentLesson],
-        lessons: [UUID: Lesson],
-        modelContext: ModelContext,
-        calendar: Calendar
-    ) -> [UUID: Int] {
-        var result: [UUID: Int] = [:]
-
-        func norm(_ s: String) -> String { s.normalizedForComparison() }
-
-        let excludedLessonIDs: Set<UUID> = {
-            let ids = lessons.values.filter { l in
-                let s = norm(l.subject)
-                let g = norm(l.group)
-                return s == "parsha" || g == "parsha"
-            }.map { $0.id }
-            return Set(ids)
-        }()
-
-        let given = studentLessons.filter { $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) }
-
-        var lastDateByStudent: [UUID: Date] = [:]
-        for sl in given {
-            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
-            for sid in sl.resolvedStudentIDs {
-                if let existing = lastDateByStudent[sid] {
-                    if when > existing { lastDateByStudent[sid] = when }
-                } else {
-                    lastDateByStudent[sid] = when
-                }
-            }
-        }
-
-        for s in students {
-            if let last = lastDateByStudent[s.id] {
-                let days = LessonAgeHelper.schoolDaysSinceCreation(
-                    createdAt: last,
-                    asOf: Date(),
-                    using: modelContext,
-                    calendar: calendar
-                )
-                result[s.id] = days
-            } else {
-                result[s.id] = -1
-            }
-        }
-
-        return result
-    }
-
     // MARK: - Compute Days Since Last Presentation
 
     /// Computes days since last presentation for each student using LessonPresentation records.

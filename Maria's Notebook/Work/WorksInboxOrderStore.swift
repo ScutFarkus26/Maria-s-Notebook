@@ -19,7 +19,6 @@ enum WorksInboxOrderStore {
     /// Orders the provided unscheduled works according to a stored order. Any works
     /// missing from the stored order are appended in creation-date order.
     static func orderedUnscheduled(from base: [WorkModel], orderRaw: String) -> [WorkModel] {
-        // Base set is provided by caller (e.g., viewModel.unscheduledWorks(works))
         let parsed = parse(orderRaw)
         var order = parsed.filter { id in base.contains(where: { $0.id == id }) }
 

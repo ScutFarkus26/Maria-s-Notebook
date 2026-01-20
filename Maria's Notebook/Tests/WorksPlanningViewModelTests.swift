@@ -307,64 +307,6 @@ struct WorksPlanningViewModelNonSchoolDayTests {
     }
 }
 
-// MARK: - WorksPlanningViewModel Deprecated Methods Tests
-
-@Suite("WorksPlanningViewModel Deprecated Methods Tests", .serialized)
-@MainActor
-struct WorksPlanningViewModelDeprecatedTests {
-
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-        ])
-    }
-
-    @Test("unscheduledWorks returns empty array (deprecated)")
-    func unscheduledWorksReturnsEmpty() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let work = WorkModel(title: "Test Work", workType: .practice)
-        context.insert(work)
-        try context.save()
-
-        let vm = WorksPlanningViewModel(
-            startDate: Date(),
-            calendar: Calendar.current,
-            isNonSchoolDay: { _ in false },
-            checkInService: { ctx in WorkCheckInService(context: ctx) }
-        )
-
-        let result = vm.unscheduledWorks(from: [work])
-
-        #expect(result.isEmpty) // Deprecated, always returns empty
-    }
-
-    @Test("groupedItems returns empty dictionary (deprecated)")
-    func groupedItemsReturnsEmpty() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let work = WorkModel(title: "Test Work", workType: .practice)
-        context.insert(work)
-        try context.save()
-
-        let vm = WorksPlanningViewModel(
-            startDate: Date(),
-            calendar: Calendar.current,
-            isNonSchoolDay: { _ in false },
-            checkInService: { ctx in WorkCheckInService(context: ctx) }
-        )
-
-        let result = vm.groupedItems(works: [work])
-
-        #expect(result.isEmpty) // Deprecated, always returns empty
-    }
-}
-
 // MARK: - WorksPlanningViewModel Check-In Tests
 
 @Suite("WorksPlanningViewModel Check-In Tests", .serialized)
