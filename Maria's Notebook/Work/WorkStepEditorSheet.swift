@@ -66,7 +66,7 @@ struct WorkStepEditorSheet: View {
         if let step = existingStep {
             try? service.update(step, title: title, instructions: instructions, notes: notes)
         } else {
-            try? service.createStep(for: work, title: title, instructions: instructions, notes: notes)
+            _ = try? service.createStep(for: work, title: title, instructions: instructions, notes: notes)
         }
 
         onSave()

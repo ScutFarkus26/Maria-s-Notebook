@@ -110,9 +110,9 @@ final class CloudKitSyncStatusService: ObservableObject {
             forName: .NSPersistentStoreRemoteChange,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
+        ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.handleRemoteChange(notification)
+                self?.handleRemoteChange()
             }
         }
 
@@ -121,9 +121,9 @@ final class CloudKitSyncStatusService: ObservableObject {
             forName: .NSManagedObjectContextDidSave,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
+        ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.handleLocalSave(notification)
+                self?.handleLocalSave()
             }
         }
     }
@@ -143,7 +143,7 @@ final class CloudKitSyncStatusService: ObservableObject {
 
     // MARK: - Event Handlers
 
-    private func handleRemoteChange(_ notification: Notification) {
+    private func handleRemoteChange() {
         // A remote change was received from CloudKit
         lastSuccessfulSync = Date()
         lastSyncError = nil
@@ -158,7 +158,7 @@ final class CloudKitSyncStatusService: ObservableObject {
         updateSyncHealth()
     }
 
-    private func handleLocalSave(_ notification: Notification) {
+    private func handleLocalSave() {
         // Local save occurred - CloudKit will sync automatically
         // Mark as syncing briefly
         guard !isSyncing else { return }
