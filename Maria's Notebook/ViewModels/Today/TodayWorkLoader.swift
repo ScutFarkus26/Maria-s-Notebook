@@ -1,30 +1,30 @@
-// TodayContractsLoader.swift
-// Loader for processing work contracts for the Today view.
-// Encapsulates the contracts loading and schedule building logic used by TodayViewModel.
+// TodayWorkLoader.swift
+// Loader for processing work items for the Today view.
+// Encapsulates the work loading and schedule building logic used by TodayViewModel.
 
 import Foundation
 import SwiftData
 
-// MARK: - Today Contracts Loader
+// MARK: - Today Work Loader
 
-/// Loader for processing work contracts for the Today view.
-enum TodayContractsLoader {
+/// Loader for processing work items for the Today view.
+enum TodayWorkLoader {
 
     // MARK: - Types
 
-    /// Result of loading and processing contracts.
-    struct ContractsResult {
-        let overdueSchedule: [ContractScheduleItem]
-        let todaysSchedule: [ContractScheduleItem]
-        let staleFollowUps: [ContractFollowUpItem]
+    /// Result of loading and processing work.
+    struct WorkLoadResult {
+        let overdueSchedule: [ScheduledWorkItem]
+        let todaysSchedule: [ScheduledWorkItem]
+        let staleFollowUps: [FollowUpWorkItem]
         let workByID: [UUID: WorkModel]
         let neededStudentIDs: Set<UUID>
         let neededLessonIDs: Set<UUID>
     }
 
     /// Empty result for when no data is found.
-    static var emptyResult: ContractsResult {
-        ContractsResult(
+    static var emptyResult: WorkLoadResult {
+        WorkLoadResult(
             overdueSchedule: [],
             todaysSchedule: [],
             staleFollowUps: [],
@@ -34,9 +34,9 @@ enum TodayContractsLoader {
         )
     }
 
-    // MARK: - Load Contracts
+    // MARK: - Load Work
 
-    /// Fetches and processes work contracts for a day.
+    /// Fetches and processes work items for a day.
     /// - Parameters:
     ///   - day: Start of the day
     ///   - nextDay: Start of the next day
@@ -44,15 +44,15 @@ enum TodayContractsLoader {
     ///   - studentsByID: Cached students for level filtering
     ///   - levelFilter: The level filter to apply
     ///   - context: Model context for fetching and schedule building
-    /// - Returns: Processed contracts result with schedules and IDs needed for caching
-    static func loadContracts(
+    /// - Returns: Processed work result with schedules and IDs needed for caching
+    static func loadWork(
         day: Date,
         nextDay: Date,
         referenceDate: Date,
         studentsByID: [UUID: Student],
         levelFilter: LevelFilter,
         context: ModelContext
-    ) -> ContractsResult {
+    ) -> WorkLoadResult {
         guard let fetchResult = TodayDataFetcher.fetchWorkData(
             day: day,
             nextDay: nextDay,
@@ -76,7 +76,7 @@ enum TodayContractsLoader {
             modelContext: context
         )
 
-        return ContractsResult(
+        return WorkLoadResult(
             overdueSchedule: schedule.overdue,
             todaysSchedule: schedule.today,
             staleFollowUps: schedule.stale,
@@ -86,11 +86,11 @@ enum TodayContractsLoader {
         )
     }
 
-    // MARK: - Load Completed Contracts
+    // MARK: - Load Completed Work
 
-    /// Result of loading completed contracts.
-    struct CompletedContractsResult {
-        let completedContracts: [WorkModel]
+    /// Result of loading completed work.
+    struct CompletedWorkResult {
+        let completedWork: [WorkModel]
         let neededStudentIDs: Set<UUID>
     }
 
@@ -99,12 +99,12 @@ enum TodayContractsLoader {
     ///   - day: Start of the day
     ///   - nextDay: Start of the next day
     ///   - context: Model context for fetching
-    /// - Returns: Completed contracts and student IDs needed for caching
-    static func fetchCompletedContracts(
+    /// - Returns: Completed work and student IDs needed for caching
+    static func fetchCompletedWork(
         day: Date,
         nextDay: Date,
         context: ModelContext
-    ) -> CompletedContractsResult {
+    ) -> CompletedWorkResult {
         let workItems = TodayDataFetcher.fetchCompletedWork(day: day, nextDay: nextDay, context: context)
 
         // Collect student IDs for completed work
@@ -115,8 +115,8 @@ enum TodayContractsLoader {
             }
         }
 
-        return CompletedContractsResult(
-            completedContracts: workItems,
+        return CompletedWorkResult(
+            completedWork: workItems,
             neededStudentIDs: neededStudentIDs
         )
     }

@@ -1,10 +1,10 @@
 import SwiftUI
 import SwiftData
 
-struct ContractDetailWindowHost: View {
+struct WorkDetailWindowHost: View {
     let workID: UUID
     @Environment(\.modelContext) private var modelContext
-    
+
     var body: some View {
         // Try to find WorkModel by id first (if already migrated)
         let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })

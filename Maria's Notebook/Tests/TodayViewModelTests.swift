@@ -126,9 +126,9 @@ struct TodayViewModelAttendanceSummaryTests {
     }
 }
 
-@Suite("ContractScheduleItem Tests", .serialized)
+@Suite("ScheduledWorkItem Tests", .serialized)
 @MainActor
-struct ContractScheduleItemTests {
+struct ScheduledWorkItemTests {
 
     private func makeContainer() throws -> ModelContainer {
         return try makeTestContainer(for: [
@@ -137,7 +137,7 @@ struct ContractScheduleItemTests {
         ])
     }
 
-    @Test("ContractScheduleItem id comes from planItem")
+    @Test("ScheduledWorkItem id comes from planItem")
     func idComesFromPlanItem() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
@@ -148,12 +148,12 @@ struct ContractScheduleItemTests {
         context.insert(work)
         context.insert(planItem)
 
-        let item = ContractScheduleItem(work: work, planItem: planItem)
+        let item = ScheduledWorkItem(work: work, planItem: planItem)
 
         #expect(item.id == planItem.id)
     }
 
-    @Test("ContractScheduleItem stores work and planItem")
+    @Test("ScheduledWorkItem stores work and planItem")
     func storesWorkAndPlanItem() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
@@ -165,16 +165,16 @@ struct ContractScheduleItemTests {
         context.insert(work)
         context.insert(planItem)
 
-        let item = ContractScheduleItem(work: work, planItem: planItem)
+        let item = ScheduledWorkItem(work: work, planItem: planItem)
 
         #expect(item.work.title == "Addition Practice")
         #expect(item.planItem.scheduledDate == scheduledDate)
     }
 }
 
-@Suite("ContractFollowUpItem Tests", .serialized)
+@Suite("FollowUpWorkItem Tests", .serialized)
 @MainActor
-struct ContractFollowUpItemTests {
+struct FollowUpWorkItemTests {
 
     private func makeContainer() throws -> ModelContainer {
         return try makeTestContainer(for: [
@@ -182,7 +182,7 @@ struct ContractFollowUpItemTests {
         ])
     }
 
-    @Test("ContractFollowUpItem stores daysSinceTouch")
+    @Test("FollowUpWorkItem stores daysSinceTouch")
     func storesDaysSinceTouch() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
@@ -190,12 +190,12 @@ struct ContractFollowUpItemTests {
         let work = WorkModel(title: "Test Work", studentID: "student123", lessonID: "lesson456")
         context.insert(work)
 
-        let item = ContractFollowUpItem(work: work, daysSinceTouch: 5)
+        let item = FollowUpWorkItem(work: work, daysSinceTouch: 5)
 
         #expect(item.daysSinceTouch == 5)
     }
 
-    @Test("ContractFollowUpItem id comes from work")
+    @Test("FollowUpWorkItem id comes from work")
     func idComesFromWork() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
@@ -203,12 +203,12 @@ struct ContractFollowUpItemTests {
         let work = WorkModel(title: "Test Work", studentID: "student123", lessonID: "lesson456")
         context.insert(work)
 
-        let item = ContractFollowUpItem(work: work, daysSinceTouch: 3)
+        let item = FollowUpWorkItem(work: work, daysSinceTouch: 3)
 
         #expect(item.id == work.id)
     }
 
-    @Test("ContractFollowUpItem stores work reference")
+    @Test("FollowUpWorkItem stores work reference")
     func storesWorkReference() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
@@ -216,7 +216,7 @@ struct ContractFollowUpItemTests {
         let work = WorkModel(title: "Division Practice", studentID: "student123", lessonID: "lesson456")
         context.insert(work)
 
-        let item = ContractFollowUpItem(work: work, daysSinceTouch: 10)
+        let item = FollowUpWorkItem(work: work, daysSinceTouch: 10)
 
         #expect(item.work.title == "Division Practice")
         #expect(item.daysSinceTouch == 10)

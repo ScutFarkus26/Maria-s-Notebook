@@ -6,14 +6,14 @@ import Foundation
 // MARK: - Schedule Item Types
 
 /// Data structure for a scheduled check-in (explicit WorkPlanItem).
-struct ContractScheduleItem: Identifiable {
+struct ScheduledWorkItem: Identifiable {
     let work: WorkModel
     let planItem: WorkPlanItem
     var id: UUID { planItem.id }
 }
 
 /// Data structure for a stale follow-up (implicit WorkModel aging).
-struct ContractFollowUpItem: Identifiable {
+struct FollowUpWorkItem: Identifiable {
     let work: WorkModel
     let daysSinceTouch: Int
     var id: UUID { work.id }

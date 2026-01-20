@@ -1,5 +1,5 @@
 // TodayViewModel.swift
-// View model powering the Today hub. Fetches lessons, work contracts, and plan items
+// View model powering the Today hub. Fetches lessons, work items, and plan items
 // for the selected day. Uses lightweight lookup caches to avoid per-row fetches.
 //
 // Delegates to:
@@ -56,12 +56,12 @@ final class TodayViewModel: ObservableObject {
     @Published var todaysLessons: [StudentLesson] = []
 
     // WorkModel-based lists
-    @Published var overdueSchedule: [ContractScheduleItem] = []
-    @Published var todaysSchedule: [ContractScheduleItem] = []
-    @Published var staleFollowUps: [ContractFollowUpItem] = []
+    @Published var overdueSchedule: [ScheduledWorkItem] = []
+    @Published var todaysSchedule: [ScheduledWorkItem] = []
+    @Published var staleFollowUps: [FollowUpWorkItem] = []
 
     // Completed work items
-    @Published var completedContracts: [WorkModel] = []
+    @Published var completedWork: [WorkModel] = []
 
     // Reminders for today
     @Published var todaysReminders: [Reminder] = []
@@ -169,11 +169,11 @@ final class TodayViewModel: ObservableObject {
         // Load lessons and their related data
         reloadLessons(day: day, nextDay: nextDay)
 
-        // Load work contracts and schedule
-        reloadContracts(day: day, nextDay: nextDay)
+        // Load work items and schedule
+        reloadWork(day: day, nextDay: nextDay)
 
-        // Load completed contracts
-        reloadCompletedContracts(day: day, nextDay: nextDay)
+        // Load completed work
+        reloadCompletedWork(day: day, nextDay: nextDay)
 
         // Load reminders
         reloadReminders(day: day, nextDay: nextDay)
@@ -232,7 +232,7 @@ final class TodayViewModel: ObservableObject {
     }
 
     /// Loads work models, plan items, and processes schedule logic
-    private func reloadContracts(day: Date, nextDay: Date) {
+    private func reloadWork(day: Date, nextDay: Date) {
         // Load work-related students first (needed for level filtering in schedule builder)
         // We do a preliminary fetch to get needed IDs before building the schedule
         if let prelimResult = TodayDataFetcher.fetchWorkData(day: day, nextDay: nextDay, referenceDate: date, context: context) {
@@ -240,7 +240,7 @@ final class TodayViewModel: ObservableObject {
             cacheManager.loadLessonsIfNeeded(ids: prelimResult.neededLessonIDs, context: context)
         }
 
-        let result = TodayContractsLoader.loadContracts(
+        let result = TodayWorkLoader.loadWork(
             day: day,
             nextDay: nextDay,
             referenceDate: date,
@@ -258,13 +258,13 @@ final class TodayViewModel: ObservableObject {
     }
 
     /// Loads completed work items for today
-    private func reloadCompletedContracts(day: Date, nextDay: Date) {
-        let result = TodayContractsLoader.fetchCompletedContracts(day: day, nextDay: nextDay, context: context)
+    private func reloadCompletedWork(day: Date, nextDay: Date) {
+        let result = TodayWorkLoader.fetchCompletedWork(day: day, nextDay: nextDay, context: context)
 
         // Load students for completed work that aren't already cached
         cacheManager.loadStudentsIfNeeded(ids: result.neededStudentIDs, context: context)
 
-        completedContracts = TodayLevelFilterService.filterWork(result.completedContracts, studentsByID: studentsByID, levelFilter: levelFilter)
+        completedWork = TodayLevelFilterService.filterWork(result.completedWork, studentsByID: studentsByID, levelFilter: levelFilter)
     }
 
     private func reloadReminders(day: Date, nextDay: Date) {

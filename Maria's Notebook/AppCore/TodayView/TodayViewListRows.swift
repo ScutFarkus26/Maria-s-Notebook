@@ -129,8 +129,8 @@ struct LessonListRow: View {
     }
 }
 
-struct ContractScheduleListRow: View {
-    let item: ContractScheduleItem
+struct ScheduledWorkListRow: View {
+    let item: ScheduledWorkItem
     let studentName: String
     let lessonName: String
     var onTap: () -> Void
@@ -177,8 +177,8 @@ struct ContractScheduleListRow: View {
     }
 }
 
-struct ContractFollowUpListRow: View {
-    let item: ContractFollowUpItem
+struct FollowUpWorkListRow: View {
+    let item: FollowUpWorkItem
     let studentName: String
     let lessonName: String
     var onTap: () -> Void

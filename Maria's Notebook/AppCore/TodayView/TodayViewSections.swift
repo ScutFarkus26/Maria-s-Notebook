@@ -207,7 +207,7 @@ extension TodayView {
                             .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 4, trailing: 20))
                     }
                     ForEach(viewModel.overdueSchedule) { item in
-                        ContractScheduleListRow(item: item,
+                        ScheduledWorkListRow(item: item,
                                               studentName: resolveStudentName(for: item.work),
                                               lessonName: resolveLessonName(for: item.work),
                                               onTap: {
@@ -216,7 +216,7 @@ extension TodayView {
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                     }
                     ForEach(viewModel.todaysSchedule) { item in
-                        ContractScheduleListRow(item: item,
+                        ScheduledWorkListRow(item: item,
                                               studentName: resolveStudentName(for: item.work),
                                               lessonName: resolveLessonName(for: item.work),
                                               onTap: {
@@ -238,7 +238,7 @@ extension TodayView {
                             .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 4, trailing: 20))
                     }
                     ForEach(viewModel.staleFollowUps) { item in
-                        ContractFollowUpListRow(item: item,
+                        FollowUpWorkListRow(item: item,
                                               studentName: resolveStudentName(for: item.work),
                                               lessonName: resolveLessonName(for: item.work),
                                               onTap: {
@@ -262,10 +262,10 @@ extension TodayView {
 
     var completedListSection: some View {
         Section {
-            if viewModel.completedContracts.isEmpty {
+            if viewModel.completedWork.isEmpty {
                 emptyStateText("No completions yet")
             } else {
-                ForEach(viewModel.completedContracts) { work in
+                ForEach(viewModel.completedWork) { work in
                     CompletionListRow(
                         studentName: resolveStudentName(for: work),
                         lessonName: resolveLessonName(for: work),

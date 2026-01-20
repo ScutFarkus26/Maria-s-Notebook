@@ -12,7 +12,7 @@ final class PresentationsViewModel: ObservableObject {
     // MARK: - Published State
     @Published var readyLessons: [StudentLesson] = []
     @Published var blockedLessons: [StudentLesson] = []
-    @Published var blockingContractsCache: [UUID: [UUID: WorkModel]] = [:]
+    @Published var blockingWorkCache: [UUID: [UUID: WorkModel]] = [:]
     @Published var daysSinceLastLessonByStudent: [UUID: Int] = [:]
     
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
@@ -222,7 +222,7 @@ final class PresentationsViewModel: ObservableObject {
             }
         }
         
-        // Build blocking work cache once (still needed for getBlockingContracts)
+        // Build blocking work cache once (still needed for getBlockingWork)
         rebuildBlockingCache(workModels: workModels, presentations: presentations, presentationsByLegacyID: presentationsByLegacyID, openWorkByPresentationID: openWorkByPresentationID)
         
         // Calculate days since last lesson
@@ -291,13 +291,13 @@ final class PresentationsViewModel: ObservableObject {
     }
     
     /// Get blocking work for a specific StudentLesson (from cache)
-    func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkModel] {
-        return blockingContractsCache[sl.id] ?? [:]
+    func getBlockingWork(_ sl: StudentLesson) -> [UUID: WorkModel] {
+        return blockingWorkCache[sl.id] ?? [:]
     }
-    
+
     /// Check if a lesson is blocked (from cache)
     func isBlocked(_ sl: StudentLesson) -> Bool {
-        return !getBlockingContracts(sl).isEmpty
+        return !getBlockingWork(sl).isEmpty
     }
     
     /// Get the earliest date with a scheduled lesson (computed from cached data)
@@ -313,7 +313,7 @@ final class PresentationsViewModel: ObservableObject {
 
     private func rebuildBlockingCache(workModels: [WorkModel], presentations: [Presentation], presentationsByLegacyID: [String: Presentation], openWorkByPresentationID: [String: [WorkModel]]) {
         // Use BlockingCacheBuilder to construct the cache
-        blockingContractsCache = BlockingCacheBuilder.buildCache(
+        blockingWorkCache = BlockingCacheBuilder.buildCache(
             studentLessons: cachedStudentLessons,
             lessons: cachedLessons,
             workModels: workModels,

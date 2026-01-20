@@ -11,9 +11,9 @@ enum TodayScheduleBuilder {
 
     /// Result of processing work items for schedule display.
     struct ScheduleResult {
-        let overdue: [ContractScheduleItem]
-        let today: [ContractScheduleItem]
-        let stale: [ContractFollowUpItem]
+        let overdue: [ScheduledWorkItem]
+        let today: [ScheduledWorkItem]
+        let stale: [FollowUpWorkItem]
     }
 
     // MARK: - Build Schedule
@@ -38,9 +38,9 @@ enum TodayScheduleBuilder {
         referenceDate: Date,
         modelContext: ModelContext
     ) -> ScheduleResult {
-        var newOverdue: [ContractScheduleItem] = []
-        var newToday: [ContractScheduleItem] = []
-        var newStale: [ContractFollowUpItem] = []
+        var newOverdue: [ScheduledWorkItem] = []
+        var newToday: [ScheduledWorkItem] = []
+        var newStale: [FollowUpWorkItem] = []
 
         let startToday = referenceDate.startOfDay
 
@@ -71,13 +71,13 @@ enum TodayScheduleBuilder {
                 let itemDate = item.scheduledDate.startOfDay
                 return itemDate < startToday && startLastTouch < itemDate
             }) {
-                newOverdue.append(ContractScheduleItem(work: work, planItem: overdueItem))
+                newOverdue.append(ScheduledWorkItem(work: work, planItem: overdueItem))
                 isOverdueOrToday = true
             }
 
             // --- Due Today Logic ---
             if let todayItem = sortedPlans.first(where: { $0.scheduledDate.isSameDay(as: referenceDate) }) {
-                newToday.append(ContractScheduleItem(work: work, planItem: todayItem))
+                newToday.append(ScheduledWorkItem(work: work, planItem: todayItem))
                 isOverdueOrToday = true
             }
 
@@ -85,7 +85,7 @@ enum TodayScheduleBuilder {
             if !isOverdueOrToday {
                 if WorkAgingPolicy.isStale(work, modelContext: modelContext, checkIns: checkIns, notes: workNotes) {
                     let days = WorkAgingPolicy.daysSinceLastTouch(for: work, modelContext: modelContext, checkIns: checkIns, notes: workNotes)
-                    newStale.append(ContractFollowUpItem(work: work, daysSinceTouch: days))
+                    newStale.append(FollowUpWorkItem(work: work, daysSinceTouch: days))
                 }
             }
         }

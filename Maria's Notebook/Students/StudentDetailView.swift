@@ -29,7 +29,7 @@ struct StudentDetailView: View {
     @AppStorage("StudentDetailView.activeTab") private var selectedTab: StudentDetailTab = .overview
 
     @State private var selectedWorkID: UUID? = nil
-    @State private var contractsCache: [WorkModel] = []
+    @State private var workCache: [WorkModel] = []
 
     private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
     private var studentLessonIDs: [UUID] { vm.studentLessons.map(\.id) }
@@ -47,7 +47,7 @@ struct StudentDetailView: View {
                 draftBirthday: $draftBirthday,
                 draftLevel: $draftLevel,
                 draftStartDate: $draftStartDate,
-                contractsCache: $contractsCache,
+                workCache: $workCache,
                 selectedWorkID: $selectedWorkID,
                 lessonsByID: vm.lessonsByID,
                 nextLessonsForStudent: vm.nextLessonsForStudent
@@ -70,7 +70,7 @@ struct StudentDetailView: View {
         }
     }
 
-    private func fetchContractsForStudent() -> [WorkModel] {
+    private func fetchWorkForStudent() -> [WorkModel] {
         return vm.fetchWorkModelsForStudent(modelContext: modelContext)
     }
 
@@ -212,15 +212,15 @@ struct StudentDetailView: View {
         }
         .task {
             vm.loadData(modelContext: modelContext)
-            contractsCache = fetchContractsForStudent()
+            workCache = fetchWorkForStudent()
         }
         .onChange(of: lessonIDs) { _, _ in
             vm.loadData(modelContext: modelContext)
-            contractsCache = fetchContractsForStudent()
+            workCache = fetchWorkForStudent()
         }
         .onChange(of: studentLessonIDs) { _, _ in
             vm.loadData(modelContext: modelContext)
-            contractsCache = fetchContractsForStudent()
+            workCache = fetchWorkForStudent()
         }
     }
 

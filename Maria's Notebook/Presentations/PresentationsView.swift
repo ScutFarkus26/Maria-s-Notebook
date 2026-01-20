@@ -130,8 +130,8 @@ struct PresentationsView: View {
     // Computed properties that use ViewModel (preserves exact same functionality)
     private var readyLessons: [StudentLesson] { viewModel.readyLessons }
     private var blockedLessons: [StudentLesson] { viewModel.blockedLessons }
-    private func getBlockingContracts(_ sl: StudentLesson) -> [UUID: WorkModel] {
-        viewModel.getBlockingContracts(sl)
+    private func getBlockingWork(_ sl: StudentLesson) -> [UUID: WorkModel] {
+        viewModel.getBlockingWork(sl)
     }
 
     private func isNonSchool(_ day: Date) -> Bool {
@@ -203,7 +203,7 @@ struct PresentationsView: View {
                         PresentationsInboxView(
                             readyLessons: readyLessons,
                             blockedLessons: blockedLessons,
-                            getBlockingContracts: getBlockingContracts,
+                            getBlockingWork: getBlockingWork,
                             filteredSnapshot: filteredSnapshot,
                             missWindow: missWindow,
                             missWindowRaw: $missWindowRaw,
@@ -243,7 +243,7 @@ struct PresentationsView: View {
                             PresentationsInboxView(
                                 readyLessons: readyLessons,
                                 blockedLessons: blockedLessons,
-                                getBlockingContracts: getBlockingContracts,
+                                getBlockingWork: getBlockingWork,
                                 filteredSnapshot: filteredSnapshot,
                                 missWindow: missWindow,
                                 missWindowRaw: $missWindowRaw,

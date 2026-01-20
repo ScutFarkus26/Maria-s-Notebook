@@ -138,11 +138,11 @@ struct NewProjectSessionSheet: View {
             }
         }
 
-        // 2. Create Direct Work Contracts
-        // We resolve a generic "Book Club" lesson to attach these contracts to.
+        // 2. Create Direct Work Items
+        // We resolve a generic "Book Club" lesson to attach these work items to.
         let lessonUUID = resolveGenericProjectLessonID(context: modelContext)
 
-        // Prepare data for the contracts loop
+        // Prepare data for the work creation loop
         let sharedTemplates = (club.sharedTemplates ?? []).filter { $0.isShared }
         let templateWeek: ProjectTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil) ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! }) : nil
 
@@ -163,7 +163,7 @@ struct NewProjectSessionSheet: View {
                 // We'll put instructions in the completion note or just implied by the session
                 // For now, we mainly need the WorkModel to exist.
                 
-                createContract(
+                createWork(
                     studentID: sid,
                     lessonID: lessonUUID,
                     sessionID: session.id,
@@ -171,12 +171,12 @@ struct NewProjectSessionSheet: View {
                     title: title,
                     instructions: [range, extras].filter { !$0.isEmpty }.joined(separator: "\n\n")
                 )
-                
+
             } else {
                 // -- Generic Mode --
-                // 1. Create contracts for shared assignments
+                // 1. Create work for shared assignments
                 for tpl in sharedTemplates {
-                    createContract(
+                    createWork(
                         studentID: sid,
                         lessonID: lessonUUID, // Or tpl.defaultLinkedLessonID if you prefer specific lessons
                         sessionID: session.id,
@@ -185,9 +185,9 @@ struct NewProjectSessionSheet: View {
                         instructions: tpl.instructions
                     )
                 }
-                
-                // 2. Create generic individual contract
-                createContract(
+
+                // 2. Create generic individual work
+                createWork(
                     studentID: sid,
                     lessonID: lessonUUID,
                     sessionID: session.id,
@@ -202,7 +202,7 @@ struct NewProjectSessionSheet: View {
         dismiss()
     }
     
-    private func createContract(studentID: String, lessonID: UUID, sessionID: UUID, scheduledDate: Date, title: String, instructions: String) {
+    private func createWork(studentID: String, lessonID: UUID, sessionID: UUID, scheduledDate: Date, title: String, instructions: String) {
         // Create WorkModel
         guard let studentUUID = UUID(uuidString: studentID) else { return }
         

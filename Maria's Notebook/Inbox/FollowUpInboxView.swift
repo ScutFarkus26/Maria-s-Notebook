@@ -85,10 +85,8 @@ struct FollowUpInboxView: View {
 
     // Sheet selections
     private struct SLToken: Identifiable { let id: UUID }
-    private struct ContractToken: Identifiable { let id: UUID }
     private struct WorkToken: Identifiable { let id: UUID }
     @State private var selectedSL: SLToken? = nil
-    @State private var selectedContract: ContractToken? = nil
     @State private var selectedWork: WorkToken? = nil
 
     private var items: [FollowUpInboxItem] {
@@ -175,26 +173,6 @@ struct FollowUpInboxView: View {
                 StudentLessonDetailView(studentLesson: sl) { selectedSL = nil }
             } else {
                 ContentUnavailableView("Lesson not found", systemImage: "exclamationmark.triangle")
-            }
-        }
-        .sheet(item: $selectedContract) { token in
-            // Try to find WorkModel by id first (if already migrated)
-            let targetID = token.id
-            let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == targetID })
-            if let workModel = try? modelContext.fetch(workModelFetch).first {
-                WorkDetailView(workID: workModel.id) {
-                    selectedContract = nil
-                }
-            } else {
-                // Fallback: try to find WorkModel by legacyContractID (if not yet migrated)
-                let legacyFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == targetID })
-                if let workModel = try? modelContext.fetch(legacyFetch).first {
-                    WorkDetailView(workID: workModel.id) {
-                        selectedContract = nil
-                    }
-                } else {
-                    ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
-                }
             }
         }
         .sheet(item: $selectedWork) { token in

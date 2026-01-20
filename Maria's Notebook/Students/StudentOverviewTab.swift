@@ -13,7 +13,7 @@ struct StudentOverviewTab: View {
     @Binding var draftBirthday: Date
     @Binding var draftLevel: Student.Level
     @Binding var draftStartDate: Date
-    @Binding var contractsCache: [WorkModel]
+    @Binding var workCache: [WorkModel]
     @Binding var selectedWorkID: UUID?
     
     let lessonsByID: [UUID: Lesson]
@@ -92,13 +92,13 @@ struct StudentOverviewTab: View {
                     Text("Working on")
                         .font(.headline)
                         .padding(.horizontal, 4)
-                    if contractsCache.isEmpty {
+                    if workCache.isEmpty {
                         Text("No active work.")
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 12)
                     } else {
-                        ForEach(contractsCache, id: \.id) { work in
+                        ForEach(workCache, id: \.id) { work in
                             WorkCard.grid(
                                 work: work,
                                 lessonTitle: lessonName(for: work),

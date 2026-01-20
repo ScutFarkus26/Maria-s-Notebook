@@ -107,7 +107,7 @@ struct RootSidebar: View {
                     Label("Open Work", systemImage: "tray.full")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("View and manage student work contracts")
+                .accessibilityHint("View and manage student work")
 
                 Button { selection = .planningProjects } label: {
                     Label("Projects", systemImage: "folder")

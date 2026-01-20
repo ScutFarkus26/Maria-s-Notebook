@@ -25,7 +25,7 @@ struct StudentLessonPill: View {
     var targetStudentLessonID: UUID? = nil
     var showTimeBadge: Bool = true
     var enableMissHighlight: Bool = false
-    var blockingContracts: [UUID: WorkModel] = [:]
+    var blockingWork: [UUID: WorkModel] = [:]
 
     @State private var showTimeEditor: Bool = false
     @State private var isValidDragTarget: Bool = false
@@ -159,7 +159,7 @@ struct StudentLessonPill: View {
         let isMissing: Bool
         let status: AttendanceStatus?
         let hasHad: Bool
-        let blockingContract: WorkModel?
+        let blockingWork: WorkModel?
     }
     
     private var studentChips: [StudentChip] {
@@ -172,10 +172,10 @@ struct StudentLessonPill: View {
                     isMissing: false,
                     status: statusesByStudent[id],
                     hasHad: recentlyPresentedStudentIDs.contains(id),
-                    blockingContract: blockingContracts[id]
+                    blockingWork: blockingWork[id]
                 ))
             } else {
-                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil, hasHad: true, blockingContract: nil))
+                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil, hasHad: true, blockingWork: nil))
             }
         }
         return chips
@@ -212,13 +212,13 @@ struct StudentLessonPill: View {
         let hasHad: Bool
         let suppressIndicator: Bool
         let highlight: Bool
-        let blockingContract: WorkModel?
+        let blockingWork: WorkModel?
         
         var onTap: (() -> Void)? = nil
 
         var body: some View {
             // If tappable (has blocking contract), wrap in button to capture touch
-            if let _ = blockingContract {
+            if let _ = blockingWork {
                 Button {
                     onTap?()
                 } label: {
@@ -233,7 +233,7 @@ struct StudentLessonPill: View {
         @ViewBuilder
         private var content: some View {
             HStack(spacing: 4) {
-                if blockingContract != nil {
+                if blockingWork != nil {
                     // Minimalist "waiting" indicator
                     Image(systemName: "hourglass")
                         .font(.system(size: 10, weight: .bold))
@@ -297,9 +297,9 @@ struct StudentLessonPill: View {
                                         hasHad: chip.hasHad,
                                         suppressIndicator: isAllSelected,
                                         highlight: highlight,
-                                        blockingContract: chip.blockingContract,
+                                        blockingWork: chip.blockingWork,
                                         onTap: {
-                                            if let c = chip.blockingContract {
+                                            if let c = chip.blockingWork {
                                                 selectedWorkForDetail = c
                                             }
                                         }

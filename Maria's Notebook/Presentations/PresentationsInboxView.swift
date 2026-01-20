@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 struct PresentationsInboxView: View {
     let readyLessons: [StudentLesson]
     let blockedLessons: [StudentLesson]
-    let getBlockingContracts: (StudentLesson) -> [UUID: WorkModel]
+    let getBlockingWork: (StudentLesson) -> [UUID: WorkModel]
     let filteredSnapshot: (StudentLesson) -> StudentLessonSnapshot
     let missWindow: PresentationsMissWindow
     @Binding var missWindowRaw: String
@@ -102,7 +102,7 @@ struct PresentationsInboxView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
                                     ForEach(filteredAndSortedBlockedLessons, id: \.id) { sl in
-                                        inboxRow(sl, blockingContracts: getBlockingContracts(sl))
+                                        inboxRow(sl, blockingWork: getBlockingWork(sl))
                                     }
                                 }
                                 .padding(.horizontal, 12)
@@ -230,14 +230,14 @@ struct PresentationsInboxView: View {
     }
 
     @ViewBuilder
-    private func inboxRow(_ sl: StudentLesson, blockingContracts: [UUID: WorkModel] = [:]) -> some View {
+    private func inboxRow(_ sl: StudentLesson, blockingWork: [UUID: WorkModel] = [:]) -> some View {
         HStack(spacing: 0) {
             StudentLessonPill(
                 snapshot: filteredSnapshot(sl),
                 day: Date(),
                 targetStudentLessonID: sl.id,
                 enableMissHighlight: true,
-                blockingContracts: blockingContracts
+                blockingWork: blockingWork
             )
             .onTapGesture { selectedStudentLessonForDetail = sl }
             .onDrag {

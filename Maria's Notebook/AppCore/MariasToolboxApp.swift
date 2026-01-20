@@ -730,7 +730,7 @@ struct MariasToolboxApp: App {
                         }
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
-                        ContractDetailWindowHost(workID: id)
+                        WorkDetailWindowHost(workID: id)
                             .environment(\.calendar, AppCalendar.shared)
                             .environmentObject(saveCoordinator)
                             .environmentObject(restoreCoordinator)
