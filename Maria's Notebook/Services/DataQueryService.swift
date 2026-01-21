@@ -52,11 +52,10 @@ final class DataQueryService {
             return ids.compactMap { cache[$0] }
         }
 
-        // Otherwise fetch directly
-        let descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate { ids.contains($0.id) }
-        )
-        return context.safeFetch(descriptor)
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        let allStudents = context.safeFetch(FetchDescriptor<Student>())
+        return allStudents.filter { ids.contains($0.id) }
     }
 
     /// Fetch a single student by ID.
@@ -77,7 +76,9 @@ final class DataQueryService {
             return cached
         }
 
-        let students = fetchAllStudents()
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        // Use uniqueByID to prevent crash on "Duplicate values for key"
+        let students = fetchAllStudents().uniqueByID
         let dict = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
         studentsByIDCache = dict
         return dict
@@ -92,7 +93,8 @@ final class DataQueryService {
         }
 
         let lessons = context.safeFetch(FetchDescriptor<Lesson>())
-        lessonsCache = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        // Use uniquingKeysWith to handle CloudKit sync duplicates
+        lessonsCache = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return lessons
     }
 
@@ -105,11 +107,10 @@ final class DataQueryService {
             return ids.compactMap { cache[$0] }
         }
 
-        // Otherwise fetch directly
-        let descriptor = FetchDescriptor<Lesson>(
-            predicate: #Predicate { ids.contains($0.id) }
-        )
-        return context.safeFetch(descriptor)
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
+        return allLessons.filter { ids.contains($0.id) }
     }
 
     /// Fetch a single lesson by ID.
@@ -131,7 +132,8 @@ final class DataQueryService {
         }
 
         let lessons = context.safeFetch(FetchDescriptor<Lesson>())
-        let dict = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        // Use uniquingKeysWith to handle CloudKit sync duplicates
+        let dict = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         lessonsCache = dict
         return dict
     }

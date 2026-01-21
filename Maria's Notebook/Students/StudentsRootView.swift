@@ -142,24 +142,25 @@ struct StudentsRootView: View {
         }
         
         // Fetch only needed students
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
         var studentsByID: [UUID: Student] = [:]
         if !neededStudentIDs.isEmpty {
-            let studentsDescriptor = FetchDescriptor<Student>(
-                predicate: #Predicate { neededStudentIDs.contains($0.id) }
-            )
-            let fetchedStudents = modelContext.safeFetch(studentsDescriptor)
-            let visibleStudents = TestStudentsFilter.filterVisible(fetchedStudents)
-            studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+            let allStudents = modelContext.safeFetch(FetchDescriptor<Student>())
+            let filtered = allStudents.filter { neededStudentIDs.contains($0.id) }
+            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+            let visibleStudents = TestStudentsFilter.filterVisible(filtered).uniqueByID
+            studentsByID = Dictionary(visibleStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         }
-        
+
         // Fetch only needed lessons
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
         var lessonsByID: [UUID: Lesson] = [:]
         if !neededLessonIDs.isEmpty {
-            let lessonsDescriptor = FetchDescriptor<Lesson>(
-                predicate: #Predicate { neededLessonIDs.contains($0.id) }
-            )
-            let fetchedLessons = modelContext.safeFetch(lessonsDescriptor)
-            lessonsByID = Dictionary(uniqueKeysWithValues: fetchedLessons.map { ($0.id, $0) })
+            let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
+            let filtered = allLessons.filter { neededLessonIDs.contains($0.id) }
+            lessonsByID = Dictionary(filtered.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         }
         
         // Update cache

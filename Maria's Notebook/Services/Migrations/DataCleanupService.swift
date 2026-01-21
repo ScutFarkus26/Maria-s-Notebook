@@ -102,6 +102,39 @@ enum DataCleanupService {
 
     // MARK: - Deduplication
 
+    /// Removes duplicate Student records that have the same UUID.
+    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
+    /// Keeps one instance of each student and deletes the duplicates.
+    /// Returns the number of duplicate students removed.
+    @discardableResult
+    static func deduplicateStudents(using context: ModelContext) -> Int {
+        let fetch = FetchDescriptor<Student>()
+        let allStudents = context.safeFetch(fetch)
+
+        // Group by ID
+        var studentsByID: [UUID: [Student]] = [:]
+        for student in allStudents {
+            studentsByID[student.id, default: []].append(student)
+        }
+
+        var deletedCount = 0
+
+        // For each group with duplicates, keep one and delete the rest
+        for (_, students) in studentsByID where students.count > 1 {
+            // Keep the first one (arbitrary, but consistent), delete the rest
+            for duplicate in students.dropFirst() {
+                context.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        if deletedCount > 0 {
+            context.safeSave()
+        }
+
+        return deletedCount
+    }
+
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
     static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
@@ -284,6 +317,8 @@ enum DataCleanupService {
     /// Runs all data cleanup operations in sequence.
     /// Safe to call repeatedly - each operation is idempotent.
     static func runAllCleanupOperations(using context: ModelContext) async {
+        // Run student deduplication first since other cleanups depend on valid students
+        deduplicateStudents(using: context)
         await cleanOrphanedStudentIDs(using: context)
         await cleanOrphanedWorkStudentIDs(using: context)
         deduplicateUnpresentedStudentLessons(using: context)

@@ -141,8 +141,9 @@ enum SchemaMigrationService {
             let workModels = context.safeFetch(FetchDescriptor<WorkModel>())
             guard !workModels.isEmpty else { return }
 
-            let studentLessons = (try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []
-            let studentLessonByID: [UUID: StudentLesson] = Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
+            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+            let studentLessons = ((try? context.fetch(FetchDescriptor<StudentLesson>())) ?? []).uniqueByID
+            let studentLessonByID: [UUID: StudentLesson] = Dictionary(studentLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
             var studentLessonBackfilledCount = 0
 

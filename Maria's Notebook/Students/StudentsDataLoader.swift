@@ -38,8 +38,9 @@ enum StudentsDataLoader {
     ///
     /// - Parameter context: Model context for fetching
     /// - Returns: Array of all student lessons
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     static func loadStudentLessons(context: ModelContext) -> [StudentLesson] {
-        context.safeFetch(FetchDescriptor<StudentLesson>())
+        context.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
     }
 
     // MARK: - Load Lessons
@@ -48,8 +49,9 @@ enum StudentsDataLoader {
     ///
     /// - Parameter context: Model context for fetching
     /// - Returns: Dictionary mapping lesson ID to Lesson
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     static func loadLessons(context: ModelContext) -> [UUID: Lesson] {
-        let all = context.safeFetch(FetchDescriptor<Lesson>())
-        return Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+        let all = context.safeFetch(FetchDescriptor<Lesson>()).uniqueByID
+        return Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 }

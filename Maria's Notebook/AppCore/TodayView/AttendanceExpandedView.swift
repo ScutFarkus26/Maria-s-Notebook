@@ -19,7 +19,9 @@ struct AttendanceExpandedView: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)])
-    private var allStudents: [Student]
+    private var allStudentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
 
     @StateObject private var viewModel = AttendanceViewModel()
 

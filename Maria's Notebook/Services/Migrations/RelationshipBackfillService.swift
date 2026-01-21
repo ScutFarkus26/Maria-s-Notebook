@@ -225,8 +225,9 @@ enum RelationshipBackfillService {
         let flagKey = "Repair.presentationStudentLessonLinks.v2"
         await MigrationFlag.runIfNeeded(key: flagKey) {
             let presentations = context.safeFetch(FetchDescriptor<Presentation>())
-            let studentLessons = context.safeFetch(FetchDescriptor<StudentLesson>())
-            let studentLessonByID = Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id.uuidString, $0) })
+            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+            let studentLessons = context.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
+            let studentLessonByID = Dictionary(studentLessons.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
 
             let batchSize = 100
             var changed = false
@@ -378,8 +379,9 @@ enum RelationshipBackfillService {
         let flagKey = "Backfill.noteStudentLessonFromPresentation.v1"
         await MigrationFlag.runIfNeeded(key: flagKey) {
             let allNotes = context.safeFetch(FetchDescriptor<Note>())
-            let allStudentLessons = context.safeFetch(FetchDescriptor<StudentLesson>())
-            let studentLessonsByID = Dictionary(uniqueKeysWithValues: allStudentLessons.map { ($0.id, $0) })
+            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+            let allStudentLessons = context.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
+            let studentLessonsByID = Dictionary(allStudentLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
             var changed = false
             let batchSize = 100

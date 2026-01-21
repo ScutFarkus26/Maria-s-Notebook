@@ -7,16 +7,19 @@ struct ProjectSessionDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
+    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
     @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
-    
+
     // NEW: Query all work models to filter locally
     @Query private var allWorkModels: [WorkModel]
 
     @State private var showLessonPickerForWork: WorkModel? = nil
-    
-    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
-    private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
+
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
+    private var studentsByID: [UUID: Student] { Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
+    private var lessonsByID: [UUID: Lesson] { Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
 
     // Filter work models relevant to this session
     private var sessionWorkModels: [WorkModel] {

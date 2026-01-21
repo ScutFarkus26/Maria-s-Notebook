@@ -21,8 +21,9 @@ struct StudentHistoryTab: View {
     @State private var selectedEnrollment: StudentTrackEnrollment?
     @State private var selectedProject: Project?
 
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var tracksByID: [String: Track] {
-        Dictionary(uniqueKeysWithValues: allTracks.map { ($0.id.uuidString, $0) })
+        Dictionary(allTracks.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Deduplicated finished enrollments - keeps only one enrollment per track TITLE (not ID)

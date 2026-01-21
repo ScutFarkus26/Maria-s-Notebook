@@ -9,8 +9,10 @@ struct QuickNoteSheet: View {
     
     // MARK: - Data
     @Query(sort: [Foundation.SortDescriptor(\Student.firstName), Foundation.SortDescriptor(\Student.lastName)])
-    private var students: [Student]
-    
+    private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
+
     // MARK: - View Model
     @StateObject private var viewModel: QuickNoteViewModel
     

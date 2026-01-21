@@ -73,37 +73,27 @@ struct WorksAgendaView: View {
         }
         
         // Load only needed lessons
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededLessonIDs.isEmpty {
-            do {
-                let descriptor = FetchDescriptor<Lesson>(
-                    predicate: #Predicate { neededLessonIDs.contains($0.id) }
-                )
-                let fetched = try modelContext.fetch(descriptor)
-                lessonsByIDCache = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
-            } catch {
-                // Fallback: load all if predicate fails
-                let all = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
-                lessonsByIDCache = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
-            }
+            let all = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+            let filtered = all.filter { neededLessonIDs.contains($0.id) }
+            lessonsByIDCache = Dictionary(filtered.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         } else {
             lessonsByIDCache = [:]
         }
-        
+
         // Load only needed students
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededStudentIDs.isEmpty {
-            do {
-                let descriptor = FetchDescriptor<Student>(
-                    predicate: #Predicate { neededStudentIDs.contains($0.id) }
-                )
-                let fetched = try modelContext.fetch(descriptor)
-                let visible = TestStudentsFilter.filterVisible(fetched, show: showTestStudents, namesRaw: testStudentNamesRaw)
-                studentsByIDCache = Dictionary(uniqueKeysWithValues: visible.map { ($0.id, $0) })
-            } catch {
-                // Fallback: load all if predicate fails
-                let all = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
-                let visible = TestStudentsFilter.filterVisible(all, show: showTestStudents, namesRaw: testStudentNamesRaw)
-                studentsByIDCache = Dictionary(uniqueKeysWithValues: visible.map { ($0.id, $0) })
-            }
+            let all = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+            let filtered = all.filter { neededStudentIDs.contains($0.id) }
+            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+            let visible = TestStudentsFilter.filterVisible(filtered, show: showTestStudents, namesRaw: testStudentNamesRaw).uniqueByID
+            studentsByIDCache = Dictionary(visible.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         } else {
             studentsByIDCache = [:]
         }

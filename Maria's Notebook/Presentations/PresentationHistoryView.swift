@@ -14,7 +14,9 @@ struct PresentationHistoryView: View {
     // Fetch Lessons (for lookup)
     @Query private var lessons: [Lesson]
     // Fetch Students (for lookup)
-    @Query private var students: [Student]
+    @Query private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
     // Fetch Notes that are attached to a presentation
     @Query(sort: \Note.createdAt, order: .reverse) private var recentNotes: [Note]
     
@@ -55,11 +57,12 @@ struct PresentationHistoryView: View {
     }
 
     // Maps for quick lookup
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: Lesson] {
-        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
     private var studentsByID: [UUID: Student] {
-        Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     // Available subjects from lessons (sorted, non-empty only)

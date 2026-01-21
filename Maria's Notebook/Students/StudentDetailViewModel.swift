@@ -60,19 +60,13 @@ final class StudentDetailViewModel: ObservableObject {
         let filteredStudentLessons = allStudentLessons.filter { $0.resolvedStudentIDs.contains(student.id) }
 
         // OPTIMIZATION: Only fetch lessons that are referenced by this student's studentLessons
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
         let neededLessonIDs = Set(filteredStudentLessons.map { $0.resolvedLessonID })
         let fetchedLessons: [Lesson]
         if !neededLessonIDs.isEmpty {
-            do {
-                let lessonsDescriptor = FetchDescriptor<Lesson>(
-                    predicate: #Predicate { neededLessonIDs.contains($0.id) }
-                )
-                fetchedLessons = try modelContext.fetch(lessonsDescriptor)
-            } catch {
-                // Fallback: fetch all if predicate fails
-                let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
-                fetchedLessons = allLessons.filter { neededLessonIDs.contains($0.id) }
-            }
+            let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
+            fetchedLessons = allLessons.filter { neededLessonIDs.contains($0.id) }
         } else {
             fetchedLessons = []
         }
@@ -109,8 +103,9 @@ final class StudentDetailViewModel: ObservableObject {
     // MARK: - Public API
     func updateData(lessons: [Lesson], studentLessons: [StudentLesson]) {
         // Build caches
-        lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
-        studentLessonsByID = Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        lessonsByID = Dictionary(lessons.uniqueByID.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        studentLessonsByID = Dictionary(studentLessons.uniqueByID.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         // Next lessons for this student (not yet presented)
         let fetchedSL = studentLessons.filter { $0.resolvedStudentIDs.contains(student.id) && !$0.isPresented }

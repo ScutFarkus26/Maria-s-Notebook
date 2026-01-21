@@ -313,8 +313,9 @@ struct LifecycleService {
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
         
         // 2. Fetch all lessons once to avoid repeated fetches
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let allLessons = try context.fetch(FetchDescriptor<Lesson>())
-        let lessonsByID = Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id.uuidString, $0) })
+        let lessonsByID = Dictionary(allLessons.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
         
         // 2.5. Create GroupTrack records for all subject/group combinations found in lessons
         // This ensures all groups are available as tracks in the progress tab

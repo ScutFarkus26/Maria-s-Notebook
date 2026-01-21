@@ -10,8 +10,10 @@ struct DayColumn: View {
     // OPTIMIZATION: Use shared week studentLessons and filter for this day in memory
     // This avoids making separate database queries for each day
     let weekStudentLessons: [StudentLesson]
-    @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)]) private var allStudents: [Student]
-    
+    @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)]) private var allStudentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
+
     let day: Date
     let availableHeight: CGFloat
     let onSelectLesson: (StudentLesson) -> Void

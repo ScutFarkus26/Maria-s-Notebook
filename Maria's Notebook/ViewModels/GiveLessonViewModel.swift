@@ -73,7 +73,8 @@ final class LessonPickerViewModel: ObservableObject {
     
     func configure(lessons: [Lesson], students: [Student]) {
         self.allLessons = Self.sortLessons(lessons)
-        self.allStudents = Self.sortStudents(students)
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        self.allStudents = Self.sortStudents(students.uniqueByID)
 
         // If a lesson is already selected and the field is empty, show its name in the search field
         if lessonSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -248,8 +249,10 @@ final class LessonPickerViewModel: ObservableObject {
         studentLesson.followUpWork = followUpWork
 
         // Update relationships to mirror snapshots
-        let studentsFetch = FetchDescriptor<Student>(predicate: #Predicate { selectedSet.contains($0.id) })
-        let fetchedStudents = (try? context.fetch(studentsFetch)) ?? []
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        let allStudents = (try? context.fetch(FetchDescriptor<Student>())) ?? []
+        let fetchedStudents = allStudents.filter { selectedSet.contains($0.id) }
         studentLesson.students = fetchedStudents
         studentLesson.lesson = finalLesson
         // Removed call to syncSnapshotsFromRelationships()

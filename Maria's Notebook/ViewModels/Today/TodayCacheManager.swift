@@ -97,25 +97,15 @@ final class TodayCacheManager {
         let missingIDs = ids.filter { studentsByID[$0] == nil }
         guard !missingIDs.isEmpty else { return }
 
-        do {
-            let studentsDescriptor = FetchDescriptor<Student>(
-                predicate: #Predicate { missingIDs.contains($0.id) }
-            )
-            let fetchedStudents = try context.fetch(studentsDescriptor)
-            let visibleStudents = TestStudentsFilter.filterVisible(fetchedStudents)
-            for student in visibleStudents {
-                studentsByID[student.id] = student
-            }
-            cachedDuplicateFirstNames = nil
-        } catch {
-            // Fallback: fetch all if predicate fails
-            let allStudents = context.safeFetch(FetchDescriptor<Student>())
-            let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
-            for student in visibleStudents where ids.contains(student.id) {
-                studentsByID[student.id] = student
-            }
-            cachedDuplicateFirstNames = nil
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        let allStudents = context.safeFetch(FetchDescriptor<Student>())
+        let filtered = allStudents.filter { missingIDs.contains($0.id) }
+        let visibleStudents = TestStudentsFilter.filterVisible(filtered)
+        for student in visibleStudents {
+            studentsByID[student.id] = student
         }
+        cachedDuplicateFirstNames = nil
     }
 
     /// Loads lessons if not already cached.
@@ -125,20 +115,12 @@ final class TodayCacheManager {
         let missingIDs = ids.filter { lessonsByID[$0] == nil }
         guard !missingIDs.isEmpty else { return }
 
-        do {
-            let lessonsDescriptor = FetchDescriptor<Lesson>(
-                predicate: #Predicate { missingIDs.contains($0.id) }
-            )
-            let fetchedLessons = try context.fetch(lessonsDescriptor)
-            for lesson in fetchedLessons {
-                lessonsByID[lesson.id] = lesson
-            }
-        } catch {
-            // Fallback: fetch all if predicate fails
-            let lessons = context.safeFetch(FetchDescriptor<Lesson>())
-            for lesson in lessons where ids.contains(lesson.id) {
-                lessonsByID[lesson.id] = lesson
-            }
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
+        let filtered = allLessons.filter { missingIDs.contains($0.id) }
+        for lesson in filtered {
+            lessonsByID[lesson.id] = lesson
         }
     }
 

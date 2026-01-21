@@ -443,7 +443,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
 
     func loadData(context: ModelContext) {
         let studentFetch = FetchDescriptor<Student>(sortBy: [SortDescriptor(\.birthday)])
-        let fetched = context.safeFetch(studentFetch)
+        let fetched = context.safeFetch(studentFetch).uniqueByID // DEDUPLICATION: CloudKit sync can create duplicates
         self.allStudents = fetched
         self.students = fetched
 

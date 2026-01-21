@@ -538,7 +538,9 @@ struct QuickNewPresentationSheet: View {
     private var allLessons: [Lesson]
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
-    private var allStudents: [Student]
+    private var allStudentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
 
     @State private var selectedLessonID: UUID?
     @State private var selectedStudentIDs: Set<UUID> = []
@@ -752,7 +754,9 @@ struct QuickNewWorkItemSheet: View {
     private var allLessons: [Lesson]
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
-    private var allStudents: [Student]
+    private var allStudentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
 
     @State private var selectedLessonID: UUID?
     @State private var selectedStudentIDs: Set<UUID> = []

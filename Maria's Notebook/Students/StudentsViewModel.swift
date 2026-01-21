@@ -14,22 +14,9 @@ struct StudentsViewModel {
     ) -> [Student] {
         // Build predicate for database-level filtering
         // Note: level filtering is done in-memory because levelRaw is private
-        let predicate: Predicate<Student>? = {
-            switch filter {
-            case .all, .upper, .lower:
-                // Level filtering will be done in-memory after fetch
-                // (levelRaw is private, so can't be used in predicates)
-                return nil
-            case .presentNow:
-                // Filter by IDs in the presentNow set
-                let ids = presentNowIDs ?? []
-                guard !ids.isEmpty else {
-                    // Return predicate that matches nothing (always false condition)
-                    return #Predicate<Student> { student in student.id != student.id }
-                }
-                return #Predicate<Student> { ids.contains($0.id) }
-            }
-        }()
+        // Note: presentNow filtering is done in-memory because SwiftData #Predicate
+        // doesn't support capturing local Set variables
+        let predicate: Predicate<Student>? = nil
         
         // Build sort descriptors for database-level sorting where possible
         let sortDescriptors: [SortDescriptor<Student>] = {
@@ -67,6 +54,7 @@ struct StudentsViewModel {
         
         // Apply in-memory filters that can't be done in predicates:
         // 1. Level filtering (levelRaw is private, so can't be used in predicates)
+        // 2. presentNow filtering (SwiftData #Predicate doesn't support capturing local Set variables)
         switch filter {
         case .all:
             break // No level filter needed
@@ -75,7 +63,11 @@ struct StudentsViewModel {
         case .lower:
             fetched = fetched.filter { $0.level == .lower }
         case .presentNow:
-            break // Already filtered by predicate
+            if let ids = presentNowIDs, !ids.isEmpty {
+                fetched = fetched.filter { ids.contains($0.id) }
+            } else {
+                fetched = [] // No IDs means no matches
+            }
         }
         
         // 2. Test student filtering (requires checking against a set of names)

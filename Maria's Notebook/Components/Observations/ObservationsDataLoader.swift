@@ -71,13 +71,11 @@ enum ObservationsDataLoader {
         guard !missing.isEmpty else { return existingCache }
 
         var updatedCache = existingCache
-        do {
-            let descriptor = FetchDescriptor<Student>(predicate: #Predicate { missing.contains($0.id) })
-            let fetched = try context.fetch(descriptor)
-            for s in fetched { updatedCache[s.id] = s }
-        } catch {
-            // Fallback: no-op on error
-        }
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        let allStudents = (try? context.fetch(FetchDescriptor<Student>())) ?? []
+        let fetched = allStudents.filter { missing.contains($0.id) }
+        for s in fetched { updatedCache[s.id] = s }
 
         return updatedCache
     }

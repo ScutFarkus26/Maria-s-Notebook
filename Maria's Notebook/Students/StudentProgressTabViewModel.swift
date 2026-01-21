@@ -89,7 +89,8 @@ final class StudentProgressTabViewModel: ObservableObject {
         activeReports = allWorkModels.filter {
             $0.studentID == studentIDString && $0.kind == .report && $0.status != .complete
         }
-        tracksByID = Dictionary(uniqueKeysWithValues: allTracks.map { ($0.id.uuidString, $0) })
+        // Use uniquingKeysWith to handle CloudKit sync duplicates
+        tracksByID = Dictionary(allTracks.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     // MARK: - Track Stats Computation

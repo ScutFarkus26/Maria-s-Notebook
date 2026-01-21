@@ -104,14 +104,14 @@ final class InboxDataLoader {
     }
     
     /// Loads plan items only for the specified work IDs.
+    // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+    // so we fetch all and filter in memory
     func loadPlanItems(for workIDs: Set<UUID>) -> [WorkPlanItem] {
         guard !workIDs.isEmpty else { return [] }
-        
+
         let workIDStrings = Set(workIDs.map { $0.uuidString })
-        let descriptor = FetchDescriptor<WorkPlanItem>(
-            predicate: #Predicate { workIDStrings.contains($0.workID) }
-        )
-        return context.safeFetch(descriptor)
+        let allItems = context.safeFetch(FetchDescriptor<WorkPlanItem>())
+        return allItems.filter { workIDStrings.contains($0.workID) }
     }
     
     /// Loads notes only for the specified work IDs.
@@ -133,24 +133,24 @@ final class InboxDataLoader {
     }
     
     /// Loads students by their IDs.
+    // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+    // so we fetch all and filter in memory
     func loadStudents(ids: Set<UUID>) -> [Student] {
         guard !ids.isEmpty else { return [] }
-        
-        let descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate { ids.contains($0.id) }
-        )
-        let students = context.safeFetch(descriptor)
-        return TestStudentsFilter.filterVisible(students)
+
+        let allStudents = context.safeFetch(FetchDescriptor<Student>())
+        let filtered = allStudents.filter { ids.contains($0.id) }
+        return TestStudentsFilter.filterVisible(filtered)
     }
-    
+
     /// Loads lessons by their IDs.
+    // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+    // so we fetch all and filter in memory
     func loadLessons(ids: Set<UUID>) -> [Lesson] {
         guard !ids.isEmpty else { return [] }
-        
-        let descriptor = FetchDescriptor<Lesson>(
-            predicate: #Predicate { ids.contains($0.id) }
-        )
-        return context.safeFetch(descriptor)
+
+        let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
+        return allLessons.filter { ids.contains($0.id) }
     }
 }
 

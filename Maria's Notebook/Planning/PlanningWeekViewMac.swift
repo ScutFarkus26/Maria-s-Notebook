@@ -17,8 +17,10 @@ struct PlanningWeekViewMac: View {
     private var inboxLessons: [StudentLesson]
     
     @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
-    
+    @Query private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
+
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @State private var startDate: Date = Date()
     @State private var activeSheet: PlanningWeekViewContent.ActiveSheet? = nil

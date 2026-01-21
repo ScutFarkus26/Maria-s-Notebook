@@ -24,8 +24,9 @@ struct TrackFilteredListView: View, Identifiable {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: Lesson] {
-        Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) })
+        Dictionary(allLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
     
     // Filter items by track and student

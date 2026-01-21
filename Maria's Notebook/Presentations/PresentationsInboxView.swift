@@ -21,8 +21,10 @@ struct PresentationsInboxView: View {
     
     @Query private var studentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
-    
+    @Query private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
+
     @State private var searchText: String = ""
     @State private var debouncedSearchText: String = ""
     @State private var searchDebounceTask: Task<Void, Never>? = nil
@@ -169,12 +171,13 @@ struct PresentationsInboxView: View {
     
     // MARK: - Filtering and Sorting
     
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: Lesson] {
-        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
-    
+
     private var studentsByID: [UUID: Student] {
-        Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
     
     private func lessonTitle(for sl: StudentLesson) -> String {

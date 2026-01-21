@@ -13,8 +13,12 @@ struct StudentLessonDetailView: View {
 
     // Live Queries
     @Query private var lessons: [Lesson]
-    @Query private var studentsAll: [Student]
+    @Query private var studentsAllRaw: [Student]
     @Query private var studentLessonsAll: [StudentLesson]
+
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
+    private var studentsAll: [Student] { studentsAllRaw.uniqueByID }
 
     let studentLesson: StudentLesson
     let autoFocusLessonPicker: Bool
@@ -630,6 +634,7 @@ struct StudentLessonDetailContentView: View {
     }
 
     private var selectedStudentsList: [Student] {
+        // studentsAll is already deduplicated, but filter first then sort for clarity
         studentsAll
             .filter { vm.selectedStudentIDs.contains($0.id) }
             .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }

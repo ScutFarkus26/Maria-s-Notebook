@@ -310,16 +310,12 @@ final class TodayViewModel: ObservableObject {
         guard !missingIDs.isEmpty else { return }
 
         // Fetch missing students
-        do {
-            let studentsDescriptor = FetchDescriptor<Student>(
-                predicate: #Predicate { missingIDs.contains($0.id) }
-            )
-            let fetchedStudents = try context.fetch(studentsDescriptor)
-            for student in fetchedStudents {
-                recentNoteStudentsByID[student.id] = student
-            }
-        } catch {
-            // Silently fail - students will show as "Student"
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        let allStudents = context.safeFetch(FetchDescriptor<Student>())
+        let filtered = allStudents.filter { missingIDs.contains($0.id) }
+        for student in filtered {
+            recentNoteStudentsByID[student.id] = student
         }
     }
 

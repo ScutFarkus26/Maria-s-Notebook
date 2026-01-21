@@ -71,7 +71,8 @@ struct StudentMeetingsTab: View {
 
     // MARK: - Computed helpers for contracts and lessons (delegated to MeetingWorkSnapshotHelper)
 
-    private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
+    private var lessonsByID: [UUID: Lesson] { Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
 
     private var workStats: (open: [WorkModel], overdue: [WorkModel], recentCompleted: [WorkModel]) {
         MeetingWorkSnapshotHelper.computeWorkStats(

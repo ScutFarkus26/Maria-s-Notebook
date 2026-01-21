@@ -75,8 +75,11 @@ final class InboxSheetViewModel: ObservableObject {
                 modelContext.delete(target)
             } else {
                 target.studentIDs = remainingIDs.map { $0.uuidString }
-                let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
-                let fetched = (try? modelContext.fetch(fetch)) ?? []
+                // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
+                // so we fetch all and filter in memory
+                let remainingSet = Set(remainingIDs)
+                let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+                let fetched = allStudents.filter { remainingSet.contains($0.id) }
                 target.students = fetched
             }
 

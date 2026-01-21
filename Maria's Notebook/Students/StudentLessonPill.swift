@@ -6,7 +6,9 @@ struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
+    @Query private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
     @Environment(\.calendar) private var calendar
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
@@ -447,8 +449,11 @@ struct StudentLessonPill: View {
                         modelContext.delete(source)
                     } else {
                         let remainingIDs = source.studentIDs.compactMap { UUID(uuidString: $0) }
-                        let fetch = FetchDescriptor<Student>(predicate: #Predicate { remainingIDs.contains($0.id) })
-                        let fetched = (try? modelContext.fetch(fetch)) ?? []
+                        // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
+                        // so we fetch all and filter in memory
+                        let remainingSet = Set(remainingIDs)
+                        let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+                        let fetched = allStudents.filter { remainingSet.contains($0.id) }
                         source.students = fetched
                         // Removed: source.syncSnapshotsFromRelationships()
                     }

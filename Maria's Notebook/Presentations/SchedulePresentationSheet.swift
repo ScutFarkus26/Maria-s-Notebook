@@ -10,8 +10,10 @@ struct SchedulePresentationSheet: View {
     @Environment(\.modelContext) private var modelContext
     
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
-    private var allStudents: [Student]
-    
+    private var allStudentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
+
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var studentSearchText: String = ""
     

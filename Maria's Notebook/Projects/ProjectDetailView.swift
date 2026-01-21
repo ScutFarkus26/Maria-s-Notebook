@@ -8,7 +8,9 @@ struct ProjectDetailView: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @Environment(\.dismiss) private var dismiss
 
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
+    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
     @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var allRoles: [ProjectRole]
     @Query(sort: [SortDescriptor(\ProjectTemplateWeek.weekIndex, order: .forward)]) private var allWeeks: [ProjectTemplateWeek]
     @Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]
@@ -21,7 +23,8 @@ struct ProjectDetailView: View {
     @State private var showEditClub: Bool = false
     @State private var showManageRoles: Bool = false
 
-    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
+    private var studentsByID: [UUID: Student] { Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
     
     var body: some View {
         ScrollView {

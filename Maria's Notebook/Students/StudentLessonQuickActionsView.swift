@@ -11,7 +11,9 @@ struct StudentLessonQuickActionsView: View {
     private var lessons: [Lesson]
     
     @Query(sort: \Student.firstName, animation: .default)
-    private var studentsAll: [Student]
+    private var studentsAllRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var studentsAll: [Student] { studentsAllRaw.uniqueByID }
 
     @Query(sort: \StudentLesson.createdAt, animation: .default)
     private var studentLessonsAll: [StudentLesson]

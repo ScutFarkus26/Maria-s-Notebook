@@ -95,7 +95,9 @@ struct ProjectWeekEditorView: View, Identifiable {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
-    @Query(sort: [SortDescriptor(\Student.firstName, order: .forward), SortDescriptor(\Student.lastName, order: .forward)]) private var students: [Student]
+    @Query(sort: [SortDescriptor(\Student.firstName, order: .forward), SortDescriptor(\Student.lastName, order: .forward)]) private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
     @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var allRoles: [ProjectRole]
     @Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]
     @Query(sort: [SortDescriptor(\Lesson.name, order: .forward)]) private var allLessons: [Lesson]
@@ -127,7 +129,8 @@ struct ProjectWeekEditorView: View, Identifiable {
         return students.filter { ids.contains($0.id) }.sorted { StudentFormatter.displayName(for: $0) < StudentFormatter.displayName(for: $1) }
     }
 
-    private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) }) }
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
+    private var lessonsByID: [UUID: Lesson] { Dictionary(allLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
 
     private var linkedLessons: [Lesson] {
         linkedLessonIDs.compactMap { UUID(uuidString: $0) }.compactMap { lessonsByID[$0] }

@@ -16,12 +16,13 @@ struct OpenWorkListView: View {
     // Pagination state
     @StateObject private var pagination = PaginationState(pageSize: 50)
 
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: Lesson] {
-        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     private var studentLessonsByID: [UUID: StudentLesson] {
-        Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
+        Dictionary(studentLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     private var openWorks: [WorkModel] {

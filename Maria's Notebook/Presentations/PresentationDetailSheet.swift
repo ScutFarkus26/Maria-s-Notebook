@@ -11,7 +11,10 @@ struct PresentationDetailSheet: View, Identifiable {
     @Environment(\.modelContext) private var modelContext
 
     @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
+    @Query private var studentsRaw: [Student]
+
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
 
     @State private var presentation: Presentation? = nil
     @State private var unifiedNotes: [Note] = [] // Unified notes
@@ -24,8 +27,9 @@ struct PresentationDetailSheet: View, Identifiable {
         self.onDone = onDone
     }
 
-    private var lessonsByID: [UUID: Lesson] { Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) }) }
-    private var studentsByID: [UUID: Student] { Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) }) }
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
+    private var lessonsByID: [UUID: Lesson] { Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
+    private var studentsByID: [UUID: Student] { Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
 
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()

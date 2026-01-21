@@ -34,11 +34,13 @@ struct PostPresentationAssignmentsSheet: View {
     @State private var bulkText: String = ""
 
     init(students: [Student], lessonName: String, onCreate: @escaping ([AssignmentEntry]) -> Void, onCancel: @escaping () -> Void) {
-        self.students = students
+        // DEDUPLICATION: Defensive deduplication in case caller doesn't deduplicate
+        let deduped = students.uniqueByID
+        self.students = deduped
         self.lessonName = lessonName
         self.onCreate = onCreate
         self.onCancel = onCancel
-        _entries = State(initialValue: Dictionary(uniqueKeysWithValues: students.map { ($0.id, AssignmentEntry(studentID: $0.id, text: "", schedule: nil)) }))
+        _entries = State(initialValue: Dictionary(uniqueKeysWithValues: deduped.map { ($0.id, AssignmentEntry(studentID: $0.id, text: "", schedule: nil)) }))
     }
 
     var body: some View {

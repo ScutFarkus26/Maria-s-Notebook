@@ -75,44 +75,47 @@ final class PresentationsViewModel: ObservableObject {
         //    This cannot be optimized without changing the algorithm semantics.
         //
         // 1. Fetch all StudentLessons (needed for blocking logic and days-since calculations)
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let studentLessons: [StudentLesson] = {
             #if DEBUG
             return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch StudentLessons",
                 operation: {
-                    modelContext.safeFetch(FetchDescriptor<StudentLesson>())
+                    modelContext.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
                 }
             )
             #else
-            return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
+            return modelContext.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
             #endif
         }()
         
         // 2. Fetch all Lessons (needed for grouping and blocking logic - requires full group structure)
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let lessons: [Lesson] = {
             #if DEBUG
             return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch Lessons",
                 operation: {
-                    modelContext.safeFetch(FetchDescriptor<Lesson>())
+                    modelContext.safeFetch(FetchDescriptor<Lesson>()).uniqueByID
                 }
             )
             #else
-            return modelContext.safeFetch(FetchDescriptor<Lesson>())
+            return modelContext.safeFetch(FetchDescriptor<Lesson>()).uniqueByID
             #endif
         }()
         
         // 3. Fetch all Students (needed for filtering and calculations)
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let students: [Student] = {
             #if DEBUG
             return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch Students",
                 operation: {
-                    modelContext.safeFetch(FetchDescriptor<Student>())
+                    modelContext.safeFetch(FetchDescriptor<Student>()).uniqueByID
                 }
             )
             #else
-            return modelContext.safeFetch(FetchDescriptor<Student>())
+            return modelContext.safeFetch(FetchDescriptor<Student>()).uniqueByID
             #endif
         }()
         

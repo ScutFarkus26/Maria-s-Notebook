@@ -9,8 +9,10 @@ import FoundationModels
 // MARK: - Main View
 struct AppleIntelligenceSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Query private var students: [Student]
-    
+    @Query private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
+
     let notes: [Note]
     
     // Editor State

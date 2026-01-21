@@ -173,16 +173,17 @@ enum TodayNavigationService {
                 return true
             }
 
+            // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+            // so we fetch all and filter in memory
             if !neededStudentIDs.isEmpty {
-                let studentsDescriptor = FetchDescriptor<Student>(
-                    predicate: #Predicate { neededStudentIDs.contains($0.id) }
-                )
-                let students = try context.fetch(studentsDescriptor)
-                let visibleStudents = TestStudentsFilter.filterVisible(students)
-                let studentsByID = Dictionary(uniqueKeysWithValues: visibleStudents.map { ($0.id, $0) })
+                let allStudents = try context.fetch(FetchDescriptor<Student>())
+                let filtered = allStudents.filter { neededStudentIDs.contains($0.id) }
+                // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+                let visibleStudents = TestStudentsFilter.filterVisible(filtered).uniqueByID
+                let studentsByID = Dictionary(visibleStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
-                let filtered = filterLessonsByLevel(lessons, studentsByID: studentsByID, levelFilter: levelFilter)
-                return !filtered.isEmpty
+                let filteredLessons = filterLessonsByLevel(lessons, studentsByID: studentsByID, levelFilter: levelFilter)
+                return !filteredLessons.isEmpty
             }
 
             return false

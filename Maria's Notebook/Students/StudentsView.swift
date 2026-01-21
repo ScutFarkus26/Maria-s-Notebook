@@ -16,7 +16,11 @@ struct StudentsView<WorkloadContent: View>: View {
     
     // OPTIMIZATION: Students always needed in roster mode, so keep @Query
     @Query private var students: [Student]
-    
+
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
+    private var uniqueStudents: [Student] { students.uniqueByID }
+
     // OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
     @Query(sort: [SortDescriptor(\AttendanceRecord.id)]) private var attendanceRecordsForChangeDetection: [AttendanceRecord]
@@ -94,7 +98,7 @@ struct StudentsView<WorkloadContent: View>: View {
     // Logic helpers
     private var hiddenTestStudentIDs: Set<UUID> {
         StudentsFilterService.computeHiddenTestStudentIDs(
-            students: students,
+            students: uniqueStudents,
             showTestStudents: showTestStudents,
             testStudentNamesRaw: testStudentNamesRaw
         )
@@ -140,10 +144,14 @@ struct StudentsView<WorkloadContent: View>: View {
             testStudentNames: testStudentNamesRaw
         )
 
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
+        let deduplicated = base.uniqueByID
+
         // Apply lastLesson sorting in-memory (requires access to presentation data)
         if currentSortOrder == .lastLesson {
             let daysMap = daysSinceLastLessonByStudent
-            return base.sorted { lhs, rhs in
+            return deduplicated.sorted { lhs, rhs in
                 let lDays = daysMap[lhs.id] ?? -1
                 let rDays = daysMap[rhs.id] ?? -1
                 // Students with no presentations (-1) go first, then sort by most days since last presentation
@@ -159,7 +167,7 @@ struct StudentsView<WorkloadContent: View>: View {
             }
         }
 
-        return base
+        return deduplicated
     }
     
     // Temporary helper to check for duplicate IDs
@@ -433,9 +441,9 @@ struct StudentsView<WorkloadContent: View>: View {
                     await loadDataOnDemand()
                 }
             }
-            .onChange(of: students.map { $0.id }) { _, _ in
+            .onChange(of: uniqueStudents.map { $0.id }) { _, _ in
                 ensureInitialManualOrderIfNeeded()
-                if viewModel.repairManualOrderUniquenessIfNeeded(students) {
+                if viewModel.repairManualOrderUniquenessIfNeeded(uniqueStudents) {
                     try? modelContext.save()
                 }
             }
@@ -481,7 +489,7 @@ struct StudentsView<WorkloadContent: View>: View {
     
     private var threePaneContent: some View {
         NavigationStack {
-            if let id = selectedStudentID, let student = students.first(where: { $0.id == id }) {
+            if let id = selectedStudentID, let student = uniqueStudents.first(where: { $0.id == id }) {
                 StudentDetailView(student: student)
                     .id(student.id)
                     .navigationTitle(student.fullName)
@@ -933,7 +941,7 @@ struct StudentsView<WorkloadContent: View>: View {
     
     private var detailContent: some View {
         Group {
-            if let id = selectedStudentID, let student = students.first(where: { $0.id == id }) {
+            if let id = selectedStudentID, let student = uniqueStudents.first(where: { $0.id == id }) {
                 HStack(alignment: .top, spacing: 0) {
                     StudentDetailView(student: student)
                         .frame(maxWidth: 700)
@@ -974,7 +982,7 @@ struct StudentsView<WorkloadContent: View>: View {
         // (roster mode needs it for the list row display)
         if mode == .lastLesson || mode == .roster {
             cachedDaysSinceLastLesson = StudentsFilterService.computeDaysSinceLastPresentation(
-                students: students,
+                students: uniqueStudents,
                 modelContext: modelContext,
                 calendar: calendar
             )
@@ -988,14 +996,14 @@ struct StudentsView<WorkloadContent: View>: View {
     }
 
     private func ensureInitialManualOrderIfNeeded() {
-        if viewModel.ensureInitialManualOrderIfNeeded(students) {
+        if viewModel.ensureInitialManualOrderIfNeeded(uniqueStudents) {
             try? modelContext.save()
         }
     }
-    
+
     private func assignManualOrder(from orderedIDs: [UUID]) {
         for (idx, id) in orderedIDs.enumerated() {
-            if let s = students.first(where: { $0.id == id }) {
+            if let s = uniqueStudents.first(where: { $0.id == id }) {
                 s.manualOrder = idx
             }
         }
@@ -1009,7 +1017,7 @@ struct StudentsView<WorkloadContent: View>: View {
             from: fromIndex,
             to: destination,
             current: filteredStudents,
-            allStudents: students
+            allStudents: uniqueStudents
         )
         assignManualOrder(from: newAllIDs)
         try? modelContext.save()

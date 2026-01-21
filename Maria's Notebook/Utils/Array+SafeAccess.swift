@@ -28,3 +28,21 @@ extension Collection {
     }
 }
 
+// MARK: - Deduplication
+
+extension Array where Element: Identifiable {
+    /// Returns an array with duplicate elements removed, keeping the first occurrence of each ID.
+    /// CloudKit sync can create duplicate records with the same ID during merge conflicts.
+    /// Use this to prevent SwiftUI crashes like "Duplicate values for key" in ForEach loops.
+    var uniqueByID: [Element] {
+        var seenIDs = Set<Element.ID>()
+        return filter { element in
+            if seenIDs.contains(element.id) {
+                return false
+            }
+            seenIDs.insert(element.id)
+            return true
+        }
+    }
+}
+

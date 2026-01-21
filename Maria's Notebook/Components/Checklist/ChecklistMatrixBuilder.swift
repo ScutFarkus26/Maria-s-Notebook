@@ -25,9 +25,12 @@ enum ChecklistMatrixBuilder {
         guard !lessonIDs.isEmpty else { return [:] }
 
         // CloudKit compatibility: Convert UUIDs to strings for comparison
+        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+        // so we fetch all and filter in memory
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
-        let slDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { lessonIDStrings.contains($0.lessonID) })
-        let allSLs = context.safeFetch(slDescriptor)
+        let allStudentLessons = context.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
+        let allSLs = allStudentLessons.filter { lessonIDStrings.contains($0.lessonID) }
 
         // Fetch all WorkModels and filter in memory
         let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())

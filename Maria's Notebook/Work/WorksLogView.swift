@@ -8,7 +8,9 @@ struct WorksLogView: View {
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
-    private var students: [Student]
+    private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
 
     @State private var selectedWork: WorkModel? = nil
 
@@ -22,11 +24,13 @@ struct WorksLogView: View {
     @StateObject private var pagination = PaginationState(pageSize: 50)
 
     private var lessonsByID: [UUID: Lesson] {
-        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        // Use uniquingKeysWith to handle CloudKit sync duplicates
+        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     private var studentLessonsByID: [UUID: StudentLesson] {
-        Dictionary(uniqueKeysWithValues: studentLessons.map { ($0.id, $0) })
+        // Use uniquingKeysWith to handle CloudKit sync duplicates
+        Dictionary(studentLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Filtered works based on current filter selections

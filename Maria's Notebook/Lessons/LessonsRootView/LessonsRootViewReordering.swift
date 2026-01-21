@@ -101,10 +101,10 @@ extension LessonsRootView {
     func planPresentation(for lesson: Lesson, studentIDs: Set<UUID>) {
         guard !studentIDs.isEmpty else { return }
 
-        let studentUUIDs = Array(studentIDs)
-        let predicate = #Predicate<Student> { studentUUIDs.contains($0.id) }
-        let descriptor = FetchDescriptor<Student>(predicate: predicate)
-        let students = (try? modelContext.fetch(descriptor)) ?? []
+        // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
+        // so we fetch all and filter in memory
+        let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+        let students = allStudents.filter { studentIDs.contains($0.id) }
 
         let lessonIDString = lesson.id.uuidString
         let existingPredicate = #Predicate<StudentLesson> { sl in
@@ -115,15 +115,14 @@ extension LessonsRootView {
         let existingDescriptor = FetchDescriptor<StudentLesson>(predicate: existingPredicate)
         let existingLessons = (try? modelContext.fetch(existingDescriptor)) ?? []
 
-        let studentSet = Set(studentUUIDs)
-        if existingLessons.contains(where: { Set($0.resolvedStudentIDs) == studentSet }) {
+        if existingLessons.contains(where: { Set($0.resolvedStudentIDs) == studentIDs }) {
             lessonToSchedule = nil
             return
         }
 
         let newStudentLesson = StudentLessonFactory.makeUnscheduled(
             lessonID: lesson.id,
-            studentIDs: studentUUIDs
+            studentIDs: Array(studentIDs)
         )
         StudentLessonFactory.attachRelationships(
             to: newStudentLesson,

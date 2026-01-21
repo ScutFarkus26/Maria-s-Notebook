@@ -51,7 +51,8 @@ struct ScopedNotesSection: View {
     }
     
     private var studentsByID: [UUID: Student] {
-        Dictionary(uniqueKeysWithValues: availableStudents.map { ($0.id, $0) })
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        Dictionary(availableStudents.uniqueByID.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     private func scopeLabel(for note: Note) -> String {

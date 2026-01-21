@@ -9,7 +9,9 @@ struct MeetingsLogView: View {
     private var allMeetings: [StudentMeeting]
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
-    private var students: [Student]
+    private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
 
     // Filter state
     @State private var selectedStudentIDs: Set<UUID> = []
@@ -25,8 +27,9 @@ struct MeetingsLogView: View {
     }
 
     // Maps for quick lookup
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var studentsByID: [UUID: Student] {
-        Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     // Filtered meetings

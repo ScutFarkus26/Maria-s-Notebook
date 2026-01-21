@@ -27,7 +27,9 @@ struct StudentLessonsRootView: View {
     // OPTIMIZATION: Use lightweight query for change detection only
     @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
     @Query private var lessons: [Lesson]
-    @Query private var students: [Student]
+    @Query private var studentsRaw: [Student]
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var students: [Student] { studentsRaw.uniqueByID }
 
     // OPTIMIZATION: Cached filtered studentLessons loaded with database-level predicates
     @State private var filteredStudentLessons: [StudentLesson] = []
@@ -72,8 +74,9 @@ struct StudentLessonsRootView: View {
         lessonsVM.subjects(from: lessons)
     }
 
+    // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonMap: [UUID: Lesson] {
-        Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
     
     // MARK: - Database-Level Filtering
