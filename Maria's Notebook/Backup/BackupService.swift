@@ -422,7 +422,7 @@ public final class BackupService {
 
         // Import all entities using BackupEntityImporter
         // Note: fetchOne is passed as a closure to avoid storing ModelContext in the importer
-        let studentsByID = try BackupEntityImporter.importStudents(
+        _ = try BackupEntityImporter.importStudents(
             payload.students,
             into: modelContext,
             existingCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }

@@ -133,7 +133,7 @@ final class ToastService: ObservableObject {
         dismissTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(toast.duration * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            await self?.dismiss()
+            self?.dismiss()
         }
     }
 
@@ -214,6 +214,7 @@ struct ToastOverlayModifier: ViewModifier {
 
 extension View {
     /// Add toast overlay support to a view
+    @MainActor
     func toastOverlay(_ service: ToastService = .shared) -> some View {
         modifier(ToastOverlayModifier(toastService: service))
     }

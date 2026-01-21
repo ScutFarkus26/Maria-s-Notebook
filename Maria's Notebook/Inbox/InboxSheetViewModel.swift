@@ -125,6 +125,12 @@ final class InboxSheetViewModel: ObservableObject {
     ) -> Bool {
         guard let itemProvider = providers.first else { return false }
         if itemProvider.canLoadObject(ofClass: NSString.self) {
+            // Capture values as nonisolated(unsafe) to silence Sendable warnings.
+            // This is safe because they are immediately used on MainActor via Task.
+            nonisolated(unsafe) let capturedStudentLessons = studentLessons
+            nonisolated(unsafe) let capturedOrderedUnscheduledLessons = orderedUnscheduledLessons
+            nonisolated(unsafe) let capturedModelContext = modelContext
+
             _ = itemProvider.loadObject(ofClass: NSString.self) { [weak self] reading, _ in
                 guard let ns = reading as? NSString else { return }
                 let raw = ns as String
@@ -133,22 +139,22 @@ final class InboxSheetViewModel: ObservableObject {
                         self?.handleStudentToInboxDrop(
                             payload: raw,
                             location: location,
-                            studentLessons: studentLessons,
-                            orderedUnscheduledLessons: orderedUnscheduledLessons,
+                            studentLessons: capturedStudentLessons,
+                            orderedUnscheduledLessons: capturedOrderedUnscheduledLessons,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: modelContext,
+                            modelContext: capturedModelContext,
                             saveCoordinator: saveCoordinator
                         )
                     } else if let droppedId = UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
                         self?.handleLessonDrop(
                             droppedId: droppedId,
                             location: location,
-                            studentLessons: studentLessons,
-                            orderedUnscheduledLessons: orderedUnscheduledLessons,
+                            studentLessons: capturedStudentLessons,
+                            orderedUnscheduledLessons: capturedOrderedUnscheduledLessons,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: modelContext,
+                            modelContext: capturedModelContext,
                             saveCoordinator: saveCoordinator
                         )
                     }
