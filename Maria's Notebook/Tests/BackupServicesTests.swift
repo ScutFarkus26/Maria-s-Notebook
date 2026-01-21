@@ -878,14 +878,19 @@ struct BackupCodecTests {
 @Suite("Backup Integration Tests", .serialized)
 struct BackupIntegrationTests {
 
+    /// Creates a container with all entity types that BackupService operates on.
+    /// This prevents crashes when BackupService.deleteAll iterates over BackupEntityRegistry.allTypes.
+    private static func makeBackupTestContainer() throws -> ModelContainer {
+        let schema = Schema(BackupEntityRegistry.allTypes)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: [config])
+    }
+
     @Test("Full backup and verify cycle")
     @MainActor
     func testFullBackupAndVerifyCycle() async {
         do {
-            let container = try ModelContainer(
-                for: Student.self, Lesson.self, StudentLesson.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-            )
+            let container = try Self.makeBackupTestContainer()
 
             let ctx = container.mainContext
 
@@ -929,10 +934,7 @@ struct BackupIntegrationTests {
     @MainActor
     func testBackupCompressionEffectiveness() async {
         do {
-            let container = try ModelContainer(
-                for: Student.self, Lesson.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-            )
+            let container = try Self.makeBackupTestContainer()
 
             let ctx = container.mainContext
 
@@ -970,10 +972,7 @@ struct BackupIntegrationTests {
     @MainActor
     func testBackupRestoreDataIntegrity() async {
         do {
-            let container = try ModelContainer(
-                for: Student.self, Lesson.self, Note.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-            )
+            let container = try Self.makeBackupTestContainer()
 
             let ctx = container.mainContext
 
