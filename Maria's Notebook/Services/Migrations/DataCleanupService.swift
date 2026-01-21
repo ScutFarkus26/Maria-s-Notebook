@@ -135,6 +135,39 @@ enum DataCleanupService {
         return deletedCount
     }
 
+    /// Removes duplicate Project records that have the same UUID.
+    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
+    /// Keeps one instance of each project and deletes the duplicates.
+    /// Returns the number of duplicate projects removed.
+    @discardableResult
+    static func deduplicateProjects(using context: ModelContext) -> Int {
+        let fetch = FetchDescriptor<Project>()
+        let allProjects = context.safeFetch(fetch)
+
+        // Group by ID
+        var projectsByID: [UUID: [Project]] = [:]
+        for project in allProjects {
+            projectsByID[project.id, default: []].append(project)
+        }
+
+        var deletedCount = 0
+
+        // For each group with duplicates, keep one and delete the rest
+        for (_, projects) in projectsByID where projects.count > 1 {
+            // Keep the first one (arbitrary, but consistent), delete the rest
+            for duplicate in projects.dropFirst() {
+                context.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        if deletedCount > 0 {
+            context.safeSave()
+        }
+
+        return deletedCount
+    }
+
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
     static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
@@ -317,8 +350,9 @@ enum DataCleanupService {
     /// Runs all data cleanup operations in sequence.
     /// Safe to call repeatedly - each operation is idempotent.
     static func runAllCleanupOperations(using context: ModelContext) async {
-        // Run student deduplication first since other cleanups depend on valid students
+        // Run deduplication first since other cleanups depend on valid data
         deduplicateStudents(using: context)
+        deduplicateProjects(using: context)
         await cleanOrphanedStudentIDs(using: context)
         await cleanOrphanedWorkStudentIDs(using: context)
         deduplicateUnpresentedStudentLessons(using: context)

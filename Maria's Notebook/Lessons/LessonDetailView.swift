@@ -14,6 +14,10 @@ struct LessonDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    private var repository: LessonRepository {
+        LessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
+    }
+
     @State private var isEditing = false
     @State private var draftName: String = ""
     @State private var draftSubject: String = ""
@@ -65,8 +69,7 @@ struct LessonDetailView: View {
         .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 if let url = resolveLessonFileURL() { try? LessonFileStorage.deleteIfManaged(url) }
-                modelContext.delete(lesson)
-                _ = saveCoordinator.save(modelContext, reason: "Delete lesson")
+                try? repository.deleteLesson(id: lesson.id)
                 if let onDone { onDone() } else { dismiss() }
             }
             Button("Cancel", role: .cancel) {}

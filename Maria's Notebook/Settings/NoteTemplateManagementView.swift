@@ -12,6 +12,10 @@ struct NoteTemplateManagementView: View {
     @State private var showingAddSheet = false
     @State private var editingTemplate: NoteTemplate?
 
+    private var repository: NoteTemplateRepository {
+        NoteTemplateRepository(context: modelContext)
+    }
+
     private var builtInTemplates: [NoteTemplate] {
         templates.filter { $0.isBuiltIn }
     }
@@ -111,21 +115,14 @@ struct NoteTemplateManagementView: View {
 
     private func deleteTemplate(_ template: NoteTemplate) {
         withAnimation {
-            modelContext.delete(template)
-            try? modelContext.save()
+            try? repository.deleteTemplate(id: template.id)
         }
     }
 
     private func reorderTemplates(from source: IndexSet, to destination: Int) {
         var reordered = customTemplates
         reordered.move(fromOffsets: source, toOffset: destination)
-
-        // Update sort order for all custom templates
-        for (index, template) in reordered.enumerated() {
-            template.sortOrder = 100 + index // Start at 100 to keep custom templates after built-in
-        }
-
-        try? modelContext.save()
+        repository.reorderTemplates(ids: reordered.map { $0.id })
     }
 }
 

@@ -8,11 +8,15 @@ enum MigrationRunner {
         // Mark as done to avoid reruns while retaining compatibility flags.
         MigrationFlag.markComplete(key: key)
 
-        // Remove duplicate Student records that may have been created by CloudKit sync conflicts.
-        // This must run early before other migrations that depend on student data.
-        let removedDuplicates = DataMigrations.deduplicateStudents(using: context)
-        if removedDuplicates > 0 {
-            print("[MigrationRunner] Removed \(removedDuplicates) duplicate student record(s)")
+        // Remove duplicate records that may have been created by CloudKit sync conflicts.
+        // This must run early before other migrations that depend on clean data.
+        let removedStudents = DataMigrations.deduplicateStudents(using: context)
+        if removedStudents > 0 {
+            print("[MigrationRunner] Removed \(removedStudents) duplicate student record(s)")
+        }
+        let removedProjects = DataMigrations.deduplicateProjects(using: context)
+        if removedProjects > 0 {
+            print("[MigrationRunner] Removed \(removedProjects) duplicate project record(s)")
         }
 
         // Migrate legacy string notes on WorkModels to Note objects

@@ -13,6 +13,10 @@ struct AddStudentView: View {
     @State private var startDate = Date()
     @State private var level: Student.Level = .lower
 
+    private var repository: StudentRepository {
+        StudentRepository(context: modelContext, saveCoordinator: saveCoordinator)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
 
@@ -51,7 +55,7 @@ struct AddStudentView: View {
                 }
 
                 Button("Add") {
-                    let newStudent = Student(
+                    repository.createStudent(
                         firstName: firstName,
                         lastName: lastName,
                         birthday: birthday,
@@ -59,8 +63,7 @@ struct AddStudentView: View {
                         level: level,
                         dateStarted: startDate
                     )
-                    modelContext.insert(newStudent)
-                    if saveCoordinator.save(modelContext, reason: "Adding student") {
+                    if repository.save(reason: "Adding student") {
                         dismiss()
                     }
                 }

@@ -9,7 +9,8 @@ struct ProjectsRootView: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     // MARK: - Data
-    @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)]) private var clubs: [Project]
+    @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)]) private var clubsRaw: [Project]
+    private var clubs: [Project] { clubsRaw.uniqueByID }
     
     // OPTIMIZATION: Removed unfiltered queries - deletion logic uses targeted FetchDescriptor
     // when needed, avoiding loading all records into memory upfront

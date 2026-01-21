@@ -14,6 +14,10 @@ struct StudentDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    private var repository: StudentRepository {
+        StudentRepository(context: modelContext, saveCoordinator: saveCoordinator)
+    }
+
     // MARK: - State
     @StateObject private var vm: StudentDetailViewModel
 
@@ -91,13 +95,16 @@ struct StudentDetailView: View {
         let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !fn.isEmpty, !ln.isEmpty else { return }
         let nick = draftNickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        student.firstName = fn
-        student.lastName = ln
-        student.nickname = nick.isEmpty ? nil : nick
-        student.birthday = draftBirthday
-        student.level = draftLevel
-        student.dateStarted = draftStartDate
-        _ = saveCoordinator.save(modelContext, reason: "Edit student details")
+        repository.updateStudent(
+            id: student.id,
+            firstName: fn,
+            lastName: ln,
+            birthday: draftBirthday,
+            nickname: nick.isEmpty ? "" : nick,
+            level: draftLevel,
+            dateStarted: draftStartDate
+        )
+        _ = repository.save(reason: "Edit student details")
         isEditing = false
     }
 
@@ -167,8 +174,7 @@ struct StudentDetailView: View {
         }
         .alert("Delete Student?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
-                modelContext.delete(student)
-                _ = saveCoordinator.save(modelContext, reason: "Delete student")
+                try? repository.deleteStudent(id: student.id)
                 if let onDone { onDone() } else { dismiss() }
             }
             Button("Cancel", role: .cancel) {}
