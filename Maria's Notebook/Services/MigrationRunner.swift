@@ -18,6 +18,10 @@ enum MigrationRunner {
         if removedProjects > 0 {
             print("[MigrationRunner] Removed \(removedProjects) duplicate project record(s)")
         }
+        let removedRoles = DataMigrations.deduplicateProjectRoles(using: context)
+        if removedRoles > 0 {
+            print("[MigrationRunner] Removed \(removedRoles) duplicate project role record(s)")
+        }
 
         // Migrate legacy string notes on WorkModels to Note objects
         Task { @MainActor in

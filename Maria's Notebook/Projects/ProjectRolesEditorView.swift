@@ -15,8 +15,9 @@ struct ProjectRolesEditorView: View {
     @State private var showEditor: Bool = false
     @State private var editingRole: ProjectRole? = nil
 
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var roles: [ProjectRole] {
-        allRoles.filter { $0.projectID == club.id.uuidString }
+        allRoles.filter { $0.projectID == club.id.uuidString }.uniqueByID
     }
 
     var body: some View {

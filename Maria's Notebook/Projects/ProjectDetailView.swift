@@ -17,7 +17,8 @@ struct ProjectDetailView: View {
     @Query(sort: [SortDescriptor(\ProjectSession.createdAt, order: .forward)]) private var allSessions: [ProjectSession]
     @Query(sort: [SortDescriptor(\ProjectAssignmentTemplate.createdAt, order: .forward)]) private var allTemplates: [ProjectAssignmentTemplate]
 
-    private var roles: [ProjectRole] { allRoles.filter { $0.projectID == club.id.uuidString } }
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+    private var roles: [ProjectRole] { allRoles.filter { $0.projectID == club.id.uuidString }.uniqueByID }
 
     @State private var showNewSession: Bool = false
     @State private var showEditClub: Bool = false

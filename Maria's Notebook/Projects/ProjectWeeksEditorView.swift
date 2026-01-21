@@ -120,8 +120,9 @@ struct ProjectWeekEditorView: View, Identifiable {
         _linkedLessonIDs = State(initialValue: week.linkedLessonIDs)
     }
 
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var roles: [ProjectRole] {
-        allRoles.filter { $0.projectID == club.id.uuidString }
+        allRoles.filter { $0.projectID == club.id.uuidString }.uniqueByID
     }
 
     private var clubMembers: [Student] {

@@ -168,6 +168,39 @@ enum DataCleanupService {
         return deletedCount
     }
 
+    /// Removes duplicate ProjectRole records that have the same UUID.
+    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
+    /// Keeps one instance of each role and deletes the duplicates.
+    /// Returns the number of duplicate roles removed.
+    @discardableResult
+    static func deduplicateProjectRoles(using context: ModelContext) -> Int {
+        let fetch = FetchDescriptor<ProjectRole>()
+        let allRoles = context.safeFetch(fetch)
+
+        // Group by ID
+        var rolesByID: [UUID: [ProjectRole]] = [:]
+        for role in allRoles {
+            rolesByID[role.id, default: []].append(role)
+        }
+
+        var deletedCount = 0
+
+        // For each group with duplicates, keep one and delete the rest
+        for (_, roles) in rolesByID where roles.count > 1 {
+            // Keep the first one (arbitrary, but consistent), delete the rest
+            for duplicate in roles.dropFirst() {
+                context.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        if deletedCount > 0 {
+            context.safeSave()
+        }
+
+        return deletedCount
+    }
+
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
     static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
@@ -353,6 +386,7 @@ enum DataCleanupService {
         // Run deduplication first since other cleanups depend on valid data
         deduplicateStudents(using: context)
         deduplicateProjects(using: context)
+        deduplicateProjectRoles(using: context)
         await cleanOrphanedStudentIDs(using: context)
         await cleanOrphanedWorkStudentIDs(using: context)
         deduplicateUnpresentedStudentLessons(using: context)
