@@ -631,14 +631,18 @@ struct StudentDetailViewModelWorkMethodsTests {
 @MainActor
 struct StudentDetailViewModelToastTests {
 
-    @Test("showToast sets toastMessage")
-    func showToastSetsToastMessage() {
+    @Test("showToast delegates to ToastService")
+    func showToastDelegatesToToastService() {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let vm = StudentDetailViewModel(student: student)
 
+        // Clear any existing toasts
+        ToastService.shared.clearAll()
+
         vm.showToast("Test message")
 
-        #expect(vm.toastMessage == "Test message")
+        // showToast now delegates to the centralized ToastService
+        #expect(ToastService.shared.currentToast?.message == "Test message")
     }
 }
 

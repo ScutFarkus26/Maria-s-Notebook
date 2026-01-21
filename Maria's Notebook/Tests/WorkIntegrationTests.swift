@@ -499,7 +499,8 @@ struct WorkModelWorkTypeTests {
         #expect(allCases.contains(.research))
         #expect(allCases.contains(.followUp))
         #expect(allCases.contains(.practice))
-        #expect(allCases.count == 3)
+        #expect(allCases.contains(.report))
+        #expect(allCases.count == 4)
     }
 
     @Test("WorkType rawValues are correct")
@@ -507,6 +508,7 @@ struct WorkModelWorkTypeTests {
         #expect(WorkModel.WorkType.research.rawValue == "Research")
         #expect(WorkModel.WorkType.followUp.rawValue == "Follow Up")
         #expect(WorkModel.WorkType.practice.rawValue == "Practice")
+        #expect(WorkModel.WorkType.report.rawValue == "Report")
     }
 
     @Test("WorkModel workType getter/setter works")

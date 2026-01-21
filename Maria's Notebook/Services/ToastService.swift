@@ -213,9 +213,8 @@ struct ToastOverlayModifier: ViewModifier {
 }
 
 extension View {
-    /// Add toast overlay support to a view
-    @MainActor
-    func toastOverlay(_ service: ToastService = .shared) -> some View {
+    /// Add toast overlay support to a view (requires explicit service parameter)
+    func toastOverlay(_ service: ToastService) -> some View {
         modifier(ToastOverlayModifier(toastService: service))
     }
 }

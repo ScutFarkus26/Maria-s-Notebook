@@ -51,7 +51,7 @@ struct AppNameTests {
         let _ = status.containerID
 
         // containerID should be a string (possibly empty if not configured)
-        #expect(status.containerID is String)
+        #expect(type(of: status.containerID) == String.self)
     }
 }
 
@@ -121,7 +121,8 @@ struct DatabaseErrorCoordinatorTests {
     @Test("DatabaseErrorCoordinator.shared exists")
     func sharedInstanceExists() {
         let coordinator = DatabaseErrorCoordinator.shared
-        #expect(coordinator != nil)
+        // Verify the shared instance is accessible and functional
+        #expect(type(of: coordinator) == DatabaseErrorCoordinator.self)
     }
 
     @Test("exportDiagnostics includes store URL")

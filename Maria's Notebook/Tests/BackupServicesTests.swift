@@ -95,6 +95,7 @@ struct IncrementalBackupServiceTests {
     }
 
     @Test("Incremental backup metadata codable")
+    @MainActor
     func testIncrementalBackupMetadataCodable() throws {
         let original = IncrementalBackupService.IncrementalBackupMetadata(
             lastBackupDate: Date(),

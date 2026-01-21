@@ -671,6 +671,9 @@ struct SaveCoordinatorIntegrationTests {
         let context = ModelContext(container)
         let coordinator = SaveCoordinator()
 
+        // Clear any existing toasts from previous tests
+        ToastService.shared.clearAll()
+
         let student = makeTestStudent()
         context.insert(student)
 

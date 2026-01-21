@@ -84,10 +84,11 @@ struct WorkModelTests {
     func workTypeHasAllCases() {
         let allCases = WorkModel.WorkType.allCases
 
-        #expect(allCases.count == 3)
+        #expect(allCases.count == 4)
         #expect(allCases.contains(.research))
         #expect(allCases.contains(.followUp))
         #expect(allCases.contains(.practice))
+        #expect(allCases.contains(.report))
     }
 
     // MARK: - Status Tests

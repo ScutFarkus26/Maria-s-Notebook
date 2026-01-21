@@ -187,7 +187,7 @@ struct RootView: View {
         .onChange(of: appRouter.selectedNavItem, handleSelectedNavItemChange)
         .onChange(of: appRouter.selectedTab, handleSelectedTabChange)
         .saveErrorAlert()
-        .toastOverlay()
+        .toastOverlay(ToastService.shared)
         .overlay(alignment: .bottomTrailing) {
             QuickNoteGlassButton(
                 isShowingSheet: $isShowingQuickNote,
