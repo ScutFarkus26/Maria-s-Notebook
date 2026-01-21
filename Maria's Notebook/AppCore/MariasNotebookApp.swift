@@ -381,14 +381,14 @@ struct MariasNotebookApp: App {
                     errorCode: 5001
                 )
                 
-                // At this point, we cannot create a container with the actual schema.
-                // As an absolute last resort, try to create an empty container just so the app can show the error UI.
+                // At this point, we cannot create a container with the actual persistent store.
+                // As a fallback, create an in-memory container with the full schema so the app can show the error UI
+                // without crashing when code attempts to fetch entities like NonSchoolDay.
                 // This is a workaround - the error UI doesn't actually need a real container, but SwiftUI's
                 // .modelContainer() modifier requires a non-optional ModelContainer.
                 do {
-                    let emptySchema = Schema([])
-                    let emptyConfig = ModelConfiguration(isStoredInMemoryOnly: true)
-                    let emptyContainer = try ModelContainer(for: emptySchema, configurations: emptyConfig)
+                    let fallbackConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+                    let fallbackContainer = try ModelContainer(for: schema, configurations: fallbackConfig)
                     
                     // Set the error so the UI can display it
                     MariasNotebookApp.handleCriticalDatabaseInitError(
@@ -397,14 +397,14 @@ struct MariasNotebookApp: App {
                         errorCode: 5001
                     )
                     
-                    return emptyContainer
-                } catch let emptyContainerError {
-                    // Even creating an empty container failed - this should never happen
+                    return fallbackContainer
+                } catch let fallbackContainerError {
+                    // Even creating an in-memory fallback container failed - this should never happen
                     // Set error state instead of crashing so user can recover
                     MariasNotebookApp.handleCriticalDatabaseInitError(
                         originalError: error,
                         finalError: finalError,
-                        emptyContainerError: emptyContainerError,
+                        emptyContainerError: fallbackContainerError,
                         errorCode: 5002
                     )
                     // We still need to return something, so rethrow and let the caller handle it
@@ -412,7 +412,7 @@ struct MariasNotebookApp: App {
                     if let criticalError = MariasNotebookApp.initError as NSError? {
                         throw criticalError
                     } else {
-                        throw emptyContainerError
+                        throw fallbackContainerError
                     }
                 }
             }
@@ -460,19 +460,20 @@ struct MariasNotebookApp: App {
             MariasNotebookApp.initError = unexpectedError
             DatabaseErrorCoordinator.shared.setError(unexpectedError, details: errorDesc)
             
-            // Create an empty container so the app can show the error UI
-            // This is a last resort fallback
+            // Create an in-memory container with full schema so the app can show the error UI
+            // without crashing when code attempts to fetch entities like NonSchoolDay.
+            // This is a last resort fallback.
             do {
-                let emptySchema = Schema([])
-                let emptyConfig = ModelConfiguration(isStoredInMemoryOnly: true)
-                let emptyContainer = try ModelContainer(for: emptySchema, configurations: emptyConfig)
+                let fallbackSchema = AppSchema.schema
+                let fallbackConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+                let fallbackContainer = try ModelContainer(for: fallbackSchema, configurations: fallbackConfig)
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                 UserDefaults.standard.set(unexpectedError.localizedDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
-                return emptyContainer
+                return fallbackContainer
             } catch {
                 // If even this fails, we have no choice but to crash
                 // This should never happen in practice
-                fatalError("CRITICAL: Cannot create any container, including empty one. System failure: \(errorDesc)")
+                fatalError("CRITICAL: Cannot create any container, including fallback. System failure: \(errorDesc)")
             }
         }
     }
