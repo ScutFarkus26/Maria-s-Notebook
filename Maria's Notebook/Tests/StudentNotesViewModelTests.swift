@@ -27,7 +27,7 @@ struct StudentNotesViewModelInitTests {
         context.insert(note)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         #expect(!vm.items.isEmpty)
     }
@@ -41,7 +41,7 @@ struct StudentNotesViewModelInitTests {
         context.insert(student)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         #expect(vm.items.isEmpty)
     }
@@ -72,7 +72,7 @@ struct StudentNotesViewModelPaginationTests {
         }
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         #expect(vm.displayedItems.count <= 30) // Default page size
         #expect(vm.hasMoreItems == true)
@@ -93,7 +93,7 @@ struct StudentNotesViewModelPaginationTests {
         }
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let initialCount = vm.displayedItems.count
 
         vm.loadMoreIfNeeded()
@@ -116,7 +116,7 @@ struct StudentNotesViewModelPaginationTests {
         }
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let initialCount = vm.displayedItems.count
 
         vm.loadMoreIfNeeded()
@@ -140,7 +140,7 @@ struct StudentNotesViewModelPaginationTests {
         }
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         #expect(vm.hasMoreItems == false)
     }
@@ -168,7 +168,7 @@ struct StudentNotesViewModelFilteringTests {
         context.insert(studentNote)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         #expect(vm.items.contains { $0.body == "Student note" })
     }
@@ -185,7 +185,7 @@ struct StudentNotesViewModelFilteringTests {
         context.insert(allNote)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         #expect(vm.items.contains { $0.body == "All students note" })
     }
@@ -204,7 +204,7 @@ struct StudentNotesViewModelFilteringTests {
         context.insert(bobNote)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: alice, modelContext: context)
+        let vm = StudentNotesViewModel(student: alice, modelContext: context, saveCoordinator: SaveCoordinator())
 
         #expect(!vm.items.contains { $0.body == "Bob's note" })
     }
@@ -231,7 +231,7 @@ struct StudentNotesViewModelFilteringTests {
         context.insert(newNote)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         #expect(vm.items.count >= 2)
         // Newest should be first
@@ -258,7 +258,7 @@ struct StudentNotesViewModelAddNoteTests {
         context.insert(student)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         vm.addGeneralNote(body: "New general note")
 
@@ -274,7 +274,7 @@ struct StudentNotesViewModelAddNoteTests {
         context.insert(student)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         vm.addGeneralNote(body: "  Trimmed note  \n")
 
@@ -290,7 +290,7 @@ struct StudentNotesViewModelAddNoteTests {
         context.insert(student)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let initialCount = vm.items.count
 
         vm.addGeneralNote(body: "")
@@ -307,7 +307,7 @@ struct StudentNotesViewModelAddNoteTests {
         context.insert(student)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let initialCount = vm.items.count
 
         vm.addGeneralNote(body: "   \n\t  ")
@@ -338,7 +338,7 @@ struct StudentNotesViewModelDeleteTests {
         context.insert(note)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let itemToDelete = vm.items.first { $0.body == "To be deleted" }!
 
         vm.delete(item: itemToDelete)
@@ -373,7 +373,7 @@ struct StudentNotesViewModelBatchTests {
         context.insert(note3)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let idsToDelete = Set([note1.id, note2.id])
 
         vm.batchDelete(ids: idsToDelete)
@@ -397,7 +397,7 @@ struct StudentNotesViewModelBatchTests {
         context.insert(note2)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let idsToUpdate = Set([note1.id, note2.id])
 
         vm.batchUpdateCategory(.academic, for: idsToUpdate)
@@ -421,7 +421,7 @@ struct StudentNotesViewModelBatchTests {
         context.insert(note2)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let idsToToggle = Set([note1.id, note2.id])
 
         vm.batchToggleReportFlag(for: idsToToggle)
@@ -445,7 +445,7 @@ struct StudentNotesViewModelBatchTests {
         context.insert(note2)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let idsToToggle = Set([note1.id, note2.id])
 
         vm.batchTogglePin(for: idsToToggle)
@@ -478,7 +478,7 @@ struct StudentNotesViewModelNoteLookupTests {
         context.insert(note)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         let found = vm.note(by: note.id)
 
@@ -495,7 +495,7 @@ struct StudentNotesViewModelNoteLookupTests {
         context.insert(student)
         try context.save()
 
-        let vm = StudentNotesViewModel(student: student, modelContext: context)
+        let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
 
         let found = vm.note(by: UUID())
 

@@ -10,7 +10,11 @@ struct DocumentImportSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
-    
+
+    private var repository: DocumentRepository {
+        DocumentRepository(context: modelContext, saveCoordinator: saveCoordinator)
+    }
+
     @State private var title: String
     @State private var category: String = "Progress Report"
     
@@ -60,18 +64,15 @@ struct DocumentImportSheet: View {
     private func saveDocument() {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return }
-        
-        let document = Document(
+
+        repository.createDocument(
             title: trimmedTitle,
             category: category,
-            uploadDate: Date(),
             pdfData: pdfData,
             student: student
         )
-        
-        modelContext.insert(document)
-        _ = saveCoordinator.save(modelContext, reason: "Import document for student")
-        
+        _ = repository.save(reason: "Import document for student")
+
         onSave()
         dismiss()
     }

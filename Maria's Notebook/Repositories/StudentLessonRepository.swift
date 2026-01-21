@@ -73,6 +73,14 @@ struct StudentLessonRepository: SavingRepository {
         )
     }
 
+    /// Fetch active (not yet given) StudentLessons
+    func fetchActiveStudentLessons() -> [StudentLesson] {
+        let predicate = #Predicate<StudentLesson> { sl in
+            sl.givenAt == nil
+        }
+        return fetchStudentLessons(predicate: predicate)
+    }
+
     // MARK: - Create (using StudentLessonFactory)
 
     /// Create an unscheduled StudentLesson (inbox item)
@@ -99,6 +107,23 @@ struct StudentLessonRepository: SavingRepository {
             lesson: lesson,
             students: students
         )
+        context.insert(sl)
+        return sl
+    }
+
+    /// Create an unscheduled StudentLesson with IDs and optional relationship objects for attachment
+    @discardableResult
+    func createUnscheduled(
+        lessonID: UUID,
+        studentIDs: [UUID],
+        lesson: Lesson?,
+        students: [Student]
+    ) -> StudentLesson {
+        let sl = StudentLessonFactory.makeUnscheduled(
+            lessonID: lessonID,
+            studentIDs: studentIDs
+        )
+        StudentLessonFactory.attachRelationships(to: sl, lesson: lesson, students: students)
         context.insert(sl)
         return sl
     }

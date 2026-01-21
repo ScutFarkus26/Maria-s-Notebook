@@ -18,6 +18,10 @@ public struct BulkLessonsEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    private var repository: LessonRepository {
+        LessonRepository(context: modelContext, saveCoordinator: nil)
+    }
+
     @State private var rows: [EntryRow] = []
     @State private var selectedRowIDs: Set<UUID> = []
     @State private var quickSubject: String = ""
@@ -292,36 +296,31 @@ public struct BulkLessonsEntryView: View {
 
         var insertedLessons: [Lesson] = []
         for r in items {
-            let lesson = Lesson(
+            let lesson = repository.createLesson(
                 name: r.name,
                 subject: r.subject,
                 group: r.group,
                 subheading: r.subheading,
-                writeUp: r.writeUp
+                writeUp: r.writeUp,
+                source: batchSource,
+                personalKind: batchSource == .personal ? batchPersonalKind : nil
             )
-            lesson.source = batchSource
-            if batchSource == .personal {
-                lesson.personalKind = batchPersonalKind
-            } else {
-                lesson.personalKind = nil
-            }
-            modelContext.insert(lesson)
             insertedLessons.append(lesson)
         }
         do {
             try modelContext.save()
-            
+
             // Automatically create/update Track objects for new subject/group combinations
             var processedGroups: Set<String> = []
             for lesson in insertedLessons {
                 let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
                 let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !subject.isEmpty && !group.isEmpty else { continue }
-                
+
                 let key = "\(subject)|\(group)"
                 guard !processedGroups.contains(key) else { continue }
                 processedGroups.insert(key)
-                
+
                 if GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
                     do {
                         _ = try GroupTrackService.getOrCreateTrack(
@@ -336,7 +335,7 @@ public struct BulkLessonsEntryView: View {
                     }
                 }
             }
-            
+
             // Save track updates
             try modelContext.save()
         } catch {

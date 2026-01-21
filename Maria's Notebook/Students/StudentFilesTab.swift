@@ -19,7 +19,11 @@ struct StudentFilesTab: View {
     
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
-    
+
+    private var repository: DocumentRepository {
+        DocumentRepository(context: modelContext, saveCoordinator: saveCoordinator)
+    }
+
     @State private var showFileImporter = false
     @State private var selectedImportData: ImportDataWrapper? = nil
     @State private var documentToRename: Document? = nil
@@ -242,8 +246,7 @@ struct StudentFilesTab: View {
     }
     
     private func deleteDocument(_ document: Document) {
-        modelContext.delete(document)
-        _ = saveCoordinator.save(modelContext, reason: "Delete document")
+        try? repository.deleteDocument(id: document.id)
     }
     
     private func renameDocument(_ document: Document) {
@@ -282,10 +285,10 @@ struct StudentFilesTab: View {
         guard let document = documentToRename else { return }
         let trimmedTitle = renameTitleText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return }
-        
-        document.title = trimmedTitle
-        _ = saveCoordinator.save(modelContext, reason: "Rename document")
-        
+
+        repository.updateDocument(id: document.id, title: trimmedTitle)
+        _ = repository.save(reason: "Rename document")
+
         documentToRename = nil
         renameTitleText = ""
         showRenameAlert = false

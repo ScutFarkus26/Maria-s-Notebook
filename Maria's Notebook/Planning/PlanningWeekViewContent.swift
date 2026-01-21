@@ -9,7 +9,11 @@ struct PlanningWeekViewContent: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
-    
+
+    private var studentLessonRepository: StudentLessonRepository {
+        StudentLessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
+    }
+
     // Data provided by the platform-specific parent view
     let inboxLessons: [StudentLesson]
     let lessons: [Lesson]
@@ -84,8 +88,7 @@ struct PlanningWeekViewContent: View {
                     .onDisappear {
                         if let current = fetchStudentLesson(by: id) {
                             if current.lesson == nil && current.studentIDs.isEmpty {
-                                modelContext.delete(current)
-                                saveCoordinator.save(modelContext, reason: "Deleting empty draft")
+                                try? studentLessonRepository.deleteStudentLesson(id: current.id)
                                 onRefreshNeeded?()
                             }
                         }
@@ -132,11 +135,8 @@ struct PlanningWeekViewContent: View {
         if let found = inboxLessons.first(where: { $0.id == id }) {
             return found
         }
-        // If not in inbox, fetch from database
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { $0.id == id }
-        )
-        return try? modelContext.fetch(descriptor).first
+        // If not in inbox, fetch from database via repository
+        return studentLessonRepository.fetchStudentLesson(id: id)
     }
     
     private var days: [Date] {
@@ -195,33 +195,28 @@ struct PlanningWeekViewContent: View {
         guard let idx = candidates.firstIndex(where: { $0.id == currentLesson.id }), idx + 1 < candidates.count else { return }
         let next = candidates[idx + 1]
 
-        // Check for duplicates using a FetchDescriptor
+        // Check for duplicates using the repository
         let nextID = next.id
         let sameStudents = Set(sl.resolvedStudentIDs)
-        
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { existing in
-                existing.givenAt == nil // Only care if it's active (not given)
-            }
-        )
-        let activeLessons = (try? modelContext.fetch(descriptor)) ?? []
+
+        let activeLessons = studentLessonRepository.fetchActiveStudentLessons()
         let exists = activeLessons.contains { existing in
             existing.resolvedLessonID == nextID && Set(existing.resolvedStudentIDs) == sameStudents
         }
-        
+
         guard !exists else { return }
 
-        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
+        let nextLesson = lessons.first(where: { $0.id == next.id })
+        let studentIDUUIDs = sl.studentIDs.compactMap { UUID(uuidString: $0) }
+        let relatedStudents = students.filter { sameStudents.contains($0.id) }
+
+        studentLessonRepository.createUnscheduled(
             lessonID: next.id,
-            studentIDs: sl.studentIDs.compactMap { UUID(uuidString: $0) }
+            studentIDs: studentIDUUIDs,
+            lesson: nextLesson,
+            students: relatedStudents
         )
-        StudentLessonFactory.attachRelationships(
-            to: newStudentLesson,
-            lesson: lessons.first(where: { $0.id == next.id }),
-            students: students.filter { sameStudents.contains($0.id) }
-        )
-        modelContext.insert(newStudentLesson)
-        saveCoordinator.save(modelContext, reason: "Planning next lesson")
+        studentLessonRepository.save(reason: "Planning next lesson")
         onRefreshNeeded?()
     }
     
@@ -269,13 +264,13 @@ struct PlanningWeekViewContent: View {
                         }
                     },
                     onAddNew: {
-                        let newSL = StudentLessonFactory.makeUnscheduled(
+                        let newSL = studentLessonRepository.createUnscheduled(
                             lessonID: UUID(),
-                            studentIDs: []
+                            studentIDs: [],
+                            lesson: nil,
+                            students: []
                         )
-                        newSL.syncSnapshotsFromRelationships()
-                        modelContext.insert(newSL)
-                        saveCoordinator.save(modelContext, reason: "Creating new presentation")
+                        studentLessonRepository.save(reason: "Creating new presentation")
                         activeSheet = .giveLessonDraft(newSL.id)
                         onRefreshNeeded?()
                     }

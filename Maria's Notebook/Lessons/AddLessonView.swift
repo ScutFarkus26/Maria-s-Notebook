@@ -10,6 +10,10 @@ struct AddLessonView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    private var repository: LessonRepository {
+        LessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
+    }
+
     @State private var name: String = ""
     @State private var subject: String = ""
     @State private var group: String = ""
@@ -75,41 +79,36 @@ struct AddLessonView: View {
                 }
 
                 Button("Add") {
-                    let newLesson = Lesson(
+                    let newLesson = repository.createLesson(
                         name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                         subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
                         group: group.trimmingCharacters(in: .whitespacesAndNewlines),
                         subheading: subheading.trimmingCharacters(in: .whitespacesAndNewlines),
-                        writeUp: writeUp
+                        writeUp: writeUp,
+                        source: source,
+                        personalKind: source == .personal ? personalKind : nil
                     )
-                    newLesson.source = source
-                    if source == .personal {
-                        newLesson.personalKind = personalKind
-                    } else {
-                        newLesson.personalKind = nil
-                    }
-                    modelContext.insert(newLesson)
-                    
+
                     // Automatically create/update Track object if lesson belongs to a track
-                    let subject = newLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let group = newLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !subject.isEmpty && !group.isEmpty {
-                        if GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+                    let subjectTrimmed = newLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let groupTrimmed = newLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !subjectTrimmed.isEmpty && !groupTrimmed.isEmpty {
+                        if GroupTrackService.isTrack(subject: subjectTrimmed, group: groupTrimmed, modelContext: modelContext) {
                             do {
                                 _ = try GroupTrackService.getOrCreateTrack(
-                                    subject: subject,
-                                    group: group,
+                                    subject: subjectTrimmed,
+                                    group: groupTrimmed,
                                     modelContext: modelContext
                                 )
                             } catch {
                                 #if DEBUG
-                                print("⚠️ Failed to create/update Track for \(subject)/\(group): \(error)")
+                                print("⚠️ Failed to create/update Track for \(subjectTrimmed)/\(groupTrimmed): \(error)")
                                 #endif
                             }
                         }
                     }
-                    
-                    if saveCoordinator.save(modelContext, reason: "Adding lesson") {
+
+                    if repository.save(reason: "Adding lesson") {
                         dismiss()
                     }
                 }
