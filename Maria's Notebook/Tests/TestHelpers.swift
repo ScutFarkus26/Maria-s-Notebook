@@ -31,6 +31,8 @@ func makeStandardTestContainer() throws -> ModelContainer {
         GroupTrack.self,
         StudentTrackEnrollment.self,
         LessonPresentation.self,
+        NonSchoolDay.self,
+        SchoolDayOverride.self,
     ])
 }
 
