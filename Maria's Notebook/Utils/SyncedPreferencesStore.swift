@@ -16,10 +16,24 @@ import UIKit
 @MainActor
 public final class SyncedPreferencesStore: ObservableObject {
     public static let shared = SyncedPreferencesStore()
-    
+
     private let kvStore = NSUbiquitousKeyValueStore.default
     private let userDefaults = UserDefaults.standard
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "SyncedPreferences")
+
+    // MARK: - Quota Monitoring
+
+    /// Maximum allowed size for iCloud KVS (1MB = 1,048,576 bytes)
+    private static let kvsMaxBytes: Int = 1_048_576
+
+    /// Warning threshold (80% of max = ~838KB)
+    private static let kvsWarningThreshold: Double = 0.80
+
+    /// Published quota status for UI display
+    @Published public private(set) var quotaUsageBytes: Int = 0
+    @Published public private(set) var quotaUsagePercent: Double = 0.0
+    @Published public private(set) var isQuotaWarning: Bool = false
+    @Published public private(set) var isQuotaViolation: Bool = false
     
     /// Keys that should sync across devices
     private static let syncedKeys: Set<String> = [
@@ -62,13 +76,16 @@ public final class SyncedPreferencesStore: ObservableObject {
     private init() {
         // Migrate existing UserDefaults values to KVS on first launch
         migrateFromUserDefaultsIfNeeded()
-        
+
         // Observe external changes (sync from other devices)
         observeExternalChanges()
-        
+
         // Sync changes to KVS
         synchronize()
-        
+
+        // Calculate initial quota usage
+        updateQuotaUsage()
+
         // Set up app lifecycle observers to ensure sync on backgrounding
         #if os(iOS)
         NotificationCenter.default.addObserver(
@@ -166,8 +183,27 @@ public final class SyncedPreferencesStore: ObservableObject {
                             userInfo: ["changedKeys": changedKeys]
                         )
                     }
+                    // Update quota after receiving changes
+                    Task { @MainActor in
+                        self.updateQuotaUsage()
+                    }
+                } else if reason == 2 { // quotaViolationChange - storage limit exceeded
+                    self.logger.error("iCloud KVS quota violation detected!")
+                    Task { @MainActor in
+                        self.isQuotaViolation = true
+                        self.updateQuotaUsage()
+                        // Post notification for UI to display warning
+                        NotificationCenter.default.post(
+                            name: .syncedPreferencesQuotaViolation,
+                            object: self
+                        )
+                    }
+                } else if reason == 3 { // accountChange - user changed iCloud account
+                    self.logger.info("iCloud account changed, reloading preferences")
+                    Task { @MainActor in
+                        self.updateQuotaUsage()
+                    }
                 }
-                // Handle other cases (initialSyncChange, quotaViolationChange, accountChange) if needed
             }
         }
     }
@@ -256,7 +292,70 @@ public final class SyncedPreferencesStore: ObservableObject {
     /// Synchronizes KVS with iCloud
     @discardableResult
     public func synchronize() -> Bool {
-        return kvStore.synchronize()
+        let result = kvStore.synchronize()
+        // Update quota after sync
+        updateQuotaUsage()
+        return result
+    }
+
+    // MARK: - Quota Monitoring
+
+    /// Updates the quota usage metrics by calculating the approximate size of all KVS data
+    public func updateQuotaUsage() {
+        let dict = kvStore.dictionaryRepresentation
+        var totalBytes = 0
+
+        for (key, value) in dict {
+            // Estimate key size (UTF-8 encoded)
+            totalBytes += key.utf8.count
+
+            // Estimate value size based on type
+            totalBytes += estimateSize(of: value)
+        }
+
+        quotaUsageBytes = totalBytes
+        quotaUsagePercent = Double(totalBytes) / Double(Self.kvsMaxBytes)
+        isQuotaWarning = quotaUsagePercent >= Self.kvsWarningThreshold
+
+        if isQuotaWarning && !isQuotaViolation {
+            logger.warning("iCloud KVS usage at \(Int(self.quotaUsagePercent * 100))% (\(totalBytes) bytes)")
+        }
+    }
+
+    /// Estimates the size in bytes of a value stored in KVS
+    private func estimateSize(of value: Any) -> Int {
+        switch value {
+        case let string as String:
+            return string.utf8.count
+        case let data as Data:
+            return data.count
+        case let array as [Any]:
+            return array.reduce(0) { $0 + estimateSize(of: $1) }
+        case let dict as [String: Any]:
+            return dict.reduce(0) { $0 + $1.key.utf8.count + estimateSize(of: $1.value) }
+        case _ as Bool:
+            return 1
+        case _ as Int, _ as Int64:
+            return 8
+        case _ as Double, _ as Float:
+            return 8
+        case let date as Date:
+            // Dates are typically stored as TimeInterval (Double)
+            return 8 + "\(date)".utf8.count
+        default:
+            // Fallback: serialize to estimate
+            if let data = try? NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: false) {
+                return data.count
+            }
+            return 64 // Conservative estimate for unknown types
+        }
+    }
+
+    /// Returns a human-readable string of the current quota usage
+    public var quotaUsageDescription: String {
+        let usedKB = Double(quotaUsageBytes) / 1024.0
+        let maxKB = Double(Self.kvsMaxBytes) / 1024.0
+        return String(format: "%.1f KB / %.0f KB (%.1f%%)", usedKB, maxKB, quotaUsagePercent * 100)
     }
     
     /// Removes a value from synced storage
@@ -328,6 +427,8 @@ public final class SyncedPreferencesStore: ObservableObject {
 extension Notification.Name {
     /// Posted when synced preferences change from another device
     nonisolated public static let syncedPreferencesDidChange = Notification.Name("syncedPreferencesDidChange")
+    /// Posted when iCloud KVS quota is violated (1MB limit exceeded)
+    nonisolated public static let syncedPreferencesQuotaViolation = Notification.Name("syncedPreferencesQuotaViolation")
     /// Posted to request opening a new window
     nonisolated static let openNewWindow = Notification.Name("openNewWindow")
     /// Posted to request focusing the search field (Cmd+F)

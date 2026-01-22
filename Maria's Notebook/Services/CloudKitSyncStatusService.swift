@@ -93,6 +93,20 @@ final class CloudKitSyncStatusService: ObservableObject {
     /// Maximum time to wait for sync confirmation before assuming success (in nanoseconds)
     private let syncTimeoutNanoseconds: UInt64 = 10_000_000_000 // 10 seconds
 
+    // MARK: - Retry Logic
+
+    /// Current retry attempt count for failed syncs
+    private var retryAttempt: Int = 0
+
+    /// Maximum number of retry attempts before giving up
+    private let maxRetryAttempts: Int = 5
+
+    /// Base delay for exponential backoff (in seconds)
+    private let baseRetryDelay: Double = 2.0
+
+    /// Task for retry operations
+    private var retryTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     init() {
@@ -191,15 +205,20 @@ final class CloudKitSyncStatusService: ObservableObject {
 
         if wasAvailable != isICloudAvailable {
             if isICloudAvailable {
-                // User signed into iCloud - clear any offline errors
-                if lastSyncError?.contains("iCloud") == true || lastSyncError?.contains("signed in") == true {
+                // User signed into iCloud - clear any offline errors and retry
+                if lastSyncError?.contains("iCloud") == true || lastSyncError?.contains("signed in") == true || lastSyncError?.contains("Sign into") == true {
                     lastSyncError = nil
                     UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
                 }
+                // Trigger retry for any pending syncs
+                retryPendingSync()
             } else {
                 // User signed out of iCloud
                 lastSyncError = "iCloud account signed out. Sign in to resume syncing."
                 UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+                // Cancel any pending retries
+                retryTask?.cancel()
+                retryTask = nil
             }
             updateSyncHealth()
         }
@@ -228,11 +247,13 @@ final class CloudKitSyncStatusService: ObservableObject {
 
         if wasAvailable != isNetworkAvailable {
             if isNetworkAvailable {
-                // Network restored - trigger a sync if we have pending changes
-                if let error = lastSyncError, error.contains("network") || error.contains("offline") {
+                // Network restored - clear network-related errors and trigger retry
+                if let error = lastSyncError, error.contains("network") || error.contains("offline") || error.contains("Waiting") {
                     lastSyncError = nil
                     UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
                 }
+                // Trigger retry for any pending syncs
+                retryPendingSync()
             }
             updateSyncHealth()
         }
@@ -246,8 +267,11 @@ final class CloudKitSyncStatusService: ObservableObject {
         lastSyncError = nil
         isSyncing = false
         pendingSyncCount = 0
+        retryAttempt = 0 // Reset retry count on success
         syncingTask?.cancel()
         syncingTask = nil
+        retryTask?.cancel()
+        retryTask = nil
 
         // Persist
         UserDefaults.standard.set(lastSuccessfulSync!.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
@@ -403,7 +427,62 @@ final class CloudKitSyncStatusService: ObservableObject {
     /// Clear any stored error state
     func clearError() {
         lastSyncError = nil
+        retryAttempt = 0
+        retryTask?.cancel()
+        retryTask = nil
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
         updateSyncHealth()
+    }
+
+    // MARK: - Retry Logic
+
+    /// Schedules a retry with exponential backoff
+    private func scheduleRetry() {
+        guard retryAttempt < maxRetryAttempts else {
+            lastSyncError = "Sync failed after \(maxRetryAttempts) attempts. Please try again later."
+            UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+            updateSyncHealth()
+            return
+        }
+
+        retryTask?.cancel()
+
+        // Calculate delay with exponential backoff: 2s, 4s, 8s, 16s, 32s
+        let delay = baseRetryDelay * pow(2.0, Double(retryAttempt))
+        retryAttempt += 1
+
+        retryTask = Task { [weak self] in
+            guard let self = self else { return }
+
+            // Wait for the backoff delay
+            let delayNanoseconds = UInt64(delay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            guard !Task.isCancelled else { return }
+
+            // Check if conditions are now favorable
+            guard self.isNetworkAvailable && self.isICloudAvailable else {
+                // Still offline, schedule another retry
+                self.scheduleRetry()
+                return
+            }
+
+            // Attempt sync
+            let success = await self.syncNow()
+            if !success && self.retryAttempt < self.maxRetryAttempts {
+                self.scheduleRetry()
+            }
+        }
+    }
+
+    /// Called when network is restored to trigger pending retries
+    func retryPendingSync() {
+        guard isNetworkAvailable && isICloudAvailable else { return }
+        guard lastSyncError != nil || pendingSyncCount > 0 else { return }
+
+        // Reset retry count and try immediately
+        retryAttempt = 0
+        Task {
+            await syncNow()
+        }
     }
 }

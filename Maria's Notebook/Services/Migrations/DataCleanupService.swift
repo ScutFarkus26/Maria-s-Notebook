@@ -203,6 +203,106 @@ enum DataCleanupService {
         return deletedCount
     }
 
+    /// Removes duplicate Lesson records that have the same UUID.
+    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
+    /// Keeps the first instance (arbitrary, but consistent) and deletes the duplicates.
+    /// Returns the number of duplicate lessons removed.
+    @discardableResult
+    static func deduplicateLessons(using context: ModelContext) -> Int {
+        let fetch = FetchDescriptor<Lesson>()
+        let allLessons = context.safeFetch(fetch)
+
+        // Group by ID
+        var lessonsByID: [UUID: [Lesson]] = [:]
+        for lesson in allLessons {
+            lessonsByID[lesson.id, default: []].append(lesson)
+        }
+
+        var deletedCount = 0
+
+        // For each group with duplicates, keep one and delete the rest
+        for (_, lessons) in lessonsByID where lessons.count > 1 {
+            // Keep the first one (arbitrary, but consistent), delete the rest
+            for duplicate in lessons.dropFirst() {
+                context.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        if deletedCount > 0 {
+            context.safeSave()
+        }
+
+        return deletedCount
+    }
+
+    /// Removes duplicate AttendanceRecord records that have the same UUID.
+    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
+    /// Keeps the first instance and deletes the duplicates.
+    /// Returns the number of duplicate records removed.
+    @discardableResult
+    static func deduplicateAttendanceRecords(using context: ModelContext) -> Int {
+        let fetch = FetchDescriptor<AttendanceRecord>()
+        let allRecords = context.safeFetch(fetch)
+
+        // Group by ID
+        var recordsByID: [UUID: [AttendanceRecord]] = [:]
+        for record in allRecords {
+            recordsByID[record.id, default: []].append(record)
+        }
+
+        var deletedCount = 0
+
+        // For each group with duplicates, keep one and delete the rest
+        for (_, records) in recordsByID where records.count > 1 {
+            // Keep the first one (arbitrary, but consistent), delete the rest
+            for duplicate in records.dropFirst() {
+                context.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        if deletedCount > 0 {
+            context.safeSave()
+        }
+
+        return deletedCount
+    }
+
+    /// Removes duplicate Presentation records that have the same UUID.
+    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
+    /// Keeps the most recently created instance (by createdAt) and deletes the duplicates.
+    /// Returns the number of duplicate presentations removed.
+    @discardableResult
+    static func deduplicatePresentations(using context: ModelContext) -> Int {
+        let fetch = FetchDescriptor<Presentation>()
+        let allPresentations = context.safeFetch(fetch)
+
+        // Group by ID
+        var presentationsByID: [UUID: [Presentation]] = [:]
+        for presentation in allPresentations {
+            presentationsByID[presentation.id, default: []].append(presentation)
+        }
+
+        var deletedCount = 0
+
+        // For each group with duplicates, keep the most recently created and delete the rest
+        for (_, presentations) in presentationsByID where presentations.count > 1 {
+            // Sort by createdAt descending - keep the most recently created
+            let sorted = presentations.sorted { $0.createdAt > $1.createdAt }
+            for duplicate in sorted.dropFirst() {
+                context.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        if deletedCount > 0 {
+            context.safeSave()
+        }
+
+        return deletedCount
+    }
+
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
     static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
@@ -389,6 +489,9 @@ enum DataCleanupService {
         deduplicateStudents(using: context)
         deduplicateProjects(using: context)
         deduplicateProjectRoles(using: context)
+        deduplicateLessons(using: context)
+        deduplicateAttendanceRecords(using: context)
+        deduplicatePresentations(using: context)
         await cleanOrphanedStudentIDs(using: context)
         await cleanOrphanedWorkStudentIDs(using: context)
         deduplicateUnpresentedStudentLessons(using: context)
