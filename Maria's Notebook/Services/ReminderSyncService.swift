@@ -283,10 +283,19 @@ class ReminderSyncService: ObservableObject {
     }
     
     /// Represents a Reminders list with both identifier and display name
-    struct ReminderListInfo: Identifiable, Hashable {
+    struct ReminderListInfo: Identifiable, Hashable, Sendable {
         let identifier: String
         let name: String
         var id: String { identifier }
+
+        nonisolated static func == (lhs: ReminderListInfo, rhs: ReminderListInfo) -> Bool {
+            lhs.identifier == rhs.identifier && lhs.name == rhs.name
+        }
+
+        nonisolated func hash(into hasher: inout Hasher) {
+            hasher.combine(identifier)
+            hasher.combine(name)
+        }
     }
 
     /// Get all available Reminders lists with their identifiers
@@ -457,12 +466,12 @@ class ReminderSyncService: ObservableObject {
     }
 }
 
-enum ReminderSyncError: LocalizedError {
+enum ReminderSyncError: LocalizedError, Equatable {
     case notAuthorized
     case noSyncListConfigured
     case listNotFound(String)
     case modelContextUnavailable
-    
+
     var errorDescription: String? {
         switch self {
         case .notAuthorized:

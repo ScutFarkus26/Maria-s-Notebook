@@ -406,7 +406,7 @@ private struct CompactGridCard<Content: View>: View {
 }
 
 // Ensure RestorePreview is Identifiable for sheets
-extension RestorePreview: @retroactive Identifiable {
+extension RestorePreview: Identifiable {
     public var id: String { "preview" }
 }
 

@@ -40,14 +40,16 @@ public final class BackupSharingService {
         public var password: String?
         public var createTemporaryCopy: Bool
 
-        public static let `default` = SharingOptions(
-            includeMetadata: true,
-            encryptIfUnencrypted: false,
-            password: nil,
-            createTemporaryCopy: true
-        )
+        public nonisolated static var `default`: SharingOptions {
+            SharingOptions(
+                includeMetadata: true,
+                encryptIfUnencrypted: false,
+                password: nil,
+                createTemporaryCopy: true
+            )
+        }
 
-        public init(
+        public nonisolated init(
             includeMetadata: Bool = true,
             encryptIfUnencrypted: Bool = false,
             password: String? = nil,
@@ -98,7 +100,7 @@ public final class BackupSharingService {
     /// - Returns: Prepared share with URL to share
     public func prepareForSharing(
         backupURL: URL,
-        options: SharingOptions = .default
+        options: SharingOptions = SharingOptions.default
     ) async throws -> PreparedShare {
         let access = backupURL.startAccessingSecurityScopedResource()
         defer { if access { backupURL.stopAccessingSecurityScopedResource() } }
@@ -229,6 +231,7 @@ public final class BackupSharingService {
 
     /// Lists all available sharing services for a backup.
     #if os(macOS)
+    @available(macOS, deprecated: 13.0, message: "Use NSSharingServicePicker.standardShareMenuItem instead")
     public func availableSharingServices(for url: URL) -> [NSSharingService] {
         NSSharingService.sharingServices(forItems: [url])
     }

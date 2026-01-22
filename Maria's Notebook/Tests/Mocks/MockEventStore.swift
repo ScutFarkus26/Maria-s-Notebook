@@ -2,6 +2,7 @@
 // Mock implementation for EventKit to test Calendar and Reminder sync services
 
 #if canImport(Testing)
+import Combine
 import Foundation
 import EventKit
 @testable import Maria_s_Notebook

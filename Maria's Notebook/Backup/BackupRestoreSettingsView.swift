@@ -249,7 +249,7 @@ struct BackupRestoreSettingsView: View {
     // MARK: - Progress Bar
 
     private var progressBar: some View {
-        let (progress, message, color): (Double, String, Color) = backupProgress > 0
+        let (progress, _, color): (Double, String, Color) = backupProgress > 0
             ? (backupProgress, backupMessage, .blue)
             : (importProgress, importMessage, .green)
 

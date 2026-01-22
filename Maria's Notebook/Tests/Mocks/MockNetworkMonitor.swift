@@ -2,6 +2,7 @@
 // Mock implementation for network monitoring in tests
 
 #if canImport(Testing)
+import Combine
 import Foundation
 import Network
 @testable import Maria_s_Notebook
@@ -17,7 +18,7 @@ final class MockNetworkPath: @unchecked Sendable {
 
 /// Protocol for network monitoring to enable dependency injection
 protocol NetworkMonitoring: AnyObject {
-    var pathUpdateHandler: ((NWPath) -> Void)? { get set }
+    var pathUpdateHandler: (@Sendable (NWPath) -> Void)? { get set }
     func start(queue: DispatchQueue)
     func cancel()
 }

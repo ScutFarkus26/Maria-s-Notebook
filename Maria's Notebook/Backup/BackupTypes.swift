@@ -763,7 +763,7 @@ public struct BackupSummary: Codable, Hashable, Sendable {
 }
 // MARK: - BackupOperationSummary
 public struct BackupOperationSummary: Identifiable, Sendable {
-    public enum Kind: Sendable {
+    public enum Kind: Sendable, Equatable {
         case export
         case `import`
     }

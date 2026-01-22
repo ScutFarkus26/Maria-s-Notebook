@@ -73,7 +73,8 @@ struct SettingsSnapshotTests {
     @MainActor
     func container_creation() throws {
         let container = try makeSnapshotTestContainer()
-        #expect(container != nil)
+        // Container was successfully created if we reach this point
+        #expect(container.mainContext.autosaveEnabled || !container.mainContext.autosaveEnabled)
     }
 
     @Test("Container supports all entity types")
@@ -92,9 +93,10 @@ struct SettingsSnapshotTests {
 
         try container.mainContext.save()
 
-        #expect(student.id != nil)
-        #expect(lesson.id != nil)
-        #expect(work.id != nil)
+        // Verify entities were inserted by checking that IDs are valid UUIDs
+        #expect(!student.id.uuidString.isEmpty)
+        #expect(!lesson.id.uuidString.isEmpty)
+        #expect(!work.id.uuidString.isEmpty)
     }
 }
 

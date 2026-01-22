@@ -34,13 +34,25 @@ final class CloudKitSyncStatusService: ObservableObject {
 
     // MARK: - Types
 
-    enum SyncHealth: Equatable {
+    enum SyncHealth: Equatable, Sendable {
         case healthy          // Recent successful sync, no errors
         case syncing          // Currently syncing
         case warning          // Minor issues (e.g., slow sync)
         case error(String)    // Sync error occurred
         case offline          // No network or iCloud unavailable
         case unknown          // Status unknown (startup)
+
+        nonisolated static func == (lhs: SyncHealth, rhs: SyncHealth) -> Bool {
+            switch (lhs, rhs) {
+            case (.healthy, .healthy): return true
+            case (.syncing, .syncing): return true
+            case (.warning, .warning): return true
+            case (.error(let l), .error(let r)): return l == r
+            case (.offline, .offline): return true
+            case (.unknown, .unknown): return true
+            default: return false
+            }
+        }
 
         var color: Color {
             switch self {

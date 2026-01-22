@@ -331,7 +331,7 @@ struct NoteRepositoryUpdateTests {
         try context.save()
 
         // Small delay to ensure time difference
-        try? Thread.sleep(forTimeInterval: 0.01)
+        Thread.sleep(forTimeInterval: 0.01)
 
         let repository = NoteRepository(context: context)
         _ = repository.updateNote(id: note.id, body: "Updated content")

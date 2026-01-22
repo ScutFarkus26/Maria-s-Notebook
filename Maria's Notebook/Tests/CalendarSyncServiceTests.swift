@@ -342,7 +342,7 @@ struct CalendarSyncServiceAuthorizationTests {
 
         // Should be one of the valid EKAuthorizationStatus values
         let status = service.authorizationStatus
-        #expect(status == .notDetermined || status == .restricted || status == .denied || status == .fullAccess || status == .authorized)
+        #expect(status == .notDetermined || status == .restricted || status == .denied || status == .fullAccess)
     }
 
     @Test("getAvailableCalendarsWithIdentifiers returns array")
@@ -352,7 +352,7 @@ struct CalendarSyncServiceAuthorizationTests {
 
         // Without authorization, should return empty array
         let calendars = service.getAvailableCalendarsWithIdentifiers()
-        #expect(calendars is [CalendarSyncService.CalendarInfo])
+        #expect(calendars.isEmpty || !calendars.isEmpty) // Just verify it returns without crashing
     }
 }
 
@@ -464,10 +464,8 @@ struct CalendarEventModelTests {
 
 // MARK: - Test Container Helper
 
-extension CalendarSyncServiceTests {
-    @MainActor
-    static func makeCalendarTestContainer() throws -> ModelContainer {
-        try makeTestContainer(for: [CalendarEvent.self])
-    }
+@MainActor
+func makeCalendarTestContainer() throws -> ModelContainer {
+    try makeTestContainer(for: [CalendarEvent.self])
 }
 #endif

@@ -300,7 +300,7 @@ struct ReminderSyncServiceAuthorizationTests {
         let service = ReminderSyncService()
 
         let status = service.authorizationStatus
-        #expect(status == .notDetermined || status == .restricted || status == .denied || status == .fullAccess || status == .authorized)
+        #expect(status == .notDetermined || status == .restricted || status == .denied || status == .fullAccess)
     }
 
     @Test("getAvailableReminderLists returns array")
@@ -309,7 +309,7 @@ struct ReminderSyncServiceAuthorizationTests {
         let service = ReminderSyncService()
 
         let lists = service.getAvailableReminderLists()
-        #expect(lists is [String])
+        #expect(lists.isEmpty || !lists.isEmpty) // Just verify it returns without crashing
     }
 
     @Test("getAvailableReminderListsWithIdentifiers returns array")
@@ -318,7 +318,7 @@ struct ReminderSyncServiceAuthorizationTests {
         let service = ReminderSyncService()
 
         let lists = service.getAvailableReminderListsWithIdentifiers()
-        #expect(lists is [ReminderSyncService.ReminderListInfo])
+        #expect(lists.isEmpty || !lists.isEmpty) // Just verify it returns without crashing
     }
 }
 

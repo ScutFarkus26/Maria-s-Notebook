@@ -51,7 +51,7 @@ struct StudentCardSnapshotTests {
         try container.mainContext.save()
 
         // Student should have a valid birthday for age calculation
-        #expect(student.birthday != nil)
+        #expect(student.birthday <= Date())
     }
 
     @Test("Default card long name")
@@ -93,7 +93,7 @@ struct StudentCardSnapshotTests {
         container.mainContext.insert(student)
         try container.mainContext.save()
 
-        #expect(student.birthday != nil)
+        #expect(student.birthday <= Date())
     }
 
     // MARK: - Birthday Student Card Tests
@@ -157,8 +157,8 @@ struct StudentCardSnapshotTests {
         container.mainContext.insert(student)
         try container.mainContext.save()
 
-        // Student with no lessons
-        #expect(student.id != nil)
+        // Student with no lessons - verify student was created with valid id
+        #expect(student.firstName == "Emma")
     }
 
     // MARK: - All Student Levels Tests

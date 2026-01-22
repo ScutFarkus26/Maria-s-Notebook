@@ -249,11 +249,20 @@ class CalendarSyncService: ObservableObject {
     }
 
     /// Represents a calendar with both identifier and display name
-    struct CalendarInfo: Identifiable, Hashable {
+    struct CalendarInfo: Identifiable, Hashable, Sendable {
         let identifier: String
         let name: String
         let color: CGColor?
         var id: String { identifier }
+
+        nonisolated static func == (lhs: CalendarInfo, rhs: CalendarInfo) -> Bool {
+            lhs.identifier == rhs.identifier && lhs.name == rhs.name
+        }
+
+        nonisolated func hash(into hasher: inout Hasher) {
+            hasher.combine(identifier)
+            hasher.combine(name)
+        }
     }
 
     /// Get all available calendars with their identifiers
@@ -368,7 +377,7 @@ class CalendarSyncService: ObservableObject {
     @Published var isSyncing: Bool = false
 }
 
-enum CalendarSyncError: LocalizedError {
+enum CalendarSyncError: LocalizedError, Equatable {
     case notAuthorized
     case noCalendarConfigured
     case calendarNotFound(String)

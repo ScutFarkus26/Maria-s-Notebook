@@ -430,7 +430,7 @@ public final class IncrementalBackupService {
             payloadBytes = try encoder.encode(payload)
         } else if let compressed = envelope.compressedPayload {
             payloadBytes = try codec.decompress(compressed)
-        } else if let encrypted = envelope.encryptedPayload {
+        } else if envelope.encryptedPayload != nil {
             // Can't consolidate encrypted backups without password
             throw NSError(domain: "IncrementalBackupService", code: 2, userInfo: [
                 NSLocalizedDescriptionKey: "Cannot consolidate encrypted backup without password"
