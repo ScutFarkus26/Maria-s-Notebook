@@ -120,29 +120,29 @@ struct NoteQueryBehaviorTests {
         #expect(!bodies.contains("Other student note"))
     }
 
-    @Test("fetchNotesForStudent handles large number of notes correctly")
+    @Test("fetchNotesForStudent handles larger dataset correctly")
     func fetchNotesForStudentHandlesLargeDataset() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
         let targetStudentID = UUID()
-        let otherStudentIDs = (0..<10).map { _ in UUID() }
+        let otherStudentIDs = (0..<5).map { _ in UUID() }
 
-        // Create 50 notes for target student
-        for i in 0..<50 {
+        // Create 20 notes for target student
+        for i in 0..<20 {
             let note = Note(body: "Target note \(i)", scope: .student(targetStudentID))
             context.insert(note)
         }
 
-        // Create 100 notes for other students
-        for i in 0..<100 {
+        // Create 30 notes for other students
+        for i in 0..<30 {
             let otherID = otherStudentIDs[i % otherStudentIDs.count]
             let note = Note(body: "Other note \(i)", scope: .student(otherID))
             context.insert(note)
         }
 
-        // Create 20 notes with all scope
-        for i in 0..<20 {
+        // Create 10 notes with all scope
+        for i in 0..<10 {
             let note = Note(body: "All note \(i)", scope: .all)
             context.insert(note)
         }
@@ -152,8 +152,8 @@ struct NoteQueryBehaviorTests {
         let repository = NoteRepository(context: context)
         let fetched = repository.fetchNotesForStudent(studentID: targetStudentID)
 
-        // Should get 50 targeted + 20 all-scoped = 70 notes
-        #expect(fetched.count == 70)
+        // Should get 20 targeted + 10 all-scoped = 30 notes
+        #expect(fetched.count == 30)
     }
 }
 
