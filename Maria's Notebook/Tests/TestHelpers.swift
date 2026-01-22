@@ -219,4 +219,265 @@ func makeTestLessonSet() -> [Lesson] {
     ]
 }
 
+// MARK: - Sync Testing Model Factories
+
+/// Creates a test CalendarEvent with sensible defaults
+func makeTestCalendarEvent(
+    id: UUID = UUID(),
+    title: String = "Test Event",
+    startDate: Date = Date(),
+    endDate: Date = Date().addingTimeInterval(3600),
+    location: String? = nil,
+    notes: String? = nil,
+    isAllDay: Bool = false,
+    eventKitEventID: String? = nil,
+    eventKitCalendarID: String? = nil,
+    lastSyncedAt: Date? = nil
+) -> CalendarEvent {
+    return CalendarEvent(
+        id: id,
+        title: title,
+        startDate: startDate,
+        endDate: endDate,
+        location: location,
+        notes: notes,
+        isAllDay: isAllDay,
+        eventKitEventID: eventKitEventID,
+        eventKitCalendarID: eventKitCalendarID,
+        lastSyncedAt: lastSyncedAt
+    )
+}
+
+/// Creates a test Reminder with sensible defaults
+func makeTestReminder(
+    id: UUID = UUID(),
+    title: String = "Test Reminder",
+    notes: String? = nil,
+    dueDate: Date? = nil,
+    isCompleted: Bool = false,
+    completedAt: Date? = nil,
+    createdAt: Date = Date(),
+    updatedAt: Date = Date(),
+    eventKitReminderID: String? = nil,
+    eventKitCalendarID: String? = nil,
+    lastSyncedAt: Date? = nil
+) -> Reminder {
+    return Reminder(
+        id: id,
+        title: title,
+        notes: notes,
+        dueDate: dueDate,
+        isCompleted: isCompleted,
+        completedAt: completedAt,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        eventKitReminderID: eventKitReminderID,
+        eventKitCalendarID: eventKitCalendarID,
+        lastSyncedAt: lastSyncedAt
+    )
+}
+
+// MARK: - Sync Testing Utilities
+
+/// A helper class for managing UserDefaults state in tests
+/// Automatically saves and restores UserDefaults state for clean test isolation
+final class UserDefaultsTestHelper {
+    private var savedValues: [String: Any?] = [:]
+    private let keys: [String]
+
+    /// Initialize with keys to save/restore
+    init(keys: [String]) {
+        self.keys = keys
+    }
+
+    /// Save current UserDefaults values for the tracked keys
+    func saveState() {
+        for key in keys {
+            savedValues[key] = UserDefaults.standard.object(forKey: key)
+        }
+    }
+
+    /// Restore saved UserDefaults values
+    func restoreState() {
+        for key in keys {
+            if let value = savedValues[key] {
+                if let value = value {
+                    UserDefaults.standard.set(value, forKey: key)
+                } else {
+                    UserDefaults.standard.removeObject(forKey: key)
+                }
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+    }
+
+    /// Clear all tracked keys from UserDefaults
+    func clearAll() {
+        for key in keys {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+}
+
+/// Common UserDefaults keys used in CloudKit sync testing
+struct CloudKitSyncTestKeys {
+    static let all: [String] = [
+        UserDefaultsKeys.enableCloudKitSync,
+        UserDefaultsKeys.cloudKitActive,
+        UserDefaultsKeys.cloudKitLastSuccessfulSyncDate,
+        UserDefaultsKeys.cloudKitLastSyncError
+    ]
+}
+
+/// Common UserDefaults keys used in Calendar sync testing
+struct CalendarSyncTestKeys {
+    static let all: [String] = [
+        "CalendarSync.syncCalendarIdentifiers",
+        "CalendarSync.syncCalendarNames",
+        "CalendarSync.syncCalendarIdentifier",
+        "CalendarSync.syncCalendarName"
+    ]
+}
+
+/// Common UserDefaults keys used in Reminder sync testing
+struct ReminderSyncTestKeys {
+    static let all: [String] = [
+        "ReminderSync.syncListIdentifier",
+        "ReminderSync.syncListName"
+    ]
+}
+
+// MARK: - Async Testing Utilities
+
+/// Waits for a condition to become true with timeout
+/// - Parameters:
+///   - timeout: Maximum time to wait in seconds
+///   - interval: Polling interval in seconds
+///   - condition: The condition to check
+/// - Returns: True if condition became true, false if timed out
+func waitFor(
+    timeout: TimeInterval = 5.0,
+    interval: TimeInterval = 0.1,
+    condition: @escaping () -> Bool
+) async -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if condition() {
+            return true
+        }
+        try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+    }
+    return false
+}
+
+/// Waits for an async condition to become true with timeout
+/// - Parameters:
+///   - timeout: Maximum time to wait in seconds
+///   - interval: Polling interval in seconds
+///   - condition: The async condition to check
+/// - Returns: True if condition became true, false if timed out
+func waitForAsync(
+    timeout: TimeInterval = 5.0,
+    interval: TimeInterval = 0.1,
+    condition: @escaping () async -> Bool
+) async -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if await condition() {
+            return true
+        }
+        try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+    }
+    return false
+}
+
+// MARK: - Test Calendar Extended
+
+/// Extended test calendar utilities for sync testing
+extension TestCalendar {
+    /// Creates a date in the near future (for due dates)
+    static func tomorrow(hour: Int = 9, minute: Int = 0) -> Date {
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        return Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: tomorrow)!
+    }
+
+    /// Creates a date in the past (for testing old sync dates)
+    static func daysAgo(_ days: Int) -> Date {
+        return Calendar.current.date(byAdding: .day, value: -days, to: Date())!
+    }
+
+    /// Creates a date in the future
+    static func daysFromNow(_ days: Int) -> Date {
+        return Calendar.current.date(byAdding: .day, value: days, to: Date())!
+    }
+
+    /// Creates a date with specific hours ago (for sync timing tests)
+    static func hoursAgo(_ hours: Int) -> Date {
+        return Calendar.current.date(byAdding: .hour, value: -hours, to: Date())!
+    }
+
+    /// Creates a date with specific minutes ago (for throttle tests)
+    static func minutesAgo(_ minutes: Int) -> Date {
+        return Calendar.current.date(byAdding: .minute, value: -minutes, to: Date())!
+    }
+}
+
+// MARK: - Sync Test Data Sets
+
+/// Creates a set of test calendar events for sync testing
+func makeTestCalendarEventSet(calendarID: String = "test-calendar") -> [CalendarEvent] {
+    let now = Date()
+    return [
+        makeTestCalendarEvent(
+            title: "Morning Meeting",
+            startDate: TestCalendar.tomorrow(hour: 9),
+            endDate: TestCalendar.tomorrow(hour: 10),
+            location: "Conference Room A",
+            eventKitEventID: "ek-event-1",
+            eventKitCalendarID: calendarID
+        ),
+        makeTestCalendarEvent(
+            title: "Lunch Break",
+            startDate: TestCalendar.tomorrow(hour: 12),
+            endDate: TestCalendar.tomorrow(hour: 13),
+            eventKitEventID: "ek-event-2",
+            eventKitCalendarID: calendarID
+        ),
+        makeTestCalendarEvent(
+            title: "All Day Conference",
+            startDate: Calendar.current.startOfDay(for: now),
+            endDate: Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: now))!,
+            isAllDay: true,
+            eventKitEventID: "ek-event-3",
+            eventKitCalendarID: calendarID
+        ),
+    ]
+}
+
+/// Creates a set of test reminders for sync testing
+func makeTestReminderSet(listID: String = "test-reminder-list") -> [Reminder] {
+    return [
+        makeTestReminder(
+            title: "Buy groceries",
+            dueDate: TestCalendar.tomorrow(),
+            eventKitReminderID: "ek-reminder-1",
+            eventKitCalendarID: listID
+        ),
+        makeTestReminder(
+            title: "Call dentist",
+            notes: "Schedule annual checkup",
+            eventKitReminderID: "ek-reminder-2",
+            eventKitCalendarID: listID
+        ),
+        makeTestReminder(
+            title: "Completed task",
+            isCompleted: true,
+            completedAt: TestCalendar.daysAgo(1),
+            eventKitReminderID: "ek-reminder-3",
+            eventKitCalendarID: listID
+        ),
+    ]
+}
+
 #endif

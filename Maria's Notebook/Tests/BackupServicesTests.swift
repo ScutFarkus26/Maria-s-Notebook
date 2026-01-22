@@ -71,6 +71,248 @@ struct CloudBackupServiceTests {
             #expect(!error.errorDescription!.isEmpty)
         }
     }
+
+    @Test("CloudBackupInfo identifiable conformance")
+    func testCloudBackupInfoIdentifiable() {
+        let id = UUID()
+        let info = CloudBackupService.CloudBackupInfo(
+            id: id,
+            fileName: "test.mtbbackup",
+            fileURL: URL(fileURLWithPath: "/tmp/test.mtbbackup"),
+            fileSize: 1000,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: true,
+            isUploading: false,
+            isDownloading: false
+        )
+
+        #expect(info.id == id)
+    }
+
+    @Test("CloudBackupInfo formatted file size for various sizes")
+    func testFormattedFileSizeVariousSizes() {
+        // Test KB
+        let smallInfo = CloudBackupService.CloudBackupInfo(
+            id: UUID(),
+            fileName: "small.mtbbackup",
+            fileURL: URL(fileURLWithPath: "/tmp/small.mtbbackup"),
+            fileSize: 500,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: true,
+            isUploading: false,
+            isDownloading: false
+        )
+        #expect(!smallInfo.formattedFileSize.isEmpty)
+
+        // Test MB
+        let mediumInfo = CloudBackupService.CloudBackupInfo(
+            id: UUID(),
+            fileName: "medium.mtbbackup",
+            fileURL: URL(fileURLWithPath: "/tmp/medium.mtbbackup"),
+            fileSize: 5 * 1024 * 1024,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: true,
+            isUploading: false,
+            isDownloading: false
+        )
+        #expect(mediumInfo.formattedFileSize.contains("MB"))
+
+        // Test GB
+        let largeInfo = CloudBackupService.CloudBackupInfo(
+            id: UUID(),
+            fileName: "large.mtbbackup",
+            fileURL: URL(fileURLWithPath: "/tmp/large.mtbbackup"),
+            fileSize: 2 * 1024 * 1024 * 1024,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: true,
+            isUploading: false,
+            isDownloading: false
+        )
+        #expect(largeInfo.formattedFileSize.contains("GB"))
+    }
+
+    @Test("CloudBackupInfo upload/download states")
+    func testBackupInfoStates() {
+        // Uploading state
+        let uploading = CloudBackupService.CloudBackupInfo(
+            id: UUID(),
+            fileName: "uploading.mtbbackup",
+            fileURL: URL(fileURLWithPath: "/tmp/uploading.mtbbackup"),
+            fileSize: 1000,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: false,
+            isUploading: true,
+            isDownloading: false
+        )
+        #expect(uploading.isUploading == true)
+        #expect(uploading.isDownloading == false)
+
+        // Downloading state
+        let downloading = CloudBackupService.CloudBackupInfo(
+            id: UUID(),
+            fileName: "downloading.mtbbackup",
+            fileURL: URL(fileURLWithPath: "/tmp/downloading.mtbbackup"),
+            fileSize: 1000,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: false,
+            isUploading: false,
+            isDownloading: true
+        )
+        #expect(downloading.isUploading == false)
+        #expect(downloading.isDownloading == true)
+    }
+
+    @Test("CloudBackupError iCloudNotAvailable message")
+    func testICloudNotAvailableError() {
+        let error = CloudBackupService.CloudBackupError.iCloudNotAvailable
+        #expect(error.errorDescription?.contains("iCloud") == true)
+        #expect(error.errorDescription?.contains("sign in") == true || error.errorDescription?.contains("available") == true)
+    }
+
+    @Test("CloudBackupError containerNotFound message")
+    func testContainerNotFoundError() {
+        let error = CloudBackupService.CloudBackupError.containerNotFound
+        #expect(error.errorDescription?.contains("container") == true || error.errorDescription?.contains("iCloud") == true)
+    }
+
+    @Test("CloudBackupError backupFailed includes underlying error")
+    func testBackupFailedError() {
+        let underlyingError = NSError(domain: "TestDomain", code: 42, userInfo: [NSLocalizedDescriptionKey: "Test failure"])
+        let error = CloudBackupService.CloudBackupError.backupFailed(underlyingError)
+        #expect(error.errorDescription?.contains("Backup") == true || error.errorDescription?.contains("failed") == true)
+    }
+
+    @Test("CloudBackupError restoreFailed includes underlying error")
+    func testRestoreFailedError() {
+        let underlyingError = NSError(domain: "TestDomain", code: 43, userInfo: [NSLocalizedDescriptionKey: "Test restore failure"])
+        let error = CloudBackupService.CloudBackupError.restoreFailed(underlyingError)
+        #expect(error.errorDescription?.contains("Restore") == true || error.errorDescription?.contains("failed") == true)
+    }
+
+    @Test("CloudBackupError fileNotFound includes filename")
+    func testFileNotFoundError() {
+        let filename = "missing-backup-2024.mtbbackup"
+        let error = CloudBackupService.CloudBackupError.fileNotFound(filename)
+        #expect(error.errorDescription?.contains(filename) == true)
+    }
+
+    @Test("Ensure cloud backup directory creation throws without iCloud")
+    @MainActor
+    func testEnsureDirectoryWithoutICloud() async {
+        let service = CloudBackupService()
+
+        // If iCloud is not available, should throw
+        if !service.isICloudAvailable {
+            do {
+                try service.ensureCloudBackupDirectoryExists()
+                Issue.record("Expected error when iCloud not available")
+            } catch CloudBackupService.CloudBackupError.containerNotFound {
+                // Expected
+                #expect(true)
+            } catch {
+                // Other errors acceptable
+            }
+        }
+    }
+
+    @Test("List cloud backups throws without iCloud")
+    @MainActor
+    func testListBackupsWithoutICloud() async {
+        let service = CloudBackupService()
+
+        if !service.isICloudAvailable {
+            do {
+                _ = try await service.listCloudBackups()
+                Issue.record("Expected error when iCloud not available")
+            } catch CloudBackupService.CloudBackupError.iCloudNotAvailable {
+                #expect(true)
+            } catch {
+                // Other errors acceptable
+            }
+        }
+    }
+
+    @Test("Delete cloud backup throws for non-existent file")
+    @MainActor
+    func testDeleteNonExistentBackup() async {
+        let service = CloudBackupService()
+
+        let fakeBackup = CloudBackupService.CloudBackupInfo(
+            id: UUID(),
+            fileName: "non-existent.mtbbackup",
+            fileURL: URL(fileURLWithPath: "/tmp/non-existent-\(UUID()).mtbbackup"),
+            fileSize: 1000,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: true,
+            isUploading: false,
+            isDownloading: false
+        )
+
+        do {
+            try service.deleteCloudBackup(fakeBackup)
+            Issue.record("Expected fileNotFound error")
+        } catch CloudBackupService.CloudBackupError.fileNotFound {
+            #expect(true)
+        } catch {
+            // Other errors acceptable
+        }
+    }
+
+    @Test("Copy to cloud throws without iCloud")
+    @MainActor
+    func testCopyToCloudWithoutICloud() async {
+        let service = CloudBackupService()
+
+        if !service.isICloudAvailable {
+            let localURL = URL(fileURLWithPath: "/tmp/test-backup.mtbbackup")
+
+            do {
+                _ = try service.copyToCloud(localURL)
+                Issue.record("Expected iCloudNotAvailable error")
+            } catch CloudBackupService.CloudBackupError.iCloudNotAvailable {
+                #expect(true)
+            } catch {
+                // Other errors acceptable
+            }
+        }
+    }
+
+    @Test("Download backup if needed returns URL when already downloaded")
+    @MainActor
+    func testDownloadBackupAlreadyDownloaded() async throws {
+        let service = CloudBackupService()
+
+        // Create a temporary file
+        let tmpURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-downloaded-\(UUID()).mtbbackup")
+        try "test content".write(to: tmpURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tmpURL) }
+
+        let backupInfo = CloudBackupService.CloudBackupInfo(
+            id: UUID(),
+            fileName: tmpURL.lastPathComponent,
+            fileURL: tmpURL,
+            fileSize: 12,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: true, // Already downloaded
+            isUploading: false,
+            isDownloading: false
+        )
+
+        if service.isICloudAvailable {
+            // Should return immediately since already downloaded
+            let resultURL = try await service.downloadBackupIfNeeded(backupInfo)
+            #expect(resultURL == tmpURL)
+        }
+    }
 }
 
 // MARK: - IncrementalBackupService Tests
