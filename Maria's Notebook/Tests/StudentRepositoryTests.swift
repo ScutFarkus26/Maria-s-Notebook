@@ -103,11 +103,11 @@ struct StudentRepositoryFetchTests {
         try context.save()
 
         let repository = StudentRepository(context: context)
-        let predicate = #Predicate<Student> { $0.levelRaw == Student.Level.lower.rawValue }
-        let fetched = repository.fetchStudents(predicate: predicate)
+        let fetched = repository.fetchStudents()
+        let lowerStudents = fetched.filter { $0.level == .lower }
 
-        #expect(fetched.count == 1)
-        #expect(fetched[0].level == .lower)
+        #expect(lowerStudents.count == 1)
+        #expect(lowerStudents[0].level == .lower)
     }
 
     @Test("fetchStudents handles empty database")

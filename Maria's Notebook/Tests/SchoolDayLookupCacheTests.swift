@@ -142,7 +142,7 @@ struct SchoolDayLookupCacheNonSchoolDayTests {
         let saturday = calendar.date(from: components)!
 
         // Add override to make Saturday a school day
-        let override = SchoolDayOverride(date: saturday, reason: "Make-up day")
+        let override = SchoolDayOverride(date: saturday, note: "Make-up day")
         context.insert(override)
         try context.save()
 

@@ -22,7 +22,7 @@ private func makeStatsContainer() throws -> ModelContainer {
 
 private func makeTestMeeting(
     id: UUID = UUID(),
-    studentID: String = "",
+    studentID: UUID = UUID(),
     date: Date = Date()
 ) -> StudentMeeting {
     return StudentMeeting(
@@ -34,14 +34,19 @@ private func makeTestMeeting(
 
 private func makeTestPresentationModel(
     id: UUID = UUID(),
+    createdAt: Date = Date(),
+    presentedAt: Date = Date(),
+    lessonID: String = "test-lesson",
     studentIDs: [String] = [],
-    presentedAt: Date = Date()
+    trackID: String? = nil
 ) -> Presentation {
     return Presentation(
         id: id,
-        trackID: "",
+        createdAt: createdAt,
+        presentedAt: presentedAt,
+        lessonID: lessonID,
         studentIDs: studentIDs,
-        presentedAt: presentedAt
+        trackID: trackID
     )
 }
 

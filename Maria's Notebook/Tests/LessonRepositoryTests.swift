@@ -187,7 +187,7 @@ struct LessonRepositoryCreateTests {
             orderInGroup: 5,
             sortIndex: 10,
             source: .personal,
-            personalKind: .extension
+            personalKind: .external
         )
 
         #expect(lesson.name == "Long Division")
@@ -196,8 +196,8 @@ struct LessonRepositoryCreateTests {
         #expect(lesson.writeUp == "Detailed instructions for long division")
         #expect(lesson.orderInGroup == 5)
         #expect(lesson.sortIndex == 10)
-        #expect(lesson.source == .personal)
-        #expect(lesson.personalKind == .extension)
+        #expect(lesson.source == LessonSource.personal)
+        #expect(lesson.personalKind == PersonalLessonKind.external)
     }
 
     @Test("createLesson persists to context")

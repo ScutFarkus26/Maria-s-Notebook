@@ -171,11 +171,11 @@ struct NoteTemplateRepositoryCreateTests {
         let template = repository.createTemplate(
             title: "Observation",
             body: "The student demonstrated...",
-            category: .observation,
+            category: .behavioral,
             sortOrder: 50
         )
 
-        #expect(template.category == .observation)
+        #expect(template.category == .behavioral)
         #expect(template.sortOrder == 50)
     }
 
@@ -263,10 +263,10 @@ struct NoteTemplateRepositoryUpdateTests {
         try context.save()
 
         let repository = NoteTemplateRepository(context: context)
-        let result = repository.updateTemplate(id: template.id, category: .observation)
+        let result = repository.updateTemplate(id: template.id, category: .behavioral)
 
         #expect(result == true)
-        #expect(template.category == .observation)
+        #expect(template.category == .behavioral)
     }
 
     @Test("updateTemplate updates sortOrder")
@@ -317,7 +317,7 @@ struct NoteTemplateRepositoryUpdateTests {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let template = NoteTemplate(title: "Original", body: "Original body", category: .observation, isBuiltIn: false)
+        let template = NoteTemplate(title: "Original", body: "Original body", category: .behavioral, isBuiltIn: false)
         context.insert(template)
         try context.save()
 
@@ -326,7 +326,7 @@ struct NoteTemplateRepositoryUpdateTests {
 
         #expect(template.title == "Updated")
         #expect(template.body == "Original body") // Unchanged
-        #expect(template.category == .observation) // Unchanged
+        #expect(template.category == .behavioral) // Unchanged
     }
 }
 

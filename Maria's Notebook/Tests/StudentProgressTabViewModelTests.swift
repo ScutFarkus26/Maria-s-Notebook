@@ -36,90 +36,98 @@ private func makeTestTrack(
 
 private func makeTestTrackStep(
     id: UUID = UUID(),
+    track: Track? = nil,
     orderIndex: Int = 0,
-    lessonTemplateID: UUID? = nil,
-    track: Track? = nil
+    lessonTemplateID: UUID? = nil
 ) -> TrackStep {
     return TrackStep(
         id: id,
+        track: track,
         orderIndex: orderIndex,
-        lessonTemplateID: lessonTemplateID,
-        track: track
+        lessonTemplateID: lessonTemplateID
     )
 }
 
 private func makeTestEnrollment(
     id: UUID = UUID(),
+    createdAt: Date = Date(),
     studentID: String,
     trackID: String,
-    isActive: Bool = true,
-    createdAt: Date = Date()
+    isActive: Bool = true
 ) -> StudentTrackEnrollment {
     return StudentTrackEnrollment(
         id: id,
+        createdAt: createdAt,
         studentID: studentID,
         trackID: trackID,
-        isActive: isActive,
-        createdAt: createdAt
+        isActive: isActive
     )
 }
 
 private func makeTestProject(
     id: UUID = UUID(),
+    createdAt: Date = Date(),
     title: String = "Test Project",
     memberStudentIDs: [String] = [],
-    isActive: Bool = true,
-    createdAt: Date = Date()
+    isActive: Bool = true
 ) -> Project {
     return Project(
         id: id,
+        createdAt: createdAt,
         title: title,
         memberStudentIDs: memberStudentIDs,
-        isActive: isActive,
-        createdAt: createdAt
+        isActive: isActive
     )
 }
 
 private func makeTestPresentation(
     id: UUID = UUID(),
-    trackID: String = "",
+    createdAt: Date = Date(),
+    presentedAt: Date = Date(),
+    lessonID: String = "test-lesson",
     studentIDs: [String] = [],
-    presentedAt: Date = Date()
+    trackID: String? = nil
 ) -> Presentation {
     return Presentation(
         id: id,
-        trackID: trackID,
+        createdAt: createdAt,
+        presentedAt: presentedAt,
+        lessonID: lessonID,
         studentIDs: studentIDs,
-        presentedAt: presentedAt
+        trackID: trackID
     )
 }
 
+@MainActor
 private func makeTestNote(
     id: UUID = UUID(),
+    createdAt: Date = Date(),
+    updatedAt: Date = Date(),
     body: String = "Test note",
-    studentTrackEnrollment: StudentTrackEnrollment? = nil,
-    updatedAt: Date = Date()
+    studentTrackEnrollment: StudentTrackEnrollment? = nil
 ) -> Note {
     return Note(
         id: id,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
         body: body,
         scope: .all,
-        studentTrackEnrollment: studentTrackEnrollment,
-        updatedAt: updatedAt
+        studentTrackEnrollment: studentTrackEnrollment
     )
 }
 
 private func makeTestLessonPresentation(
     id: UUID = UUID(),
+    createdAt: Date = Date(),
     studentID: String,
     lessonID: String,
     state: LessonPresentationState = .presented
 ) -> LessonPresentation {
     return LessonPresentation(
         id: id,
+        createdAt: createdAt,
         studentID: studentID,
         lessonID: lessonID,
-        presentationID: nil,
         state: state,
         presentedAt: Date(),
         lastObservedAt: Date(),
@@ -355,12 +363,12 @@ struct StudentProgressTabViewModelTrackStatsTests {
         context.insert(track)
 
         let presentation1 = makeTestPresentation(
-            trackID: track.id.uuidString,
-            studentIDs: [student.id.uuidString]
+            studentIDs: [student.id.uuidString],
+            trackID: track.id.uuidString
         )
         let presentation2 = makeTestPresentation(
-            trackID: track.id.uuidString,
-            studentIDs: [student.id.uuidString]
+            studentIDs: [student.id.uuidString],
+            trackID: track.id.uuidString
         )
         context.insert(presentation1)
         context.insert(presentation2)
@@ -437,8 +445,8 @@ struct StudentProgressTabViewModelTrackStatsTests {
         context.insert(track)
 
         let presentation = makeTestPresentation(
-            trackID: track.id.uuidString,
-            studentIDs: [student.id.uuidString]
+            studentIDs: [student.id.uuidString],
+            trackID: track.id.uuidString
         )
         context.insert(presentation)
 
@@ -506,8 +514,8 @@ struct StudentProgressTabViewModelTrackProgressTests {
         context.insert(lesson1)
         context.insert(lesson2)
 
-        let step1 = makeTestTrackStep(orderIndex: 0, lessonTemplateID: lesson1.id, track: track)
-        let step2 = makeTestTrackStep(orderIndex: 1, lessonTemplateID: lesson2.id, track: track)
+        let step1 = makeTestTrackStep(track: track, orderIndex: 0, lessonTemplateID: lesson1.id)
+        let step2 = makeTestTrackStep(track: track, orderIndex: 1, lessonTemplateID: lesson2.id)
         context.insert(step1)
         context.insert(step2)
 
@@ -547,9 +555,9 @@ struct StudentProgressTabViewModelTrackProgressTests {
         context.insert(lesson2)
         context.insert(lesson3)
 
-        let step1 = makeTestTrackStep(orderIndex: 0, lessonTemplateID: lesson1.id, track: track)
-        let step2 = makeTestTrackStep(orderIndex: 1, lessonTemplateID: lesson2.id, track: track)
-        let step3 = makeTestTrackStep(orderIndex: 2, lessonTemplateID: lesson3.id, track: track)
+        let step1 = makeTestTrackStep(track: track, orderIndex: 0, lessonTemplateID: lesson1.id)
+        let step2 = makeTestTrackStep(track: track, orderIndex: 1, lessonTemplateID: lesson2.id)
+        let step3 = makeTestTrackStep(track: track, orderIndex: 2, lessonTemplateID: lesson3.id)
         context.insert(step1)
         context.insert(step2)
         context.insert(step3)
@@ -587,8 +595,8 @@ struct StudentProgressTabViewModelTrackProgressTests {
         context.insert(lesson1)
         context.insert(lesson2)
 
-        let step1 = makeTestTrackStep(orderIndex: 0, lessonTemplateID: lesson1.id, track: track)
-        let step2 = makeTestTrackStep(orderIndex: 1, lessonTemplateID: lesson2.id, track: track)
+        let step1 = makeTestTrackStep(track: track, orderIndex: 0, lessonTemplateID: lesson1.id)
+        let step2 = makeTestTrackStep(track: track, orderIndex: 1, lessonTemplateID: lesson2.id)
         context.insert(step1)
         context.insert(step2)
 

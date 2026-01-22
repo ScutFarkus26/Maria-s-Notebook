@@ -123,7 +123,7 @@ struct ReminderRepositoryFetchTests {
         context.insert(reminder3)
         try context.save()
 
-        let repository = ReminderRepository(context: context, calendar: calendar)
+        let repository = ReminderRepository(context: context)
         let fetched = repository.fetchDueToday(calendar: calendar)
 
         #expect(fetched.count == 2)

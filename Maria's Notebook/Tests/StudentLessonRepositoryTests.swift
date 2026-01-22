@@ -372,7 +372,7 @@ struct StudentLessonRepositoryUpdateTests {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let sl = makeTestStudentLesson(isPresented: false, givenAt: nil)
+        let sl = makeTestStudentLesson(givenAt: nil, isPresented: false)
         context.insert(sl)
         try context.save()
 
@@ -389,7 +389,7 @@ struct StudentLessonRepositoryUpdateTests {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let sl = makeTestStudentLesson(isPresented: false, givenAt: nil)
+        let sl = makeTestStudentLesson(givenAt: nil, isPresented: false)
         context.insert(sl)
         try context.save()
 

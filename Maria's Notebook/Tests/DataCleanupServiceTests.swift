@@ -285,8 +285,8 @@ struct DataCleanupServiceDeduplicationTests {
         let container = try makeProjectContainer()
         let context = ModelContext(container)
 
-        let role1 = ProjectRole(name: "Leader")
-        let role2 = ProjectRole(name: "Helper")
+        let role1 = ProjectRole(projectID: UUID(), title: "Leader")
+        let role2 = ProjectRole(projectID: UUID(), title: "Helper")
         context.insert(role1)
         context.insert(role2)
         try context.save()

@@ -77,6 +77,16 @@
 				Tests/SchoolDayLookupCacheTests.swift,
 				Tests/SettingsStatsViewModelTests.swift,
 				Tests/SettingsViewModelTests.swift,
+				Tests/SnapshotTests/ComponentSnapshots/StudentCardSnapshotTests.swift,
+				Tests/SnapshotTests/ComponentSnapshots/WorkCardSnapshotTests.swift,
+				Tests/SnapshotTests/SnapshotTestData.swift,
+				Tests/SnapshotTests/SnapshotTestHelpers.swift,
+				Tests/SnapshotTests/TextSnapshots/AttendanceEmailSnapshotTests.swift,
+				Tests/SnapshotTests/TextSnapshots/BackupManifestSnapshotTests.swift,
+				Tests/SnapshotTests/TextSnapshots/CSVParserSnapshotTests.swift,
+				Tests/SnapshotTests/TextSnapshots/MarkdownExportSnapshotTests.swift,
+				Tests/SnapshotTests/ViewSnapshots/ModalViewsSnapshotTests.swift,
+				Tests/SnapshotTests/ViewSnapshots/SettingsSnapshotTests.swift,
 				Tests/StringFuzzyMatchTests.swift,
 				Tests/StudentDetailViewModelTests.swift,
 				Tests/StudentLessonDetailViewModelTests.swift,
@@ -118,11 +128,6 @@
 			path = "Maria's Notebook";
 			sourceTree = "<group>";
 		};
-		51F9242E2F1C43F900E480A1 /* Maria's Notebook Tests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Maria's Notebook Tests";
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -147,7 +152,6 @@
 			isa = PBXGroup;
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Notebook */,
-				51F9242E2F1C43F900E480A1 /* Maria's Notebook Tests */,
 				5193CB042F0B155C0017A069 /* Frameworks */,
 				5141E7F62ED77B0F004F918F /* Products */,
 			);
@@ -207,9 +211,6 @@
 			);
 			dependencies = (
 				51F924322F1C43F900E480A1 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				51F9242E2F1C43F900E480A1 /* Maria's Notebook Tests */,
 			);
 			name = "Maria's Notebook Tests";
 			packageProductDependencies = (

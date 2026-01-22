@@ -194,8 +194,8 @@ struct InboxDataLoaderPlanItemsTests {
         context.insert(work1)
         context.insert(work2)
 
-        let item1 = WorkPlanItem(workID: work1.id.uuidString, text: "Item 1")
-        let item2 = WorkPlanItem(workID: work2.id.uuidString, text: "Item 2")
+        let item1 = WorkPlanItem(workID: work1.id, scheduledDate: Date(), note: "Item 1")
+        let item2 = WorkPlanItem(workID: work2.id, scheduledDate: Date(), note: "Item 2")
         context.insert(item1)
         context.insert(item2)
         try context.save()
@@ -204,7 +204,7 @@ struct InboxDataLoaderPlanItemsTests {
         let items = loader.loadPlanItems(for: Set([work1.id]))
 
         #expect(items.count == 1)
-        #expect(items[0].text == "Item 1")
+        #expect(items[0].note == "Item 1")
     }
 
     @Test("loadPlanItems returns empty for empty work IDs")
@@ -226,8 +226,8 @@ struct InboxDataLoaderPlanItemsTests {
         let work = makeTestWorkModel()
         context.insert(work)
 
-        let item1 = WorkPlanItem(workID: work.id.uuidString, text: "Item 1")
-        let item2 = WorkPlanItem(workID: work.id.uuidString, text: "Item 2")
+        let item1 = WorkPlanItem(workID: work.id, scheduledDate: Date(), note: "Item 1")
+        let item2 = WorkPlanItem(workID: work.id, scheduledDate: Date(), note: "Item 2")
         context.insert(item1)
         context.insert(item2)
         try context.save()
@@ -377,7 +377,7 @@ struct InboxDataLoaderIntegrationTests {
         context.insert(work)
 
         // Create plan item for work
-        let planItem = WorkPlanItem(workID: work.id.uuidString, text: "Practice problems")
+        let planItem = WorkPlanItem(workID: work.id, scheduledDate: Date(), note: "Practice problems")
         context.insert(planItem)
 
         try context.save()

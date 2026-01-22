@@ -183,14 +183,14 @@ struct NoteRepositoryCreateTests {
         let repository = NoteRepository(context: context)
         let note = repository.createNote(
             body: "Important observation",
-            category: .observation,
+            category: .behavioral,
             scope: .student(studentID),
             isPinned: true,
             includeInReport: true
         )
 
         #expect(note.body == "Important observation")
-        #expect(note.category == .observation)
+        #expect(note.category == .behavioral)
         #expect(note.isPinned == true)
         #expect(note.includeInReport == true)
         if case .student(let id) = note.scope {
@@ -277,10 +277,10 @@ struct NoteRepositoryUpdateTests {
         try context.save()
 
         let repository = NoteRepository(context: context)
-        let result = repository.updateNote(id: note.id, category: .observation)
+        let result = repository.updateNote(id: note.id, category: .behavioral)
 
         #expect(result == true)
-        #expect(note.category == .observation)
+        #expect(note.category == .behavioral)
     }
 
     @Test("updateNote updates isPinned")
@@ -355,7 +355,7 @@ struct NoteRepositoryUpdateTests {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let note = Note(body: "Original", scope: .all, isPinned: true, category: .observation)
+        let note = Note(body: "Original", scope: .all, isPinned: true, category: .behavioral)
         context.insert(note)
         try context.save()
 
@@ -364,7 +364,7 @@ struct NoteRepositoryUpdateTests {
 
         #expect(note.body == "Updated")
         #expect(note.isPinned == true) // Unchanged
-        #expect(note.category == .observation) // Unchanged
+        #expect(note.category == .behavioral) // Unchanged
     }
 }
 
