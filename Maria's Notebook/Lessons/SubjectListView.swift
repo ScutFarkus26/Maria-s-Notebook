@@ -3,12 +3,18 @@
 // Subjects are derived from existing Lesson data using LessonsViewModel.
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct SubjectListView: View {
     let subjects: [String]
     let selectedSubject: String?
     let lessonCounts: [String: Int]
     let onSelectSubject: (String?) -> Void
+    var onRenameSubject: ((String) -> Void)?
 
     var body: some View {
         List(selection: Binding(
@@ -18,10 +24,42 @@ struct SubjectListView: View {
             ForEach(subjects, id: \.self) { subject in
                 SubjectListRow(subject: subject, lessonCount: lessonCounts[subject] ?? 0)
                     .tag(subject)
+                    .contextMenu {
+                        Button {
+                            onSelectSubject(subject)
+                        } label: {
+                            Label("View Lessons", systemImage: "book")
+                        }
+
+                        if let onRename = onRenameSubject {
+                            Button {
+                                onRename(subject)
+                            } label: {
+                                Label("Rename Subject", systemImage: "pencil")
+                            }
+                        }
+
+                        Divider()
+
+                        Button {
+                            copySubjectName(subject)
+                        } label: {
+                            Label("Copy Name", systemImage: "doc.on.doc")
+                        }
+                    }
             }
         }
         .listStyle(.sidebar)
         .navigationTitle("Subjects")
+    }
+
+    private func copySubjectName(_ subject: String) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(subject, forType: .string)
+        #else
+        UIPasteboard.general.string = subject
+        #endif
     }
 }
 

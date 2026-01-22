@@ -9,17 +9,17 @@ struct WorkCheckInRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             statusIcon
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 checkInHeader
-                
+
                 if hasNotes {
                     checkInNote
                 }
             }
-            
+
             Spacer()
-            
+
             actionsMenu
         }
         .padding(10)
@@ -27,6 +27,38 @@ struct WorkCheckInRow: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
         )
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                onEditNote(checkIn)
+            } label: {
+                Label("Add/Edit Note", systemImage: "note.text")
+            }
+
+            Divider()
+
+            // Status change submenu
+            Menu {
+                ForEach(WorkCheckInStatus.allCases, id: \.self) { status in
+                    Button {
+                        onSetStatus(checkIn.id, status)
+                    } label: {
+                        Label(status.menuActionLabel, systemImage: checkIn.status == status ? "checkmark" : status.iconName)
+                    }
+                    .disabled(checkIn.status == status)
+                }
+            } label: {
+                Label("Set Status", systemImage: "arrow.triangle.2.circlepath")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                onDelete(checkIn)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
     
     private var statusIcon: some View {

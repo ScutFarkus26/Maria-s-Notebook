@@ -3,6 +3,11 @@
 // Groups are derived from existing Lesson data using LessonsViewModel.
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct GroupListView: View {
     let groups: [String]
@@ -10,12 +15,13 @@ struct GroupListView: View {
     let selectedGroup: String?
     let onSelectGroup: (String?) -> Void
     let onReorderGroups: ((IndexSet, Int) -> Void)?
+    var onRenameGroup: ((String) -> Void)?
     #if os(iOS)
     @Binding var editMode: EditMode
     #else
     let isReorderMode: Bool
     #endif
-    
+
     var body: some View {
         Group {
             if groups.isEmpty {
@@ -30,7 +36,7 @@ struct GroupListView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
     }
-    
+
     private var listView: some View {
         List(selection: Binding(
             get: { selectedGroup },
@@ -42,10 +48,42 @@ struct GroupListView: View {
                     subject: selectedSubject
                 )
                 .tag(group)
+                .contextMenu {
+                    Button {
+                        onSelectGroup(group)
+                    } label: {
+                        Label("View Lessons", systemImage: "book")
+                    }
+
+                    if let onRename = onRenameGroup {
+                        Button {
+                            onRename(group)
+                        } label: {
+                            Label("Rename Group", systemImage: "pencil")
+                        }
+                    }
+
+                    Divider()
+
+                    Button {
+                        copyGroupName(group)
+                    } label: {
+                        Label("Copy Name", systemImage: "doc.on.doc")
+                    }
+                }
             }
             .onMove(perform: onReorderGroups)
         }
         .listStyle(.sidebar)
+    }
+
+    private func copyGroupName(_ group: String) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(group, forType: .string)
+        #else
+        UIPasteboard.general.string = group
+        #endif
     }
     
     private var emptyStateView: some View {

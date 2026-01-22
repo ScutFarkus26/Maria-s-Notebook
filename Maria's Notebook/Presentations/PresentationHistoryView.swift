@@ -459,6 +459,38 @@ struct PresentationHistoryView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
         )
+        .contextMenu {
+            Button {
+                selectedPresentation = p
+            } label: {
+                Label("View Details", systemImage: "eye")
+            }
+
+            if let lessonID = CloudKitUUID.uuid(from: p.lessonID) {
+                #if os(macOS)
+                Button {
+                    openLessonInNewWindow(lessonID)
+                } label: {
+                    Label("View Lesson", systemImage: "book")
+                }
+                #endif
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                deletePresentation(p)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func deletePresentation(_ presentation: Presentation) {
+        modelContext.delete(presentation)
+        try? modelContext.save()
+        // Reload to reflect deletion
+        loadPresentations(limit: loadedPresentations.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
     }
 }
 

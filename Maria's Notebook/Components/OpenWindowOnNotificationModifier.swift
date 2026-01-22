@@ -20,6 +20,11 @@ struct OpenWindowOnNotificationModifier: ViewModifier {
                     openWindow(id: "LessonDetailWindow", value: lessonID)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openWorkDetailWindow)) { notification in
+                if let workID = notification.userInfo?["workID"] as? UUID {
+                    openWindow(id: "WorkDetailWindow", value: workID)
+                }
+            }
     }
 }
 
@@ -40,6 +45,15 @@ func openLessonInNewWindow(_ lessonID: UUID) {
         name: .openLessonDetailWindow,
         object: nil,
         userInfo: ["lessonID": lessonID]
+    )
+}
+
+/// Opens a work detail in a new window
+func openWorkInNewWindow(_ workID: UUID) {
+    NotificationCenter.default.post(
+        name: .openWorkDetailWindow,
+        object: nil,
+        userInfo: ["workID": workID]
     )
 }
 #endif

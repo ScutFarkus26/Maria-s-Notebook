@@ -37,6 +37,24 @@ struct TrackListView: View {
                             NavigationLink(value: GroupTrackRoute(subject: groupTrack.subject, group: groupTrack.group)) {
                                 GroupTrackRow(groupTrack: groupTrack, allLessons: allLessons)
                             }
+                            .contextMenu {
+                                Button {
+                                    toggleSequential(groupTrack)
+                                } label: {
+                                    Label(
+                                        groupTrack.isSequential ? "Mark as Unordered" : "Mark as Sequential",
+                                        systemImage: groupTrack.isSequential ? "list.bullet" : "list.number"
+                                    )
+                                }
+
+                                Divider()
+
+                                Button(role: .destructive) {
+                                    removeTrack(groupTrack)
+                                } label: {
+                                    Label("Remove Track", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                 }
@@ -46,6 +64,16 @@ struct TrackListView: View {
         .navigationDestination(for: GroupTrackRoute.self) { route in
             GroupTrackDetailView(subject: route.subject, group: route.group)
         }
+    }
+
+    private func toggleSequential(_ track: GroupTrack) {
+        track.isSequential.toggle()
+        try? modelContext.save()
+    }
+
+    private func removeTrack(_ track: GroupTrack) {
+        modelContext.delete(track)
+        try? modelContext.save()
     }
 }
 

@@ -2,6 +2,11 @@
 // Shared component for displaying lesson rows in list views
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct LessonRow: View {
     let lesson: Lesson
@@ -97,12 +102,22 @@ struct LessonRow: View {
             }
             #endif
 
-            if let onCopyName {
-                Button {
+            Divider()
+
+            Button {
+                if let onCopyName {
                     onCopyName()
-                } label: {
-                    Label("Copy Name", systemImage: "doc.on.doc")
+                } else {
+                    copyLessonName()
                 }
+            } label: {
+                Label("Copy Name", systemImage: "doc.on.doc")
+            }
+
+            Button {
+                copyLessonInfo()
+            } label: {
+                Label("Copy Subject & Group", systemImage: "doc.on.clipboard")
             }
 
             if let onDelete {
@@ -115,5 +130,25 @@ struct LessonRow: View {
                 }
             }
         }
+    }
+
+    private func copyLessonName() {
+        let name = lesson.name.isEmpty ? "Untitled Lesson" : lesson.name
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(name, forType: .string)
+        #else
+        UIPasteboard.general.string = name
+        #endif
+    }
+
+    private func copyLessonInfo() {
+        let info = "\(lesson.subject) · \(lesson.group)"
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(info, forType: .string)
+        #else
+        UIPasteboard.general.string = info
+        #endif
     }
 }

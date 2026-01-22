@@ -424,6 +424,50 @@ struct AttendanceLogView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
         )
+        .contentShape(Rectangle())
+        .contextMenu {
+            // Change status submenu
+            Menu {
+                ForEach(availableStatuses, id: \.self) { status in
+                    Button {
+                        updateRecordStatus(record, to: status)
+                    } label: {
+                        Label(status.displayName, systemImage: status == record.status ? "checkmark" : "circle")
+                    }
+                    .disabled(status == record.status)
+                }
+            } label: {
+                Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
+            }
+
+            if let studentID = record.studentIDUUID {
+                #if os(macOS)
+                Button {
+                    openStudentInNewWindow(studentID)
+                } label: {
+                    Label("View Student", systemImage: "person.text.rectangle")
+                }
+                #endif
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                deleteRecord(record)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func updateRecordStatus(_ record: AttendanceRecord, to status: AttendanceStatus) {
+        record.status = status
+        try? modelContext.save()
+    }
+
+    private func deleteRecord(_ record: AttendanceRecord) {
+        modelContext.delete(record)
+        try? modelContext.save()
     }
 }
 

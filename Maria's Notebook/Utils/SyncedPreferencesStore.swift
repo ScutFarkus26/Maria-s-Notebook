@@ -437,6 +437,8 @@ extension Notification.Name {
     nonisolated static let openStudentDetailWindow = Notification.Name("openStudentDetailWindow")
     /// Posted to request opening a lesson detail window (with UUID userInfo)
     nonisolated static let openLessonDetailWindow = Notification.Name("openLessonDetailWindow")
+    /// Posted to request opening a work detail window (with UUID userInfo)
+    nonisolated static let openWorkDetailWindow = Notification.Name("openWorkDetailWindow")
 }
 
 // MARK: - Property Wrapper for SwiftUI

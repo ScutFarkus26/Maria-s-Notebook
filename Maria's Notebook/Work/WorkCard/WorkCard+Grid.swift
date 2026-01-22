@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 /// Grid mode content for WorkCard
 /// Displays: age indicator bar, title, student name, status, needs attention badge
@@ -96,10 +101,56 @@ struct WorkCardGridContent: View {
         .contentShape(Rectangle())
         .onTapGesture { config.onOpen(config.work) }
         .contextMenu {
-            Button("Open", systemImage: "arrow.forward.circle") { config.onOpen(config.work) }
-            Button("Mark Completed", systemImage: "checkmark.circle") { config.onMarkCompleted(config.work) }
-            Menu("Schedule", systemImage: "calendar") {
+            Button {
+                config.onOpen(config.work)
+            } label: {
+                Label("Open", systemImage: "arrow.forward.circle")
+            }
+
+            #if os(macOS)
+            Button {
+                openWorkInNewWindow(config.work.id)
+            } label: {
+                Label("Open in New Window", systemImage: "uiwindow.split.2x1")
+            }
+            #endif
+
+            Divider()
+
+            Button {
+                config.onMarkCompleted(config.work)
+            } label: {
+                Label("Mark Completed", systemImage: "checkmark.circle")
+            }
+
+            // Status change submenu
+            Menu {
+                Button {
+                    // Set to Practice (active)
+                } label: {
+                    Label("Practice", systemImage: config.work.status == .active ? "checkmark" : "circle")
+                }
+                Button {
+                    // Set to Follow-Up (review)
+                } label: {
+                    Label("Follow-Up", systemImage: config.work.status == .review ? "checkmark" : "circle")
+                }
+            } label: {
+                Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
+            }
+
+            Menu {
                 Button("Today") { config.onScheduleToday(config.work) }
+            } label: {
+                Label("Schedule", systemImage: "calendar")
+            }
+
+            Divider()
+
+            Button {
+                copyWorkTitle()
+            } label: {
+                Label("Copy Title", systemImage: "doc.on.doc")
             }
         }
         .draggable(WorkAgendaDragPayload.work(config.work.id).stringRepresentation) {
@@ -110,6 +161,15 @@ struct WorkCardGridContent: View {
             .padding(8)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.06)))
         }
+    }
+
+    private func copyWorkTitle() {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(displayTitle, forType: .string)
+        #else
+        UIPasteboard.general.string = displayTitle
+        #endif
     }
 }
 

@@ -271,6 +271,45 @@ struct MeetingsLogView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
         )
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                toggleMeetingCompletion(meeting)
+            } label: {
+                Label(
+                    meeting.completed ? "Mark as Pending" : "Mark as Completed",
+                    systemImage: meeting.completed ? "circle" : "checkmark.circle"
+                )
+            }
+
+            if let studentID = meeting.studentIDUUID {
+                #if os(macOS)
+                Button {
+                    openStudentInNewWindow(studentID)
+                } label: {
+                    Label("View Student", systemImage: "person.text.rectangle")
+                }
+                #endif
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                deleteMeeting(meeting)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func toggleMeetingCompletion(_ meeting: StudentMeeting) {
+        meeting.completed.toggle()
+        try? modelContext.save()
+    }
+
+    private func deleteMeeting(_ meeting: StudentMeeting) {
+        modelContext.delete(meeting)
+        try? modelContext.save()
     }
 }
 

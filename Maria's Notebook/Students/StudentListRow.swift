@@ -1,5 +1,10 @@
 import SwiftUI
 import SwiftData
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 /// A row component for displaying a student in a list view.
 /// Shows the student's avatar (initials), name, and optional status badge based on sort mode.
@@ -86,7 +91,16 @@ struct StudentListRow: View {
     }
     
     // MARK: - Trailing Badge/Status
-    
+
+    private func copyStudentName() {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(student.fullName, forType: .string)
+        #else
+        UIPasteboard.general.string = student.fullName
+        #endif
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             // Avatar circle with initials
@@ -138,6 +152,14 @@ struct StudentListRow: View {
                 Label("Open in New Window", systemImage: "uiwindow.split.2x1")
             }
             #endif
+
+            Divider()
+
+            Button {
+                copyStudentName()
+            } label: {
+                Label("Copy Name", systemImage: "doc.on.doc")
+            }
 
             if let onDelete {
                 Divider()

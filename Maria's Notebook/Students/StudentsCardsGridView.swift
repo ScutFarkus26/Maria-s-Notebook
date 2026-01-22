@@ -34,6 +34,8 @@ struct StudentsCardsGridView: View {
     let onTapStudent: (Student) -> Void
     // Called when drag ends with final target index within the provided `students` subset
     let onReorder: (_ movingStudent: Student, _ fromIndex: Int, _ toIndex: Int, _ subset: [Student]) -> Void
+    // Context menu actions
+    var onDeleteStudent: ((Student) -> Void)?
 
     @State private var draggingStudentID: UUID?
     @State private var hoverTargetID: UUID?
@@ -129,6 +131,48 @@ struct StudentsCardsGridView: View {
             .if(isManualMode) { v in
                 v.simultaneousGesture(longPressThenDrag(for: student))
             }
+            .contextMenu {
+                Button {
+                    onTapStudent(student)
+                } label: {
+                    Label("View Details", systemImage: "person.text.rectangle")
+                }
+
+                #if os(macOS)
+                Button {
+                    openStudentInNewWindow(student.id)
+                } label: {
+                    Label("Open in New Window", systemImage: "uiwindow.split.2x1")
+                }
+                #endif
+
+                Divider()
+
+                Button {
+                    copyStudentName(student)
+                } label: {
+                    Label("Copy Name", systemImage: "doc.on.doc")
+                }
+
+                if let onDelete = onDeleteStudent {
+                    Divider()
+
+                    Button(role: .destructive) {
+                        onDelete(student)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+    }
+
+    private func copyStudentName(_ student: Student) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(student.fullName, forType: .string)
+        #else
+        UIPasteboard.general.string = student.fullName
+        #endif
     }
 
     var body: some View {
