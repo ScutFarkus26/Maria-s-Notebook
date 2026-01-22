@@ -294,14 +294,31 @@ public struct BulkLessonsEntryView: View {
 
         guard !items.isEmpty else { return }
 
+        // Build a map of max orderInGroup for each subject+group combination from existing lessons
+        let allLessons = repository.fetchLessons()
+        var maxOrderByGroup: [String: Int] = [:]
+        for lesson in allLessons {
+            let key = "\(lesson.subject)|\(lesson.group)"
+            let current = maxOrderByGroup[key] ?? -1
+            if lesson.orderInGroup > current {
+                maxOrderByGroup[key] = lesson.orderInGroup
+            }
+        }
+
         var insertedLessons: [Lesson] = []
         for r in items {
+            // Calculate the next orderInGroup for this subject+group
+            let key = "\(r.subject)|\(r.group)"
+            let nextOrder = (maxOrderByGroup[key] ?? -1) + 1
+            maxOrderByGroup[key] = nextOrder
+
             let lesson = repository.createLesson(
                 name: r.name,
                 subject: r.subject,
                 group: r.group,
                 subheading: r.subheading,
                 writeUp: r.writeUp,
+                orderInGroup: nextOrder,
                 source: batchSource,
                 personalKind: batchSource == .personal ? batchPersonalKind : nil
             )

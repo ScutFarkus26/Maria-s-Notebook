@@ -216,6 +216,16 @@ enum LessonCSVImporter {
             byKey[duplicateKey(for: lesson)] = lesson
         }
 
+        // Build a map of max orderInGroup for each subject+group combination
+        var maxOrderByGroup: [String: Int] = [:]
+        for lesson in existingLessons {
+            let groupKey = "\(lesson.subject)|\(lesson.group)"
+            let current = maxOrderByGroup[groupKey] ?? -1
+            if lesson.orderInGroup > current {
+                maxOrderByGroup[groupKey] = lesson.orderInGroup
+            }
+        }
+
         var inserted = 0
         var updated = 0
 
@@ -242,10 +252,25 @@ enum LessonCSVImporter {
                     updated += 1
                 }
             } else {
-                let lesson = Lesson(name: r.name, subject: r.subject, group: r.group, subheading: r.subheading, writeUp: r.writeUp)
-                if let order = r.orderInGroup {
-                    lesson.orderInGroup = order
+                // Calculate the order for this new lesson
+                let groupKey = "\(r.subject)|\(r.group)"
+                let orderToUse: Int
+                if let explicitOrder = r.orderInGroup {
+                    // Use the explicit order from CSV, but also track it for subsequent lessons
+                    orderToUse = explicitOrder
+                    let currentMax = maxOrderByGroup[groupKey] ?? -1
+                    if explicitOrder > currentMax {
+                        maxOrderByGroup[groupKey] = explicitOrder
+                    }
+                } else {
+                    // Auto-assign sequential order based on input position
+                    let nextOrder = (maxOrderByGroup[groupKey] ?? -1) + 1
+                    maxOrderByGroup[groupKey] = nextOrder
+                    orderToUse = nextOrder
                 }
+
+                let lesson = Lesson(name: r.name, subject: r.subject, group: r.group, subheading: r.subheading, writeUp: r.writeUp)
+                lesson.orderInGroup = orderToUse
                 context.insert(lesson)
                 byKey[key] = lesson
                 inserted += 1
