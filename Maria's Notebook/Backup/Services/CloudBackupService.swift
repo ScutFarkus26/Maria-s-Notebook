@@ -2,11 +2,12 @@
 // Handles iCloud Drive integration for backups
 
 import Foundation
+import Combine
 
 /// Service for managing backups in iCloud Drive
 /// Provides automatic cloud sync for backup files without requiring manual file management
 @MainActor
-public final class CloudBackupService {
+public final class CloudBackupService: ObservableObject {
 
     // MARK: - Types
 
@@ -16,6 +17,8 @@ public final class CloudBackupService {
         case backupFailed(Error)
         case restoreFailed(Error)
         case fileNotFound(String)
+        case maxRetriesExceeded(Int, Error)
+        case operationCancelled
 
         public var errorDescription: String? {
             switch self {
@@ -29,6 +32,10 @@ public final class CloudBackupService {
                 return "Restore from iCloud failed: \(error.localizedDescription)"
             case .fileNotFound(let name):
                 return "Backup file '\(name)' not found in iCloud."
+            case .maxRetriesExceeded(let attempts, let error):
+                return "Failed after \(attempts) attempts: \(error.localizedDescription)"
+            case .operationCancelled:
+                return "Operation was cancelled."
             }
         }
     }
@@ -52,6 +59,54 @@ public final class CloudBackupService {
         }
     }
 
+    /// Configuration for retry logic
+    public struct RetryConfiguration: Sendable {
+        public var maxRetries: Int
+        public var baseDelaySeconds: Double
+        public var maxDelaySeconds: Double
+        public var backoffMultiplier: Double
+
+        public static let `default` = RetryConfiguration(
+            maxRetries: 3,
+            baseDelaySeconds: 1.0,
+            maxDelaySeconds: 30.0,
+            backoffMultiplier: 2.0
+        )
+
+        public init(maxRetries: Int, baseDelaySeconds: Double, maxDelaySeconds: Double, backoffMultiplier: Double) {
+            self.maxRetries = maxRetries
+            self.baseDelaySeconds = baseDelaySeconds
+            self.maxDelaySeconds = maxDelaySeconds
+            self.backoffMultiplier = backoffMultiplier
+        }
+    }
+
+    /// Configuration for scheduled cloud backups
+    public struct ScheduleConfiguration: Codable, Sendable {
+        public var enabled: Bool
+        public var intervalHours: Int
+        public var retentionCount: Int
+
+        public static let `default` = ScheduleConfiguration(
+            enabled: false,
+            intervalHours: 24,
+            retentionCount: 7
+        )
+
+        public init(enabled: Bool, intervalHours: Int, retentionCount: Int) {
+            self.enabled = enabled
+            self.intervalHours = intervalHours
+            self.retentionCount = retentionCount
+        }
+    }
+
+    // MARK: - Published State
+
+    @Published public private(set) var isPerformingBackup = false
+    @Published public private(set) var lastCloudBackupDate: Date?
+    @Published public private(set) var nextScheduledBackupDate: Date?
+    @Published public private(set) var currentRetryAttempt: Int = 0
+
     // MARK: - Properties
 
     private let backupService = BackupService()
@@ -59,6 +114,39 @@ public final class CloudBackupService {
 
     /// The iCloud Drive backup directory name
     private static let backupFolderName = "Backups"
+
+    /// Retry configuration
+    public var retryConfiguration = RetryConfiguration.default
+
+    /// Schedule configuration (persisted in UserDefaults)
+    public var scheduleConfiguration: ScheduleConfiguration {
+        get {
+            if let data = UserDefaults.standard.data(forKey: "CloudBackup.scheduleConfig"),
+               let config = try? JSONDecoder().decode(ScheduleConfiguration.self, from: data) {
+                return config
+            }
+            return .default
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: "CloudBackup.scheduleConfig")
+            }
+            updateScheduledBackups()
+        }
+    }
+
+    /// Scheduled backup task
+    private var scheduledBackupTask: Task<Void, Never>?
+
+    /// Model context for scheduled backups
+    private var modelContext: (any Any)?
+
+    // MARK: - UserDefaults Keys
+
+    private enum Keys {
+        static let lastCloudBackupDate = "CloudBackup.lastBackupDate"
+        static let scheduleConfig = "CloudBackup.scheduleConfig"
+    }
 
     // MARK: - Public API
 
@@ -291,6 +379,197 @@ public final class CloudBackupService {
 
         return destinationURL
     }
+
+    // MARK: - Retry Logic with Exponential Backoff
+
+    /// Executes an operation with automatic retry and exponential backoff.
+    ///
+    /// - Parameters:
+    ///   - operation: The async operation to perform
+    ///   - shouldRetry: Closure to determine if error is retryable (default: true for all errors)
+    /// - Returns: The result of the operation
+    public func withRetry<T>(
+        operation: @escaping () async throws -> T,
+        shouldRetry: @escaping (Error) -> Bool = { _ in true }
+    ) async throws -> T {
+        var lastError: Error?
+        var delay = retryConfiguration.baseDelaySeconds
+
+        for attempt in 0...retryConfiguration.maxRetries {
+            currentRetryAttempt = attempt
+
+            do {
+                let result = try await operation()
+                currentRetryAttempt = 0
+                return result
+            } catch {
+                lastError = error
+
+                // Check if we should retry
+                if attempt < retryConfiguration.maxRetries && shouldRetry(error) {
+                    // Wait with exponential backoff
+                    let jitter = Double.random(in: 0...0.5)
+                    let actualDelay = min(delay + jitter, retryConfiguration.maxDelaySeconds)
+
+                    #if DEBUG
+                    print("CloudBackupService: Attempt \(attempt + 1) failed: \(error.localizedDescription). Retrying in \(actualDelay)s...")
+                    #endif
+
+                    try await Task.sleep(nanoseconds: UInt64(actualDelay * 1_000_000_000))
+                    delay *= retryConfiguration.backoffMultiplier
+                } else {
+                    break
+                }
+            }
+        }
+
+        currentRetryAttempt = 0
+        throw CloudBackupError.maxRetriesExceeded(retryConfiguration.maxRetries, lastError!)
+    }
+
+    /// Exports a backup to iCloud with automatic retry on failure.
+    public func exportToCloudWithRetry(
+        modelContext: any Any,
+        password: String? = nil,
+        progress: @escaping (Double, String) -> Void
+    ) async throws -> URL {
+        try await withRetry {
+            try await self.exportToCloud(
+                modelContext: modelContext,
+                password: password,
+                progress: progress
+            )
+        } shouldRetry: { error in
+            // Don't retry for certain errors
+            if case CloudBackupError.iCloudNotAvailable = error { return false }
+            if case CloudBackupError.containerNotFound = error { return false }
+            return true
+        }
+    }
+
+    // MARK: - Scheduled Cloud Backups
+
+    /// Starts scheduled cloud backups.
+    ///
+    /// - Parameter modelContext: The SwiftData model context to use for backups
+    public func startScheduledBackups(modelContext: any Any) {
+        self.modelContext = modelContext
+        stopScheduledBackups()
+
+        guard scheduleConfiguration.enabled && scheduleConfiguration.intervalHours > 0 else {
+            return
+        }
+
+        // Load last backup date
+        let timestamp = UserDefaults.standard.double(forKey: Keys.lastCloudBackupDate)
+        if timestamp > 0 {
+            lastCloudBackupDate = Date(timeIntervalSinceReferenceDate: timestamp)
+        }
+
+        scheduledBackupTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self = self else { break }
+
+                // Calculate time until next backup
+                let intervalSeconds = TimeInterval(self.scheduleConfiguration.intervalHours * 3600)
+                let nextBackupTime: Date
+
+                if let lastBackup = self.lastCloudBackupDate {
+                    nextBackupTime = lastBackup.addingTimeInterval(intervalSeconds)
+                } else {
+                    // First backup after interval from now
+                    nextBackupTime = Date().addingTimeInterval(intervalSeconds)
+                }
+
+                self.nextScheduledBackupDate = nextBackupTime
+
+                let waitTime = max(0, nextBackupTime.timeIntervalSinceNow)
+
+                // Wait until next backup time
+                if waitTime > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                }
+
+                // Check if still enabled and not cancelled
+                guard !Task.isCancelled, self.scheduleConfiguration.enabled else { break }
+
+                // Perform scheduled backup
+                await self.performScheduledCloudBackup()
+            }
+        }
+    }
+
+    /// Stops scheduled cloud backups.
+    public func stopScheduledBackups() {
+        scheduledBackupTask?.cancel()
+        scheduledBackupTask = nil
+        nextScheduledBackupDate = nil
+    }
+
+    /// Performs a scheduled cloud backup.
+    private func performScheduledCloudBackup() async {
+        guard let modelContext = modelContext else { return }
+        guard !isPerformingBackup else { return }
+
+        isPerformingBackup = true
+        defer { isPerformingBackup = false }
+
+        do {
+            _ = try await exportToCloudWithRetry(
+                modelContext: modelContext,
+                password: nil,
+                progress: { _, _ in }
+            )
+
+            // Update last backup date
+            lastCloudBackupDate = Date()
+            UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: Keys.lastCloudBackupDate)
+
+            // Apply retention policy
+            try await applyRetentionPolicy(maxCount: scheduleConfiguration.retentionCount)
+
+            // Post notification
+            NotificationCenter.default.post(
+                name: .cloudBackupCompleted,
+                object: self,
+                userInfo: ["date": Date()]
+            )
+
+        } catch {
+            #if DEBUG
+            print("CloudBackupService: Scheduled backup failed: \(error.localizedDescription)")
+            #endif
+
+            NotificationCenter.default.post(
+                name: .cloudBackupFailed,
+                object: self,
+                userInfo: ["error": error]
+            )
+        }
+    }
+
+    private func updateScheduledBackups() {
+        if let modelContext = modelContext {
+            startScheduledBackups(modelContext: modelContext)
+        }
+    }
+
+    // MARK: - Initialization
+
+    public init() {
+        // Load last cloud backup date
+        let timestamp = UserDefaults.standard.double(forKey: Keys.lastCloudBackupDate)
+        if timestamp > 0 {
+            lastCloudBackupDate = Date(timeIntervalSinceReferenceDate: timestamp)
+        }
+    }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let cloudBackupCompleted = Notification.Name("CloudBackupCompleted")
+    static let cloudBackupFailed = Notification.Name("CloudBackupFailed")
 }
 
 import SwiftData

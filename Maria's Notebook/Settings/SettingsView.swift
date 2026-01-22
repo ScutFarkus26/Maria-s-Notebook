@@ -45,6 +45,9 @@ struct SettingsView: View {
                         // MARK: - Notes Section
                         notesSection
 
+                        // MARK: - Meetings Section
+                        meetingsSection
+
                         // MARK: - Data Management Section
                         dataManagementSection
 
@@ -160,6 +163,26 @@ struct SettingsView: View {
             SettingsGroup(title: "Note Templates", systemImage: "note.text.badge.plus") {
                 NavigationLink {
                     NoteTemplateManagementView()
+                } label: {
+                    HStack {
+                        Text("Manage Templates")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var meetingsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "Meetings")
+            SettingsGroup(title: "Weekly Meeting Templates", systemImage: "person.2.fill") {
+                NavigationLink {
+                    MeetingTemplateManagementView()
                 } label: {
                     HStack {
                         Text("Manage Templates")

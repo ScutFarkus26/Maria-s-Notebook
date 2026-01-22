@@ -105,6 +105,83 @@ enum BackupSizeEstimator {
         return formatter.string(fromByteCount: bytes)
     }
 
+    // MARK: - Actual Size Measurement
+
+    /// Measures the actual backup size by performing a dry-run export.
+    /// This provides accurate size instead of estimation.
+    ///
+    /// - Parameters:
+    ///   - modelContext: The model context to backup
+    ///   - compress: Whether to apply compression
+    /// - Returns: The actual size in bytes
+    @MainActor
+    static func measureActualSize(
+        modelContext: ModelContext,
+        compress: Bool = true
+    ) async throws -> ActualSizeMeasurement {
+        let backupService = BackupService()
+
+        // Create temporary URL for dry-run
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SizeMeasure-\(UUID().uuidString).\(BackupFile.fileExtension)")
+
+        defer {
+            // Clean up temp file
+            try? FileManager.default.removeItem(at: tempURL)
+        }
+
+        // Perform actual export to measure size
+        _ = try await backupService.exportBackup(
+            modelContext: modelContext,
+            to: tempURL,
+            password: nil,
+            progress: { _, _ in }
+        )
+
+        // Get actual file size
+        let attributes = try FileManager.default.attributesOfItem(atPath: tempURL.path)
+        let fileSize = attributes[.size] as? Int64 ?? 0
+
+        // Read the file to get entity counts
+        let data = try Data(contentsOf: tempURL)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let envelope = try decoder.decode(BackupEnvelope.self, from: data)
+
+        // Calculate uncompressed size (estimate)
+        let uncompressedEstimate = estimateFromCounts(envelope.manifest.entityCounts)
+        let actualCompressionRatio = fileSize > 0 ? Double(uncompressedEstimate) / Double(fileSize) : 1.0
+
+        return ActualSizeMeasurement(
+            compressedSize: fileSize,
+            uncompressedEstimate: uncompressedEstimate,
+            entityCounts: envelope.manifest.entityCounts,
+            compressionRatio: actualCompressionRatio,
+            measurementDate: Date()
+        )
+    }
+
+    /// Result of actual size measurement
+    struct ActualSizeMeasurement: Sendable {
+        let compressedSize: Int64
+        let uncompressedEstimate: Int64
+        let entityCounts: [String: Int]
+        let compressionRatio: Double
+        let measurementDate: Date
+
+        var formattedCompressedSize: String {
+            BackupSizeEstimator.formatSize(compressedSize)
+        }
+
+        var formattedUncompressedSize: String {
+            BackupSizeEstimator.formatSize(uncompressedEstimate)
+        }
+
+        var totalEntityCount: Int {
+            entityCounts.values.reduce(0, +)
+        }
+    }
+
     // MARK: - Private Helpers
 
     private static func safeFetchCount<T: PersistentModel>(_ type: T.Type, using context: ModelContext) -> Int {

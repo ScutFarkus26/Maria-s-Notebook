@@ -11,7 +11,7 @@ struct BackupRestoreSettingsView: View {
     @Binding var importMessage: String
     @Binding var resultSummary: String?
     @Binding var defaultFolderName: String
-    
+
     let lastBackupDate: Date?
     let estimatedBackupSize: Int64?
 
@@ -25,329 +25,461 @@ struct BackupRestoreSettingsView: View {
     @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true
     @AppStorage("AutoBackup.retentionCount") private var autoBackupRetention = 10
 
+    // Cloud backup settings
+    @AppStorage("CloudBackup.scheduleEnabled") private var cloudBackupEnabled = false
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
+    ]
+
     var body: some View {
-        SettingsGroup(title: "Backup & Restore", systemImage: "arrow.triangle.2.circlepath") {
-            VStack(alignment: .leading, spacing: 16) {
-                // MARK: - Status Section
-                statusSection
-                
-                Divider()
-                
-                // MARK: - Backup Section
-                backupSection
-                
-                Divider()
-                
-                // MARK: - Automatic Backups Section
-                automaticBackupsSection
-                
-                Divider()
-                
-                // MARK: - Restore Section
-                restoreSection
-                
-                Divider()
-                
-                // MARK: - Advanced Options
-                advancedSection
-                
-                Divider()
-                
-                // MARK: - Default Folder
-                defaultFolderSection
-                
-                // MARK: - Progress Indicators
-                if backupProgress > 0 && backupProgress < 1.0 {
-                    progressIndicator(progress: backupProgress, message: backupMessage)
-                }
-                
-                if importProgress > 0 && importProgress < 1.0 {
-                    progressIndicator(progress: importProgress, message: importMessage)
-                }
-                
-                // MARK: - Result Summary
-                if let summary = resultSummary, !summary.isEmpty {
-                    resultSummaryView(summary)
-                }
+        VStack(alignment: .leading, spacing: 20) {
+            // Section Title
+            Text("Data Management")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            // Progress indicator (shown when active)
+            if isShowingProgress {
+                progressOverlay
+            }
+
+            // Result banner (dismissible)
+            if let summary = resultSummary, !summary.isEmpty {
+                resultBanner(summary)
+            }
+
+            // Main 2x2 Grid
+            LazyVGrid(columns: columns, spacing: 16) {
+                // Backup Card
+                backupCard
+
+                // Restore Card
+                restoreCard
+
+                // Storage Card
+                storageCard
+
+                // Auto-Backup Card
+                autoBackupCard
+            }
+
+            // Cloud Backup Card (full width, optional)
+            if cloudBackupEnabled {
+                cloudBackupCard
             }
         }
     }
-    
-    // MARK: - Status Section
-    private var statusSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "clock.fill")
-                    .foregroundStyle(.secondary)
-                    .font(.subheadline)
-                Text("Last Backup")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+
+    private var isShowingProgress: Bool {
+        (backupProgress > 0 && backupProgress < 1.0) ||
+        (importProgress > 0 && importProgress < 1.0)
+    }
+
+    // MARK: - Backup Card
+
+    private var backupCard: some View {
+        DataManagementCard {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header
+                CardHeader(title: "Backup", icon: "externaldrive.fill", color: .blue)
+
                 Spacer()
-                if let date = lastBackupDate {
-                    Text(date, style: .relative)
+
+                // Size and encryption status
+                HStack {
+                    if let size = estimatedBackupSize {
+                        Text(formatByteCount(size))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    // Encryption toggle pill
+                    Button {
+                        encryptBackups.toggle()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: encryptBackups ? "lock.fill" : "lock.open")
+                                .font(.caption2)
+                            Text(encryptBackups ? "Encrypted" : "Public")
+                                .font(.caption)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule()
+                                .fill(Color.primary.opacity(0.1))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // Create Backup Button
+                Button {
+                    performExport()
+                } label: {
+                    Text("Create Backup")
                         .font(.subheadline)
                         .fontWeight(.medium)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isShowingProgress)
+            }
+        }
+    }
+
+    // MARK: - Restore Card
+
+    private var restoreCard: some View {
+        DataManagementCard {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header
+                CardHeader(title: "Restore", icon: "arrow.counterclockwise", color: .orange)
+
+                Spacer()
+
+                // Mode Picker
+                Picker("Mode", selection: $restoreMode) {
+                    Text("Merge").tag(BackupService.RestoreMode.merge)
+                    Text("Replace").tag(BackupService.RestoreMode.replace)
+                }
+                .pickerStyle(.segmented)
+
+                // Checksum bypass toggle
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    Text("Skip Checksum Validation")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: UserDefaultsKeys.backupAllowChecksumBypass) },
+                        set: { UserDefaults.standard.set($0, forKey: UserDefaultsKeys.backupAllowChecksumBypass) }
+                    ))
+                    .toggleStyle(.switch)
+                    .scaleEffect(0.8)
+                    .labelsHidden()
+                }
+
+                // Import Button
+                Button {
+                    presentImporter()
+                } label: {
+                    Label("Import File...", systemImage: "square.and.arrow.down")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isShowingProgress)
+            }
+        }
+    }
+
+    // MARK: - Storage Card
+
+    private var storageCard: some View {
+        DataManagementCard {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header
+                CardHeader(title: "Storage", icon: "folder.fill", color: .pink)
+
+                Spacer()
+
+                // Folder name
+                if !defaultFolderName.isEmpty {
+                    Text(defaultFolderName)
+                        .font(.subheadline)
+                        .lineLimit(2)
+                        .foregroundStyle(.primary)
                 } else {
-                    Text("Never")
+                    Text("No folder selected")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-            }
-            
-            // Backup verification status indicator
-            if lastBackupDate != nil {
+
+                Spacer()
+
+                // Last backup time and menu
                 HStack {
-                    Image(systemName: "checkmark.shield.fill")
-                        .foregroundStyle(.green)
-                        .font(.caption)
-                    Text("Backup completed successfully")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let date = lastBackupDate {
+                        Text("Last: \(formatRelativeTime(date))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Menu {
+                        Button {
+                            chooseDefaultFolder()
+                        } label: {
+                            Label("Choose Folder...", systemImage: "folder.badge.plus")
+                        }
+
+                        if !defaultFolderName.isEmpty {
+                            Button {
+                                openDefaultFolder()
+                            } label: {
+                                Label("Open in Finder", systemImage: "arrow.up.forward.square")
+                            }
+
+                            Divider()
+
+                            Button(role: .destructive) {
+                                clearDefaultFolder()
+                            } label: {
+                                Label("Clear Folder", systemImage: "xmark.circle")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .menuStyle(.borderlessButton)
                 }
             }
         }
     }
-    
-    // MARK: - Backup Section
-    private var backupSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Create Backup")
-                .font(.headline)
-            
+
+    // MARK: - Auto-Backup Card
+
+    private var autoBackupCard: some View {
+        DataManagementCard {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header
+                CardHeader(title: "Auto-Backup", icon: "clock.arrow.circlepath", color: .blue)
+
+                Spacer()
+
+                // On Quit toggle
+                HStack {
+                    Text("On Quit")
+                        .font(.subheadline)
+                    Spacer()
+                    Toggle("", isOn: $autoBackupEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+
+                // Retention stepper
+                HStack {
+                    Text("Keep recent:")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Stepper(value: $autoBackupRetention, in: 1...100, step: 1) {
+                        Text("\(autoBackupRetention)")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .monospacedDigit()
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Cloud Backup Card (Full Width)
+
+    private var cloudBackupCard: some View {
+        DataManagementCard {
+            HStack(spacing: 16) {
+                // Icon
+                Image(systemName: "icloud.fill")
+                    .font(.title2)
+                    .foregroundColor(.cyan)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("iCloud Backup")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("Syncing enabled")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: $cloudBackupEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+        }
+    }
+
+    // MARK: - Progress Overlay
+
+    private var progressOverlay: some View {
+        VStack(spacing: 8) {
+            if backupProgress > 0 && backupProgress < 1.0 {
+                ProgressRow(
+                    title: "Exporting...",
+                    message: backupMessage,
+                    progress: backupProgress,
+                    color: .blue
+                )
+            }
+
+            if importProgress > 0 && importProgress < 1.0 {
+                ProgressRow(
+                    title: "Importing...",
+                    message: importMessage,
+                    progress: importProgress,
+                    color: .green
+                )
+            }
+        }
+    }
+
+    // MARK: - Result Banner
+
+    private func resultBanner(_ summary: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+            Text(summary)
+                .font(.subheadline)
+            Spacer()
             Button {
-                performExport()
+                resultSummary = nil
             } label: {
-                Label("Export Backup", systemImage: "externaldrive.badge.plus")
+                Image(systemName: "xmark")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            Toggle("Encrypt Backups", isOn: $encryptBackups)
-                .help("Encrypted backups require a password to restore")
-            
-            if let estimatedSize = estimatedBackupSize {
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.badge.ellipsis")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                    Text("Estimated size: \(formatByteCount(estimatedSize))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            
-            Text("Backups include all your data except imported documents and file attachments.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
         }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.green.opacity(0.15))
+        )
     }
-    
+
     // MARK: - Helpers
+
     private func formatByteCount(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         formatter.allowedUnits = [.useKB, .useMB, .useGB]
         return formatter.string(fromByteCount: bytes)
     }
-    
-    // MARK: - Automatic Backups Section
-    private var automaticBackupsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Automatic Backups")
-                .font(.headline)
-            
-            Toggle("Enable Automatic Backups", isOn: $autoBackupEnabled)
-                .help("Automatically create a backup when you quit the app")
-            
-            if autoBackupEnabled {
-                HStack {
-                    Text("Keep")
-                        .font(.subheadline)
-                    Stepper(value: $autoBackupRetention, in: 1...100, step: 1) {
-                        Text("\(autoBackupRetention)")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .frame(minWidth: 40, alignment: .trailing)
-                    }
-                    Text(autoBackupRetention == 1 ? "backup" : "backups")
-                        .font(.subheadline)
-                    Spacer()
-                }
-                .help("Number of automatic backups to keep (older backups are automatically deleted)")
-                
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "info.circle")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                        .padding(.top, 2)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Automatic backups are created when you quit the app and stored in:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("~/Documents/Backups/Auto/")
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                    }
-                }
-            } else {
-                Text("Automatic backups are disabled. You can still create manual backups above.")
+
+    private func formatRelativeTime(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// MARK: - Supporting Views
+
+private struct DataManagementCard<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(cardBackgroundColor)
+            )
+    }
+
+    private var cardBackgroundColor: Color {
+        #if os(macOS)
+        Color(nsColor: .controlBackgroundColor)
+        #else
+        Color(uiColor: .secondarySystemBackground)
+        #endif
+    }
+}
+
+private struct CardHeader: View {
+    let title: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.subheadline)
+                .foregroundColor(color)
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+        }
+    }
+}
+
+private struct ProgressRow: View {
+    let title: String
+    let message: String
+    let progress: Double
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+                Text("\(Int(progress * 100))%")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+
+            ProgressView(value: progress)
+                .progressViewStyle(.linear)
+                .tint(color)
+
+            if !message.isEmpty {
+                Text(message)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-    }
-    
-    // MARK: - Restore Section
-    private var restoreSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Restore Backup")
-                .font(.headline)
-            
-            Button {
-                presentImporter()
-            } label: {
-                Label("Import Backup…", systemImage: "arrow.down.doc")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            Picker("Restore Mode", selection: $restoreMode) {
-                Text("Merge").tag(BackupService.RestoreMode.merge)
-                Text("Replace").tag(BackupService.RestoreMode.replace)
-            }
-            .pickerStyle(.segmented)
-            .help(restoreMode == .merge ? "Add backup data to existing data, skipping duplicates" : "Replace all existing data with backup data")
-            
-            Text(restoreMode == .merge 
-                 ? "Merge mode adds new records while keeping existing ones. Duplicate IDs are skipped."
-                 : "Replace mode deletes all current data and restores from the backup. This action cannot be undone.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-    
-    // MARK: - Advanced Section
-    private var advancedSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Advanced")
-                .font(.headline)
-            
-            Toggle(isOn: Binding(
-                get: { UserDefaults.standard.bool(forKey: UserDefaultsKeys.backupAllowChecksumBypass) },
-                set: { UserDefaults.standard.set($0, forKey: UserDefaultsKeys.backupAllowChecksumBypass) }
-            )) {
-                Text("Allow checksum bypass")
-            }
-            .tint(.orange)
-            .help("If a backup fails integrity validation, enabling this lets you import it anyway with a warning. Use only if you trust the file.")
-            
-            Text("Disable integrity checks for old or problematic backup files. Not recommended for normal use.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-    
-    // MARK: - Default Folder Section
-    private var defaultFolderSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "folder.fill")
-                    .foregroundStyle(.secondary)
-                    .font(.subheadline)
-                Text("Default Backup Folder")
-                    .font(.headline)
-            }
-            
-            if defaultFolderName.isEmpty {
-                Text("No folder selected")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                HStack {
-                    Image(systemName: "folder")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                    Text(defaultFolderName)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                    Spacer()
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(0.05))
-                )
-            }
-            
-            HStack(spacing: 8) {
-                Button {
-                    chooseDefaultFolder()
-                } label: {
-                    Label("Choose Folder…", systemImage: "folder.badge.plus")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                
-                if !defaultFolderName.isEmpty {
-                    Button {
-                        openDefaultFolder()
-                    } label: {
-                        Label("Open", systemImage: "folder")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    
-                    Button(role: .destructive) {
-                        clearDefaultFolder()
-                    } label: {
-                        Label("Clear", systemImage: "xmark.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Progress Indicator
-    private func progressIndicator(progress: Double, message: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ProgressView(value: progress) {
-                Text(message)
-                    .font(.subheadline)
-            }
-            .progressViewStyle(.linear)
-            
-            Text("\(Int(progress * 100))%")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-        .padding(.vertical, 4)
-    }
-    
-    // MARK: - Result Summary
-    private func resultSummaryView(_ summary: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.subheadline)
-            Text(summary)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.green.opacity(0.1))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(color.opacity(0.1))
         )
     }
 }
 
+// MARK: - Preview
+
+#Preview {
+    ScrollView {
+        BackupRestoreSettingsView(
+            encryptBackups: .constant(false),
+            restoreMode: .constant(.merge),
+            backupProgress: .constant(0),
+            backupMessage: .constant(""),
+            importProgress: .constant(0),
+            importMessage: .constant(""),
+            resultSummary: .constant(nil),
+            defaultFolderName: .constant("Maria's Notebook New Backups"),
+            lastBackupDate: Date().addingTimeInterval(-82),
+            estimatedBackupSize: 1_200_000,
+            performExport: {},
+            presentImporter: {},
+            chooseDefaultFolder: {},
+            openDefaultFolder: {},
+            clearDefaultFolder: {}
+        )
+        .padding()
+    }
+    .frame(width: 700, height: 500)
+    .preferredColorScheme(.dark)
+}

@@ -20,8 +20,15 @@ enum UserDefaultsKeys {
     
     // MARK: - Backup
     static let backupEncrypt = "Backup.encrypt"
+    static let backupEncryptDefault = "Backup.encryptDefault"  // True = encryption on by default
     static let backupAllowChecksumBypass = "Backup.allowChecksumBypass"
     static let lastBackupTimeInterval = "lastBackupTimeInterval"
+
+    // MARK: - Cloud Backup
+    static let cloudBackupScheduleEnabled = "CloudBackup.scheduleEnabled"
+    static let cloudBackupScheduleIntervalHours = "CloudBackup.scheduleIntervalHours"
+    static let cloudBackupScheduleRetentionCount = "CloudBackup.scheduleRetentionCount"
+    static let cloudBackupLastDate = "CloudBackup.lastBackupDate"
 
     // MARK: - Auto Backup
     static let autoBackupEnabled = "AutoBackup.enabled"

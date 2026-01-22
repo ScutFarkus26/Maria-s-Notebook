@@ -19,6 +19,7 @@ struct AppSchema {
         Note.self,
         NoteStudentLink.self,
         NoteTemplate.self,
+        MeetingTemplate.self,
         CommunityTopic.self,
         ProposedSolution.self,
         CommunityAttachment.self,

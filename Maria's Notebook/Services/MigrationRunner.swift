@@ -51,6 +51,9 @@ enum MigrationRunner {
 
             // Seed built-in note templates
             NoteTemplate.seedBuiltInTemplates(in: context)
+
+            // Seed built-in meeting templates
+            MeetingTemplate.seedBuiltInTemplates(in: context)
         }
     }
 }

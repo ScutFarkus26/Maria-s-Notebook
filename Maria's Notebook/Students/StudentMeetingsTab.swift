@@ -32,10 +32,36 @@ struct StudentMeetingsTab: View {
     @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
     private var meetingItemsRaw: [StudentMeeting]
 
+    // Query meeting templates to get active template for placeholders
+    @Query(sort: [SortDescriptor(\MeetingTemplate.sortOrder)])
+    private var meetingTemplates: [MeetingTemplate]
+
     // CloudKit compatibility: Convert UUID to String for comparison
-    private var meetingItems: [StudentMeeting] { 
+    private var meetingItems: [StudentMeeting] {
         let studentIDString = student.id.uuidString
-        return meetingItemsRaw.filter { $0.studentID == studentIDString } 
+        return meetingItemsRaw.filter { $0.studentID == studentIDString }
+    }
+
+    // Get the active meeting template for placeholder prompts
+    private var activeTemplate: MeetingTemplate? {
+        meetingTemplates.first { $0.isActive }
+    }
+
+    // Template placeholder prompts (with fallbacks)
+    private var reflectionPlaceholder: String {
+        activeTemplate?.reflectionPrompt ?? "What went well? What was hard?"
+    }
+
+    private var focusPlaceholder: String {
+        activeTemplate?.focusPrompt ?? "1–3 priorities…"
+    }
+
+    private var requestsPlaceholder: String {
+        activeTemplate?.requestsPrompt ?? "Lessons the student wants…"
+    }
+
+    private var guideNotesPlaceholder: String {
+        activeTemplate?.guideNotesPrompt ?? "Observations only…"
     }
 
     // MARK: - Local State for current meeting (persisted via UserDefaults per student)
@@ -205,10 +231,10 @@ struct StudentMeetingsTab: View {
                         .foregroundStyle(.secondary)
                 }
 
-                textArea(title: "Student reflection", text: $reflectionText, placeholder: "What went well? What was hard?")
-                textArea(title: "Focus for this week", text: $focusText, placeholder: "1–3 priorities…")
-                textArea(title: "Lesson requests", text: $requestsText, placeholder: "Lessons the student wants…")
-                textArea(title: "Guide notes (private)", text: $guideNotesText, placeholder: "Observations only…")
+                textArea(title: "Student reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
+                textArea(title: "Focus for this week", text: $focusText, placeholder: focusPlaceholder)
+                textArea(title: "Lesson requests", text: $requestsText, placeholder: requestsPlaceholder)
+                textArea(title: "Guide notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
 
                 HStack {
                     Spacer()
