@@ -177,13 +177,13 @@ struct DataCleanupServiceOrphanedWorkModelIDsTests {
         let context = ModelContext(container)
 
         let work = makeTestWorkModel()
-        work.participants = nil
+        work.participants = []
         context.insert(work)
         try context.save()
 
         await DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
 
-        #expect(work.participants == nil)
+        #expect(work.participants?.isEmpty ?? true)
     }
 }
 

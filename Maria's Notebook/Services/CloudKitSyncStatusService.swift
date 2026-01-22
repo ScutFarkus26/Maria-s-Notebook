@@ -3,6 +3,7 @@ import SwiftUI
 import SwiftData
 import CoreData
 import Combine
+import Network
 
 /// Service that monitors CloudKit sync activity and provides status information.
 /// Since SwiftData doesn't expose per-record sync status, this service tracks
@@ -24,6 +25,12 @@ final class CloudKitSyncStatusService: ObservableObject {
 
     /// Overall sync health status
     @Published private(set) var syncHealth: SyncHealth = .unknown
+
+    /// Whether network is available
+    @Published private(set) var isNetworkAvailable: Bool = true
+
+    /// Whether iCloud account is available
+    @Published private(set) var isICloudAvailable: Bool = true
 
     // MARK: - Types
 
@@ -73,9 +80,18 @@ final class CloudKitSyncStatusService: ObservableObject {
 
     private var remoteChangeObserver: NSObjectProtocol?
     private var saveObserver: NSObjectProtocol?
+    private var iCloudAccountObserver: NSObjectProtocol?
     private var syncStartTime: Date?
     private var modelContainer: ModelContainer?
     private var syncingTask: Task<Void, Never>?
+    private var networkMonitor: NWPathMonitor?
+    private let networkQueue = DispatchQueue(label: "com.mariasnotebook.networkmonitor")
+
+    /// Pending sync count - tracks how many saves are waiting for CloudKit confirmation
+    private var pendingSyncCount: Int = 0
+
+    /// Maximum time to wait for sync confirmation before assuming success (in nanoseconds)
+    private let syncTimeoutNanoseconds: UInt64 = 10_000_000_000 // 10 seconds
 
     // MARK: - Initialization
 
@@ -86,12 +102,20 @@ final class CloudKitSyncStatusService: ObservableObject {
         }
         lastSyncError = UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
+        // Check initial iCloud availability
+        isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
+
+        // Start network monitoring
+        startNetworkMonitoring()
+
         // Determine initial health
         updateSyncHealth()
     }
 
     deinit {
         stopObserving()
+        // Note: Cannot call stopNetworkMonitoring() from deinit since it's MainActor-isolated
+        // The NWPathMonitor will be cleaned up when the object is deallocated
     }
 
     // MARK: - Setup
@@ -99,6 +123,7 @@ final class CloudKitSyncStatusService: ObservableObject {
     func configure(with container: ModelContainer) {
         self.modelContainer = container
         startObserving()
+        startICloudAccountMonitoring()
         updateSyncHealth()
     }
 
@@ -136,18 +161,91 @@ final class CloudKitSyncStatusService: ObservableObject {
             if let observer = self?.saveObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
+            if let observer = self?.iCloudAccountObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
             self?.remoteChangeObserver = nil
             self?.saveObserver = nil
+            self?.iCloudAccountObserver = nil
+        }
+    }
+
+    // MARK: - iCloud Account Monitoring
+
+    private func startICloudAccountMonitoring() {
+        // Observe iCloud account changes (sign-in/sign-out)
+        iCloudAccountObserver = NotificationCenter.default.addObserver(
+            forName: .NSUbiquityIdentityDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleICloudAccountChange()
+            }
+        }
+    }
+
+    private func handleICloudAccountChange() {
+        let wasAvailable = isICloudAvailable
+        isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
+
+        if wasAvailable != isICloudAvailable {
+            if isICloudAvailable {
+                // User signed into iCloud - clear any offline errors
+                if lastSyncError?.contains("iCloud") == true || lastSyncError?.contains("signed in") == true {
+                    lastSyncError = nil
+                    UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+                }
+            } else {
+                // User signed out of iCloud
+                lastSyncError = "iCloud account signed out. Sign in to resume syncing."
+                UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+            }
+            updateSyncHealth()
+        }
+    }
+
+    // MARK: - Network Monitoring
+
+    private func startNetworkMonitoring() {
+        networkMonitor = NWPathMonitor()
+        networkMonitor?.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor [weak self] in
+                self?.handleNetworkChange(path)
+            }
+        }
+        networkMonitor?.start(queue: networkQueue)
+    }
+
+    private func stopNetworkMonitoring() {
+        networkMonitor?.cancel()
+        networkMonitor = nil
+    }
+
+    private func handleNetworkChange(_ path: NWPath) {
+        let wasAvailable = isNetworkAvailable
+        isNetworkAvailable = path.status == .satisfied
+
+        if wasAvailable != isNetworkAvailable {
+            if isNetworkAvailable {
+                // Network restored - trigger a sync if we have pending changes
+                if let error = lastSyncError, error.contains("network") || error.contains("offline") {
+                    lastSyncError = nil
+                    UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+                }
+            }
+            updateSyncHealth()
         }
     }
 
     // MARK: - Event Handlers
 
     private func handleRemoteChange() {
-        // A remote change was received from CloudKit
+        // A remote change was received from CloudKit - this confirms sync is working
         lastSuccessfulSync = Date()
         lastSyncError = nil
         isSyncing = false
+        pendingSyncCount = 0
         syncingTask?.cancel()
         syncingTask = nil
 
@@ -160,7 +258,9 @@ final class CloudKitSyncStatusService: ObservableObject {
 
     private func handleLocalSave() {
         // Local save occurred - CloudKit will sync automatically
-        // Mark as syncing briefly
+        pendingSyncCount += 1
+
+        // Only start syncing indicator if not already syncing
         guard !isSyncing else { return }
 
         isSyncing = true
@@ -170,14 +270,37 @@ final class CloudKitSyncStatusService: ObservableObject {
         // Cancel any existing timeout task
         syncingTask?.cancel()
 
-        // Auto-clear syncing state after a short delay
-        // (CloudKit sync happens asynchronously)
+        // Wait for either:
+        // 1. A remote change notification (confirming sync completed)
+        // 2. A longer timeout (10 seconds) to account for network latency
+        // The handleRemoteChange() method will cancel this task if sync completes
         syncingTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+            // Use longer timeout for more accurate sync status
+            try? await Task.sleep(nanoseconds: self?.syncTimeoutNanoseconds ?? 10_000_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 guard let self = self, self.isSyncing else { return }
+
+                // Check if we're online - if not, don't mark as successful
+                if !self.isNetworkAvailable {
+                    self.isSyncing = false
+                    self.lastSyncError = "Changes saved locally. Waiting for network to sync."
+                    self.updateSyncHealth()
+                    return
+                }
+
+                if !self.isICloudAvailable {
+                    self.isSyncing = false
+                    self.lastSyncError = "Changes saved locally. Sign into iCloud to sync."
+                    self.updateSyncHealth()
+                    return
+                }
+
+                // Timeout reached without remote confirmation, but no error
+                // Mark as successful since SwiftData doesn't always fire remote change notifications
+                // for outgoing-only syncs
                 self.isSyncing = false
+                self.pendingSyncCount = 0
                 self.lastSuccessfulSync = Date()
                 UserDefaults.standard.set(self.lastSuccessfulSync!.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
                 self.updateSyncHealth()
@@ -234,6 +357,18 @@ final class CloudKitSyncStatusService: ObservableObject {
         }
 
         guard isActive else {
+            syncHealth = .offline
+            return
+        }
+
+        // Check network availability
+        guard isNetworkAvailable else {
+            syncHealth = .offline
+            return
+        }
+
+        // Check iCloud availability
+        guard isICloudAvailable else {
             syncHealth = .offline
             return
         }

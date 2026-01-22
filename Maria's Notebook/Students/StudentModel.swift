@@ -26,6 +26,10 @@ final class Student: Identifiable {
     var nextLessons: [String] = []
     var manualOrder: Int = 0
     var dateStarted: Date? = nil
+
+    /// Timestamp of when this record was last modified locally.
+    /// Used for smarter CloudKit conflict resolution - prefer the most recently modified record.
+    var modifiedAt: Date = Date()
     
     // Computed property for level enum
     var level: Level {

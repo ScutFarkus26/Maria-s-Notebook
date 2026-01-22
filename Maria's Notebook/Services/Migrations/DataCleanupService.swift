@@ -104,7 +104,7 @@ enum DataCleanupService {
 
     /// Removes duplicate Student records that have the same UUID.
     /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    /// Keeps one instance of each student and deletes the duplicates.
+    /// Keeps the most recently modified instance (by modifiedAt) and deletes the duplicates.
     /// Returns the number of duplicate students removed.
     @discardableResult
     static func deduplicateStudents(using context: ModelContext) -> Int {
@@ -119,10 +119,11 @@ enum DataCleanupService {
 
         var deletedCount = 0
 
-        // For each group with duplicates, keep one and delete the rest
+        // For each group with duplicates, keep the most recently modified and delete the rest
         for (_, students) in studentsByID where students.count > 1 {
-            // Keep the first one (arbitrary, but consistent), delete the rest
-            for duplicate in students.dropFirst() {
+            // Sort by modifiedAt descending - keep the most recently modified
+            let sorted = students.sorted { $0.modifiedAt > $1.modifiedAt }
+            for duplicate in sorted.dropFirst() {
                 context.delete(duplicate)
                 deletedCount += 1
             }
@@ -137,7 +138,7 @@ enum DataCleanupService {
 
     /// Removes duplicate Project records that have the same UUID.
     /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    /// Keeps one instance of each project and deletes the duplicates.
+    /// Keeps the most recently modified instance (by modifiedAt) and deletes the duplicates.
     /// Returns the number of duplicate projects removed.
     @discardableResult
     static func deduplicateProjects(using context: ModelContext) -> Int {
@@ -152,10 +153,11 @@ enum DataCleanupService {
 
         var deletedCount = 0
 
-        // For each group with duplicates, keep one and delete the rest
+        // For each group with duplicates, keep the most recently modified and delete the rest
         for (_, projects) in projectsByID where projects.count > 1 {
-            // Keep the first one (arbitrary, but consistent), delete the rest
-            for duplicate in projects.dropFirst() {
+            // Sort by modifiedAt descending - keep the most recently modified
+            let sorted = projects.sorted { $0.modifiedAt > $1.modifiedAt }
+            for duplicate in sorted.dropFirst() {
                 context.delete(duplicate)
                 deletedCount += 1
             }

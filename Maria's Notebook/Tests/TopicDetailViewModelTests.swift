@@ -31,7 +31,8 @@ private func makeTestCommunityTopic(
         issueDescription: issueDescription,
         createdAt: createdAt,
         addressedDate: addressedDate,
-        resolution: resolution
+        resolution: resolution,
+        broughtBy: raisedBy
     )
 }
 

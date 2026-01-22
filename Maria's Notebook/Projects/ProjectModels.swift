@@ -25,6 +25,10 @@ final class Project: Identifiable {
     var id: UUID = UUID()
     var createdAt: Date = Date()
 
+    /// Timestamp of when this record was last modified locally.
+    /// Used for smarter CloudKit conflict resolution - prefer the most recently modified record.
+    var modifiedAt: Date = Date()
+
     var title: String = ""
     var bookTitle: String? = nil
 

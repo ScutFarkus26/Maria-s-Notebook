@@ -81,7 +81,8 @@ final class CommunityTopic: Identifiable {
         issueDescription: String = "",
         createdAt: Date = Date(),
         addressedDate: Date? = nil,
-        resolution: String = ""
+        resolution: String = "",
+        broughtBy: String = ""
     ) {
         self.id = id
         self.title = title
@@ -89,6 +90,7 @@ final class CommunityTopic: Identifiable {
         self.createdAt = createdAt
         self.addressedDate = addressedDate
         self.resolution = resolution
+        self.broughtBy = broughtBy
         self.proposedSolutions = []
         self.unifiedNotes = []
         self.attachments = []

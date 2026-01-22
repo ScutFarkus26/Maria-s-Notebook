@@ -25,6 +25,8 @@ enum LegacyNotesMigrationService {
         var migratedCount = 0
 
         for sl in studentLessons {
+            // Double-check notes is not empty (predicate may not filter correctly in all cases)
+            guard !sl.notes.isEmpty else { continue }
             // Check if unifiedNotes is empty - skip if already migrated
             guard (sl.unifiedNotes ?? []).isEmpty else { continue }
 
@@ -70,6 +72,8 @@ enum LegacyNotesMigrationService {
         var migratedCount = 0
 
         for work in workModels {
+            // Double-check notes is not empty (predicate may not filter correctly in all cases)
+            guard !work.notes.isEmpty else { continue }
             // Check if unifiedNotes is empty (or nil) - skip if already migrated
             guard (work.unifiedNotes ?? []).isEmpty else { continue }
 
