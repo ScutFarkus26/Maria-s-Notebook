@@ -126,16 +126,52 @@ struct LessonsRootView: View {
     var body: some View {
         VStack(spacing: 0) {
             ViewHeader(title: "Lessons") {
-                Picker("Mode", selection: Binding(
-                    get: { displayMode },
-                    set: { displayModeRaw = $0.rawValue }
-                )) {
-                    ForEach(LessonsDisplayMode.allCases) { mode in
-                        Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                HStack(spacing: 12) {
+                    Picker("Mode", selection: Binding(
+                        get: { displayMode },
+                        set: { displayModeRaw = $0.rawValue }
+                    )) {
+                        ForEach(LessonsDisplayMode.allCases) { mode in
+                            Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 180)
+                    .disabled(selectedSubject == nil)
+
+                    if displayMode == .plan && selectedSubject != nil {
+                        Button {
+                            isOrganizingGroups.toggle()
+                        } label: {
+                            Label(isOrganizingGroups ? "Done Organizing" : "Organize Groups",
+                                  systemImage: isOrganizingGroups ? "checkmark.circle.fill" : "list.bullet.indent")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    Menu {
+                        Button {
+                            showingAddLesson = true
+                        } label: {
+                            Label("New Lesson", systemImage: "plus.circle")
+                        }
+
+                        Button {
+                            showingBulkEntry = true
+                        } label: {
+                            Label("Bulk Entry…", systemImage: "square.grid.3x3")
+                        }
+
+                        Button {
+                            appRouter.requestImportLessons()
+                        } label: {
+                            Label("Import Lessons…", systemImage: "square.and.arrow.down")
+                        }
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                    }
+                    .menuStyle(.borderedButton)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 180)
             }
             Divider()
             HStack(spacing: 0) {
@@ -178,7 +214,6 @@ struct LessonsRootView: View {
         .onChange(of: displayMode) { _, newValue in
             handleDisplayModeChange(newValue)
         }
-        .toolbar { toolbarContent }
         .sheet(item: $lessonToSchedule) { lesson in
             SchedulePresentationSheet(
                 lesson: lesson,
@@ -196,58 +231,6 @@ struct LessonsRootView: View {
         }
         .sheet(isPresented: $showingBulkEntry) {
             BulkLessonsEntryView(defaultSubject: selectedSubject)
-        }
-    }
-
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItemGroup(placement: .automatic) {
-            Picker("Display Mode", selection: Binding(
-                get: { displayMode },
-                set: { displayModeRaw = $0.rawValue }
-            )) {
-                ForEach(LessonsDisplayMode.allCases) { mode in
-                    Label(mode.rawValue, systemImage: mode.icon).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 140)
-            .disabled(selectedSubject == nil)
-
-            if displayMode == .plan && selectedSubject != nil {
-                Button {
-                    isOrganizingGroups.toggle()
-                } label: {
-                    Label(isOrganizingGroups ? "Done Organizing" : "Organize Groups",
-                          systemImage: isOrganizingGroups ? "checkmark.circle.fill" : "list.bullet.indent")
-                }
-            }
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Button {
-                    showingAddLesson = true
-                } label: {
-                    Label("New Lesson", systemImage: "plus.circle")
-                }
-
-                Button {
-                    showingBulkEntry = true
-                } label: {
-                    Label("Bulk Entry…", systemImage: "square.grid.3x3")
-                }
-
-                Button {
-                    appRouter.requestImportLessons()
-                } label: {
-                    Label("Import Lessons…", systemImage: "square.and.arrow.down")
-                }
-            } label: {
-                Image(systemName: "plus")
-            }
         }
     }
 
