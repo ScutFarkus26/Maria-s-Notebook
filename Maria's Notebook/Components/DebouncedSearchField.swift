@@ -59,6 +59,11 @@ public struct DebouncedSearchField: View {
             scheduleDebounce(with: text)
         }
         .accessibilityElement(children: .combine)
+        #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .focusSearch)) { _ in
+            isFocused = true
+        }
+        #endif
     }
 
     private func scheduleDebounce(with value: String) {

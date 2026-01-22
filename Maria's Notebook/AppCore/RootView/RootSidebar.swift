@@ -7,6 +7,7 @@ import SwiftData
 /// Sidebar with grouped sections (Source List style) for selecting navigation items.
 struct RootSidebar: View {
     @Binding var selection: RootView.NavigationItem
+    @Environment(\.appRouter) private var appRouter
 
     var body: some View {
         #if os(macOS)
@@ -23,9 +24,24 @@ struct RootSidebar: View {
                 NavigationLink(value: RootView.NavigationItem.today) {
                     Label("Today", systemImage: "sun.max")
                 }
+
                 NavigationLink(value: RootView.NavigationItem.students) {
                     Label("Students", systemImage: "person.3")
                 }
+                .contextMenu {
+                    Button {
+                        appRouter.requestNewStudent()
+                    } label: {
+                        Label("New Student", systemImage: "person.badge.plus")
+                    }
+
+                    Button {
+                        appRouter.requestImportStudents()
+                    } label: {
+                        Label("Import Students…", systemImage: "square.and.arrow.down")
+                    }
+                }
+
                 NavigationLink(value: RootView.NavigationItem.community) {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
@@ -35,15 +51,39 @@ struct RootSidebar: View {
                 NavigationLink(value: RootView.NavigationItem.lessons) {
                     Label("Lessons", systemImage: "book")
                 }
+                .contextMenu {
+                    Button {
+                        appRouter.requestNewLesson()
+                    } label: {
+                        Label("New Lesson", systemImage: "plus.circle")
+                    }
+
+                    Button {
+                        appRouter.requestImportLessons()
+                    } label: {
+                        Label("Import Lessons…", systemImage: "square.and.arrow.down")
+                    }
+                }
+
                 NavigationLink(value: RootView.NavigationItem.planningChecklist) {
                     Label("Checklist", systemImage: "list.clipboard")
                 }
+
                 NavigationLink(value: RootView.NavigationItem.planningAgenda) {
                     Label("Presentations", systemImage: "calendar")
                 }
+
                 NavigationLink(value: RootView.NavigationItem.planningWork) {
                     Label("Open Work", systemImage: "tray.full")
                 }
+                .contextMenu {
+                    Button {
+                        appRouter.requestNewWork()
+                    } label: {
+                        Label("New Work…", systemImage: "plus.circle")
+                    }
+                }
+
                 NavigationLink(value: RootView.NavigationItem.planningProjects) {
                     Label("Projects", systemImage: "folder")
                 }

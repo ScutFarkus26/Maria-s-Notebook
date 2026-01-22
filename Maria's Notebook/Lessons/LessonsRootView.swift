@@ -99,6 +99,8 @@ struct LessonsRootView: View {
 
     var lessonsForSubject: [Lesson] {
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
         return helper.filteredLessons(
             modelContext: modelContext,
             sourceFilter: filterState.sourceFilter,
@@ -106,7 +108,7 @@ struct LessonsRootView: View {
             searchText: filterState.debouncedSearchText,
             selectedSubject: hasSearchText ? nil : filterState.selectedSubject,
             selectedGroup: nil
-        )
+        ).uniqueByID
     }
 
     var displayMode: LessonsDisplayMode {

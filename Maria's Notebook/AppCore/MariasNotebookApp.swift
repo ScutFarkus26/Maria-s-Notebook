@@ -644,7 +644,24 @@ struct MariasNotebookApp: App {
                 }
             }
 
-            // 3. GO MENU (Navigation)
+            // 3. WINDOW MANAGEMENT & SEARCH
+            #if os(macOS)
+            CommandGroup(after: .windowSize) {
+                Button("Close Window") {
+                    NSApplication.shared.keyWindow?.close()
+                }
+                .keyboardShortcut("w", modifiers: .command)
+            }
+
+            CommandGroup(after: .textEditing) {
+                Button("Find…") {
+                    NotificationCenter.default.post(name: .focusSearch, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+            }
+            #endif
+
+            // 4. GO MENU (Navigation)
             // Dedicated menu for navigating between app sections
             CommandMenu("Go") {
                 Button("Today") { appRouter.navigateTo(.today) }
@@ -745,6 +762,62 @@ struct MariasNotebookApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
         .defaultSize(width: 900, height: 700)
+        .modelContainer(sharedModelContainer)
+
+        // Student Detail Window
+        WindowGroup("", id: "StudentDetailWindow", for: UUID.self) { $studentID in
+            if let id = studentID {
+                Group {
+                    if restoreCoordinator.isRestoring {
+                        VStack(spacing: 20) {
+                            ProgressView().controlSize(.large)
+                            Text("Restoring data…")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minWidth: 400, minHeight: 300)
+                    } else {
+                        StudentDetailWindowHost(studentID: id)
+                            .environment(\.calendar, AppCalendar.shared)
+                            .environmentObject(saveCoordinator)
+                            .environmentObject(restoreCoordinator)
+                    }
+                }
+            } else {
+                Text("No student selected")
+                    .frame(minWidth: 400, minHeight: 300)
+            }
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.automatic)
+        .defaultSize(width: 860, height: 640)
+        .modelContainer(sharedModelContainer)
+
+        // Lesson Detail Window
+        WindowGroup("", id: "LessonDetailWindow", for: UUID.self) { $lessonID in
+            if let id = lessonID {
+                Group {
+                    if restoreCoordinator.isRestoring {
+                        VStack(spacing: 20) {
+                            ProgressView().controlSize(.large)
+                            Text("Restoring data…")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minWidth: 400, minHeight: 300)
+                    } else {
+                        LessonDetailWindowHost(lessonID: id)
+                            .environment(\.calendar, AppCalendar.shared)
+                            .environmentObject(saveCoordinator)
+                            .environmentObject(restoreCoordinator)
+                    }
+                }
+            } else {
+                Text("No lesson selected")
+                    .frame(minWidth: 400, minHeight: 300)
+            }
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.automatic)
+        .defaultSize(width: 720, height: 560)
         .modelContainer(sharedModelContainer)
         #endif
     }

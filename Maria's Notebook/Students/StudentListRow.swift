@@ -8,7 +8,14 @@ struct StudentListRow: View {
     let student: Student
     let sortOrder: SortOrder
     let daysSinceLastLesson: Int?
-    
+
+    // MARK: - Context Menu Actions (optional)
+    var onViewDetails: (() -> Void)?
+    var onDelete: (() -> Void)?
+    #if os(macOS)
+    var onOpenInNewWindow: (() -> Void)?
+    #endif
+
     @Environment(\.calendar) private var calendar
     
     private static let birthdayFormatter: DateFormatter = {
@@ -110,6 +117,38 @@ struct StudentListRow: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
         .contentShape(Rectangle())
+        .hoverableRow()
+        .contextMenu {
+            if let onViewDetails {
+                Button {
+                    onViewDetails()
+                } label: {
+                    Label("View Details", systemImage: "person.text.rectangle")
+                }
+            }
+
+            #if os(macOS)
+            Button {
+                if let onOpenInNewWindow {
+                    onOpenInNewWindow()
+                } else {
+                    openStudentInNewWindow(student.id)
+                }
+            } label: {
+                Label("Open in New Window", systemImage: "uiwindow.split.2x1")
+            }
+            #endif
+
+            if let onDelete {
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
     }
 }
 

@@ -5,24 +5,38 @@ import SwiftUI
 
 struct LessonRow: View {
     let lesson: Lesson
-    
+
     /// The style of secondary text to display
     enum SecondaryTextStyle {
         case subjectAndGroup  // Shows "subject · group"
         case subheading       // Shows subheading if present
     }
-    
+
     let secondaryTextStyle: SecondaryTextStyle
     let showTagIcon: Bool
-    
+
+    // MARK: - Context Menu Actions (optional)
+    var onViewDetails: (() -> Void)?
+    var onCopyName: (() -> Void)?
+    var onDelete: (() -> Void)?
+    #if os(macOS)
+    var onOpenInNewWindow: (() -> Void)?
+    #endif
+
     init(
         lesson: Lesson,
         secondaryTextStyle: SecondaryTextStyle = .subheading,
-        showTagIcon: Bool = false
+        showTagIcon: Bool = false,
+        onViewDetails: (() -> Void)? = nil,
+        onCopyName: (() -> Void)? = nil,
+        onDelete: (() -> Void)? = nil
     ) {
         self.lesson = lesson
         self.secondaryTextStyle = secondaryTextStyle
         self.showTagIcon = showTagIcon
+        self.onViewDetails = onViewDetails
+        self.onCopyName = onCopyName
+        self.onDelete = onDelete
     }
     
     var body: some View {
@@ -61,5 +75,45 @@ struct LessonRow: View {
         }
         .padding(.vertical, secondaryTextStyle == .subjectAndGroup ? 6 : 2)
         .contentShape(Rectangle())
+        .hoverableRow()
+        .contextMenu {
+            if let onViewDetails {
+                Button {
+                    onViewDetails()
+                } label: {
+                    Label("View Details", systemImage: "doc.text")
+                }
+            }
+
+            #if os(macOS)
+            Button {
+                if let onOpenInNewWindow {
+                    onOpenInNewWindow()
+                } else {
+                    openLessonInNewWindow(lesson.id)
+                }
+            } label: {
+                Label("Open in New Window", systemImage: "uiwindow.split.2x1")
+            }
+            #endif
+
+            if let onCopyName {
+                Button {
+                    onCopyName()
+                } label: {
+                    Label("Copy Name", systemImage: "doc.on.doc")
+                }
+            }
+
+            if let onDelete {
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
     }
 }

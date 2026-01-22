@@ -330,6 +330,12 @@ extension Notification.Name {
     nonisolated public static let syncedPreferencesDidChange = Notification.Name("syncedPreferencesDidChange")
     /// Posted to request opening a new window
     nonisolated static let openNewWindow = Notification.Name("openNewWindow")
+    /// Posted to request focusing the search field (Cmd+F)
+    nonisolated static let focusSearch = Notification.Name("focusSearch")
+    /// Posted to request opening a student detail window (with UUID userInfo)
+    nonisolated static let openStudentDetailWindow = Notification.Name("openStudentDetailWindow")
+    /// Posted to request opening a lesson detail window (with UUID userInfo)
+    nonisolated static let openLessonDetailWindow = Notification.Name("openLessonDetailWindow")
 }
 
 // MARK: - Property Wrapper for SwiftUI
