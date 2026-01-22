@@ -11,205 +11,42 @@ import UIKit
 struct DataManagementGrid: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = SettingsViewModel()
-    
-    // Persisted Settings
+
     @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
     @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true
     @AppStorage("AutoBackup.retentionCount") private var autoBackupRetention = 10
     @AppStorage("Backup.allowChecksumBypass") private var allowChecksumBypass = false
+    @AppStorage("CloudBackup.scheduleEnabled") private var cloudBackupEnabled = false
 
-    // Sheet State
     @State private var showingImporter = false
     @State private var showingExporter = false
     @State private var showingFolderImporter = false
-    @State private var showAdvancedAlert = false
+    @State private var resultMessage: String?
+
+    private var isWorking: Bool {
+        (viewModel.backupProgress > 0 && viewModel.backupProgress < 1.0) ||
+        (viewModel.importProgress > 0 && viewModel.importProgress < 1.0)
+    }
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-            
-            // MARK: - Card 1: Create Backup
-            InteractiveCard(title: "Backup", systemImage: "externaldrive.badge.plus") {
-                if viewModel.backupProgress > 0 && viewModel.backupProgress < 1.0 {
-                    ProgressView(value: viewModel.backupProgress) {
-                        Text(viewModel.backupMessage).font(.caption).lineLimit(1)
-                    }
-                } else {
-                    VStack(spacing: 12) {
-                        // Metadata Row: Size + Encrypt Toggle
-                        HStack {
-                            if let size = viewModel.estimatedBackupSize {
-                                Text(formatBytes(size))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("Calculating...")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            // Compact Encrypt Toggle
-                            Button(action: { encryptBackups.toggle() }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: encryptBackups ? "lock.fill" : "lock.open")
-                                    Text(encryptBackups ? "Encrypted" : "Public")
-                                }
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(encryptBackups ? Color.green.opacity(0.15) : Color.gray.opacity(0.1))
-                                .foregroundStyle(encryptBackups ? Color.green : Color.primary)
-                                .cornerRadius(8)
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        Button(action: {
-                            Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) }
-                        }) {
-                            Text("Create Backup")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                }
-            }
-            // Context menu for rarely used "Checksum" option
-            .contextMenu {
-                Toggle("Allow Checksum Bypass (Advanced)", isOn: $allowChecksumBypass)
+        VStack(spacing: 12) {
+            // Progress bar or result banner (inline)
+            if isWorking {
+                progressBar
+            } else if let message = resultMessage {
+                resultBanner(message)
             }
 
-            // MARK: - Card 2: Restore
-            InteractiveCard(title: "Restore", systemImage: "arrow.triangle.2.circlepath", color: .orange) {
-                if viewModel.importProgress > 0 && viewModel.importProgress < 1.0 {
-                    ProgressView(value: viewModel.importProgress) {
-                        Text(viewModel.importMessage).font(.caption).lineLimit(1)
-                    }
-                } else {
-                    VStack(spacing: 8) {
-                        Spacer()
-                        
-                        // Mode Picker
-                        Picker("Mode", selection: $viewModel.restoreMode) {
-                            Text("Merge").tag(BackupService.RestoreMode.merge)
-                            Text("Replace").tag(BackupService.RestoreMode.replace)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        
-                        // Checksum Bypass Toggle
-                        Toggle(isOn: $allowChecksumBypass) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(.orange)
-                                Text("Skip Checksum Validation")
-                                    .font(.caption)
-                            }
-                        }
-                        .toggleStyle(.switch)
-                        .help("Allow restoring backups with checksum mismatches. Use only if you trust the file.")
-
-                        Button(action: {
-                            #if os(macOS)
-                            presentMacFilePicker()
-                            #else
-                            showingImporter = true
-                            #endif
-                        }) {
-                            Label("Import File…", systemImage: "square.and.arrow.down")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
+            // Compact 2x2 grid
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                backupCard
+                restoreCard
+                storageCard
+                autoBackupCard
             }
 
-            // MARK: - Card 3: Storage / Default Folder
-            InteractiveCard(title: "Storage", systemImage: "folder.fill", color: .purple) {
-                VStack(alignment: .leading, spacing: 4) {
-                    if !viewModel.defaultFolderName.isEmpty {
-                        Text(viewModel.defaultFolderName)
-                            .font(.subheadline)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    } else {
-                        Text("No default folder")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    HStack {
-                        // Last Backup Time
-                        Group {
-                            if let date = viewModel.lastBackupDate {
-                                Text("Last: \(date, style: .relative)")
-                            } else {
-                                Text("Last: Never")
-                            }
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        // Consolidated Action Menu
-                        Menu {
-                            Button { showingFolderImporter = true } label: {
-                                Label("Change Folder…", systemImage: "folder.badge.plus")
-                            }
-                            
-                            if !viewModel.defaultFolderName.isEmpty {
-                                Button { openFolder() } label: {
-                                    Label("Open in Finder", systemImage: "arrow.up.right.square")
-                                }
-                                Divider()
-                                Button(role: .destructive) { clearFolder() } label: {
-                                    Label("Clear Selection", systemImage: "xmark.circle")
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .font(.title3)
-                                .foregroundStyle(Color.accentColor)
-                        }
-                        .menuStyle(.borderlessButton)
-                    }
-                }
-            }
-
-            // MARK: - Card 4: Automatic Backups
-            InteractiveCard(title: "Auto-Backup", systemImage: "timer", color: .blue) {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("On Quit")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Toggle("Enabled", isOn: $autoBackupEnabled)
-                            .labelsHidden()
-                            .scaleEffect(0.8)
-                    }
-                    
-                    if autoBackupEnabled {
-                        Stepper(value: $autoBackupRetention, in: 1...50) {
-                            Text("Keep recent: \(autoBackupRetention)")
-                                .font(.caption)
-                                .monospacedDigit()
-                        }
-                    } else {
-                        Text("Disabled")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 6)
-                    }
-                }
-            }
+            // iCloud row
+            iCloudRow
         }
         .fileImporter(
             isPresented: $showingImporter,
@@ -245,6 +82,12 @@ struct DataManagementGrid: View {
         .sheet(item: $viewModel.operationSummary) { summary in
             BackupSummaryView(summary: summary)
         }
+        .onChange(of: viewModel.resultSummary) { _, newValue in
+            if let summary = newValue {
+                resultMessage = summary
+                viewModel.resultSummary = nil
+            }
+        }
         .sheet(item: $viewModel.restorePreviewData) { preview in
             RestorePreviewView(preview: preview, onCancel: { viewModel.restorePreviewData = nil }, onConfirm: {
                 Task { await viewModel.performImportConfirmed(modelContext: modelContext) }
@@ -265,15 +108,248 @@ struct DataManagementGrid: View {
             viewModel.calculateEstimatedBackupSize(modelContext: modelContext)
         }
     }
-    
-    // MARK: - Helpers
-    private func formatBytes(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
+
+    // MARK: - Progress Bar
+
+    private var progressBar: some View {
+        let (progress, color): (Double, Color) = viewModel.backupProgress > 0
+            ? (viewModel.backupProgress, .blue)
+            : (viewModel.importProgress, .orange)
+
+        return HStack(spacing: 8) {
+            ProgressView(value: progress)
+                .progressViewStyle(.linear)
+                .tint(color)
+            Text("\(Int(progress * 100))%")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 8).fill(color.opacity(0.1)))
     }
-    
+
+    // MARK: - Backup Card
+
+    private var backupCard: some View {
+        CompactGridCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Backup", systemImage: "externaldrive.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.blue)
+                    Spacer()
+                    encryptionPill
+                }
+
+                if let size = viewModel.estimatedBackupSize {
+                    Text(formatBytes(size))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button {
+                    Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) }
+                } label: {
+                    Text("Create Backup")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(isWorking)
+            }
+        }
+    }
+
+    private var encryptionPill: some View {
+        Button { encryptBackups.toggle() } label: {
+            HStack(spacing: 3) {
+                Image(systemName: encryptBackups ? "lock.fill" : "lock.open")
+                Text(encryptBackups ? "Encrypted" : "Public")
+            }
+            .font(.caption2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(encryptBackups ? Color.green.opacity(0.15) : Color.primary.opacity(0.08)))
+            .foregroundStyle(encryptBackups ? .green : .primary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Restore Card
+
+    private var restoreCard: some View {
+        CompactGridCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Restore", systemImage: "arrow.counterclockwise")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.orange)
+
+                Picker("", selection: $viewModel.restoreMode) {
+                    Text("Merge").tag(BackupService.RestoreMode.merge)
+                    Text("Replace").tag(BackupService.RestoreMode.replace)
+                }
+                .pickerStyle(.segmented)
+                .controlSize(.small)
+
+                Button {
+                    #if os(macOS)
+                    presentMacFilePicker()
+                    #else
+                    showingImporter = true
+                    #endif
+                } label: {
+                    Label("Import", systemImage: "square.and.arrow.down")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isWorking)
+            }
+        }
+        .contextMenu {
+            Toggle("Skip Checksum Validation", isOn: $allowChecksumBypass)
+        }
+    }
+
+    // MARK: - Storage Card
+
+    private var storageCard: some View {
+        CompactGridCard {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("Storage", systemImage: "folder.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.purple)
+                    Spacer()
+                    folderMenu
+                }
+
+                Text(viewModel.defaultFolderName.isEmpty ? "No folder selected" : viewModel.defaultFolderName)
+                    .font(.caption)
+                    .foregroundStyle(viewModel.defaultFolderName.isEmpty ? .secondary : .primary)
+                    .lineLimit(1)
+
+                if let date = viewModel.lastBackupDate {
+                    Text("Last: \(date, style: .relative)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    private var folderMenu: some View {
+        Menu {
+            Button { showingFolderImporter = true } label: {
+                Label("Choose Folder…", systemImage: "folder.badge.plus")
+            }
+            if !viewModel.defaultFolderName.isEmpty {
+                Button { openFolder() } label: {
+                    Label("Open in Finder", systemImage: "arrow.up.forward.square")
+                }
+                Divider()
+                Button(role: .destructive) { clearFolder() } label: {
+                    Label("Clear", systemImage: "xmark.circle")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    // MARK: - Auto-Backup Card
+
+    private var autoBackupCard: some View {
+        CompactGridCard {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("Auto-Backup", systemImage: "clock.arrow.circlepath")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.green)
+                    Spacer()
+                    Toggle("", isOn: $autoBackupEnabled)
+                        .toggleStyle(.switch)
+                        .scaleEffect(0.75)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Text("Keep")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Stepper(value: $autoBackupRetention, in: 1...50) {
+                        Text("\(autoBackupRetention)")
+                            .font(.caption.weight(.medium))
+                            .monospacedDigit()
+                    }
+                    .controlSize(.small)
+                }
+                .opacity(autoBackupEnabled ? 1 : 0.4)
+                .disabled(!autoBackupEnabled)
+            }
+        }
+    }
+
+    // MARK: - iCloud Row
+
+    private var iCloudRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "icloud.fill")
+                .foregroundColor(.cyan)
+            Text("iCloud Backup")
+                .font(.subheadline)
+            Spacer()
+            Toggle("", isOn: $cloudBackupEnabled)
+                .toggleStyle(.switch)
+                .scaleEffect(0.8)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+    }
+
+    // MARK: - Result Banner
+
+    private func resultBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+            Text(message)
+                .font(.caption)
+                .lineLimit(1)
+            Spacer()
+            Button { resultMessage = nil } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.green.opacity(0.12))
+        )
+    }
+
+    // MARK: - Helpers
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+
     private func openFolder() {
         #if os(macOS)
         if let url = BackupDestination.resolveDefaultFolder() {
@@ -285,12 +361,12 @@ struct DataManagementGrid: View {
         }
         #endif
     }
-    
+
     private func clearFolder() {
         BackupDestination.clearDefaultFolder()
         viewModel.loadDefaultFolderName()
     }
-    
+
     #if os(macOS)
     private func presentMacFilePicker() {
         let panel = NSOpenPanel()
@@ -317,8 +393,20 @@ struct DataManagementGrid: View {
     #endif
 }
 
+// MARK: - Compact Grid Card
+
+private struct CompactGridCard<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .cardStyle(cornerRadius: 10, padding: 10)
+    }
+}
+
 // Ensure RestorePreview is Identifiable for sheets
-extension RestorePreview: Identifiable {
+extension RestorePreview: @retroactive Identifiable {
     public var id: String { "preview" }
 }
 
