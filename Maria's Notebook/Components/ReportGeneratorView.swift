@@ -308,6 +308,7 @@ struct PDFKitView: NSViewRepresentable {
         let pdfView = PDFView()
         pdfView.autoScales = true
         pdfView.displayMode = .singlePageContinuous
+        // Document assignment is deferred to updateNSView to avoid layout recursion
         return pdfView
     }
 
@@ -318,6 +319,7 @@ struct PDFKitView: NSViewRepresentable {
         context.coordinator.lastDataHash = newHash
 
         // Defer document assignment to next run loop to avoid layout recursion
+        // PDFView internally triggers layout when documents are assigned
         guard let document = PDFDocument(data: data) else { return }
         DispatchQueue.main.async {
             pdfView.document = document

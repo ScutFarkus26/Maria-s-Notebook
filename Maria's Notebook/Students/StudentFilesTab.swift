@@ -445,44 +445,39 @@ struct PDFThumbnailView: View {
 #if os(macOS)
 struct PDFPageViewRepresentable: NSViewRepresentable {
     let page: PDFPage
-    
+
     func makeNSView(context: Context) -> PDFView {
         let pdfView = PDFView()
-        
-        // Check if the page already belongs to a document
-        if let existingDocument = page.document {
-            // Use the existing document to preserve accessibility tag structure
-            pdfView.document = existingDocument
-            pdfView.go(to: page)
-        } else {
-            // Only create a new document if the page doesn't have one
-            let newDocument = PDFDocument()
-            newDocument.insert(page, at: 0)
-            pdfView.document = newDocument
-        }
-        
         pdfView.autoScales = true
         pdfView.displayMode = .singlePage
         pdfView.displayDirection = .vertical
         pdfView.backgroundColor = .clear
+        // Document assignment is deferred to updateNSView to avoid layout recursion
         return pdfView
     }
-    
+
     func updateNSView(_ nsView: PDFView, context: Context) {
-        // Ensure the view stays in sync with the page
-        // Defer document/navigation changes to next run loop to avoid layout recursion
+        // Defer all document/navigation changes to next run loop to avoid layout recursion
+        // PDFView internally triggers layout when documents are assigned
+        let targetPage = page
+
         if let existingDocument = page.document {
             if nsView.document !== existingDocument {
-                let targetPage = page
                 DispatchQueue.main.async {
                     nsView.document = existingDocument
                     nsView.go(to: targetPage)
                 }
             } else if nsView.currentPage !== page {
-                let targetPage = page
                 DispatchQueue.main.async {
                     nsView.go(to: targetPage)
                 }
+            }
+        } else if nsView.document == nil {
+            // Only create a new document if the page doesn't have one and view has no document
+            DispatchQueue.main.async {
+                let newDocument = PDFDocument()
+                newDocument.insert(targetPage, at: 0)
+                nsView.document = newDocument
             }
         }
     }
