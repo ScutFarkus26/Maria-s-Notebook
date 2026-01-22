@@ -317,17 +317,65 @@ public final class CloudBackupService: ObservableObject {
         // Start download
         try fileManager.startDownloadingUbiquitousItem(at: backup.fileURL)
 
-        // Wait for download to complete (poll every 0.5 seconds, timeout after 60 seconds)
-        let timeout = Date().addingTimeInterval(60)
-        while Date() < timeout {
-            let resourceValues = try backup.fileURL.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
-            if resourceValues.ubiquitousItemDownloadingStatus == .current {
-                return backup.fileURL
-            }
-            try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-        }
+        // Use NSFileCoordinator to wait for the file to be available
+        // This is more efficient than polling and properly handles iCloud file operations
+        return try await withCheckedThrowingContinuation { continuation in
+            // Run coordination on a background thread since it blocks
+            DispatchQueue.global(qos: .userInitiated).async {
+                let coordinator = NSFileCoordinator()
+                var coordinatorError: NSError?
 
-        throw CloudBackupError.fileNotFound(backup.fileName)
+                // Use a lock to ensure we only resume once
+                let lock = NSLock()
+                var hasResumed = false
+
+                func resumeOnce(with result: Result<URL, Error>) {
+                    lock.lock()
+                    defer { lock.unlock() }
+                    guard !hasResumed else { return }
+                    hasResumed = true
+                    switch result {
+                    case .success(let url):
+                        continuation.resume(returning: url)
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+
+                // Set a timeout
+                let timeoutTask = DispatchWorkItem {
+                    coordinator.cancel()
+                    resumeOnce(with: .failure(CloudBackupError.fileNotFound(backup.fileName)))
+                }
+                DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timeoutTask)
+
+                coordinator.coordinate(
+                    readingItemAt: backup.fileURL,
+                    options: [.withoutChanges],
+                    error: &coordinatorError
+                ) { url in
+                    timeoutTask.cancel()
+
+                    // Check download status one final time
+                    do {
+                        let resourceValues = try url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
+                        if resourceValues.ubiquitousItemDownloadingStatus == .current || resourceValues.ubiquitousItemDownloadingStatus == nil {
+                            resumeOnce(with: .success(url))
+                        } else {
+                            resumeOnce(with: .failure(CloudBackupError.fileNotFound(backup.fileName)))
+                        }
+                    } catch {
+                        resumeOnce(with: .failure(CloudBackupError.restoreFailed(error)))
+                    }
+                }
+
+                // Handle coordination error
+                if let error = coordinatorError {
+                    timeoutTask.cancel()
+                    resumeOnce(with: .failure(CloudBackupError.restoreFailed(error)))
+                }
+            }
+        }
     }
 
     /// Deletes a backup from iCloud Drive
@@ -562,6 +610,13 @@ public final class CloudBackupService: ObservableObject {
         if timestamp > 0 {
             lastCloudBackupDate = Date(timeIntervalSinceReferenceDate: timestamp)
         }
+    }
+
+    deinit {
+        // Ensure scheduled backup task is cancelled when service is deallocated
+        // to prevent background task leaks
+        scheduledBackupTask?.cancel()
+        scheduledBackupTask = nil
     }
 }
 

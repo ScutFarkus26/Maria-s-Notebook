@@ -415,18 +415,42 @@ struct DocumentCard: View {
 
 struct PDFThumbnail: View {
     let data: Data?
-    
+
+    @State private var page: PDFPage?
+    @State private var isLoading = true
+
     var body: some View {
         Group {
-            if let pdfData = data, let pdfDocument = PDFDocument(data: pdfData),
-               let firstPage = pdfDocument.page(at: 0) {
-                PDFThumbnailView(page: firstPage)
+            if let page {
+                PDFThumbnailView(page: page)
+            } else if isLoading {
+                ProgressView()
+                    .frame(maxWidth: 40, maxHeight: 40)
             } else {
                 Image(systemName: "doc.text.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(.secondary)
             }
         }
+        .task {
+            await loadPDFPage()
+        }
+    }
+
+    private func loadPDFPage() async {
+        guard let pdfData = data else {
+            isLoading = false
+            return
+        }
+
+        // Load PDF document off the main thread to avoid blocking scrolling
+        let loadedPage = await Task.detached(priority: .userInitiated) {
+            guard let pdfDocument = PDFDocument(data: pdfData) else { return nil as PDFPage? }
+            return pdfDocument.page(at: 0)
+        }.value
+
+        self.page = loadedPage
+        self.isLoading = false
     }
 }
 

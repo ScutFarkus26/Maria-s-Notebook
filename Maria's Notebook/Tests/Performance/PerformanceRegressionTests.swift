@@ -313,7 +313,7 @@ struct DataQueryServiceRegressionTests {
 
         let activeWork = makeTestWorkModel(title: "Active", status: .active)
         let reviewWork = makeTestWorkModel(title: "Review", status: .review)
-        let completedWork = makeTestWorkModel(title: "Completed", status: .completed)
+        let completedWork = makeTestWorkModel(title: "Completed", status: .complete)
 
         context.insert(activeWork)
         context.insert(reviewWork)
@@ -358,8 +358,9 @@ struct NoteStudentLinkRegressionTests {
         note.syncStudentLinks(in: context)
         try context.save()
 
+        let noteIDString = note.id.uuidString
         let descriptor = FetchDescriptor<NoteStudentLink>(
-            predicate: #Predicate<NoteStudentLink> { $0.noteID == note.id }
+            predicate: #Predicate<NoteStudentLink> { $0.noteID == noteIDString }
         )
         let links = try context.fetch(descriptor)
 
@@ -383,8 +384,9 @@ struct NoteStudentLinkRegressionTests {
         try context.save()
 
         // Verify links exist
+        let noteIDString = note.id.uuidString
         var descriptor = FetchDescriptor<NoteStudentLink>(
-            predicate: #Predicate<NoteStudentLink> { $0.noteID == note.id }
+            predicate: #Predicate<NoteStudentLink> { $0.noteID == noteIDString }
         )
         var links = try context.fetch(descriptor)
         #expect(links.count == 2)
@@ -396,7 +398,7 @@ struct NoteStudentLinkRegressionTests {
 
         // Links should be removed
         descriptor = FetchDescriptor<NoteStudentLink>(
-            predicate: #Predicate<NoteStudentLink> { $0.noteID == note.id }
+            predicate: #Predicate<NoteStudentLink> { $0.noteID == noteIDString }
         )
         links = try context.fetch(descriptor)
         #expect(links.isEmpty)
@@ -421,8 +423,9 @@ struct NoteStudentLinkRegressionTests {
         note.syncStudentLinks(in: context)
         try context.save()
 
+        let noteIDString = note.id.uuidString
         let descriptor = FetchDescriptor<NoteStudentLink>(
-            predicate: #Predicate<NoteStudentLink> { $0.noteID == note.id }
+            predicate: #Predicate<NoteStudentLink> { $0.noteID == noteIDString }
         )
         let links = try context.fetch(descriptor)
 

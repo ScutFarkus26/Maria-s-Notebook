@@ -229,6 +229,18 @@ enum RelationshipBackfillService {
             let studentLessons = context.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
             let studentLessonByID = Dictionary(studentLessons.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
 
+            // Pre-build lookup dictionaries for O(1) access instead of O(n) loops per presentation
+            // Group StudentLessons by lessonID for fast lookup
+            var studentLessonsByLessonID: [String: [StudentLesson]] = [:]
+            for sl in studentLessons {
+                let resolvedID = sl.resolvedLessonID.uuidString
+                let rawID = sl.lessonID
+                studentLessonsByLessonID[resolvedID, default: []].append(sl)
+                if rawID != resolvedID {
+                    studentLessonsByLessonID[rawID, default: []].append(sl)
+                }
+            }
+
             let batchSize = 100
             var changed = false
 
@@ -261,95 +273,57 @@ enum RelationshipBackfillService {
 
                     var matched: StudentLesson?
 
+                    // Use pre-built dictionary for O(1) lookup instead of O(n) loop
+                    let candidatesForLesson = studentLessonsByLessonID[pLessonID] ?? []
+
                     // PASS 1: Strict matching (exact lessonID match + exact studentIDs set match)
-                    var strictCandidates: [StudentLesson] = []
-
-                    for sl in studentLessons {
-                        let lessonMatch = sl.resolvedLessonID.uuidString == pLessonID || sl.lessonID == pLessonID
-                        guard lessonMatch else { continue }
-
-                        let slStudentIDs = Set(sl.studentIDs)
-                        let studentMatch = pStudentIDs == slStudentIDs
-                        guard studentMatch else { continue }
-
-                        strictCandidates.append(sl)
+                    let strictCandidates = candidatesForLesson.filter { sl in
+                        Set(sl.studentIDs) == pStudentIDs
                     }
 
                     if !strictCandidates.isEmpty {
-                        var bestMatch: StudentLesson?
-                        var minTimeDifference: TimeInterval = .greatestFiniteMagnitude
-
-                        for candidate in strictCandidates {
-                            let candidateDate = bestDate(for: candidate)
-                            let timeDifference = abs(candidateDate.timeIntervalSince(pPresentedAt))
-                            if timeDifference < minTimeDifference {
-                                minTimeDifference = timeDifference
-                                bestMatch = candidate
-                            }
+                        // Find best match by time difference
+                        matched = strictCandidates.min { a, b in
+                            let aTime = abs(bestDate(for: a).timeIntervalSince(pPresentedAt))
+                            let bTime = abs(bestDate(for: b).timeIntervalSince(pPresentedAt))
+                            return aTime < bTime
                         }
-
-                        if bestMatch == nil {
-                            bestMatch = strictCandidates.min(by: { $0.createdAt < $1.createdAt })
+                        // Fallback to oldest by creation date if time differences are all equal
+                        if matched == nil {
+                            matched = strictCandidates.min(by: { $0.createdAt < $1.createdAt })
                         }
-
-                        matched = bestMatch
                     }
 
                     // PASS 2: Loose matching (for unmatched presentations)
                     if matched == nil {
-                        var looseCandidates: [StudentLesson] = []
-
-                        for sl in studentLessons {
-                            let lessonMatch = sl.resolvedLessonID.uuidString == pLessonID || sl.lessonID == pLessonID
-                            guard lessonMatch else { continue }
-
-                            let slStudentIDs = Set(sl.studentIDs)
-                            if pStudentIDs.isEmpty {
-                                looseCandidates.append(sl)
-                            } else {
-                                let intersection = pStudentIDs.intersection(slStudentIDs)
-                                guard !intersection.isEmpty else { continue }
-                                looseCandidates.append(sl)
+                        let looseCandidates: [StudentLesson]
+                        if pStudentIDs.isEmpty {
+                            looseCandidates = candidatesForLesson
+                        } else {
+                            looseCandidates = candidatesForLesson.filter { sl in
+                                !pStudentIDs.intersection(Set(sl.studentIDs)).isEmpty
                             }
                         }
 
                         if !looseCandidates.isEmpty {
-                            var sameDayCandidates: [StudentLesson] = []
-                            var otherCandidates: [StudentLesson] = []
-
-                            for candidate in looseCandidates {
-                                if let givenAt = candidate.givenAt,
-                                   Calendar.current.isDate(givenAt, inSameDayAs: pPresentedAt) {
-                                    sameDayCandidates.append(candidate)
-                                } else {
-                                    otherCandidates.append(candidate)
-                                }
+                            // Prefer same-day candidates
+                            let sameDayCandidates = looseCandidates.filter { candidate in
+                                guard let givenAt = candidate.givenAt else { return false }
+                                return Calendar.current.isDate(givenAt, inSameDayAs: pPresentedAt)
                             }
 
-                            let candidatesToConsider = sameDayCandidates.isEmpty ? otherCandidates : sameDayCandidates
+                            let candidatesToConsider = sameDayCandidates.isEmpty ? looseCandidates : sameDayCandidates
 
-                            var bestMatch: StudentLesson?
-                            var minTimeDifference: TimeInterval = .greatestFiniteMagnitude
-
-                            for candidate in candidatesToConsider {
-                                let timeDifference: TimeInterval
-                                if let givenAt = candidate.givenAt {
-                                    timeDifference = abs(givenAt.timeIntervalSince(pPresentedAt))
-                                } else {
-                                    timeDifference = 0
-                                }
-
-                                if timeDifference < minTimeDifference {
-                                    minTimeDifference = timeDifference
-                                    bestMatch = candidate
-                                }
+                            // Find best match by time difference
+                            matched = candidatesToConsider.min { a, b in
+                                let aTime = a.givenAt.map { abs($0.timeIntervalSince(pPresentedAt)) } ?? 0
+                                let bTime = b.givenAt.map { abs($0.timeIntervalSince(pPresentedAt)) } ?? 0
+                                return aTime < bTime
                             }
-
-                            if bestMatch == nil {
-                                bestMatch = candidatesToConsider.min(by: { $0.createdAt < $1.createdAt })
+                            // Fallback to oldest by creation date
+                            if matched == nil {
+                                matched = candidatesToConsider.min(by: { $0.createdAt < $1.createdAt })
                             }
-
-                            matched = bestMatch
                         }
                     }
 

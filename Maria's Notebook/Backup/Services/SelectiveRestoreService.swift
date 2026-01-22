@@ -268,6 +268,10 @@ public final class SelectiveRestoreService {
         progress(0.05, "Reading backup file…")
         let payload = try await extractPayload(from: url, password: password)
 
+        progress(0.08, "Building lookup caches…")
+        buildExistingIDCaches(in: modelContext)
+        defer { clearIDCaches() }
+
         let resolved = options.resolvedEntityTypes
         var importedCounts: [RestorableEntityType: Int] = [:]
         var skippedCounts: [RestorableEntityType: Int] = [:]
@@ -368,152 +372,204 @@ public final class SelectiveRestoreService {
 
         var imported = 0
         var skipped = 0
-        var warning = ""
+        let warning = ""
 
         switch type {
         case .students:
-            let result = try BackupEntityImporter.importStudents(
+            // Use cached lookup - O(1) instead of O(n) per entity
+            let result = BackupEntityImporter.importStudents(
                 payload.students,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(Student.self, id: id, in: modelContext) }
+                existingCheck: { [studentsByID] id in studentsByID[id] }
             )
+            // Update cache with newly imported students
+            for (id, student) in result {
+                studentsByID[id] = student
+            }
             imported = result.count
             skipped = payload.students.count - result.count
 
         case .lessons:
-            try BackupEntityImporter.importLessons(
+            let existingLessonIDs = Set(lessonsByID.keys)
+            BackupEntityImporter.importLessons(
                 payload.lessons,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(Lesson.self, id: id, in: modelContext) }
+                existingCheck: { [lessonsByID] id in lessonsByID[id] }
             )
-            imported = payload.lessons.count
-            // TODO: Track actual skip count
+            // Track imported count
+            let newLessons = payload.lessons.filter { !existingLessonIDs.contains($0.id) }
+            imported = newLessons.count
+            skipped = payload.lessons.count - newLessons.count
+            // Refresh lesson cache for subsequent imports
+            let allLessons = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+            lessonsByID = Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) })
 
         case .studentLessons:
-            try BackupEntityImporter.importStudentLessons(
+            BackupEntityImporter.importStudentLessons(
                 payload.studentLessons,
                 into: modelContext,
-                studentLessonCheck: { id in try? fetchEntity(StudentLesson.self, id: id, in: modelContext) },
-                lessonCheck: { id in try? fetchEntity(Lesson.self, id: id, in: modelContext) },
-                studentCheck: { id in try? fetchEntity(Student.self, id: id, in: modelContext) }
+                studentLessonCheck: { [existingStudentLessonIDs] id in
+                    // Return a placeholder if exists (importer only checks for nil)
+                    existingStudentLessonIDs.contains(id) ? StudentLesson(lessonID: id, studentIDs: []) : nil
+                },
+                lessonCheck: { [lessonsByID] id in lessonsByID[id] },
+                studentCheck: { [studentsByID] id in studentsByID[id] }
             )
             imported = payload.studentLessons.count
 
         case .workPlanItems:
-            try BackupEntityImporter.importWorkPlanItems(
+            BackupEntityImporter.importWorkPlanItems(
                 payload.workPlanItems,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(WorkPlanItem.self, id: id, in: modelContext) }
+                existingCheck: { [existingWorkPlanItemIDs] id in
+                    existingWorkPlanItemIDs.contains(id) ? WorkPlanItem(workID: id, scheduledDate: Date(), reason: nil, note: nil) : nil
+                }
             )
             imported = payload.workPlanItems.count
 
         case .notes:
-            try BackupEntityImporter.importNotes(
+            BackupEntityImporter.importNotes(
                 payload.notes,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(Note.self, id: id, in: modelContext) },
-                lessonCheck: { id in try? fetchEntity(Lesson.self, id: id, in: modelContext) }
+                existingCheck: { [existingNoteIDs] id in
+                    existingNoteIDs.contains(id) ? Note(body: "", scope: .all) : nil
+                },
+                lessonCheck: { [lessonsByID] id in lessonsByID[id] }
             )
             imported = payload.notes.count
 
         case .calendar:
-            try BackupEntityImporter.importNonSchoolDays(
+            BackupEntityImporter.importNonSchoolDays(
                 payload.nonSchoolDays,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(NonSchoolDay.self, id: id, in: modelContext) }
+                existingCheck: { [existingNonSchoolDayIDs] id in
+                    existingNonSchoolDayIDs.contains(id) ? NonSchoolDay(date: Date()) : nil
+                }
             )
-            try BackupEntityImporter.importSchoolDayOverrides(
+            BackupEntityImporter.importSchoolDayOverrides(
                 payload.schoolDayOverrides,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(SchoolDayOverride.self, id: id, in: modelContext) }
+                existingCheck: { [existingSchoolDayOverrideIDs] id in
+                    existingSchoolDayOverrideIDs.contains(id) ? SchoolDayOverride(date: Date()) : nil
+                }
             )
             imported = payload.nonSchoolDays.count + payload.schoolDayOverrides.count
 
         case .meetings:
-            try BackupEntityImporter.importStudentMeetings(
+            BackupEntityImporter.importStudentMeetings(
                 payload.studentMeetings,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(StudentMeeting.self, id: id, in: modelContext) }
+                existingCheck: { [existingMeetingIDs] id in
+                    existingMeetingIDs.contains(id) ? StudentMeeting(studentID: UUID(), date: Date()) : nil
+                }
             )
             imported = payload.studentMeetings.count
 
         case .presentations:
             let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
-            try BackupEntityImporter.importPresentations(
+            BackupEntityImporter.importPresentations(
                 payload.presentations,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(Presentation.self, id: id, in: modelContext) },
+                existingCheck: { [existingPresentationIDs] id in
+                    existingPresentationIDs.contains(id) ? Presentation(presentedAt: Date(), lessonID: "", studentIDs: []) : nil
+                },
                 allStudentLessons: allStudentLessons
             )
             imported = payload.presentations.count
 
         case .community:
-            try BackupEntityImporter.importCommunityTopics(
+            BackupEntityImporter.importCommunityTopics(
                 payload.communityTopics,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(CommunityTopic.self, id: id, in: modelContext) }
+                existingCheck: { [topicsByID] id in topicsByID[id] }
             )
-            try BackupEntityImporter.importProposedSolutions(
+            // Refresh topic cache for subsequent imports
+            let allTopics = (try? modelContext.fetch(FetchDescriptor<CommunityTopic>())) ?? []
+            topicsByID = Dictionary(uniqueKeysWithValues: allTopics.map { ($0.id, $0) })
+
+            BackupEntityImporter.importProposedSolutions(
                 payload.proposedSolutions,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(ProposedSolution.self, id: id, in: modelContext) },
-                topicCheck: { id in try? fetchEntity(CommunityTopic.self, id: id, in: modelContext) }
+                existingCheck: { [existingSolutionIDs] id in
+                    existingSolutionIDs.contains(id) ? ProposedSolution(title: "", details: "", proposedBy: "", topic: nil) : nil
+                },
+                topicCheck: { [topicsByID] id in topicsByID[id] }
             )
-            try BackupEntityImporter.importCommunityAttachments(
+            BackupEntityImporter.importCommunityAttachments(
                 payload.communityAttachments,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(CommunityAttachment.self, id: id, in: modelContext) },
-                topicCheck: { id in try? fetchEntity(CommunityTopic.self, id: id, in: modelContext) }
+                existingCheck: { [existingAttachmentIDs] id in
+                    existingAttachmentIDs.contains(id) ? CommunityAttachment(filename: "", kind: .file, data: nil, topic: nil) : nil
+                },
+                topicCheck: { [topicsByID] id in topicsByID[id] }
             )
             imported = payload.communityTopics.count + payload.proposedSolutions.count + payload.communityAttachments.count
 
         case .attendance:
-            try BackupEntityImporter.importAttendanceRecords(
+            BackupEntityImporter.importAttendanceRecords(
                 payload.attendance,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(AttendanceRecord.self, id: id, in: modelContext) }
+                existingCheck: { [existingAttendanceIDs] id in
+                    existingAttendanceIDs.contains(id) ? AttendanceRecord(studentID: UUID(), date: Date(), status: .unmarked) : nil
+                }
             )
             imported = payload.attendance.count
 
         case .workCompletions:
-            try BackupEntityImporter.importWorkCompletionRecords(
+            BackupEntityImporter.importWorkCompletionRecords(
                 payload.workCompletions,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(WorkCompletionRecord.self, id: id, in: modelContext) }
+                existingCheck: { [existingWorkCompletionIDs] id in
+                    existingWorkCompletionIDs.contains(id) ? WorkCompletionRecord(workID: UUID(), studentID: UUID(), completedAt: Date()) : nil
+                }
             )
             imported = payload.workCompletions.count
 
         case .projects:
-            try BackupEntityImporter.importProjects(
+            BackupEntityImporter.importProjects(
                 payload.projects,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(Project.self, id: id, in: modelContext) }
+                existingCheck: { [existingProjectIDs] id in
+                    existingProjectIDs.contains(id) ? Project(title: "", bookTitle: nil, memberStudentIDs: []) : nil
+                }
             )
-            try BackupEntityImporter.importProjectRoles(
+            BackupEntityImporter.importProjectRoles(
                 payload.projectRoles,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(ProjectRole.self, id: id, in: modelContext) }
+                existingCheck: { [existingProjectRoleIDs] id in
+                    existingProjectRoleIDs.contains(id) ? ProjectRole(projectID: UUID(), title: "", summary: "", instructions: "") : nil
+                }
             )
-            try BackupEntityImporter.importProjectTemplateWeeks(
+            BackupEntityImporter.importProjectTemplateWeeks(
                 payload.projectTemplateWeeks,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(ProjectTemplateWeek.self, id: id, in: modelContext) }
+                existingCheck: { [templateWeeksByID] id in templateWeeksByID[id] }
             )
-            try BackupEntityImporter.importProjectAssignmentTemplates(
+            // Refresh template weeks cache for subsequent imports
+            let allWeeks = (try? modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
+            templateWeeksByID = Dictionary(uniqueKeysWithValues: allWeeks.map { ($0.id, $0) })
+
+            BackupEntityImporter.importProjectAssignmentTemplates(
                 payload.projectAssignmentTemplates,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(ProjectAssignmentTemplate.self, id: id, in: modelContext) }
+                existingCheck: { [existingProjectAssignmentTemplateIDs] id in
+                    existingProjectAssignmentTemplateIDs.contains(id) ? ProjectAssignmentTemplate(projectID: UUID(), title: "", instructions: "") : nil
+                }
             )
-            try BackupEntityImporter.importProjectWeekRoleAssignments(
+            BackupEntityImporter.importProjectWeekRoleAssignments(
                 payload.projectWeekRoleAssignments,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(ProjectWeekRoleAssignment.self, id: id, in: modelContext) },
-                weekCheck: { id in try? fetchEntity(ProjectTemplateWeek.self, id: id, in: modelContext) }
+                existingCheck: { [existingProjectWeekRoleAssignmentIDs] id in
+                    existingProjectWeekRoleAssignmentIDs.contains(id) ? ProjectWeekRoleAssignment(weekID: UUID(), studentID: "", roleID: UUID(), week: nil) : nil
+                },
+                weekCheck: { [templateWeeksByID] id in templateWeeksByID[id] }
             )
-            try BackupEntityImporter.importProjectSessions(
+            BackupEntityImporter.importProjectSessions(
                 payload.projectSessions,
                 into: modelContext,
-                existingCheck: { id in try? fetchEntity(ProjectSession.self, id: id, in: modelContext) }
+                existingCheck: { [existingProjectSessionIDs] id in
+                    existingProjectSessionIDs.contains(id) ? ProjectSession(projectID: UUID(), meetingDate: Date()) : nil
+                }
             )
             imported = payload.projects.count + payload.projectAssignmentTemplates.count +
                 payload.projectSessions.count + payload.projectRoles.count +
@@ -523,10 +579,89 @@ public final class SelectiveRestoreService {
         return (imported, skipped, warning)
     }
 
-    private func fetchEntity<T: PersistentModel>(_ type: T.Type, id: UUID, in context: ModelContext) throws -> T? {
-        let descriptor = FetchDescriptor<T>(predicate: #Predicate { _ in true })
-        let all = (try? context.fetch(descriptor)) ?? []
-        // Use manual filtering since we can't use id in predicate for all types
-        return all.first
+    // MARK: - Entity Lookup Caches
+
+    /// Lookup dictionaries for entities that need to be linked during import.
+    /// These provide O(1) access by ID instead of repeated database queries.
+    private var studentsByID: [UUID: Student] = [:]
+    private var lessonsByID: [UUID: Lesson] = [:]
+    private var topicsByID: [UUID: CommunityTopic] = [:]
+    private var templateWeeksByID: [UUID: ProjectTemplateWeek] = [:]
+
+    /// ID sets for simple existence checks (no entity retrieval needed)
+    private var existingStudentLessonIDs: Set<UUID> = []
+    private var existingNoteIDs: Set<UUID> = []
+    private var existingWorkPlanItemIDs: Set<UUID> = []
+    private var existingNonSchoolDayIDs: Set<UUID> = []
+    private var existingSchoolDayOverrideIDs: Set<UUID> = []
+    private var existingMeetingIDs: Set<UUID> = []
+    private var existingPresentationIDs: Set<UUID> = []
+    private var existingSolutionIDs: Set<UUID> = []
+    private var existingAttachmentIDs: Set<UUID> = []
+    private var existingAttendanceIDs: Set<UUID> = []
+    private var existingWorkCompletionIDs: Set<UUID> = []
+    private var existingProjectIDs: Set<UUID> = []
+    private var existingProjectRoleIDs: Set<UUID> = []
+    private var existingProjectAssignmentTemplateIDs: Set<UUID> = []
+    private var existingProjectWeekRoleAssignmentIDs: Set<UUID> = []
+    private var existingProjectSessionIDs: Set<UUID> = []
+
+    /// Pre-builds lookup caches for all entity types to enable O(1) existence checks.
+    /// This is much faster than querying the database for each entity.
+    private func buildExistingIDCaches(in context: ModelContext) {
+        // Build lookup dictionaries for entities needed for relationship linking
+        let students = (try? context.fetch(FetchDescriptor<Student>())) ?? []
+        studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+
+        let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
+        lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+
+        let topics = (try? context.fetch(FetchDescriptor<CommunityTopic>())) ?? []
+        topicsByID = Dictionary(uniqueKeysWithValues: topics.map { ($0.id, $0) })
+
+        let weeks = (try? context.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
+        templateWeeksByID = Dictionary(uniqueKeysWithValues: weeks.map { ($0.id, $0) })
+
+        // Build ID sets for simple existence checks
+        existingStudentLessonIDs = Set((try? context.fetch(FetchDescriptor<StudentLesson>()))?.map { $0.id } ?? [])
+        existingNoteIDs = Set((try? context.fetch(FetchDescriptor<Note>()))?.map { $0.id } ?? [])
+        existingWorkPlanItemIDs = Set((try? context.fetch(FetchDescriptor<WorkPlanItem>()))?.map { $0.id } ?? [])
+        existingNonSchoolDayIDs = Set((try? context.fetch(FetchDescriptor<NonSchoolDay>()))?.map { $0.id } ?? [])
+        existingSchoolDayOverrideIDs = Set((try? context.fetch(FetchDescriptor<SchoolDayOverride>()))?.map { $0.id } ?? [])
+        existingMeetingIDs = Set((try? context.fetch(FetchDescriptor<StudentMeeting>()))?.map { $0.id } ?? [])
+        existingPresentationIDs = Set((try? context.fetch(FetchDescriptor<Presentation>()))?.map { $0.id } ?? [])
+        existingSolutionIDs = Set((try? context.fetch(FetchDescriptor<ProposedSolution>()))?.map { $0.id } ?? [])
+        existingAttachmentIDs = Set((try? context.fetch(FetchDescriptor<CommunityAttachment>()))?.map { $0.id } ?? [])
+        existingAttendanceIDs = Set((try? context.fetch(FetchDescriptor<AttendanceRecord>()))?.map { $0.id } ?? [])
+        existingWorkCompletionIDs = Set((try? context.fetch(FetchDescriptor<WorkCompletionRecord>()))?.map { $0.id } ?? [])
+        existingProjectIDs = Set((try? context.fetch(FetchDescriptor<Project>()))?.map { $0.id } ?? [])
+        existingProjectRoleIDs = Set((try? context.fetch(FetchDescriptor<ProjectRole>()))?.map { $0.id } ?? [])
+        existingProjectAssignmentTemplateIDs = Set((try? context.fetch(FetchDescriptor<ProjectAssignmentTemplate>()))?.map { $0.id } ?? [])
+        existingProjectWeekRoleAssignmentIDs = Set((try? context.fetch(FetchDescriptor<ProjectWeekRoleAssignment>()))?.map { $0.id } ?? [])
+        existingProjectSessionIDs = Set((try? context.fetch(FetchDescriptor<ProjectSession>()))?.map { $0.id } ?? [])
+    }
+
+    /// Clears the lookup caches to free memory after restore is complete
+    private func clearIDCaches() {
+        studentsByID = [:]
+        lessonsByID = [:]
+        topicsByID = [:]
+        templateWeeksByID = [:]
+        existingStudentLessonIDs = []
+        existingNoteIDs = []
+        existingWorkPlanItemIDs = []
+        existingNonSchoolDayIDs = []
+        existingSchoolDayOverrideIDs = []
+        existingMeetingIDs = []
+        existingPresentationIDs = []
+        existingSolutionIDs = []
+        existingAttachmentIDs = []
+        existingAttendanceIDs = []
+        existingWorkCompletionIDs = []
+        existingProjectIDs = []
+        existingProjectRoleIDs = []
+        existingProjectAssignmentTemplateIDs = []
+        existingProjectWeekRoleAssignmentIDs = []
+        existingProjectSessionIDs = []
     }
 }

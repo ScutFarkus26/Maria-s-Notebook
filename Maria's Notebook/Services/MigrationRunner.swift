@@ -24,15 +24,17 @@ enum MigrationRunner {
         }
 
         // Migrate legacy string notes on WorkModels to Note objects
-        Task { @MainActor in
+        await MainActor.run {
             DataMigrations.migrateLegacyWorkNotesToNoteObjects(using: context)
         }
 
         // Clean orphaned student IDs from WorkModel records
         await DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
 
-        // Migrate all legacy string notes to unified Note objects
-        Task { @MainActor in
+        // Migrate all legacy string notes to unified Note objects sequentially
+        // Running these in a single MainActor block ensures they complete in order
+        // before subsequent migrations that may depend on the results
+        await MainActor.run {
             DataMigrations.migrateLegacyStudentLessonNotes(using: context)
             DataMigrations.migrateLegacyWorkCheckInNotes(using: context)
             DataMigrations.migrateLegacyWorkCompletionRecordNotes(using: context)

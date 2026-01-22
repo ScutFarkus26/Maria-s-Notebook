@@ -176,9 +176,9 @@ class QuickNoteViewModel: ObservableObject {
                     }
                     
                     // Reset flag after a delay to allow onChange to complete
-                    Task {
+                    Task { [weak self] in
                         try? await Task.sleep(for: .milliseconds(100))
-                        self.isApplyingReplacements = false
+                        self?.isApplyingReplacements = false
                     }
                 } else {
                     // No changes, reset flag immediately
@@ -193,10 +193,12 @@ class QuickNoteViewModel: ObservableObject {
         isProcessingAI = true // Show spinner
         
         let studentData = getStudentData(from: students)
-        Task {
+        let currentText = bodyText
+        Task { [weak self] in
+            guard let self else { return }
             // Use the actor to perform robust string replacement
-            let newText = await tagger.formatStudentNames(in: bodyText, studentData: studentData)
-            
+            let newText = await tagger.formatStudentNames(in: currentText, studentData: studentData)
+
             withAnimation {
                 self.bodyText = newText
                 self.isProcessingAI = false
@@ -310,9 +312,9 @@ class QuickNoteViewModel: ObservableObject {
     func runAI(instruction: String) {
         guard !bodyText.isEmpty else { return }
         isProcessingAI = true
-        
-        Task {
-            await processAIRequest(instruction: instruction)
+
+        Task { [weak self] in
+            await self?.processAIRequest(instruction: instruction)
         }
     }
     

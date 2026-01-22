@@ -125,11 +125,14 @@ final class InboxSheetViewModel: ObservableObject {
     ) -> Bool {
         guard let itemProvider = providers.first else { return false }
         if itemProvider.canLoadObject(ofClass: NSString.self) {
-            // Capture values as nonisolated(unsafe) to silence Sendable warnings.
-            // This is safe because they are immediately used on MainActor via Task.
-            nonisolated(unsafe) let capturedStudentLessons = studentLessons
-            nonisolated(unsafe) let capturedOrderedUnscheduledLessons = orderedUnscheduledLessons
-            nonisolated(unsafe) let capturedModelContext = modelContext
+            // These captures are safe because:
+            // 1. The outer loadObject callback runs on an arbitrary queue but only extracts the string
+            // 2. The inner Task is @MainActor isolated, ensuring all SwiftData access happens on main
+            // 3. The captured arrays are read-only snapshots from the caller's @MainActor context
+            // Using nonisolated(unsafe) to silence warnings while maintaining the safe pattern.
+            nonisolated(unsafe) let studentLessonsRef = studentLessons
+            nonisolated(unsafe) let orderedUnscheduledLessonsRef = orderedUnscheduledLessons
+            nonisolated(unsafe) let modelContextRef = modelContext
 
             _ = itemProvider.loadObject(ofClass: NSString.self) { [weak self] reading, _ in
                 guard let ns = reading as? NSString else { return }
@@ -139,22 +142,22 @@ final class InboxSheetViewModel: ObservableObject {
                         self?.handleStudentToInboxDrop(
                             payload: raw,
                             location: location,
-                            studentLessons: capturedStudentLessons,
-                            orderedUnscheduledLessons: capturedOrderedUnscheduledLessons,
+                            studentLessons: studentLessonsRef,
+                            orderedUnscheduledLessons: orderedUnscheduledLessonsRef,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: capturedModelContext,
+                            modelContext: modelContextRef,
                             saveCoordinator: saveCoordinator
                         )
                     } else if let droppedId = UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
                         self?.handleLessonDrop(
                             droppedId: droppedId,
                             location: location,
-                            studentLessons: capturedStudentLessons,
-                            orderedUnscheduledLessons: capturedOrderedUnscheduledLessons,
+                            studentLessons: studentLessonsRef,
+                            orderedUnscheduledLessons: orderedUnscheduledLessonsRef,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: capturedModelContext,
+                            modelContext: modelContextRef,
                             saveCoordinator: saveCoordinator
                         )
                     }
