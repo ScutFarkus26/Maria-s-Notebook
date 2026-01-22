@@ -109,9 +109,12 @@ struct ClassSubjectChecklistView: View {
 
             // MARK: - 2D Scrollable Grid
             ScrollView([.horizontal, .vertical]) {
-                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    
-                    Section(header: headerRow) {
+                ZStack(alignment: .topLeading) {
+                    // Main grid content
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Header row
+                        headerRow
+
                         // Data Rows
                         ForEach(viewModel.orderedGroups, id: \.self) { group in
                             // Group Header (Sticky Left)
@@ -127,14 +130,14 @@ struct ClassSubjectChecklistView: View {
                                     .background(Color.secondary.opacity(0.05))
                                     .borderSeparated()
                                 }
-                                
+
                                 // Spacer for the rest of the group row
                                 Color.secondary.opacity(0.05)
                                     .frame(height: 30)
                                     .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
                                     .borderSeparated()
                             }
-                            
+
                             let lessons = viewModel.lessonsIn(group: group)
                             ForEach(lessons) { lesson in
                                 HStack(spacing: 0) {
@@ -151,7 +154,7 @@ struct ClassSubjectChecklistView: View {
                                         .backgroundPlatform()
                                         .borderSeparated()
                                     }
-                                    
+
                                     // Grid Cells
                                     ForEach(viewModel.students) { student in
                                         let state = viewModel.state(for: student, lesson: lesson)
@@ -172,10 +175,12 @@ struct ClassSubjectChecklistView: View {
                                         .background(
                                             GeometryReader { proxy in
                                                 Color.clear
-                                                    .preference(
-                                                        key: CellFramePreference.self,
-                                                        value: [cellId: proxy.frame(in: .named("gridSpace"))]
-                                                    )
+                                                    .onAppear {
+                                                        cellFrames[cellId] = proxy.frame(in: .named("gridSpace"))
+                                                    }
+                                                    .onChange(of: proxy.frame(in: .named("gridSpace"))) { _, newFrame in
+                                                        cellFrames[cellId] = newFrame
+                                                    }
                                             }
                                         )
                                     }
@@ -183,16 +188,16 @@ struct ClassSubjectChecklistView: View {
                             }
                         }
                     }
+
+                    // Drag selection rectangle overlay
+                    if isDragging, let start = dragStart, let current = dragCurrent {
+                        DragSelectionRectangle(start: start, current: current)
+                    }
                 }
             }
             .coordinateSpace(name: "gridSpace")
-            .onPreferenceChange(CellFramePreference.self) { prefs in
-                DispatchQueue.main.async {
-                    cellFrames = prefs
-                }
-            }
             .gesture(
-                DragGesture(minimumDistance: 10, coordinateSpace: .named("gridSpace"))
+                DragGesture(minimumDistance: 5, coordinateSpace: .named("gridSpace"))
                     .updating($dragGestureActive) { _, state, _ in
                         state = true
                     }
@@ -200,6 +205,7 @@ struct ClassSubjectChecklistView: View {
                         if dragStart == nil {
                             dragStart = value.startLocation
                             isDragging = true
+                            viewModel.clearSelection()
                         }
                         dragCurrent = value.location
                         updateDragSelection()
@@ -210,7 +216,6 @@ struct ClassSubjectChecklistView: View {
                         isDragging = false
                     }
             )
-            .coordinateSpace(name: "scrollSpace")
         }
         .onAppear {
             viewModel.loadData(context: modelContext)
@@ -280,15 +285,42 @@ struct ClassSubjectChecklistView: View {
     }
 }
 
+// MARK: - Drag Selection Rectangle Overlay
+struct DragSelectionRectangle: View {
+    let start: CGPoint
+    let current: CGPoint
+
+    private var rect: CGRect {
+        CGRect(
+            x: min(start.x, current.x),
+            y: min(start.y, current.y),
+            width: abs(current.x - start.x),
+            height: abs(current.y - start.y)
+        )
+    }
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.accentColor.opacity(0.15))
+            .overlay(
+                Rectangle()
+                    .stroke(Color.accentColor, lineWidth: 1)
+            )
+            .frame(width: rect.width, height: rect.height)
+            .position(x: rect.midX, y: rect.midY)
+            .allowsHitTesting(false)
+    }
+}
+
 // MARK: - Sticky Layout Helper
 struct StickyLeftItem<Content: View>: View {
     let width: CGFloat
     let height: CGFloat
     let content: () -> Content
-    
+
     var body: some View {
         GeometryReader { geo in
-            let minX = geo.frame(in: .named("scrollSpace")).minX
+            let minX = geo.frame(in: .named("gridSpace")).minX
             content()
                 .offset(x: max(0, -minX))
                 // Add shadow when stuck to separate from content
