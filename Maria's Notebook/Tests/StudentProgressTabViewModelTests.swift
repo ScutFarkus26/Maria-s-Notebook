@@ -268,6 +268,7 @@ struct StudentProgressTabViewModelDataLoadingTests {
         let report = makeTestWorkModel(
             title: "Book Report",
             workType: .report,
+            kind: .report,
             status: .active,
             studentID: student.id.uuidString
         )
@@ -291,12 +292,14 @@ struct StudentProgressTabViewModelDataLoadingTests {
         let activeReport = makeTestWorkModel(
             title: "Active Report",
             workType: .report,
+            kind: .report,
             status: .active,
             studentID: student.id.uuidString
         )
         let completedReport = makeTestWorkModel(
             title: "Completed Report",
             workType: .report,
+            kind: .report,
             status: .complete,
             studentID: student.id.uuidString
         )
@@ -640,7 +643,7 @@ struct StudentProgressTabViewModelReportHelperTests {
         context.insert(student)
         vm.configure(for: student, context: context)
 
-        let report = makeTestWorkModel(title: "My Book Report", workType: .report)
+        let report = makeTestWorkModel(title: "My Book Report", workType: .report, kind: .report)
 
         let title = vm.reportTitle(for: report)
 
@@ -657,7 +660,7 @@ struct StudentProgressTabViewModelReportHelperTests {
         context.insert(student)
         vm.configure(for: student, context: context)
 
-        let report = makeTestWorkModel(title: "   ", workType: .report) // whitespace only
+        let report = makeTestWorkModel(title: "   ", workType: .report, kind: .report) // whitespace only
 
         let title = vm.reportTitle(for: report)
 
@@ -679,6 +682,7 @@ struct StudentProgressTabViewModelReportHelperTests {
         let report = makeTestWorkModel(
             title: "",
             workType: .report,
+            kind: .report,
             lessonID: lesson.id.uuidString
         )
 

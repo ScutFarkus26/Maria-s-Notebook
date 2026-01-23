@@ -179,6 +179,7 @@ enum SnapshotTestData {
         id: UUID = UUID(uuidString: "11111111-aaaa-1111-aaaa-111111111111")!,
         title: String = "Practice Sheet",
         workType: WorkModel.WorkType = .practice,
+        kind: WorkKind? = nil,
         status: WorkStatus = .active,
         assignedAt: Date = SnapshotDates.fiveDaysAgo,
         completedAt: Date? = nil,
@@ -192,6 +193,7 @@ enum SnapshotTestData {
             title: title,
             workType: workType,
             completedAt: completedAt,
+            kind: kind,
             status: status,
             assignedAt: assignedAt,
             lastTouchedAt: lastTouchedAt,
@@ -220,6 +222,7 @@ enum SnapshotTestData {
                 id: UUID(uuidString: "33333333-aaaa-3333-aaaa-333333333333")!,
                 title: "Progress Report",
                 workType: .report,
+                kind: .report,
                 status: .active
             ),
         ]

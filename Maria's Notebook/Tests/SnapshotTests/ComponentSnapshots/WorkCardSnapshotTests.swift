@@ -95,7 +95,7 @@ struct WorkCardSnapshotTests {
     @MainActor
     func workType_report() throws {
         let container = try makeSnapshotTestContainer()
-        let work = SnapshotTestData.makeWork(workType: .report)
+        let work = SnapshotTestData.makeWork(workType: .report, kind: .report)
         container.mainContext.insert(work)
         try container.mainContext.save()
 
