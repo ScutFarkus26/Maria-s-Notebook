@@ -81,41 +81,39 @@ final class PresentationsViewModel: ObservableObject {
             return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch StudentLessons",
                 operation: {
-                    modelContext.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
+                    modelContext.safeFetch(FetchDescriptor<StudentLesson>())
                 }
             )
             #else
-            return modelContext.safeFetch(FetchDescriptor<StudentLesson>()).uniqueByID
+            return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
             #endif
         }()
-        
+
         // 2. Fetch all Lessons (needed for grouping and blocking logic - requires full group structure)
-        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let lessons: [Lesson] = {
             #if DEBUG
             return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch Lessons",
                 operation: {
-                    modelContext.safeFetch(FetchDescriptor<Lesson>()).uniqueByID
+                    modelContext.safeFetch(FetchDescriptor<Lesson>())
                 }
             )
             #else
-            return modelContext.safeFetch(FetchDescriptor<Lesson>()).uniqueByID
+            return modelContext.safeFetch(FetchDescriptor<Lesson>())
             #endif
         }()
-        
+
         // 3. Fetch all Students (needed for filtering and calculations)
-        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let students: [Student] = {
             #if DEBUG
             return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch Students",
                 operation: {
-                    modelContext.safeFetch(FetchDescriptor<Student>()).uniqueByID
+                    modelContext.safeFetch(FetchDescriptor<Student>())
                 }
             )
             #else
-            return modelContext.safeFetch(FetchDescriptor<Student>()).uniqueByID
+            return modelContext.safeFetch(FetchDescriptor<Student>())
             #endif
         }()
         

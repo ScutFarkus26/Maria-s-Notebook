@@ -8,7 +8,7 @@ struct PresentationHistoryView: View {
     // PAGINATION: Load presentations in batches instead of all at once
     private static let initialLoadCount = 50
     private static let loadMoreCount = 50
-    
+
     @State private var loadedPresentations: [Presentation] = []
     @State private var hasLoadedMore = false
     // Fetch Lessons (for lookup)
@@ -19,19 +19,21 @@ struct PresentationHistoryView: View {
     private var students: [Student] { studentsRaw.uniqueByID }
     // Fetch Notes that are attached to a presentation
     @Query(sort: \Note.createdAt, order: .reverse) private var recentNotes: [Note]
-    
-    // Use @Query for change detection only
+
+    // Use @Query for change detection only - track count for efficient change detection
     @Query(sort: [SortDescriptor(\Presentation.presentedAt, order: .reverse)]) private var allPresentationsForChangeDetection: [Presentation]
-    
-    private var presentationIDs: [UUID] {
-        allPresentationsForChangeDetection.map { $0.id }
-    }
 
     @State private var selectedPresentation: Presentation? = nil
     @State private var notesCountCache: [String: Int] = [:]
     @State private var studentNameCache: [UUID: String] = [:]
     @State private var lessonTitleCache: [UUID: String] = [:]
     @State private var hasBuiltCachesOnce: Bool = false
+
+    // Track counts for efficient change detection (avoids expensive .map operations)
+    @State private var lastPresentationCount: Int = 0
+    @State private var lastNotesCount: Int = 0
+    @State private var lastLessonsCount: Int = 0
+    @State private var lastStudentsCount: Int = 0
 
     // Filter state
     @State private var selectedStudentIDs: Set<UUID> = []
@@ -168,30 +170,45 @@ struct PresentationHistoryView: View {
         return df
     }()
 
-    private func buildCaches() {
-        // Build notes count cache from recentNotes (filtered to presentation notes)
-        var counts: [String: Int] = [:]
-        
-        // Count notes attached to presentations
-        let presentationNotes = recentNotes.filter { $0.presentation != nil }
-        for n in presentationNotes {
-            if let p = n.presentation {
-                counts[p.id.uuidString, default: 0] += 1
+    /// Builds caches asynchronously to avoid blocking the main thread.
+    /// Extracts primitive values on the main thread, then processes on background.
+    @MainActor
+    private func buildCachesAsync() async {
+        // Extract primitive/Sendable values on main thread before background processing
+        // This avoids passing SwiftData model objects across actor boundaries
+        let presentationIDs: [String] = recentNotes.compactMap { $0.presentation?.id.uuidString }
+        let studentData: [(UUID, String, String)] = students.map { ($0.id, $0.firstName, $0.lastName) }
+        let lessonData: [(UUID, String)] = lessons.map { ($0.id, $0.name) }
+
+        // Build caches on background thread using only Sendable data
+        let (counts, sNames, lTitles) = await Task.detached(priority: .userInitiated) {
+            // Build notes count cache
+            var counts: [String: Int] = [:]
+            for presentationID in presentationIDs {
+                counts[presentationID, default: 0] += 1
             }
-        }
-        
+
+            // Build student name cache
+            var sNames: [UUID: String] = [:]
+            for (id, firstName, lastName) in studentData {
+                let first = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let last = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let li = last.first.map { String($0).uppercased() } ?? ""
+                sNames[id] = li.isEmpty ? first : "\(first) \(li)."
+            }
+
+            // Build lesson title cache
+            var lTitles: [UUID: String] = [:]
+            for (id, name) in lessonData {
+                lTitles[id] = LessonFormatter.titleOrFallback(name, fallback: "Lesson")
+            }
+
+            return (counts, sNames, lTitles)
+        }.value
+
+        // Assign on main thread
         notesCountCache = counts
-        // Build student name cache
-        var sNames: [UUID: String] = [:]
-        for s in students {
-            sNames[s.id] = displayName(for: s)
-        }
         studentNameCache = sNames
-        // Build lesson title cache (prefer name)
-        var lTitles: [UUID: String] = [:]
-        for l in lessons {
-            lTitles[l.id] = LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
-        }
         lessonTitleCache = lTitles
     }
 
@@ -382,22 +399,35 @@ struct PresentationHistoryView: View {
             .task {
                 loadPresentations(limit: Self.initialLoadCount)
                 if !hasBuiltCachesOnce {
-                    buildCaches()
+                    await buildCachesAsync()
                     hasBuiltCachesOnce = true
                 }
+                // Initialize counts for change detection
+                lastPresentationCount = allPresentationsForChangeDetection.count
+                lastNotesCount = recentNotes.count
+                lastLessonsCount = lessons.count
+                lastStudentsCount = students.count
             }
-            .onChange(of: presentationIDs) { _, _ in
-                // Reload when presentations change
+            .onChange(of: allPresentationsForChangeDetection.count) { _, newCount in
+                // Only reload when count actually changes
+                guard newCount != lastPresentationCount else { return }
+                lastPresentationCount = newCount
                 loadPresentations(limit: loadedPresentations.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
             }
-            .onChange(of: recentNotes.map(\.id)) { _, _ in
-                buildCaches()
+            .onChange(of: recentNotes.count) { _, newCount in
+                guard newCount != lastNotesCount else { return }
+                lastNotesCount = newCount
+                Task { await buildCachesAsync() }
             }
-            .onChange(of: lessons.map(\.id)) { _, _ in
-                buildCaches()
+            .onChange(of: lessons.count) { _, newCount in
+                guard newCount != lastLessonsCount else { return }
+                lastLessonsCount = newCount
+                Task { await buildCachesAsync() }
             }
-            .onChange(of: students.map(\.id)) { _, _ in
-                buildCaches()
+            .onChange(of: students.count) { _, newCount in
+                guard newCount != lastStudentsCount else { return }
+                lastStudentsCount = newCount
+                Task { await buildCachesAsync() }
             }
             .toolbar {
                 ToolbarItem(placement: .automatic) {

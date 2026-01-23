@@ -54,6 +54,14 @@ enum DataMigrations {
 
     // MARK: - Data Cleanup (delegated to DataCleanupService)
 
+    /// Remove all duplicate records across all model types.
+    /// CloudKit sync can create duplicates during merge conflicts.
+    /// Returns a dictionary of model type names to the number of duplicates removed.
+    @discardableResult
+    static func deduplicateAllModels(using context: ModelContext) -> [String: Int] {
+        DataCleanupService.deduplicateAllModels(using: context)
+    }
+
     /// Remove duplicate Student records that have the same UUID.
     /// This can happen when CloudKit sync creates duplicates during merge conflicts.
     @discardableResult

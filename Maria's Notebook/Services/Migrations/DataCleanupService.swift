@@ -480,18 +480,117 @@ enum DataCleanupService {
         }
     }
 
+    // MARK: - Generic Deduplication
+
+    /// Generic deduplication for any PersistentModel with an id property.
+    /// Keeps the first instance encountered and deletes duplicates.
+    /// Returns the number of duplicates removed.
+    @discardableResult
+    private static func deduplicate<T: PersistentModel & Identifiable>(
+        _ type: T.Type,
+        using context: ModelContext
+    ) -> Int where T.ID == UUID {
+        let fetch = FetchDescriptor<T>()
+        // Fetch raw without deduplication to find actual duplicates in the database
+        let all = (try? context.fetch(fetch)) ?? []
+
+        // Group by ID
+        var byID: [UUID: [T]] = [:]
+        for item in all {
+            byID[item.id, default: []].append(item)
+        }
+
+        var deletedCount = 0
+
+        // For each group with duplicates, keep the first and delete the rest
+        for (_, items) in byID where items.count > 1 {
+            for duplicate in items.dropFirst() {
+                context.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        if deletedCount > 0 {
+            context.safeSave()
+        }
+
+        return deletedCount
+    }
+
+    // MARK: - Deduplicate All Models
+
+    /// Deduplicates all model types in the database.
+    /// CloudKit sync can create duplicate records with the same ID during merge conflicts.
+    /// This removes all duplicates, keeping one instance of each ID.
+    /// Returns a dictionary of model type names to the number of duplicates removed.
+    @discardableResult
+    static func deduplicateAllModels(using context: ModelContext) -> [String: Int] {
+        var results: [String: Int] = [:]
+
+        // Core models (most likely to have user-visible duplicates)
+        results["Student"] = deduplicate(Student.self, using: context)
+        results["Lesson"] = deduplicate(Lesson.self, using: context)
+        results["StudentLesson"] = deduplicate(StudentLesson.self, using: context)
+        results["Presentation"] = deduplicate(Presentation.self, using: context)
+        results["LessonPresentation"] = deduplicate(LessonPresentation.self, using: context)
+
+        // Work-related models
+        results["WorkModel"] = deduplicate(WorkModel.self, using: context)
+        results["WorkCheckIn"] = deduplicate(WorkCheckIn.self, using: context)
+        results["WorkCompletionRecord"] = deduplicate(WorkCompletionRecord.self, using: context)
+        results["WorkPlanItem"] = deduplicate(WorkPlanItem.self, using: context)
+        results["WorkParticipantEntity"] = deduplicate(WorkParticipantEntity.self, using: context)
+        results["WorkStep"] = deduplicate(WorkStep.self, using: context)
+
+        // Project models
+        results["Project"] = deduplicate(Project.self, using: context)
+        results["ProjectRole"] = deduplicate(ProjectRole.self, using: context)
+        results["ProjectSession"] = deduplicate(ProjectSession.self, using: context)
+        results["ProjectAssignmentTemplate"] = deduplicate(ProjectAssignmentTemplate.self, using: context)
+        results["ProjectTemplateWeek"] = deduplicate(ProjectTemplateWeek.self, using: context)
+        results["ProjectWeekRoleAssignment"] = deduplicate(ProjectWeekRoleAssignment.self, using: context)
+
+        // Track models
+        results["Track"] = deduplicate(Track.self, using: context)
+        results["TrackStep"] = deduplicate(TrackStep.self, using: context)
+        results["GroupTrack"] = deduplicate(GroupTrack.self, using: context)
+        results["StudentTrackEnrollment"] = deduplicate(StudentTrackEnrollment.self, using: context)
+
+        // Notes and documents
+        results["Note"] = deduplicate(Note.self, using: context)
+        results["NoteTemplate"] = deduplicate(NoteTemplate.self, using: context)
+        results["NoteStudentLink"] = deduplicate(NoteStudentLink.self, using: context)
+        results["Document"] = deduplicate(Document.self, using: context)
+
+        // Attendance and calendar
+        results["AttendanceRecord"] = deduplicate(AttendanceRecord.self, using: context)
+        results["StudentMeeting"] = deduplicate(StudentMeeting.self, using: context)
+        results["MeetingTemplate"] = deduplicate(MeetingTemplate.self, using: context)
+        results["CalendarEvent"] = deduplicate(CalendarEvent.self, using: context)
+        results["NonSchoolDay"] = deduplicate(NonSchoolDay.self, using: context)
+        results["SchoolDayOverride"] = deduplicate(SchoolDayOverride.self, using: context)
+
+        // Community models
+        results["CommunityTopic"] = deduplicate(CommunityTopic.self, using: context)
+        results["ProposedSolution"] = deduplicate(ProposedSolution.self, using: context)
+        results["CommunityAttachment"] = deduplicate(CommunityAttachment.self, using: context)
+
+        // Other models
+        results["Reminder"] = deduplicate(Reminder.self, using: context)
+        results["AlbumGroupOrder"] = deduplicate(AlbumGroupOrder.self, using: context)
+        results["AlbumGroupUIState"] = deduplicate(AlbumGroupUIState.self, using: context)
+
+        // Filter out zero counts for cleaner output
+        return results.filter { $0.value > 0 }
+    }
+
     // MARK: - Run All Cleanup Operations
 
     /// Runs all data cleanup operations in sequence.
     /// Safe to call repeatedly - each operation is idempotent.
     static func runAllCleanupOperations(using context: ModelContext) async {
-        // Run deduplication first since other cleanups depend on valid data
-        deduplicateStudents(using: context)
-        deduplicateProjects(using: context)
-        deduplicateProjectRoles(using: context)
-        deduplicateLessons(using: context)
-        deduplicateAttendanceRecords(using: context)
-        deduplicatePresentations(using: context)
+        // Run comprehensive deduplication first since other cleanups depend on valid data
+        _ = deduplicateAllModels(using: context)
         await cleanOrphanedStudentIDs(using: context)
         await cleanOrphanedWorkStudentIDs(using: context)
         deduplicateUnpresentedStudentLessons(using: context)

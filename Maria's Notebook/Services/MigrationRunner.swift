@@ -10,17 +10,9 @@ enum MigrationRunner {
 
         // Remove duplicate records that may have been created by CloudKit sync conflicts.
         // This must run early before other migrations that depend on clean data.
-        let removedStudents = DataMigrations.deduplicateStudents(using: context)
-        if removedStudents > 0 {
-            print("[MigrationRunner] Removed \(removedStudents) duplicate student record(s)")
-        }
-        let removedProjects = DataMigrations.deduplicateProjects(using: context)
-        if removedProjects > 0 {
-            print("[MigrationRunner] Removed \(removedProjects) duplicate project record(s)")
-        }
-        let removedRoles = DataMigrations.deduplicateProjectRoles(using: context)
-        if removedRoles > 0 {
-            print("[MigrationRunner] Removed \(removedRoles) duplicate project role record(s)")
+        let deduplicationResults = DataMigrations.deduplicateAllModels(using: context)
+        for (modelType, count) in deduplicationResults.sorted(by: { $0.key < $1.key }) {
+            print("[MigrationRunner] Removed \(count) duplicate \(modelType) record(s)")
         }
 
         // Migrate legacy string notes on WorkModels to Note objects
