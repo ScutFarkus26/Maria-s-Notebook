@@ -185,4 +185,11 @@ Before enabling CloudKit in production, thoroughly test:
 
 ---
 
-**Last Updated**: All compatibility fixes completed. Ready for CloudKit testing.
+**Last Updated**: January 2026
+**Status**: All compatibility fixes completed. Ready for CloudKit testing.
+
+## Related Documentation
+
+- [CLOUDKIT_VERIFICATION_GUIDE.md](CLOUDKIT_VERIFICATION_GUIDE.md) - Testing and verification guide
+- [KEY_VALUE_STORAGE_IMPLEMENTATION.md](../Implementation/KEY_VALUE_STORAGE_IMPLEMENTATION.md) - iCloud KVS preference sync
+- [ARCHITECTURE.md](../ARCHITECTURE.md) - App architecture overview

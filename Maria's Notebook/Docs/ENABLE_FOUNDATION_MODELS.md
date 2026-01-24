@@ -1,5 +1,7 @@
 # Enabling Foundation Models (Sparkle Icon Feature)
 
+**Last Updated:** January 2026
+
 The sparkle icon (✨) feature in `ObservationsView.swift` is hidden behind a feature flag. This feature provides AI-powered summarization of observations using Apple's FoundationModels framework.
 
 ## Current Status

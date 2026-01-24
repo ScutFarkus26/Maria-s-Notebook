@@ -1,5 +1,9 @@
 # CloudKit Verification Guide
 
+This guide explains how to verify CloudKit sync is working correctly in Maria's Notebook.
+
+**Last Updated**: January 2026
+
 ## How to Know if CloudKit is Working
 
 ### 1. Check Console Logs on App Launch
@@ -142,6 +146,14 @@ For developers, you can verify CloudKit activity in the CloudKit Console:
 ---
 
 **Remember**: After enabling CloudKit, you **must restart the app** for the change to take effect!
+
+---
+
+## Related Documentation
+
+- [CLOUDKIT_COMPATIBILITY_REPORT.md](CLOUDKIT_COMPATIBILITY_REPORT.md) - Model compatibility status
+- [KEY_VALUE_STORAGE_IMPLEMENTATION.md](../Implementation/KEY_VALUE_STORAGE_IMPLEMENTATION.md) - iCloud KVS preference sync
+- [SETUP.md](../SETUP.md) - Build and configuration guide
 
 
 
