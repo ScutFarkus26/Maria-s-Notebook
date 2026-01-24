@@ -144,7 +144,13 @@ struct AsyncCachedImage: View {
         #if os(macOS)
         scale = NSScreen.main?.backingScaleFactor ?? 1.0
         #else
-        scale = UIScreen.main.scale
+        // Use trait collection via key window to avoid deprecated UIScreen.main
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            scale = window.traitCollection.displayScale
+        } else {
+            scale = 1.0
+        }
         #endif
 
         // Create cache key that includes size to cache different sizes separately

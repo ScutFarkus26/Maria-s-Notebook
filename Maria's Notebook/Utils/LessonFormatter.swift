@@ -2,6 +2,7 @@ import Foundation
 
 /// Centralized formatting utilities for lesson display titles and related strings.
 /// Consolidates lesson formatting logic used across the app.
+/// All methods are nonisolated to allow calling from any actor context.
 enum LessonFormatter {
     /// Formats a lesson title with optional subject and group.
     /// - Parameters:
@@ -9,7 +10,7 @@ enum LessonFormatter {
     ///   - subject: Optional subject
     ///   - group: Optional group
     /// - Returns: Formatted lesson title string
-    static func displayTitle(name: String, subject: String? = nil, group: String? = nil) -> String {
+    nonisolated static func displayTitle(name: String, subject: String? = nil, group: String? = nil) -> String {
         let trimmedName = name.trimmed()
         let trimmedSubject = subject?.trimmed() ?? ""
         let trimmedGroup = group?.trimmed() ?? ""
@@ -32,7 +33,7 @@ enum LessonFormatter {
     ///   - subject: The subject
     ///   - group: Optional group
     /// - Returns: Formatted duplicate detection title
-    static func duplicateDetectionTitle(name: String, subject: String, group: String) -> String {
+    nonisolated static func duplicateDetectionTitle(name: String, subject: String, group: String) -> String {
         let trimmedGroup = group.trimmed()
         return trimmedGroup.isEmpty 
             ? "\(name) — \(subject)" 
@@ -44,7 +45,7 @@ enum LessonFormatter {
     ///   - name: The lesson name
     ///   - fallback: The fallback title (default: "Untitled Lesson")
     /// - Returns: The name if not empty, otherwise the fallback
-    static func titleOrFallback(_ name: String, fallback: String = "Untitled Lesson") -> String {
+    nonisolated static func titleOrFallback(_ name: String, fallback: String = "Untitled Lesson") -> String {
         StringFallbacks.trimmedValueOrFallback(name, fallback: fallback)
     }
 }

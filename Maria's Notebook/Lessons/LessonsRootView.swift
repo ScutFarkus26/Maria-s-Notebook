@@ -170,7 +170,9 @@ struct LessonsRootView: View {
                     } label: {
                         Label("Add", systemImage: "plus")
                     }
+                    #if os(macOS)
                     .menuStyle(.borderedButton)
+                    #endif
                 }
             }
             Divider()
