@@ -93,10 +93,9 @@ import SwiftUI
         self.workTypeRaw = workType.rawValue
         self.studentLessonID = studentLessonID
         self.notes = notes
-        // Use Calendar.current instead of AppCalendar.shared to avoid MainActor isolation in init
-        let cal = Calendar.current
-        self.createdAt = cal.startOfDay(for: createdAt)
-        self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
+        // Use AppCalendar.shared for consistent date normalization across the app
+        self.createdAt = AppCalendar.startOfDay(createdAt)
+        self.completedAt = completedAt.map { AppCalendar.startOfDay($0) }
         self.participants = participants
         self.unifiedNotes = []
         for p in (self.participants ?? []) { p.work = self }
@@ -193,9 +192,8 @@ import SwiftUI
     ///   - studentID: The student's unique identifier.
     ///   - date: The completion date, or nil to mark as incomplete.
     func markStudent(_ studentID: UUID, completedAt date: Date?) {
-        // Use Calendar.current to avoid MainActor constraints
-        let cal = Calendar.current
-        let normalized = date.map { cal.startOfDay(for: $0) }
+        // Use AppCalendar for consistent date normalization
+        let normalized = date.map { AppCalendar.startOfDay($0) }
         let studentIDString = studentID.uuidString
         if participants == nil { participants = [] }
         if let idx = participants?.firstIndex(where: { $0.studentID == studentIDString }) {

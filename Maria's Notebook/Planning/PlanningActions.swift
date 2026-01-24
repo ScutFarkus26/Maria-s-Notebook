@@ -8,38 +8,17 @@ enum PlanningActions {
     }
 
     static func planNextLesson(for sl: StudentLesson, lessons: [Lesson], students: [Student], studentLessons: [StudentLesson], context: ModelContext) {
-        guard let lessonIDUUID = UUID(uuidString: sl.lessonID),
-              let currentLesson = lessons.first(where: { $0.id == lessonIDUUID }) else { return }
-        let currentSubject = currentLesson.subject.trimmed()
-        let currentGroup = currentLesson.group.trimmed()
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return }
-
-        let candidates = lessons.filter { l in
-            l.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            l.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
-        }
-        .sorted { $0.orderInGroup < $1.orderInGroup }
-
-        guard let idx = candidates.firstIndex(where: { $0.id == currentLesson.id }),
-              let next = candidates[safe: idx + 1] else { return }
-
-        let sameStudents = Set(sl.resolvedStudentIDs)
-        let exists = studentLessons.contains { existing in
-            existing.resolvedLessonID == next.id && Set(existing.resolvedStudentIDs) == sameStudents && existing.givenAt == nil
-        }
-        guard !exists else { return }
-
-        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
-            lessonID: next.id,
-            studentIDs: sl.studentIDs.compactMap { UUID(uuidString: $0) }
+        let result = PlanNextLessonService.planNextLesson(
+            for: sl,
+            allLessons: lessons,
+            allStudents: students,
+            existingStudentLessons: studentLessons,
+            context: context
         )
-        StudentLessonFactory.attachRelationships(
-            to: newStudentLesson,
-            lesson: lessons.first(where: { $0.id == next.id }),
-            students: students.filter { sameStudents.contains($0.id) }
-        )
-        context.insert(newStudentLesson)
-        context.safeSave()
+
+        if case .success = result {
+            context.safeSave()
+        }
     }
 
     /// Push all scheduled lessons that include at least one absent student to the next school day.

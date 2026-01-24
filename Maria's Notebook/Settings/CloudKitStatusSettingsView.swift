@@ -103,7 +103,18 @@ struct CloudKitStatusSettingsView: View {
 
     private var statusDescription: String {
         if isCloudKitActive {
-            return "Your data is syncing with iCloud. Changes will sync across your devices."
+            switch syncService.syncHealth {
+            case .syncing:
+                return "Syncing your data with iCloud..."
+            case .healthy, .unknown:
+                return "Your data is syncing with iCloud. Changes will sync across your devices."
+            case .warning:
+                return "iCloud sync is active but experiencing minor issues."
+            case .error:
+                return "There was a problem syncing with iCloud. Your data is safe locally."
+            case .offline:
+                return offlineDescription
+            }
         } else if isCloudKitEnabled {
             if let errorDescription = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStoreErrorDescription),
                !errorDescription.isEmpty {
@@ -113,6 +124,18 @@ struct CloudKitStatusSettingsView: View {
             }
         } else {
             return "Your data is stored locally on this device only. Enable iCloud sync to keep your data synchronized across devices."
+        }
+    }
+
+    private var offlineDescription: String {
+        if !syncService.isNetworkAvailable && !syncService.isICloudAvailable {
+            return "No network connection and iCloud account unavailable. Changes are saved locally and will sync when both are restored."
+        } else if !syncService.isNetworkAvailable {
+            return "No network connection. Changes are saved locally and will sync when you're back online."
+        } else if !syncService.isICloudAvailable {
+            return "iCloud account unavailable. Sign in to iCloud in System Settings to sync your data."
+        } else {
+            return "Unable to connect to iCloud. Changes are saved locally and will sync when connection is restored."
         }
     }
 }

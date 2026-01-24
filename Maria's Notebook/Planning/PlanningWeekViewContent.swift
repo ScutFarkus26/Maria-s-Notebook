@@ -180,44 +180,21 @@ struct PlanningWeekViewContent: View {
     }
     
     @MainActor private func planNextLesson(for sl: StudentLesson) {
-        guard let lessonIDUUID = UUID(uuidString: sl.lessonID),
-              let currentLesson = lessons.first(where: { $0.id == lessonIDUUID }) else { return }
-        let currentSubject = currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentGroup = currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return }
+        // Fetch existing StudentLessons for duplicate checking
+        let existingStudentLessons = studentLessonRepository.fetchActiveStudentLessons()
 
-        let candidates = lessons.filter { l in
-            l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
-        }
-        .sorted { $0.orderInGroup < $1.orderInGroup }
-
-        guard let idx = candidates.firstIndex(where: { $0.id == currentLesson.id }), idx + 1 < candidates.count else { return }
-        let next = candidates[idx + 1]
-
-        // Check for duplicates using the repository
-        let nextID = next.id
-        let sameStudents = Set(sl.resolvedStudentIDs)
-
-        let activeLessons = studentLessonRepository.fetchActiveStudentLessons()
-        let exists = activeLessons.contains { existing in
-            existing.resolvedLessonID == nextID && Set(existing.resolvedStudentIDs) == sameStudents
-        }
-
-        guard !exists else { return }
-
-        let nextLesson = lessons.first(where: { $0.id == next.id })
-        let studentIDUUIDs = sl.studentIDs.compactMap { UUID(uuidString: $0) }
-        let relatedStudents = students.filter { sameStudents.contains($0.id) }
-
-        studentLessonRepository.createUnscheduled(
-            lessonID: next.id,
-            studentIDs: studentIDUUIDs,
-            lesson: nextLesson,
-            students: relatedStudents
+        let result = PlanNextLessonService.planNextLesson(
+            for: sl,
+            allLessons: lessons,
+            allStudents: students,
+            existingStudentLessons: existingStudentLessons,
+            context: modelContext
         )
-        studentLessonRepository.save(reason: "Planning next lesson")
-        onRefreshNeeded?()
+
+        if case .success = result {
+            studentLessonRepository.save(reason: "Planning next lesson")
+            onRefreshNeeded?()
+        }
     }
     
     private var orderedUnscheduledLessons: [StudentLesson] {

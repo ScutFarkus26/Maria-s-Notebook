@@ -3,6 +3,7 @@ import Foundation
 @testable import Maria_s_Notebook
 
 /// Test helper utilities for creating dates in tests
+/// Uses AppCalendar.shared for consistency with production code
 enum TestCalendar {
     /// Creates a date with specified components at noon (12:00:00) to avoid timezone issues
     static func date(year: Int, month: Int, day: Int, hour: Int = 12, minute: Int = 0, second: Int = 0) -> Date {
@@ -13,7 +14,7 @@ enum TestCalendar {
         components.hour = hour
         components.minute = minute
         components.second = second
-        return Calendar.current.date(from: components)!
+        return AppCalendar.shared.date(from: components)!
     }
 
     /// Creates a date at start of day (00:00:00) using AppCalendar

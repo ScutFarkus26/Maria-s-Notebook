@@ -54,8 +54,8 @@ extension UnifiedNoteEditor {
         existing.updatedAt = Date()
         existing.scope = scope
 
-        // Sync student links for multi-student scope queries
-        existing.syncStudentLinks(in: modelContext)
+        // Sync student links atomically after scope change
+        existing.syncStudentLinksIfNeeded(in: modelContext)
 
         return existing
     }
@@ -73,8 +73,8 @@ extension UnifiedNoteEditor {
 
         modelContext.insert(note)
 
-        // Sync student links for multi-student scope queries
-        note.syncStudentLinks(in: modelContext)
+        // Sync student links atomically after note creation
+        note.syncStudentLinksIfNeeded(in: modelContext)
 
         return note
     }

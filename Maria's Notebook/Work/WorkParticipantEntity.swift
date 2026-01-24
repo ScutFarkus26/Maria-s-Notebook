@@ -30,9 +30,8 @@ import SwiftData
         self.id = id
         // CloudKit compatibility: Store UUID as string
         self.studentID = studentID.uuidString
-        // Use Calendar.current to avoid MainActor constraints during initialization
-        let cal = Calendar.current
-        self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
+        // Use AppCalendar for consistent date normalization across the app
+        self.completedAt = completedAt.map { AppCalendar.startOfDay($0) }
         self.work = work
     }
 }

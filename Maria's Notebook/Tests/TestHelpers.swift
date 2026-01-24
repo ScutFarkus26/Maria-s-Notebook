@@ -186,9 +186,10 @@ func makeTestGroupTrack(
 // MARK: - Assertion Helpers
 
 /// Asserts that two dates are equal when normalized to start of day
+/// Uses AppCalendar for consistency with production code
 func expectSameDay(_ date1: Date, _ date2: Date, sourceLocation: SourceLocation = #_sourceLocation) {
-    let d1 = Calendar.current.startOfDay(for: date1)
-    let d2 = Calendar.current.startOfDay(for: date2)
+    let d1 = AppCalendar.startOfDay(date1)
+    let d2 = AppCalendar.startOfDay(date2)
     #expect(d1 == d2, sourceLocation: sourceLocation)
 }
 
@@ -397,31 +398,32 @@ func waitForAsync(
 // MARK: - Test Calendar Extended
 
 /// Extended test calendar utilities for sync testing
+/// Uses AppCalendar.shared for consistency with production code
 extension TestCalendar {
     /// Creates a date in the near future (for due dates)
     static func tomorrow(hour: Int = 9, minute: Int = 0) -> Date {
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-        return Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: tomorrow)!
+        let tomorrow = AppCalendar.shared.date(byAdding: .day, value: 1, to: Date())!
+        return AppCalendar.shared.date(bySettingHour: hour, minute: minute, second: 0, of: tomorrow)!
     }
 
     /// Creates a date in the past (for testing old sync dates)
     static func daysAgo(_ days: Int) -> Date {
-        return Calendar.current.date(byAdding: .day, value: -days, to: Date())!
+        return AppCalendar.shared.date(byAdding: .day, value: -days, to: Date())!
     }
 
     /// Creates a date in the future
     static func daysFromNow(_ days: Int) -> Date {
-        return Calendar.current.date(byAdding: .day, value: days, to: Date())!
+        return AppCalendar.shared.date(byAdding: .day, value: days, to: Date())!
     }
 
     /// Creates a date with specific hours ago (for sync timing tests)
     static func hoursAgo(_ hours: Int) -> Date {
-        return Calendar.current.date(byAdding: .hour, value: -hours, to: Date())!
+        return AppCalendar.shared.date(byAdding: .hour, value: -hours, to: Date())!
     }
 
     /// Creates a date with specific minutes ago (for throttle tests)
     static func minutesAgo(_ minutes: Int) -> Date {
-        return Calendar.current.date(byAdding: .minute, value: -minutes, to: Date())!
+        return AppCalendar.shared.date(byAdding: .minute, value: -minutes, to: Date())!
     }
 }
 
@@ -430,6 +432,7 @@ extension TestCalendar {
 /// Creates a set of test calendar events for sync testing
 func makeTestCalendarEventSet(calendarID: String = "test-calendar") -> [CalendarEvent] {
     let now = Date()
+    let startOfToday = AppCalendar.startOfDay(now)
     return [
         makeTestCalendarEvent(
             title: "Morning Meeting",
@@ -448,8 +451,8 @@ func makeTestCalendarEventSet(calendarID: String = "test-calendar") -> [Calendar
         ),
         makeTestCalendarEvent(
             title: "All Day Conference",
-            startDate: Calendar.current.startOfDay(for: now),
-            endDate: Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: now))!,
+            startDate: startOfToday,
+            endDate: AppCalendar.addingDays(1, to: startOfToday),
             isAllDay: true,
             eventKitEventID: "ek-event-3",
             eventKitCalendarID: calendarID

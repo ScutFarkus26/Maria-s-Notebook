@@ -132,7 +132,7 @@ struct WorkRepository {
     func markWorkCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) throws {
         guard let work = fetchWorkModel(id: id) else { return }
         work.status = .complete
-        work.completedAt = Date()
+        work.completedAt = AppCalendar.startOfDay(Date())
         if let outcome = outcome {
             work.completionOutcome = outcome
         }

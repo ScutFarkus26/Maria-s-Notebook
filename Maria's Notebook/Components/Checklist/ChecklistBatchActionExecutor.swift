@@ -163,7 +163,7 @@ enum ChecklistBatchActionExecutor {
         // Optionally create/update WorkModel if one exists
         if let work = findOrCreateWork(student: student, lesson: lesson, context: context) {
             work.status = .complete
-            work.completedAt = Date()
+            work.completedAt = AppCalendar.startOfDay(Date())
         }
 
         // Create/update LessonPresentation with mastered state

@@ -136,17 +136,34 @@ final class Note: Identifiable {
 
     // Computed, Codable scope
     @MainActor var scope: NoteScope {
-        get { 
+        get {
             let decoded = decodeScope() ?? .all
             // Ensure search index is synced (for existing notes that may not have it set)
             syncSearchIndex(with: decoded)
             return decoded
         }
-        set { 
+        set {
             scopeBlob = try? JSONEncoder().encode(newValue)
             // Update search index attributes for database-level filtering
             syncSearchIndex(with: newValue)
+            // Mark that studentLinks need syncing (will be done when context is available)
+            _studentLinksNeedSync = true
         }
+    }
+
+    /// Internal flag indicating studentLinks need to be synced after scope change.
+    /// Call `syncStudentLinksIfNeeded(in:)` after setting scope to complete the sync.
+    @Transient private var _studentLinksNeedSync: Bool = false
+
+    /// Returns true if studentLinks need to be synced after a scope change.
+    var studentLinksNeedSync: Bool { _studentLinksNeedSync }
+
+    /// Syncs studentLinks if needed and clears the flag. Call this after setting scope.
+    @MainActor
+    func syncStudentLinksIfNeeded(in context: ModelContext) {
+        guard _studentLinksNeedSync else { return }
+        syncStudentLinks(in: context)
+        _studentLinksNeedSync = false
     }
     
     // Helper to sync search index attributes with scope
@@ -247,6 +264,8 @@ final class Note: Identifiable {
         case .students:
             self.scopeIsAll = false
             self.searchIndexStudentID = nil
+            // Mark that studentLinks need syncing after insertion
+            self._studentLinksNeedSync = true
         }
     }
 

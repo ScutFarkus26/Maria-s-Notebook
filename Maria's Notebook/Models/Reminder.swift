@@ -72,7 +72,7 @@ final class Reminder: Identifiable {
     /// Mark this reminder as completed
     func markCompleted() {
         self.isCompleted = true
-        self.completedAt = Date()
+        self.completedAt = AppCalendar.startOfDay(Date())
         self.updatedAt = Date()
     }
     

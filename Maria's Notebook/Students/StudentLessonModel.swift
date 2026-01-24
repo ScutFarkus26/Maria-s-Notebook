@@ -7,27 +7,37 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 @Model final class StudentLesson: Identifiable {
+    /// Logger for StudentLesson data issues
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "StudentLesson")
+
     var id: UUID = UUID()
     // CloudKit compatibility: Store UUIDs as strings
     var lessonID: String = ""
     // MIGRATION NOTE: The old database may have studentIDs stored as UUIDs instead of Strings.
     // We now store as JSON-encoded Data to avoid SwiftData type conflicts.
     @Attribute(.externalStorage) private var _studentIDsData: Data? = nil
-    
+
     /// Student IDs stored as UUID strings. Uses JSON encoding to safely handle corrupted data.
     /// Marked as @Transient so SwiftData doesn't try to read the old stored property.
     @Transient
     var studentIDs: [String] {
         get {
-            // Safely decode from JSON storage
-            guard let data = _studentIDsData,
-                  let array = try? JSONDecoder().decode([String].self, from: data) else {
-                // If decoding fails (e.g., old corrupted data or nil), return empty array
+            // Handle nil data (normal case for new records)
+            guard let data = _studentIDsData else {
                 return []
             }
-            return array
+
+            // Attempt to decode, logging errors if decoding fails
+            do {
+                return try JSONDecoder().decode([String].self, from: data)
+            } catch {
+                // Log the error so we can diagnose data corruption issues
+                Self.logger.error("Failed to decode studentIDs for StudentLesson \(self.id): \(error.localizedDescription). Data size: \(data.count) bytes.")
+                return []
+            }
         }
         set {
             // Encode to JSON for storage
@@ -42,8 +52,8 @@ import SwiftData
     var scheduledFor: Date? {
         didSet {
             if let date = scheduledFor {
-                // Use Calendar.current to avoid MainActor isolation issues
-                scheduledForDay = Calendar.current.startOfDay(for: date)
+                // Use AppCalendar for consistent date normalization across the app
+                scheduledForDay = AppCalendar.startOfDay(date)
             } else {
                 scheduledForDay = Date.distantPast
             }
@@ -93,8 +103,8 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
-        // Use Calendar.current to avoid MainActor isolation
-        self.scheduledForDay = scheduledFor.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantPast
+        // Use AppCalendar for consistent date normalization across the app
+        self.scheduledForDay = scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -127,8 +137,8 @@ import SwiftData
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
-        // Use Calendar.current to avoid MainActor isolation
-        self.scheduledForDay = scheduledFor.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantPast
+        // Use AppCalendar for consistent date normalization across the app
+        self.scheduledForDay = scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
         self.isPresented = isPresented
         self.notes = notes
         self.needsPractice = needsPractice
@@ -175,8 +185,8 @@ import SwiftData
     
     func normalizeDenormalizedFields() {
         if let s = scheduledFor {
-            // Use Calendar.current to avoid MainActor isolation
-            scheduledForDay = Calendar.current.startOfDay(for: s)
+            // Use AppCalendar for consistent date normalization across the app
+            scheduledForDay = AppCalendar.startOfDay(s)
         } else {
             scheduledForDay = Date.distantPast
         }

@@ -44,24 +44,19 @@ final class StudentLessonDetailActions: ObservableObject {
         context: ModelContext
     ) {
         guard !wasGiven, nowGiven, let next = nextLesson else { return }
-        let sameStudents = Set(selectedStudentIDs)
-        // Do not create next lesson entries for zero students
-        guard !sameStudents.isEmpty else { return }
-        let exists = studentLessonsAll.contains { sl in
-            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
+
+        let result = PlanNextLessonService.planLesson(
+            next,
+            forStudents: selectedStudentIDs,
+            allStudents: studentsAll,
+            allLessons: lessons,
+            existingStudentLessons: studentLessonsAll,
+            context: context
+        )
+
+        if case .success = result {
+            StudentLessonDetailUtilities.notifyInboxRefresh()
         }
-        guard !exists else { return }
-        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
-            lessonID: next.id,
-            studentIDs: Array(sameStudents)
-        )
-        StudentLessonFactory.attachRelationships(
-            to: newStudentLesson,
-            lesson: lessons.first(where: { $0.id == next.id }),
-            students: studentsAll.filter { sameStudents.contains($0.id) }
-        )
-        context.insert(newStudentLesson)
-        StudentLessonDetailUtilities.notifyInboxRefresh()
     }
 
     func planNextLessonInGroup(
@@ -72,23 +67,16 @@ final class StudentLessonDetailActions: ObservableObject {
         studentLessonsAll: [StudentLesson],
         context: ModelContext
     ) -> Bool {
-        let sameStudents = Set(selectedStudentIDs)
-        // Do not plan next lesson entries for zero students
-        guard !sameStudents.isEmpty else { return false }
-        let exists = studentLessonsAll.contains { sl in
-            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
-        }
-        if !exists {
-            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
-                lessonID: next.id,
-                studentIDs: Array(selectedStudentIDs)
-            )
-            StudentLessonFactory.attachRelationships(
-                to: newStudentLesson,
-                lesson: lessons.first(where: { $0.id == next.id }),
-                students: studentsAll.filter { sameStudents.contains($0.id) }
-            )
-            context.insert(newStudentLesson)
+        let result = PlanNextLessonService.planLesson(
+            next,
+            forStudents: selectedStudentIDs,
+            allStudents: studentsAll,
+            allLessons: lessons,
+            existingStudentLessons: studentLessonsAll,
+            context: context
+        )
+
+        if case .success = result {
             context.safeSave()
             StudentLessonDetailUtilities.notifyInboxRefresh()
             return true
@@ -146,16 +134,7 @@ final class StudentLessonDetailActions: ObservableObject {
 
     func nextLessonInGroup(from current: Lesson?, lessons: [Lesson]) -> Lesson? {
         guard let current else { return nil }
-        let currentSubject = current.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentGroup = current.group.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return nil }
-        let candidates = lessons.filter { l in
-            l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
-        }
-        .sorted { $0.orderInGroup < $1.orderInGroup }
-        guard let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count else { return nil }
-        return candidates[idx + 1]
+        return PlanNextLessonService.findNextLesson(after: current, in: lessons)
     }
 }
 

@@ -111,7 +111,7 @@ struct StudentOverviewTab: View {
                                 onMarkCompleted: { w in
                                     // Mark as complete
                                     w.status = .complete
-                                    w.completedAt = Date()
+                                    w.completedAt = AppCalendar.startOfDay(Date())
                                     try? modelContext.save()
                                 },
                                 onScheduleToday: { w in
