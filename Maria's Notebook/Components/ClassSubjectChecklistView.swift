@@ -12,20 +12,13 @@ import AppKit
 #endif
 import Combine
 
-// MARK: - Preference Key for Cell Frames
-fileprivate struct CellFramePreference: PreferenceKey {
-    static var defaultValue: [CellIdentifier: CGRect] = [:]
-    static func reduce(value: inout [CellIdentifier: CGRect], nextValue: () -> [CellIdentifier: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
-    }
-}
-
 struct ClassSubjectChecklistView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = ClassSubjectChecklistViewModel()
 
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage("Checklist.selectedSubject") private var persistedSubject: String = ""
 
     // Grid Configuration
     private let studentColumnWidth: CGFloat = 120
@@ -33,11 +26,11 @@ struct ClassSubjectChecklistView: View {
     private let rowHeight: CGFloat = 44
 
     // Drag selection state
-    @State private var cellFrames: [CellIdentifier: CGRect] = [:]
     @State private var dragStart: CGPoint? = nil
     @State private var dragCurrent: CGPoint? = nil
     @State private var isDragging: Bool = false
     @GestureState private var dragGestureActive: Bool = false
+
     
     var body: some View {
         VStack(spacing: 0) {
@@ -107,17 +100,13 @@ struct ClassSubjectChecklistView: View {
                 Divider()
             }
 
-            // MARK: - 2D Scrollable Grid
+            // MARK: - 2D Scrollable Grid with Pinned Header
             ScrollView([.horizontal, .vertical]) {
-                ZStack(alignment: .topLeading) {
-                    // Main grid content
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Header row
-                        headerRow
-
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    Section {
                         // Data Rows
                         ForEach(viewModel.orderedGroups, id: \.self) { group in
-                            // Group Header (Sticky Left)
+                            // Group Header
                             HStack(spacing: 0) {
                                 StickyLeftItem(width: lessonColumnWidth, height: 30) {
                                     HStack {
@@ -158,7 +147,6 @@ struct ClassSubjectChecklistView: View {
                                     // Grid Cells
                                     ForEach(viewModel.students) { student in
                                         let state = viewModel.state(for: student, lesson: lesson)
-                                        let cellId = CellIdentifier(studentID: student.id, lessonID: lesson.id)
                                         ClassChecklistSmartCell(
                                             state: state,
                                             isSelected: viewModel.isSelected(student: student, lesson: lesson),
@@ -172,23 +160,16 @@ struct ClassSubjectChecklistView: View {
                                         )
                                         .frame(width: studentColumnWidth, height: rowHeight)
                                         .borderSeparated()
-                                        .background(
-                                            GeometryReader { proxy in
-                                                Color.clear
-                                                    .onAppear {
-                                                        cellFrames[cellId] = proxy.frame(in: .named("gridSpace"))
-                                                    }
-                                                    .onChange(of: proxy.frame(in: .named("gridSpace"))) { _, newFrame in
-                                                        cellFrames[cellId] = newFrame
-                                                    }
-                                            }
-                                        )
                                     }
                                 }
                             }
                         }
+                    } header: {
+                        // Pinned header row - stays at top during vertical scroll
+                        headerRow
                     }
-
+                }
+                .overlay(alignment: .topLeading) {
                     // Drag selection rectangle overlay
                     if isDragging, let start = dragStart, let current = dragCurrent {
                         DragSelectionRectangle(start: start, current: current)
@@ -218,11 +199,17 @@ struct ClassSubjectChecklistView: View {
             )
         }
         .onAppear {
+            // Restore persisted subject if available
+            if !persistedSubject.isEmpty {
+                viewModel.selectedSubject = persistedSubject
+            }
             viewModel.loadData(context: modelContext)
             viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
         }
-        .onChange(of: viewModel.selectedSubject) { _, _ in
+        .onChange(of: viewModel.selectedSubject) { _, newValue in
             viewModel.refreshMatrix(context: modelContext)
+            // Persist subject selection
+            persistedSubject = newValue
         }
         .onChange(of: showTestStudents) { _, _ in
             viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
@@ -243,19 +230,46 @@ struct ClassSubjectChecklistView: View {
             height: abs(current.y - start.y)
         )
 
+        // Compute cell positions mathematically instead of tracking via GeometryReader
+        // Grid layout: lessonColumnWidth for lesson names, then studentColumnWidth per student
+        // Vertical: headerRow (rowHeight), then per group: groupHeader (30) + lessons (rowHeight each)
+
         var newSelection = Set<CellIdentifier>()
-        for (cellId, frame) in cellFrames {
-            if dragRect.intersects(frame) {
-                newSelection.insert(cellId)
+        let groupHeaderHeight: CGFloat = 30
+
+        // Build a flat list of lessons with their Y offsets
+        var currentY: CGFloat = rowHeight // Start after header row
+
+        for group in viewModel.orderedGroups {
+            currentY += groupHeaderHeight // Group header
+
+            let lessons = viewModel.lessonsIn(group: group)
+            for lesson in lessons {
+                // For each student (column), compute cell rect
+                for (studentIndex, student) in viewModel.students.enumerated() {
+                    let cellX = lessonColumnWidth + CGFloat(studentIndex) * studentColumnWidth
+                    let cellRect = CGRect(
+                        x: cellX,
+                        y: currentY,
+                        width: studentColumnWidth,
+                        height: rowHeight
+                    )
+
+                    if dragRect.intersects(cellRect) {
+                        newSelection.insert(CellIdentifier(studentID: student.id, lessonID: lesson.id))
+                    }
+                }
+                currentY += rowHeight
             }
         }
+
         viewModel.selectedCells = newSelection
     }
 
-    // MARK: - Header Row (Pinned Vertically)
+    // MARK: - Header Row
     private var headerRow: some View {
         HStack(spacing: 0) {
-            // Top-Left Corner (Sticky Horizontally + Pinned Vertically via Section)
+            // Top-Left Corner (Sticky horizontally)
             StickyLeftItem(width: lessonColumnWidth, height: rowHeight) {
                 ZStack {
                     Color.clear.backgroundPlatform()
@@ -267,8 +281,8 @@ struct ClassSubjectChecklistView: View {
                 .borderSeparated()
             }
             .zIndex(100) // Ensure corner stays above everything
-            
-            // Student Names (Scrolls Horizontally)
+
+            // Student Names (Scrolls Horizontally with content)
             ForEach(viewModel.students) { student in
                 VStack(spacing: 2) {
                     Text(viewModel.displayName(for: student))
@@ -333,8 +347,6 @@ struct StickyLeftItem<Content: View>: View {
 
 // MARK: - THE SMART CELL
 struct ClassChecklistSmartCell: View {
-    @Environment(\.modelContext) private var modelContext
-
     let state: StudentChecklistRowState?
     let isSelected: Bool
     let isSelectionMode: Bool
@@ -351,12 +363,8 @@ struct ClassChecklistSmartCell: View {
         let isPresented = state?.isPresented ?? false
         let isScheduled = state?.isScheduled ?? false
 
-        let isInboxPlan: Bool = {
-            guard isScheduled, let pid = state?.plannedItemID else { return false }
-            let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == pid })
-            let sl = (try? modelContext.fetch(fetch))?.first
-            return sl?.scheduledFor == nil
-        }()
+        // Use precomputed value from matrix builder instead of per-cell database query
+        let isInboxPlan = state?.isInboxPlan ?? false
 
         ZStack {
             // Selection highlight background
@@ -497,6 +505,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
     func refreshMatrix(context: ModelContext) {
         guard !selectedSubject.isEmpty else { return }
         let sub = selectedSubject.trimmed()
+        // Filter lessons by subject (case-insensitive to match original behavior)
         let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
         self.lessons = allLessons.filter { $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame }
         self.orderedGroups = lessonsLogic.groups(for: sub, lessons: self.lessons)
@@ -659,7 +668,7 @@ class ClassSubjectChecklistViewModel: ObservableObject {
 
         if let work = findOrCreateWork(student: student, lesson: lesson, context: context) {
             work.status = .complete
-            work.completedAt = Date()
+            work.completedAt = AppCalendar.startOfDay(Date())
         }
 
         upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .mastered, context: context)

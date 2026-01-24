@@ -76,6 +76,10 @@ enum ChecklistMatrixBuilder {
         let plannedCandidate = nonGiven.first
         let isScheduled = !nonGiven.isEmpty
 
+        // Compute isInboxPlan here instead of per-cell render
+        // An inbox plan is scheduled but has no scheduledFor date
+        let isInboxPlan = isScheduled && (plannedCandidate?.scheduledFor == nil)
+
         let isPresented = slsForLesson.contains { $0.isGiven }
 
         // Find WorkModel for this lesson
@@ -103,7 +107,8 @@ enum ChecklistMatrixBuilder {
             isActive: isActive,
             isComplete: isComplete,
             lastActivityDate: nil,
-            isStale: false
+            isStale: false,
+            isInboxPlan: isInboxPlan
         )
     }
 }

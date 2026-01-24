@@ -12,6 +12,7 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     public let isComplete: Bool
     public let lastActivityDate: Date?
     public let isStale: Bool
+    public let isInboxPlan: Bool
 
     public init(
         lessonID: UUID,
@@ -23,7 +24,8 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         isActive: Bool,
         isComplete: Bool,
         lastActivityDate: Date?,
-        isStale: Bool
+        isStale: Bool,
+        isInboxPlan: Bool = false
     ) {
         self.lessonID = lessonID
         self.plannedItemID = plannedItemID
@@ -35,6 +37,7 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         self.isComplete = isComplete
         self.lastActivityDate = lastActivityDate
         self.isStale = isStale
+        self.isInboxPlan = isInboxPlan
     }
 }
 

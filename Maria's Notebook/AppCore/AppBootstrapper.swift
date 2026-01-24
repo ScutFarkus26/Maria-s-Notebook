@@ -58,7 +58,11 @@ final class AppBootstrapper: ObservableObject {
         // 3.7.5. Repair incorrectly scoped notes
         await DataMigrations.repairScopeForContextualNotes(using: context)
         
-        // 3.8. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
+        // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
+        // Run every launch since duplicates cause SwiftUI ForEach errors and data inconsistencies
+        DataMigrations.deduplicateAllModels(using: context)
+
+        // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
             await DataMigrations.repairDenormalizedScheduledForDay(using: context)
             await DataMigrations.cleanOrphanedStudentIDs(using: context)
