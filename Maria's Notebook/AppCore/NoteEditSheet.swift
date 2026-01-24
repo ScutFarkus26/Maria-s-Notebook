@@ -82,7 +82,7 @@ struct NoteEditSheet: View {
                     }
                 }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .onAppear {
             // Auto-focus text editor on iOS
@@ -189,6 +189,7 @@ struct NoteEditSheet: View {
         #else
         .background(Color(uiColor: .systemBackground))
         #endif
+        .dismissKeyboardOnScroll()
     }
 
     private var canSave: Bool {

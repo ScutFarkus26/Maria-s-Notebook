@@ -42,6 +42,7 @@ private struct PresentationSizingModifier: ViewModifier {
 /// ViewModifier that applies standardized sheet sizing based on preset
 private struct SheetSizingModifier: ViewModifier {
     let preset: SheetSizePreset
+    let allowMediumDetent: Bool
 
     func body(content: Content) -> some View {
         #if os(macOS)
@@ -50,7 +51,7 @@ private struct SheetSizingModifier: ViewModifier {
             .presentationSizingFitted()
         #else
         content
-            .presentationDetents([.large])
+            .presentationDetents(allowMediumDetent ? [.medium, .large] : [.large])
             .presentationDragIndicator(.visible)
         #endif
     }
@@ -63,15 +64,34 @@ extension View {
     }
 
     /// Applies standardized sheet sizing based on the specified preset
-    /// - Parameter preset: The size preset to apply
+    /// - Parameters:
+    ///   - preset: The size preset to apply
+    ///   - allowMediumDetent: On iOS, allows the sheet to start at medium height (default: false)
     /// - Returns: A view with appropriate sheet sizing for the current platform
-    func sheetSizing(_ preset: SheetSizePreset) -> some View {
-        self.modifier(SheetSizingModifier(preset: preset))
+    func sheetSizing(_ preset: SheetSizePreset, allowMediumDetent: Bool = false) -> some View {
+        self.modifier(SheetSizingModifier(preset: preset, allowMediumDetent: allowMediumDetent))
+    }
+
+    /// Applies flexible sheet sizing that allows medium detent on iOS (iPhone-friendly for quick edits)
+    /// On macOS, uses the standard preset sizing
+    func flexibleSheetSizing(_ preset: SheetSizePreset = .medium) -> some View {
+        self.modifier(SheetSizingModifier(preset: preset, allowMediumDetent: true))
     }
 
     /// Legacy method - applies large sheet sizing (720×640 on macOS)
     @ViewBuilder
     func largeSheetSizing() -> some View {
         self.sheetSizing(.large)
+    }
+
+    /// Adds interactive keyboard dismissal on scroll for iOS
+    /// On macOS, this is a no-op as keyboard behavior is different
+    @ViewBuilder
+    func dismissKeyboardOnScroll() -> some View {
+        #if os(iOS)
+        self.scrollDismissesKeyboard(.interactively)
+        #else
+        self
+        #endif
     }
 }

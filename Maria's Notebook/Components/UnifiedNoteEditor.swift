@@ -191,6 +191,7 @@ struct UnifiedNoteEditor: View {
                 }
                 .padding(24)
             }
+            .dismissKeyboardOnScroll()
             .navigationTitle(contextTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -208,7 +209,7 @@ struct UnifiedNoteEditor: View {
                 }
             }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
     #endif

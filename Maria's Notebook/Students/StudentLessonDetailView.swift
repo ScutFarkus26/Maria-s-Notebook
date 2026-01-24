@@ -170,6 +170,7 @@ struct StudentLessonDetailContentView: View {
                     }
                 }
             }
+            .dismissKeyboardOnScroll()
         }
 #if os(macOS)
         .frame(minWidth: 720, minHeight: 640)
@@ -690,6 +691,81 @@ struct StudentLessonDetailContentView: View {
                     .foregroundStyle(.secondary)
             }
 
+            #if os(iOS)
+            if horizontalSizeClass == .compact {
+                // iPhone: Use full-width buttons in a vertical stack
+                VStack(spacing: 8) {
+                    Button { vm.masteryState = .presented } label: {
+                        StatePill(
+                            title: "Presented",
+                            systemImage: "eye.fill",
+                            tint: .blue,
+                            active: vm.masteryState == .presented
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+
+                    Button { vm.masteryState = .practicing } label: {
+                        StatePill(
+                            title: "Practicing",
+                            systemImage: "arrow.triangle.2.circlepath",
+                            tint: .purple,
+                            active: vm.masteryState == .practicing
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+
+                    Button { vm.masteryState = .mastered } label: {
+                        StatePill(
+                            title: "Mastered",
+                            systemImage: "checkmark.seal.fill",
+                            tint: .green,
+                            active: vm.masteryState == .mastered
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                }
+            } else {
+                // iPad: Horizontal layout
+                HStack(spacing: 12) {
+                    Button { vm.masteryState = .presented } label: {
+                        StatePill(
+                            title: "Presented",
+                            systemImage: "eye.fill",
+                            tint: .blue,
+                            active: vm.masteryState == .presented
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button { vm.masteryState = .practicing } label: {
+                        StatePill(
+                            title: "Practicing",
+                            systemImage: "arrow.triangle.2.circlepath",
+                            tint: .purple,
+                            active: vm.masteryState == .practicing
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button { vm.masteryState = .mastered } label: {
+                        StatePill(
+                            title: "Mastered",
+                            systemImage: "checkmark.seal.fill",
+                            tint: .green,
+                            active: vm.masteryState == .mastered
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+                }
+            }
+            #else
+            // macOS: Horizontal layout (unchanged)
             HStack(spacing: 12) {
                 Button { vm.masteryState = .presented } label: {
                     StatePill(
@@ -723,6 +799,7 @@ struct StudentLessonDetailContentView: View {
 
                 Spacer()
             }
+            #endif
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))

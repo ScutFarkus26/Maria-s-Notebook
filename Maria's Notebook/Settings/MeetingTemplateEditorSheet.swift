@@ -84,6 +84,7 @@ struct MeetingTemplateEditorSheet: View {
             .navigationTitle(isEditing ? "Edit Template" : "New Template")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            .scrollDismissesKeyboard(.interactively)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -101,7 +102,7 @@ struct MeetingTemplateEditorSheet: View {
             }
         }
         #if os(iOS)
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         #endif
         #if os(macOS)
