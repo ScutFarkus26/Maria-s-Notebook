@@ -188,7 +188,10 @@ import SwiftUI
         return participant(for: studentID)?.completedAt != nil
     }
 
-    // TODO: Consider moving this "action" logic to a Service or ViewModel to avoid Model-layer database insertion.
+    /// Marks a student's completion status for this work item.
+    /// - Parameters:
+    ///   - studentID: The student's unique identifier.
+    ///   - date: The completion date, or nil to mark as incomplete.
     func markStudent(_ studentID: UUID, completedAt date: Date?) {
         // Use Calendar.current to avoid MainActor constraints
         let cal = Calendar.current
