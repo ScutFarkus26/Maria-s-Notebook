@@ -11,6 +11,7 @@ struct NoteTemplateManagementView: View {
 
     @State private var showingAddSheet = false
     @State private var editingTemplate: NoteTemplate?
+    @State private var previewingTemplate: NoteTemplate?
 
     private var repository: NoteTemplateRepository {
         NoteTemplateRepository(context: modelContext)
@@ -25,64 +26,68 @@ struct NoteTemplateManagementView: View {
     }
 
     var body: some View {
-        List {
-            // Built-in templates section
-            if !builtInTemplates.isEmpty {
-                Section {
-                    ForEach(builtInTemplates) { template in
-                        TemplateRow(template: template, isBuiltIn: true)
-                    }
-                } header: {
-                    Text("Built-in Templates")
-                } footer: {
-                    Text("Built-in templates cannot be edited or deleted.")
-                }
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: SettingsStyle.sectionSpacing) {
+                // Built-in templates section
+                if !builtInTemplates.isEmpty {
+                    VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+                        Text("Built-in Templates")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
 
-            // Custom templates section
-            Section {
-                if customTemplates.isEmpty {
-                    Text("No custom templates yet")
-                        .foregroundStyle(.secondary)
-                        .italic()
-                } else {
-                    ForEach(customTemplates) { template in
-                        TemplateRow(template: template, isBuiltIn: false)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    deleteTemplate(template)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    editingTemplate = template
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                .tint(.blue)
-                            }
-                            .contextMenu {
-                                Button {
-                                    editingTemplate = template
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button(role: .destructive) {
-                                    deleteTemplate(template)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
+                        ForEach(builtInTemplates) { template in
+                            NoteTemplateCardRow(
+                                template: template,
+                                isBuiltIn: true,
+                                onTap: { previewingTemplate = template },
+                                onEdit: nil,
+                                onDelete: nil
+                            )
+                        }
+
+                        Text("Built-in templates cannot be edited or deleted.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
-                    .onMove(perform: reorderTemplates)
                 }
-            } header: {
-                Text("My Templates")
-            } footer: {
-                Text("Tap a template to preview. Swipe to edit or delete.")
+
+                // Custom templates section
+                VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+                    Text("My Templates")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    if customTemplates.isEmpty {
+                        HStack {
+                            Image(systemName: "doc.badge.plus")
+                                .foregroundStyle(.secondary)
+                            Text("No custom templates yet")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.primary.opacity(0.1), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                        )
+                    } else {
+                        ForEach(customTemplates) { template in
+                            NoteTemplateCardRow(
+                                template: template,
+                                isBuiltIn: false,
+                                onTap: { previewingTemplate = template },
+                                onEdit: { editingTemplate = template },
+                                onDelete: { deleteTemplate(template) }
+                            )
+                        }
+                    }
+
+                    Text("Tap a template to preview. Use the menu to edit or delete.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
+            .padding(SettingsStyle.padding)
         }
         .navigationTitle("Note Templates")
         .toolbar {
@@ -93,11 +98,6 @@ struct NoteTemplateManagementView: View {
                     Label("Add Template", systemImage: "plus")
                 }
             }
-            #if os(iOS)
-            ToolbarItem(placement: .automatic) {
-                EditButton()
-            }
-            #endif
         }
         .sheet(isPresented: $showingAddSheet) {
             NoteTemplateEditorSheet(template: nil) {
@@ -108,6 +108,9 @@ struct NoteTemplateManagementView: View {
             NoteTemplateEditorSheet(template: template) {
                 // Refresh after editing
             }
+        }
+        .sheet(item: $previewingTemplate) { template in
+            NoteTemplatePreviewSheet(template: template)
         }
     }
 
@@ -126,18 +129,17 @@ struct NoteTemplateManagementView: View {
     }
 }
 
-// MARK: - Template Row
+// MARK: - Note Template Card Row
 
-private struct TemplateRow: View {
+private struct NoteTemplateCardRow: View {
     let template: NoteTemplate
     let isBuiltIn: Bool
-
-    @State private var showingPreview = false
+    let onTap: () -> Void
+    let onEdit: (() -> Void)?
+    let onDelete: (() -> Void)?
 
     var body: some View {
-        Button {
-            showingPreview = true
-        } label: {
+        Button(action: onTap) {
             HStack(spacing: 12) {
                 // Category color indicator
                 Circle()
@@ -145,9 +147,19 @@ private struct TemplateRow: View {
                     .frame(width: 10, height: 10)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(template.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 6) {
+                        Text(template.title)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+
+                        Text(template.category.rawValue.capitalized)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(categoryColor(for: template.category).opacity(0.15)))
+                            .foregroundStyle(categoryColor(for: template.category))
+                    }
 
                     Text(template.body)
                         .font(.subheadline)
@@ -161,20 +173,113 @@ private struct TemplateRow: View {
                     Image(systemName: "lock.fill")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
+                } else if onEdit != nil || onDelete != nil {
+                    Menu {
+                        if let onEdit {
+                            Button {
+                                onEdit()
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                        }
+                        if let onDelete {
+                            Button(role: .destructive) {
+                                onDelete()
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
+            .padding(SettingsStyle.compactPadding)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(SettingsStyle.groupBackgroundColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.primary.opacity(SettingsStyle.borderOpacity))
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .alert("Template Preview", isPresented: $showingPreview) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("\(template.title)\n\n\(template.body)\n\nCategory: \(template.category.rawValue.capitalized)")
-        }
     }
 
     private func categoryColor(for category: NoteCategory) -> Color {
         switch category {
+        case .academic: return .blue
+        case .behavioral: return .orange
+        case .social: return .purple
+        case .emotional: return .pink
+        case .health: return .green
+        case .attendance: return .teal
+        case .general: return .gray
+        }
+    }
+}
+
+// MARK: - Note Template Preview Sheet
+
+private struct NoteTemplatePreviewSheet: View {
+    let template: NoteTemplate
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Category badge
+                    HStack {
+                        Text(template.category.rawValue.capitalized)
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(categoryColor.opacity(0.15)))
+                            .foregroundStyle(categoryColor)
+                        Spacer()
+                    }
+
+                    // Template content
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Template Content")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        Text(template.body)
+                            .font(.body)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(SettingsStyle.groupBackgroundColor)
+                            )
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle(template.title)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var categoryColor: Color {
+        switch template.category {
         case .academic: return .blue
         case .behavioral: return .orange
         case .social: return .purple

@@ -276,7 +276,7 @@ struct DataManagementGrid: View {
                     Spacer()
                     Toggle("", isOn: $autoBackupEnabled)
                         .toggleStyle(.switch)
-                        .scaleEffect(0.75)
+                        .scaleEffect(SettingsStyle.toggleScale)
                         .labelsHidden()
                 }
 
@@ -300,22 +300,11 @@ struct DataManagementGrid: View {
     // MARK: - iCloud Row
 
     private var iCloudRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "icloud.fill")
-                .foregroundColor(.cyan)
-            Text("iCloud Backup")
-                .font(.subheadline)
-            Spacer()
-            Toggle("", isOn: $cloudBackupEnabled)
-                .toggleStyle(.switch)
-                .scaleEffect(0.8)
-                .labelsHidden()
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+        SettingsToggleRow(
+            title: "iCloud Backup",
+            systemImage: "icloud.fill",
+            color: .cyan,
+            isOn: $cloudBackupEnabled
         )
     }
 
@@ -401,7 +390,7 @@ private struct CompactGridCard<Content: View>: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .cardStyle(cornerRadius: 10, padding: 10)
+            .cardStyle(cornerRadius: 10, padding: SettingsStyle.compactPadding)
     }
 }
 

@@ -27,100 +27,61 @@ public struct ReminderSyncSettingsView: View {
     }
 
     public var body: some View {
-        Form {
-            Section("Reminder Sync") {
-                if needsAuthorization {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Reminder access is required to sync reminders.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-
-                        if isRefreshing {
-                            HStack {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("Requesting access...")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else {
-                            Button("Request Access") {
-                                Task {
-                                    await requestAccess()
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-
-                        if let status = lastSyncStatus {
-                            Text(status)
-                                .font(.footnote)
-                                .foregroundStyle(status.contains("Error") || status.contains("Failed") ? .red : .green)
-                        }
+        VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+            if needsAuthorization {
+                AuthorizationRequestSection(
+                    serviceName: "Reminders",
+                    description: "Reminder access is required to sync reminders.",
+                    settingsPath: "Reminders",
+                    isRefreshing: isRefreshing,
+                    statusMessage: lastSyncStatus,
+                    onRequestAccess: {
+                        Task { await requestAccess() }
                     }
-                } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if !availableLists.isEmpty {
-                            Picker("Sync from Reminders List", selection: $selectedListIdentifier) {
-                                Text("None (Disable Sync)").tag("")
-                                ForEach(availableLists) { listInfo in
-                                    Text(listInfo.name).tag(listInfo.identifier)
-                                }
+                )
+            } else {
+                VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+                    if !availableLists.isEmpty {
+                        Picker("Sync from Reminders List", selection: $selectedListIdentifier) {
+                            Text("None (Disable Sync)").tag("")
+                            ForEach(availableLists) { listInfo in
+                                Text(listInfo.name).tag(listInfo.identifier)
                             }
-                            .onChange(of: selectedListIdentifier) { _, newValue in
-                                if newValue.isEmpty {
-                                    syncService.syncListIdentifier = nil
-                                    syncService.syncListName = nil
-                                } else if let listInfo = availableLists.first(where: { $0.identifier == newValue }) {
-                                    syncService.syncListIdentifier = listInfo.identifier
-                                    syncService.syncListName = listInfo.name
-                                }
+                        }
+                        .onChange(of: selectedListIdentifier) { _, newValue in
+                            if newValue.isEmpty {
+                                syncService.syncListIdentifier = nil
+                                syncService.syncListName = nil
+                            } else if let listInfo = availableLists.first(where: { $0.identifier == newValue }) {
+                                syncService.syncListIdentifier = listInfo.identifier
+                                syncService.syncListName = listInfo.name
                             }
-
-                            HStack {
-                                Button("Refresh Lists") {
-                                    Task {
-                                        await loadAvailableLists()
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-
-                                Spacer()
-
-                                Button("Sync Now") {
-                                    Task {
-                                        await syncReminders()
-                                    }
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(selectedListIdentifier.isEmpty || isRefreshing)
-                            }
-
-                            // Show last sync time if available
-                            if let lastSync = syncService.lastSuccessfulSync {
-                                Text("Last synced: \(lastSync, style: .relative) ago")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else {
-                            Button("Load Reminders Lists") {
-                                Task {
-                                    await loadAvailableLists()
-                                }
-                            }
-                            .buttonStyle(.bordered)
                         }
 
-                        if let status = lastSyncStatus {
-                            Text(status)
-                                .font(.footnote)
-                                .foregroundStyle(status.contains("Error") || status.contains("Failed") ? .red : .secondary)
-                        }
+                        SyncActionButtons(
+                            refreshLabel: "Refresh Lists",
+                            isSyncDisabled: selectedListIdentifier.isEmpty,
+                            isRefreshing: isRefreshing,
+                            onRefresh: { Task { await loadAvailableLists() } },
+                            onSync: { Task { await syncReminders() } }
+                        )
 
-                        Text("Reminders from the selected list will appear in your Today view. You can manually sync or reminders will sync automatically when changes are detected.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        LastSyncView(lastSync: syncService.lastSuccessfulSync)
+                    } else {
+                        Button("Load Reminders Lists") {
+                            Task { await loadAvailableLists() }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
+
+                    if let status = lastSyncStatus {
+                        StatusMessageView(message: status)
+                    }
+
+                    Text("Reminders from the selected list will appear in your Today view. You can manually sync or reminders will sync automatically when changes are detected.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
         }

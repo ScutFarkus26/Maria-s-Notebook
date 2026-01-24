@@ -11,6 +11,7 @@ struct MeetingTemplateManagementView: View {
 
     @State private var showingAddSheet = false
     @State private var editingTemplate: MeetingTemplate?
+    @State private var previewingTemplate: MeetingTemplate?
 
     private var repository: MeetingTemplateRepository {
         MeetingTemplateRepository(context: modelContext)
@@ -25,80 +26,70 @@ struct MeetingTemplateManagementView: View {
     }
 
     var body: some View {
-        List {
-            // Built-in templates section
-            if !builtInTemplates.isEmpty {
-                Section {
-                    ForEach(builtInTemplates) { template in
-                        MeetingTemplateRow(
-                            template: template,
-                            isBuiltIn: true,
-                            onActivate: { activateTemplate(template) }
-                        )
-                    }
-                } header: {
-                    Text("Built-in Templates")
-                } footer: {
-                    Text("Built-in templates cannot be edited or deleted, but can be set as active.")
-                }
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: SettingsStyle.sectionSpacing) {
+                // Built-in templates section
+                if !builtInTemplates.isEmpty {
+                    VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+                        Text("Built-in Templates")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
 
-            // Custom templates section
-            Section {
-                if customTemplates.isEmpty {
-                    Text("No custom templates yet")
+                        ForEach(builtInTemplates) { template in
+                            MeetingTemplateCardRow(
+                                template: template,
+                                isBuiltIn: true,
+                                onTap: { previewingTemplate = template },
+                                onActivate: { activateTemplate(template) },
+                                onEdit: nil,
+                                onDelete: nil
+                            )
+                        }
+
+                        Text("Built-in templates cannot be edited or deleted, but can be set as active.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                // Custom templates section
+                VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+                    Text("My Templates")
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .italic()
-                } else {
-                    ForEach(customTemplates) { template in
-                        MeetingTemplateRow(
-                            template: template,
-                            isBuiltIn: false,
-                            onActivate: { activateTemplate(template) }
+
+                    if customTemplates.isEmpty {
+                        HStack {
+                            Image(systemName: "doc.badge.plus")
+                                .foregroundStyle(.secondary)
+                            Text("No custom templates yet")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.primary.opacity(0.1), style: StrokeStyle(lineWidth: 1, dash: [5]))
                         )
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deleteTemplate(template)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .swipeActions(edge: .leading) {
-                            Button {
-                                editingTemplate = template
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            .tint(.blue)
-                        }
-                        .contextMenu {
-                            Button {
-                                activateTemplate(template)
-                            } label: {
-                                Label("Set as Active", systemImage: "checkmark.circle")
-                            }
-                            .disabled(template.isActive)
-
-                            Button {
-                                editingTemplate = template
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-
-                            Button(role: .destructive) {
-                                deleteTemplate(template)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                    } else {
+                        ForEach(customTemplates) { template in
+                            MeetingTemplateCardRow(
+                                template: template,
+                                isBuiltIn: false,
+                                onTap: { previewingTemplate = template },
+                                onActivate: { activateTemplate(template) },
+                                onEdit: { editingTemplate = template },
+                                onDelete: { deleteTemplate(template) }
+                            )
                         }
                     }
-                    .onMove(perform: reorderTemplates)
+
+                    Text("Tap a template to preview. The active template's prompts are shown in weekly meetings.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
-            } header: {
-                Text("My Templates")
-            } footer: {
-                Text("Tap a template to preview. Swipe to edit or delete. The active template's prompts are shown in weekly meetings.")
             }
+            .padding(SettingsStyle.padding)
         }
         .navigationTitle("Meeting Templates")
         .toolbar {
@@ -109,11 +100,6 @@ struct MeetingTemplateManagementView: View {
                     Label("Add Template", systemImage: "plus")
                 }
             }
-            #if os(iOS)
-            ToolbarItem(placement: .automatic) {
-                EditButton()
-            }
-            #endif
         }
         .sheet(isPresented: $showingAddSheet) {
             MeetingTemplateEditorSheet(template: nil) {
@@ -124,6 +110,11 @@ struct MeetingTemplateManagementView: View {
             MeetingTemplateEditorSheet(template: template) {
                 // Refresh after editing
             }
+        }
+        .sheet(item: $previewingTemplate) { template in
+            MeetingTemplatePreviewSheet(template: template, onActivate: {
+                activateTemplate(template)
+            })
         }
         .onAppear {
             // Seed built-in templates if needed
@@ -152,35 +143,40 @@ struct MeetingTemplateManagementView: View {
     }
 }
 
-// MARK: - Template Row
+// MARK: - Meeting Template Card Row
 
-private struct MeetingTemplateRow: View {
+private struct MeetingTemplateCardRow: View {
     let template: MeetingTemplate
     let isBuiltIn: Bool
+    let onTap: () -> Void
     let onActivate: () -> Void
-
-    @State private var showingPreview = false
+    let onEdit: (() -> Void)?
+    let onDelete: (() -> Void)?
 
     var body: some View {
-        Button {
-            showingPreview = true
-        } label: {
+        Button(action: onTap) {
             HStack(spacing: 12) {
                 // Active indicator
-                if template.isActive {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.title3)
-                } else {
-                    Image(systemName: "circle")
-                        .foregroundStyle(.secondary)
-                        .font(.title3)
-                }
+                Circle()
+                    .fill(template.isActive ? Color.green : Color.secondary.opacity(0.3))
+                    .frame(width: 10, height: 10)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(template.name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 6) {
+                        Text(template.name)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+
+                        if template.isActive {
+                            Text("Active")
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.green.opacity(0.15)))
+                                .foregroundStyle(.green)
+                        }
+                    }
 
                     Text(template.reflectionPrompt)
                         .font(.subheadline)
@@ -195,29 +191,126 @@ private struct MeetingTemplateRow: View {
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
+
+                Menu {
+                    if !template.isActive {
+                        Button {
+                            onActivate()
+                        } label: {
+                            Label("Set as Active", systemImage: "checkmark.circle")
+                        }
+                    }
+                    if let onEdit {
+                        Button {
+                            onEdit()
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                    }
+                    if let onDelete {
+                        Button(role: .destructive) {
+                            onDelete()
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
+            .padding(SettingsStyle.compactPadding)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(SettingsStyle.groupBackgroundColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(template.isActive ? Color.green.opacity(0.3) : Color.primary.opacity(SettingsStyle.borderOpacity))
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .alert("Template Preview", isPresented: $showingPreview) {
-            if !template.isActive {
-                Button("Set as Active") {
-                    onActivate()
+    }
+}
+
+// MARK: - Meeting Template Preview Sheet
+
+private struct MeetingTemplatePreviewSheet: View {
+    let template: MeetingTemplate
+    let onActivate: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Status badge
+                    HStack {
+                        if template.isActive {
+                            Label("Active Template", systemImage: "checkmark.circle.fill")
+                                .font(.subheadline.weight(.medium))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Capsule().fill(Color.green.opacity(0.15)))
+                                .foregroundStyle(.green)
+                        }
+                        Spacer()
+                    }
+
+                    // Prompts
+                    PromptSection(title: "Reflection Prompt", icon: "bubble.left.and.bubble.right", content: template.reflectionPrompt)
+                    PromptSection(title: "Focus Prompt", icon: "target", content: template.focusPrompt)
+                    PromptSection(title: "Requests Prompt", icon: "hand.raised", content: template.requestsPrompt)
+                    PromptSection(title: "Guide Notes Prompt", icon: "note.text", content: template.guideNotesPrompt)
+                }
+                .padding()
+            }
+            .navigationTitle(template.name)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+                if !template.isActive {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Set as Active") {
+                            onActivate()
+                            dismiss()
+                        }
+                    }
                 }
             }
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("""
-            \(template.name)\(template.isActive ? " (Active)" : "")
+        }
+    }
+}
 
-            Reflection: \(template.reflectionPrompt)
+private struct PromptSection: View {
+    let title: String
+    let icon: String
+    let content: String
 
-            Focus: \(template.focusPrompt)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
 
-            Requests: \(template.requestsPrompt)
-
-            Guide Notes: \(template.guideNotesPrompt)
-            """)
+            Text(content)
+                .font(.body)
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(SettingsStyle.groupBackgroundColor)
+                )
         }
     }
 }

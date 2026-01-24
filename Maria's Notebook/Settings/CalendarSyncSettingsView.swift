@@ -25,38 +25,20 @@ public struct CalendarSyncSettingsView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
             if needsAuthorization {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Calendar access is required to show events in your Today view.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                    if isRefreshing {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Requesting access...")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    } else {
-                        Button("Request Access") {
-                            Task {
-                                await requestAccess()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
+                AuthorizationRequestSection(
+                    serviceName: "Calendar",
+                    description: "Calendar access is required to show events in your Today view.",
+                    settingsPath: "Calendars",
+                    isRefreshing: isRefreshing,
+                    statusMessage: lastSyncStatus,
+                    onRequestAccess: {
+                        Task { await requestAccess() }
                     }
-
-                    if let status = lastSyncStatus {
-                        Text(status)
-                            .font(.footnote)
-                            .foregroundStyle(status.contains("Error") || status.contains("Failed") ? .red : .green)
-                    }
-                }
+                )
             } else {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
                     if !availableCalendars.isEmpty {
                         Text("Select calendars to sync:")
                             .font(.subheadline)
@@ -78,43 +60,25 @@ public struct CalendarSyncSettingsView: View {
                             )
                         }
 
-                        HStack {
-                            Button("Refresh Calendars") {
-                                Task {
-                                    await loadAvailableCalendars()
-                                }
-                            }
-                            .buttonStyle(.bordered)
+                        SyncActionButtons(
+                            refreshLabel: "Refresh Calendars",
+                            isSyncDisabled: selectedCalendarIdentifiers.isEmpty,
+                            isRefreshing: isRefreshing,
+                            onRefresh: { Task { await loadAvailableCalendars() } },
+                            onSync: { Task { await syncCalendarEvents() } }
+                        )
 
-                            Spacer()
-
-                            Button("Sync Now") {
-                                Task {
-                                    await syncCalendarEvents()
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(selectedCalendarIdentifiers.isEmpty || isRefreshing)
-                        }
-
-                        if let lastSync = syncService.lastSuccessfulSync {
-                            Text("Last synced: \(lastSync, style: .relative) ago")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+                        LastSyncView(lastSync: syncService.lastSuccessfulSync)
                     } else {
                         Button("Load Calendars") {
-                            Task {
-                                await loadAvailableCalendars()
-                            }
+                            Task { await loadAvailableCalendars() }
                         }
                         .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
 
                     if let status = lastSyncStatus {
-                        Text(status)
-                            .font(.footnote)
-                            .foregroundStyle(status.contains("Error") || status.contains("Failed") ? .red : .secondary)
+                        StatusMessageView(message: status)
                     }
 
                     Text("Events from selected calendars will appear in your Today view. Events sync automatically when changes are detected.")

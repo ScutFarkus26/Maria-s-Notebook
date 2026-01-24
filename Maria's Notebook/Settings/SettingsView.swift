@@ -48,6 +48,9 @@ struct SettingsView: View {
                         // MARK: - Meetings Section
                         meetingsSection
 
+                        // MARK: - Display & Colors Section
+                        displaySection
+
                         // MARK: - Data Management Section
                         dataManagementSection
 
@@ -101,7 +104,7 @@ struct SettingsView: View {
     #if DEBUG
     private var studentsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Students")
+            SettingsCategoryHeader(title: "Students", systemImage: "person.3.fill")
             SettingsGroup(title: "Test Students", systemImage: "person.2.slash") {
                 TestStudentsSettingsView()
                     .frame(maxWidth: .infinity)
@@ -112,14 +115,14 @@ struct SettingsView: View {
 
     private var dataManagementSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Data Management")
+            SettingsCategoryHeader(title: "Data Management", systemImage: "externaldrive.fill")
             DataManagementGrid()
         }
     }
 
     private var schoolConfigurationSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "School Configuration")
+            SettingsCategoryHeader(title: "School Configuration", systemImage: "building.columns.fill")
             SettingsGroup(title: "School Calendar", systemImage: "calendar.badge.exclamationmark") {
                 SchoolCalendarSettingsView()
                     .frame(maxWidth: .infinity)
@@ -129,18 +132,18 @@ struct SettingsView: View {
 
     private var attendanceSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Attendance")
+            SettingsCategoryHeader(title: "Attendance", systemImage: "checkmark.circle.fill")
             SettingsGroup(title: "Attendance Email", systemImage: "envelope") {
                 AttendanceEmailSettingsView()
                     .frame(maxWidth: .infinity)
             }
         }
     }
-    
+
     private var remindersSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Reminders")
-            SettingsGroup(title: "Reminder Sync", systemImage: "bell.fill") {
+            SettingsCategoryHeader(title: "Reminders", systemImage: "bell.fill")
+            SettingsGroup(title: "Reminder Sync", systemImage: "bell.badge") {
                 ReminderSyncSettingsView()
                     .frame(maxWidth: .infinity)
             }
@@ -149,8 +152,8 @@ struct SettingsView: View {
 
     private var calendarSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Calendar")
-            SettingsGroup(title: "Calendar Sync", systemImage: "calendar") {
+            SettingsCategoryHeader(title: "Calendar", systemImage: "calendar")
+            SettingsGroup(title: "Calendar Sync", systemImage: "calendar.badge.checkmark") {
                 CalendarSyncSettingsView()
                     .frame(maxWidth: .infinity)
             }
@@ -159,7 +162,7 @@ struct SettingsView: View {
 
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Notes")
+            SettingsCategoryHeader(title: "Notes", systemImage: "note.text")
             SettingsGroup(title: "Note Templates", systemImage: "note.text.badge.plus") {
                 NavigationLink {
                     NoteTemplateManagementView()
@@ -179,8 +182,8 @@ struct SettingsView: View {
 
     private var meetingsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Meetings")
-            SettingsGroup(title: "Weekly Meeting Templates", systemImage: "person.2.fill") {
+            SettingsCategoryHeader(title: "Meetings", systemImage: "person.2.fill")
+            SettingsGroup(title: "Weekly Meeting Templates", systemImage: "list.bullet.clipboard") {
                 NavigationLink {
                     MeetingTemplateManagementView()
                 } label: {
@@ -197,10 +200,27 @@ struct SettingsView: View {
         }
     }
 
+    private var displaySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "Display & Colors", systemImage: "paintpalette.fill")
+            VStack(spacing: 12) {
+                SettingsGroup(title: "Lesson Age Indicators", systemImage: "clock.fill") {
+                    LessonAgeSettingsView()
+                        .frame(maxWidth: .infinity)
+                }
+
+                SettingsGroup(title: "Work Age Indicators", systemImage: "clock.badge.checkmark.fill") {
+                    WorkAgeSettingsView()
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
     private var iCloudStatusSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "iCloud")
-            SettingsGroup(title: "iCloud Status", systemImage: "icloud.fill") {
+            SettingsCategoryHeader(title: "iCloud", systemImage: "icloud.fill")
+            SettingsGroup(title: "iCloud Status", systemImage: "arrow.triangle.2.circlepath.icloud") {
                 CloudKitStatusSettingsView()
                     .frame(maxWidth: .infinity)
             }
