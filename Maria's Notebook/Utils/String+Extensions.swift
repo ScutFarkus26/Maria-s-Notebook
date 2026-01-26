@@ -4,23 +4,23 @@ import Foundation
 extension String {
     /// Trims whitespace and newlines from the string
     /// - Returns: A new string with leading and trailing whitespace/newlines removed
-    func trimmed() -> String {
+    nonisolated func trimmed() -> String {
         self.trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    
+
     /// Normalizes a name string for duplicate detection and comparison
     /// - Returns: A normalized string (lowercased, trimmed, single-spaced)
-    func normalizedNameKey() -> String {
+    nonisolated func normalizedNameKey() -> String {
         let components = self.lowercased()
             .trimmed()
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
         return components.joined(separator: " ")
     }
-    
+
     /// Normalizes a string for case-insensitive comparison and search operations
     /// - Returns: A trimmed and lowercased string
-    func normalizedForComparison() -> String {
+    nonisolated func normalizedForComparison() -> String {
         self.trimmed().lowercased()
     }
 }

@@ -31,6 +31,9 @@ struct TodayView: View {
     @Environment(\.calendar) var calendar
     @EnvironmentObject var restoreCoordinator: RestoreCoordinator
     @EnvironmentObject var saveCoordinator: SaveCoordinator
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     // MARK: - ViewModel
     @StateObject var viewModel: TodayViewModel
@@ -61,6 +64,15 @@ struct TodayView: View {
     // MARK: - Computed Properties
     private var studentLessonIDs: [UUID] { filteredStudentLessonIDs }
     private var planItemIDs: [UUID] { filteredPlanItemIDs }
+
+    /// Returns true if we're on iPhone compact layout where attendance has its own tab
+    private var isIPhoneCompact: Bool {
+        #if os(iOS)
+        return horizontalSizeClass == .compact
+        #else
+        return false
+        #endif
+    }
 
     // MARK: - Init
     init(context: ModelContext) {
@@ -145,9 +157,14 @@ struct TodayView: View {
                 Divider()
                 #endif
 
-                attendanceSection
+                // On iPhone compact, attendance has its own tab, so hide it here
+                if !isIPhoneCompact {
+                    attendanceSection
 
-                if !isAttendanceExpanded {
+                    if !isAttendanceExpanded {
+                        listContent
+                    }
+                } else {
                     listContent
                 }
             }

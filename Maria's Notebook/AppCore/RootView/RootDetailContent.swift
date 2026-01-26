@@ -10,6 +10,18 @@ struct RootDetailContent: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @State private var isShowingQuickNote = false
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// Returns true if we're on iPhone compact layout
+    private var isIPhoneCompact: Bool {
+        #if os(iOS)
+        return horizontalSizeClass == .compact
+        #else
+        return false
+        #endif
+    }
 
     var body: some View {
         Group {
@@ -17,7 +29,12 @@ struct RootDetailContent: View {
             case .today:
                 TodayView(context: modelContext)
             case .attendance:
-                TodayView(context: modelContext)
+                // On iPhone compact, use standalone attendance view
+                if isIPhoneCompact {
+                    AttendanceStandaloneView()
+                } else {
+                    TodayView(context: modelContext)
+                }
             case .note:
                 noteTabContent
             case .students:
