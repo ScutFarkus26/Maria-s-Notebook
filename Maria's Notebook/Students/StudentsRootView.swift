@@ -213,10 +213,7 @@ private struct WorkloadContentView: View {
             return StudentWorkSummary(id: s.id, student: s, practiceOpen: c.practice, followUpOpen: c.follow, researchOpen: c.research)
         }
         .sorted { lhs, rhs in
-            if lhs.totalOpen == rhs.totalOpen {
-                return lhs.student.fullName.localizedCaseInsensitiveCompare(rhs.student.fullName) == .orderedAscending
-            }
-            return lhs.totalOpen > rhs.totalOpen
+            lhs.student.fullName.localizedCaseInsensitiveCompare(rhs.student.fullName) == .orderedAscending
         }
     }
     
