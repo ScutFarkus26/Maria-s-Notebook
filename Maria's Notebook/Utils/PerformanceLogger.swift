@@ -1,6 +1,5 @@
 import Foundation
 import OSLog
-import CoreFoundation
 
 /// Performance logger for measuring SwiftData query performance and detecting main thread stutters.
 /// Available in both Debug and Release builds.
@@ -91,62 +90,17 @@ enum PerformanceLogger {
     }
 
     /// Starts monitoring the main RunLoop for hangs/stutters.
-    /// Logs a warning if the main thread is blocked for more than 100ms.
+    ///
+    /// Note: Custom CFRunLoopObserver-based stutter detection was removed because it caused
+    /// `_os_unfair_lock_recursive_abort` crashes when logging from within the run loop callback.
+    ///
+    /// For stutter detection, use Xcode's built-in tools instead:
+    /// - Instruments > Time Profiler with "Record waiting threads"
+    /// - Xcode Organizer > Hang Reports (from TestFlight/App Store users)
+    /// - MetricKit for production hang metrics
     static func startStutterDetection() {
-        #if DEBUG
-        // DISABLED: The current implementation uses CFRunLoopObserver with .allActivities
-        // which is causing _os_unfair_lock_recursive_abort crashes on the main thread.
-        print("⚠️ Stutter detection disabled to prevent recursive locking crashes")
-        #endif
-        
-        /*
-        #if DEBUG
-        let threshold: TimeInterval = 0.1 // 100ms
-        var lastWakeTime = DispatchTime.now()
-        
-        // Only observe beforeWaiting and afterWaiting to avoid interrupting other activities
-        let activities: CFRunLoopActivity = [.beforeWaiting, .afterWaiting]
-        
-        let observer = CFRunLoopObserverCreateWithHandler(
-            kCFAllocatorDefault,
-            activities.rawValue,
-            true, // repeats
-            0 // order
-        ) { _, activity in
-            switch activity {
-            case .afterWaiting:
-                // Main thread just woke up
-                lastWakeTime = .now()
-            case .beforeWaiting:
-                // Main thread is about to sleep. Check how long it was awake.
-                let now = DispatchTime.now()
-                let elapsed = Double(now.uptimeNanoseconds - lastWakeTime.uptimeNanoseconds) / 1_000_000_000
-                
-                if elapsed > threshold {
-                    let message = String(format: "⚠️ STUTTER: Main thread blocked for %.3fs", elapsed)
-                    // Log to both Xcode console and System Console (Console.app)
-                    print(message)
-                    // Dispatch to main queue asynchronously to avoid recursive lock acquisition
-                    DispatchQueue.main.async {
-                        logger.warning("\(message, privacy: .public)")
-                    }
-                }
-            default:
-                break
-            }
-        }
-        
-        if let observer = observer {
-            CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
-            print("✅ Stutter detection enabled (Threshold: \(threshold)s)")
-        }
-        #endif
-        */
+        // No-op: Use Xcode Instruments or MetricKit for stutter detection
     }
 }
-
-
-
-
 
 

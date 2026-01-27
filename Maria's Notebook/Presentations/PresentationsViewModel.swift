@@ -117,60 +117,7 @@ final class PresentationsViewModel: ObservableObject {
             #endif
         }()
         
-        #if DEBUG
-        PerformanceLogger.log(
-            screenName: "PresentationsViewModel - Fetch Results",
-            itemCount: studentLessons.count + lessons.count + students.count,
-            duration: 0
-        )
-        PerformanceLogger.logScreenLoad(
-            screenName: "PresentationsViewModel",
-            itemCounts: [
-                "studentLessons": studentLessons.count,
-                "lessons": lessons.count,
-                "students": students.count
-            ]
-        )
-        #endif
-        
-        // 4. Fetch non-complete WorkModels (filter at database layer for efficiency)
-        let workModels: [WorkModel] = {
-            #if DEBUG
-            let startTime = Date()
-            #endif
-            let descriptor = FetchDescriptor<WorkModel>(
-                predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
-            )
-            let result = modelContext.safeFetch(descriptor)
-            #if DEBUG
-            let duration = Date().timeIntervalSince(startTime)
-            PerformanceLogger.log(
-                screenName: "PresentationsViewModel - Fetch WorkModels",
-                itemCount: result.count,
-                duration: duration
-            )
-            #endif
-            return result
-        }()
-        
-        // 5. Fetch all Presentations (needed to find presentation for each StudentLesson)
-        let presentations: [Presentation] = {
-            #if DEBUG
-            let startTime = Date()
-            #endif
-            let result = modelContext.safeFetch(FetchDescriptor<Presentation>())
-            #if DEBUG
-            let duration = Date().timeIntervalSince(startTime)
-            PerformanceLogger.log(
-                screenName: "PresentationsViewModel - Fetch Presentations",
-                itemCount: result.count,
-                duration: duration
-            )
-            #endif
-            return result
-        }()
-        
-        // Check if data actually changed
+        // Check if core data actually changed (before fetching WorkModels/Presentations)
         let studentLessonKeys = Set(studentLessons.map {
             StudentLessonChangeKey(
                 id: $0.id,
@@ -180,22 +127,50 @@ final class PresentationsViewModel: ObservableObject {
             )
         })
         let lessonsIDs = Set(lessons.map { $0.id })
-        let workModelIDs = Set(workModels.map { $0.id })
         let studentsIDs = Set(students.map { $0.id })
-        
-        let dataChanged = studentLessonKeys != lastStudentLessonChangeKeys ||
-                         lessonsIDs != lastLessonsIDs ||
-                         workModelIDs != lastWorkModelIDs ||
-                         studentsIDs != lastStudentsIDs
-        
-        if !dataChanged && lastUpdateDate != nil {
+
+        // Early return if no changes to avoid redundant fetches and processing
+        let coreDataChanged = studentLessonKeys != lastStudentLessonChangeKeys ||
+                             lessonsIDs != lastLessonsIDs ||
+                             studentsIDs != lastStudentsIDs
+
+        if !coreDataChanged && lastUpdateDate != nil {
             return // No need to recalculate
         }
-        
+
+        // 4. Fetch non-complete WorkModels (filter at database layer for efficiency)
+        let workModels: [WorkModel] = {
+            let descriptor = FetchDescriptor<WorkModel>(
+                predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
+            )
+            return modelContext.safeFetch(descriptor)
+        }()
+
+        // 5. Fetch all Presentations (needed to find presentation for each StudentLesson)
+        let presentations: [Presentation] = modelContext.safeFetch(FetchDescriptor<Presentation>())
+
+        // Track WorkModel IDs for future change detection
+        let workModelIDs = Set(workModels.map { $0.id })
+
+        // Update change tracking state
         lastStudentLessonChangeKeys = studentLessonKeys
         lastLessonsIDs = lessonsIDs
         lastWorkModelIDs = workModelIDs
         lastStudentsIDs = studentsIDs
+
+        #if DEBUG
+        // Only log when we're actually processing changes
+        PerformanceLogger.logScreenLoad(
+            screenName: "PresentationsViewModel",
+            itemCounts: [
+                "studentLessons": studentLessons.count,
+                "lessons": lessons.count,
+                "students": students.count,
+                "workModels": workModels.count,
+                "presentations": presentations.count
+            ]
+        )
+        #endif
         
         cachedStudentLessons = studentLessons
         cachedLessons = lessons
