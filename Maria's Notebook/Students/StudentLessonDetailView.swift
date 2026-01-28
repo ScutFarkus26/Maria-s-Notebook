@@ -602,12 +602,57 @@ struct StudentLessonDetailContentView: View {
     private var assignmentComposerSheet: some View {
         let selected = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
         let lessonTitle = vm.lessonObject(from: lessons)?.name ?? "Lesson"
-        
-        return PostPresentationAssignmentsSheet(
+
+        // Determine initial status based on current VM state
+        let initialStatus: UnifiedPostPresentationSheet.PresentationStatus = {
+            if isJustPresentedActive {
+                return .justPresented
+            } else if isPreviouslyPresentedActive {
+                return .previouslyPresented
+            } else if isNeedsAnotherActive {
+                return .needsAnother
+            }
+            return .justPresented
+        }()
+
+        return UnifiedPostPresentationSheet(
             students: selected,
             lessonName: lessonTitle,
-            onCreate: { assignments in
-                createFollowUpAssignments(assignments)
+            initialStatus: initialStatus,
+            onDone: { status, studentEntries, groupObservation in
+                // Update VM state based on selected status
+                switch status {
+                case .justPresented:
+                    vm.isPresented = true
+                    vm.givenAt = calendar.startOfDay(for: Date())
+                    vm.needsAnotherPresentation = false
+                case .previouslyPresented:
+                    vm.isPresented = true
+                    vm.needsAnotherPresentation = false
+                    if let date = vm.givenAt, calendar.isDateInToday(date) {
+                        vm.givenAt = nil
+                    }
+                case .needsAnother:
+                    vm.isPresented = false
+                    vm.givenAt = nil
+                    vm.needsAnotherPresentation = true
+                }
+
+                // Add group observation to notes if provided
+                if !groupObservation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if vm.notes.isEmpty {
+                        vm.notes = groupObservation
+                    } else {
+                        vm.notes += "\n\n" + groupObservation
+                    }
+                }
+
+                // Create follow-up assignments from student entries
+                createFollowUpAssignmentsFromEntries(studentEntries)
+
+                // Create per-student notes for observations
+                createStudentObservationNotes(studentEntries)
+
                 vm.showAssignmentComposer = false
                 vm.save(
                     studentsAll: studentsAll,
@@ -619,6 +664,10 @@ struct StudentLessonDetailContentView: View {
                 }
             },
             onCancel: {
+                // Reset status changes if user cancels
+                vm.isPresented = vm.studentLesson.isPresented
+                vm.givenAt = vm.studentLesson.givenAt
+                vm.needsAnotherPresentation = vm.studentLesson.needsAnotherPresentation
                 vm.showAssignmentComposer = false
             }
         )
@@ -843,6 +892,7 @@ struct StudentLessonDetailContentView: View {
         if let date = vm.givenAt, calendar.isDateInToday(date) {
             vm.givenAt = nil
         }
+        vm.showAssignmentComposer = true
     }
     private func selectNeedsAnother() {
         vm.isPresented = false
@@ -861,7 +911,63 @@ struct StudentLessonDetailContentView: View {
             modelContext: modelContext
         )
     }
-    
+
+    /// Creates follow-up assignments from the unified post-presentation sheet entries
+    private func createFollowUpAssignmentsFromEntries(_ entries: [UnifiedPostPresentationSheet.StudentEntry]) {
+        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
+
+        // Convert entries to the format expected by the assignment service
+        var legacyAssignments: [PostPresentationAssignmentsSheet.AssignmentEntry] = []
+
+        for entry in entries {
+            let trimmedAssignment = entry.assignment.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedAssignment.isEmpty else { continue }
+
+            // Determine schedule from check-in or due date
+            var schedule: PostPresentationAssignmentsSheet.Schedule? = nil
+            if let checkIn = entry.checkInDate {
+                schedule = PostPresentationAssignmentsSheet.Schedule(date: checkIn, kind: .checkIn)
+            } else if let due = entry.dueDate {
+                schedule = PostPresentationAssignmentsSheet.Schedule(date: due, kind: .dueDate)
+            }
+
+            let legacyEntry = PostPresentationAssignmentsSheet.AssignmentEntry(
+                studentID: entry.id,
+                text: trimmedAssignment,
+                schedule: schedule
+            )
+            legacyAssignments.append(legacyEntry)
+        }
+
+        if !legacyAssignments.isEmpty {
+            StudentLessonAssignmentService.createFollowUpAssignments(
+                legacyAssignments,
+                lessonID: lessonID,
+                studentLessonsAll: studentLessonsAll,
+                modelContext: modelContext
+            )
+        }
+    }
+
+    /// Creates observation notes for students based on their entries from the unified sheet
+    @MainActor
+    private func createStudentObservationNotes(_ entries: [UnifiedPostPresentationSheet.StudentEntry]) {
+        for entry in entries {
+            let trimmedObservation = entry.observation.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedObservation.isEmpty else { continue }
+
+            // Create a note scoped to this specific student
+            let note = Note(
+                body: trimmedObservation,
+                scope: .student(entry.id),
+                category: .academic,
+                studentLesson: vm.studentLesson
+            )
+            modelContext.insert(note)
+            note.syncStudentLinksIfNeeded(in: modelContext)
+        }
+    }
+
     // MARK: - Absent Logic
     private var scheduledAttendanceDay: Date { AppCalendar.startOfDay(Date()) }
 
