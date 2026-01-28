@@ -149,34 +149,12 @@ extension LessonsRootView {
         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
     }
 
-    // MARK: - Expanded Groups View
+    // MARK: - Expanded Groups View (Flat List)
 
     var expandedGroupsView: some View {
-        let ungroupedLabel = "Ungrouped"
-        let baseGroups = groupsFromFilteredLessons
-        let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
-        let displayGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
-
-        return List {
-            ForEach(displayGroups, id: \.self) { group in
-                expandedGroupSection(group: group)
-            }
-        }
-        .listStyle(.plain)
-        .id("PlanModeList")
-    }
-
-    @ViewBuilder
-    private func expandedGroupSection(group: String) -> some View {
-        let ungroupedLabel = "Ungrouped"
-        let groupLessons = lessonsForSubject.filter { lesson in
-            let lessonGroupTrimmed = lesson.group.trimmed()
-            if group == ungroupedLabel {
-                return lessonGroupTrimmed.isEmpty
-            } else {
-                return lessonGroupTrimmed.caseInsensitiveCompare(group.trimmed()) == .orderedSame
-            }
-        }.sorted { lhs, rhs in
+        // Sort all lessons by sortIndex for a flat, fully reorderable list
+        // This allows ungrouped lessons to be positioned anywhere among grouped lessons
+        let sortedLessons = lessonsForSubject.sorted { lhs, rhs in
             if lhs.sortIndex != rhs.sortIndex {
                 return lhs.sortIndex < rhs.sortIndex
             }
@@ -186,25 +164,34 @@ extension LessonsRootView {
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
 
-        if !groupLessons.isEmpty {
-            Section(header: groupSectionHeader(group: group, subject: selectedSubject ?? "")) {
-                ForEach(groupLessons, id: \.self) { lesson in
-                    expandedGroupLessonRow(lesson: lesson)
-                }
-                .onMove(perform: canReorderInPlanMode ? { source, destination in
-                    moveLessonsInSubject(from: source, to: destination, in: groupLessons)
-                } : nil)
+        return List {
+            ForEach(sortedLessons, id: \.self) { lesson in
+                expandedGroupLessonRow(lesson: lesson, showGroup: true)
             }
+            .onMove(perform: canReorderInPlanMode ? { source, destination in
+                moveLessonsFlat(from: source, to: destination, in: sortedLessons)
+            } : nil)
         }
+        .listStyle(.plain)
+        .id("PlanModeList")
     }
 
-    private func expandedGroupLessonRow(lesson: Lesson) -> some View {
+    private func expandedGroupLessonRow(lesson: Lesson, showGroup: Bool = false) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "line.3.horizontal")
                 .foregroundStyle(.tertiary)
                 .font(.caption)
 
-            LessonRow(lesson: lesson, secondaryTextStyle: .subheading, showTagIcon: false)
+            VStack(alignment: .leading, spacing: 2) {
+                LessonRow(lesson: lesson, secondaryTextStyle: .subheading, showTagIcon: false)
+
+                if showGroup {
+                    let groupText = lesson.group.trimmed().isEmpty ? "Ungrouped" : lesson.group.trimmed()
+                    Text(groupText)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
         }
         .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
         .contextMenu {

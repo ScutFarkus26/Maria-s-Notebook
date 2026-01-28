@@ -14,13 +14,14 @@ extension LessonsRootView {
         let ungroupedLabel = "Ungrouped"
         let baseGroups = groupsForSelectedSubject
         let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
-        let allGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
 
         if let subject = selectedSubject, !subject.trimmed().isEmpty {
-            let orderedGroups = FilterOrderStore.loadGroupOrder(for: subject, existing: baseGroups)
-            let orderedWithUngrouped = hasUngrouped ? (orderedGroups + [ungroupedLabel]) : orderedGroups
-            reorderableGroups = orderedWithUngrouped
+            // Include "Ungrouped" in existing groups so its position is preserved by mergeOrder
+            let existingWithUngrouped = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
+            let orderedGroups = FilterOrderStore.loadGroupOrder(for: subject, existing: existingWithUngrouped)
+            reorderableGroups = orderedGroups
         } else {
+            let allGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
             reorderableGroups = allGroups
         }
     }
@@ -38,13 +39,37 @@ extension LessonsRootView {
 
         reorderableGroups = reordered
 
-        let ungroupedLabel = "Ungrouped"
-        let groupsToSave = reordered.filter { $0 != ungroupedLabel }
-        FilterOrderStore.saveGroupOrder(groupsToSave, for: subject)
+        // Save the full order including "Ungrouped" so its position is preserved
+        FilterOrderStore.saveGroupOrder(reordered, for: subject)
         FilterOrderStore.resetCache()
     }
 
-    // MARK: - Move Lessons in Subject
+    // MARK: - Move Lessons Flat (for ungrouped individual positioning)
+
+    @MainActor
+    func moveLessonsFlat(from source: IndexSet, to destination: Int, in allLessons: [Lesson]) {
+        guard canReorderInPlanMode else { return }
+        guard let sourceIndex = source.first else { return }
+        guard sourceIndex < allLessons.count else { return }
+
+        var reordered = allLessons
+        reordered.move(fromOffsets: source, toOffset: destination)
+
+        // Update sortIndex for all lessons based on their new position
+        for (idx, lesson) in reordered.enumerated() {
+            lesson.sortIndex = idx
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            #if DEBUG
+            print("Failed to save lesson reorder: \(error)")
+            #endif
+        }
+    }
+
+    // MARK: - Move Lessons in Subject (legacy, for group-based reordering)
 
     @MainActor
     func moveLessonsInSubject(from source: IndexSet, to destination: Int, in groupLessons: [Lesson]) {
@@ -60,14 +85,13 @@ extension LessonsRootView {
             lesson.orderInGroup = idx
         }
 
+        // Use the persisted group order (which includes "Ungrouped" position)
         let ungroupedLabel = "Ungrouped"
-        let baseGroups = groupsForSelectedSubject
-        let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
-        let displayGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
+        let displayGroups = reorderableGroups
 
         var allLessonsInOrder: [Lesson] = []
         for group in displayGroups {
-            let groupLessons = lessonsForSubject.filter { lesson in
+            let lessonsInGroup = lessonsForSubject.filter { lesson in
                 let lessonGroupTrimmed = lesson.group.trimmed()
                 if group == ungroupedLabel {
                     return lessonGroupTrimmed.isEmpty
@@ -80,7 +104,7 @@ extension LessonsRootView {
                 }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
-            allLessonsInOrder.append(contentsOf: groupLessons)
+            allLessonsInOrder.append(contentsOf: lessonsInGroup)
         }
 
         for (idx, lesson) in allLessonsInOrder.enumerated() {
