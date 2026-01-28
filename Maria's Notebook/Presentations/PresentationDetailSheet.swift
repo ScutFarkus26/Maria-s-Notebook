@@ -232,32 +232,63 @@ struct PresentationDetailSheet: View, Identifiable {
 
     @ViewBuilder
     private func unifiedNoteRow(_ note: Note) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                if note.category != .general {
-                    Text(note.category.rawValue.capitalized)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color.secondary.opacity(0.1))
-                        )
-                }
-                Spacer()
-                Text(Self.dateFormatter.string(from: note.updatedAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            // Note body first (like WorkDetailView)
             Text(note.body)
-                .font(.body)
-                .foregroundStyle(.primary)
+                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Display image if available
+            if let imagePath = note.imagePath {
+                AsyncCachedImage(filename: imagePath)
+                    .frame(maxWidth: 300, maxHeight: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+
+            // Metadata row
+            HStack(spacing: 8) {
+                // Category badge with color
+                if note.category != .general {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(categoryColor(for: note.category))
+                            .frame(width: 6, height: 6)
+                        Text(note.category.rawValue.capitalized)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(categoryColor(for: note.category).opacity(0.1))
+                    )
+                }
+
+                Text(note.createdAt, style: .date)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .foregroundStyle(.tertiary)
+
+                Spacer()
+
+                Button {
+                    noteBeingEdited = note
+                } label: {
+                    Image(systemName: "pencil.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .padding(10)
+        .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.primary.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
         .contextMenu {
             Button {
@@ -265,6 +296,18 @@ struct PresentationDetailSheet: View, Identifiable {
             } label: {
                 Label("Edit Note", systemImage: "pencil")
             }
+        }
+    }
+
+    private func categoryColor(for category: NoteCategory) -> Color {
+        switch category {
+        case .general: return .gray
+        case .behavioral: return .orange
+        case .academic: return .blue
+        case .social: return .green
+        case .emotional: return .pink
+        case .health: return .red
+        case .attendance: return .teal
         }
     }
     
