@@ -40,6 +40,7 @@ class CalendarSyncService: ObservableObject {
     // MARK: - Change Observation
     private var changeObserver: NSObjectProtocol?
     private var isObserving = false
+    private var pendingChangeTask: Task<Void, Never>?
 
     init(modelContext: ModelContext? = nil) {
         self.modelContext = modelContext
@@ -327,7 +328,12 @@ class CalendarSyncService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                await self?.handleEventStoreChanged()
+                guard let self = self else { return }
+                // Cancel any pending task to prevent accumulation
+                self.pendingChangeTask?.cancel()
+                self.pendingChangeTask = Task { @MainActor [weak self] in
+                    await self?.handleEventStoreChanged()
+                }
             }
         }
 
@@ -336,6 +342,8 @@ class CalendarSyncService: ObservableObject {
 
     @MainActor
     private func stopObservingChangesOnMainActor() {
+        pendingChangeTask?.cancel()
+        pendingChangeTask = nil
         if let observer = changeObserver {
             NotificationCenter.default.removeObserver(observer)
             changeObserver = nil

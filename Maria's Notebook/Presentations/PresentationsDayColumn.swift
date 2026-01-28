@@ -61,7 +61,7 @@ struct PresentationsDayColumn: View {
                 }
 
                 ScrollView(.vertical, showsIndicators: true) {
-                    VStack(alignment: .leading, spacing: 6) {
+                    LazyVStack(alignment: .leading, spacing: 6) {
                         if scheduledLessonsForDay.isEmpty {
                             Text("No plans yet")
                                 .font(.caption)

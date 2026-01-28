@@ -228,4 +228,16 @@ import SwiftUI
     var isReport: Bool {
         kind == .report
     }
+
+    // MARK: - Choice Mode Helpers
+
+    /// For choice mode: returns true if this work has no participants yet (offered but not selected)
+    var isOffered: Bool {
+        (participants ?? []).isEmpty
+    }
+
+    /// For choice mode: returns student IDs who have selected this work
+    var selectedStudentIDs: [String] {
+        (participants ?? []).map { $0.studentID }
+    }
 }

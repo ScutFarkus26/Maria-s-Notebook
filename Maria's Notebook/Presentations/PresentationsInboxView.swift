@@ -15,20 +15,31 @@ struct PresentationsInboxView: View {
     @Binding var selectedStudentLessonForDetail: StudentLesson?
     @Binding var isInboxTargeted: Bool
     @Binding var isCalendarMinimized: Bool
-    
+
+    // Pass cached data from parent to avoid duplicate queries
+    let cachedLessons: [Lesson]
+    let cachedStudents: [Student]
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
-    
+
     @Query private var studentLessons: [StudentLesson]
-    @Query private var lessons: [Lesson]
-    @Query private var studentsRaw: [Student]
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var students: [Student] { studentsRaw.uniqueByID }
 
     @State private var searchText: String = ""
     @State private var debouncedSearchText: String = ""
     @State private var searchDebounceTask: Task<Void, Never>? = nil
-    
+
+    // Cached filtered/sorted results to avoid recomputation during scroll
+    @State private var cachedReadyLessons: [StudentLesson] = []
+    @State private var cachedBlockedLessons: [StudentLesson] = []
+    @State private var lastSearchText: String = ""
+    @State private var lastReadyLessonsCount: Int = 0
+    @State private var lastBlockedLessonsCount: Int = 0
+
+    // Cached dictionaries for fast lookups
+    @State private var lessonsByIDCache: [UUID: Lesson] = [:]
+    @State private var studentsByIDCache: [UUID: Student] = [:]
+
     // Default sorting is by age
     private let sortMode: PresentationsSortMode = .age
 
@@ -102,7 +113,7 @@ struct PresentationsInboxView: View {
                                 .padding(.horizontal, 12)
                             
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
+                                LazyHStack(spacing: 8) {
                                     ForEach(filteredAndSortedBlockedLessons, id: \.id) { sl in
                                         inboxRow(sl, blockingWork: getBlockingWork(sl))
                                     }
@@ -167,54 +178,46 @@ struct PresentationsInboxView: View {
             studentLessons: studentLessons,
             isTargeted: $isInboxTargeted
         ))
+        .onAppear { updateCachesIfNeeded() }
+        .onChange(of: debouncedSearchText) { _, _ in updateCachesIfNeeded() }
+        .onChange(of: readyLessons.count) { _, _ in updateCachesIfNeeded() }
+        .onChange(of: blockedLessons.count) { _, _ in updateCachesIfNeeded() }
     }
     
     // MARK: - Filtering and Sorting
-    
-    // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonsByID: [UUID: Lesson] {
-        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-    }
 
-    private var studentsByID: [UUID: Student] {
-        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-    }
-    
-    private func lessonTitle(for sl: StudentLesson) -> String {
-        if let lessonID = UUID(uuidString: sl.lessonID), let lesson = lessonsByID[lessonID] {
+    private func lessonTitle(for sl: StudentLesson, using lookupCache: [UUID: Lesson]) -> String {
+        if let lessonID = UUID(uuidString: sl.lessonID), let lesson = lookupCache[lessonID] {
             let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
             if !name.isEmpty { return name }
         }
         return "Lesson \(String(sl.lessonID.prefix(6)))"
     }
-    
-    private func studentNames(for sl: StudentLesson) -> String {
+
+    private func studentNames(for sl: StudentLesson, using lookupCache: [UUID: Student]) -> String {
         let snapshot = filteredSnapshot(sl)
         let names = snapshot.studentIDs.compactMap { id -> String? in
-            guard let student = studentsByID[id] else { return nil }
+            guard let student = lookupCache[id] else { return nil }
             return StudentFormatter.displayName(for: student)
         }
         return names.joined(separator: ", ")
     }
-    
-    private func matchesSearch(_ sl: StudentLesson) -> Bool {
-        guard !debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return true
-        }
-        let query = debouncedSearchText.lowercased()
-        let lessonTitleLower = lessonTitle(for: sl).lowercased()
-        let studentNamesLower = studentNames(for: sl).lowercased()
+
+    private func matchesSearch(_ sl: StudentLesson, query: String, lessonCache: [UUID: Lesson], studentCache: [UUID: Student]) -> Bool {
+        guard !query.isEmpty else { return true }
+        let lessonTitleLower = lessonTitle(for: sl, using: lessonCache).lowercased()
+        let studentNamesLower = studentNames(for: sl, using: studentCache).lowercased()
         return lessonTitleLower.contains(query) || studentNamesLower.contains(query)
     }
-    
-    private func sortedLessons(_ lessons: [StudentLesson]) -> [StudentLesson] {
-        let matched = lessons.filter { matchesSearch($0) }
-        
+
+    private func sortedLessons(_ lessons: [StudentLesson], query: String, lessonCache: [UUID: Lesson], studentCache: [UUID: Student]) -> [StudentLesson] {
+        let matched = lessons.filter { matchesSearch($0, query: query, lessonCache: lessonCache, studentCache: studentCache) }
+
         switch sortMode {
         case .lesson:
-            return matched.sorted { lessonTitle(for: $0).localizedCaseInsensitiveCompare(lessonTitle(for: $1)) == .orderedAscending }
+            return matched.sorted { lessonTitle(for: $0, using: lessonCache).localizedCaseInsensitiveCompare(lessonTitle(for: $1, using: lessonCache)) == .orderedAscending }
         case .student:
-            return matched.sorted { studentNames(for: $0).localizedCaseInsensitiveCompare(studentNames(for: $1)) == .orderedAscending }
+            return matched.sorted { studentNames(for: $0, using: studentCache).localizedCaseInsensitiveCompare(studentNames(for: $1, using: studentCache)) == .orderedAscending }
         case .age:
             // Sort by creation date (older first)
             return matched.sorted { $0.createdAt < $1.createdAt }
@@ -223,13 +226,40 @@ struct PresentationsInboxView: View {
             return matched.sorted { $0.createdAt < $1.createdAt }
         }
     }
-    
-    private var filteredAndSortedReadyLessons: [StudentLesson] {
-        sortedLessons(readyLessons)
+
+    private func updateCachesIfNeeded() {
+        let trimmedSearch = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Check if we need to rebuild caches
+        let needsRebuild = trimmedSearch != lastSearchText
+            || readyLessons.count != lastReadyLessonsCount
+            || blockedLessons.count != lastBlockedLessonsCount
+
+        guard needsRebuild else { return }
+
+        // Rebuild dictionary caches if lessons/students changed
+        if lessonsByIDCache.count != cachedLessons.count {
+            lessonsByIDCache = Dictionary(cachedLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        }
+        if studentsByIDCache.count != cachedStudents.count {
+            studentsByIDCache = Dictionary(cachedStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        }
+
+        // Rebuild filtered/sorted caches
+        cachedReadyLessons = sortedLessons(readyLessons, query: trimmedSearch, lessonCache: lessonsByIDCache, studentCache: studentsByIDCache)
+        cachedBlockedLessons = sortedLessons(blockedLessons, query: trimmedSearch, lessonCache: lessonsByIDCache, studentCache: studentsByIDCache)
+
+        lastSearchText = trimmedSearch
+        lastReadyLessonsCount = readyLessons.count
+        lastBlockedLessonsCount = blockedLessons.count
     }
-    
+
+    private var filteredAndSortedReadyLessons: [StudentLesson] {
+        cachedReadyLessons
+    }
+
     private var filteredAndSortedBlockedLessons: [StudentLesson] {
-        sortedLessons(blockedLessons)
+        cachedBlockedLessons
     }
 
     @ViewBuilder
@@ -240,7 +270,9 @@ struct PresentationsInboxView: View {
                 day: Date(),
                 targetStudentLessonID: sl.id,
                 enableMissHighlight: true,
-                blockingWork: blockingWork
+                blockingWork: blockingWork,
+                cachedLessons: cachedLessons,
+                cachedStudents: cachedStudents
             )
             .onTapGesture { selectedStudentLessonForDetail = sl }
             .onDrag {

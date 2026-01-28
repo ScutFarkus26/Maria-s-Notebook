@@ -83,7 +83,8 @@ struct BackupRestoreSectionView: View {
             isPresented: $showingImporter,
             allowedContentTypes: [
                 .mariasBackup,
-                UTType(filenameExtension: BackupFile.fileExtension) ?? .data
+                UTType(filenameExtension: BackupFile.fileExtension) ?? .data,
+                .data  // Fallback to allow selecting any file when iOS doesn't recognize custom UTType
             ]
         ) { result in
             switch result {

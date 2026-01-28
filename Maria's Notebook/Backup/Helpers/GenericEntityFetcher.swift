@@ -215,17 +215,21 @@ struct BatchEntityFetcher {
         var offset = 0
 
         while true {
-            var descriptor = FetchDescriptor<T>()
-            descriptor.fetchOffset = offset
-            descriptor.fetchLimit = batchSize
+            // Use autoreleasepool to release intermediate memory during batch processing
+            let batch: [T]? = autoreleasepool {
+                var descriptor = FetchDescriptor<T>()
+                descriptor.fetchOffset = offset
+                descriptor.fetchLimit = batchSize
+                return try? context.fetch(descriptor)
+            }
 
-            guard let batch = try? context.fetch(descriptor), !batch.isEmpty else {
+            guard let fetchedBatch = batch, !fetchedBatch.isEmpty else {
                 break
             }
 
-            allEntities.append(contentsOf: batch)
+            allEntities.append(contentsOf: fetchedBatch)
 
-            if batch.count < batchSize {
+            if fetchedBatch.count < batchSize {
                 break
             }
 
@@ -247,26 +251,36 @@ struct BatchEntityFetcher {
         let maxConsecutiveErrors = 3
 
         while consecutiveErrors < maxConsecutiveErrors {
-            var descriptor = FetchDescriptor<T>()
-            descriptor.fetchOffset = offset
-            descriptor.fetchLimit = batchSize
+            // Use autoreleasepool to release intermediate memory during batch processing
+            let result: Result<[T], Error> = autoreleasepool {
+                var descriptor = FetchDescriptor<T>()
+                descriptor.fetchOffset = offset
+                descriptor.fetchLimit = batchSize
 
-            do {
-                let batch = try context.fetch(descriptor)
+                do {
+                    let batch = try context.fetch(descriptor)
+                    return .success(batch)
+                } catch {
+                    return .failure(error)
+                }
+            }
 
+            switch result {
+            case .success(let batch):
                 if batch.isEmpty {
-                    break
+                    return allEntities
                 }
 
                 allEntities.append(contentsOf: batch)
                 consecutiveErrors = 0
 
                 if batch.count < batchSize {
-                    break
+                    return allEntities
                 }
 
                 offset += batchSize
-            } catch {
+
+            case .failure(let error):
                 #if DEBUG
                 print("BatchEntityFetcher: Error fetching \(String(describing: type)) at offset \(offset): \(error)")
                 #endif

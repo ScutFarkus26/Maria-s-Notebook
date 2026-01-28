@@ -99,6 +99,12 @@ final class CloudKitSyncStatusService: ObservableObject {
     private var networkMonitor: NWPathMonitor?
     private let networkQueue = DispatchQueue(label: "com.mariasnotebook.networkmonitor")
 
+    // Task tracking for notification handlers to prevent accumulation
+    private var pendingRemoteChangeTask: Task<Void, Never>?
+    private var pendingSaveTask: Task<Void, Never>?
+    private var pendingICloudTask: Task<Void, Never>?
+    private var pendingNetworkTask: Task<Void, Never>?
+
     /// Pending sync count - tracks how many saves are waiting for CloudKit confirmation
     private var pendingSyncCount: Int = 0
 
@@ -163,7 +169,12 @@ final class CloudKitSyncStatusService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.handleRemoteChange()
+                guard let self = self else { return }
+                // Cancel any pending task to prevent accumulation
+                self.pendingRemoteChangeTask?.cancel()
+                self.pendingRemoteChangeTask = Task { @MainActor [weak self] in
+                    self?.handleRemoteChange()
+                }
             }
         }
 
@@ -174,13 +185,28 @@ final class CloudKitSyncStatusService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.handleLocalSave()
+                guard let self = self else { return }
+                // Cancel any pending task to prevent accumulation
+                self.pendingSaveTask?.cancel()
+                self.pendingSaveTask = Task { @MainActor [weak self] in
+                    self?.handleLocalSave()
+                }
             }
         }
     }
 
     private nonisolated func stopObserving() {
         Task { @MainActor [weak self] in
+            // Cancel all pending tasks
+            self?.pendingRemoteChangeTask?.cancel()
+            self?.pendingRemoteChangeTask = nil
+            self?.pendingSaveTask?.cancel()
+            self?.pendingSaveTask = nil
+            self?.pendingICloudTask?.cancel()
+            self?.pendingICloudTask = nil
+            self?.pendingNetworkTask?.cancel()
+            self?.pendingNetworkTask = nil
+
             if let observer = self?.remoteChangeObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
@@ -206,7 +232,12 @@ final class CloudKitSyncStatusService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.handleICloudAccountChange()
+                guard let self = self else { return }
+                // Cancel any pending task to prevent accumulation
+                self.pendingICloudTask?.cancel()
+                self.pendingICloudTask = Task { @MainActor [weak self] in
+                    self?.handleICloudAccountChange()
+                }
             }
         }
     }
@@ -242,7 +273,12 @@ final class CloudKitSyncStatusService: ObservableObject {
         networkMonitor = NWPathMonitor()
         networkMonitor?.pathUpdateHandler = { [weak self] path in
             Task { @MainActor [weak self] in
-                self?.handleNetworkChange(path)
+                guard let self = self else { return }
+                // Cancel any pending task to prevent accumulation
+                self.pendingNetworkTask?.cancel()
+                self.pendingNetworkTask = Task { @MainActor [weak self] in
+                    self?.handleNetworkChange(path)
+                }
             }
         }
         networkMonitor?.start(queue: networkQueue)

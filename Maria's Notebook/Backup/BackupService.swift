@@ -388,29 +388,18 @@ public final class BackupService {
             throw NSError(domain: "BackupService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Missing payload."])
         }
 
-        let payload: BackupPayload
+        var payload: BackupPayload
         do {
             payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
         } catch {
             throw NSError(domain: "BackupService", code: 1108, userInfo: [NSLocalizedDescriptionKey: "Failed to decode backup payload."])
         }
 
-        // Validate duplicates
-        var duplicateErrors: [String] = []
-        func validateNoDuplicates(_ ids: [UUID], entityName: String) {
-            let uniqueIds = Set(ids)
-            if ids.count != uniqueIds.count {
-                duplicateErrors.append("\(entityName): Duplicates found.")
-            }
-        }
-        
-        validateNoDuplicates(payload.students.map { $0.id }, entityName: "Student")
-        // ... (validation for other types) ...
-        // Removed: ScopedNote and MeetingNote validation
-        
-        if !duplicateErrors.isEmpty {
-            throw NSError(domain: "BackupService", code: 1003, userInfo: [NSLocalizedDescriptionKey: "Duplicate IDs found."])
-        }
+        // Deduplicate payload arrays instead of failing on duplicates
+        // This handles backups that were created before deduplication was added,
+        // or backups from CloudKit-synced databases that had duplicate records
+        progress(0.35, "Deduplicating records…")
+        payload = deduplicatePayload(payload)
 
         if mode == .replace {
             progress(0.40, "Clearing existing data…")
@@ -603,12 +592,16 @@ public final class BackupService {
         var allEntities: [T] = []
         var offset = 0
         while true {
-            var descriptor = FetchDescriptor<T>()
-            descriptor.fetchOffset = offset
-            descriptor.fetchLimit = batchSize
-            guard let batch = try? context.fetch(descriptor), !batch.isEmpty else { break }
-            allEntities.append(contentsOf: batch)
-            if batch.count < batchSize { break }
+            // Use autoreleasepool to release intermediate memory during batch processing
+            let batch: [T]? = autoreleasepool {
+                var descriptor = FetchDescriptor<T>()
+                descriptor.fetchOffset = offset
+                descriptor.fetchLimit = batchSize
+                return try? context.fetch(descriptor)
+            }
+            guard let fetchedBatch = batch, !fetchedBatch.isEmpty else { break }
+            allEntities.append(contentsOf: fetchedBatch)
+            if fetchedBatch.count < batchSize { break }
             offset += batchSize
         }
         return allEntities
@@ -619,16 +612,19 @@ public final class BackupService {
         using context: ModelContext,
         batchSize: Int = 1000
     ) -> [T] {
-        // Implementation preserved
         var allEntities: [T] = []
         var offset = 0
         while true {
-            var descriptor = FetchDescriptor<T>()
-            descriptor.fetchOffset = offset
-            descriptor.fetchLimit = batchSize
-            guard let batch = try? context.fetch(descriptor), !batch.isEmpty else { break }
-            allEntities.append(contentsOf: batch)
-            if batch.count < batchSize { break }
+            // Use autoreleasepool to release intermediate memory during batch processing
+            let batch: [T]? = autoreleasepool {
+                var descriptor = FetchDescriptor<T>()
+                descriptor.fetchOffset = offset
+                descriptor.fetchLimit = batchSize
+                return try? context.fetch(descriptor)
+            }
+            guard let fetchedBatch = batch, !fetchedBatch.isEmpty else { break }
+            allEntities.append(contentsOf: fetchedBatch)
+            if fetchedBatch.count < batchSize { break }
             offset += batchSize
         }
         return allEntities
@@ -758,5 +754,50 @@ public final class BackupService {
             try? modelContext.delete(model: type)
         }
         try modelContext.save()
+    }
+
+    // MARK: - Payload Deduplication
+
+    /// Removes duplicate records from the backup payload, keeping the first occurrence of each ID.
+    /// This handles backups created from databases that had duplicate records due to CloudKit sync issues.
+    private func deduplicatePayload(_ payload: BackupPayload) -> BackupPayload {
+        func uniqueBy<T>(_ items: [T], id: (T) -> UUID) -> [T] {
+            var seen = Set<UUID>()
+            return items.filter { item in
+                let itemId = id(item)
+                if seen.contains(itemId) {
+                    return false
+                }
+                seen.insert(itemId)
+                return true
+            }
+        }
+
+        return BackupPayload(
+            items: payload.items,
+            students: uniqueBy(payload.students) { $0.id },
+            lessons: uniqueBy(payload.lessons) { $0.id },
+            studentLessons: uniqueBy(payload.studentLessons) { $0.id },
+            workPlanItems: uniqueBy(payload.workPlanItems) { $0.id },
+            scopedNotes: uniqueBy(payload.scopedNotes) { $0.id },
+            notes: uniqueBy(payload.notes) { $0.id },
+            nonSchoolDays: uniqueBy(payload.nonSchoolDays) { $0.id },
+            schoolDayOverrides: uniqueBy(payload.schoolDayOverrides) { $0.id },
+            studentMeetings: uniqueBy(payload.studentMeetings) { $0.id },
+            presentations: uniqueBy(payload.presentations) { $0.id },
+            communityTopics: uniqueBy(payload.communityTopics) { $0.id },
+            proposedSolutions: uniqueBy(payload.proposedSolutions) { $0.id },
+            meetingNotes: uniqueBy(payload.meetingNotes) { $0.id },
+            communityAttachments: uniqueBy(payload.communityAttachments) { $0.id },
+            attendance: uniqueBy(payload.attendance) { $0.id },
+            workCompletions: uniqueBy(payload.workCompletions) { $0.id },
+            projects: uniqueBy(payload.projects) { $0.id },
+            projectAssignmentTemplates: uniqueBy(payload.projectAssignmentTemplates) { $0.id },
+            projectSessions: uniqueBy(payload.projectSessions) { $0.id },
+            projectRoles: uniqueBy(payload.projectRoles) { $0.id },
+            projectTemplateWeeks: uniqueBy(payload.projectTemplateWeeks) { $0.id },
+            projectWeekRoleAssignments: uniqueBy(payload.projectWeekRoleAssignments) { $0.id },
+            preferences: payload.preferences
+        )
     }
 }

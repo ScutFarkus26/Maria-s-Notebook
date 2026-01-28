@@ -93,6 +93,9 @@ struct StudentsRootView: View {
             openWork: cachedOpenWork,
             studentsByID: cachedStudents,
             lessonsByID: cachedLessons,
+            onTapStudent: { student in
+                appRouter.requestOpenStudentDetail(student.id)
+            },
             onTapWork: { work in selectedWork = work }
         )
         .task(id: mode) {
@@ -164,7 +167,8 @@ struct StudentsRootView: View {
         }
         
         // Update cache
-        cachedOpenWork = openWork
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        cachedOpenWork = openWork.uniqueByID
         cachedStudents = studentsByID
         cachedLessons = lessonsByID
     }
@@ -175,6 +179,7 @@ private struct WorkloadContentView: View {
     let openWork: [WorkModel]
     let studentsByID: [UUID: Student]
     let lessonsByID: [UUID: Lesson]
+    let onTapStudent: (Student) -> Void
     let onTapWork: (WorkModel) -> Void
     
     private var openByStudent: [UUID: [WorkModel]] {
@@ -222,10 +227,7 @@ private struct WorkloadContentView: View {
             summaries: summaries,
             openWorkByStudentID: openByStudent,
             lessonsByID: lessonsByID,
-            onTapStudent: { _ in
-                // In Workload view, tapping a student could perhaps filter or open details
-                // For now, we leave it as is or implement specific workload navigation
-            },
+            onTapStudent: onTapStudent,
             onTapWork: onTapWork
         )
     }

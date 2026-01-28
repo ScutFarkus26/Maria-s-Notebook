@@ -50,12 +50,13 @@ struct ReminderRepository: SavingRepository {
 
     /// Fetch reminders due today or overdue
     func fetchDueToday(calendar: Calendar = .current) -> [Reminder] {
-        let startOfDay = calendar.startOfDay(for: Date())
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? startOfDay
-        let predicate = #Predicate<Reminder> { reminder in
-            !reminder.isCompleted && reminder.dueDate != nil && reminder.dueDate! < endOfDay
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
+        // Fetch all incomplete reminders and filter in memory to avoid SwiftData predicate issues with optionals
+        let allIncomplete = fetchIncompleteReminders()
+        return allIncomplete.filter { reminder in
+            guard let dueDate = reminder.dueDate else { return false }
+            return dueDate < endOfDay
         }
-        return fetchReminders(predicate: predicate)
     }
 
     /// Fetch reminder by EventKit ID (for sync)

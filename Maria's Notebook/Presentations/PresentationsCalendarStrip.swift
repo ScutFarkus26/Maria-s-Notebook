@@ -70,7 +70,7 @@ struct PresentationsCalendarStrip: View {
                 .padding(.horizontal, 12)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 12) {
+                    LazyHStack(alignment: .top, spacing: 12) {
                         ForEach(days, id: \.self) { day in
                             PresentationsDayColumn(
                                 day: day,

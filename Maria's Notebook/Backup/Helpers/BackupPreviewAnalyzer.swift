@@ -32,12 +32,17 @@ enum BackupPreviewAnalyzer {
         mode: BackupService.RestoreMode,
         entityExists: @escaping (any PersistentModel.Type, UUID) -> Bool
     ) -> AnalysisResult {
-        var result = AnalysisResult()
+        // Use separate dictionaries to avoid Swift exclusivity violations
+        // (can't have closure capturing result while also passing &result.warnings)
+        var inserts: [String: Int] = [:]
+        var skips: [String: Int] = [:]
+        var deletes: [String: Int] = [:]
+        var warnings: [String] = []
 
         func assign(_ key: String, ins: Int, sk: Int = 0, del: Int = 0) {
-            result.inserts[key] = ins
-            result.skips[key] = sk
-            result.deletes[key] = del
+            inserts[key] = ins
+            skips[key] = sk
+            deletes[key] = del
         }
 
         if mode == .replace {
@@ -52,11 +57,11 @@ enum BackupPreviewAnalyzer {
                 modelContext: modelContext,
                 entityExists: entityExists,
                 assign: assign,
-                warnings: &result.warnings
+                warnings: &warnings
             )
         }
 
-        return result
+        return AnalysisResult(inserts: inserts, skips: skips, deletes: deletes, warnings: warnings)
     }
 
     // MARK: - Replace Mode Analysis

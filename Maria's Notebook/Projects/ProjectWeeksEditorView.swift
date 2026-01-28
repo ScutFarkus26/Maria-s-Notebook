@@ -8,18 +8,20 @@ struct ProjectWeeksEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
-    @Query(sort: [SortDescriptor<ProjectTemplateWeek>(\.weekIndex, order: .forward)]) private var allWeeks: [ProjectTemplateWeek]
-    @Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]
+    // Performance: Use filtered query instead of loading all weeks
+    @Query(sort: [SortDescriptor<ProjectTemplateWeek>(\.weekIndex, order: .forward)]) private var weeks: [ProjectTemplateWeek]
 
     @State private var editingWeek: ProjectTemplateWeek? = nil
 
     init(club: Project, showHeader: Bool = true) {
         self.club = club
         self.showHeader = showHeader
-    }
-
-    private var weeks: [ProjectTemplateWeek] {
-        allWeeks.filter { $0.projectID == club.id.uuidString }
+        // Filter weeks by projectID at query level
+        let projectIDString = club.id.uuidString
+        _weeks = Query(
+            filter: #Predicate<ProjectTemplateWeek> { $0.projectID == projectIDString },
+            sort: [SortDescriptor(\.weekIndex, order: .forward)]
+        )
     }
 
     var body: some View {
@@ -78,8 +80,8 @@ struct ProjectWeeksEditorView: View {
     }
 
     private func delete(_ week: ProjectTemplateWeek) {
-        let assigns = allRoleAssignments.filter { $0.weekID == week.id.uuidString }
-        for a in assigns { modelContext.delete(a) }
+        // Use the week's relationship to get its role assignments
+        for a in week.roleAssignments ?? [] { modelContext.delete(a) }
         modelContext.delete(week)
         _ = saveCoordinator.save(modelContext, reason: "Delete project template week")
     }
@@ -95,17 +97,26 @@ struct ProjectWeekEditorView: View, Identifiable {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    // Performance: Filter students to only club members at query level
     @Query(sort: [SortDescriptor(\Student.firstName, order: .forward), SortDescriptor(\Student.lastName, order: .forward)]) private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var students: [Student] { studentsRaw.uniqueByID }
-    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var allRoles: [ProjectRole]
-    @Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]
+
+    // Performance: Filter roles by projectID at query level
+    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var roles: [ProjectRole]
+
+    // Performance: Keep lessons query for lesson picker (needed for full list)
     @Query(sort: [SortDescriptor(\Lesson.name, order: .forward)]) private var allLessons: [Lesson]
 
     @State private var readingRange: String
     @State private var agenda: [String]
-    @State private var workInstructions: String
     @State private var linkedLessonIDs: [String] = []
+
+    // Assignment mode state
+    @State private var assignmentMode: SessionAssignmentMode
+    @State private var minSelections: Int
+    @State private var maxSelections: Int
+    @State private var offeredWorks: [TemplateOfferedWork]
 
     @State private var pickingLessonForWeek: Bool = false
     @State private var viewingLesson: Lesson? = nil
@@ -116,18 +127,31 @@ struct ProjectWeekEditorView: View, Identifiable {
         self.onDone = onDone
         _readingRange = State(initialValue: week.readingRange)
         _agenda = State(initialValue: week.agendaItems)
-        _workInstructions = State(initialValue: week.workInstructions)
         _linkedLessonIDs = State(initialValue: week.linkedLessonIDs)
-    }
+        _assignmentMode = State(initialValue: week.assignmentMode)
+        _minSelections = State(initialValue: week.minSelections > 0 ? week.minSelections : 1)
+        _maxSelections = State(initialValue: week.maxSelections > 0 ? week.maxSelections : 2)
+        _offeredWorks = State(initialValue: week.offeredWorks)
 
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var roles: [ProjectRole] {
-        allRoles.filter { $0.projectID == club.id.uuidString }.uniqueByID
+        // Performance: Filter roles by projectID at query level
+        let projectIDString = club.id.uuidString
+        _roles = Query(
+            filter: #Predicate<ProjectRole> { $0.projectID == projectIDString },
+            sort: [SortDescriptor(\.createdAt, order: .forward)]
+        )
     }
 
     private var clubMembers: [Student] {
         let ids = Set(club.memberStudentIDs.compactMap(UUID.init))
         return students.filter { ids.contains($0.id) }.sorted { StudentFormatter.displayName(for: $0) < StudentFormatter.displayName(for: $1) }
+    }
+
+    // Performance: Pre-compute role assignment lookup dictionary to avoid N+1 searches
+    private var roleAssignmentsByStudentID: [String: ProjectWeekRoleAssignment] {
+        Dictionary(
+            (week.roleAssignments ?? []).map { ($0.studentID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
@@ -202,14 +226,9 @@ struct ProjectWeekEditorView: View, Identifiable {
                             .padding(.top, 4)
                     }
 
-                    // 3. Work Packet
-                    sectionCard("Work Packet Instructions", systemImage: "doc.text") {
-                        Text("Enter instructions for the weekly student packet (e.g. 'Complete role sheet and find 5 vocab words').")
-                            .font(.caption).foregroundStyle(.secondary)
-                        
-                        TextEditor(text: $workInstructions)
-                            .frame(minHeight: 80)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.2)))
+                    // 3. Assignment Mode
+                    sectionCard("Assignment Mode", systemImage: "hand.tap") {
+                        assignmentModeSection
                     }
 
                     // 4. Agenda
@@ -287,6 +306,87 @@ struct ProjectWeekEditorView: View, Identifiable {
         }
     }
 
+    // MARK: - Assignment Mode Section
+
+    @ViewBuilder
+    private var assignmentModeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Picker("Mode", selection: $assignmentMode) {
+                ForEach(SessionAssignmentMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(assignmentMode.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if assignmentMode == .choice {
+                choiceModeConfiguration
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var choiceModeConfiguration: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Students pick")
+                Stepper("\(minSelections)", value: $minSelections, in: 1...10)
+                    .fixedSize()
+                Text("of")
+                Stepper("\(maxSelections == 0 ? "∞" : "\(maxSelections)")", value: $maxSelections, in: 0...10)
+                    .fixedSize()
+            }
+            .font(.subheadline)
+
+            Divider()
+
+            Text("Offered Works")
+                .font(.subheadline).fontWeight(.medium)
+
+            ForEach(Array(offeredWorks.enumerated()), id: \.element.id) { index, work in
+                HStack(alignment: .top) {
+                    VStack(spacing: 4) {
+                        TextField("Title", text: Binding(
+                            get: { offeredWorks[index].title },
+                            set: { offeredWorks[index].title = $0 }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        TextField("Instructions (optional)", text: Binding(
+                            get: { offeredWorks[index].instructions },
+                            set: { offeredWorks[index].instructions = $0 }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                    }
+                    Button {
+                        offeredWorks.remove(at: index)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Button {
+                offeredWorks.append(TemplateOfferedWork())
+            } label: {
+                Label("Add Work Offer", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.plain)
+
+            if offeredWorks.count < minSelections {
+                Text("Add at least \(minSelections) work offers")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .padding(.leading, 8)
+    }
+
     @ViewBuilder
     private func sectionCard<Content: View>(_ title: String, systemImage: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -325,10 +425,10 @@ struct ProjectWeekEditorView: View, Identifiable {
     }
 
     // MARK: - Role schedule helpers
+    // Performance: Use pre-computed dictionary for O(1) lookup instead of O(n) search
     private func currentRoleID(for studentID: UUID) -> UUID? {
         let sid = studentID.uuidString
-        let weekIDString = week.id.uuidString
-        if let roleIDString = allRoleAssignments.first(where: { $0.weekID == weekIDString && $0.studentID == sid })?.roleID {
+        if let roleIDString = roleAssignmentsByStudentID[sid]?.roleID {
             return UUID(uuidString: roleIDString)
         }
         return nil
@@ -336,20 +436,24 @@ struct ProjectWeekEditorView: View, Identifiable {
 
     private func setRoleID(_ roleID: UUID?, for studentID: UUID) {
         let sid = studentID.uuidString
-        let weekIDString = week.id.uuidString
-        if let existing = allRoleAssignments.first(where: { $0.weekID == weekIDString && $0.studentID == sid }) {
+        // Use the week's relationship directly instead of querying all assignments
+        if let existing = (week.roleAssignments ?? []).first(where: { $0.studentID == sid }) {
             if let roleID { existing.roleID = roleID.uuidString } else { modelContext.delete(existing) }
         } else if let roleID {
-            let a = ProjectWeekRoleAssignment(weekID: week.id, studentID: sid, roleID: roleID)
+            let a = ProjectWeekRoleAssignment(weekID: week.id, studentID: sid, roleID: roleID, week: week)
             modelContext.insert(a)
+            week.roleAssignments = (week.roleAssignments ?? []) + [a]
         }
     }
 
     private func save() {
         week.readingRange = readingRange
         week.agendaItems = agenda
-        week.workInstructions = workInstructions
         week.linkedLessonIDs = linkedLessonIDs
+        week.assignmentMode = assignmentMode
+        week.minSelections = assignmentMode == .choice ? minSelections : 0
+        week.maxSelections = assignmentMode == .choice ? maxSelections : 0
+        week.offeredWorks = assignmentMode == .choice ? offeredWorks : []
         _ = saveCoordinator.save(modelContext, reason: "Save book club template week")
         onDone(); dismiss()
     }

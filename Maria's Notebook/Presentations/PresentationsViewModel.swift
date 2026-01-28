@@ -19,6 +19,11 @@ final class PresentationsViewModel: ObservableObject {
     var cachedStudents: [Student] {
         self.cachedStudentsStorage
     }
+
+    // Expose cached lessons for inbox filtering (avoids redundant fetching)
+    var lessons: [Lesson] {
+        self.cachedLessons
+    }
     
     // MARK: - Dependencies (passed in update method)
     private var modelContext: ModelContext?

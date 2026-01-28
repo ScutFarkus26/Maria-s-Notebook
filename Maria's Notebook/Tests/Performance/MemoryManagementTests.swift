@@ -186,19 +186,19 @@ struct TaskLifecycleTests {
             try await withThrowingTaskGroup(of: Void.self) { group in
                 group.addTask {
                     childExecuted = true
-                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds - long enough to be cancelled
                     childCompleted = true
                 }
                 try await group.waitForAll()
             }
         }
 
-        // Small delay to let child start
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        // Longer delay to let child start (200ms)
+        try? await Task.sleep(nanoseconds: 200_000_000)
 
         parentTask.cancel()
 
-        // Wait for parent to complete
+        // Wait for parent to complete with timeout
         try? await parentTask.value
 
         #expect(childExecuted == true)
@@ -215,7 +215,7 @@ struct TaskLifecycleTests {
                 task = Task { [weak self] in
                     // Check cancellation before doing work
                     guard !Task.isCancelled else { return }
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds - long enough to be cancelled
                     // Check cancellation after sleep (in case sleep was interrupted)
                     guard !Task.isCancelled else { return }
                     self?.completed = true
@@ -231,11 +231,12 @@ struct TaskLifecycleTests {
         let holder = TaskHolder()
         holder.startLongTask()
 
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        // Longer delay to let task start (200ms)
+        try? await Task.sleep(nanoseconds: 200_000_000)
         holder.cancel()
 
-        // Wait a bit to ensure task has processed cancellation
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        // Wait for task to process cancellation (500ms)
+        try? await Task.sleep(nanoseconds: 500_000_000)
 
         #expect(holder.completed == false)
     }

@@ -209,7 +209,9 @@ struct PresentationsView: View {
                             missWindowRaw: $missWindowRaw,
                             selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
                             isInboxTargeted: $isInboxTargeted,
-                            isCalendarMinimized: .constant(false) // Always expanded in this mode
+                            isCalendarMinimized: .constant(false), // Always expanded in this mode
+                            cachedLessons: viewModel.lessons,
+                            cachedStudents: viewModel.cachedStudents
                         )
                     case .calendar:
                         PresentationsCalendarStrip(
@@ -249,7 +251,9 @@ struct PresentationsView: View {
                                 missWindowRaw: $missWindowRaw,
                                 selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
                                 isInboxTargeted: $isInboxTargeted,
-                                isCalendarMinimized: $isCalendarMinimized
+                                isCalendarMinimized: $isCalendarMinimized,
+                                cachedLessons: viewModel.lessons,
+                                cachedStudents: viewModel.cachedStudents
                             )
                             .frame(height: inboxHeight)
 

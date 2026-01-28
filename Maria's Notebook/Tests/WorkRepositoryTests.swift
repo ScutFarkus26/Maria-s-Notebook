@@ -338,14 +338,13 @@ struct WorkRepositoryUpdateTests {
         context.insert(work)
         try context.save()
 
-        let beforeCompletion = Date()
         let repository = WorkRepository(context: context)
         try repository.markWorkCompleted(id: work.id)
-        let afterCompletion = Date()
 
+        // completedAt is normalized to start of day in markWorkCompleted
         #expect(work.completedAt != nil)
-        #expect(work.completedAt! >= beforeCompletion)
-        #expect(work.completedAt! <= afterCompletion)
+        let expectedCompletedAt = AppCalendar.startOfDay(Date())
+        #expect(work.completedAt! == expectedCompletedAt)
     }
 
     @Test("markWorkCompleted sets outcome when provided")

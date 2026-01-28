@@ -11,18 +11,23 @@ struct ProjectDetailView: View {
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var students: [Student] { studentsRaw.uniqueByID }
-    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var allRoles: [ProjectRole]
-    @Query(sort: [SortDescriptor(\ProjectTemplateWeek.weekIndex, order: .forward)]) private var allWeeks: [ProjectTemplateWeek]
-    @Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]
-    @Query(sort: [SortDescriptor(\ProjectSession.createdAt, order: .forward)]) private var allSessions: [ProjectSession]
-    @Query(sort: [SortDescriptor(\ProjectAssignmentTemplate.createdAt, order: .forward)]) private var allTemplates: [ProjectAssignmentTemplate]
 
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var roles: [ProjectRole] { allRoles.filter { $0.projectID == club.id.uuidString }.uniqueByID }
+    // Performance: Filter roles by projectID at query level
+    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var roles: [ProjectRole]
 
     @State private var showNewSession: Bool = false
     @State private var showEditClub: Bool = false
     @State private var showManageRoles: Bool = false
+
+    init(club: Project) {
+        self.club = club
+        // Performance: Filter roles by projectID at query level
+        let projectIDString = club.id.uuidString
+        _roles = Query(
+            filter: #Predicate<ProjectRole> { $0.projectID == projectIDString },
+            sort: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+    }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var studentsByID: [UUID: Student] { Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }

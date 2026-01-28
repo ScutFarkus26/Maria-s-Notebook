@@ -88,7 +88,9 @@ final class SettingsViewModel: ObservableObject {
                 password: encryptBackups ? "defaultPassword" : nil
             ) { [weak self] progress, message in
                 guard let self else { return }
-                Task { @MainActor in
+                // Use MainActor.assumeIsolated since we're already on MainActor
+                // This avoids creating racing Task blocks that cause simultaneous access violations
+                MainActor.assumeIsolated {
                     self.backupProgress = progress
                     self.backupMessage = message
                 }
@@ -169,7 +171,9 @@ final class SettingsViewModel: ObservableObject {
                 mode: restoreMode
             ) { [weak self] p, m in
                 guard let self else { return }
-                Task { @MainActor in
+                // Use MainActor.assumeIsolated since we're already on MainActor
+                // This avoids creating racing Task blocks that cause simultaneous access violations
+                MainActor.assumeIsolated {
                     self.importProgress = p
                     self.importMessage = m
                 }
@@ -198,7 +202,9 @@ final class SettingsViewModel: ObservableObject {
                 mode: restoreMode
             ) { [weak self] p, m in
                 guard let self else { return }
-                Task { @MainActor in
+                // Use MainActor.assumeIsolated since we're already on MainActor
+                // This avoids creating racing Task blocks that cause simultaneous access violations
+                MainActor.assumeIsolated {
                     self.importProgress = p
                     self.importMessage = m
                 }

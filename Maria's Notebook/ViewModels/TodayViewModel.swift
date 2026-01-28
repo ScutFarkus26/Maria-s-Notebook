@@ -46,6 +46,8 @@ final class TodayViewModel: ObservableObject {
                 date = normalized
                 return
             }
+            // Clear recent notes student cache when date changes to prevent unbounded growth
+            recentNoteStudentsByID.removeAll(keepingCapacity: true)
             scheduleReload()
         }
     }
@@ -166,26 +168,75 @@ final class TodayViewModel: ObservableObject {
     func reload() {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
 
-        // Load lessons and their related data
-        reloadLessons(day: day, nextDay: nextDay)
+        // PERFORMANCE: Fetch all data first, then batch update @Published properties
+        // This reduces view re-renders from 7+ to 1 by coalescing all changes
 
-        // Load work items and schedule
-        reloadWork(day: day, nextDay: nextDay)
+        // 1. Fetch lessons data
+        let lessonsResult = TodayLessonsLoader.fetchLessonsWithIDs(day: day, nextDay: nextDay, context: context)
+        if !lessonsResult.lessons.isEmpty {
+            cacheManager.loadStudentsIfNeeded(ids: lessonsResult.neededStudentIDs, context: context)
+            cacheManager.loadLessonsIfNeeded(ids: lessonsResult.neededLessonIDs, context: context)
+        }
+        let filteredLessons = lessonsResult.lessons.isEmpty ? [] :
+            TodayLevelFilterService.filterLessons(lessonsResult.lessons, studentsByID: studentsByID, levelFilter: levelFilter)
 
-        // Load completed work
-        reloadCompletedWork(day: day, nextDay: nextDay)
+        // 2. Fetch work data
+        if let prelimResult = TodayDataFetcher.fetchWorkData(day: day, nextDay: nextDay, referenceDate: date, context: context) {
+            cacheManager.loadStudentsIfNeeded(ids: prelimResult.neededStudentIDs, context: context)
+            cacheManager.loadLessonsIfNeeded(ids: prelimResult.neededLessonIDs, context: context)
+        }
+        let workResult = TodayWorkLoader.loadWork(
+            day: day, nextDay: nextDay, referenceDate: date,
+            studentsByID: studentsByID, levelFilter: levelFilter, context: context
+        )
+        cacheManager.updateWork(workResult.workByID)
 
-        // Load reminders
-        reloadReminders(day: day, nextDay: nextDay)
+        // 3. Fetch completed work
+        let completedResult = TodayWorkLoader.fetchCompletedWork(day: day, nextDay: nextDay, context: context)
+        cacheManager.loadStudentsIfNeeded(ids: completedResult.neededStudentIDs, context: context)
+        let filteredCompletedWork = TodayLevelFilterService.filterWork(
+            completedResult.completedWork, studentsByID: studentsByID, levelFilter: levelFilter
+        )
 
-        // Load calendar events
-        reloadCalendarEvents(day: day, nextDay: nextDay)
+        // 4. Fetch reminders
+        let remindersResult = TodayDataFetcher.fetchReminders(day: day, nextDay: nextDay, context: context)
 
-        // Load attendance
-        reloadAttendance(day: day, nextDay: nextDay)
+        // 5. Fetch calendar events
+        let calendarEvents = TodayDataFetcher.fetchCalendarEvents(day: day, nextDay: nextDay, context: context)
 
-        // Load recent notes and their students
-        reloadRecentNotes()
+        // 6. Fetch attendance
+        let attendanceResult = TodayDataFetcher.fetchAttendance(day: day, nextDay: nextDay, context: context)
+        cacheManager.loadStudentsIfNeeded(ids: attendanceResult.neededStudentIDs, context: context)
+        let processedAttendance = TodayAttendanceLoader.processAttendance(
+            records: attendanceResult.records, studentsByID: studentsByID, levelFilter: levelFilter
+        )
+
+        // 7. Fetch recent notes
+        let notesResult = TodayDataFetcher.fetchRecentNotes(context: context)
+        let missingStudentIDs = notesResult.neededStudentIDs.subtracting(recentNoteStudentsByID.keys)
+        var updatedRecentNoteStudents = recentNoteStudentsByID
+        for studentID in missingStudentIDs {
+            let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+            if let student = context.safeFetch(descriptor).first {
+                updatedRecentNoteStudents[student.id] = student
+            }
+        }
+
+        // BATCH UPDATE: Apply all @Published changes together to minimize view re-renders
+        todaysLessons = filteredLessons
+        overdueSchedule = workResult.overdueSchedule
+        todaysSchedule = workResult.todaysSchedule
+        staleFollowUps = workResult.staleFollowUps
+        completedWork = filteredCompletedWork
+        overdueReminders = remindersResult.overdue
+        todaysReminders = remindersResult.today
+        anytimeReminders = remindersResult.anytime
+        todaysCalendarEvents = calendarEvents
+        attendanceSummary = processedAttendance.summary
+        absentToday = processedAttendance.absentStudentIDs
+        leftEarlyToday = processedAttendance.leftEarlyStudentIDs
+        recentNotes = notesResult.notes
+        recentNoteStudentsByID = updatedRecentNoteStudents
     }
 
     // MARK: - School Day Navigation (delegated to TodayNavigationService)
@@ -210,113 +261,6 @@ final class TodayViewModel: ObservableObject {
             cache: &schoolDayCache,
             context: context
         )
-    }
-
-    // MARK: - Private Reload Methods (delegated to TodayDataFetcher and TodayScheduleBuilder)
-
-    /// Fetches and loads lessons for today, along with their related students and lessons
-    private func reloadLessons(day: Date, nextDay: Date) {
-        let result = TodayLessonsLoader.fetchLessonsWithIDs(day: day, nextDay: nextDay, context: context)
-
-        if result.lessons.isEmpty {
-            todaysLessons = []
-            return
-        }
-
-        // Load only needed students and lessons using cache manager
-        cacheManager.loadStudentsIfNeeded(ids: result.neededStudentIDs, context: context)
-        cacheManager.loadLessonsIfNeeded(ids: result.neededLessonIDs, context: context)
-
-        // Filter today's lessons by level
-        todaysLessons = TodayLevelFilterService.filterLessons(result.lessons, studentsByID: studentsByID, levelFilter: levelFilter)
-    }
-
-    /// Loads work models, plan items, and processes schedule logic
-    private func reloadWork(day: Date, nextDay: Date) {
-        // Load work-related students first (needed for level filtering in schedule builder)
-        // We do a preliminary fetch to get needed IDs before building the schedule
-        if let prelimResult = TodayDataFetcher.fetchWorkData(day: day, nextDay: nextDay, referenceDate: date, context: context) {
-            cacheManager.loadStudentsIfNeeded(ids: prelimResult.neededStudentIDs, context: context)
-            cacheManager.loadLessonsIfNeeded(ids: prelimResult.neededLessonIDs, context: context)
-        }
-
-        let result = TodayWorkLoader.loadWork(
-            day: day,
-            nextDay: nextDay,
-            referenceDate: date,
-            studentsByID: studentsByID,
-            levelFilter: levelFilter,
-            context: context
-        )
-
-        // Update work cache
-        cacheManager.updateWork(result.workByID)
-
-        self.overdueSchedule = result.overdueSchedule
-        self.todaysSchedule = result.todaysSchedule
-        self.staleFollowUps = result.staleFollowUps
-    }
-
-    /// Loads completed work items for today
-    private func reloadCompletedWork(day: Date, nextDay: Date) {
-        let result = TodayWorkLoader.fetchCompletedWork(day: day, nextDay: nextDay, context: context)
-
-        // Load students for completed work that aren't already cached
-        cacheManager.loadStudentsIfNeeded(ids: result.neededStudentIDs, context: context)
-
-        completedWork = TodayLevelFilterService.filterWork(result.completedWork, studentsByID: studentsByID, levelFilter: levelFilter)
-    }
-
-    private func reloadReminders(day: Date, nextDay: Date) {
-        let result = TodayDataFetcher.fetchReminders(day: day, nextDay: nextDay, context: context)
-        self.overdueReminders = result.overdue
-        self.todaysReminders = result.today
-        self.anytimeReminders = result.anytime
-    }
-
-    private func reloadCalendarEvents(day: Date, nextDay: Date) {
-        self.todaysCalendarEvents = TodayDataFetcher.fetchCalendarEvents(
-            day: day,
-            nextDay: nextDay,
-            context: context
-        )
-    }
-
-    private func reloadAttendance(day: Date, nextDay: Date) {
-        let result = TodayDataFetcher.fetchAttendance(day: day, nextDay: nextDay, context: context)
-
-        // Load students referenced in attendance records if not already loaded
-        cacheManager.loadStudentsIfNeeded(ids: result.neededStudentIDs, context: context)
-
-        // Process attendance using TodayAttendanceLoader
-        let attendanceResult = TodayAttendanceLoader.processAttendance(
-            records: result.records,
-            studentsByID: studentsByID,
-            levelFilter: levelFilter
-        )
-
-        self.attendanceSummary = attendanceResult.summary
-        self.absentToday = attendanceResult.absentStudentIDs
-        self.leftEarlyToday = attendanceResult.leftEarlyStudentIDs
-    }
-
-    /// Loads recent notes from the last 7 days and their associated students
-    private func reloadRecentNotes() {
-        let result = TodayDataFetcher.fetchRecentNotes(context: context)
-        self.recentNotes = result.notes
-
-        // Determine missing student IDs that are not in recentNoteStudentsByID
-        let missingIDs = result.neededStudentIDs.subtracting(recentNoteStudentsByID.keys)
-        guard !missingIDs.isEmpty else { return }
-
-        // Fetch missing students
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
-        let allStudents = context.safeFetch(FetchDescriptor<Student>())
-        let filtered = allStudents.filter { missingIDs.contains($0.id) }
-        for student in filtered {
-            recentNoteStudentsByID[student.id] = student
-        }
     }
 
 }

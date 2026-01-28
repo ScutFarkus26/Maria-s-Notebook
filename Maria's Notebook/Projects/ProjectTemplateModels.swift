@@ -18,6 +18,38 @@ struct JSONStringList {
     }
 }
 
+// MARK: - Template Offered Work
+
+/// Represents a work offer in a template (stored as JSON)
+struct TemplateOfferedWork: Codable, Identifiable, Equatable {
+    var id: String = UUID().uuidString
+    var title: String = ""
+    var instructions: String = ""
+
+    init(id: String = UUID().uuidString, title: String = "", instructions: String = "") {
+        self.id = id
+        self.title = title
+        self.instructions = instructions
+    }
+}
+
+// MARK: - Template Offered Works JSON Helper
+struct TemplateOfferedWorksJSON {
+    nonisolated static func encode(_ works: [TemplateOfferedWork]) -> String {
+        guard !works.isEmpty else { return "" }
+        if let data = try? JSONEncoder().encode(works), let s = String(data: data, encoding: .utf8) {
+            return s
+        }
+        return ""
+    }
+    nonisolated static func decode(_ s: String) -> [TemplateOfferedWork] {
+        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return [] }
+        if let arr = try? JSONDecoder().decode([TemplateOfferedWork].self, from: data) { return arr }
+        return []
+    }
+}
+
 // MARK: - Role
 @Model
 final class ProjectRole: Identifiable {
@@ -76,6 +108,20 @@ final class ProjectTemplateWeek: Identifiable {
     // CRITICAL FIX: Default value added here ("")
     var workInstructions: String = ""
 
+    // MARK: - Assignment Mode Configuration
+
+    /// Raw storage for assignment mode (CloudKit compatible)
+    var assignmentModeRaw: String = "uniform"
+
+    /// For choice mode: minimum selections required per student
+    var minSelections: Int = 0
+
+    /// For choice mode: maximum selections allowed per student (0 = unlimited)
+    var maxSelections: Int = 0
+
+    /// Offered works for choice mode (stored as JSON)
+    var offeredWorksJSON: String = ""
+
     // Relationship to assignments - FIX: Made optional
     @Relationship(inverse: \ProjectWeekRoleAssignment.week)
     var roleAssignments: [ProjectWeekRoleAssignment]? = []
@@ -89,7 +135,11 @@ final class ProjectTemplateWeek: Identifiable {
         readingRange: String = "",
         agendaItemsJSON: String = "",
         linkedLessonIDsJSON: String = "",
-        workInstructions: String = ""
+        workInstructions: String = "",
+        assignmentMode: SessionAssignmentMode = .uniform,
+        minSelections: Int = 0,
+        maxSelections: Int = 0,
+        offeredWorksJSON: String = ""
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -100,8 +150,11 @@ final class ProjectTemplateWeek: Identifiable {
         self.agendaItemsJSON = agendaItemsJSON
         self.linkedLessonIDsJSON = linkedLessonIDsJSON
         self.workInstructions = workInstructions
+        self.assignmentModeRaw = assignmentMode.rawValue
+        self.minSelections = minSelections
+        self.maxSelections = maxSelections
+        self.offeredWorksJSON = offeredWorksJSON
         self.roleAssignments = []
-        
     }
 
     nonisolated var agendaItems: [String] {
@@ -113,7 +166,19 @@ final class ProjectTemplateWeek: Identifiable {
         get { JSONStringList.decode(linkedLessonIDsJSON) }
         set { linkedLessonIDsJSON = JSONStringList.encode(newValue) }
     }
-    
+
+    /// Type-safe access to assignment mode
+    var assignmentMode: SessionAssignmentMode {
+        get { SessionAssignmentMode(rawValue: assignmentModeRaw) ?? .uniform }
+        set { assignmentModeRaw = newValue.rawValue }
+    }
+
+    /// Type-safe access to offered works
+    nonisolated var offeredWorks: [TemplateOfferedWork] {
+        get { TemplateOfferedWorksJSON.decode(offeredWorksJSON) }
+        set { offeredWorksJSON = TemplateOfferedWorksJSON.encode(newValue) }
+    }
+
     // Computed property for backward compatibility with UUID
     var projectIDUUID: UUID? {
         get { UUID(uuidString: projectID) }

@@ -1,6 +1,30 @@
 import Foundation
 import SwiftData
 
+// MARK: - Assignment Mode
+
+/// Describes how work is assigned in a project session
+public enum SessionAssignmentMode: String, Codable, CaseIterable, Hashable, Identifiable {
+    case uniform    // Everyone gets the same work (auto-assigned to all)
+    case choice     // Teacher offers N works, students pick M
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .uniform: return "Uniform"
+        case .choice: return "Student Choice"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .uniform: return "All students receive the same assignments"
+        case .choice: return "Students choose from offered works"
+        }
+    }
+}
+
 // Local JSON helper to avoid cross-file dependency
 struct LocalJSONStringList {
     nonisolated static func encode(_ arr: [String]) -> String {
@@ -124,6 +148,17 @@ final class ProjectSession: Identifiable {
     // CloudKit compatibility: Store UUID as string
     var templateWeekID: String? = nil
 
+    // MARK: - Assignment Mode Configuration
+
+    /// Raw storage for assignment mode (CloudKit compatible)
+    var assignmentModeRaw: String = "uniform"
+
+    /// For choice mode: minimum selections required per student (0 = no minimum)
+    var minSelections: Int = 0
+
+    /// For choice mode: maximum selections allowed per student (0 = unlimited)
+    var maxSelections: Int = 0
+
     // NOTE: WorkModels are queried dynamically via sourceContextID matching this session ID.
     
     // Computed properties for backward compatibility with UUID
@@ -136,7 +171,13 @@ final class ProjectSession: Identifiable {
         get { templateWeekID.flatMap { UUID(uuidString: $0) } }
         set { templateWeekID = newValue?.uuidString }
     }
-    
+
+    /// Type-safe access to assignment mode
+    var assignmentMode: SessionAssignmentMode {
+        get { SessionAssignmentMode(rawValue: assignmentModeRaw) ?? .uniform }
+        set { assignmentModeRaw = newValue.rawValue }
+    }
+
     // Inverse relationship for Note.projectSession
     // Note: 'notes' is a String field, so we use 'noteItems' for the relationship array
     @Relationship(deleteRule: .cascade, inverse: \Note.projectSession) var noteItems: [Note]? = []
@@ -149,7 +190,10 @@ final class ProjectSession: Identifiable {
         chapterOrPages: String? = nil,
         notes: String? = nil,
         agendaItemsJSON: String = "",
-        templateWeekID: UUID? = nil
+        templateWeekID: UUID? = nil,
+        assignmentMode: SessionAssignmentMode = .uniform,
+        minSelections: Int = 0,
+        maxSelections: Int = 0
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -160,6 +204,9 @@ final class ProjectSession: Identifiable {
         self.notes = notes
         self.agendaItemsJSON = agendaItemsJSON
         self.templateWeekID = templateWeekID?.uuidString
+        self.assignmentModeRaw = assignmentMode.rawValue
+        self.minSelections = minSelections
+        self.maxSelections = maxSelections
     }
 
     nonisolated var agendaItems: [String] {

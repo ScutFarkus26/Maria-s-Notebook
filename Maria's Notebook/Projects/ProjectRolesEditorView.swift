@@ -8,16 +8,21 @@ struct ProjectRolesEditorView: View {
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
     @Environment(\.dismiss) private var dismiss
 
-    // FIX: Use explicit generic SortDescriptor so SwiftData compiles reliably.
+    // Performance: Filter roles by projectID at query level
     @Query(sort: [SortDescriptor<ProjectRole>(\.createdAt, order: .forward)])
-    private var allRoles: [ProjectRole]
+    private var roles: [ProjectRole]
 
     @State private var showEditor: Bool = false
     @State private var editingRole: ProjectRole? = nil
 
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var roles: [ProjectRole] {
-        allRoles.filter { $0.projectID == club.id.uuidString }.uniqueByID
+    init(club: Project) {
+        self.club = club
+        // Performance: Filter roles by projectID at query level
+        let projectIDString = club.id.uuidString
+        _roles = Query(
+            filter: #Predicate<ProjectRole> { $0.projectID == projectIDString },
+            sort: [SortDescriptor(\.createdAt, order: .forward)]
+        )
     }
 
     var body: some View {

@@ -52,7 +52,8 @@ struct DataManagementGrid: View {
             isPresented: $showingImporter,
             allowedContentTypes: [
                 UTType(exportedAs: "com.marias-notebook.backup"),
-                UTType(filenameExtension: "mbk") ?? .data
+                UTType(filenameExtension: BackupFile.fileExtension) ?? .data,
+                .data  // Fallback to allow selecting any file when iOS doesn't recognize custom UTType
             ]
         ) { result in
             switch result {
@@ -366,10 +367,11 @@ struct DataManagementGrid: View {
         if #available(macOS 12.0, *) {
             panel.allowedContentTypes = [
                 UTType(exportedAs: "com.marias-notebook.backup"),
-                UTType(filenameExtension: "mbk") ?? .data
+                UTType(filenameExtension: BackupFile.fileExtension) ?? .data,
+                .data  // Fallback to allow selecting any file when macOS doesn't recognize custom UTType
             ]
         } else {
-            panel.allowedFileTypes = ["mbk"]
+            panel.allowedFileTypes = [BackupFile.fileExtension]
         }
         panel.begin { response in
             if response == .OK, let url = panel.url {

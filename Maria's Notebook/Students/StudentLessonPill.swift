@@ -5,10 +5,6 @@ import UniformTypeIdentifiers
 struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
-    @Query private var lessons: [Lesson]
-    @Query private var studentsRaw: [Student]
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var students: [Student] { studentsRaw.uniqueByID }
     @Environment(\.calendar) private var calendar
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
@@ -29,9 +25,30 @@ struct StudentLessonPill: View {
     var enableMissHighlight: Bool = false
     var blockingWork: [UUID: WorkModel] = [:]
 
+    // PERFORMANCE: Accept cached data instead of using @Query per-pill
+    var cachedLessons: [Lesson]? = nil
+    var cachedStudents: [Student]? = nil
+
+    // Fallback queries only used when cached data isn't provided
+    @Query private var lessonsQuery: [Lesson]
+    @Query private var studentsQuery: [Student]
+
+    // Use cached data if provided, otherwise fall back to queries
+    private var lessons: [Lesson] {
+        cachedLessons ?? lessonsQuery
+    }
+    private var students: [Student] {
+        (cachedStudents ?? studentsQuery).uniqueByID
+    }
+
     @State private var showTimeEditor: Bool = false
     @State private var isValidDragTarget: Bool = false
     @State private var selectedWorkForDetail: WorkModel? = nil
+
+    // Cached expensive computations to avoid recalculating during scroll
+    @State private var cachedAttendanceStatuses: [UUID: AttendanceStatus] = [:]
+    @State private var cachedRecentlyPresentedIDs: Set<UUID> = []
+    @State private var lastCacheDay: Date? = nil
 
     private static let timeOnlyFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -52,8 +69,8 @@ struct StudentLessonPill: View {
     }
 
     private var statusesByStudent: [UUID: AttendanceStatus] {
-        guard let day else { return [:] }
-        return modelContext.attendanceStatuses(for: snapshot.studentIDs, on: day)
+        // Use cached value to avoid database fetch during scroll
+        cachedAttendanceStatuses
     }
 
     private var isAllSelected: Bool {
@@ -122,6 +139,11 @@ struct StudentLessonPill: View {
     }
 
     private var recentlyPresentedStudentIDs: Set<UUID> {
+        // Use cached value to avoid expensive database fetches during scroll
+        cachedRecentlyPresentedIDs
+    }
+
+    private func computeRecentlyPresentedStudentIDs() -> Set<UUID> {
         // Determine the window of recent school days to consider
         let anchor = day ?? Date()
         let days = recentSchoolDayStarts(anchor: anchor, count: max(1, recentWindowDays))
@@ -371,6 +393,14 @@ struct StudentLessonPill: View {
             #else
             .presentationDetents([.medium, .large])
             #endif
+        }
+        .task(id: day) {
+            // Populate cache once on appear, not during scroll
+            let currentDay = day ?? Date()
+            guard lastCacheDay == nil || !AppCalendar.shared.isDate(lastCacheDay!, inSameDayAs: currentDay) else { return }
+            lastCacheDay = currentDay
+            cachedAttendanceStatuses = modelContext.attendanceStatuses(for: snapshot.studentIDs, on: currentDay)
+            cachedRecentlyPresentedIDs = computeRecentlyPresentedStudentIDs()
         }
     }
 
