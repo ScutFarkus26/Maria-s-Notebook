@@ -181,11 +181,11 @@ final class PresentationsViewModel: ObservableObject {
         cachedLessons = lessons
         cachedWorkModels = workModels
         cachedPresentations = presentations
-        cachedStudentsStorage = students
         lastUpdateDate = Date()
-        
-        // Filter visible students
+
+        // Filter visible students (exclude test students when setting is disabled)
         let visibleStudents = TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        cachedStudentsStorage = visibleStudents
         
         // Build openWorkByPresentationID dictionary for fast lookup
         // Group open WorkModels by presentationID (where presentationID != nil)
