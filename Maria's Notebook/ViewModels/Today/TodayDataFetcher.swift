@@ -176,6 +176,7 @@ enum TodayDataFetcher {
     }
 
     /// Fetches and categorizes reminders.
+    /// Only fetches reminders from the currently configured sync list.
     static func fetchReminders(
         day: Date,
         nextDay: Date,
@@ -184,8 +185,14 @@ enum TodayDataFetcher {
         do {
             let startOfDay = AppCalendar.startOfDay(day)
 
+            // Get the configured sync list identifier
+            let syncListIdentifier = ReminderSyncService.shared.syncListIdentifier
+
+            // Only fetch incomplete reminders from the configured list
             let incompleteDescriptor = FetchDescriptor<Reminder>(
-                predicate: #Predicate { r in r.isCompleted == false }
+                predicate: #Predicate { r in
+                    r.isCompleted == false && r.eventKitCalendarID == syncListIdentifier
+                }
             )
             let allReminders = try context.fetch(incompleteDescriptor)
 
