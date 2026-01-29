@@ -461,30 +461,40 @@ struct PresentationHistoryView: View {
 
     @ViewBuilder
     private func row(for p: Presentation) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title(for: p))
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                HStack(spacing: 6) {
-                    Text(Self.timeFormatter.string(from: p.presentedAt))
-                    Text("•")
-                    Text(studentNamesOrCount(for: p))
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title(for: p))
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    HStack(spacing: 6) {
+                        Text(Self.timeFormatter.string(from: p.presentedAt))
+                        Text("•")
+                        Text(studentNamesOrCount(for: p))
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if notesCountCache[p.id.uuidString, default: 0] > 0 {
-                Image(systemName: "note.text")
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            // Display notes inline if present
+            if let notes = p.unifiedNotes, !notes.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(notes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                        noteRow(note)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
+            }
         }
         .contentShape(Rectangle())
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
@@ -513,6 +523,55 @@ struct PresentationHistoryView: View {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+        }
+    }
+
+    @ViewBuilder
+    private func noteRow(_ note: Note) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(note.body)
+                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 6) {
+                // Category badge if not general
+                if note.category != .general {
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(categoryColor(for: note.category))
+                            .frame(width: 5, height: 5)
+                        Text(note.category.rawValue.capitalized)
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                    }
+                    .foregroundStyle(.secondary)
+                }
+
+                // Image indicator
+                if note.imagePath != nil {
+                    Image(systemName: "photo")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(0.03))
+        )
+    }
+
+    private func categoryColor(for category: NoteCategory) -> Color {
+        switch category {
+        case .general: return .gray
+        case .behavioral: return .orange
+        case .academic: return .blue
+        case .social: return .green
+        case .emotional: return .pink
+        case .health: return .red
+        case .attendance: return .teal
         }
     }
 
