@@ -177,7 +177,7 @@ struct UnifiedNoteEditor: View {
             actionButtons
         }
         .padding(24)
-        .frame(width: 480, height: 560)
+        .frame(minWidth: 480, maxWidth: 480, minHeight: 460, idealHeight: 540)
         .presentationSizingFitted()
     }
     #endif

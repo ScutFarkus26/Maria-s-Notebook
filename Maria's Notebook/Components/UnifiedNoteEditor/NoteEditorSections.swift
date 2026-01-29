@@ -256,8 +256,8 @@ extension UnifiedNoteEditor {
             }
 
             SmartTextEditor(text: $bodyText, triggerTool: $aiTriggerCounter)
-                .frame(minHeight: 120)
-                .padding(8)
+                .frame(minHeight: 100, idealHeight: 140)
+                .padding(.horizontal, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(notesBackgroundColor)

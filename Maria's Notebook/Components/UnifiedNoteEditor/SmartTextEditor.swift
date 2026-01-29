@@ -15,6 +15,9 @@ struct SmartTextEditor: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.font = UIFont.preferredFont(forTextStyle: .body)
         textView.delegate = context.coordinator
+        // Align text to top of text view
+        textView.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+        textView.textContainer.lineFragmentPadding = 0
 
         // Enable Apple Intelligence
         if #available(iOS 18.0, *) {
@@ -52,26 +55,50 @@ struct SmartTextEditor: NSViewRepresentable {
     @Binding var text: String
     @Binding var triggerTool: Int // Change this to trigger actions
 
-    func makeNSView(context: Context) -> NSTextView {
+    func makeNSView(context: Context) -> NSScrollView {
+        // Create scroll view container
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+
+        // Create text view
         let textView = NSTextView()
         textView.isRichText = false
         textView.font = NSFont.preferredFont(forTextStyle: .body)
         textView.backgroundColor = .clear
         textView.delegate = context.coordinator
         textView.drawsBackground = false
+        textView.textContainerInset = NSSize(width: 4, height: 8)
+        textView.textContainer?.lineFragmentPadding = 0
+
+        // Configure text view to work properly in scroll view
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: .greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
 
         // Enable Apple Intelligence
         if #available(macOS 15.0, *) {
             textView.writingToolsBehavior = .complete
         }
-        return textView
+
+        scrollView.documentView = textView
+        context.coordinator.textView = textView
+
+        return scrollView
     }
 
-    func updateNSView(_ nsView: NSTextView, context: Context) {
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let textView = context.coordinator.textView else { return }
+
         // Update text programmatically - prevent binding feedback loop
-        if nsView.string != text {
+        if textView.string != text {
             context.coordinator.isProgrammaticEdit = true
-            nsView.string = text
+            textView.string = text
             context.coordinator.isProgrammaticEdit = false
         }
 
@@ -79,9 +106,7 @@ struct SmartTextEditor: NSViewRepresentable {
         if context.coordinator.lastTrigger != triggerTool {
             context.coordinator.lastTrigger = triggerTool
 
-            // Store references for deferred execution
-            let textView = nsView
-            let window = nsView.window
+            let window = textView.window
 
             // Defer responder/selection/actions to avoid triggering layout during updateNSView
             DispatchQueue.main.async {
@@ -107,6 +132,8 @@ struct SmartTextEditor: NSViewRepresentable {
         var lastTrigger = 0
         /// Flag to prevent binding updates during programmatic string changes
         var isProgrammaticEdit = false
+        /// Reference to the text view inside the scroll view
+        weak var textView: NSTextView?
 
         init(_ parent: SmartTextEditor) { self.parent = parent }
 
