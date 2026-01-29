@@ -7,13 +7,20 @@ struct StudentLessonQuickActionsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     @Query(sort: \Lesson.name, animation: .default)
     private var lessons: [Lesson]
-    
+
     @Query(sort: \Student.firstName, animation: .default)
     private var studentsAllRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var studentsAll: [Student] { studentsAllRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var studentsAll: [Student] {
+        TestStudentsFilter.filterVisible(studentsAllRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     @Query(sort: \StudentLesson.createdAt, animation: .default)
     private var studentLessonsAll: [StudentLesson]

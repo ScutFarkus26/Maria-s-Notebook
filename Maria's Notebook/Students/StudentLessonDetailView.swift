@@ -11,6 +11,10 @@ struct StudentLessonDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     // Live Queries
     @Query private var lessons: [Lesson]
     @Query private var studentsAllRaw: [Student]
@@ -18,7 +22,10 @@ struct StudentLessonDetailView: View {
 
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
-    private var studentsAll: [Student] { studentsAllRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var studentsAll: [Student] {
+        TestStudentsFilter.filterVisible(studentsAllRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     let studentLesson: StudentLesson
     let autoFocusLessonPicker: Bool

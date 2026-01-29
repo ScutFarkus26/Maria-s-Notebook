@@ -12,7 +12,7 @@ struct TestStudentsSettingsView: View {
             
             if !showTestStudents {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Test students are excluded from:")
+                    Text("Test students are excluded from all views:")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -20,10 +20,14 @@ struct TestStudentsSettingsView: View {
                             ExclusionItem("Students")
                             ExclusionItem("Today")
                             ExclusionItem("Attendance")
-                            ExclusionItem("Checklist")
+                            ExclusionItem("Planning")
                             ExclusionItem("Presentations")
+                            ExclusionItem("Checklist")
                             ExclusionItem("Open Work")
-                            ExclusionItem("Follow-Up Inbox")
+                            ExclusionItem("Logs")
+                            ExclusionItem("Projects")
+                            ExclusionItem("Notes")
+                            ExclusionItem("Inbox")
                         }
                         .padding(.horizontal, 4)
                     }

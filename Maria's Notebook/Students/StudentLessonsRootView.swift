@@ -24,12 +24,19 @@ struct StudentLessonsRootView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     #endif
 
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     // OPTIMIZATION: Use lightweight query for change detection only
     @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
     @Query private var lessons: [Lesson]
     @Query private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var students: [Student] { studentsRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var students: [Student] {
+        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     // OPTIMIZATION: Cached filtered studentLessons loaded with database-level predicates
     @State private var filteredStudentLessons: [StudentLesson] = []

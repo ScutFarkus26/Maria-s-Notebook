@@ -534,13 +534,20 @@ struct QuickNewPresentationSheet: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
     private var allLessons: [Lesson]
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
     private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var allStudents: [Student] {
+        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     @State private var selectedLessonID: UUID?
     @State private var selectedStudentIDs: Set<UUID> = []
@@ -855,13 +862,20 @@ struct QuickNewWorkItemSheet: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
     private var allLessons: [Lesson]
 
     @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
     private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var allStudents: [Student] {
+        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     @State private var selectedLessonID: UUID?
     @State private var selectedStudentIDs: Set<UUID> = []

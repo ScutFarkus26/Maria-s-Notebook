@@ -9,9 +9,17 @@ import FoundationModels
 // MARK: - Main View
 struct AppleIntelligenceSheet: View {
     @Environment(\.dismiss) private var dismiss
+
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     @Query private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var students: [Student] { studentsRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var students: [Student] {
+        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     let notes: [Note]
     

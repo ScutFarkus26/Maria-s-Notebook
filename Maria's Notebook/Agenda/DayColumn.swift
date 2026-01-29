@@ -6,13 +6,20 @@ struct DayColumn: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
-    
+
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     // OPTIMIZATION: Use shared week studentLessons and filter for this day in memory
     // This avoids making separate database queries for each day
     let weekStudentLessons: [StudentLesson]
     @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)]) private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var allStudents: [Student] {
+        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     let day: Date
     let availableHeight: CGFloat

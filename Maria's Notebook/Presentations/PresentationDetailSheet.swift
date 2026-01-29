@@ -10,11 +10,18 @@ struct PresentationDetailSheet: View, Identifiable {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     @Query private var lessons: [Lesson]
     @Query private var studentsRaw: [Student]
 
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var students: [Student] { studentsRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var students: [Student] {
+        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     @State private var presentation: Presentation? = nil
     @State private var unifiedNotes: [Note] = [] // Unified notes

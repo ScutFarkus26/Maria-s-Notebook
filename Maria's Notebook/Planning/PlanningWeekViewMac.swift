@@ -11,15 +11,22 @@ struct PlanningWeekViewMac: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
-    
+
+    // Test student filtering
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
     // Magic @Query - automatically updates when data changes
     @Query(filter: #Predicate<StudentLesson> { $0.scheduledFor == nil && $0.isGiven == false })
     private var inboxLessons: [StudentLesson]
-    
+
     @Query private var lessons: [Lesson]
     @Query private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var students: [Student] { studentsRaw.uniqueByID }
+    // Filter out test students when setting is disabled
+    private var students: [Student] {
+        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
     @State private var startDate: Date = Date()
