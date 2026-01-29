@@ -20,6 +20,9 @@ struct PresentationsInboxView: View {
     let cachedLessons: [Lesson]
     let cachedStudents: [Student]
 
+    // Days since last lesson for each student (for Students section)
+    let daysSinceLastLessonByStudent: [UUID: Int]
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -44,113 +47,71 @@ struct PresentationsInboxView: View {
     private let sortMode: PresentationsSortMode = .age
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            VStack(spacing: 8) {
-                HStack(spacing: 12) {
-                    Image(systemName: "tray")
-                        .imageScale(.large)
-                        .foregroundStyle(Color.accentColor)
-                    Text("Presentations")
-                        .font(.title3.weight(.semibold))
-                    Spacer()
-                    
-                    #if os(iOS)
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            isCalendarMinimized.toggle()
+        HStack(spacing: 0) {
+            // Left side: Presentations inbox
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                VStack(spacing: 8) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "tray")
+                            .imageScale(.large)
+                            .foregroundStyle(Color.accentColor)
+                        Text("Presentations")
+                            .font(.title3.weight(.semibold))
+                        Spacer()
+
+                        #if os(iOS)
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isCalendarMinimized.toggle()
+                            }
+                        } label: {
+                            Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(8)
+                                .background(Color.primary.opacity(0.1))
+                                .clipShape(Circle())
                         }
-                    } label: {
-                        Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(8)
-                            .background(Color.primary.opacity(0.1))
-                            .clipShape(Circle())
+                        #endif
                     }
-                    #endif
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                
-                HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Search students or lessons", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .onSubmit {
-                            searchDebounceTask?.cancel()
-                            debouncedSearchText = searchText
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Search students or lessons", text: $searchText)
+                            .textFieldStyle(.plain)
+                            .onSubmit {
+                                searchDebounceTask?.cancel()
+                                debouncedSearchText = searchText
+                            }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.primary.opacity(0.04))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.horizontal, 16)
+                    .onChange(of: searchText) { _, newValue in
+                        searchDebounceTask?.cancel()
+                        searchDebounceTask = Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 250_000_000) // 250ms debounce
+                            guard !Task.isCancelled else { return }
+                            debouncedSearchText = newValue
                         }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.primary.opacity(0.04))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .padding(.horizontal, 16)
-                .onChange(of: searchText) { _, newValue in
-                    searchDebounceTask?.cancel()
-                    searchDebounceTask = Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 250_000_000) // 250ms debounce
-                        guard !Task.isCancelled else { return }
-                        debouncedSearchText = newValue
                     }
                 }
+                .padding(.bottom, 8)
+                .background(.regularMaterial)
+
+                Divider()
+
+                presentationsContent
             }
-            .padding(.bottom, 8)
-            .background(.regularMaterial)
-            
+
+            // Right side: Students needing lessons
             Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    
-                    // 1. BLOCKED / WAITING SECTION
-                    if !filteredAndSortedBlockedLessons.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("On Deck (Waiting for Work)", systemImage: "hourglass")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 12)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: 8) {
-                                    ForEach(filteredAndSortedBlockedLessons, id: \.id) { sl in
-                                        inboxRow(sl, blockingWork: getBlockingWork(sl))
-                                    }
-                                }
-                                .padding(.horizontal, 12)
-                            }
-                        }
-                        .padding(.top, 12)
-                    }
-
-                    // 2. READY SECTION
-                    if filteredAndSortedReadyLessons.isEmpty {
-                        if filteredAndSortedBlockedLessons.isEmpty {
-                            ContentUnavailableView("All Caught Up", systemImage: "checkmark.circle", description: Text("No unscheduled presentations."))
-                                .padding(.top, 40)
-                        } else {
-                            Text("All planned presentations are waiting on work.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding(.top, 20)
-                        }
-                    } else {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 8),
-                            GridItem(.flexible(), spacing: 8),
-                            GridItem(.flexible(), spacing: 8)
-                        ], alignment: .leading, spacing: 8) {
-                            ForEach(filteredAndSortedReadyLessons, id: \.id) { sl in
-                                inboxRow(sl)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                    }
-                }
-                .padding(.bottom, 20)
-            }
+            studentsNeedingLessonsSidebar
         }
         .overlay {
             if isInboxTargeted {
@@ -284,6 +245,210 @@ struct PresentationsInboxView: View {
         .padding(6)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+    }
+
+    // MARK: - Content Views
+
+    @ViewBuilder
+    private var presentationsContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+
+                // 1. BLOCKED / WAITING SECTION
+                if !filteredAndSortedBlockedLessons.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("On Deck (Waiting for Work)", systemImage: "hourglass")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            LazyHStack(spacing: 8) {
+                                ForEach(filteredAndSortedBlockedLessons, id: \.id) { sl in
+                                    inboxRow(sl, blockingWork: getBlockingWork(sl))
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                        }
+                    }
+                    .padding(.top, 12)
+                }
+
+                // 2. READY SECTION
+                if filteredAndSortedReadyLessons.isEmpty {
+                    if filteredAndSortedBlockedLessons.isEmpty {
+                        ContentUnavailableView("All Caught Up", systemImage: "checkmark.circle", description: Text("No unscheduled presentations."))
+                            .padding(.top, 40)
+                    } else {
+                        Text("All planned presentations are waiting on work.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 20)
+                    }
+                } else {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: 8),
+                        GridItem(.flexible(), spacing: 8),
+                        GridItem(.flexible(), spacing: 8)
+                    ], alignment: .leading, spacing: 8) {
+                        ForEach(filteredAndSortedReadyLessons, id: \.id) { sl in
+                            inboxRow(sl)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+            }
+            .padding(.bottom, 20)
+        }
+    }
+
+    @ViewBuilder
+    private var studentsNeedingLessonsSidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: 8) {
+                Text("Students")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.orange)
+                Spacer()
+                if !studentsNeedingLessons.isEmpty {
+                    Text("\(studentsNeedingLessons.count)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(.orange))
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(.regularMaterial)
+
+            Divider()
+
+            // Student list
+            ScrollView {
+                if studentsNeedingLessons.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 32))
+                            .foregroundStyle(.secondary)
+                        Text("All scheduled")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
+                } else {
+                    LazyVStack(spacing: 4) {
+                        ForEach(studentsNeedingLessons, id: \.id) { student in
+                            studentRow(student)
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 8)
+                }
+            }
+        }
+        .frame(width: 220)
+    }
+
+    // MARK: - Students Needing Lessons
+
+    /// Students who don't have any scheduled presentations (no StudentLesson with scheduledFor != nil)
+    /// Sorted by days since last lesson, oldest first (students who haven't had a lesson longest come first)
+    private var studentsNeedingLessons: [Student] {
+        // Find all student IDs that have a scheduled lesson
+        let scheduledStudentIDs: Set<UUID> = {
+            var ids = Set<UUID>()
+            for sl in studentLessons where sl.scheduledFor != nil && !sl.isGiven {
+                ids.formUnion(sl.resolvedStudentIDs)
+            }
+            return ids
+        }()
+
+        // Filter search
+        let trimmedSearch = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Filter to students without scheduled lessons
+        let unscheduledStudents = cachedStudents.filter { student in
+            // Check if student has no scheduled lessons
+            guard !scheduledStudentIDs.contains(student.id) else { return false }
+
+            // Apply search filter
+            if !trimmedSearch.isEmpty {
+                let name = StudentFormatter.displayName(for: student).lowercased()
+                if !name.contains(trimmedSearch) { return false }
+            }
+
+            return true
+        }
+
+        // Sort by days since last lesson (oldest first = highest days first, then Int.max for never)
+        return unscheduledStudents.sorted { a, b in
+            let daysA = daysSinceLastLessonByStudent[a.id] ?? Int.max
+            let daysB = daysSinceLastLessonByStudent[b.id] ?? Int.max
+            // Sort descending: students with more days since last lesson come first
+            return daysA > daysB
+        }
+    }
+
+    @ViewBuilder
+    private func studentRow(_ student: Student) -> some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(StudentFormatter.displayName(for: student))
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+
+                // Days since last lesson - compact format
+                if let days = daysSinceLastLessonByStudent[student.id] {
+                    if days == Int.max {
+                        Text("No lessons")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    } else if days == 0 {
+                        Text("Today")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("\(days)d ago")
+                            .font(.caption2)
+                            .foregroundStyle(days >= 3 ? .orange : .secondary)
+                    }
+                } else {
+                    Text("No lessons")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            Spacer()
+
+            // Days badge for quick scanning
+            if let days = daysSinceLastLessonByStudent[student.id], days != Int.max && days > 0 {
+                Text("\(days)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(days >= 3 ? .white : .secondary)
+                    .frame(width: 24, height: 20)
+                    .background {
+                        if days >= 3 {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(.orange)
+                        } else {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.primary.opacity(0.1))
+                        }
+                    }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
         )
     }

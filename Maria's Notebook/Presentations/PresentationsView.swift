@@ -211,7 +211,8 @@ struct PresentationsView: View {
                             isInboxTargeted: $isInboxTargeted,
                             isCalendarMinimized: .constant(false), // Always expanded in this mode
                             cachedLessons: viewModel.lessons,
-                            cachedStudents: viewModel.cachedStudents
+                            cachedStudents: viewModel.cachedStudents,
+                            daysSinceLastLessonByStudent: daysSinceLastLessonByStudent
                         )
                     case .calendar:
                         PresentationsCalendarStrip(
@@ -253,7 +254,8 @@ struct PresentationsView: View {
                                 isInboxTargeted: $isInboxTargeted,
                                 isCalendarMinimized: $isCalendarMinimized,
                                 cachedLessons: viewModel.lessons,
-                                cachedStudents: viewModel.cachedStudents
+                                cachedStudents: viewModel.cachedStudents,
+                                daysSinceLastLessonByStudent: daysSinceLastLessonByStudent
                             )
                             .frame(height: inboxHeight)
 
