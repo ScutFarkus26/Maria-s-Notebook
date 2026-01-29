@@ -118,7 +118,8 @@ struct PresentationsView: View {
     @State private var isCalendarMinimized: Bool = false
     @State private var mobileViewSelection: MobileViewMode = .inbox
     @State private var cachedNonSchoolDates: Set<Date> = []
-    
+    @State private var selectedStudentFilter: UUID? = nil
+
     enum MobileViewMode: String, CaseIterable {
         case inbox = "Inbox"
         case calendar = "Calendar"
@@ -210,6 +211,7 @@ struct PresentationsView: View {
                             selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
                             isInboxTargeted: $isInboxTargeted,
                             isCalendarMinimized: .constant(false), // Always expanded in this mode
+                            selectedStudentFilter: $selectedStudentFilter,
                             cachedLessons: viewModel.lessons,
                             cachedStudents: viewModel.cachedStudents,
                             daysSinceLastLessonByStudent: daysSinceLastLessonByStudent
@@ -253,6 +255,7 @@ struct PresentationsView: View {
                                 selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
                                 isInboxTargeted: $isInboxTargeted,
                                 isCalendarMinimized: $isCalendarMinimized,
+                                selectedStudentFilter: $selectedStudentFilter,
                                 cachedLessons: viewModel.lessons,
                                 cachedStudents: viewModel.cachedStudents,
                                 daysSinceLastLessonByStudent: daysSinceLastLessonByStudent

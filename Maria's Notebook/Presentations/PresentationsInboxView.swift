@@ -15,6 +15,7 @@ struct PresentationsInboxView: View {
     @Binding var selectedStudentLessonForDetail: StudentLesson?
     @Binding var isInboxTargeted: Bool
     @Binding var isCalendarMinimized: Bool
+    @Binding var selectedStudentFilter: UUID?
 
     // Pass cached data from parent to avoid duplicate queries
     let cachedLessons: [Lesson]
@@ -38,6 +39,7 @@ struct PresentationsInboxView: View {
     @State private var lastSearchText: String = ""
     @State private var lastReadyLessonsCount: Int = 0
     @State private var lastBlockedLessonsCount: Int = 0
+    @State private var lastStudentFilter: UUID? = nil
 
     // Cached dictionaries for fast lookups
     @State private var lessonsByIDCache: [UUID: Lesson] = [:]
@@ -100,6 +102,31 @@ struct PresentationsInboxView: View {
                             debouncedSearchText = newValue
                         }
                     }
+
+                    // Active student filter chip
+                    if let studentID = selectedStudentFilter,
+                       let student = cachedStudents.first(where: { $0.id == studentID }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "person.fill")
+                                .font(.caption2)
+                            Text(StudentFormatter.displayName(for: student))
+                                .font(.caption.weight(.medium))
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedStudentFilter = nil
+                                }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption)
+                            }
+                        }
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.orange.opacity(0.15))
+                        .clipShape(Capsule())
+                        .padding(.horizontal, 16)
+                    }
                 }
                 .padding(.bottom, 8)
                 .background(.regularMaterial)
@@ -143,6 +170,7 @@ struct PresentationsInboxView: View {
         .onChange(of: debouncedSearchText) { _, _ in updateCachesIfNeeded() }
         .onChange(of: readyLessons.count) { _, _ in updateCachesIfNeeded() }
         .onChange(of: blockedLessons.count) { _, _ in updateCachesIfNeeded() }
+        .onChange(of: selectedStudentFilter) { _, _ in updateCachesIfNeeded() }
     }
     
     // MARK: - Filtering and Sorting
@@ -195,6 +223,7 @@ struct PresentationsInboxView: View {
         let needsRebuild = trimmedSearch != lastSearchText
             || readyLessons.count != lastReadyLessonsCount
             || blockedLessons.count != lastBlockedLessonsCount
+            || selectedStudentFilter != lastStudentFilter
 
         guard needsRebuild else { return }
 
@@ -206,13 +235,27 @@ struct PresentationsInboxView: View {
             studentsByIDCache = Dictionary(cachedStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         }
 
+        // Filter by selected student if any
+        let filteredReady: [StudentLesson]
+        let filteredBlocked: [StudentLesson]
+
+        if let studentID = selectedStudentFilter {
+            let studentIDString = studentID.uuidString
+            filteredReady = readyLessons.filter { $0.studentIDs.contains(studentIDString) }
+            filteredBlocked = blockedLessons.filter { $0.studentIDs.contains(studentIDString) }
+        } else {
+            filteredReady = readyLessons
+            filteredBlocked = blockedLessons
+        }
+
         // Rebuild filtered/sorted caches
-        cachedReadyLessons = sortedLessons(readyLessons, query: trimmedSearch, lessonCache: lessonsByIDCache, studentCache: studentsByIDCache)
-        cachedBlockedLessons = sortedLessons(blockedLessons, query: trimmedSearch, lessonCache: lessonsByIDCache, studentCache: studentsByIDCache)
+        cachedReadyLessons = sortedLessons(filteredReady, query: trimmedSearch, lessonCache: lessonsByIDCache, studentCache: studentsByIDCache)
+        cachedBlockedLessons = sortedLessons(filteredBlocked, query: trimmedSearch, lessonCache: lessonsByIDCache, studentCache: studentsByIDCache)
 
         lastSearchText = trimmedSearch
         lastReadyLessonsCount = readyLessons.count
         lastBlockedLessonsCount = blockedLessons.count
+        lastStudentFilter = selectedStudentFilter
     }
 
     private var filteredAndSortedReadyLessons: [StudentLesson] {
@@ -398,6 +441,8 @@ struct PresentationsInboxView: View {
 
     @ViewBuilder
     private func studentRow(_ student: Student) -> some View {
+        let isSelected = selectedStudentFilter == student.id
+
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(StudentFormatter.displayName(for: student))
@@ -449,8 +494,22 @@ struct PresentationsInboxView: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(isSelected ? Color.orange.opacity(0.2) : Color.primary.opacity(0.04))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isSelected ? Color.orange : Color.clear, lineWidth: 2)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if selectedStudentFilter == student.id {
+                    selectedStudentFilter = nil
+                } else {
+                    selectedStudentFilter = student.id
+                }
+            }
+        }
     }
 }
 
