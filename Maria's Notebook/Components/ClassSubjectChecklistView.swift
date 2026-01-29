@@ -25,17 +25,6 @@ struct ClassSubjectChecklistView: View {
     private let lessonColumnWidth: CGFloat = 200
     private let rowHeight: CGFloat = 44
 
-    // Drag selection state
-    @State private var dragStart: CGPoint? = nil
-    @State private var dragCurrent: CGPoint? = nil
-    @State private var isDragging: Bool = false
-    @State private var isInDragSelectionMode: Bool = false
-    @GestureState private var isLongPressing: Bool = false
-
-    // Track scroll offset for accurate drag selection
-    @State private var scrollOffset: CGPoint = .zero
-
-    
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Page Header / Controls
@@ -171,20 +160,11 @@ struct ClassSubjectChecklistView: View {
                                             state: state,
                                             isSelected: viewModel.isSelected(student: student, lesson: lesson),
                                             isSelectionMode: viewModel.isSelectionMode,
-                                            isDragSelecting: isDragging,
                                             onTap: { viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext) },
                                             onSelect: { viewModel.toggleSelection(student: student, lesson: lesson) },
                                             onMarkComplete: { viewModel.markComplete(student: student, lesson: lesson, context: modelContext) },
                                             onMarkPresented: { viewModel.togglePresented(student: student, lesson: lesson, context: modelContext) },
-                                            onClear: { viewModel.clearStatus(student: student, lesson: lesson, context: modelContext) },
-                                            onLongPressStart: {
-                                                // Enter selection mode and select this cell
-                                                #if os(iOS)
-                                                let generator = UIImpactFeedbackGenerator(style: .medium)
-                                                generator.impactOccurred()
-                                                #endif
-                                                viewModel.toggleSelection(student: student, lesson: lesson)
-                                            }
+                                            onClear: { viewModel.clearStatus(student: student, lesson: lesson, context: modelContext) }
                                         )
                                         .frame(width: studentColumnWidth, height: rowHeight)
                                         .borderSeparated()
@@ -197,64 +177,8 @@ struct ClassSubjectChecklistView: View {
                         headerRow
                     }
                 }
-                .background(
-                    // Track scroll offset using GeometryReader
-                    GeometryReader { geo in
-                        Color.clear
-                            .preference(key: ScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scrollContainer")).origin)
-                    }
-                )
-                .overlay {
-                    // Visual feedback during long press
-                    if isLongPressing && !isDragging {
-                        Color.accentColor.opacity(0.05)
-                            .allowsHitTesting(false)
-                    }
-                }
             }
-            .coordinateSpace(name: "scrollContainer")
             .coordinateSpace(name: "gridSpace")
-            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                scrollOffset = value
-            }
-            .gesture(
-                // Long press to enter selection mode, then drag to select cells
-                LongPressGesture(minimumDuration: 0.5)
-                    .updating($isLongPressing) { currentState, gestureState, _ in
-                        gestureState = currentState
-                    }
-                    .onEnded { _ in
-                        // Haptic feedback when entering selection mode
-                        #if os(iOS)
-                        let generator = UIImpactFeedbackGenerator(style: .medium)
-                        generator.impactOccurred()
-                        #endif
-                        isInDragSelectionMode = true
-                    }
-                    .sequenced(before: DragGesture(minimumDistance: 1, coordinateSpace: .named("gridSpace")))
-                    .onChanged { value in
-                        switch value {
-                        case .first:
-                            // Still in long press phase
-                            break
-                        case .second(_, let dragValue):
-                            // Dragging after long press
-                            guard let drag = dragValue else { return }
-                            if dragStart == nil {
-                                dragStart = drag.startLocation
-                                isDragging = true
-                            }
-                            dragCurrent = drag.location
-                            updateDragSelection()
-                        }
-                    }
-                    .onEnded { _ in
-                        dragStart = nil
-                        dragCurrent = nil
-                        isDragging = false
-                        isInDragSelectionMode = false
-                    }
-            )
         }
         .onAppear {
             // Restore persisted subject if available
@@ -275,60 +199,6 @@ struct ClassSubjectChecklistView: View {
         .onChange(of: testStudentNamesRaw) { _, _ in
             viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
         }
-    }
-
-    // MARK: - Drag Selection Helper
-    private func updateDragSelection() {
-        guard let start = dragStart, let current = dragCurrent else { return }
-
-        // The drag coordinates are in the scrollContainer space, which accounts for scroll position
-        // We need to adjust the cell positions by the scroll offset
-        let offsetX = -scrollOffset.x
-        let offsetY = -scrollOffset.y
-
-        let dragRect = CGRect(
-            x: min(start.x, current.x),
-            y: min(start.y, current.y),
-            width: abs(current.x - start.x),
-            height: abs(current.y - start.y)
-        )
-
-        // Compute cell positions mathematically
-        // Grid layout: lessonColumnWidth for lesson names, then studentColumnWidth per student
-        // Vertical: headerRow (rowHeight), then per group: groupHeader (30) + lessons (rowHeight each)
-
-        var newSelection = Set<CellIdentifier>()
-        let groupHeaderHeight: CGFloat = 30
-
-        // Build a flat list of lessons with their Y offsets (in content space)
-        var contentY: CGFloat = rowHeight // Start after header row
-
-        for group in viewModel.orderedGroups {
-            contentY += groupHeaderHeight // Group header
-
-            let lessons = viewModel.lessonsIn(group: group)
-            for lesson in lessons {
-                // For each student (column), compute cell rect
-                for (studentIndex, student) in viewModel.students.enumerated() {
-                    let contentX = lessonColumnWidth + CGFloat(studentIndex) * studentColumnWidth
-
-                    // Transform content coordinates to screen coordinates by adding scroll offset
-                    let cellRect = CGRect(
-                        x: contentX + offsetX,
-                        y: contentY + offsetY,
-                        width: studentColumnWidth,
-                        height: rowHeight
-                    )
-
-                    if dragRect.intersects(cellRect) {
-                        newSelection.insert(CellIdentifier(studentID: student.id, lessonID: lesson.id))
-                    }
-                }
-                contentY += rowHeight
-            }
-        }
-
-        viewModel.selectedCells = newSelection
     }
 
     // MARK: - Header Row
@@ -364,14 +234,6 @@ struct ClassSubjectChecklistView: View {
     }
 }
 
-// MARK: - Scroll Offset Preference Key
-struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGPoint = .zero
-    static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {
-        value = nextValue()
-    }
-}
-
 // MARK: - Sticky Layout Helper
 struct StickyLeftItem<Content: View>: View {
     let width: CGFloat
@@ -396,14 +258,12 @@ struct ClassChecklistSmartCell: View {
     let state: StudentChecklistRowState?
     let isSelected: Bool
     let isSelectionMode: Bool
-    var isDragSelecting: Bool = false
 
     var onTap: () -> Void
     var onSelect: () -> Void
     var onMarkComplete: () -> Void
     var onMarkPresented: () -> Void
     var onClear: () -> Void
-    var onLongPressStart: (() -> Void)? = nil
 
     var body: some View {
         let isComplete = state?.isComplete ?? false
@@ -461,9 +321,6 @@ struct ClassChecklistSmartCell: View {
                 .padding(2)
         )
         .onTapGesture {
-            // Don't process taps while drag selecting
-            guard !isDragSelecting else { return }
-
             if isSelectionMode {
                 // In selection mode, tap toggles cell selection
                 onSelect()
@@ -472,16 +329,14 @@ struct ClassChecklistSmartCell: View {
                 onTap()
             }
         }
-        #if os(macOS)
-        // On macOS, use long press to enter selection mode (right-click shows context menu)
-        .onLongPressGesture(minimumDuration: 0.4, maximumDistance: 10) {
-            onLongPressStart?()
-        }
-        #endif
         .contextMenu {
             // Selection mode option
             Button {
-                onLongPressStart?()
+                #if os(iOS)
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+                #endif
+                onSelect()
             } label: {
                 Label("Select", systemImage: "checkmark.circle")
             }
