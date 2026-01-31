@@ -30,7 +30,7 @@ final class TopicDetailViewModel: ObservableObject {
     private static func parseTags(from draft: String) -> [String] {
         draft
             .split(separator: ",")
-            .map { $0.trimmed() }
+            .map { String($0).trimmed() }
             .filter { !$0.isEmpty }
     }
 

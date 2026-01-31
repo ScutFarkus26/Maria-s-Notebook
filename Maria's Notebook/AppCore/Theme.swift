@@ -75,12 +75,6 @@ enum AppTheme {
         }
     }
 
-    // Common paddings
-    enum Spacing {
-        static let small: CGFloat = 8
-        static let medium: CGFloat = 12
-        static let large: CGFloat = 24
-    }
 }
 
 // MARK: - Font Extension for Easy Migration

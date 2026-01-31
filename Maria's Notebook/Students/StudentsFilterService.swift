@@ -24,7 +24,7 @@ enum StudentsFilterService {
 
         let lower = testStudentNamesRaw.lowercased()
         let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
-        let tokens = parts.map { $0.trimmed() }.filter { !$0.isEmpty }
+        let tokens = parts.map { String($0).trimmed() }.filter { !$0.isEmpty }
         let hiddenNames = Set(tokens)
 
         let ids = students.compactMap { s -> UUID? in
