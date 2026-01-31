@@ -65,7 +65,6 @@
 				Tests/LessonsReorderServiceTests.swift,
 				Tests/LessonsViewModelTests.swift,
 				Tests/MeetingRepositoryTests.swift,
-				Tests/MeetingsAgendaViewModelTests.swift,
 				Tests/Mocks/MockEventStore.swift,
 				Tests/Mocks/MockNetworkMonitor.swift,
 				Tests/Mocks/MockNotificationCenter.swift,
