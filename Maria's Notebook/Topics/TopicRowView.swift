@@ -12,10 +12,10 @@ struct TopicRowView: View {
         let isResolved = topic.isResolved
         let titleText = topic.title
         let issueText = topic.issueDescription
-        let resolutionText = topic.resolution.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolutionText = topic.resolution.trimmed()
         let count = solutionCount ?? 0
         let solutionsLabel = count == 1 ? "solution" : "solutions"
-        let raisedBy = topic.raisedBy.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raisedBy = topic.raisedBy.trimmed()
 
         Group {
             HStack(alignment: .top, spacing: 16) {

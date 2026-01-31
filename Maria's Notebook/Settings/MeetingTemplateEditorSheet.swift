@@ -113,19 +113,19 @@ struct MeetingTemplateEditorSheet: View {
     // MARK: - Helpers
 
     private var canSave: Bool {
-        !nameText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !reflectionPromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !focusPromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !requestsPromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !guideNotesPromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !nameText.trimmed().isEmpty &&
+        !reflectionPromptText.trimmed().isEmpty &&
+        !focusPromptText.trimmed().isEmpty &&
+        !requestsPromptText.trimmed().isEmpty &&
+        !guideNotesPromptText.trimmed().isEmpty
     }
 
     private func save() {
-        let trimmedName = nameText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedReflection = reflectionPromptText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedFocus = focusPromptText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedRequests = requestsPromptText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedGuideNotes = guideNotesPromptText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = nameText.trimmed()
+        let trimmedReflection = reflectionPromptText.trimmed()
+        let trimmedFocus = focusPromptText.trimmed()
+        let trimmedRequests = requestsPromptText.trimmed()
+        let trimmedGuideNotes = guideNotesPromptText.trimmed()
 
         if let existing = template {
             // Update existing template

@@ -77,7 +77,7 @@ final class LessonPickerViewModel: ObservableObject {
         self.allStudents = Self.sortStudents(students.uniqueByID)
 
         // If a lesson is already selected and the field is empty, show its name in the search field
-        if lessonSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+        if lessonSearchText.trimmed().isEmpty,
            let id = selectedLessonID,
            let l = self.allLessons.first(where: { $0.id == id }) {
             lessonSearchText = l.name
@@ -338,7 +338,7 @@ final class LessonPickerViewModel: ObservableObject {
         }
 
         // Create follow-up work if specified (both plan and given)
-        let trimmedFollowUp = followUpWork.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedFollowUp = followUpWork.trimmed()
         if !trimmedFollowUp.isEmpty {
             let sidStrings = selectedIDs.map { $0.uuidString }
             let lidString = finalLesson.id.uuidString

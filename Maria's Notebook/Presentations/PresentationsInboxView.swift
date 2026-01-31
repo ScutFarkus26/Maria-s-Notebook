@@ -177,7 +177,7 @@ struct PresentationsInboxView: View {
 
     private func lessonTitle(for sl: StudentLesson, using lookupCache: [UUID: Lesson]) -> String {
         if let lessonID = UUID(uuidString: sl.lessonID), let lesson = lookupCache[lessonID] {
-            let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = lesson.name.trimmed()
             if !name.isEmpty { return name }
         }
         return "Lesson \(String(sl.lessonID.prefix(6)))"
@@ -217,7 +217,7 @@ struct PresentationsInboxView: View {
     }
 
     private func updateCachesIfNeeded() {
-        let trimmedSearch = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let trimmedSearch = debouncedSearchText.trimmed().lowercased()
 
         // Check if we need to rebuild caches
         let needsRebuild = trimmedSearch != lastSearchText
@@ -414,7 +414,7 @@ struct PresentationsInboxView: View {
         }()
 
         // Filter search
-        let trimmedSearch = debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let trimmedSearch = debouncedSearchText.trimmed().lowercased()
 
         // Filter to students without scheduled lessons
         let unscheduledStudents = cachedStudents.filter { student in

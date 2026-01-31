@@ -103,11 +103,11 @@ actor StudentTagger {
             let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
             let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
             firstNameCounts[first, default: 0] += 1
-            if let nick = student.nickname, !nick.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let nick = student.nickname, !nick.trimmed().isEmpty {
                 let nickNorm = nick.folding(options: .diacriticInsensitive, locale: .current).lowercased()
                 nicknameCounts[nickNorm, default: 0] += 1
             }
-            let full = (first + " " + last).trimmingCharacters(in: .whitespacesAndNewlines)
+            let full = (first + " " + last).trimmed()
             fullNameCounts[full, default: 0] += 1
             if let fi = first.first, let li = last.first {
                 let key = String(fi) + String(li)
@@ -329,7 +329,7 @@ actor StudentTagger {
                 let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
                 let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
                 let nick = (student.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                let full = (first + " " + last).trimmingCharacters(in: .whitespacesAndNewlines)
+                let full = (first + " " + last).trimmed()
                 
                 if firstNameCounts[first] == 1 || (!nick.isEmpty && nicknameCounts[nick] == 1) || fullNameCounts[full] == 1 {
                     autoSelect.insert(id)
@@ -372,7 +372,7 @@ actor StudentTagger {
             let firstLower = first.lowercased()
             let lastLower = last.lowercased()
             let firstInitial = last.prefix(1).lowercased()
-            let nick = (student.nickname ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let nick = (student.nickname ?? "").trimmed()
             
             // Determine replacement text (display name format)
             let replacement: String
@@ -390,8 +390,8 @@ actor StudentTagger {
             // Helper to check if matched text is already in replacement format
             // This prevents replacing "Sarah Z." with "Sarah Z." (which would add more periods)
             let isAlreadyReplaced: (String) -> Bool = { matchedText in
-                let matchedTrimmed = matchedText.trimmingCharacters(in: .whitespacesAndNewlines)
-                let replacementTrimmed = replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+                let matchedTrimmed = matchedText.trimmed()
+                let replacementTrimmed = replacement.trimmed()
                 
                 // Exact match (case-insensitive)
                 if matchedTrimmed.lowercased() == replacementTrimmed.lowercased() {
@@ -443,7 +443,7 @@ actor StudentTagger {
                 for match in matches {
                     if !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
                         if let range = Range(match.range, in: text) {
-                            let matchedText = String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+                            let matchedText = String(text[range]).trimmed()
                             
                             // Critical check: if replacement format includes a period, and the matched text
                             // already ends with a period, and it matches the replacement format, skip it entirely
@@ -467,8 +467,8 @@ actor StudentTagger {
                             if !isAlreadyReplaced(matchedText) {
                                 let originalText = String(text[range])
                                 // Additional safeguard: don't create replacement if original already matches replacement
-                                let originalTrimmed = originalText.trimmingCharacters(in: .whitespacesAndNewlines)
-                                let replacementTrimmed = replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+                                let originalTrimmed = originalText.trimmed()
+                                let replacementTrimmed = replacement.trimmed()
                                 
                                 // Skip if original text already matches replacement (case-insensitive)
                                 if originalTrimmed.lowercased() != replacementTrimmed.lowercased() {

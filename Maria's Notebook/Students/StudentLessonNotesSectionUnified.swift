@@ -277,7 +277,7 @@ struct StudentLessonNotesSectionUnified: View {
             }
             
             // Show legacy string field (if it has content and no other notes)
-            if !legacyNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && allUnifiedNotes.isEmpty && presentationNotes.isEmpty {
+            if !legacyNotes.trimmed().isEmpty && allUnifiedNotes.isEmpty && presentationNotes.isEmpty {
                 TextEditor(text: Binding(
                     get: { legacyNotes },
                     set: { onLegacyNotesChange($0) }
@@ -287,7 +287,7 @@ struct StudentLessonNotesSectionUnified: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(Color.primary.opacity(0.12), lineWidth: 1)
                 )
-            } else if allUnifiedNotes.isEmpty && presentationNotes.isEmpty && legacyNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            } else if allUnifiedNotes.isEmpty && presentationNotes.isEmpty && legacyNotes.trimmed().isEmpty {
                 Text("No notes yet. Tap + to add a note.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

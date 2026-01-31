@@ -79,7 +79,7 @@ final class DataQueryService {
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent crash on "Duplicate values for key"
         let students = fetchAllStudents().uniqueByID
-        let dict = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        let dict = students.toDictionary(by: \.id)
         studentsByIDCache = dict
         return dict
     }

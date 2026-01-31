@@ -92,6 +92,34 @@ struct PresentationsDayColumn: View {
                     }
                     .padding(8)
                 }
+
+                // Insertion indicator overlay
+                if let idx = insertionIndex {
+                    GeometryReader { proxy in
+                        let sortedFrames = scheduledLessonsForDay.compactMap { item -> (UUID, CGRect)? in
+                            guard let rect = itemFrames[item.id] else { return nil }
+                            return (item.id, rect)
+                        }.sorted { $0.1.minY < $1.1.minY }
+
+                        let indicatorY: CGFloat = {
+                            if sortedFrames.isEmpty {
+                                return 16
+                            } else if idx < sortedFrames.count {
+                                return sortedFrames[idx].1.minY - 3
+                            } else if let lastFrame = sortedFrames.last {
+                                return lastFrame.1.maxY + 3
+                            } else {
+                                return 16
+                            }
+                        }()
+
+                        Capsule()
+                            .fill(Color.accentColor)
+                            .frame(width: proxy.size.width - 24, height: 3)
+                            .position(x: proxy.size.width / 2, y: indicatorY)
+                    }
+                    .allowsHitTesting(false)
+                }
             }
             .coordinateSpace(name: zoneSpaceID)
             .onPreferenceChange(PillFramePreference.self) { frames in
@@ -182,7 +210,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
         provider.loadObject(ofClass: NSString.self) { reading, _ in
             guard let ns = reading as? NSString else { return }
-            let payload = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
+            let payload = (ns as String).trimmed()
             if let id = UUID(uuidString: payload) {
                 Task { @MainActor in
                     applyDrop(of: id, locationY: location.y)

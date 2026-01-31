@@ -102,13 +102,13 @@ struct NoteTemplateEditorSheet: View {
     // MARK: - Helpers
 
     private var canSave: Bool {
-        !titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !titleText.trimmed().isEmpty &&
+        !bodyText.trimmed().isEmpty
     }
 
     private func save() {
-        let trimmedTitle = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = titleText.trimmed()
+        let trimmedBody = bodyText.trimmed()
 
         if let existing = template {
             // Update existing template

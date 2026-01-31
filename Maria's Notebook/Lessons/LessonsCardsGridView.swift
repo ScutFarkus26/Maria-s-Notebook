@@ -7,18 +7,6 @@
 import SwiftUI
 import Foundation
 
-// Local conditional view modifier (mirrors the one used in StudentsCardsGridView)
-extension View {
-    @ViewBuilder
-    func when<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
-        if condition {
-            transform(self)
-        } else {
-            self
-        }
-    }
-}
-
 struct LessonsCardsGridView: View {
     let lessons: [Lesson]
     let isManualMode: Bool
@@ -53,19 +41,16 @@ struct LessonsCardsGridView: View {
     @Namespace private var gridNamespace
     @State private var hasAppeared: Bool = false
     @State private var showDeleteAlert: Bool = false
+    @State private var introductionToShow: CurriculumIntroduction?
 
     // Check size class to determine layout
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    private var columns: [GridItem] {
-        // iPhone/Compact: Allow smaller cards (approx 160pt wide) to fit 2 columns
-        // iPad/Regular: Keep the original 260pt minimum for wider cards
-        let minWidth: CGFloat = sizeClass == .compact ? 155 : 260
-        let spacing: CGFloat = sizeClass == .compact ? 16 : 24
+    // Curriculum introductions store
+    @StateObject private var introductionStore = CurriculumIntroductionStore.shared
 
-        return [
-            GridItem(.adaptive(minimum: minWidth, maximum: 320), spacing: spacing)
-        ]
+    private var columns: [GridItem] {
+        CardGridLayout.columns(for: sizeClass)
     }
 
     private var idList: [UUID] { lessons.map { $0.id } }
@@ -100,8 +85,8 @@ struct LessonsCardsGridView: View {
             }
 
             return mapped.sorted { lhs, rhs in
-                let lk = lhs.key.trimmingCharacters(in: .whitespacesAndNewlines)
-                let rk = rhs.key.trimmingCharacters(in: .whitespacesAndNewlines)
+                let lk = lhs.key.trimmed()
+                let rk = rhs.key.trimmed()
 
                 if (lk.isEmpty != rk.isEmpty) {
                     return !lk.isEmpty
@@ -136,12 +121,7 @@ struct LessonsCardsGridView: View {
                                 card(lesson)
                             }
                         } header: {
-                            Text(entry.key.isEmpty ? "Ungrouped" : entry.key)
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 4)
-                                .padding(.top, 8)
+                            groupHeader(for: entry.key, subject: selectedSubject)
                         }
                     }
                 } else {
@@ -177,7 +157,49 @@ struct LessonsCardsGridView: View {
                 hasAppeared = true
             }
         }
+        .task {
+            if !introductionStore.isLoaded {
+                await introductionStore.load()
+            }
+        }
+        .sheet(item: $introductionToShow) { introduction in
+            GroupIntroductionSheet(introduction: introduction)
+        }
     }
+
+    // MARK: - Group Header
+
+    @ViewBuilder
+    private func groupHeader(for groupName: String, subject: String?) -> some View {
+        let displayName = groupName.isEmpty ? "Ungrouped" : groupName
+        let hasIntro = subject != nil && introductionStore.hasIntroduction(for: subject!, group: groupName.isEmpty ? nil : groupName)
+
+        HStack(spacing: 8) {
+            Text(displayName)
+                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            if hasIntro {
+                Button {
+                    if let subj = subject {
+                        introductionToShow = introductionStore.introduction(for: subj, group: groupName.isEmpty ? nil : groupName)
+                    }
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("View introduction")
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Lesson Card
 
     @ViewBuilder
     private func card(_ lesson: Lesson) -> some View {
@@ -457,9 +479,9 @@ private struct LessonCard: View {
     private var subjectColor: Color { AppColors.color(forSubject: lesson.subject) }
 
     private var writeUpFirstLine: String? {
-        let trimmed = lesson.writeUp.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return trimmed.split(separator: "\n").first.map(String.init)
+        let trimmedWriteUp = lesson.writeUp.trimmed()
+        guard !trimmedWriteUp.isEmpty else { return nil }
+        return trimmedWriteUp.split(separator: "\n").first.map(String.init)
     }
 }
 

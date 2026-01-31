@@ -406,7 +406,7 @@ struct ObservationsView: View {
     }
 
     private func firstLine(of text: String) -> String? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = text.trimmed()
         guard !trimmed.isEmpty else { return nil }
         if let newline = trimmed.firstIndex(of: "\n") {
             return String(trimmed[..<newline])
@@ -459,8 +459,8 @@ struct ObservationsView: View {
     // MARK: - Helpers
 
     private func displayName(for student: Student) -> String {
-        let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let last = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = student.firstName.trimmed()
+        let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
         return li.isEmpty ? first : "\(first) \(li)."
     }

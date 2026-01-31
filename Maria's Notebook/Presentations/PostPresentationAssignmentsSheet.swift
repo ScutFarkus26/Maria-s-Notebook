@@ -156,7 +156,7 @@ struct PostPresentationAssignmentsSheet: View {
     }
 
     private func applyBulkText() {
-        let trimmed = bulkText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = bulkText.trimmed()
         guard !trimmed.isEmpty else { return }
         for s in students { entries[s.id]?.text = trimmed }
     }

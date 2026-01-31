@@ -299,7 +299,7 @@ struct FollowUpInboxEngine {
                     return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
                 }
                 // Fallback to work title
-                let trimmed = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmed = work.title.trimmed()
                 if !trimmed.isEmpty { return trimmed }
                 return "Work"
             }()
@@ -379,7 +379,7 @@ struct FollowUpInboxEngine {
                    let l = lessonsByID[lessonUUID] {
                     return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
                 }
-                let trimmed = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmed = work.title.trimmed()
                 if !trimmed.isEmpty { return trimmed }
                 return "Work"
             }()

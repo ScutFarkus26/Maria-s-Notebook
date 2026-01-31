@@ -45,7 +45,7 @@ struct AttendanceCard: View {
         }
         
         // 2. Fallback to legacy string stored on the record
-        if let legacyText = record?.note, !legacyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let legacyText = record?.note, !legacyText.trimmed().isEmpty {
             return (legacyText, nil)
         }
         

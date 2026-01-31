@@ -46,10 +46,10 @@ struct PresentationDetailSheet: View, Identifiable {
     }()
 
     private func title(for p: Presentation) -> String {
-        let snap = (p.lessonTitleSnapshot ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let snap = (p.lessonTitleSnapshot ?? "").trimmed()
         if !snap.isEmpty { return snap }
         if let lid = UUID(uuidString: p.lessonID), let l = lessonsByID[lid] {
-            let t = l.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let t = l.name.trimmed()
             if !t.isEmpty { return t }
         }
         return "Lesson"
@@ -107,7 +107,7 @@ struct PresentationDetailSheet: View, Identifiable {
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             } else {
-                                ChipFlowLayout(spacing: 8) {
+                                FlowLayout(spacing: 8) {
                                     ForEach(list, id: \.id) { s in
                                         Text(StudentFormatter.displayName(for: s))
                                             .font(.caption.weight(.semibold))
@@ -227,7 +227,7 @@ struct PresentationDetailSheet: View, Identifiable {
         .task { @MainActor in
             isLoading = true
             let pDesc = FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == presentationID })
-            if let fetched = try? modelContext.fetch(pDesc).first {
+            if let fetched = modelContext.safeFetchFirst(pDesc) {
                 self.presentation = fetched
             } else {
                 self.presentation = nil
@@ -376,43 +376,3 @@ struct PresentationDetailSheet: View, Identifiable {
         .previewEnvironment(using: container)
 }
 
-// Simple flow layout for chips
-struct ChipFlowLayout<Content: View>: View {
-    let spacing: CGFloat
-    @ViewBuilder var content: Content
-
-    init(spacing: CGFloat = 8, @ViewBuilder content: () -> Content) {
-        self.spacing = spacing
-        self.content = content()
-    }
-
-    var body: some View {
-        GeometryReader { geometry in
-            self.generateContent(in: geometry)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: 0)
-    }
-
-    private func generateContent(in g: GeometryProxy) -> some View {
-        var width = CGFloat.zero
-        var height = CGFloat.zero
-        return ZStack(alignment: .topLeading) {
-            content
-                .alignmentGuide(.leading, computeValue: { d in
-                    if (abs(width - d.width) > g.size.width) {
-                        width = 0
-                        height -= d.height + spacing
-                    }
-                    let result = width
-                    if content is EmptyView { width = 0 } else { width -= d.width + spacing }
-                    return result
-                })
-                .alignmentGuide(.top, computeValue: { d in
-                    let result = height
-                    if content is EmptyView { height = 0 } else { height = height }
-                    return result
-                })
-        }
-    }
-}

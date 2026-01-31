@@ -17,10 +17,10 @@ enum MeetingPersistenceService {
         var guideNotesText: String = ""
 
         var isEmpty: Bool {
-            reflectionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            focusText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            requestsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            guideNotesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            reflectionText.trimmed().isEmpty &&
+            focusText.trimmed().isEmpty &&
+            requestsText.trimmed().isEmpty &&
+            guideNotesText.trimmed().isEmpty
         }
     }
 
@@ -70,10 +70,10 @@ enum MeetingPersistenceService {
     /// - Returns: true if saved successfully
     @discardableResult
     static func saveToHistory(studentID: UUID, data: CurrentMeetingData, context: ModelContext) -> Bool {
-        let trimmedReflection = data.reflectionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedFocus = data.focusText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedRequests = data.requestsText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedGuide = data.guideNotesText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedReflection = data.reflectionText.trimmed()
+        let trimmedFocus = data.focusText.trimmed()
+        let trimmedRequests = data.requestsText.trimmed()
+        let trimmedGuide = data.guideNotesText.trimmed()
 
         guard !(trimmedReflection.isEmpty && trimmedFocus.isEmpty && trimmedRequests.isEmpty && trimmedGuide.isEmpty) else {
             return false

@@ -63,7 +63,7 @@ enum TodayWorkLoader {
         }
 
         // Build work lookup
-        let workByID = Dictionary(uniqueKeysWithValues: fetchResult.workItems.map { ($0.id, $0) })
+        let workByID = fetchResult.workItems.toDictionary(by: \.id)
 
         // Build schedule using TodayScheduleBuilder
         let schedule = TodayScheduleBuilder.buildSchedule(

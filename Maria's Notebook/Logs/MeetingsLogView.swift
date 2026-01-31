@@ -86,10 +86,9 @@ struct MeetingsLogView: View {
     }
 
     private var groupedByDay: [(day: Date, items: [StudentMeeting])] {
-        let dict = Dictionary(grouping: filteredMeetings) { meeting in
-            dayKey(meeting.date)
-        }
-        .mapValues { arr in arr.sorted { lhs, rhs in lhs.date > rhs.date }}
+        let dict = filteredMeetings
+            .grouped { dayKey($0.date) }
+            .mapValues { arr in arr.sorted { lhs, rhs in lhs.date > rhs.date }}
         let days = dict.keys.sorted(by: >)
         return days.map { ($0, dict[$0] ?? []) }
     }
@@ -108,8 +107,8 @@ struct MeetingsLogView: View {
     }
 
     private func displayName(for student: Student) -> String {
-        let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let last = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = student.firstName.trimmed()
+        let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
         return li.isEmpty ? first : "\(first) \(li)."
     }
@@ -243,7 +242,7 @@ struct MeetingsLogView: View {
                 }
 
                 // Focus area (if present)
-                if !meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !meeting.focus.trimmed().isEmpty {
                     Text(meeting.focus)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -252,17 +251,17 @@ struct MeetingsLogView: View {
 
                 // Show indicators for content
                 HStack(spacing: 8) {
-                    if !meeting.reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if !meeting.reflection.trimmed().isEmpty {
                         Label("Reflection", systemImage: "text.quote")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                    if !meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if !meeting.requests.trimmed().isEmpty {
                         Label("Requests", systemImage: "hand.raised")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                    if !meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if !meeting.guideNotes.trimmed().isEmpty {
                         Label("Notes", systemImage: "note.text")
                             .font(.caption2)
                             .foregroundStyle(.secondary)

@@ -238,7 +238,7 @@ final class StudentProgressTabViewModel: ObservableObject {
     // MARK: - Report Helpers
 
     func reportTitle(for report: WorkModel) -> String {
-        let title = report.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = report.title.trimmed()
         if !title.isEmpty { return title }
         if let lessonID = UUID(uuidString: report.lessonID),
            let lesson = allLessons.first(where: { $0.id == lessonID }) {

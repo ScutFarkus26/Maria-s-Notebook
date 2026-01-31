@@ -236,7 +236,7 @@ struct GroupTrackService {
         let trackTitle = "\(trimmedSubject) — \(trimmedGroup)"
         let allTracks = try modelContext.fetch(FetchDescriptor<Track>())
         
-        if let existingTrack = allTracks.first(where: { $0.title.trimmingCharacters(in: .whitespacesAndNewlines) == trackTitle }) {
+        if let existingTrack = allTracks.first(where: { $0.title.trimmed() == trackTitle }) {
             // Track exists - ensure TrackSteps are up to date
             try ensureTrackSteps(for: existingTrack, subject: trimmedSubject, group: trimmedGroup, modelContext: modelContext)
             return existingTrack
@@ -329,7 +329,7 @@ struct GroupTrackService {
         let trackTitle = "\(trimmedSubject) — \(trimmedGroup)"
         
         let allTracks = try modelContext.fetch(FetchDescriptor<Track>())
-        return allTracks.first(where: { $0.title.trimmingCharacters(in: .whitespacesAndNewlines) == trackTitle })
+        return allTracks.first(where: { $0.title.trimmed() == trackTitle })
     }
     
     /// Automatically enroll students in a track if the lesson belongs to a track.

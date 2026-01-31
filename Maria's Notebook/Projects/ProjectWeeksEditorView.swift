@@ -48,7 +48,7 @@ struct ProjectWeeksEditorView: View {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text("Week \(week.weekIndex)")
                                     .font(.body.weight(.semibold))
-                                if !week.readingRange.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                if !week.readingRange.trimmed().isEmpty {
                                     Text("— \(week.readingRange)")
                                         .foregroundStyle(.secondary)
                                 }
@@ -529,7 +529,7 @@ private struct InlineLessonPickerSheet: View {
     }
 
     private var filteredLessons: [Lesson] {
-        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        let q = search.trimmed()
         if q.isEmpty { return lessons }
         return lessons.filter { l in
             l.name.localizedCaseInsensitiveContains(q) ||

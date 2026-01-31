@@ -7,23 +7,6 @@ import AppKit
 import UIKit
 #endif
 
-extension View {
-    @ViewBuilder
-    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
-        if condition {
-            transform(self)
-        } else {
-            self
-        }
-    }
-
-    func disableAnimation(when condition: Bool) -> some View {
-        self.transaction { tx in
-            if condition { tx.animation = nil }
-        }
-    }
-}
-
 struct StudentsCardsGridView: View {
     let students: [Student]
     let isBirthdayMode: Bool
@@ -48,25 +31,11 @@ struct StudentsCardsGridView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     
     private var columns: [GridItem] {
-        // iPhone/Compact: Allow smaller cards (approx 160pt wide) to fit 2 columns
-        // iPad/Regular: Keep the original 260pt minimum for wider cards
-        let minWidth: CGFloat = sizeClass == .compact ? 155 : 260
-        let spacing: CGFloat = sizeClass == .compact ? 16 : 24
-        
-        return [
-            GridItem(.adaptive(minimum: minWidth, maximum: 320), spacing: spacing)
-        ]
+        CardGridLayout.columns(for: sizeClass)
     }
 
     private var uniqueStudents: [Student] {
-        var seenIDs: Set<UUID> = []
-        return students.filter { student in
-            if seenIDs.contains(student.id) {
-                return false
-            }
-            seenIDs.insert(student.id)
-            return true
-        }
+        students.removingDuplicates(by: \.id)
     }
 
     private var idList: [UUID] { uniqueStudents.map { $0.id } }
@@ -128,7 +97,7 @@ struct StudentsCardsGridView: View {
     private func addCardGestures<Content: View>(_ view: Content, for student: Student) -> some View {
         view
             .onTapGesture { onTapStudent(student) }
-            .if(isManualMode) { v in
+            .when(isManualMode) { v in
                 v.simultaneousGesture(longPressThenDrag(for: student))
             }
             .contextMenu {
@@ -188,7 +157,7 @@ struct StudentsCardsGridView: View {
                             .overlay(combinedOverlay(isDragging: isDragging, isHover: isHover))
                             .disableAnimation(when: draggingStudentID != nil)
                             .contentShape(Rectangle())
-                            .if(isManualMode) { view in
+                            .when(isManualMode) { view in
                                 view.background(itemFrameBackground(for: student.id))
                             }
                         , for: student

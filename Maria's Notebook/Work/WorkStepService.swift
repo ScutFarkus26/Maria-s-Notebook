@@ -27,9 +27,9 @@ struct WorkStepService {
         let step = WorkStep(
             work: work,
             orderIndex: nextIndex,
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            instructions: instructions.trimmingCharacters(in: .whitespacesAndNewlines),
-            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            title: title.trimmed(),
+            instructions: instructions.trimmed(),
+            notes: notes.trimmed()
         )
         context.insert(step)
 
@@ -43,9 +43,9 @@ struct WorkStepService {
 
     /// Update step content.
     func update(_ step: WorkStep, title: String, instructions: String, notes: String) throws {
-        step.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        step.instructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
-        step.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        step.title = title.trimmed()
+        step.instructions = instructions.trimmed()
+        step.notes = notes.trimmed()
     }
 
     /// Mark step as completed.

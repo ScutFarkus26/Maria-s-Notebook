@@ -9,7 +9,7 @@ enum StringNormalization {
     /// - Returns: The normalized string
     static func normalizeComponent(_ string: String) -> String {
         // Trim whitespace and newlines
-        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = string.trimmed()
         // Lowercase
         let lowercased = trimmed.lowercased()
         // Remove diacritics

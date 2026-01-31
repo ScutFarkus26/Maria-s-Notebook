@@ -42,7 +42,7 @@ struct WorkCompletionHistoryView: View {
                                 .foregroundStyle(.green)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("\(record.completedAt.formatted(date: .abbreviated, time: .omitted)) • \(record.completedAt.formatted(date: .omitted, time: .shortened))")
-                                if !record.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                if !record.note.trimmed().isEmpty {
                                     Text(record.note)
                                         .font(.callout)
                                         .foregroundStyle(.secondary)

@@ -189,11 +189,9 @@ final class PresentationsViewModel: ObservableObject {
         
         // Build openWorkByPresentationID dictionary for fast lookup
         // Group open WorkModels by presentationID (where presentationID != nil)
-        let openWorkByPresentationID: [String: [WorkModel]] = {
-            Dictionary(grouping: workModels.filter { $0.presentationID != nil }) { work in
-                work.presentationID ?? ""
-            }
-        }()
+        let openWorkByPresentationID: [String: [WorkModel]] = workModels
+            .filter { $0.presentationID != nil }
+            .grouped { $0.presentationID ?? "" }
         
         // Build a map of presentations by legacyStudentLessonID for efficient lookup
         var presentationsByLegacyID: [String: Presentation] = [:]

@@ -380,7 +380,7 @@ struct PlanningWeekViewContent: View {
         )
         descriptor.fetchLimit = 1 // We only need the very first one
         
-        if let nextUp = try? modelContext.fetch(descriptor).first,
+        if let nextUp = modelContext.safeFetchFirst(descriptor),
            let date = nextUp.scheduledFor {
             let start = calendar.startOfDay(for: date)
             if start >= today && !isNonSchoolDay(start) {

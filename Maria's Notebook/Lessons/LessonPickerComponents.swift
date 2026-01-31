@@ -55,13 +55,13 @@ struct LessonSearchField: View {
             .focused($textFocused)
             .onChange(of: searchText) { _, newValue in
                 // Keep the popover visible while typing
-                if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !newValue.trimmed().isEmpty {
                     if !isPresented { withAnimation(.easeInOut) { isPresented = true } }
                 }
             }
             .onSubmit {
                 // If the user typed an exact lesson name, select it
-                let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmed = searchText.trimmed()
                 if let match = filteredLessons.first(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {
                     selectedLessonID = match.id
                     searchText = match.name

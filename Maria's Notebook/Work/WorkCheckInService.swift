@@ -24,8 +24,8 @@ struct WorkCheckInService {
                        status: WorkCheckInStatus = .scheduled,
                        purpose: String = "",
                        note: String = "") throws -> WorkCheckIn {
-        let trimmedPurpose = purpose.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPurpose = purpose.trimmed()
+        let trimmedNote = note.trimmed()
         let ci = WorkCheckIn(workID: work.id,
                              date: date,
                              status: status,
@@ -57,7 +57,7 @@ struct WorkCheckInService {
 
     /// Update the note on a check-in and persist immediately.
     func updateNote(_ checkIn: WorkCheckIn, to note: String?) throws {
-        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let trimmed = note?.trimmed() ?? ""
         checkIn.note = trimmed
     }
 
@@ -65,8 +65,8 @@ struct WorkCheckInService {
     func update(_ checkIn: WorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws {
         checkIn.date = date
         checkIn.status = status
-        checkIn.purpose = purpose.trimmingCharacters(in: .whitespacesAndNewlines)
-        checkIn.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        checkIn.purpose = purpose.trimmed()
+        checkIn.note = note.trimmed()
     }
 
     // MARK: - Deletion

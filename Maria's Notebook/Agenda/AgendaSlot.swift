@@ -279,7 +279,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
             defer { semaphore.signal() }
             guard let ns = reading as? NSString else { return }
             let payload = ns as String
-            if let id = UUID(uuidString: payload.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            if let id = UUID(uuidString: payload.trimmed()) {
                 var ids = getCurrent().map { $0.id }
                 if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
                 let frames = itemFramesProvider()
@@ -392,7 +392,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                 }
 
                 // Fallback: treat as a plain StudentLesson ID and reorder within the slot
-                if let id = UUID(uuidString: payload.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                if let id = UUID(uuidString: payload.trimmed()) {
                     var ids = getCurrent().map { $0.id }
                     if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
                     let frames = itemFramesProvider()

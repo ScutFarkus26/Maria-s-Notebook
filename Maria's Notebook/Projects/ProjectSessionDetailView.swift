@@ -449,7 +449,7 @@ private struct ProjectLessonPickerSheet: View {
     }
 
     private var filteredLessons: [Lesson] {
-        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        let q = search.trimmed()
         if q.isEmpty { return lessons }
         return lessons.filter { l in
             l.name.localizedCaseInsensitiveContains(q) ||

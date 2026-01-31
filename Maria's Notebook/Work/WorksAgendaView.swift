@@ -151,7 +151,7 @@ struct WorksAgendaView: View {
                 .sheet(item: $selected, onDismiss: { selected = nil }) { token in
                     let id = token.workID
                     let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-                    if let w = try? modelContext.fetch(fetch).first {
+                    if let w = modelContext.safeFetchFirst(fetch) {
                         WorkDetailView(workID: w.id)
                             .id(token.id)
                     } else {

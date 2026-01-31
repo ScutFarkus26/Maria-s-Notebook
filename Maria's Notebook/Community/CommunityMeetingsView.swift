@@ -21,7 +21,7 @@ struct CommunityMeetingsView: View {
 
     private var allTags: [String] {
         let raw = topics.flatMap { $0.tags }
-        let trimmed = raw.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let trimmed = raw.map { $0.trimmed() }
         let filtered = trimmed.filter { !$0.isEmpty }
         return Array(Set(filtered)).sorted()
     }
@@ -45,7 +45,7 @@ struct CommunityMeetingsView: View {
     }
 
     private func matchesSearch(_ t: CommunityTopic) -> Bool {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let q = searchText.trimmed()
         if q.isEmpty { return true }
         let qLower = q.lowercased()
 

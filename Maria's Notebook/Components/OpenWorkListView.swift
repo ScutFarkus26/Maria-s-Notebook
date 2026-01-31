@@ -47,7 +47,7 @@ struct OpenWorkListView: View {
     }
 
     private func workTitle(_ work: WorkModel) -> String {
-        let title = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = work.title.trimmed()
         if !title.isEmpty { return title }
         if let lesson = linkedLesson(for: work) { return "\(work.workType.rawValue): \(lesson.name)" }
         return work.workType.rawValue
@@ -62,7 +62,7 @@ struct OpenWorkListView: View {
         }()
         let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
         if let lesson = linkedLesson(for: work) {
-            let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+            let subject = lesson.subject.trimmed()
             return subject.isEmpty ? dateString : "\(subject) • \(dateString)"
         }
         return dateString

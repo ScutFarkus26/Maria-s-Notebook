@@ -71,9 +71,9 @@ extension UnifiedNoteEditor {
 
     var canSave: Bool {
         if !shouldShowStudentSelection {
-            return !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return !bodyText.trimmed().isEmpty
         }
-        return !selectedStudentIDs.isEmpty && !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !selectedStudentIDs.isEmpty && !bodyText.trimmed().isEmpty
     }
 
     var cardBackgroundColor: Color {
@@ -123,8 +123,8 @@ extension UnifiedNoteEditor {
     // MARK: - Name Display
 
     func displayName(for student: Student) -> String {
-        let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let last = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = student.firstName.trimmed()
+        let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
         return li.isEmpty ? first : "\(first) \(li)."
     }
@@ -230,8 +230,8 @@ extension UnifiedNoteEditor {
 
         var initialsMap: [String: [Student]] = [:]
         for s in students {
-            let first = s.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-            let last = s.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let first = s.firstName.trimmed()
+            let last = s.lastName.trimmed()
             guard let fi = first.first, let li = last.first else { continue }
             let key = String(fi).lowercased() + String(li).lowercased()
             initialsMap[key, default: []].append(s)
@@ -255,8 +255,8 @@ extension UnifiedNoteEditor {
 
             guard let candidates = initialsMap[key], candidates.count == 1, let student = candidates.first else { return }
 
-            let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-            let lastInitial = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines).first.map { String($0).uppercased() } ?? ""
+            let first = student.firstName.trimmed()
+            let lastInitial = student.lastName.trimmed().first.map { String($0).uppercased() } ?? ""
             let replacement = lastInitial.isEmpty ? first : "\(first) \(lastInitial)"
 
             let loc = match.range.location + delta

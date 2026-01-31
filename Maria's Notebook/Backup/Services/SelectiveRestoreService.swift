@@ -402,7 +402,7 @@ public final class SelectiveRestoreService {
             skipped = payload.lessons.count - newLessons.count
             // Refresh lesson cache for subsequent imports
             let allLessons = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
-            lessonsByID = Dictionary(uniqueKeysWithValues: allLessons.map { ($0.id, $0) })
+            lessonsByID = allLessons.toDictionary(by: \.id)
 
         case .studentLessons:
             BackupEntityImporter.importStudentLessons(
@@ -485,7 +485,7 @@ public final class SelectiveRestoreService {
             )
             // Refresh topic cache for subsequent imports
             let allTopics = (try? modelContext.fetch(FetchDescriptor<CommunityTopic>())) ?? []
-            topicsByID = Dictionary(uniqueKeysWithValues: allTopics.map { ($0.id, $0) })
+            topicsByID = allTopics.toDictionary(by: \.id)
 
             BackupEntityImporter.importProposedSolutions(
                 payload.proposedSolutions,
@@ -547,7 +547,7 @@ public final class SelectiveRestoreService {
             )
             // Refresh template weeks cache for subsequent imports
             let allWeeks = (try? modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
-            templateWeeksByID = Dictionary(uniqueKeysWithValues: allWeeks.map { ($0.id, $0) })
+            templateWeeksByID = allWeeks.toDictionary(by: \.id)
 
             BackupEntityImporter.importProjectAssignmentTemplates(
                 payload.projectAssignmentTemplates,
@@ -611,16 +611,16 @@ public final class SelectiveRestoreService {
     private func buildExistingIDCaches(in context: ModelContext) {
         // Build lookup dictionaries for entities needed for relationship linking
         let students = (try? context.fetch(FetchDescriptor<Student>())) ?? []
-        studentsByID = Dictionary(uniqueKeysWithValues: students.map { ($0.id, $0) })
+        studentsByID = students.toDictionary(by: \.id)
 
         let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
-        lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
+        lessonsByID = lessons.toDictionary(by: \.id)
 
         let topics = (try? context.fetch(FetchDescriptor<CommunityTopic>())) ?? []
-        topicsByID = Dictionary(uniqueKeysWithValues: topics.map { ($0.id, $0) })
+        topicsByID = topics.toDictionary(by: \.id)
 
         let weeks = (try? context.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
-        templateWeeksByID = Dictionary(uniqueKeysWithValues: weeks.map { ($0.id, $0) })
+        templateWeeksByID = weeks.toDictionary(by: \.id)
 
         // Build ID sets for simple existence checks
         existingStudentLessonIDs = Set((try? context.fetch(FetchDescriptor<StudentLesson>()))?.map { $0.id } ?? [])

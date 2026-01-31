@@ -78,7 +78,7 @@ struct StudentsViewModel {
         )
         
         // 3. Search string filtering (SwiftData predicates don't support string contains well)
-        if !searchString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !searchString.trimmed().isEmpty {
             let query = searchString.normalizedForComparison()
             fetched = fetched.filter { student in
                 let firstName = student.firstName.lowercased()

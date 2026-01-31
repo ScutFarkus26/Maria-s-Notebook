@@ -182,7 +182,7 @@ struct AttendanceStore {
     /// Update a record's note and return whether it changed.
     @discardableResult
     func updateNote(_ record: AttendanceRecord, to newNote: String?) -> Bool {
-        let trimmed = newNote?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = newNote?.trimmed()
         let newVal = (trimmed?.isEmpty == true) ? nil : trimmed
         let old = record.note
         record.note = newVal

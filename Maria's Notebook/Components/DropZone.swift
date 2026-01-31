@@ -321,7 +321,7 @@ struct BoardDropDelegate: DropDelegate {
     
     @MainActor
     private func handlePlainIDPayload(payload: String, location: CGPoint) {
-        guard let id = UUID(uuidString: payload.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+        guard let id = UUID(uuidString: payload.trimmed()) else {
             return
         }
         

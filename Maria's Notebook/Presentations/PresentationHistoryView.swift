@@ -52,8 +52,8 @@ struct PresentationHistoryView: View {
     private var nameDisplayStyle: NameDisplayStyle { NameDisplayStyle(rawValue: nameDisplayStyleRaw) ?? .firstLastInitial }
 
     private func displayName(for s: Student) -> String {
-        let first = s.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let last = s.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = s.firstName.trimmed()
+        let last = s.lastName.trimmed()
         switch nameDisplayStyle {
         case .initials:
             let fi = first.first.map { String($0).uppercased() } ?? ""
@@ -76,7 +76,7 @@ struct PresentationHistoryView: View {
 
     // Available subjects from lessons (sorted, non-empty only)
     private var availableSubjects: [String] {
-        let subjects = Set(lessons.map { $0.subject.trimmingCharacters(in: .whitespacesAndNewlines) })
+        let subjects = Set(lessons.map { $0.subject.trimmed() })
             .filter { !$0.isEmpty }
         return subjects.sorted()
     }
@@ -94,7 +94,7 @@ struct PresentationHistoryView: View {
             if !selectedSubjects.isEmpty {
                 if let lessonID = CloudKitUUID.uuid(from: p.lessonID),
                    let lesson = lessonsByID[lessonID] {
-                    let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let subject = lesson.subject.trimmed()
                     if !selectedSubjects.contains(subject) { return false }
                 } else {
                     // No lesson found, exclude if filtering by subject
@@ -119,10 +119,9 @@ struct PresentationHistoryView: View {
     }
 
     private var groupedByDay: [(day: Date, items: [Presentation])] {
-        let dict = Dictionary(grouping: filteredPresentations) { p in
-            dayKey(p.presentedAt)
-        }
-        .mapValues { arr in arr.sorted { lhs, rhs in lhs.presentedAt > rhs.presentedAt } }
+        let dict = filteredPresentations
+            .grouped { dayKey($0.presentedAt) }
+            .mapValues { arr in arr.sorted { lhs, rhs in lhs.presentedAt > rhs.presentedAt } }
         let days = dict.keys.sorted(by: >)
         return days.map { ($0, dict[$0] ?? []) }
     }
@@ -198,8 +197,8 @@ struct PresentationHistoryView: View {
             // Build student name cache
             var sNames: [UUID: String] = [:]
             for (id, firstName, lastName) in studentData {
-                let first = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let last = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let first = firstName.trimmed()
+                let last = lastName.trimmed()
                 let li = last.first.map { String($0).uppercased() } ?? ""
                 sNames[id] = li.isEmpty ? first : "\(first) \(li)."
             }

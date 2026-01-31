@@ -30,8 +30,8 @@ public struct BulkLessonsEntryView: View {
     @State private var batchPersonalKind: PersonalLessonKind = .personal
 
     public init(defaultSubject: String? = nil, defaultGroup: String? = nil, onDone: (() -> Void)? = nil) {
-        self.defaultSubject = defaultSubject?.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.defaultGroup = defaultGroup?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.defaultSubject = defaultSubject?.trimmed()
+        self.defaultGroup = defaultGroup?.trimmed()
         self.onDone = onDone
         _rows = State(initialValue: Self.initialRows(count: 10, defaultSubject: self.defaultSubject, defaultGroup: self.defaultGroup))
     }
@@ -51,7 +51,7 @@ public struct BulkLessonsEntryView: View {
     private enum FillColumn { case subject, group }
 
     private func applyFill(_ column: FillColumn, value: String, toSelected: Bool) {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = value.trimmed()
         guard !trimmed.isEmpty else { return }
         for i in rows.indices {
             let id = rows[i].id
@@ -81,7 +81,7 @@ public struct BulkLessonsEntryView: View {
     }
 
     private var validCount: Int {
-        rows.filter { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count
+        rows.filter { !$0.name.trimmed().isEmpty }.count
     }
 
     public var body: some View {
@@ -284,11 +284,11 @@ public struct BulkLessonsEntryView: View {
     private func commit() {
         let items = rows.map { r -> EntryRow in
             var copy = r
-            copy.name = r.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            copy.subject = r.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-            copy.group = r.group.trimmingCharacters(in: .whitespacesAndNewlines)
-            copy.subheading = r.subheading.trimmingCharacters(in: .whitespacesAndNewlines)
-            copy.writeUp = r.writeUp.trimmingCharacters(in: .whitespacesAndNewlines)
+            copy.name = r.name.trimmed()
+            copy.subject = r.subject.trimmed()
+            copy.group = r.group.trimmed()
+            copy.subheading = r.subheading.trimmed()
+            copy.writeUp = r.writeUp.trimmed()
             return copy
         }.filter { !$0.name.isEmpty }
 
@@ -330,8 +330,8 @@ public struct BulkLessonsEntryView: View {
             // Automatically create/update Track objects for new subject/group combinations
             var processedGroups: Set<String> = []
             for lesson in insertedLessons {
-                let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-                let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                let subject = lesson.subject.trimmed()
+                let group = lesson.group.trimmed()
                 guard !subject.isEmpty && !group.isEmpty else { continue }
 
                 let key = "\(subject)|\(group)"

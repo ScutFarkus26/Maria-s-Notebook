@@ -10,7 +10,7 @@ extension UnifiedNoteEditor {
 
     /// Saves the note with proper context-specific relationships
     func saveNote() {
-        let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedBody = bodyText.trimmed()
         guard !trimmedBody.isEmpty else { return }
 
         let scope = determineScope()
@@ -97,7 +97,7 @@ extension UnifiedNoteEditor {
                 let descriptor = FetchDescriptor<StudentLesson>(
                     predicate: #Predicate { $0.id == legacyID }
                 )
-                if let studentLesson = try? modelContext.fetch(descriptor).first {
+                if let studentLesson = modelContext.safeFetchFirst(descriptor) {
                     note.studentLesson = studentLesson
                 }
             }

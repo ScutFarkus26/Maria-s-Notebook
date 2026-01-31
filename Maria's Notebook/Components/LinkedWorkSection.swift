@@ -36,7 +36,7 @@ struct LinkedWorkSection: View {
     }
 
     private func workTitle(for work: WorkModel) -> String {
-        let rawTitle = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rawTitle = work.title.trimmed()
         if rawTitle.isEmpty {
             return work.workType == .practice ? "Practice" : "Follow Up"
         }

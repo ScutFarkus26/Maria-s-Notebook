@@ -27,7 +27,7 @@ public enum WorkAgendaDragPayload: Equatable {
     }
 
     public static func parse(_ s: String) -> WorkAgendaDragPayload? {
-        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = s.trimmed()
         if trimmed.hasPrefix("WORK:"), let id = UUID(uuidString: String(trimmed.dropFirst(5))) {
             return .work(id)
         } else if trimmed.hasPrefix("CHECKIN:"), let id = UUID(uuidString: String(trimmed.dropFirst(8))) {

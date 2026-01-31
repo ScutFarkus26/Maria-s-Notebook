@@ -24,7 +24,7 @@ struct WorkConsolidationService {
         
         // Group works by duplicate criteria: title, studentLessonID, and workType
         let groups = allWorks.grouped { work -> String in
-            let title = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = work.title.trimmed()
             let studentLessonID = work.studentLessonID?.uuidString ?? "nil"
             let workType = work.workType.rawValue
             return "\(title)|\(studentLessonID)|\(workType)"
@@ -114,9 +114,9 @@ struct WorkConsolidationService {
             }
             
             // Merge notes: prefer non-empty notes if canonical is empty
-            if canonical.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if canonical.notes.trimmed().isEmpty {
                 for duplicate in duplicates {
-                    let dupNotes = duplicate.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let dupNotes = duplicate.notes.trimmed()
                     if !dupNotes.isEmpty {
                         canonical.notes = dupNotes
                         break
@@ -126,7 +126,7 @@ struct WorkConsolidationService {
                 // If canonical has notes, append non-empty notes from duplicates
                 var combinedNotes = canonical.notes
                 for duplicate in duplicates {
-                    let dupNotes = duplicate.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let dupNotes = duplicate.notes.trimmed()
                     if !dupNotes.isEmpty && !combinedNotes.contains(dupNotes) {
                         if !combinedNotes.isEmpty {
                             combinedNotes += "\n\n"

@@ -11,7 +11,7 @@ struct JSONStringList {
         return ""
     }
     nonisolated static func decode(_ s: String) -> [String] {
-        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = s.trimmed()
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return [] }
         if let arr = try? JSONDecoder().decode([String].self, from: data) { return arr }
         return []
@@ -43,7 +43,7 @@ struct TemplateOfferedWorksJSON {
         return ""
     }
     nonisolated static func decode(_ s: String) -> [TemplateOfferedWork] {
-        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = s.trimmed()
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return [] }
         if let arr = try? JSONDecoder().decode([TemplateOfferedWork].self, from: data) { return arr }
         return []

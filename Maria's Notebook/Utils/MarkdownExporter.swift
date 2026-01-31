@@ -10,7 +10,7 @@ struct MarkdownExporter {
         # \(t.title)
         
         """
-        let issue = t.issueDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let issue = t.issueDescription.trimmed()
         if !issue.isEmpty {
             m += """
             **Issue**
@@ -22,12 +22,12 @@ struct MarkdownExporter {
         if !(t.proposedSolutions ?? []).isEmpty {
             m += "## Proposed Solutions\n\n"
             for s in t.proposedSolutions ?? [] {
-                let title = s.title.trimmingCharacters(in: .whitespacesAndNewlines)
-                let details = s.details.trimmingCharacters(in: .whitespacesAndNewlines)
+                let title = s.title.trimmed()
+                let details = s.details.trimmed()
                 if !title.isEmpty {
                     m += "- **\(title)**"
                     if !details.isEmpty { m += ": \(details)" }
-                    if !s.proposedBy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { m += " _(by \(s.proposedBy))_" }
+                    if !s.proposedBy.trimmed().isEmpty { m += " _(by \(s.proposedBy))_" }
                     if s.isAdopted { m += " ✅" }
                     m += "\n"
                 } else if !details.isEmpty {
@@ -36,7 +36,7 @@ struct MarkdownExporter {
             }
             m += "\n"
         }
-        let resolution = t.resolution.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolution = t.resolution.trimmed()
         if !resolution.isEmpty {
             m += """
             ## Resolution
@@ -49,8 +49,8 @@ struct MarkdownExporter {
             m += "## Meeting Notes\n\n"
             let notes = (t.unifiedNotes ?? []).sorted { $0.createdAt < $1.createdAt }
             for n in notes {
-                let speaker = (n.reporterName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                let content = n.body.trimmingCharacters(in: .whitespacesAndNewlines)
+                let speaker = (n.reporterName ?? "").trimmed()
+                let content = n.body.trimmed()
                 if !content.isEmpty {
                     if speaker.isEmpty {
                         m += "- \(content)\n"

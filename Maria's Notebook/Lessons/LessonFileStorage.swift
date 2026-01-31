@@ -72,7 +72,7 @@ public enum LessonFileStorage {
         }
 
         // Sanitize lesson name or fallback
-        let baseNameSanitized = sanitizeFilenameComponent(lessonName?.trimmingCharacters(in: .whitespacesAndNewlines), fallback: "Lesson")
+        let baseNameSanitized = sanitizeFilenameComponent(lessonName?.trimmed(), fallback: "Lesson")
 
         // UUID suffix: last 8 characters of UUID string without hyphens
         let uuidString = lessonID.uuidString.replacingOccurrences(of: "-", with: "")

@@ -16,7 +16,7 @@ enum TestStudentsFilter {
         let raw = namesRaw ?? (defaults.string(forKey: namesKey) ?? "Danny De Berry,Lil Dan D")
         let lower = raw.lowercased()
         let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
-        let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        let tokens = parts.map { $0.trimmed() }.filter { !$0.isEmpty }
         return Set(tokens)
     }
 

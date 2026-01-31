@@ -22,7 +22,7 @@ final class InboxSheetViewModel: ObservableObject {
 
     func canConsolidate(orderedUnscheduledLessons: [StudentLesson]) -> Bool {
         let selectedSLs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
-        let groups = Dictionary(grouping: selectedSLs, by: { $0.lessonID })
+        let groups = selectedSLs.grouped(by: { $0.lessonID })
         return groups.values.contains { $0.count >= 2 }
     }
 
@@ -53,7 +53,7 @@ final class InboxSheetViewModel: ObservableObject {
         let selectedSLs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
         guard !selectedSLs.isEmpty else { return }
 
-        let groups = Dictionary(grouping: selectedSLs, by: { $0.resolvedLessonID })
+        let groups = selectedSLs.grouped(by: { $0.resolvedLessonID })
         var consolidatedGroups = 0
         var deletedIDs: [UUID] = []
         let currentOrder = orderedUnscheduledLessons.map(\.id)
@@ -149,7 +149,7 @@ final class InboxSheetViewModel: ObservableObject {
                             modelContext: modelContextRef,
                             saveCoordinator: saveCoordinator
                         )
-                    } else if let droppedId = UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                    } else if let droppedId = UUID(uuidString: raw.trimmed()) {
                         self?.handleLessonDrop(
                             droppedId: droppedId,
                             location: location,
@@ -214,7 +214,7 @@ final class InboxSheetViewModel: ObservableObject {
 
         // Remove the student from the source
         let sourceDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
-        if let src = try? modelContext.fetch(sourceDescriptor).first {
+        if let src = modelContext.safeFetchFirst(sourceDescriptor) {
             let studentIDString = studentID.uuidString
             src.studentIDs.removeAll { $0 == studentIDString }
             src.students.removeAll { $0.id == studentID }
@@ -251,7 +251,7 @@ final class InboxSheetViewModel: ObservableObject {
         saveCoordinator: SaveCoordinator
     ) {
         let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == droppedId })
-        guard let sl = (try? modelContext.fetch(descriptor).first) ?? studentLessons.first(where: { $0.id == droppedId }) else { return }
+        guard let sl = modelContext.safeFetchFirst(descriptor) ?? studentLessons.first(where: { $0.id == droppedId }) else { return }
 
         let currentOrder = orderedUnscheduledLessons.map(\.id)
         var framesByID: [UUID: CGRect] = [:]
@@ -264,8 +264,8 @@ final class InboxSheetViewModel: ObservableObject {
         // If scheduled, clear scheduledFor
         if sl.scheduledFor != nil {
             let targetId = droppedId
-            let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetId })
-            if let lesson = try? modelContext.fetch(descriptor).first {
+            let slDescriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetId })
+            if let lesson = modelContext.safeFetchFirst(slDescriptor) {
                 lesson.scheduledFor = nil
                 saveCoordinator.save(modelContext, reason: "Clearing scheduled date")
             }

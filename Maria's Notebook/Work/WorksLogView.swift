@@ -87,7 +87,7 @@ struct WorksLogView: View {
     }
 
     private func workTitle(_ work: WorkModel) -> String {
-        let title = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = work.title.trimmed()
         if !title.isEmpty { return title }
         let kindLabel = work.kind?.shortLabel ?? work.workType.rawValue
         if let lesson = linkedLesson(for: work) { return "\(kindLabel): \(lesson.name)" }
@@ -103,7 +103,7 @@ struct WorksLogView: View {
         }()
         let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
         if let lesson = linkedLesson(for: work) {
-            let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+            let subject = lesson.subject.trimmed()
             return subject.isEmpty ? dateString : "\(subject) • \(dateString)"
         }
         return dateString
@@ -151,8 +151,8 @@ struct WorksLogView: View {
     }
 
     private func displayName(for student: Student) -> String {
-        let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let last = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = student.firstName.trimmed()
+        let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
         return li.isEmpty ? first : "\(first) \(li)."
     }

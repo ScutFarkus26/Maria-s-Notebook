@@ -35,7 +35,7 @@ struct MeetingsHeaderView: View {
                     .frame(maxWidth: 250)
 
                 Button("New Topic") {
-                    let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trimmed = searchText.trimmed()
                     if trimmed.isEmpty {
                         showingAdd = true
                     } else {

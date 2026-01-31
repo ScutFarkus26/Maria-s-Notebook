@@ -275,7 +275,7 @@ struct StudentFilesTab: View {
                     Button("Save") {
                         saveRename()
                     }
-                    .disabled(renameTitleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(renameTitleText.trimmed().isEmpty)
                 }
             }
         }
@@ -283,7 +283,7 @@ struct StudentFilesTab: View {
     
     private func saveRename() {
         guard let document = documentToRename else { return }
-        let trimmedTitle = renameTitleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = renameTitleText.trimmed()
         guard !trimmedTitle.isEmpty else { return }
 
         repository.updateDocument(id: document.id, title: trimmedTitle)

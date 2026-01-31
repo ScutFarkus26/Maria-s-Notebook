@@ -187,7 +187,7 @@ extension UnifiedNoteEditor {
                     .foregroundStyle(.secondary)
                 Spacer()
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-                if !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !bodyText.trimmed().isEmpty {
                     Button {
                         Task { await suggestCategoryAndScope() }
                     } label: {
@@ -445,12 +445,12 @@ extension UnifiedNoteEditor {
 
     private func insertTemplate(_ template: NoteTemplate) {
         // If body is empty, replace entirely; otherwise append
-        if bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if bodyText.trimmed().isEmpty {
             bodyText = template.body
             category = template.category
         } else {
             // Append template text with a space separator
-            bodyText = bodyText.trimmingCharacters(in: .whitespacesAndNewlines) + " " + template.body
+            bodyText = bodyText.trimmed() + " " + template.body
         }
     }
 }

@@ -25,10 +25,10 @@ struct UnplannedStudentsStrip: View {
     }
 
     private func chipLabel(for student: Student) -> String {
-        let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = student.firstName.trimmed()
         let key = first.lowercased()
         if duplicateFirstNames.contains(key) {
-            if let initial = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines).first {
+            if let initial = student.lastName.trimmed().first {
                 return first + " " + String(initial).uppercased() + "."
             }
         }

@@ -91,10 +91,10 @@ struct StudentDetailView: View {
     private func handleCancelEdit() { isEditing = false }
 
     private func handleSaveEdit() {
-        let fn = draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let ln = draftLastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fn = draftFirstName.trimmed()
+        let ln = draftLastName.trimmed()
         guard !fn.isEmpty, !ln.isEmpty else { return }
-        let nick = draftNickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nick = draftNickname.trimmed()
         repository.updateStudent(
             id: student.id,
             firstName: fn,
@@ -197,7 +197,7 @@ struct StudentDetailView: View {
             if let workID = selectedWorkID {
                 // Try to find WorkModel by id first (if already migrated)
                 let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
-                if let workModel = try? modelContext.fetch(workModelFetch).first {
+                if let workModel = modelContext.safeFetchFirst(workModelFetch) {
                     WorkDetailView(workID: workModel.id) {
                         selectedWorkID = nil
                     }
@@ -205,7 +205,7 @@ struct StudentDetailView: View {
                 } else {
                     // Fallback: try to find WorkModel by legacyContractID (if not yet migrated)
                     let legacyFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == workID })
-                    if let workModel = try? modelContext.fetch(legacyFetch).first {
+                    if let workModel = modelContext.safeFetchFirst(legacyFetch) {
                         WorkDetailView(workID: workModel.id) {
                             selectedWorkID = nil
                         }

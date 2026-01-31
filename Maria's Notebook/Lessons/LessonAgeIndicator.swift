@@ -34,7 +34,7 @@ struct LessonAgeDefaults {
 struct ColorUtils {
     /// Parse a hex string (#RRGGBB or #RRGGBBAA) into a SwiftUI Color.
     static func color(from hex: String) -> Color {
-        let cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned = hex.trimmed()
         guard cleaned.hasPrefix("#") else { return fallback }
         let hexString = String(cleaned.dropFirst())
         let scanner = Scanner(string: hexString)

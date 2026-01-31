@@ -50,7 +50,7 @@ enum StudentLessonAssignmentService {
             }
 
             // Get user-entered assignment name
-            let trimmed = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = entry.text.trimmed()
 
             let work: WorkModel
             if let existing = existingWork {

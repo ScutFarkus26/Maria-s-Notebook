@@ -47,8 +47,8 @@ struct StudentDetailBottomBar: View {
         }
         .keyboardShortcut(.defaultAction)
         .buttonStyle(.borderedProminent)
-        .disabled(draftFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || 
-                  draftLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        .disabled(draftFirstName.trimmed().isEmpty || 
+                  draftLastName.trimmed().isEmpty)
     }
     
     @ViewBuilder

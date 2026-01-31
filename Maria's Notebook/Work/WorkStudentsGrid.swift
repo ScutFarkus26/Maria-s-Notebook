@@ -95,7 +95,7 @@ private struct StudentWorkCard: View {
 
     // Lookup via lessonsByID map
     private func title(for work: WorkModel) -> String {
-        if !work.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !work.title.trimmed().isEmpty {
             return work.title
         }
         if let lid = UUID(uuidString: work.lessonID),

@@ -85,9 +85,9 @@ struct PresentationsView: View {
     
     // Dictionary for fast lookup: Group open WorkModels by presentationID
     private var openWorkByPresentationID: [String: [WorkModel]] {
-        Dictionary(grouping: openWorkModels.filter { $0.presentationID != nil }) { work in
-            work.presentationID ?? ""
-        }
+        openWorkModels
+            .filter { $0.presentationID != nil }
+            .grouped { $0.presentationID ?? "" }
     }
     
     // NOTE: WorkModel fetching is now handled by ViewModel

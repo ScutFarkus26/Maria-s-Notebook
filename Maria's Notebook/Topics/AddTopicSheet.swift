@@ -24,11 +24,11 @@ struct AddTopicSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmedTitle = title.trimmed()
                         onSave(trimmedTitle, issue)
                         dismiss()
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(title.trimmed().isEmpty)
                 }
             }
         }

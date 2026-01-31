@@ -133,10 +133,10 @@ struct LessonDetailCard: View {
 
                     Button {
                         let updated = lesson
-                        updated.name = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        updated.subject = draftSubject.trimmingCharacters(in: .whitespacesAndNewlines)
-                        updated.group = draftGroup.trimmingCharacters(in: .whitespacesAndNewlines)
-                        updated.subheading = draftSubheading.trimmingCharacters(in: .whitespacesAndNewlines)
+                        updated.name = draftName.trimmed()
+                        updated.subject = draftSubject.trimmed()
+                        updated.group = draftGroup.trimmed()
+                        updated.subheading = draftSubheading.trimmed()
                         updated.writeUp = draftWriteUp
                         updated.source = draftSource
                         if draftSource == .personal {
@@ -152,7 +152,7 @@ struct LessonDetailCard: View {
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(draftName.trimmed().isEmpty)
                 } else {
                     Button {
                         onGiveLesson?(lesson)
@@ -275,7 +275,7 @@ struct LessonDetailCard: View {
                         .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
-                if lesson.writeUp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if lesson.writeUp.trimmed().isEmpty {
                     Text("No notes yet.")
                         .foregroundStyle(.secondary)
                 } else {

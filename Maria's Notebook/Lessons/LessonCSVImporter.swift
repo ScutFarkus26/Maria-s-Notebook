@@ -91,19 +91,19 @@ enum LessonCSVImporter {
 
         for (i, record) in records.dropFirst().enumerated() {
             // Tolerate blank lines
-            if record.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { continue }
+            if record.allSatisfy({ $0.trimmed().isEmpty }) { continue }
 
             func value(_ key: String) -> String {
                 if let idx = headerMap[key], idx < record.count { return record[idx] } else { return "" }
             }
 
-            let name = value("name").trimmingCharacters(in: .whitespacesAndNewlines)
-            let subject = value("subject").trimmingCharacters(in: .whitespacesAndNewlines)
-            let group = value("group").trimmingCharacters(in: .whitespacesAndNewlines)
-            let subheading = value("subheading").trimmingCharacters(in: .whitespacesAndNewlines)
-            let writeUp = value("writeup").trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = value("name").trimmed()
+            let subject = value("subject").trimmed()
+            let group = value("group").trimmed()
+            let subheading = value("subheading").trimmed()
+            let writeUp = value("writeup").trimmed()
 
-            let groupOrderStr = value("grouporder").trimmingCharacters(in: .whitespacesAndNewlines)
+            let groupOrderStr = value("grouporder").trimmed()
             var orderInGroup: Int? = nil
             if !groupOrderStr.isEmpty {
                 if let parsedInt = Int(groupOrderStr), parsedInt >= 0 {
@@ -165,19 +165,19 @@ enum LessonCSVImporter {
 
         for (i, record) in records.dropFirst().enumerated() {
             // Tolerate blank lines
-            if record.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { continue }
+            if record.allSatisfy({ $0.trimmed().isEmpty }) { continue }
 
             func value(_ key: String) -> String {
                 if let idx = headerMap[key], idx < record.count { return record[idx] } else { return "" }
             }
 
-            let name = value("name").trimmingCharacters(in: .whitespacesAndNewlines)
-            let subject = value("subject").trimmingCharacters(in: .whitespacesAndNewlines)
-            let group = value("group").trimmingCharacters(in: .whitespacesAndNewlines)
-            let subheading = value("subheading").trimmingCharacters(in: .whitespacesAndNewlines)
-            let writeUp = value("writeup").trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = value("name").trimmed()
+            let subject = value("subject").trimmed()
+            let group = value("group").trimmed()
+            let subheading = value("subheading").trimmed()
+            let writeUp = value("writeup").trimmed()
 
-            let groupOrderStr = value("grouporder").trimmingCharacters(in: .whitespacesAndNewlines)
+            let groupOrderStr = value("grouporder").trimmed()
             var orderInGroup: Int? = nil
             if !groupOrderStr.isEmpty {
                 if let parsedInt = Int(groupOrderStr), parsedInt >= 0 {

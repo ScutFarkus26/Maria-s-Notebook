@@ -15,7 +15,7 @@ struct ConflictResolutionView: View {
     @State private var filterEntityType: String? = nil
 
     private var groupedConflicts: [String: [ConflictResolutionService.Conflict]] {
-        Dictionary(grouping: conflicts, by: { $0.entityType })
+        conflicts.grouped(by: { $0.entityType })
     }
 
     private var entityTypes: [String] {
@@ -359,7 +359,7 @@ struct ConflictSummaryView: View {
 
             if !analysis.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    let grouped = Dictionary(grouping: analysis.conflicts, by: { $0.entityType })
+                    let grouped = analysis.conflicts.grouped(by: { $0.entityType })
                     ForEach(grouped.keys.sorted(), id: \.self) { entityType in
                         HStack {
                             Text(entityType)

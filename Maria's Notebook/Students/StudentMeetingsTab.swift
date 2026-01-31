@@ -407,7 +407,7 @@ struct StudentMeetingsTab: View {
                                         historyDetailLine(title: "Reflection", text: item.reflection)
                                         historyDetailLine(title: "Focus", text: item.focus)
                                         historyDetailLine(title: "Requests", text: item.requests)
-                                        if !item.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        if !item.guideNotes.trimmed().isEmpty {
                                             historyDetailLine(title: "Guide notes", text: item.guideNotes)
                                         }
                                     }
@@ -596,7 +596,7 @@ struct StudentMeetingsTab: View {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(Color.primary.opacity(0.08))
                     )
-                if text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if text.wrappedValue.trimmed().isEmpty {
                     Text(placeholder)
                         .font(.body)
                         .foregroundStyle(.secondary)

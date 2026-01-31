@@ -97,8 +97,8 @@ enum BlockingAlgorithmEngine {
     ///   - lessons: All lessons
     /// - Returns: The preceding lesson, or nil if none exists
     static func findPrecedingLesson(currentLesson: Lesson, lessons: [Lesson]) -> Lesson? {
-        let currentSubject = currentLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentGroup = currentLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentSubject = currentLesson.subject.trimmed()
+        let currentGroup = currentLesson.group.trimmed()
 
         guard !currentSubject.isEmpty, !currentGroup.isEmpty else {
             return nil
@@ -106,8 +106,8 @@ enum BlockingAlgorithmEngine {
 
         // Find all lessons in the same subject/group
         let candidates = lessons.filter { lesson in
-            lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            lesson.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
+            lesson.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
+            lesson.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
         }
         .sorted { $0.orderInGroup < $1.orderInGroup }
 

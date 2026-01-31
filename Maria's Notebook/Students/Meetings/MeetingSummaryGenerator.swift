@@ -14,19 +14,19 @@ enum MeetingSummaryGenerator {
     /// Generates a fallback summary when AI is unavailable.
     static func generateFallbackSummary(for meeting: StudentMeeting) -> String {
         // For single-line display, prefer the most important field first
-        let focusTrim = meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines)
+        let focusTrim = meeting.focus.trimmed()
         if !focusTrim.isEmpty {
             return focusTrim.count > 60 ? String(focusTrim.prefix(57)) + "..." : focusTrim
         }
-        let reflTrim = meeting.reflection.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reflTrim = meeting.reflection.trimmed()
         if !reflTrim.isEmpty {
             return reflTrim.count > 60 ? String(reflTrim.prefix(57)) + "..." : reflTrim
         }
-        let reqTrim = meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reqTrim = meeting.requests.trimmed()
         if !reqTrim.isEmpty {
             return reqTrim.count > 60 ? String(reqTrim.prefix(57)) + "..." : reqTrim
         }
-        let guideTrim = meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let guideTrim = meeting.guideNotes.trimmed()
         if !guideTrim.isEmpty {
             return guideTrim.count > 60 ? String(guideTrim.prefix(57)) + "..." : guideTrim
         }

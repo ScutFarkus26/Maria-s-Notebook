@@ -11,7 +11,7 @@ struct StudentDetailWindowHost: View {
 
     var body: some View {
         let fetchDescriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-        if let student = try? modelContext.fetch(fetchDescriptor).first {
+        if let student = modelContext.safeFetchFirst(fetchDescriptor) {
             StudentDetailView(student: student)
                 .frame(minWidth: 500, minHeight: 400)
         } else {

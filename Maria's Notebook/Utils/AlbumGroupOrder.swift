@@ -16,11 +16,11 @@ final class AlbumGroupOrder: Identifiable {
     }
 
     var normalizedGroupName: String {
-        groupName.trimmingCharacters(in: .whitespacesAndNewlines)
+        groupName.trimmed()
     }
 
     static func displayName(for groupName: String) -> String {
-        let trimmed = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = groupName.trimmed()
         return trimmed.isEmpty ? "(Ungrouped)" : trimmed
     }
 }

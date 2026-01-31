@@ -17,8 +17,8 @@ struct WorkCardPillContent: View {
     private var lessonTitle: String {
         if let lid = UUID(uuidString: config.item.work.lessonID) {
             let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lid })
-            if let lesson = try? modelContext.fetch(fetch).first {
-                let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let lesson = modelContext.safeFetchFirst(fetch) {
+                let name = lesson.name.trimmed()
                 if !name.isEmpty { return name }
             }
         }
@@ -28,7 +28,7 @@ struct WorkCardPillContent: View {
     private var studentChips: [(UUID, String, Bool)] {
         let isToday = calendar.isDate(config.item.checkIn.scheduledDate, inSameDayAs: Date())
         guard let sid = UUID(uuidString: config.item.work.studentID) else { return [] }
-        let name = config.nameForStudentID(sid).trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = config.nameForStudentID(sid).trimmed()
         let absent = isToday && config.absentTodayIDs.contains(sid)
         return name.isEmpty ? [] : [(sid, name, absent)]
     }
@@ -64,7 +64,7 @@ struct WorkCardPillContent: View {
                         }
                     }
 
-                    let purpose = (config.item.checkIn.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let purpose = (config.item.checkIn.note ?? "").trimmed()
                     if !purpose.isEmpty {
                         Text(purpose)
                             .font(.caption2)

@@ -128,15 +128,14 @@ struct AttendanceLogView: View {
     }
 
     private var groupedByDay: [(day: Date, items: [AttendanceRecord])] {
-        let dict = Dictionary(grouping: filteredRecords) { record in
-            dayKey(record.date)
-        }
-        .mapValues { arr in arr.sorted { lhs, rhs in
-            // Sort by student name within a day
-            let lhsName = studentsByID[lhs.studentIDUUID ?? UUID()]?.firstName ?? ""
-            let rhsName = studentsByID[rhs.studentIDUUID ?? UUID()]?.firstName ?? ""
-            return lhsName < rhsName
-        }}
+        let dict = filteredRecords
+            .grouped { dayKey($0.date) }
+            .mapValues { arr in arr.sorted { lhs, rhs in
+                // Sort by student name within a day
+                let lhsName = studentsByID[lhs.studentIDUUID ?? UUID()]?.firstName ?? ""
+                let rhsName = studentsByID[rhs.studentIDUUID ?? UUID()]?.firstName ?? ""
+                return lhsName < rhsName
+            }}
         let days = dict.keys.sorted(by: >)
         return days.map { ($0, dict[$0] ?? []) }
     }
@@ -165,8 +164,8 @@ struct AttendanceLogView: View {
     }
 
     private func displayName(for student: Student) -> String {
-        let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let last = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = student.firstName.trimmed()
+        let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
         return li.isEmpty ? first : "\(first) \(li)."
     }

@@ -7,7 +7,7 @@ struct LessonsFilterPersistence {
     }
 
     static func deserializeExpandedSubjects(_ raw: String) -> Set<String> {
-        if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
+        if raw.trimmed().isEmpty { return [] }
         return Set(raw.split(separator: "|").map { String($0) })
     }
 

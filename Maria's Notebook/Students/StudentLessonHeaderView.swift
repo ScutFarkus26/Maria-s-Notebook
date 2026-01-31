@@ -26,10 +26,10 @@ struct StudentLessonHeaderView: View {
             }
 
             HStack(spacing: 8) {
-                if !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !subject.trimmed().isEmpty {
                     pillTag(subject, color: subjectColor)
                 }
-                if !group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !group.trimmed().isEmpty {
                     pillTag(group, color: .secondary.opacity(0.6))
                 }
             }

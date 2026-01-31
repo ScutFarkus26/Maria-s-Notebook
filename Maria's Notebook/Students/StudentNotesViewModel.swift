@@ -124,7 +124,7 @@ final class StudentNotesViewModel: ObservableObject {
             
             let context: String = {
                 if let lesson = note.lesson {
-                    let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let name = lesson.name.trimmed()
                     return name.isEmpty ? "Lesson" : name
                 }
                 return "General Note"
@@ -210,9 +210,9 @@ final class StudentNotesViewModel: ObservableObject {
             let context: String = {
                 if let lessonID = UUID(uuidString: presentation.lessonID),
                    let lesson = lessonsByID[lessonID] {
-                    let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let name = lesson.name.trimmed()
                     return name.isEmpty ? "Presentation" : name
-                } else if let snapshot = presentation.lessonTitleSnapshot?.trimmingCharacters(in: .whitespacesAndNewlines),
+                } else if let snapshot = presentation.lessonTitleSnapshot?.trimmed(),
                           !snapshot.isEmpty {
                     return snapshot
                 }
@@ -264,7 +264,7 @@ final class StudentNotesViewModel: ObservableObject {
         
         // 5a) Create items from the 'note' string field on the record itself
         let attendanceStringItems: [UnifiedNoteItem] = attendanceRecords.compactMap { record in
-            guard let text = record.note?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+            guard let text = record.note?.trimmed(), !text.isEmpty else { return nil }
             return UnifiedNoteItem(
                 id: UUID(), // Virtual ID for the string note
                 date: record.date,
@@ -347,7 +347,7 @@ final class StudentNotesViewModel: ObservableObject {
 
     // MARK: - Add
     func addGeneralNote(body: String) {
-        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = body.trimmed()
         guard !trimmed.isEmpty else { return }
 
         let newNote = Note(
@@ -378,7 +378,7 @@ final class StudentNotesViewModel: ObservableObject {
         let d = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { $0.id == id }
         )
-        return try? modelContext.fetch(d).first
+        return modelContext.safeFetchFirst(d)
     }
     
     // Public method to fetch a note by ID (used by views)
@@ -400,7 +400,7 @@ final class StudentNotesViewModel: ObservableObject {
         var map: [String: String] = [:]
         for work in workModels {
             if let lid = UUID(uuidString: work.lessonID), let lesson = byID[lid] {
-                let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                let name = lesson.name.trimmed()
                 map[work.id.uuidString] = name.isEmpty ? "Work" : name
             } else {
                 map[work.id.uuidString] = work.title.isEmpty ? "Work" : work.title

@@ -53,11 +53,11 @@ struct StudentLessonQuickActionsView: View {
     }
 
     private var subject: String {
-        (lesson?.subject.trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
+        (lesson?.subject.trimmed()) ?? ""
     }
 
     private var group: String {
-        (lesson?.group.trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
+        (lesson?.group.trimmed()) ?? ""
     }
 
     private var nextLessonInGroup: Lesson? {
@@ -66,8 +66,8 @@ struct StudentLessonQuickActionsView: View {
         let currentGroup = group
         guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return nil }
         let candidates = lessons.filter { l in
-            l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
+            l.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
+            l.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
         }
         .sorted { $0.orderInGroup < $1.orderInGroup }
         guard let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count else {
@@ -172,7 +172,7 @@ struct StudentLessonQuickActionsView: View {
                     Spacer()
                     Button("Cancel") { showFollowUpSheet = false }
                     Button("Add") {
-                        let trimmed = followUpDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmed = followUpDraft.trimmed()
                         if !trimmed.isEmpty {
                             let sidStrings = studentLesson.resolvedStudentIDs.map { $0.uuidString }
                             // CloudKit compatibility: lessonID is already String
@@ -248,12 +248,12 @@ struct StudentLessonQuickActionsView: View {
         // Phase 3: Auto-create next lesson in group when marking presented now
         if presentedNow, let lessonIDUUID = UUID(uuidString: studentLesson.lessonID),
            let current = lessons.first(where: { $0.id == lessonIDUUID }) {
-            let currentSubject = current.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-            let currentGroup = current.group.trimmingCharacters(in: .whitespacesAndNewlines)
+            let currentSubject = current.subject.trimmed()
+            let currentGroup = current.group.trimmed()
             if !currentSubject.isEmpty, !currentGroup.isEmpty {
                 let candidates = lessons.filter { l in
-                    l.subject.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentSubject) == .orderedSame &&
-                    l.group.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(currentGroup) == .orderedSame
+                    l.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
+                    l.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
                 }
                 .sorted { $0.orderInGroup < $1.orderInGroup }
                 if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {

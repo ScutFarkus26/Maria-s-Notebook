@@ -62,13 +62,13 @@ public struct AttendanceEmailReport {
 /// Includes platform-aware availability checks.
 public enum AttendanceEmail {
     public static func storedToAddress() -> String? {
-        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.toKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.toKey)?.trimmed()
         guard let s, !s.isEmpty else { return nil }
         return s
     }
 
     public static func storedFromAddress() -> String? {
-        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.fromKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.fromKey)?.trimmed()
         guard let s, !s.isEmpty else { return nil }
         return s
     }
@@ -92,11 +92,11 @@ public enum AttendanceEmail {
     /// - Returns: An array of non-empty email strings.
     /// - Note: Currently unused to avoid changing behavior; consider adopting in composer/send flows. TODO: Adopt multi-recipient support.
     public static func parseRecipients(from string: String?) -> [String] {
-        guard let string = string, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        guard let string = string, !string.trimmed().isEmpty else { return [] }
         let separators = CharacterSet(charactersIn: ",;")
         return string
             .components(separatedBy: separators)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmed() }
             .filter { !$0.isEmpty }
     }
 
@@ -249,7 +249,7 @@ public struct MailComposerView: UIViewControllerRepresentable {
         vc.setToRecipients(toRecipients)
         vc.setSubject(subject)
         vc.setMessageBody(body, isHTML: false)
-        if let preferred = preferredSender, !preferred.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let preferred = preferredSender, !preferred.trimmed().isEmpty {
             vc.setPreferredSendingEmailAddress(preferred)
         }
         return vc

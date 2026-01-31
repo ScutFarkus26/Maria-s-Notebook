@@ -72,7 +72,7 @@ struct WorkCheckInRow: View {
             Text(checkIn.date.formatted(date: .abbreviated, time: .omitted))
                 .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
             
-            let purposeText = checkIn.purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+            let purposeText = checkIn.purpose.trimmed()
             if !purposeText.isEmpty {
                 Text("|")
                     .foregroundStyle(.secondary)
@@ -100,7 +100,7 @@ struct WorkCheckInRow: View {
                 }
             }
             // Fallback to legacy string field for backward compatibility
-            else if !checkIn.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            else if !checkIn.note.trimmed().isEmpty {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("Notes:")
                         .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
@@ -118,7 +118,7 @@ struct WorkCheckInRow: View {
         if let notes = checkIn.notes, !notes.isEmpty {
             return true
         }
-        return !checkIn.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !checkIn.note.trimmed().isEmpty
     }
     
     private var actionsMenu: some View {

@@ -259,7 +259,7 @@ struct UnifiedPostPresentationSheet: View {
                     applyBulkAssignment()
                 }
                 .buttonStyle(.bordered)
-                .disabled(bulkAssignment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(bulkAssignment.trimmed().isEmpty)
             }
 
             // Default schedule toggles
@@ -290,7 +290,7 @@ struct UnifiedPostPresentationSheet: View {
     }
 
     private func applyBulkAssignment() {
-        let trimmed = bulkAssignment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = bulkAssignment.trimmed()
         guard !trimmed.isEmpty else { return }
 
         for studentID in entries.keys {

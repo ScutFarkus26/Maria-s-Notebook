@@ -11,7 +11,7 @@ struct LessonDetailWindowHost: View {
 
     var body: some View {
         let fetchDescriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-        if let lesson = try? modelContext.fetch(fetchDescriptor).first {
+        if let lesson = modelContext.safeFetchFirst(fetchDescriptor) {
             LessonDetailView(lesson: lesson, onSave: { _ in
                 // Save is handled by the view itself with SaveCoordinator
             })

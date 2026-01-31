@@ -38,7 +38,7 @@ struct WorkCheckInNoteEditor: View {
                 Text(date.formatted(date: .abbreviated, time: .omitted))
                     .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
                 
-                let purposeText = purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+                let purposeText = purpose.trimmed()
                 if !purposeText.isEmpty {
                     Text("|")
                         .foregroundStyle(.secondary)

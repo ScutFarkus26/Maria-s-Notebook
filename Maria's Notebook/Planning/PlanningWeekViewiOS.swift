@@ -152,7 +152,7 @@ struct PlanningWeekViewiOS: View {
         )
         descriptor.fetchLimit = 1
         
-        if let nextUp = try? modelContext.fetch(descriptor).first,
+        if let nextUp = modelContext.safeFetchFirst(descriptor),
            let date = nextUp.scheduledFor {
             let start = calendar.startOfDay(for: date)
             if start >= today && !isNonSchoolDay(start) {

@@ -43,7 +43,7 @@ public enum PreferenceRegistry {
         // Attendance locks handled dynamically: keys "Attendance.locked.<yyyy-MM-dd>"
     ]
 
-    public static let byKey: [String: PreferenceDefinition] = Dictionary(uniqueKeysWithValues: definitions.map { ($0.key, $0) })
+    public static let byKey: [String: PreferenceDefinition] = definitions.toDictionary(by: \.key)
 
     public static let knownPrefixes: [String] = [
         "General.",

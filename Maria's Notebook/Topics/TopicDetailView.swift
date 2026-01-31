@@ -56,9 +56,9 @@ struct TopicDetailView: View, Identifiable {
                             _ = saveCoordinator.save(modelContext, reason: "Delete solution")
                         },
                         onAdd: {
-                            let title = newSolutionTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let details = newSolutionDetails.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let proposedBy = newSolutionProposedBy.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let title = newSolutionTitle.trimmed()
+                            let details = newSolutionDetails.trimmed()
+                            let proposedBy = newSolutionProposedBy.trimmed()
                             vm.addSolution(context: modelContext, title: title, details: details, proposedBy: proposedBy)
                             _ = saveCoordinator.save(modelContext, reason: "Add proposed solution")
                             newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
@@ -83,8 +83,8 @@ struct TopicDetailView: View, Identifiable {
                             _ = saveCoordinator.save(modelContext, reason: "Delete note")
                         },
                         onAdd: {
-                            let speaker = newNoteSpeaker.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let content = newNoteContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let speaker = newNoteSpeaker.trimmed()
+                            let content = newNoteContent.trimmed()
                             guard !content.isEmpty else { return }
                             vm.addNote(context: modelContext, speaker: speaker, content: content)
                             _ = saveCoordinator.save(modelContext, reason: "Add note")
@@ -223,7 +223,7 @@ private struct ProposedSolutionsSection: View {
                     ForEach(solutions) { s in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
-                                Text(s.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : s.title)
+                                Text(s.title.trimmed().isEmpty ? "Untitled" : s.title)
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
                                 if s.isAdopted { Label("Adopted", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon).font(.caption).foregroundStyle(.green) }
@@ -237,10 +237,10 @@ private struct ProposedSolutionsSection: View {
                                     }
                                 } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                             }
-                            if !s.proposedBy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            if !s.proposedBy.trimmed().isEmpty {
                                 Text("Proposed by: \(s.proposedBy)").font(.caption).foregroundStyle(.secondary)
                             }
-                            if !s.details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            if !s.details.trimmed().isEmpty {
                                 Text(s.details).font(.caption)
                             }
                         }
@@ -262,7 +262,7 @@ private struct ProposedSolutionsSection: View {
                     Spacer()
                     Button("Add Solution", action: onAdd)
                         .buttonStyle(.bordered)
-                        .disabled(newSolutionTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && newSolutionDetails.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(newSolutionTitle.trimmed().isEmpty && newSolutionDetails.trimmed().isEmpty)
                 }
             }
         }
@@ -283,7 +283,7 @@ private struct AttachmentsSection: View {
                     ForEach(attachments) { a in
                         HStack(spacing: 8) {
                             Image(systemName: a.kind == .photo ? "photo" : "paperclip")
-                            Text(a.filename.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? (a.kind == .photo ? "Photo" : "File") : a.filename)
+                            Text(a.filename.trimmed().isEmpty ? (a.kind == .photo ? "Photo" : "File") : a.filename)
                                 .font(.subheadline)
                             Spacer()
                             Menu {
@@ -330,7 +330,7 @@ private struct MeetingNotesSection: View {
                     let sortedNotes: [Note] = notes.sorted { $0.createdAt < $1.createdAt }
                     ForEach(sortedNotes) { n in
                         HStack(alignment: .top, spacing: 8) {
-                            if let reporterName = n.reporterName, !reporterName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            if let reporterName = n.reporterName, !reporterName.trimmed().isEmpty {
                                 Text(reporterName).font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
@@ -360,7 +360,7 @@ private struct MeetingNotesSection: View {
                     Spacer()
                     Button("Add Note", action: onAdd)
                         .buttonStyle(.bordered)
-                        .disabled(newNoteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(newNoteContent.trimmed().isEmpty)
                 }
             }
         }

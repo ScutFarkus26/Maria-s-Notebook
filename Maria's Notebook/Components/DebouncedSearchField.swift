@@ -34,7 +34,7 @@ public struct DebouncedSearchField: View {
                 .focused($isFocused)
                 .submitLabel(.search)
                 .onSubmit { triggerNow() }
-            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if !text.trimmed().isEmpty {
                 Button {
                     text = ""
                     triggerNow()

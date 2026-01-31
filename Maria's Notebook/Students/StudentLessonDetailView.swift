@@ -646,7 +646,7 @@ struct StudentLessonDetailContentView: View {
                 }
 
                 // Add group observation to notes if provided
-                if !groupObservation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !groupObservation.trimmed().isEmpty {
                     if vm.notes.isEmpty {
                         vm.notes = groupObservation
                     } else {
@@ -927,7 +927,7 @@ struct StudentLessonDetailContentView: View {
         var legacyAssignments: [PostPresentationAssignmentsSheet.AssignmentEntry] = []
 
         for entry in entries {
-            let trimmedAssignment = entry.assignment.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedAssignment = entry.assignment.trimmed()
             guard !trimmedAssignment.isEmpty else { continue }
 
             // Determine schedule from check-in or due date
@@ -960,7 +960,7 @@ struct StudentLessonDetailContentView: View {
     @MainActor
     private func createStudentObservationNotes(_ entries: [UnifiedPostPresentationSheet.StudentEntry]) {
         for entry in entries {
-            let trimmedObservation = entry.observation.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedObservation = entry.observation.trimmed()
             guard !trimmedObservation.isEmpty else { continue }
 
             // Create a note scoped to this specific student

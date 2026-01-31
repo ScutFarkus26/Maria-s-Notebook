@@ -219,7 +219,7 @@ struct WorkDetailView: View {
 
     private func loadWork() {
         let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
-        let fetchedWork = try? modelContext.fetch(descriptor).first
+        let fetchedWork = modelContext.safeFetchFirst(descriptor)
         work = fetchedWork
 
         if let fetchedWork = fetchedWork {
@@ -690,8 +690,8 @@ struct WorkDetailView: View {
 
             // If we found the lesson, load lessons in the same subject/group for NextLessonResolver
             if let lesson = relatedLesson {
-                let subject = lesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-                let group = lesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                let subject = lesson.subject.trimmed()
+                let group = lesson.group.trimmed()
                 // Only load related lessons if subject/group are non-empty
                 if !subject.isEmpty && !group.isEmpty {
                     // Load all lessons and filter in memory (predicates don't support trimmingCharacters or caseInsensitiveCompare)
@@ -700,8 +700,8 @@ struct WorkDetailView: View {
                     )
                     let allLessons = modelContext.safeFetch(allLessonsDescriptor)
                     relatedLessons = allLessons.filter { l in
-                        let lSubject = l.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let lGroup = l.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let lSubject = l.subject.trimmed()
+                        let lGroup = l.group.trimmed()
                         return lSubject.caseInsensitiveCompare(subject) == .orderedSame &&
                                lGroup.caseInsensitiveCompare(group) == .orderedSame
                     }

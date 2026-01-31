@@ -9,7 +9,6 @@
 
 import SwiftUI
 import SwiftData
-import Combine
 
 extension UUID: @retroactive Identifiable {
     public var id: UUID { self }

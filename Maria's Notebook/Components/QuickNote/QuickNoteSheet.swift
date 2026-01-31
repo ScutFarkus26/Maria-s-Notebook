@@ -79,7 +79,7 @@ struct QuickNoteSheet: View {
                     }
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(viewModel.bodyText.trimmed().isEmpty)
                 }
             }
             .padding()
@@ -347,7 +347,7 @@ struct QuickNoteSheet: View {
                         dismiss()
                     }
                         .fontWeight(.bold)
-                        .disabled(viewModel.bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(viewModel.bodyText.trimmed().isEmpty)
                 }
             }
             .popover(isPresented: $viewModel.isShowingStudentPicker) {

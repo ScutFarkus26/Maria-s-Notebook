@@ -76,7 +76,7 @@ struct SubjectListRow: View {
 
     /// Returns an SF Symbol name that best represents the subject
     private var subjectIcon: String {
-        let key = subject.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = subject.lowercased().trimmed()
 
         switch key {
         case "math", "mathematics":

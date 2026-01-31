@@ -100,10 +100,10 @@ struct ObservationHeatmapView: View {
             // StudentMeetings grouped by studentID (String) -> most recent date with content
             var meetingsByStudentID: [String: Date] = [:]
             for meeting in allMeetings {
-                let hasContent = !meeting.reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                                !meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                                !meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                                !meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                let hasContent = !meeting.reflection.trimmed().isEmpty ||
+                                !meeting.focus.trimmed().isEmpty ||
+                                !meeting.requests.trimmed().isEmpty ||
+                                !meeting.guideNotes.trimmed().isEmpty
                 
                 if hasContent {
                     if let existing = meetingsByStudentID[meeting.studentID] {
@@ -309,10 +309,10 @@ struct ObservationHeatmapView: View {
         
         for meeting in studentMeetings {
             // Check if meeting has any content
-            let hasContent = !meeting.reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                            !meeting.focus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                            !meeting.requests.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                            !meeting.guideNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasContent = !meeting.reflection.trimmed().isEmpty ||
+                            !meeting.focus.trimmed().isEmpty ||
+                            !meeting.requests.trimmed().isEmpty ||
+                            !meeting.guideNotes.trimmed().isEmpty
             
             if hasContent {
                 if mostRecentDate == nil || meeting.date > mostRecentDate! {

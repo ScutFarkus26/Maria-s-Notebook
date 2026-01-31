@@ -56,7 +56,7 @@ struct ProjectRolesEditorView: View {
                                     Text(role.title.isEmpty ? "Untitled" : role.title)
                                         .font(.body.weight(.semibold))
                                     let firstLine = role.summary.split(separator: "\n").first.map(String.init) ?? role.summary
-                                    if !firstLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    if !firstLine.trimmed().isEmpty {
                                         Text(firstLine)
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
@@ -165,7 +165,7 @@ private struct ProjectRoleEditorSheet: View {
                 Button("Cancel") { cancel() }
                 Button("Save") { save() }
                     .buttonStyle(.borderedProminent)
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(title.trimmed().isEmpty)
             }
         }
         .padding(16)
@@ -178,7 +178,7 @@ private struct ProjectRoleEditorSheet: View {
     }
 
     private func save() {
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = title.trimmed()
         guard !trimmedTitle.isEmpty else { return }
 
         if let role {

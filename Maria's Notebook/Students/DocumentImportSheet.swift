@@ -55,14 +55,14 @@ struct DocumentImportSheet: View {
                     Button("Save") {
                         saveDocument()
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(title.trimmed().isEmpty)
                 }
             }
         }
     }
     
     private func saveDocument() {
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = title.trimmed()
         guard !trimmedTitle.isEmpty else { return }
 
         repository.createDocument(

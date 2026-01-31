@@ -193,11 +193,11 @@ struct NoteEditSheet: View {
     }
 
     private var canSave: Bool {
-        !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !bodyText.trimmed().isEmpty
     }
 
     private func save() {
-        let trimmed = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = bodyText.trimmed()
         guard !trimmed.isEmpty else { return }
         note.body = trimmed
         note.category = category

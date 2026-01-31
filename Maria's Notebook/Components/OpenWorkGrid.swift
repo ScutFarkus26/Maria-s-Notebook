@@ -136,7 +136,7 @@ struct OpenWorkGrid: View {
     // MARK: - Helpers
     private func lessonTitle(forLessonID lessonID: String) -> String {
         if let lid = UUID(uuidString: lessonID), let lesson = lessonsByID[lid] {
-            let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = lesson.name.trimmed()
             if !name.isEmpty { return name }
         }
         return "Lesson \(String(lessonID.prefix(6)))"

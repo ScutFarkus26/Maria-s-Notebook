@@ -40,7 +40,7 @@ struct WorkCardGridContent: View {
     }
 
     private var displayTitle: String {
-        let trimmedTitle = config.work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = config.work.title.trimmed()
         if !trimmedTitle.isEmpty {
             return trimmedTitle
         }

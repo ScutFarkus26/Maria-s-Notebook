@@ -25,8 +25,8 @@ struct AddLessonView: View {
     @State private var personalKind: PersonalLessonKind = .personal
 
     init(defaultSubject: String? = nil, defaultGroup: String? = nil) {
-        self.defaultSubject = defaultSubject?.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.defaultGroup = defaultGroup?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.defaultSubject = defaultSubject?.trimmed()
+        self.defaultGroup = defaultGroup?.trimmed()
     }
 
     var body: some View {
@@ -80,18 +80,18 @@ struct AddLessonView: View {
 
                 Button("Add") {
                     let newLesson = repository.createLesson(
-                        name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                        subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
-                        group: group.trimmingCharacters(in: .whitespacesAndNewlines),
-                        subheading: subheading.trimmingCharacters(in: .whitespacesAndNewlines),
+                        name: name.trimmed(),
+                        subject: subject.trimmed(),
+                        group: group.trimmed(),
+                        subheading: subheading.trimmed(),
                         writeUp: writeUp,
                         source: source,
                         personalKind: source == .personal ? personalKind : nil
                     )
 
                     // Automatically create/update Track object if lesson belongs to a track
-                    let subjectTrimmed = newLesson.subject.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let groupTrimmed = newLesson.group.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let subjectTrimmed = newLesson.subject.trimmed()
+                    let groupTrimmed = newLesson.group.trimmed()
                     if !subjectTrimmed.isEmpty && !groupTrimmed.isEmpty {
                         if GroupTrackService.isTrack(subject: subjectTrimmed, group: groupTrimmed, modelContext: modelContext) {
                             do {
@@ -113,15 +113,15 @@ struct AddLessonView: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(name.trimmed().isEmpty)
             }
         }
         .padding(24)
         .frame(width: 520, height: 520)
         .sheet(isPresented: $showingBulkEntry) {
             BulkLessonsEntryView(
-                defaultSubject: subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? defaultSubject : subject,
-                defaultGroup: group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? defaultGroup : group,
+                defaultSubject: subject.trimmed().isEmpty ? defaultSubject : subject,
+                defaultGroup: group.trimmed().isEmpty ? defaultGroup : group,
                 onDone: { showingBulkEntry = false }
             )
 #if os(macOS)
@@ -133,8 +133,8 @@ struct AddLessonView: View {
 #endif
         }
         .onAppear {
-            if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let d = defaultSubject, !d.isEmpty { subject = d }
-            if group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let g = defaultGroup, !g.isEmpty { group = g }
+            if subject.trimmed().isEmpty, let d = defaultSubject, !d.isEmpty { subject = d }
+            if group.trimmed().isEmpty, let g = defaultGroup, !g.isEmpty { group = g }
         }
         .saveErrorAlert()
     }

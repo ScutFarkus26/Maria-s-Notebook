@@ -44,18 +44,18 @@ final class LessonsFilterState: ObservableObject {
 
     /// Load from persisted raw strings (typically stored via SceneStorage in the view)
     func loadFromPersisted(subjectRaw: String, groupRaw: String, searchRaw: String, expandedRaw: String, sourceRaw: String, personalKindRaw: String) {
-        self.selectedSubject = subjectRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : subjectRaw
-        self.selectedGroup = groupRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : groupRaw
+        self.selectedSubject = subjectRaw.trimmed().isEmpty ? nil : subjectRaw
+        self.selectedGroup = groupRaw.trimmed().isEmpty ? nil : groupRaw
         self.searchText = searchRaw
         self.expandedSubjects = LessonsFilterPersistence.deserializeExpandedSubjects(expandedRaw)
-        self.sourceFilter = sourceRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : LessonSource(rawValue: sourceRaw)
-        self.personalKindFilter = personalKindRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : PersonalLessonKind(rawValue: personalKindRaw)
+        self.sourceFilter = sourceRaw.trimmed().isEmpty ? nil : LessonSource(rawValue: sourceRaw)
+        self.personalKindFilter = personalKindRaw.trimmed().isEmpty ? nil : PersonalLessonKind(rawValue: personalKindRaw)
     }
 
     /// Create the raw strings suitable for persistence
     func makePersisted() -> (subjectRaw: String, groupRaw: String, searchRaw: String, expandedRaw: String, sourceRaw: String, personalKindRaw: String) {
-        let subjectRaw = (selectedSubject?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "")
-        let groupRaw = (selectedGroup?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "")
+        let subjectRaw = (selectedSubject?.trimmed() ?? "")
+        let groupRaw = (selectedGroup?.trimmed() ?? "")
         let searchRaw = searchText
         let expandedRaw = LessonsFilterPersistence.serializeExpandedSubjects(expandedSubjects)
         let sourceRaw = sourceFilter?.rawValue ?? ""

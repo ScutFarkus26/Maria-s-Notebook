@@ -71,11 +71,11 @@ struct ScopedNotesSection: View {
     }
 
     private func displayName(for student: Student) -> String {
-        let first = student.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let last = student.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = student.firstName.trimmed()
+        let last = student.lastName.trimmed()
         let full = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
         if !full.isEmpty { return full }
-        return student.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return student.fullName.trimmed()
     }
 
     private var scopeFromChoice: NoteScope {
@@ -149,14 +149,14 @@ struct ScopedNotesSection: View {
                     Spacer()
 
                     Button {
-                        let trimmedDraft = draftBody.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmedDraft = draftBody.trimmed()
                         guard !trimmedDraft.isEmpty else { return }
                         onAddNote(trimmedDraft, scopeFromChoice)
                         draftBody = ""
                     } label: {
                         Text("Add")
                     }
-                    .disabled(draftBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(draftBody.trimmed().isEmpty)
                 }
             }
         }

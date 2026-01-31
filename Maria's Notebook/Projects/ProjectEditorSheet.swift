@@ -112,7 +112,7 @@ struct ProjectEditorSheet: View {
     #endif
     }
 
-    private var isValid: Bool { !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var isValid: Bool { !title.trimmed().isEmpty }
 
     private func toggleMember(_ id: String, _ add: Bool) {
         if add { selectedMemberIDs.insert(id) } else { _ = selectedMemberIDs.remove(id) }
@@ -122,9 +122,9 @@ struct ProjectEditorSheet: View {
     private func deleteTemplates(at offsets: IndexSet) { sharedTemplates.remove(atOffsets: offsets) }
 
     private func save() {
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = title.trimmed()
         guard !trimmedTitle.isEmpty else { return }
-        let bt = bookTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bt = bookTitle.trimmed()
 
         if let club {
             // Update existing

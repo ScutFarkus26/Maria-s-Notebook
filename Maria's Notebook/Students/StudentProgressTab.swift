@@ -198,7 +198,7 @@ struct StudentProgressTab: View {
         let lastActivityDate = stats.lastActivityDate
 
         let trackColor = viewModel.trackColor(for: track.title)
-        let hasNotes = enrollment.notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        let hasNotes = enrollment.notes?.trimmed().isEmpty == false
 
         let trackSteps = progress.trackSteps
         let completedStepIDs = progress.completedStepIDs

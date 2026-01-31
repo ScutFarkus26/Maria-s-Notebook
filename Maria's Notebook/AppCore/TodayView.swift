@@ -13,7 +13,6 @@
 
 import SwiftUI
 import SwiftData
-import Combine
 import UniformTypeIdentifiers
 #if os(iOS)
 import MessageUI

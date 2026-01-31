@@ -13,7 +13,7 @@ extension UnifiedNoteEditor {
 
     @MainActor
     func suggestCategoryAndScope() async {
-        guard !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !bodyText.trimmed().isEmpty else { return }
         isSuggesting = true
         defer { isSuggesting = false }
 
@@ -31,7 +31,7 @@ extension UnifiedNoteEditor {
             let proposedCat = NoteCategory(rawValue: content.category.lowercased()) ?? .general
 
             let ids: [UUID] = content.studentIdentifiers.compactMap { ident in
-                let token = ident.folding(options: .diacriticInsensitive, locale: .current).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let token = ident.folding(options: .diacriticInsensitive, locale: .current).trimmed().lowercased()
                 return students.first(where: { s in
                     let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
                     let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
@@ -61,7 +61,7 @@ struct SuggestionPreviewSheet: View {
 
     private func name(for id: UUID) -> String {
         if let s = allStudents.first(where: { $0.id == id }) {
-            let first = s.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let first = s.firstName.trimmed()
             let lastI = s.lastName.first.map { String($0).uppercased() } ?? ""
             return lastI.isEmpty ? first : "\(first) \(lastI)."
         }

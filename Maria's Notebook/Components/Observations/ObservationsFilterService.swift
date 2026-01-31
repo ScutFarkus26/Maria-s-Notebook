@@ -49,7 +49,7 @@ enum ObservationsFilterService {
         }
 
         // Search text filter
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = searchText.trimmed()
         if !query.isEmpty {
             result = result.filter { $0.body.localizedCaseInsensitiveContains(query) }
         }

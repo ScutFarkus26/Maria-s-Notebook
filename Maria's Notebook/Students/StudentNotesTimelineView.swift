@@ -443,7 +443,7 @@ private struct StudentNotesTimelineList: View {
     }
     
     private var canAdd: Bool {
-        !newNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !newNoteText.trimmed().isEmpty
     }
     
     private func addNote() {

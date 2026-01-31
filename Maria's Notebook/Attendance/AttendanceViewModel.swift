@@ -95,7 +95,7 @@ final class AttendanceViewModel: ObservableObject {
         guard let rec = recordsByStudent[studentIDString] else { return }
         let store = AttendanceStore(context: modelContext)
         if store.updateNote(rec, to: note) {
-            let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let trimmed = note?.trimmed() ?? ""
             recordsByStudent[studentIDString]?.note = trimmed.isEmpty ? nil : trimmed
         }
     }

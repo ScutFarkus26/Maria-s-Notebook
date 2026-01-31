@@ -2,7 +2,6 @@
 // Mock implementation for NotificationCenter to test notification handling
 
 #if canImport(Testing)
-import Combine
 import Foundation
 @testable import Maria_s_Notebook
 

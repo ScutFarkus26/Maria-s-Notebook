@@ -59,7 +59,7 @@ struct WorkAgendaCalendarPane: View {
                 let id = token.contractID
                 // Try to find WorkModel by id first (if already migrated)
                 let workModelFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-                if let workModel = try? modelContext.fetch(workModelFetch).first {
+                if let workModel = modelContext.safeFetchFirst(workModelFetch) {
                     WorkDetailView(workID: workModel.id) {
                         selected = nil
                     }
@@ -67,7 +67,7 @@ struct WorkAgendaCalendarPane: View {
                 } else {
                     // Fallback: try to find WorkModel by legacyContractID (if not yet migrated)
                     let legacyFetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.legacyContractID == id })
-                    if let workModel = try? modelContext.fetch(legacyFetch).first {
+                    if let workModel = modelContext.safeFetchFirst(legacyFetch) {
                         WorkDetailView(workID: workModel.id) {
                             selected = nil
                         }
@@ -115,7 +115,7 @@ struct WorkAgendaCalendarPane: View {
 
     private func fetchWork(id: UUID) -> WorkModel? {
         let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-        return try? modelContext.fetch(descriptor).first
+        return modelContext.safeFetchFirst(descriptor)
     }
 
     private func workTitle(for id: UUID) -> String {
@@ -123,8 +123,8 @@ struct WorkAgendaCalendarPane: View {
 
         if let lessonID = work.lessonID.asUUID {
             let descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-            if let lesson = try? modelContext.fetch(descriptor).first {
-                let name = lesson.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let lesson = modelContext.safeFetchFirst(descriptor) {
+                let name = lesson.name.trimmed()
                 if !name.isEmpty { return name }
             }
         }
@@ -136,7 +136,7 @@ struct WorkAgendaCalendarPane: View {
               let studentID = work.studentID.asUUID else { return "" }
 
         let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-        if let student = try? modelContext.fetch(descriptor).first {
+        if let student = modelContext.safeFetchFirst(descriptor) {
             return StudentFormatter.displayName(for: student)
         }
         return ""
@@ -162,7 +162,7 @@ struct WorkAgendaCalendarPane: View {
             VStack(alignment: .leading, spacing: 4) {
             // Top row: Name first, then lesson title
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !name.trimmed().isEmpty {
                     Text(name)
                         .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary)
@@ -218,7 +218,7 @@ struct WorkAgendaCalendarPane: View {
         guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
         provider.loadObject(ofClass: NSString.self) { reading, _ in
             guard let ns = reading as? NSString else { return }
-            let s = (ns as String).trimmingCharacters(in: .whitespacesAndNewlines)
+            let s = (ns as String).trimmed()
             guard let payload = WorkAgendaDragPayload.parse(s) else { return }
             Task { @MainActor in
                 let normalizedDay = AppCalendar.startOfDay(day)
@@ -254,7 +254,7 @@ struct WorkAgendaCalendarPane: View {
 
     private func reschedulePlanItem(id: UUID, to day: Date) {
         let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
-        guard let item = try? modelContext.fetch(fetch).first,
+        guard let item = modelContext.safeFetchFirst(fetch),
               let workID = item.workID.asUUID else { return }
 
         let normalized = AppCalendar.startOfDay(day)

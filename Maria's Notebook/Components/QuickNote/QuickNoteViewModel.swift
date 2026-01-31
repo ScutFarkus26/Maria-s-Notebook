@@ -130,8 +130,8 @@ class QuickNoteViewModel: ObservableObject {
                 // Process in reverse order to maintain string indices
                 for replacement in result.replacements.reversed() {
                     // Skip if replacement text is already the same as original (case-insensitive)
-                    let originalTrimmed = replacement.originalText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let replacementTrimmed = replacement.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let originalTrimmed = replacement.originalText.trimmed()
+                    let replacementTrimmed = replacement.replacement.trimmed()
                     
                     if originalTrimmed.lowercased() == replacementTrimmed.lowercased() {
                         continue
@@ -151,7 +151,7 @@ class QuickNoteViewModel: ObservableObject {
                             for match in matches.reversed() {
                                 if let matchRange = Range(match.range, in: updatedText) {
                                     let matchedText = String(updatedText[matchRange])
-                                    let matchedTrimmed = matchedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    let matchedTrimmed = matchedText.trimmed()
                                     
                                     // CRITICAL: Only replace if it's not already the replacement text (case-insensitive)
                                     // This prevents replacing "Sarah Z." with "Sarah Z." which would cause period repetition
@@ -207,7 +207,7 @@ class QuickNoteViewModel: ObservableObject {
     }
     
     func saveNote(modelContext: ModelContext) {
-        let trimmed = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = bodyText.trimmed()
         guard !trimmed.isEmpty else { return }
         
         let scope: NoteScope
