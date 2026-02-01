@@ -47,6 +47,8 @@ public final class BackupService {
         let lessons: [Lesson] = safeFetchInBatches(Lesson.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.12), "Collecting student lessons…")
         let studentLessons: [StudentLesson] = safeFetchInBatchesWithErrorHandling(StudentLesson.self, using: modelContext)
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.15), "Collecting lesson assignments…")
+        let lessonAssignments: [LessonAssignment] = safeFetchInBatches(LessonAssignment.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.21), "Collecting work plan items…")
         let workPlanItems: [WorkPlanItem] = safeFetchInBatches(WorkPlanItem.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes…")
@@ -78,6 +80,7 @@ public final class BackupService {
         let studentDTOs = BackupDTOTransformers.toDTOs(students)
         let lessonDTOs = BackupDTOTransformers.toDTOs(lessons)
         let studentLessonDTOs = BackupDTOTransformers.toDTOs(studentLessons)
+        let lessonAssignmentDTOs = BackupDTOTransformers.toDTOs(lessonAssignments)
         let workPlanItemDTOs = BackupDTOTransformers.toDTOs(workPlanItems)
         let scopedNoteDTOs: [ScopedNoteDTO] = [] // Removed entity
         let noteDTOs = BackupDTOTransformers.toDTOs(notes)
@@ -105,6 +108,7 @@ public final class BackupService {
             students: studentDTOs,
             lessons: lessonDTOs,
             studentLessons: studentLessonDTOs,
+            lessonAssignments: lessonAssignmentDTOs,
             workPlanItems: workPlanItemDTOs,
             scopedNotes: scopedNoteDTOs,
             notes: noteDTOs,
@@ -159,6 +163,7 @@ public final class BackupService {
             "Student": studentDTOs.count,
             "Lesson": lessonDTOs.count,
             "StudentLesson": studentLessonDTOs.count,
+            "LessonAssignment": lessonAssignmentDTOs.count,
             "WorkPlanItem": workPlanItemDTOs.count,
             "ScopedNote": scopedNoteDTOs.count,
             "Note": noteDTOs.count,
@@ -443,6 +448,13 @@ public final class BackupService {
             studentCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }
         )
 
+        try BackupEntityImporter.importLessonAssignments(
+            payload.lessonAssignments,
+            into: modelContext,
+            existingCheck: { try fetchOne(LessonAssignment.self, id: $0, using: modelContext) },
+            lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+        )
+
         try BackupEntityImporter.importNotes(
             payload.notes,
             into: modelContext,
@@ -653,6 +665,10 @@ public final class BackupService {
             let arr = try context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
+        if type == LessonAssignment.self {
+            let arr = try context.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id }))
+            return arr.first as? T
+        }
         // WorkContract removed - use WorkModel instead
         if type == WorkModel.self {
             let arr = try context.fetch(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id }))
@@ -778,6 +794,7 @@ public final class BackupService {
             students: uniqueBy(payload.students) { $0.id },
             lessons: uniqueBy(payload.lessons) { $0.id },
             studentLessons: uniqueBy(payload.studentLessons) { $0.id },
+            lessonAssignments: uniqueBy(payload.lessonAssignments) { $0.id },
             workPlanItems: uniqueBy(payload.workPlanItems) { $0.id },
             scopedNotes: uniqueBy(payload.scopedNotes) { $0.id },
             notes: uniqueBy(payload.notes) { $0.id },

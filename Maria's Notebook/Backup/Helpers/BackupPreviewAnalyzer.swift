@@ -78,6 +78,7 @@ enum BackupPreviewAnalyzer {
         assign("Student", payload.students.count, 0, count(Student.self))
         assign("Lesson", payload.lessons.count, 0, count(Lesson.self))
         assign("StudentLesson", payload.studentLessons.count, 0, count(StudentLesson.self))
+        assign("LessonAssignment", payload.lessonAssignments.count, 0, count(LessonAssignment.self))
         assign("WorkPlanItem", payload.workPlanItems.count, 0, count(WorkPlanItem.self))
         assign("Note", payload.notes.count, 0, count(Note.self))
         assign("NonSchoolDay", payload.nonSchoolDays.count, 0, count(NonSchoolDay.self))
@@ -141,6 +142,28 @@ enum BackupPreviewAnalyzer {
         assign("StudentLesson", studentLessonAnalysis.ins, studentLessonAnalysis.sk, 0)
         if studentLessonAnalysis.missingLesson > 0 {
             warnings.append("\(studentLessonAnalysis.missingLesson) StudentLesson records reference missing Lessons and will be skipped.")
+        }
+
+        // LessonAssignments - similar handling for missing lesson references
+        let lessonAssignmentAnalysis = payload.lessonAssignments.reduce(into: (ins: 0, sk: 0, missingLesson: 0)) { acc, la in
+            guard let lessonUUID = UUID(uuidString: la.lessonID) else {
+                acc.sk += 1
+                acc.missingLesson += 1
+                return
+            }
+            let hasLesson = lessonsInStore.contains(lessonUUID) || lessonsInPayload.contains(lessonUUID)
+            if !hasLesson {
+                acc.sk += 1
+                acc.missingLesson += 1
+            } else if entityExists(LessonAssignment.self, la.id) {
+                acc.sk += 1
+            } else {
+                acc.ins += 1
+            }
+        }
+        assign("LessonAssignment", lessonAssignmentAnalysis.ins, lessonAssignmentAnalysis.sk, 0)
+        if lessonAssignmentAnalysis.missingLesson > 0 {
+            warnings.append("\(lessonAssignmentAnalysis.missingLesson) LessonAssignment records reference missing Lessons and will be skipped.")
         }
 
         // Helper for simple entities

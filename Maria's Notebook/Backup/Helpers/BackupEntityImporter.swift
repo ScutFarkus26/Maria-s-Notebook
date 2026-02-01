@@ -334,6 +334,70 @@ enum BackupEntityImporter {
         }
     }
 
+    // MARK: - LessonAssignments
+
+    /// Imports lesson assignments from DTOs.
+    ///
+    /// - Parameters:
+    ///   - dtos: The lesson assignment DTOs to import
+    ///   - modelContext: The model context for database operations
+    ///   - existingCheck: Function to check if a lesson assignment already exists
+    ///   - lessonCheck: Function to look up a lesson by ID for linking
+    static func importLessonAssignments(
+        _ dtos: [LessonAssignmentDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<LessonAssignment>,
+        lessonCheck: EntityExistsCheck<Lesson>
+    ) rethrows {
+        for dto in dtos {
+            if (try? existingCheck(dto.id)) != nil { continue }
+
+            // Parse state from raw value
+            let state = LessonAssignmentState(rawValue: dto.stateRaw) ?? .draft
+
+            // Parse lesson ID
+            guard let lessonUUID = UUID(uuidString: dto.lessonID) else { continue }
+
+            // Parse student IDs
+            let studentUUIDs = dto.studentIDs.compactMap { UUID(uuidString: $0) }
+
+            let assignment = LessonAssignment(
+                id: dto.id,
+                createdAt: dto.createdAt,
+                state: state,
+                scheduledFor: dto.scheduledFor,
+                presentedAt: dto.presentedAt,
+                lessonID: lessonUUID,
+                studentIDs: studentUUIDs,
+                lesson: nil,
+                needsPractice: dto.needsPractice,
+                needsAnotherPresentation: dto.needsAnotherPresentation,
+                followUpWork: dto.followUpWork,
+                notes: dto.notes,
+                trackID: dto.trackID,
+                trackStepID: dto.trackStepID
+            )
+
+            // Update modifiedAt
+            assignment.modifiedAt = dto.modifiedAt
+
+            // Set snapshots
+            assignment.lessonTitleSnapshot = dto.lessonTitleSnapshot
+            assignment.lessonSubheadingSnapshot = dto.lessonSubheadingSnapshot
+
+            // Set migration tracking
+            assignment.migratedFromStudentLessonID = dto.migratedFromStudentLessonID
+            assignment.migratedFromPresentationID = dto.migratedFromPresentationID
+
+            // Link to lesson if exists
+            if let lesson = try? lessonCheck(lessonUUID) {
+                assignment.lesson = lesson
+            }
+
+            modelContext.insert(assignment)
+        }
+    }
+
     // MARK: - Proposed Solutions
 
     /// Imports proposed solutions from DTOs.

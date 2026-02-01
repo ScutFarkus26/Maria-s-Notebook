@@ -517,6 +517,7 @@ public final class SelectiveExportService {
             students: studentDTOs,
             lessons: lessonDTOs,
             studentLessons: studentLessonDTOs,
+            lessonAssignments: [], // Selective export doesn't include lesson assignments yet
             workPlanItems: [],
             scopedNotes: [],
             notes: noteDTOs,

@@ -186,6 +186,7 @@ public struct BackupPayload: Codable, Sendable {
     public var students: [StudentDTO]
     public var lessons: [LessonDTO]
     public var studentLessons: [StudentLessonDTO]
+    public var lessonAssignments: [LessonAssignmentDTO]
     public var workPlanItems: [WorkPlanItemDTO]
     public var scopedNotes: [ScopedNoteDTO]
     public var notes: [NoteDTO]
@@ -218,6 +219,7 @@ public struct BackupPayload: Codable, Sendable {
         case students
         case lessons
         case studentLessons
+        case lessonAssignments
         case workPlanItems
         case scopedNotes
         case notes
@@ -253,6 +255,7 @@ public struct BackupPayload: Codable, Sendable {
         students: [StudentDTO],
         lessons: [LessonDTO],
         studentLessons: [StudentLessonDTO],
+        lessonAssignments: [LessonAssignmentDTO],
         workPlanItems: [WorkPlanItemDTO],
         scopedNotes: [ScopedNoteDTO],
         notes: [NoteDTO],
@@ -278,6 +281,7 @@ public struct BackupPayload: Codable, Sendable {
         self.students = students
         self.lessons = lessons
         self.studentLessons = studentLessons
+        self.lessonAssignments = lessonAssignments
         self.workPlanItems = workPlanItems
         self.scopedNotes = scopedNotes
         self.notes = notes
@@ -306,6 +310,8 @@ public struct BackupPayload: Codable, Sendable {
         self.students = try container.decode([StudentDTO].self, forKey: .students)
         self.lessons = try container.decode([LessonDTO].self, forKey: .lessons)
         self.studentLessons = try container.decode([StudentLessonDTO].self, forKey: .studentLessons)
+        // LessonAssignments: backward compatible (older backups won't have this key)
+        self.lessonAssignments = try container.decodeIfPresent([LessonAssignmentDTO].self, forKey: .lessonAssignments) ?? []
         self.workPlanItems = try container.decode([WorkPlanItemDTO].self, forKey: .workPlanItems)
         self.scopedNotes = try container.decode([ScopedNoteDTO].self, forKey: .scopedNotes)
         self.notes = try container.decode([NoteDTO].self, forKey: .notes)
@@ -381,6 +387,7 @@ public struct BackupPayload: Codable, Sendable {
         try container.encode(students, forKey: .students)
         try container.encode(lessons, forKey: .lessons)
         try container.encode(studentLessons, forKey: .studentLessons)
+        try container.encode(lessonAssignments, forKey: .lessonAssignments)
         try container.encode(workPlanItems, forKey: .workPlanItems)
         try container.encode(scopedNotes, forKey: .scopedNotes)
         try container.encode(notes, forKey: .notes)
@@ -576,6 +583,70 @@ public struct PresentationDTO: Codable, Sendable {
     public var legacyStudentLessonID: String?
     public var lessonTitleSnapshot: String?
     public var lessonSubtitleSnapshot: String?
+}
+
+// MARK: - LessonAssignment DTO
+/// DTO for the unified LessonAssignment model.
+/// This model replaces StudentLesson + Presentation in the new architecture.
+public struct LessonAssignmentDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var modifiedAt: Date
+    public var stateRaw: String
+    public var scheduledFor: Date?
+    public var presentedAt: Date?
+    public var lessonID: String
+    public var studentIDs: [String]
+    public var lessonTitleSnapshot: String?
+    public var lessonSubheadingSnapshot: String?
+    public var needsPractice: Bool
+    public var needsAnotherPresentation: Bool
+    public var followUpWork: String
+    public var notes: String
+    public var trackID: String?
+    public var trackStepID: String?
+    public var migratedFromStudentLessonID: String?
+    public var migratedFromPresentationID: String?
+
+    public init(
+        id: UUID,
+        createdAt: Date,
+        modifiedAt: Date,
+        stateRaw: String,
+        scheduledFor: Date?,
+        presentedAt: Date?,
+        lessonID: String,
+        studentIDs: [String],
+        lessonTitleSnapshot: String?,
+        lessonSubheadingSnapshot: String?,
+        needsPractice: Bool,
+        needsAnotherPresentation: Bool,
+        followUpWork: String,
+        notes: String,
+        trackID: String?,
+        trackStepID: String?,
+        migratedFromStudentLessonID: String?,
+        migratedFromPresentationID: String?
+    ) {
+        self.id = id
+        self.createdAt = createdAt
+        self.modifiedAt = modifiedAt
+        self.stateRaw = stateRaw
+        self.scheduledFor = scheduledFor
+        self.presentedAt = presentedAt
+        self.lessonID = lessonID
+        self.studentIDs = studentIDs
+        self.lessonTitleSnapshot = lessonTitleSnapshot
+        self.lessonSubheadingSnapshot = lessonSubheadingSnapshot
+        self.needsPractice = needsPractice
+        self.needsAnotherPresentation = needsAnotherPresentation
+        self.followUpWork = followUpWork
+        self.notes = notes
+        self.trackID = trackID
+        self.trackStepID = trackStepID
+        self.migratedFromStudentLessonID = migratedFromStudentLessonID
+        self.migratedFromPresentationID = migratedFromPresentationID
+    }
 }
 
 public struct CommunityTopicDTO: Codable, Sendable {

@@ -224,6 +224,7 @@ public final class IncrementalBackupService {
         var mergedStudents: [UUID: StudentDTO] = [:]
         var mergedLessons: [UUID: LessonDTO] = [:]
         var mergedStudentLessons: [UUID: StudentLessonDTO] = [:]
+        var mergedLessonAssignments: [UUID: LessonAssignmentDTO] = [:]
         var mergedWorkPlanItems: [UUID: WorkPlanItemDTO] = [:]
         var mergedNotes: [UUID: NoteDTO] = [:]
         var mergedNonSchoolDays: [UUID: NonSchoolDayDTO] = [:]
@@ -260,6 +261,7 @@ public final class IncrementalBackupService {
             for dto in payload.students { mergedStudents[dto.id] = dto }
             for dto in payload.lessons { mergedLessons[dto.id] = dto }
             for dto in payload.studentLessons { mergedStudentLessons[dto.id] = dto }
+            for dto in payload.lessonAssignments { mergedLessonAssignments[dto.id] = dto }
             for dto in payload.workPlanItems { mergedWorkPlanItems[dto.id] = dto }
             for dto in payload.notes { mergedNotes[dto.id] = dto }
             for dto in payload.nonSchoolDays { mergedNonSchoolDays[dto.id] = dto }
@@ -290,6 +292,7 @@ public final class IncrementalBackupService {
             students: Array(mergedStudents.values),
             lessons: Array(mergedLessons.values),
             studentLessons: Array(mergedStudentLessons.values),
+            lessonAssignments: Array(mergedLessonAssignments.values),
             workPlanItems: Array(mergedWorkPlanItems.values),
             scopedNotes: [],
             notes: Array(mergedNotes.values),
@@ -339,6 +342,7 @@ public final class IncrementalBackupService {
             "Student": mergedStudents.count,
             "Lesson": mergedLessons.count,
             "StudentLesson": mergedStudentLessons.count,
+            "LessonAssignment": mergedLessonAssignments.count,
             "WorkPlanItem": mergedWorkPlanItems.count,
             "Note": mergedNotes.count,
             "NonSchoolDay": mergedNonSchoolDays.count,
@@ -485,6 +489,9 @@ public final class IncrementalBackupService {
 
         progress(0.3, "Collecting student lessons…")
         let studentLessons: [StudentLesson] = fetchFiltered(StudentLesson.self)
+
+        progress(0.35, "Collecting lesson assignments…")
+        let lessonAssignments: [LessonAssignment] = fetchFiltered(LessonAssignment.self)
 
         progress(0.4, "Collecting work items…")
         let workPlanItems: [WorkPlanItem] = fetchFiltered(WorkPlanItem.self)
@@ -775,6 +782,29 @@ public final class IncrementalBackupService {
             )
         }
 
+        let lessonAssignmentDTOs: [LessonAssignmentDTO] = lessonAssignments.map { la in
+            LessonAssignmentDTO(
+                id: la.id,
+                createdAt: la.createdAt,
+                modifiedAt: la.modifiedAt,
+                stateRaw: la.stateRaw,
+                scheduledFor: la.scheduledFor,
+                presentedAt: la.presentedAt,
+                lessonID: la.lessonID,
+                studentIDs: la.studentIDs,
+                lessonTitleSnapshot: la.lessonTitleSnapshot,
+                lessonSubheadingSnapshot: la.lessonSubheadingSnapshot,
+                needsPractice: la.needsPractice,
+                needsAnotherPresentation: la.needsAnotherPresentation,
+                followUpWork: la.followUpWork,
+                notes: la.notes,
+                trackID: la.trackID,
+                trackStepID: la.trackStepID,
+                migratedFromStudentLessonID: la.migratedFromStudentLessonID,
+                migratedFromPresentationID: la.migratedFromPresentationID
+            )
+        }
+
         let preferences = BackupPreferencesService.buildPreferencesDTO()
 
         let payload = BackupPayload(
@@ -782,6 +812,7 @@ public final class IncrementalBackupService {
             students: studentDTOs,
             lessons: lessonDTOs,
             studentLessons: studentLessonDTOs,
+            lessonAssignments: lessonAssignmentDTOs,
             workPlanItems: workPlanItemDTOs,
             scopedNotes: [],
             notes: noteDTOs,

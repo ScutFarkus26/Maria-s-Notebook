@@ -142,6 +142,31 @@ enum BackupDTOTransformers {
         )
     }
 
+    // MARK: - LessonAssignment
+
+    static func toDTO(_ assignment: LessonAssignment) -> LessonAssignmentDTO {
+        LessonAssignmentDTO(
+            id: assignment.id,
+            createdAt: assignment.createdAt,
+            modifiedAt: assignment.modifiedAt,
+            stateRaw: assignment.stateRaw,
+            scheduledFor: assignment.scheduledFor,
+            presentedAt: assignment.presentedAt,
+            lessonID: assignment.lessonID,
+            studentIDs: assignment.studentIDs,
+            lessonTitleSnapshot: assignment.lessonTitleSnapshot,
+            lessonSubheadingSnapshot: assignment.lessonSubheadingSnapshot,
+            needsPractice: assignment.needsPractice,
+            needsAnotherPresentation: assignment.needsAnotherPresentation,
+            followUpWork: assignment.followUpWork,
+            notes: assignment.notes,
+            trackID: assignment.trackID,
+            trackStepID: assignment.trackStepID,
+            migratedFromStudentLessonID: assignment.migratedFromStudentLessonID,
+            migratedFromPresentationID: assignment.migratedFromPresentationID
+        )
+    }
+
     // MARK: - CommunityTopic
 
     static func toDTO(_ topic: CommunityTopic) -> CommunityTopicDTO {
@@ -335,6 +360,10 @@ enum BackupDTOTransformers {
 
     static func toDTOs(_ presentations: [Presentation]) -> [PresentationDTO] {
         presentations.map { toDTO($0) }
+    }
+
+    static func toDTOs(_ assignments: [LessonAssignment]) -> [LessonAssignmentDTO] {
+        assignments.map { toDTO($0) }
     }
 
     static func toDTOs(_ topics: [CommunityTopic]) -> [CommunityTopicDTO] {
