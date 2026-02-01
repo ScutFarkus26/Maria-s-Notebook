@@ -213,4 +213,23 @@ enum DataMigrations {
     static func migrateLegacyReminderNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateReminderNotes(using: context)
     }
+
+    // MARK: - LessonAssignment Migration (consolidation of StudentLesson + Presentation)
+
+    /// Migrate StudentLesson and Presentation records to the new unified LessonAssignment model.
+    /// This is part of the model consolidation effort to simplify the data model.
+    /// Safe to run multiple times (idempotent).
+    @MainActor
+    static func migrateLessonAssignmentsIfNeeded(using context: ModelContext) async {
+        let service = LessonAssignmentMigrationService(context: context)
+        _ = try? await service.migrateIfNeeded()
+    }
+
+    /// Validates that the LessonAssignment migration completed successfully.
+    /// Returns the validation result for logging/debugging purposes.
+    @MainActor
+    static func validateLessonAssignmentMigration(using context: ModelContext) async -> LessonAssignmentValidationResult? {
+        let validator = LessonAssignmentMigrationValidator(context: context)
+        return try? await validator.validate()
+    }
 }

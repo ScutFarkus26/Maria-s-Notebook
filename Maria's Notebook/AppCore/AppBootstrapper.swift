@@ -67,7 +67,12 @@ final class AppBootstrapper: ObservableObject {
             await DataMigrations.repairDenormalizedScheduledForDay(using: context)
             await DataMigrations.cleanOrphanedStudentIDs(using: context)
         }
-        
+
+        // 3.10. LessonAssignment Migration (StudentLesson + Presentation consolidation)
+        // This migration creates LessonAssignment records from existing StudentLesson and Presentation data.
+        // The original records are preserved; this is a non-destructive migration.
+        await DataMigrations.migrateLessonAssignmentsIfNeeded(using: context)
+
         // 4. Initialize Reminder Sync Service
         ReminderSyncService.shared.modelContext = context
         // Perform initial sync if configured

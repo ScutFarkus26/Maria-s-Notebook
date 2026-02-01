@@ -25,6 +25,7 @@ struct AppSchema {
         CommunityAttachment.self,
         Presentation.self,
         LessonPresentation.self,
+        LessonAssignment.self,
         WorkPlanItem.self,
         StudentMeeting.self,
         Project.self,
