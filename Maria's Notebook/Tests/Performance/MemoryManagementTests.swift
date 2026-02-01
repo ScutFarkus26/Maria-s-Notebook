@@ -58,7 +58,8 @@ struct ClosureCaptureTests {
                     object: nil,
                     queue: .main
                 ) { [weak self] _ in
-                    _ = self
+                    // Weak reference to self for leak testing
+                    _ = self?.tracker
                 }
             }
 
@@ -338,7 +339,7 @@ struct ToastServiceMemoryTests {
 
         // Verify we can show a toast (it should be non-nil after showing)
         // Note: This may still be nil in test environment due to withAnimation
-        let hasToastAfterShow = service.currentToast != nil
+        _ = service.currentToast != nil
 
         // Add more toasts to the queue
         service.show("Toast 2")

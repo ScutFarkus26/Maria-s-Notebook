@@ -506,7 +506,7 @@ struct CombineAsyncBridgeTests {
 
         // Use a traditional Combine sink to verify publisher behavior
         let subject = PassthroughSubject<Int, Never>()
-        let expectation = await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             var count = 0
             subject
                 .sink { value in

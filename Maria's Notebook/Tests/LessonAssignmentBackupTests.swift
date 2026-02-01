@@ -8,12 +8,13 @@
 
 import Foundation
 import SwiftData
-@testable import Maria_s_Notebook
 
 #if canImport(Testing)
 import Testing
+@testable import Maria_s_Notebook
 
 @Suite("LessonAssignment Backup Tests")
+@MainActor
 struct LessonAssignmentBackupTests {
 
     // MARK: - DTO Transformation Tests

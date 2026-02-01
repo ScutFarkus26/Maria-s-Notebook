@@ -35,7 +35,6 @@
 		51D2D3EC2F1DE9B600F5C9BF /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook Tests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Backup/BackupServiceTests.swift,
 				Tests/AgeUtilsTests.swift,
 				Tests/AppRenameVerificationTests.swift,
 				Tests/AttendanceModelsTests.swift,
@@ -43,6 +42,7 @@
 				Tests/AttendanceStoreTests.swift,
 				Tests/AttendanceViewModelTests.swift,
 				Tests/BackupServicesTests.swift,
+				Tests/BackupServiceTests.swift,
 				Tests/CalendarSyncServiceTests.swift,
 				Tests/CloudKitSyncStatusServiceTests.swift,
 				Tests/CompileAudit.swift,
@@ -60,6 +60,7 @@
 				Tests/InboxDataLoaderTests.swift,
 				Tests/InboxSheetViewModelTests.swift,
 				Tests/LegacyNotesMigrationServiceTests.swift,
+				Tests/LessonAssignmentBackupTests.swift,
 				Tests/LessonAssignmentMigrationTests.swift,
 				Tests/LessonLifecycleTests.swift,
 				Tests/LessonPickerViewModelTests.swift,
