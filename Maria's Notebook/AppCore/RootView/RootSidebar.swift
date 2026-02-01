@@ -50,6 +50,10 @@ struct RootSidebar: View {
                     Label("Procedures", systemImage: "doc.text")
                 }
 
+                NavigationLink(value: RootView.NavigationItem.meetings) {
+                    Label("Meetings", systemImage: "person.2")
+                }
+
                 NavigationLink(value: RootView.NavigationItem.community) {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
@@ -136,6 +140,12 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View classroom procedures and routines")
+
+                Button { selection = .meetings } label: {
+                    Label("Meetings", systemImage: "person.2")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Conduct weekly student meetings")
 
                 Button { selection = .community } label: {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")

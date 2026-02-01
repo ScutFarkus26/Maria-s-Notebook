@@ -43,6 +43,8 @@ struct RootDetailContent: View {
                 SuppliesListView()
             case .procedures:
                 ProceduresListView()
+            case .meetings:
+                MeetingsWorkflowView()
             case .more:
                 MoreMenuView()
             case .lessons:
@@ -122,6 +124,7 @@ struct MoreMenuView: View {
                     moreMenuButton(.lessons)
                     moreMenuButton(.supplies)
                     moreMenuButton(.procedures)
+                    moreMenuButton(.meetings)
                     moreMenuButton(.community)
                     moreMenuButton(.logs)
                 }
