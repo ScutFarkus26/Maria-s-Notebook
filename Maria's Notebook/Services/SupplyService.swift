@@ -10,11 +10,11 @@ enum SupplyService {
         category: SupplyCategory? = nil,
         searchText: String = ""
     ) -> [Supply] {
-        var descriptor = FetchDescriptor<Supply>(
+        let descriptor = FetchDescriptor<Supply>(
             sortBy: [SortDescriptor(\.name, order: .forward)]
         )
 
-        let supplies = context.safeFetch(descriptor) ?? []
+        let supplies = context.safeFetch(descriptor)
 
         var filtered = supplies
 
@@ -43,7 +43,7 @@ enum SupplyService {
             sortBy: [SortDescriptor(\.currentQuantity, order: .forward)]
         )
 
-        let supplies = context.safeFetch(descriptor) ?? []
+        let supplies = context.safeFetch(descriptor)
         return supplies.filter { $0.needsReorder }
     }
 
@@ -71,7 +71,7 @@ enum SupplyService {
     @MainActor
     static func getSupplyStats(in context: ModelContext) -> SupplyStats {
         let descriptor = FetchDescriptor<Supply>()
-        let supplies = context.safeFetch(descriptor) ?? []
+        let supplies = context.safeFetch(descriptor)
 
         let total = supplies.count
         let lowStock = supplies.filter { $0.status == .low || $0.status == .critical }.count

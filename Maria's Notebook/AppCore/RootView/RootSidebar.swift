@@ -46,6 +46,10 @@ struct RootSidebar: View {
                     Label("Supplies", systemImage: "shippingbox")
                 }
 
+                NavigationLink(value: RootView.NavigationItem.procedures) {
+                    Label("Procedures", systemImage: "doc.text")
+                }
+
                 NavigationLink(value: RootView.NavigationItem.community) {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
@@ -126,6 +130,12 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Track classroom supplies and inventory")
+
+                Button { selection = .procedures } label: {
+                    Label("Procedures", systemImage: "doc.text")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View classroom procedures and routines")
 
                 Button { selection = .community } label: {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")

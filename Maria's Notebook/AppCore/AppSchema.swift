@@ -42,5 +42,6 @@ struct AppSchema {
         Document.self,
         Supply.self,
         SupplyTransaction.self,
+        Procedure.self,
     ])
 }
