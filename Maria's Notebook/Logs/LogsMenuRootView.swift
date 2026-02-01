@@ -89,7 +89,9 @@ struct LogsMenuRootView: View {
     private var logsContent: some View {
         switch mode {
         case .presentations:
-            PresentationHistoryView()
+            // Phase 5 Migration: Using LessonAssignmentHistoryView instead of PresentationHistoryView
+            // The LessonAssignment model unifies StudentLesson + Presentation data
+            LessonAssignmentHistoryView()
         case .works:
             WorksLogView()
         case .attendance:

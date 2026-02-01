@@ -102,6 +102,9 @@ extension UnifiedNoteEditor {
                 }
             }
 
+        case .lessonAssignment(let assignment):
+            note.lessonAssignment = assignment
+
         case .attendance(let record):
             note.attendanceRecord = record
 

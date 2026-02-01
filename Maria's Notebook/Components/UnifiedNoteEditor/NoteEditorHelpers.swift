@@ -24,6 +24,7 @@ extension UnifiedNoteEditor {
         case .work: return "Work Note"
         case .studentLesson: return "Presentation Note"
         case .presentation: return "Presentation Note"
+        case .lessonAssignment: return "Presentation Note"
         case .attendance: return "Attendance Note"
         case .workCheckIn: return "Check-In Note"
         case .workCompletion: return "Completion Note"
@@ -61,6 +62,8 @@ extension UnifiedNoteEditor {
             }
         case .studentLesson(let sl):
             return Set(sl.studentIDs.compactMap { UUID(uuidString: $0) })
+        case .lessonAssignment(let la):
+            return Set(la.studentUUIDs)
         case .work(let work):
             return Set((work.participants ?? []).compactMap { UUID(uuidString: $0.studentID) })
         default:
@@ -279,6 +282,7 @@ extension UnifiedNoteEditor {
         case .work: return ".work"
         case .studentLesson: return ".studentLesson"
         case .presentation: return ".presentation"
+        case .lessonAssignment: return ".lessonAssignment"
         case .attendance: return ".attendance"
         case .workCheckIn: return ".workCheckIn"
         case .workCompletion: return ".workCompletion"
