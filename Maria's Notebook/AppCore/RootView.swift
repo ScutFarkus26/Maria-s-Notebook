@@ -22,6 +22,7 @@ struct RootView: View {
         case attendance
         case note
         case students
+        case supplies
         case lessons
         case more
 
@@ -43,6 +44,7 @@ struct RootView: View {
             case .attendance: return "Attendance"
             case .note: return "Note"
             case .students: return "Students"
+            case .supplies: return "Supplies"
             case .lessons: return "Lessons"
             case .more: return "More"
             case .planningChecklist: return "Checklist"
@@ -61,6 +63,7 @@ struct RootView: View {
             case .attendance: return "checklist"
             case .note: return "square.and.pencil"
             case .students: return "person.3"
+            case .supplies: return "shippingbox"
             case .lessons: return "book"
             case .more: return "ellipsis.circle"
             case .planningChecklist: return "list.clipboard"
@@ -88,7 +91,7 @@ struct RootView: View {
 
         var isInMoreMenu: Bool {
             switch self {
-            case .lessons, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .logs, .settings:
+            case .lessons, .supplies, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .logs, .settings:
                 return true
             default:
                 return false
@@ -101,6 +104,7 @@ struct RootView: View {
             case .attendance: return .attendance
             case .note: return nil
             case .students: return .students
+            case .supplies: return nil
             case .lessons: return .albums
             case .more: return nil
             case .planningChecklist, .planningAgenda, .planningWork, .planningProjects: return .planning

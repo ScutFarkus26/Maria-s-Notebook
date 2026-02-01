@@ -40,5 +40,7 @@ struct AppSchema {
         StudentTrackEnrollment.self,
         GroupTrack.self,
         Document.self,
+        Supply.self,
+        SupplyTransaction.self,
     ])
 }

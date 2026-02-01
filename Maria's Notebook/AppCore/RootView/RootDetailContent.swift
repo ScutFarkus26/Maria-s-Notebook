@@ -39,6 +39,8 @@ struct RootDetailContent: View {
                 noteTabContent
             case .students:
                 StudentsRootView()
+            case .supplies:
+                SuppliesListView()
             case .more:
                 MoreMenuView()
             case .lessons:
@@ -116,6 +118,7 @@ struct MoreMenuView: View {
             List {
                 Section("Classroom") {
                     moreMenuButton(.lessons)
+                    moreMenuButton(.supplies)
                     moreMenuButton(.community)
                     moreMenuButton(.logs)
                 }

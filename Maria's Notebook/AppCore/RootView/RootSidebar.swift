@@ -42,6 +42,10 @@ struct RootSidebar: View {
                     }
                 }
 
+                NavigationLink(value: RootView.NavigationItem.supplies) {
+                    Label("Supplies", systemImage: "shippingbox")
+                }
+
                 NavigationLink(value: RootView.NavigationItem.community) {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
@@ -116,6 +120,12 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student profiles and records")
+
+                Button { selection = .supplies } label: {
+                    Label("Supplies", systemImage: "shippingbox")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track classroom supplies and inventory")
 
                 Button { selection = .community } label: {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")
