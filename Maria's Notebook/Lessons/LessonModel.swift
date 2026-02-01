@@ -72,6 +72,10 @@ final class Lesson: Identifiable {
     @Relationship(inverse: \StudentLesson.lesson)
     var studentLessons: [StudentLesson]? = []
 
+    // Relationship to LessonAssignment - inverse specified on this side (the "many" side)
+    @Relationship(inverse: \LessonAssignment.lesson)
+    var lessonAssignments: [LessonAssignment]? = []
+
     // MARK: - Initializer
 
     init(
@@ -104,5 +108,6 @@ final class Lesson: Identifiable {
         self.defaultWorkKindRaw = defaultWorkKind?.rawValue
         self.notes = []
         self.studentLessons = []
+        self.lessonAssignments = []
     }
 }
