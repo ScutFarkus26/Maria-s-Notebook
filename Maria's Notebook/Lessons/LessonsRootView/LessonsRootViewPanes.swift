@@ -65,7 +65,8 @@ extension LessonsRootView {
             onGiveLesson: { lesson in
                 lessonToSchedule = lesson
             },
-            selectedSubject: selectedSubject
+            selectedSubject: selectedSubject,
+            selectedLessonID: selectedLessonDetail?.id
         )
     }
 
@@ -149,66 +150,97 @@ extension LessonsRootView {
         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
     }
 
-    // MARK: - Expanded Groups View (Flat List)
+    // MARK: - Expanded Groups View (Grouped by Group)
 
     var expandedGroupsView: some View {
-        // Sort all lessons by sortIndex for a flat, fully reorderable list
-        // This allows ungrouped lessons to be positioned anywhere among grouped lessons
-        let sortedLessons = lessonsForSubject.sorted { lhs, rhs in
-            if lhs.sortIndex != rhs.sortIndex {
-                return lhs.sortIndex < rhs.sortIndex
+        let ungroupedLabel = "Ungrouped"
+
+        // Get ordered groups from reorderableGroups or compute them
+        let displayGroups: [String] = {
+            let baseGroups = groupsFromFilteredLessons
+            let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
+            let allGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
+
+            if reorderableGroups.isEmpty {
+                return allGroups
             }
+            let existingSet = Set(reorderableGroups)
+            let missing = allGroups.filter { !existingSet.contains($0) }
+            return reorderableGroups.filter { allGroups.contains($0) } + missing
+        }()
+
+        return ScrollViewReader { proxy in
+            List {
+                ForEach(displayGroups, id: \.self) { group in
+                    expandedGroupSection(group: group, ungroupedLabel: ungroupedLabel, scrollProxy: proxy)
+                }
+            }
+            .listStyle(.plain)
+            .id("PlanModeList")
+        }
+    }
+
+    @ViewBuilder
+    private func expandedGroupSection(group: String, ungroupedLabel: String, scrollProxy: ScrollViewProxy) -> some View {
+        let groupLessons = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
+
+        if !groupLessons.isEmpty {
+            Section {
+                ForEach(groupLessons, id: \.id) { lesson in
+                    ExpandedLessonRowView(
+                        lesson: lesson,
+                        isSelected: selectedLessonDetail?.id == lesson.id,
+                        onSelect: {
+                            selectedLessonDetail = lesson
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation {
+                                    scrollProxy.scrollTo(lesson.id, anchor: .center)
+                                }
+                            }
+                        },
+                        onSchedule: {
+                            lessonToSchedule = lesson
+                        }
+                    )
+                }
+                .onMove { source, destination in
+                    moveLessonsInGroup(from: source, to: destination, group: group, ungroupedLabel: ungroupedLabel)
+                }
+            } header: {
+                if let subject = selectedSubject {
+                    groupSectionHeader(group: group, subject: subject)
+                } else {
+                    Text(group)
+                }
+            }
+        }
+    }
+
+    /// Returns sorted lessons for a specific group
+    private func lessonsForGroup(_ group: String, ungroupedLabel: String) -> [Lesson] {
+        lessonsForSubject.filter { lesson in
+            let lessonGroupTrimmed = lesson.group.trimmed()
+            if group == ungroupedLabel {
+                return lessonGroupTrimmed.isEmpty
+            } else {
+                return lessonGroupTrimmed.caseInsensitiveCompare(group.trimmed()) == .orderedSame
+            }
+        }.sorted { lhs, rhs in
             if lhs.orderInGroup != rhs.orderInGroup {
                 return lhs.orderInGroup < rhs.orderInGroup
             }
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
-
-        return List {
-            ForEach(sortedLessons, id: \.self) { lesson in
-                expandedGroupLessonRow(lesson: lesson, showGroup: true)
-            }
-            .onMove(perform: canReorderInPlanMode ? { source, destination in
-                moveLessonsFlat(from: source, to: destination, in: sortedLessons)
-            } : nil)
-        }
-        .listStyle(.plain)
-        .id("PlanModeList")
     }
 
-    private func expandedGroupLessonRow(lesson: Lesson, showGroup: Bool = false) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(.tertiary)
-                .font(.caption)
+    /// Move lessons within a group - re-fetches the group lessons to ensure fresh data
+    @MainActor
+    func moveLessonsInGroup(from source: IndexSet, to destination: Int, group: String, ungroupedLabel: String) {
+        guard canReorderInPlanMode else { return }
 
-            VStack(alignment: .leading, spacing: 2) {
-                LessonRow(lesson: lesson, secondaryTextStyle: .subheading, showTagIcon: false)
-
-                if showGroup {
-                    let groupText = lesson.group.trimmed().isEmpty ? "Ungrouped" : lesson.group.trimmed()
-                    Text(groupText)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-        .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
-        .contextMenu {
-            Button {
-                selectedLessonDetail = lesson
-            } label: {
-                Label("View Details", systemImage: "info.circle")
-            }
-            Button {
-                lessonToSchedule = lesson
-            } label: {
-                Label("Plan Presentation", systemImage: "tray.and.arrow.down")
-            }
-        }
-        .onTapGesture {
-            selectedLessonDetail = lesson
-        }
+        // Get fresh group lessons
+        let groupLessons = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
+        moveLessonsInSubject(from: source, to: destination, in: groupLessons)
     }
 
     // MARK: - Lesson Detail Pane (Right)
@@ -263,5 +295,54 @@ extension LessonsRootView {
             .buttonStyle(.plain)
             .help("Configure track settings")
         }
+    }
+}
+
+// MARK: - Expanded Lesson Row View
+
+/// A row view for lessons in the expanded groups list with selection highlighting
+struct ExpandedLessonRowView: View {
+    let lesson: Lesson
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onSchedule: () -> Void
+
+    var body: some View {
+        Button {
+            onSelect()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "line.3.horizontal")
+                    .foregroundStyle(.tertiary)
+                    .font(.caption)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    LessonRow(lesson: lesson, secondaryTextStyle: .subheading, showTagIcon: false)
+                }
+
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
+                .padding(.horizontal, 4)
+        )
+        .contextMenu {
+            Button {
+                onSelect()
+            } label: {
+                Label("View Details", systemImage: "info.circle")
+            }
+            Button {
+                onSchedule()
+            } label: {
+                Label("Plan Presentation", systemImage: "tray.and.arrow.down")
+            }
+        }
+        .id(lesson.id)
     }
 }

@@ -16,6 +16,7 @@ struct LessonsCardsGridView: View {
     let onGiveLesson: ((Lesson) -> Void)?
     let statusCounts: [UUID: Int]?
     let selectedSubject: String?
+    let selectedLessonID: UUID?
 
     init(
         lessons: [Lesson],
@@ -24,7 +25,8 @@ struct LessonsCardsGridView: View {
         onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)? = nil,
         onGiveLesson: ((Lesson) -> Void)? = nil,
         statusCounts: [UUID: Int]? = nil,
-        selectedSubject: String? = nil
+        selectedSubject: String? = nil,
+        selectedLessonID: UUID? = nil
     ) {
         self.lessons = lessons
         self.isManualMode = isManualMode
@@ -33,6 +35,7 @@ struct LessonsCardsGridView: View {
         self.onGiveLesson = onGiveLesson
         self.statusCounts = statusCounts
         self.selectedSubject = selectedSubject
+        self.selectedLessonID = selectedLessonID
     }
 
     @State private var draggingLessonID: UUID?
@@ -111,45 +114,58 @@ struct LessonsCardsGridView: View {
 
     var body: some View {
         let needsGeometry = isManualMode && onReorder != nil
-        
-        return ScrollView {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                if groupedByGroup.count > 1 {
-                    ForEach(groupedByGroup, id: \.key) { entry in
-                        Section {
-                            ForEach(entry.value, id: \.id) { lesson in
-                                card(lesson)
+
+        return ScrollViewReader { scrollProxy in
+            ScrollView {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                    if groupedByGroup.count > 1 {
+                        ForEach(groupedByGroup, id: \.key) { entry in
+                            Section {
+                                ForEach(entry.value, id: \.id) { lesson in
+                                    card(lesson)
+                                        .id(lesson.id)
+                                }
+                            } header: {
+                                groupHeader(for: entry.key, subject: selectedSubject)
                             }
-                        } header: {
-                            groupHeader(for: entry.key, subject: selectedSubject)
+                        }
+                    } else {
+                        ForEach(lessons, id: \.id) { lesson in
+                            card(lesson)
+                                .id(lesson.id)
                         }
                     }
-                } else {
-                    ForEach(lessons, id: \.id) { lesson in
-                        card(lesson)
+                }
+                .transaction { tx in
+                    if !hasAppeared { tx.animation = nil }
+                }
+                .animation(gridAnimation, value: idList)
+                .padding(.top, 24)
+                .padding(.bottom, 24)
+                .padding(.trailing, 24)
+                .padding(.leading, 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .when(needsGeometry) { view in
+                view
+                    .coordinateSpace(name: "lessonsGridScroll")
+                    .onPreferenceChange(ItemFramePreference.self) { frames in
+                        // Defer state update to next run loop to avoid layout recursion
+                        // PreferenceKey updates happen during layout, so we must defer state changes
+                        DispatchQueue.main.async {
+                            itemFrames = frames
+                        }
+                    }
+            }
+            .onChange(of: selectedLessonID) { _, newValue in
+                if let lessonID = newValue {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation {
+                            scrollProxy.scrollTo(lessonID, anchor: .center)
+                        }
                     }
                 }
             }
-            .transaction { tx in
-                if !hasAppeared { tx.animation = nil }
-            }
-            .animation(gridAnimation, value: idList)
-            .padding(.top, 24)
-            .padding(.bottom, 24)
-            .padding(.trailing, 24)
-            .padding(.leading, 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .when(needsGeometry) { view in
-            view
-                .coordinateSpace(name: "lessonsGridScroll")
-                .onPreferenceChange(ItemFramePreference.self) { frames in
-                    // Defer state update to next run loop to avoid layout recursion
-                    // PreferenceKey updates happen during layout, so we must defer state changes
-                    DispatchQueue.main.async {
-                        itemFrames = frames
-                    }
-                }
         }
         .onAppear {
             // Defer enabling animations until after the first layout to avoid initial appear animations
@@ -205,6 +221,7 @@ struct LessonsCardsGridView: View {
     private func card(_ lesson: Lesson) -> some View {
         let isDragging = isManualMode && draggingLessonID == lesson.id
         let isHover = hoverTargetID == lesson.id
+        let isSelected = selectedLessonID == lesson.id
         // Only measure frames when in manual reorder mode with a reorder handler
         let shouldMeasureFrames = isManualMode && onReorder != nil
 
@@ -212,6 +229,7 @@ struct LessonsCardsGridView: View {
             lesson: lesson,
             isDragging: isDragging,
             isHover: isHover,
+            isSelected: isSelected,
             hasAppeared: hasAppeared,
             gridNamespace: gridNamespace,
             disableAnimations: draggingLessonID != nil,
@@ -329,6 +347,7 @@ private struct LessonCardContainer: View {
     let lesson: Lesson
     let isDragging: Bool
     let isHover: Bool
+    let isSelected: Bool
     let hasAppeared: Bool
     let gridNamespace: Namespace.ID
     let disableAnimations: Bool
@@ -341,7 +360,7 @@ private struct LessonCardContainer: View {
         let withMatchedGeometry = shouldUseMatchedGeometry
             ? AnyView(card.matchedGeometryEffect(id: lesson.id, in: gridNamespace))
             : AnyView(card)
-        
+
         return withMatchedGeometry
             .when(hasAppeared) { view in
                 view.transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -353,6 +372,10 @@ private struct LessonCardContainer: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(isHover ? Color.accentColor.opacity(0.35) : Color.clear, style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
             )
             .transaction { tx in
                 if disableAnimations { tx.animation = nil }
