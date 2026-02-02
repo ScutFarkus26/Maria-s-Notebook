@@ -468,7 +468,7 @@ public final class SelectiveRestoreService {
         case .presentations:
             // Import old Presentations as LessonAssignments (backward compatibility)
             let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
-            try BackupEntityImporter.importPresentationsAsLessonAssignments(
+            BackupEntityImporter.importPresentationsAsLessonAssignments(
                 payload.presentations,
                 into: modelContext,
                 existingLessonAssignmentCheck: { [existingLessonAssignmentIDs] id in

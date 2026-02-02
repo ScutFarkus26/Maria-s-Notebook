@@ -110,9 +110,11 @@ extension LessonsRootView {
             ForEach(displayGroups, id: \.self) { group in
                 organizeGroupRow(group: group, in: displayGroups)
             }
+            #if os(iOS)
             .onMove { source, destination in
                 moveGroups(from: source, to: destination, in: displayGroups)
             }
+            #endif
         }
         .listStyle(.plain)
         .id("OrganizeGroupsList")
@@ -170,13 +172,55 @@ extension LessonsRootView {
         }()
 
         return ScrollViewReader { proxy in
-            List {
-                ForEach(displayGroups, id: \.self) { group in
-                    expandedGroupSection(group: group, ungroupedLabel: ungroupedLabel, scrollProxy: proxy)
+            #if os(macOS)
+            let selectionBinding = Binding<Lesson.ID?>(
+                get: { selectedLessonDetail?.id },
+                set: { newValue in
+                    guard let newValue else {
+                        selectedLessonDetail = nil
+                        return
+                    }
+                    if let lesson = lessonsForSubject.first(where: { $0.id == newValue }) {
+                        selectedLessonDetail = lesson
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation {
+                                proxy.scrollTo(lesson.id, anchor: .center)
+                            }
+                        }
+                    }
                 }
+            )
+            List(selection: selectionBinding) {
+                expandedGroupsListRows(displayGroups: displayGroups, ungroupedLabel: ungroupedLabel, scrollProxy: proxy)
             }
             .listStyle(.plain)
             .id("PlanModeList")
+            #else
+            List {
+                expandedGroupsListRows(displayGroups: displayGroups, ungroupedLabel: ungroupedLabel, scrollProxy: proxy)
+            }
+            .listStyle(.plain)
+            .id("PlanModeList")
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private func expandedGroupsListRows(
+        displayGroups: [String],
+        ungroupedLabel: String,
+        scrollProxy: ScrollViewProxy
+    ) -> some View {
+        if !canReorderInPlanMode {
+            Text("Clear search to reorder lessons.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                .listRowBackground(Color.clear)
+                .accessibilityLabel("Clear search to reorder lessons")
+        }
+        ForEach(displayGroups, id: \.self) { group in
+            expandedGroupSection(group: group, ungroupedLabel: ungroupedLabel, scrollProxy: scrollProxy)
         }
     }
 
@@ -186,25 +230,51 @@ extension LessonsRootView {
 
         if !groupLessons.isEmpty {
             Section {
-                ForEach(groupLessons, id: \.id) { lesson in
-                    ExpandedLessonRowView(
-                        lesson: lesson,
-                        isSelected: selectedLessonDetail?.id == lesson.id,
-                        onSelect: {
-                            selectedLessonDetail = lesson
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                withAnimation {
-                                    scrollProxy.scrollTo(lesson.id, anchor: .center)
+                if canReorderInPlanMode {
+                    ForEach(groupLessons, id: \.id) { lesson in
+                        ExpandedLessonRowView(
+                            lesson: lesson,
+                            isSelected: selectedLessonDetail?.id == lesson.id,
+                            showsReorderHandle: true,
+                            onSelect: {
+                                selectedLessonDetail = lesson
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    withAnimation {
+                                        scrollProxy.scrollTo(lesson.id, anchor: .center)
+                                    }
                                 }
+                            },
+                            onSchedule: {
+                                lessonToSchedule = lesson
                             }
-                        },
-                        onSchedule: {
-                            lessonToSchedule = lesson
-                        }
-                    )
-                }
-                .onMove { source, destination in
-                    moveLessonsInGroup(from: source, to: destination, group: group, ungroupedLabel: ungroupedLabel)
+                        )
+                        .tag(lesson.id)
+                    }
+                    #if os(iOS)
+                    .onMove { source, destination in
+                        moveLessonsInGroup(from: source, to: destination, group: group, ungroupedLabel: ungroupedLabel)
+                    }
+                    #endif
+                } else {
+                    ForEach(groupLessons, id: \.id) { lesson in
+                        ExpandedLessonRowView(
+                            lesson: lesson,
+                            isSelected: selectedLessonDetail?.id == lesson.id,
+                            showsReorderHandle: false,
+                            onSelect: {
+                                selectedLessonDetail = lesson
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    withAnimation {
+                                        scrollProxy.scrollTo(lesson.id, anchor: .center)
+                                    }
+                                }
+                            },
+                            onSchedule: {
+                                lessonToSchedule = lesson
+                            }
+                        )
+                        .tag(lesson.id)
+                    }
                 }
             } header: {
                 if let subject = selectedSubject {
@@ -304,27 +374,31 @@ extension LessonsRootView {
 struct ExpandedLessonRowView: View {
     let lesson: Lesson
     let isSelected: Bool
+    let showsReorderHandle: Bool
     let onSelect: () -> Void
     let onSchedule: () -> Void
 
     var body: some View {
-        Button {
-            onSelect()
-        } label: {
-            HStack(spacing: 12) {
+        HStack(spacing: 12) {
+            if showsReorderHandle {
                 Image(systemName: "line.3.horizontal")
                     .foregroundStyle(.tertiary)
                     .font(.caption)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    LessonRow(lesson: lesson, secondaryTextStyle: .subheading, showTagIcon: false)
-                }
-
-                Spacer()
+                    .help("Drag to reorder")
             }
-            .contentShape(Rectangle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                LessonRow(lesson: lesson, secondaryTextStyle: .subheading, showTagIcon: false)
+            }
+
+            Spacer()
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        #if os(iOS)
+        .onTapGesture {
+            onSelect()
+        }
+        #endif
         .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
         .listRowBackground(
             RoundedRectangle(cornerRadius: 6)
