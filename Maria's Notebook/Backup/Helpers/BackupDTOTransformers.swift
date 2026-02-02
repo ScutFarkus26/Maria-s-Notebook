@@ -127,20 +127,9 @@ enum BackupDTOTransformers {
         )
     }
 
-    // MARK: - Presentation
-
-    static func toDTO(_ presentation: Presentation) -> PresentationDTO {
-        PresentationDTO(
-            id: presentation.id,
-            createdAt: presentation.createdAt,
-            presentedAt: presentation.presentedAt,
-            lessonID: presentation.lessonID,
-            studentIDs: presentation.studentIDs,
-            legacyStudentLessonID: presentation.legacyStudentLessonID,
-            lessonTitleSnapshot: presentation.lessonTitleSnapshot,
-            lessonSubtitleSnapshot: presentation.lessonSubtitleSnapshot
-        )
-    }
+    // MARK: - Presentation (Removed)
+    // Presentation model has been removed. Use LessonAssignment instead.
+    // PresentationDTOs are still supported for importing old backups.
 
     // MARK: - LessonAssignment
 
@@ -358,9 +347,7 @@ enum BackupDTOTransformers {
         meetings.compactMap { toDTO($0) }
     }
 
-    static func toDTOs(_ presentations: [Presentation]) -> [PresentationDTO] {
-        presentations.map { toDTO($0) }
-    }
+    // Removed: toDTOs for Presentation - model no longer exists
 
     static func toDTOs(_ assignments: [LessonAssignment]) -> [LessonAssignmentDTO] {
         assignments.map { toDTO($0) }

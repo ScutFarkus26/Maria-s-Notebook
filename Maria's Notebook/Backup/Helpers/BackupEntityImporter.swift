@@ -292,45 +292,75 @@ enum BackupEntityImporter {
         }
     }
 
-    // MARK: - Presentations
+    // MARK: - Presentations (Legacy Import)
 
-    /// Imports presentations from DTOs.
+    /// Imports old presentation DTOs as LessonAssignments.
+    /// This is for backward compatibility with backups created before the migration to LessonAssignment.
     ///
     /// - Parameters:
     ///   - dtos: The presentation DTOs to import
     ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a presentation already exists
+    ///   - existingLessonAssignmentCheck: Function to check if a LessonAssignment already exists
     ///   - allStudentLessons: All student lessons for legacy ID matching
-    static func importPresentations(
+    static func importPresentationsAsLessonAssignments(
         _ dtos: [PresentationDTO],
         into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Presentation>,
+        existingLessonAssignmentCheck: EntityExistsCheck<LessonAssignment>,
         allStudentLessons: [StudentLesson]
     ) rethrows {
+        // Pre-fetch all LessonAssignments to check for existing migrations
+        let allLessonAssignments = (try? modelContext.fetch(FetchDescriptor<LessonAssignment>())) ?? []
+        let migratedFromPresentationIDs = Set(allLessonAssignments.compactMap { $0.migratedFromPresentationID })
+
         for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
+            let dtoIDString = dto.id.uuidString
 
-            let presentation = Presentation(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                presentedAt: dto.presentedAt,
-                lessonID: dto.lessonID,
-                studentIDs: dto.studentIDs
-            )
-            presentation.legacyStudentLessonID = dto.legacyStudentLessonID
-            presentation.lessonTitleSnapshot = dto.lessonTitleSnapshot
-            presentation.lessonSubtitleSnapshot = dto.lessonSubtitleSnapshot
-
-            // Match legacy student lesson if not already set
-            if presentation.legacyStudentLessonID == nil {
-                if let matchingSL = allStudentLessons.first(where: { sl in
-                    sl.lessonID == dto.lessonID && Set(sl.studentIDs) == Set(dto.studentIDs)
-                }) {
-                    presentation.legacyStudentLessonID = matchingSL.id.uuidString
-                }
+            // Check if a LessonAssignment was already migrated from this presentation
+            if migratedFromPresentationIDs.contains(dtoIDString) {
+                continue // Already migrated
             }
 
-            modelContext.insert(presentation)
+            // Also skip if LessonAssignment with same ID exists
+            if (try? existingLessonAssignmentCheck(dto.id)) != nil { continue }
+
+            // Parse lesson ID
+            guard let lessonUUID = UUID(uuidString: dto.lessonID) else { continue }
+
+            // Parse student IDs
+            let studentUUIDs = dto.studentIDs.compactMap { UUID(uuidString: $0) }
+
+            // Create LessonAssignment from old Presentation
+            let assignment = LessonAssignment(
+                id: dto.id,
+                createdAt: dto.createdAt,
+                state: .presented, // Old Presentations were always presented
+                scheduledFor: nil,
+                presentedAt: dto.presentedAt,
+                lessonID: lessonUUID,
+                studentIDs: studentUUIDs,
+                lesson: nil,
+                needsPractice: false,
+                needsAnotherPresentation: false,
+                followUpWork: "",
+                notes: "",
+                trackID: nil, // Old PresentationDTO didn't have trackID
+                trackStepID: nil // Old PresentationDTO didn't have trackStepID
+            )
+
+            // Set snapshots
+            assignment.lessonTitleSnapshot = dto.lessonTitleSnapshot
+            assignment.lessonSubheadingSnapshot = dto.lessonSubtitleSnapshot
+
+            // Track that this came from a Presentation
+            assignment.migratedFromPresentationID = dto.id.uuidString
+
+            // Match legacy student lesson if available
+            let legacyID = dto.legacyStudentLessonID ?? allStudentLessons.first(where: { sl in
+                sl.lessonID == dto.lessonID && Set(sl.studentIDs) == Set(dto.studentIDs)
+            })?.id.uuidString
+            assignment.migratedFromStudentLessonID = legacyID
+
+            modelContext.insert(assignment)
         }
     }
 

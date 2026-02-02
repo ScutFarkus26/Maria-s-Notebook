@@ -40,7 +40,11 @@ struct PostPresentationAssignmentsSheet: View {
         self.lessonName = lessonName
         self.onCreate = onCreate
         self.onCancel = onCancel
-        _entries = State(initialValue: Dictionary(uniqueKeysWithValues: deduped.map { ($0.id, AssignmentEntry(studentID: $0.id, text: "", schedule: nil)) }))
+        // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
+        _entries = State(initialValue: Dictionary(
+            deduped.map { ($0.id, AssignmentEntry(studentID: $0.id, text: "", schedule: nil)) },
+            uniquingKeysWith: { first, _ in first }
+        ))
     }
 
     var body: some View {

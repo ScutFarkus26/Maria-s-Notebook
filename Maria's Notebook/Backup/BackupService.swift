@@ -57,9 +57,8 @@ public final class BackupService {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.27), "Collecting calendar data…")
         let nonSchoolDays: [NonSchoolDay] = safeFetchInBatches(NonSchoolDay.self, using: modelContext)
         let schoolDayOverrides: [SchoolDayOverride] = safeFetchInBatches(SchoolDayOverride.self, using: modelContext)
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.30), "Collecting meetings and presentations…")
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.30), "Collecting meetings…")
         let studentMeetings: [StudentMeeting] = safeFetchInBatches(StudentMeeting.self, using: modelContext)
-        let presentations: [Presentation] = safeFetchInBatches(Presentation.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.33), "Collecting community data…")
         let communityTopics: [CommunityTopic] = safeFetchInBatchesWithErrorHandling(CommunityTopic.self, using: modelContext)
         let proposedSolutions: [ProposedSolution] = safeFetchInBatches(ProposedSolution.self, using: modelContext)
@@ -87,7 +86,7 @@ public final class BackupService {
         let nonSchoolDTOs = BackupDTOTransformers.toDTOs(nonSchoolDays)
         let schoolOverrideDTOs = BackupDTOTransformers.toDTOs(schoolDayOverrides)
         let studentMeetingDTOs = BackupDTOTransformers.toDTOs(studentMeetings)
-        let presentationDTOs = BackupDTOTransformers.toDTOs(presentations)
+        let presentationDTOs: [PresentationDTO] = [] // No longer exported; LessonAssignment is used instead
         let topicDTOs = BackupDTOTransformers.toDTOs(communityTopics)
         let solutionDTOs = BackupDTOTransformers.toDTOs(proposedSolutions)
         let meetingNoteDTOs: [MeetingNoteDTO] = [] // Removed entity
@@ -170,7 +169,6 @@ public final class BackupService {
             "NonSchoolDay": nonSchoolDTOs.count,
             "SchoolDayOverride": schoolOverrideDTOs.count,
             "StudentMeeting": studentMeetingDTOs.count,
-            "Presentation": presentationDTOs.count,
             "CommunityTopic": topicDTOs.count,
             "ProposedSolution": solutionDTOs.count,
             "MeetingNote": meetingNoteDTOs.count,
@@ -480,12 +478,12 @@ public final class BackupService {
             existingCheck: { try fetchOne(StudentMeeting.self, id: $0, using: modelContext) }
         )
 
-        // Fetch all student lessons once for presentation legacy ID matching
+        // Import old Presentations as LessonAssignments (backward compatibility)
         let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
-        try BackupEntityImporter.importPresentations(
+        try BackupEntityImporter.importPresentationsAsLessonAssignments(
             payload.presentations,
             into: modelContext,
-            existingCheck: { try fetchOne(Presentation.self, id: $0, using: modelContext) },
+            existingLessonAssignmentCheck: { try fetchOne(LessonAssignment.self, id: $0, using: modelContext) },
             allStudentLessons: allStudentLessons
         )
 
@@ -695,10 +693,7 @@ public final class BackupService {
             let arr = try context.fetch(FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == Presentation.self {
-            let arr = try context.fetch(FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == id }))
-            return arr.first as? T
-        }
+        // Removed: Presentation (now uses LessonAssignment)
         if type == CommunityTopic.self {
             let arr = try context.fetch(FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T

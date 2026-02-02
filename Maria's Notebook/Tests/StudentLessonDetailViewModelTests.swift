@@ -17,7 +17,6 @@ private func makeDetailContainer() throws -> ModelContainer {
         WorkParticipantEntity.self,
         WorkCheckIn.self,
         WorkPlanItem.self,
-        Presentation.self,
         Track.self,
         TrackStep.self,
         StudentTrackEnrollment.self,

@@ -25,7 +25,8 @@ enum InboxOrderStore {
         let missingLessons = base.filter { missing.contains($0.id) }.sorted { $0.createdAt < $1.createdAt }
         order.append(contentsOf: missingLessons.map(\.id))
 
-        let indexMap = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
+        // Use uniquingKeysWith to handle potential duplicates
+        let indexMap = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
         return base.sorted {
             (indexMap[$0.id] ?? Int.max) < (indexMap[$1.id] ?? Int.max)
         }

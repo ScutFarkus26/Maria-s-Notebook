@@ -214,10 +214,14 @@ class CalendarSyncService: ObservableObject {
 
         // Get existing events from our database
         let existingEvents = try fetchAllCalendarEvents()
-        let existingByEKID = Dictionary<String, CalendarEvent>(uniqueKeysWithValues: existingEvents.compactMap { event in
-            guard let ekID = event.eventKitEventID else { return nil }
-            return (ekID, event)
-        })
+        // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
+        let existingByEKID = Dictionary<String, CalendarEvent>(
+            existingEvents.compactMap { event -> (String, CalendarEvent)? in
+                guard let ekID = event.eventKitEventID else { return nil }
+                return (ekID, event)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         // Build a set of target calendar identifiers for quick lookup
         let targetCalendarIDs = Set(targetCalendars.map { $0.calendarIdentifier })

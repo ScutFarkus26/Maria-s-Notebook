@@ -246,10 +246,14 @@ class ReminderSyncService: ObservableObject {
 
         // Get all existing reminders from our database that were synced from this calendar
         let existingReminders = try fetchAllReminders()
-        let existingByEKID = Dictionary<String, Reminder>(uniqueKeysWithValues: existingReminders.compactMap { rem in
-            guard let ekID = rem.eventKitReminderID else { return nil }
-            return (ekID, rem)
-        })
+        // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
+        let existingByEKID = Dictionary<String, Reminder>(
+            existingReminders.compactMap { rem -> (String, Reminder)? in
+                guard let ekID = rem.eventKitReminderID else { return nil }
+                return (ekID, rem)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         // Sync each reminder using the safe data
         var syncedCount = 0

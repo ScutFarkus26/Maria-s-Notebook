@@ -33,13 +33,14 @@ final class PresentationsViewModel: ObservableObject {
     private var lastUpdateDate: Date?
     private var cachedLessons: [Lesson] = []
     private var cachedWorkModels: [WorkModel] = []
-    private var cachedPresentations: [Presentation] = []
+    private var cachedLessonAssignments: [LessonAssignment] = []
     private var cachedStudentLessons: [StudentLesson] = []
     private var cachedStudentsStorage: [Student] = []
     private var lastStudentLessonChangeKeys: Set<StudentLessonChangeKey> = []
     private var lastLessonsIDs: Set<UUID> = []
     private var lastWorkModelIDs: Set<UUID> = []
     private var lastStudentsIDs: Set<UUID> = []
+    private var lastLessonAssignmentIDs: Set<UUID> = []
     
     private struct StudentLessonChangeKey: Hashable {
         let id: UUID
@@ -151,17 +152,19 @@ final class PresentationsViewModel: ObservableObject {
             return modelContext.safeFetch(descriptor)
         }()
 
-        // 5. Fetch all Presentations (needed to find presentation for each StudentLesson)
-        let presentations: [Presentation] = modelContext.safeFetch(FetchDescriptor<Presentation>())
+        // 5. Fetch all LessonAssignments (unified model - replaces Presentation)
+        let lessonAssignments: [LessonAssignment] = modelContext.safeFetch(FetchDescriptor<LessonAssignment>())
 
-        // Track WorkModel IDs for future change detection
+        // Track WorkModel and LessonAssignment IDs for future change detection
         let workModelIDs = Set(workModels.map { $0.id })
+        let lessonAssignmentIDs = Set(lessonAssignments.map { $0.id })
 
         // Update change tracking state
         lastStudentLessonChangeKeys = studentLessonKeys
         lastLessonsIDs = lessonsIDs
         lastWorkModelIDs = workModelIDs
         lastStudentsIDs = studentsIDs
+        lastLessonAssignmentIDs = lessonAssignmentIDs
 
         #if DEBUG
         // Only log when we're actually processing changes
@@ -172,15 +175,15 @@ final class PresentationsViewModel: ObservableObject {
                 "lessons": lessons.count,
                 "students": students.count,
                 "workModels": workModels.count,
-                "presentations": presentations.count
+                "lessonAssignments": lessonAssignments.count
             ]
         )
         #endif
-        
+
         cachedStudentLessons = studentLessons
         cachedLessons = lessons
         cachedWorkModels = workModels
-        cachedPresentations = presentations
+        cachedLessonAssignments = lessonAssignments
         lastUpdateDate = Date()
 
         // Filter visible students (exclude test students when setting is disabled)
@@ -192,17 +195,22 @@ final class PresentationsViewModel: ObservableObject {
         let openWorkByPresentationID: [String: [WorkModel]] = workModels
             .filter { $0.presentationID != nil }
             .grouped { $0.presentationID ?? "" }
-        
-        // Build a map of presentations by legacyStudentLessonID for efficient lookup
-        var presentationsByLegacyID: [String: Presentation] = [:]
-        for presentation in presentations {
-            if let legacyID = presentation.legacyStudentLessonID {
-                presentationsByLegacyID[legacyID] = presentation
+
+        // Build a map of LessonAssignments by migratedFromStudentLessonID for efficient lookup
+        var lessonAssignmentsByLegacyID: [String: LessonAssignment] = [:]
+        for assignment in lessonAssignments {
+            if let legacyID = assignment.migratedFromStudentLessonID {
+                lessonAssignmentsByLegacyID[legacyID] = assignment
             }
         }
-        
+
         // Build blocking work cache once (still needed for getBlockingWork)
-        rebuildBlockingCache(workModels: workModels, presentations: presentations, presentationsByLegacyID: presentationsByLegacyID, openWorkByPresentationID: openWorkByPresentationID)
+        rebuildBlockingCache(
+            workModels: workModels,
+            lessonAssignments: lessonAssignments,
+            lessonAssignmentsByLegacyID: lessonAssignmentsByLegacyID,
+            openWorkByPresentationID: openWorkByPresentationID
+        )
         
         // Calculate days since last lesson
         calculateDaysSinceLastLesson(
@@ -223,7 +231,7 @@ final class PresentationsViewModel: ObservableObject {
                 for: sl,
                 lessons: lessons,
                 studentLessons: studentLessons,
-                presentations: presentations,
+                lessonAssignments: lessonAssignments,
                 workModels: workModels
             )
 
@@ -240,9 +248,13 @@ final class PresentationsViewModel: ObservableObject {
         
         for sl in presentedLessons {
             let legacyID = sl.id.uuidString
-            let presentation = presentationsByLegacyID[legacyID]
-            let presentationIDString = presentation?.id.uuidString
-            
+
+            // Check for LessonAssignment (unified model)
+            var presentationIDString: String?
+            if let lessonAssignment = lessonAssignmentsByLegacyID[legacyID] {
+                presentationIDString = lessonAssignment.id.uuidString
+            }
+
             // Inbox: presented AND has open work
             if let pid = presentationIDString, let openWork = openWorkByPresentationID[pid], !openWork.isEmpty {
                 inboxItems.append(sl)
@@ -290,14 +302,19 @@ final class PresentationsViewModel: ObservableObject {
     
     // MARK: - Private Helpers (delegated to BlockingAlgorithmEngine and BlockingCacheBuilder)
 
-    private func rebuildBlockingCache(workModels: [WorkModel], presentations: [Presentation], presentationsByLegacyID: [String: Presentation], openWorkByPresentationID: [String: [WorkModel]]) {
+    private func rebuildBlockingCache(
+        workModels: [WorkModel],
+        lessonAssignments: [LessonAssignment],
+        lessonAssignmentsByLegacyID: [String: LessonAssignment],
+        openWorkByPresentationID: [String: [WorkModel]]
+    ) {
         // Use BlockingCacheBuilder to construct the cache
         blockingWorkCache = BlockingCacheBuilder.buildCache(
             studentLessons: cachedStudentLessons,
             lessons: cachedLessons,
             workModels: workModels,
-            presentations: presentations,
-            presentationsByLegacyID: presentationsByLegacyID,
+            lessonAssignments: lessonAssignments,
+            lessonAssignmentsByLegacyID: lessonAssignmentsByLegacyID,
             openWorkByPresentationID: openWorkByPresentationID
         )
     }

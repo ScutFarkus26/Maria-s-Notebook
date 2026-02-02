@@ -84,7 +84,10 @@ enum BackupPreviewAnalyzer {
         assign("NonSchoolDay", payload.nonSchoolDays.count, 0, count(NonSchoolDay.self))
         assign("SchoolDayOverride", payload.schoolDayOverrides.count, 0, count(SchoolDayOverride.self))
         assign("StudentMeeting", payload.studentMeetings.count, 0, count(StudentMeeting.self))
-        assign("Presentation", payload.presentations.count, 0, count(Presentation.self))
+        // Presentations are imported as LessonAssignments now
+        if !payload.presentations.isEmpty {
+            assign("Presentation (→ LessonAssignment)", payload.presentations.count, 0, 0)
+        }
         assign("CommunityTopic", payload.communityTopics.count, 0, count(CommunityTopic.self))
         assign("ProposedSolution", payload.proposedSolutions.count, 0, count(ProposedSolution.self))
         assign("CommunityAttachment", payload.communityAttachments.count, 0, count(CommunityAttachment.self))
@@ -182,7 +185,11 @@ enum BackupPreviewAnalyzer {
         assignCounts("NonSchoolDay", items: payload.nonSchoolDays, type: NonSchoolDay.self) { $0.id }
         assignCounts("SchoolDayOverride", items: payload.schoolDayOverrides, type: SchoolDayOverride.self) { $0.id }
         assignCounts("StudentMeeting", items: payload.studentMeetings, type: StudentMeeting.self) { $0.id }
-        assignCounts("Presentation", items: payload.presentations, type: Presentation.self) { $0.id }
+        // Presentations are imported as LessonAssignments now - check for existing LessonAssignments instead
+        if !payload.presentations.isEmpty {
+            let presentationCounts = countFiltered(payload.presentations, type: LessonAssignment.self) { $0.id }
+            assign("Presentation (→ LessonAssignment)", presentationCounts.ins, presentationCounts.sk, 0)
+        }
         assignCounts("CommunityTopic", items: payload.communityTopics, type: CommunityTopic.self) { $0.id }
         assignCounts("ProposedSolution", items: payload.proposedSolutions, type: ProposedSolution.self) { $0.id }
 

@@ -466,12 +466,13 @@ public final class SelectiveRestoreService {
             imported = payload.studentMeetings.count
 
         case .presentations:
+            // Import old Presentations as LessonAssignments (backward compatibility)
             let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
-            BackupEntityImporter.importPresentations(
+            try BackupEntityImporter.importPresentationsAsLessonAssignments(
                 payload.presentations,
                 into: modelContext,
-                existingCheck: { [existingPresentationIDs] id in
-                    existingPresentationIDs.contains(id) ? Presentation(presentedAt: Date(), lessonID: "", studentIDs: []) : nil
+                existingLessonAssignmentCheck: { [existingLessonAssignmentIDs] id in
+                    existingLessonAssignmentIDs.contains(id) ? LessonAssignment(state: .draft, lessonID: UUID(), studentIDs: []) : nil
                 },
                 allStudentLessons: allStudentLessons
             )
@@ -595,7 +596,7 @@ public final class SelectiveRestoreService {
     private var existingNonSchoolDayIDs: Set<UUID> = []
     private var existingSchoolDayOverrideIDs: Set<UUID> = []
     private var existingMeetingIDs: Set<UUID> = []
-    private var existingPresentationIDs: Set<UUID> = []
+    private var existingLessonAssignmentIDs: Set<UUID> = []
     private var existingSolutionIDs: Set<UUID> = []
     private var existingAttachmentIDs: Set<UUID> = []
     private var existingAttendanceIDs: Set<UUID> = []
@@ -629,7 +630,7 @@ public final class SelectiveRestoreService {
         existingNonSchoolDayIDs = Set((try? context.fetch(FetchDescriptor<NonSchoolDay>()))?.map { $0.id } ?? [])
         existingSchoolDayOverrideIDs = Set((try? context.fetch(FetchDescriptor<SchoolDayOverride>()))?.map { $0.id } ?? [])
         existingMeetingIDs = Set((try? context.fetch(FetchDescriptor<StudentMeeting>()))?.map { $0.id } ?? [])
-        existingPresentationIDs = Set((try? context.fetch(FetchDescriptor<Presentation>()))?.map { $0.id } ?? [])
+        existingLessonAssignmentIDs = Set((try? context.fetch(FetchDescriptor<LessonAssignment>()))?.map { $0.id } ?? [])
         existingSolutionIDs = Set((try? context.fetch(FetchDescriptor<ProposedSolution>()))?.map { $0.id } ?? [])
         existingAttachmentIDs = Set((try? context.fetch(FetchDescriptor<CommunityAttachment>()))?.map { $0.id } ?? [])
         existingAttendanceIDs = Set((try? context.fetch(FetchDescriptor<AttendanceRecord>()))?.map { $0.id } ?? [])
@@ -653,7 +654,7 @@ public final class SelectiveRestoreService {
         existingNonSchoolDayIDs = []
         existingSchoolDayOverrideIDs = []
         existingMeetingIDs = []
-        existingPresentationIDs = []
+        existingLessonAssignmentIDs = []
         existingSolutionIDs = []
         existingAttachmentIDs = []
         existingAttendanceIDs = []

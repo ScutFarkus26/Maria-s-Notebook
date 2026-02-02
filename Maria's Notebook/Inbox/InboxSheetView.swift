@@ -374,10 +374,13 @@ fileprivate struct InboxDropDelegate: DropDelegate {
   private func computeIndex(_ info: DropInfo) -> Int {
     let current = getCurrent()
     let frames = itemFramesProvider()
-    let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-      if let rect = frames[item.id] { return (item.id, rect) }
-      return nil
-    })
+    let dict: [UUID: CGRect] = Dictionary(
+      current.compactMap { item -> (UUID, CGRect)? in
+        if let rect = frames[item.id] { return (item.id, rect) }
+        return nil
+      },
+      uniquingKeysWith: { first, _ in first }
+    )
     return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
   }
 }

@@ -2,20 +2,24 @@
 //  LessonAssignmentMigrationService.swift
 //  Maria's Notebook
 //
-//  Migrates StudentLesson and Presentation records to the new unified LessonAssignment model.
+//  Migrates StudentLesson records to the new unified LessonAssignment model.
+//  Note: Presentation model has been removed. This service now only migrates StudentLessons.
 //
 
 import Foundation
 import SwiftData
 import OSLog
 
-/// Service responsible for migrating StudentLesson and Presentation records
+/// Service responsible for migrating StudentLesson records
 /// to the new unified LessonAssignment model.
 ///
 /// This migration is:
 /// - **Idempotent**: Safe to run multiple times; already-migrated records are skipped.
-/// - **Non-destructive**: Original StudentLesson and Presentation records are preserved.
+/// - **Non-destructive**: Original StudentLesson records are preserved.
 /// - **Traceable**: Each LessonAssignment records which source record(s) it came from.
+///
+/// Note: The Presentation model has been removed. This service now only migrates
+/// StudentLessons to LessonAssignments.
 @MainActor
 final class LessonAssignmentMigrationService {
     private let context: ModelContext
@@ -27,7 +31,7 @@ final class LessonAssignmentMigrationService {
 
     // MARK: - Public API
 
-    /// Migrates all StudentLessons and Presentations to LessonAssignments.
+    /// Migrates all StudentLessons to LessonAssignments.
     /// Safe to run multiple times (idempotent).
     ///
     /// - Returns: A result summarizing what was migrated.
@@ -36,14 +40,12 @@ final class LessonAssignmentMigrationService {
 
         logger.info("Starting LessonAssignment migration...")
 
-        // Build lookup tables for efficiency
-        let presentations = try fetchAllPresentations()
-        let presentationByLegacyID = buildPresentationLookup(presentations)
+        // Fetch existing migration tracking
         let existingMigrations = try fetchExistingMigrationTracking()
 
-        logger.info("Found \(presentations.count) Presentations, \(existingMigrations.studentLessonIDs.count) already-migrated StudentLessons")
+        logger.info("Found \(existingMigrations.studentLessonIDs.count) already-migrated StudentLessons")
 
-        // Step 1: Migrate all StudentLessons
+        // Migrate all StudentLessons
         let studentLessons = try fetchAllStudentLessons()
         for (index, sl) in studentLessons.enumerated() {
             // Yield periodically to avoid blocking
@@ -53,7 +55,6 @@ final class LessonAssignmentMigrationService {
 
             let migrated = try migrateStudentLesson(
                 sl,
-                linkedPresentation: presentationByLegacyID[sl.id.uuidString],
                 existingMigrations: existingMigrations
             )
 
@@ -64,25 +65,12 @@ final class LessonAssignmentMigrationService {
             }
         }
 
-        // Step 2: Migrate orphaned Presentations (those without a linked StudentLesson)
-        for (index, p) in presentations.enumerated() {
-            if index % 50 == 0 && index > 0 {
-                await Task.yield()
-            }
-
-            let migrated = try migrateOrphanedPresentation(p, existingMigrations: existingMigrations)
-
-            if migrated {
-                result.presentationsMigrated += 1
-            } else {
-                result.presentationsSkipped += 1
-            }
-        }
+        // Note: Presentation migration removed - model no longer exists
 
         // Save all changes
         if result.totalMigrated > 0 {
             context.safeSave()
-            logger.info("LessonAssignment migration complete: \(result.studentLessonsMigrated) StudentLessons, \(result.presentationsMigrated) orphaned Presentations migrated")
+            logger.info("LessonAssignment migration complete: \(result.studentLessonsMigrated) StudentLessons migrated")
         } else {
             logger.info("LessonAssignment migration complete: no new records to migrate")
         }
@@ -95,8 +83,17 @@ final class LessonAssignmentMigrationService {
     func migrateIfNeeded() async throws -> LessonAssignmentMigrationResult? {
         let flagKey = "Migration.lessonAssignment.v1"
 
+        // Check if we have any LessonAssignment records
+        let existingCount = (try? context.fetchCount(FetchDescriptor<LessonAssignment>())) ?? 0
+
+        // If flag is set but we have no records, reset the flag and re-run
+        if MigrationFlag.isComplete(key: flagKey) && existingCount == 0 {
+            logger.warning("Migration flag was set but no LessonAssignment records exist - resetting flag to re-run migration")
+            MigrationFlag.reset(key: flagKey)
+        }
+
         guard !MigrationFlag.isComplete(key: flagKey) else {
-            logger.debug("LessonAssignment migration already complete (flag set)")
+            logger.debug("LessonAssignment migration already complete (flag set, \(existingCount) records exist)")
             return nil
         }
 
@@ -111,10 +108,9 @@ final class LessonAssignmentMigrationService {
     // MARK: - Private Migration Logic
 
     /// Migrates a single StudentLesson to LessonAssignment.
-    /// - Returns: `true` if migrated, `false` if already exists.
+    /// - Returns: `true` if migrated, `false` if already exists or corrupted.
     private func migrateStudentLesson(
         _ sl: StudentLesson,
-        linkedPresentation: Presentation?,
         existingMigrations: ExistingMigrationTracking
     ) throws -> Bool {
         // Check if already migrated
@@ -122,13 +118,19 @@ final class LessonAssignmentMigrationService {
             return false
         }
 
-        // Determine state based on StudentLesson flags and linked Presentation
+        // Skip corrupted StudentLessons with empty studentIDs - they provide no value
+        if sl.studentIDs.isEmpty {
+            logger.warning("Skipping StudentLesson \(sl.id) - empty studentIDs (corrupted data)")
+            return false
+        }
+
+        // Determine state based on StudentLesson flags
         let state: LessonAssignmentState
         let presentedAt: Date?
 
-        if sl.isPresented || sl.givenAt != nil || linkedPresentation != nil {
+        if sl.isPresented || sl.givenAt != nil {
             state = .presented
-            presentedAt = linkedPresentation?.presentedAt ?? sl.givenAt ?? Date()
+            presentedAt = sl.givenAt ?? Date()
         } else if sl.scheduledFor != nil {
             state = .scheduled
             presentedAt = nil
@@ -151,74 +153,22 @@ final class LessonAssignmentMigrationService {
             needsAnotherPresentation: sl.needsAnotherPresentation,
             followUpWork: sl.followUpWork,
             notes: sl.notes,
-            trackID: linkedPresentation?.trackID,
-            trackStepID: linkedPresentation?.trackStepID
+            trackID: nil,
+            trackStepID: nil
         )
 
-        // Copy snapshots from Presentation if available
-        // Note: Presentation uses lessonSubtitleSnapshot, but we rename to lessonSubheadingSnapshot
-        if let p = linkedPresentation {
-            la.lessonTitleSnapshot = p.lessonTitleSnapshot
-            la.lessonSubheadingSnapshot = p.lessonSubtitleSnapshot
-        } else if state == .presented, let lesson = sl.lesson {
-            // No linked Presentation, but marked as presented - snapshot from current lesson
+        // Set snapshots if presented and has lesson
+        if state == .presented, let lesson = sl.lesson {
             la.lessonTitleSnapshot = lesson.name
             la.lessonSubheadingSnapshot = lesson.subheading
         }
 
         // Track migration source
         la.migratedFromStudentLessonID = sl.id.uuidString
-        la.migratedFromPresentationID = linkedPresentation?.id.uuidString
 
         context.insert(la)
 
         logger.debug("Migrated StudentLesson \(sl.id) -> LessonAssignment \(la.id) (state: \(state.rawValue))")
-
-        return true
-    }
-
-    /// Migrates a Presentation that has no linked StudentLesson.
-    /// - Returns: `true` if migrated, `false` if skipped (has linked StudentLesson or already migrated).
-    private func migrateOrphanedPresentation(
-        _ p: Presentation,
-        existingMigrations: ExistingMigrationTracking
-    ) throws -> Bool {
-        // Skip if has a linked StudentLesson (already handled in StudentLesson migration)
-        if let legacyID = p.legacyStudentLessonID, !legacyID.isEmpty {
-            // Check if that StudentLesson actually exists
-            let slExists = try checkStudentLessonExists(id: legacyID)
-            if slExists {
-                return false // Will be migrated via StudentLesson path
-            }
-            // StudentLesson doesn't exist - this is truly orphaned, migrate it
-        }
-
-        // Check if already migrated via presentation ID
-        if existingMigrations.presentationIDs.contains(p.id.uuidString) {
-            return false
-        }
-
-        // Create new LessonAssignment for orphaned Presentation
-        let la = LessonAssignment(
-            id: UUID(),
-            createdAt: p.createdAt,
-            state: .presented,
-            scheduledFor: nil,
-            presentedAt: p.presentedAt,
-            lessonID: UUID(uuidString: p.lessonID) ?? UUID(),
-            studentIDs: p.studentIDs.compactMap { UUID(uuidString: $0) },
-            lesson: nil, // Will need to be resolved later
-            trackID: p.trackID,
-            trackStepID: p.trackStepID
-        )
-
-        la.lessonTitleSnapshot = p.lessonTitleSnapshot
-        la.lessonSubheadingSnapshot = p.lessonSubtitleSnapshot  // Rename from subtitle to subheading
-        la.migratedFromPresentationID = p.id.uuidString
-
-        context.insert(la)
-
-        logger.debug("Migrated orphaned Presentation \(p.id) -> LessonAssignment \(la.id)")
 
         return true
     }
@@ -228,21 +178,6 @@ final class LessonAssignmentMigrationService {
     private func fetchAllStudentLessons() throws -> [StudentLesson] {
         let descriptor = FetchDescriptor<StudentLesson>()
         return (try? context.fetch(descriptor)) ?? []
-    }
-
-    private func fetchAllPresentations() throws -> [Presentation] {
-        let descriptor = FetchDescriptor<Presentation>()
-        return (try? context.fetch(descriptor)) ?? []
-    }
-
-    private func buildPresentationLookup(_ presentations: [Presentation]) -> [String: Presentation] {
-        var lookup: [String: Presentation] = [:]
-        for p in presentations {
-            if let legacyID = p.legacyStudentLessonID, !legacyID.isEmpty {
-                lookup[legacyID] = p
-            }
-        }
-        return lookup
     }
 
     private func fetchExistingMigrationTracking() throws -> ExistingMigrationTracking {
@@ -265,15 +200,6 @@ final class LessonAssignmentMigrationService {
             studentLessonIDs: studentLessonIDs,
             presentationIDs: presentationIDs
         )
-    }
-
-    private func checkStudentLessonExists(id: String) throws -> Bool {
-        guard let uuid = UUID(uuidString: id) else { return false }
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { $0.id == uuid }
-        )
-        let results = (try? context.fetch(descriptor)) ?? []
-        return !results.isEmpty
     }
 }
 

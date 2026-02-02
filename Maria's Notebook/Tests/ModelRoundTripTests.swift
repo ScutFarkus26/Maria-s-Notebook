@@ -23,7 +23,6 @@ struct BackupServiceRoundTripTests {
             NonSchoolDay.self,
             SchoolDayOverride.self,
             StudentMeeting.self,
-            Presentation.self,
             CommunityTopic.self,
             ProposedSolution.self,
             CommunityAttachment.self,
@@ -114,15 +113,6 @@ struct BackupServiceRoundTripTests {
             context.insert(sm)
         }
 
-        if canFetch(Presentation.self, in: context) {
-            let p = Presentation(
-                presentedAt: Date(),
-                lessonID: UUID().uuidString,
-                studentIDs: []
-            )
-            context.insert(p)
-        }
-
         if canFetch(CommunityTopic.self, in: context) {
             let ct = CommunityTopic()
             context.insert(ct)
@@ -161,7 +151,6 @@ struct BackupServiceRoundTripTests {
             NonSchoolDay.self,
             SchoolDayOverride.self,
             StudentMeeting.self,
-            Presentation.self,
             CommunityTopic.self,
             ProposedSolution.self,
             CommunityAttachment.self,
@@ -264,9 +253,6 @@ struct BackupServiceRoundTripTests {
             case is StudentMeeting.Type:
                 sourceCount = countEntities(StudentMeeting.self, in: sourceContext)
                 destCount = countEntities(StudentMeeting.self, in: destContext)
-            case is Presentation.Type:
-                sourceCount = countEntities(Presentation.self, in: sourceContext)
-                destCount = countEntities(Presentation.self, in: destContext)
             case is CommunityTopic.Type:
                 sourceCount = countEntities(CommunityTopic.self, in: sourceContext)
                 destCount = countEntities(CommunityTopic.self, in: destContext)

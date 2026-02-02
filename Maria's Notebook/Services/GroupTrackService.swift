@@ -124,11 +124,13 @@ struct GroupTrackService {
     ) throws -> [(subject: String, group: String, isSequential: Bool)] {
         // PERFORMANCE: Fetch all GroupTracks ONCE to avoid N+1 queries in the loop below
         let allTracks = try modelContext.fetch(FetchDescriptor<GroupTrack>())
+        // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
         let tracksByKey: [String: GroupTrack] = Dictionary(
-            uniqueKeysWithValues: allTracks.map { track in
+            allTracks.map { track in
                 let key = "\(track.subject.trimmed().lowercased())|\(track.group.trimmed().lowercased())"
                 return (key, track)
-            }
+            },
+            uniquingKeysWith: { first, _ in first }
         )
 
         // In-memory helper: check if a group is a track (using cached data)

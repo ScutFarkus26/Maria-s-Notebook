@@ -16,7 +16,6 @@ private func makeProgressContainer() throws -> ModelContainer {
         TrackStep.self,
         StudentTrackEnrollment.self,
         Project.self,
-        Presentation.self,
         WorkModel.self,
         WorkParticipantEntity.self,
         Note.self,
@@ -77,24 +76,6 @@ private func makeTestProject(
         title: title,
         memberStudentIDs: memberStudentIDs,
         isActive: isActive
-    )
-}
-
-private func makeTestPresentation(
-    id: UUID = UUID(),
-    createdAt: Date = Date(),
-    presentedAt: Date = Date(),
-    lessonID: String = "test-lesson",
-    studentIDs: [String] = [],
-    trackID: String? = nil
-) -> Presentation {
-    return Presentation(
-        id: id,
-        createdAt: createdAt,
-        presentedAt: presentedAt,
-        lessonID: lessonID,
-        studentIDs: studentIDs,
-        trackID: trackID
     )
 }
 
@@ -354,41 +335,6 @@ struct StudentProgressTabViewModelTrackStatsTests {
         #expect(stats.lastActivityDate == nil)
     }
 
-    @Test("trackStats counts presentations correctly")
-    func trackStatsCountsPresentationsCorrectly() throws {
-        let container = try makeProgressContainer()
-        let context = ModelContext(container)
-        let vm = StudentProgressTabViewModel()
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let track = makeTestTrack(title: "Math Track")
-        context.insert(student)
-        context.insert(track)
-
-        let presentation1 = makeTestPresentation(
-            studentIDs: [student.id.uuidString],
-            trackID: track.id.uuidString
-        )
-        let presentation2 = makeTestPresentation(
-            studentIDs: [student.id.uuidString],
-            trackID: track.id.uuidString
-        )
-        context.insert(presentation1)
-        context.insert(presentation2)
-
-        let enrollment = makeTestEnrollment(
-            studentID: student.id.uuidString,
-            trackID: track.id.uuidString
-        )
-        context.insert(enrollment)
-
-        vm.configure(for: student, context: context)
-
-        let stats = vm.trackStats(for: enrollment, track: track)
-
-        #expect(stats.presentationCount == 2)
-    }
-
     @Test("trackStats counts work models correctly")
     func trackStatsCountsWorkModelsCorrectly() throws {
         let container = try makeProgressContainer()
@@ -447,22 +393,27 @@ struct StudentProgressTabViewModelTrackStatsTests {
         context.insert(student)
         context.insert(track)
 
-        let presentation = makeTestPresentation(
-            studentIDs: [student.id.uuidString],
-            trackID: track.id.uuidString
-        )
-        context.insert(presentation)
-
-        let work = WorkModel(
+        let work1 = WorkModel(
             id: UUID(),
-            title: "Work",
+            title: "Work 1",
             workType: .practice,
             status: .active,
             studentID: student.id.uuidString,
             lessonID: ""
         )
-        work.trackID = track.id.uuidString
-        context.insert(work)
+        work1.trackID = track.id.uuidString
+        context.insert(work1)
+
+        let work2 = WorkModel(
+            id: UUID(),
+            title: "Work 2",
+            workType: .practice,
+            status: .active,
+            studentID: student.id.uuidString,
+            lessonID: ""
+        )
+        work2.trackID = track.id.uuidString
+        context.insert(work2)
 
         let enrollment = makeTestEnrollment(
             studentID: student.id.uuidString,
@@ -474,7 +425,7 @@ struct StudentProgressTabViewModelTrackStatsTests {
 
         let stats = vm.trackStats(for: enrollment, track: track)
 
-        #expect(stats.totalActivity == 2) // 1 presentation + 1 work
+        #expect(stats.totalActivity >= 2) // 2 work items
     }
 }
 

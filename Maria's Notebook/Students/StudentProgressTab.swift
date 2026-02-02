@@ -908,7 +908,7 @@ private struct TrackFilteredListSheet: View {
         let (enrollment, track, filterType) = extractParams()
 
         // Fetch data on-demand
-        let allPresentations = modelContext.safeFetch(FetchDescriptor<Presentation>(
+        let allLessonAssignments = modelContext.safeFetch(FetchDescriptor<LessonAssignment>(
             sortBy: [SortDescriptor(\.presentedAt, order: .reverse)]
         ))
         let allWorkModels = modelContext.safeFetch(FetchDescriptor<WorkModel>(
@@ -925,7 +925,7 @@ private struct TrackFilteredListSheet: View {
             enrollment: enrollment,
             track: track,
             filterType: filterType,
-            allPresentations: allPresentations,
+            allLessonAssignments: allLessonAssignments,
             allWorkModels: allWorkModels,
             allNotes: allNotes,
             allLessons: allLessons,

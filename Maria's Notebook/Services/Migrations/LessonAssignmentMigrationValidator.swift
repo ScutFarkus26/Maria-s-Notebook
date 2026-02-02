@@ -34,17 +34,16 @@ final class LessonAssignmentMigrationValidator {
 
         // Fetch all records
         let studentLessons = try fetchAllStudentLessons()
-        let presentations = try fetchAllPresentations()
+        // Presentation model removed - no longer fetching presentations
         let lessonAssignments = try fetchAllLessonAssignments()
 
         result.totalStudentLessons = studentLessons.count
-        result.totalPresentations = presentations.count
+        result.totalPresentations = 0  // Presentation model removed
         result.totalLessonAssignments = lessonAssignments.count
 
         // Build lookup for quick matching
         let laByStudentLessonID = buildStudentLessonLookup(lessonAssignments)
-        let laByPresentationID = buildPresentationLookup(lessonAssignments)
-        let presentationByLegacyID = buildPresentationByLegacyIDLookup(presentations)
+        // Presentation model removed - no longer building presentation lookups
 
         // Check each StudentLesson has a corresponding LessonAssignment
         for sl in studentLessons {
@@ -56,32 +55,11 @@ final class LessonAssignmentMigrationValidator {
             }
         }
 
-        // Check each Presentation is accounted for
-        for p in presentations {
-            let matchedViaPresentation = laByPresentationID[p.id.uuidString] != nil
-            let matchedViaStudentLesson: Bool
-
-            if let legacyID = p.legacyStudentLessonID, !legacyID.isEmpty {
-                // This Presentation is linked to a StudentLesson
-                matchedViaStudentLesson = laByStudentLessonID[legacyID] != nil
-            } else {
-                matchedViaStudentLesson = false
-            }
-
-            if !matchedViaPresentation && !matchedViaStudentLesson {
-                result.unmatchedPresentations.append(UnmatchedRecord(
-                    id: p.id,
-                    reason: "No LessonAssignment found for this Presentation (orphaned)"
-                ))
-            }
-        }
+        // Presentation model removed - no longer checking for unmatched presentations
 
         // Validate data integrity for migrated records
         for la in lessonAssignments {
-            let issues = validateLessonAssignment(
-                la,
-                presentationByLegacyID: presentationByLegacyID
-            )
+            let issues = validateLessonAssignment(la)
             if !issues.isEmpty {
                 result.dataIntegrityIssues.append(DataIntegrityIssue(
                     lessonAssignmentID: la.id,
@@ -117,10 +95,8 @@ final class LessonAssignmentMigrationValidator {
 
     // MARK: - Private Validation Logic
 
-    private func validateLessonAssignment(
-        _ la: LessonAssignment,
-        presentationByLegacyID: [String: Presentation]
-    ) -> [String] {
+    // Presentation model removed - simplified validation
+    private func validateLessonAssignment(_ la: LessonAssignment) -> [String] {
         var issues: [String] = []
 
         // Check required fields
@@ -156,18 +132,7 @@ final class LessonAssignmentMigrationValidator {
             }
         }
 
-        // If migrated from StudentLesson, verify key fields match
-        if let slID = la.migratedFromStudentLessonID {
-            // Check if we can find the linked Presentation
-            if let pID = la.migratedFromPresentationID {
-                // Verify the Presentation's legacyStudentLessonID matches
-                if let p = presentationByLegacyID[slID] {
-                    if p.id.uuidString != pID {
-                        issues.append("Presentation ID mismatch: expected \(pID), found \(p.id.uuidString) for StudentLesson \(slID)")
-                    }
-                }
-            }
-        }
+        // Presentation model removed - no longer validating Presentation ID matching
 
         return issues
     }
@@ -179,10 +144,7 @@ final class LessonAssignmentMigrationValidator {
         return (try? context.fetch(descriptor)) ?? []
     }
 
-    private func fetchAllPresentations() throws -> [Presentation] {
-        let descriptor = FetchDescriptor<Presentation>()
-        return (try? context.fetch(descriptor)) ?? []
-    }
+    // Presentation model removed - fetchAllPresentations removed
 
     private func fetchAllLessonAssignments() throws -> [LessonAssignment] {
         let descriptor = FetchDescriptor<LessonAssignment>()
@@ -199,25 +161,7 @@ final class LessonAssignmentMigrationValidator {
         return lookup
     }
 
-    private func buildPresentationLookup(_ assignments: [LessonAssignment]) -> [String: LessonAssignment] {
-        var lookup: [String: LessonAssignment] = [:]
-        for la in assignments {
-            if let pID = la.migratedFromPresentationID {
-                lookup[pID] = la
-            }
-        }
-        return lookup
-    }
-
-    private func buildPresentationByLegacyIDLookup(_ presentations: [Presentation]) -> [String: Presentation] {
-        var lookup: [String: Presentation] = [:]
-        for p in presentations {
-            if let legacyID = p.legacyStudentLessonID, !legacyID.isEmpty {
-                lookup[legacyID] = p
-            }
-        }
-        return lookup
-    }
+    // Presentation model removed - buildPresentationLookup and buildPresentationByLegacyIDLookup removed
 }
 
 // MARK: - Supporting Types

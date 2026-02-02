@@ -117,7 +117,6 @@ final class Note: Identifiable {
     @Relationship var lesson: Lesson?
     @Relationship var work: WorkModel?
     @Relationship var studentLesson: StudentLesson?
-    @Relationship var presentation: Presentation?
     @Relationship var lessonAssignment: LessonAssignment?
     @Relationship var attendanceRecord: AttendanceRecord?
     @Relationship var workCheckIn: WorkCheckIn?
@@ -186,9 +185,8 @@ final class Note: Identifiable {
     var attachedTo: String {
         if lesson != nil { return "lesson" }
         if work != nil { return "work" }
-        if lessonAssignment != nil { return "lessonAssignment" }
+        if lessonAssignment != nil { return "presentation" }
         if studentLesson != nil { return "studentLesson" }
-        if presentation != nil { return "presentation" }
         if attendanceRecord != nil { return "attendance" }
         if workCheckIn != nil { return "workCheckIn" }
         if workCompletionRecord != nil { return "workCompletion" }
@@ -215,7 +213,6 @@ final class Note: Identifiable {
         lesson: Lesson? = nil,
         work: WorkModel? = nil,
         studentLesson: StudentLesson? = nil,
-        presentation: Presentation? = nil,
         lessonAssignment: LessonAssignment? = nil,
         attendanceRecord: AttendanceRecord? = nil,
         workCheckIn: WorkCheckIn? = nil,
@@ -241,7 +238,6 @@ final class Note: Identifiable {
         self.lesson = lesson
         self.work = work
         self.studentLesson = studentLesson
-        self.presentation = presentation
         self.lessonAssignment = lessonAssignment
         self.attendanceRecord = attendanceRecord
         self.workCheckIn = workCheckIn

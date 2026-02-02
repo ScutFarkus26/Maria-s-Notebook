@@ -23,9 +23,8 @@ struct AppSchema {
         CommunityTopic.self,
         ProposedSolution.self,
         CommunityAttachment.self,
-        Presentation.self,
         LessonPresentation.self,
-        LessonAssignment.self,
+        LessonAssignment.self,  // Entity name must match stored data; Presentation is a typealias
         WorkPlanItem.self,
         StudentMeeting.self,
         Project.self,

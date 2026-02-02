@@ -468,8 +468,8 @@ public final class SelectiveExportService {
         let noteDTOs: [NoteDTO] = shouldInclude(.notes) ? collectNotes(modelContext: modelContext, filter: filter) : []
         counts["Note"] = noteDTOs.count
 
-        let presentationDTOs: [PresentationDTO] = shouldInclude(.presentations) ? collectPresentations(modelContext: modelContext, filter: filter) : []
-        counts["Presentation"] = presentationDTOs.count
+        // Presentations are no longer exported; LessonAssignment is used instead
+        let presentationDTOs: [PresentationDTO] = []
 
         let nonSchoolDTOs: [NonSchoolDayDTO] = shouldInclude(.calendar) ? collectNonSchoolDays(modelContext: modelContext, filter: filter) : []
         counts["NonSchoolDay"] = nonSchoolDTOs.count
@@ -574,34 +574,7 @@ public final class SelectiveExportService {
         }
     }
 
-    private func collectPresentations(modelContext: ModelContext, filter: ExportFilter) -> [PresentationDTO] {
-        let all = (try? modelContext.fetch(FetchDescriptor<Presentation>())) ?? []
-        let filtered = all.filter { p in
-            // Filter by student
-            if let studentIDs = filter.studentIDs {
-                let pStudentIDs = Set(p.studentIDs.compactMap { UUID(uuidString: $0) })
-                guard !pStudentIDs.isDisjoint(with: studentIDs) else { return false }
-            }
-            // Filter by date
-            if let range = filter.dateRange {
-                return range.contains(p.presentedAt)
-            }
-            return true
-        }
-
-        return filtered.map { p in
-            PresentationDTO(
-                id: p.id,
-                createdAt: p.createdAt,
-                presentedAt: p.presentedAt,
-                lessonID: p.lessonID,
-                studentIDs: p.studentIDs,
-                legacyStudentLessonID: p.legacyStudentLessonID,
-                lessonTitleSnapshot: p.lessonTitleSnapshot,
-                lessonSubtitleSnapshot: p.lessonSubtitleSnapshot
-            )
-        }
-    }
+    // Removed: collectPresentations - Presentations are no longer exported; LessonAssignment is used instead
 
     private func collectNonSchoolDays(modelContext: ModelContext, filter: ExportFilter) -> [NonSchoolDayDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<NonSchoolDay>())) ?? []

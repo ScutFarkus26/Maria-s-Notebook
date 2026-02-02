@@ -18,19 +18,20 @@ enum BlockingAlgorithmEngine {
     // MARK: - Blocking Check
 
     /// Check if a StudentLesson is blocked by incomplete prerequisite work from the preceding lesson.
+    /// Uses LessonAssignment (unified model).
     ///
     /// - Parameters:
     ///   - sl: The StudentLesson to check
     ///   - lessons: All lessons (needed for group structure)
     ///   - studentLessons: All StudentLessons
-    ///   - presentations: All Presentations
+    ///   - lessonAssignments: All LessonAssignments (unified model)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     /// - Returns: A BlockingCheckResult indicating if blocked and how many prerequisites are open
     static func checkBlocking(
         for sl: StudentLesson,
         lessons: [Lesson],
         studentLessons: [StudentLesson],
-        presentations: [Presentation],
+        lessonAssignments: [LessonAssignment] = [],
         workModels: [WorkModel]
     ) -> BlockingCheckResult {
         // Find the current lesson
@@ -48,24 +49,25 @@ enum BlockingAlgorithmEngine {
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
 
-        // Find the Presentation for the preceding lesson with the same student group
+        // Find the LessonAssignment for the preceding lesson with the same student group
         let studentIDs = Set(sl.resolvedStudentIDs.map { $0.uuidString })
 
-        let precedingPresentation = presentations.first { presentation in
-            guard presentation.lessonID == precedingLesson.id.uuidString else { return false }
-            let presentationStudentIDs = Set(presentation.studentIDs)
-            return presentationStudentIDs == studentIDs
+        // Find in LessonAssignment (unified model)
+        let precedingLessonAssignment = lessonAssignments.first { assignment in
+            guard assignment.lessonID == precedingLesson.id.uuidString,
+                  assignment.state == .presented else { return false }
+            let assignmentStudentIDs = Set(assignment.studentIDs)
+            return assignmentStudentIDs == studentIDs
         }
 
-        guard let precedingPresentation = precedingPresentation else {
+        guard let presentationID = precedingLessonAssignment?.id.uuidString else {
             // No presentation for preceding lesson means no prerequisites
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
 
         // Find WorkModel records linked to the preceding presentation
-        let precedingPresentationID = precedingPresentation.id.uuidString
         let prerequisiteWork = workModels.filter { work in
-            work.presentationID == precedingPresentationID
+            work.presentationID == presentationID
         }
 
         // Check if ANY prerequisite work is incomplete for any required student

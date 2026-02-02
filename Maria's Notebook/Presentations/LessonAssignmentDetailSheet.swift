@@ -267,7 +267,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         .sheet(isPresented: $showAddNoteSheet) {
             if let assignment = assignment {
                 UnifiedNoteEditor(
-                    context: .lessonAssignment(assignment),
+                    context: .presentation(assignment),
                     initialNote: nil,
                     onSave: { _ in
                         showAddNoteSheet = false
@@ -282,7 +282,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         .sheet(item: $noteBeingEdited) { note in
             if let assignment = assignment {
                 UnifiedNoteEditor(
-                    context: .lessonAssignment(assignment),
+                    context: .presentation(assignment),
                     initialNote: note,
                     onSave: { _ in
                         noteBeingEdited = nil

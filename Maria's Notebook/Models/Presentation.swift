@@ -1,20 +1,25 @@
 //
-//  LessonAssignment.swift
+//  Presentation.swift
 //  Maria's Notebook
 //
-//  Created as part of StudentLesson + Presentation consolidation migration.
+//  Unified model for lesson planning and presentation history.
+//  The model class is named LessonAssignment for SwiftData entity compatibility,
+//  but we expose it as "Presentation" via typealias for cleaner API usage.
 //
 
 import Foundation
 import SwiftData
 
 /// Unified model for lesson planning and presentation history.
-/// Replaces the previous two-model system (StudentLesson + Presentation).
+/// This is the single source of truth for scheduled and presented lessons.
 ///
 /// Lifecycle: draft -> scheduled -> presented
 /// - draft: Lesson assigned to students but not yet scheduled
 /// - scheduled: Has a scheduled date for presentation
 /// - presented: Has been given to students (immutable historical record)
+///
+/// Note: The class is internally named `LessonAssignment` for SwiftData entity
+/// compatibility with existing data. Use the `Presentation` typealias in code.
 @Model
 final class LessonAssignment: Identifiable {
     // MARK: - Identity & Timestamps
@@ -72,7 +77,7 @@ final class LessonAssignment: Identifiable {
     /// Description of follow-up work to assign.
     var followUpWork: String = ""
 
-    /// General notes about this lesson assignment.
+    /// General notes about this presentation.
     var notes: String = ""
 
     // MARK: - CloudKit-Compatible Foreign Keys
@@ -111,15 +116,15 @@ final class LessonAssignment: Identifiable {
     /// ID of the StudentLesson this was migrated from (nil for new records).
     var migratedFromStudentLessonID: String?
 
-    /// ID of the Presentation this was migrated from (nil for new records).
+    /// ID of the old Presentation model this was migrated from (nil for new records).
     var migratedFromPresentationID: String?
 
     // MARK: - Relationships
 
-    /// Direct relationship to the lesson being assigned.
+    /// Direct relationship to the lesson being presented.
     @Relationship var lesson: Lesson?
 
-    /// Notes attached to this lesson assignment.
+    /// Notes attached to this presentation.
     @Relationship(deleteRule: .cascade, inverse: \Note.lessonAssignment)
     var unifiedNotes: [Note]? = []
 
@@ -139,18 +144,18 @@ final class LessonAssignment: Identifiable {
         studentIDs.compactMap { UUID(uuidString: $0) }
     }
 
-    /// Whether this assignment is in the draft state.
+    /// Whether this presentation is in the draft state.
     var isDraft: Bool { state == .draft }
 
-    /// Whether this assignment is scheduled.
+    /// Whether this presentation is scheduled.
     var isScheduled: Bool { state == .scheduled || scheduledFor != nil }
 
-    /// Whether this assignment has been presented.
+    /// Whether this presentation has been given.
     var isPresented: Bool { state == .presented }
 
     // MARK: - Initializers
 
-    /// Creates a new lesson assignment.
+    /// Creates a new presentation.
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
@@ -188,7 +193,7 @@ final class LessonAssignment: Identifiable {
         updateDenormalizedKeys()
     }
 
-    /// Creates a lesson assignment from a Lesson and Students.
+    /// Creates a presentation from a Lesson and Students.
     init(
         id: UUID = UUID(),
         lesson: Lesson,
@@ -213,7 +218,7 @@ final class LessonAssignment: Identifiable {
 
     // MARK: - State Transitions
 
-    /// Schedules this assignment for a specific date.
+    /// Schedules this presentation for a specific date.
     func schedule(for date: Date, using calendar: Calendar = AppCalendar.shared) {
         self.scheduledFor = date
         self.scheduledForDay = calendar.startOfDay(for: date)
@@ -229,7 +234,7 @@ final class LessonAssignment: Identifiable {
         self.modifiedAt = Date()
     }
 
-    /// Marks this assignment as presented.
+    /// Marks this presentation as given.
     func markPresented(at date: Date = Date(), snapshotLesson: Bool = true) {
         self.presentedAt = date
         self.state = .presented
@@ -269,7 +274,7 @@ final class LessonAssignment: Identifiable {
 
 // MARK: - State Enum
 
-/// Lifecycle states for a lesson assignment.
+/// Lifecycle states for a presentation.
 enum LessonAssignmentState: String, Codable, CaseIterable {
     /// Created but not yet scheduled.
     case draft = "draft"
@@ -277,7 +282,7 @@ enum LessonAssignmentState: String, Codable, CaseIterable {
     /// Has a scheduled date for presentation.
     case scheduled = "scheduled"
 
-    /// Has been presented to students (historical record).
+    /// Has been given to students (historical record).
     case presented = "presented"
 }
 
@@ -287,7 +292,16 @@ enum LessonAssignmentState: String, Codable, CaseIterable {
 extension LessonAssignment {
     var debugDescription: String {
         let studentCount = studentIDs.count
-        return "LessonAssignment(id=\(id), state=\(state.rawValue), lessonID=\(lessonID.prefix(8))..., students=\(studentCount))"
+        return "Presentation(id=\(id), state=\(state.rawValue), lessonID=\(lessonID.prefix(8))..., students=\(studentCount))"
     }
 }
 #endif
+
+// MARK: - Public Type Aliases
+
+/// Public alias for the unified presentation model.
+/// Use this in code for cleaner semantics - "Presentation" is what teachers call it.
+typealias Presentation = LessonAssignment
+
+/// Public alias for presentation state.
+typealias PresentationState = LessonAssignmentState

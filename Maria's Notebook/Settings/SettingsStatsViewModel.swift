@@ -41,7 +41,7 @@ class SettingsStatsViewModel: ObservableObject {
             let lessons = loadCount(for: Lesson.self, context: context)
             let studentLessons = loadCount(for: StudentLesson.self, context: context)
             let workModels = loadCount(for: WorkModel.self, context: context)
-            let presentations = loadCount(for: Presentation.self, context: context)
+            let presentations = loadCount(for: LessonAssignment.self, context: context)
             let notes = loadCount(for: Note.self, context: context)
             let meetings = loadCount(for: StudentMeeting.self, context: context)
             

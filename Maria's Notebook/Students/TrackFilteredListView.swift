@@ -11,30 +11,32 @@ struct TrackFilteredListView: View, Identifiable {
     let enrollment: StudentTrackEnrollment
     let track: Track
     let filterType: TrackFilterType
-    let allPresentations: [Presentation]
+    let allLessonAssignments: [LessonAssignment]
     let allWorkModels: [WorkModel]
     let allNotes: [Note]
     let allLessons: [Lesson]
     let onDismiss: () -> Void
-    
+
     var id: String {
         "\(filterType.rawValue)_\(enrollment.id.uuidString)"
     }
-    
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    
+
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: Lesson] {
         Dictionary(allLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
-    
-    // Filter items by track and student
-    private var filteredPresentations: [Presentation] {
+
+    // Filter LessonAssignments (unified model) by track and student
+    private var filteredLessonAssignments: [LessonAssignment] {
         let trackIDString = track.id.uuidString
         let studentIDString = enrollment.studentID
-        return allPresentations.filter { presentation in
-            presentation.trackID == trackIDString && presentation.studentIDs.contains(studentIDString)
+        return allLessonAssignments.filter { assignment in
+            assignment.trackID == trackIDString &&
+            assignment.studentIDs.contains(studentIDString) &&
+            assignment.state == .presented
         }
     }
     
@@ -96,7 +98,7 @@ struct TrackFilteredListView: View, Identifiable {
     
     private var presentationsList: some View {
         Group {
-            if filteredPresentations.isEmpty {
+            if filteredLessonAssignments.isEmpty {
                 ContentUnavailableView {
                     Label("No Presentations", systemImage: "person.3")
                         .foregroundStyle(.secondary)
@@ -108,8 +110,9 @@ struct TrackFilteredListView: View, Identifiable {
                 .padding(.vertical, 40)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(filteredPresentations) { presentation in
-                        presentationRow(presentation)
+                    // Show LessonAssignments (unified model)
+                    ForEach(filteredLessonAssignments) { assignment in
+                        lessonAssignmentRow(assignment)
                     }
                 }
             }
@@ -160,31 +163,33 @@ struct TrackFilteredListView: View, Identifiable {
         }
     }
     
-    private func presentationRow(_ presentation: Presentation) -> some View {
+    private func lessonAssignmentRow(_ assignment: LessonAssignment) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "person.3.fill")
                     .foregroundStyle(.orange)
                     .font(.caption)
-                
+
                 Text("Presentation")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundStyle(.orange)
-                
+
                 Spacer()
-                
-                Text(Self.dateFormatter.string(from: presentation.presentedAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+
+                if let presentedAt = assignment.presentedAt {
+                    Text(Self.dateFormatter.string(from: presentedAt))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
-            
-            if let lessonID = UUID(uuidString: presentation.lessonID),
+
+            if let lessonID = UUID(uuidString: assignment.lessonID),
                let lesson = lessonsByID[lessonID] {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.body)
                     .foregroundStyle(.primary)
-            } else if let titleSnapshot = presentation.lessonTitleSnapshot, !titleSnapshot.isEmpty {
+            } else if let titleSnapshot = assignment.lessonTitleSnapshot, !titleSnapshot.isEmpty {
                 Text(titleSnapshot)
                     .font(.body)
                     .foregroundStyle(.primary)
@@ -204,7 +209,7 @@ struct TrackFilteredListView: View, Identifiable {
                 .stroke(Color.orange.opacity(0.3), lineWidth: 1)
         )
     }
-    
+
     private func workRow(_ work: WorkModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {

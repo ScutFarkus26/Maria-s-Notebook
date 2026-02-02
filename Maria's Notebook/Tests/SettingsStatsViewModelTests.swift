@@ -12,9 +12,9 @@ private func makeStatsContainer() throws -> ModelContainer {
         Student.self,
         Lesson.self,
         StudentLesson.self,
+        LessonAssignment.self,
         WorkModel.self,
         WorkParticipantEntity.self,
-        Presentation.self,
         Note.self,
         StudentMeeting.self,
     ])
@@ -32,23 +32,6 @@ private func makeTestMeeting(
     )
 }
 
-private func makeTestPresentationModel(
-    id: UUID = UUID(),
-    createdAt: Date = Date(),
-    presentedAt: Date = Date(),
-    lessonID: String = "test-lesson",
-    studentIDs: [String] = [],
-    trackID: String? = nil
-) -> Presentation {
-    return Presentation(
-        id: id,
-        createdAt: createdAt,
-        presentedAt: presentedAt,
-        lessonID: lessonID,
-        studentIDs: studentIDs,
-        trackID: trackID
-    )
-}
 
 // MARK: - Initialization Tests
 
@@ -227,34 +210,6 @@ struct SettingsStatsViewModelWorkModelCountTests {
     }
 }
 
-// MARK: - Presentation Count Tests
-
-@Suite("SettingsStatsViewModel Presentation Count Tests", .serialized)
-@MainActor
-struct SettingsStatsViewModelPresentationCountTests {
-
-    @Test("loadCounts counts presentations correctly")
-    func loadCountsCountsPresentationsCorrectly() async throws {
-        let container = try makeStatsContainer()
-        let context = ModelContext(container)
-        let vm = SettingsStatsViewModel()
-
-        let p1 = makeTestPresentationModel()
-        let p2 = makeTestPresentationModel()
-        let p3 = makeTestPresentationModel()
-        context.insert(p1)
-        context.insert(p2)
-        context.insert(p3)
-        try context.save()
-
-        vm.loadCounts(context: context)
-
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        #expect(vm.presentationsCount == 3)
-    }
-}
-
 // MARK: - Note Count Tests
 
 @Suite("SettingsStatsViewModel Note Count Tests", .serialized)
@@ -404,9 +359,6 @@ struct SettingsStatsViewModelComprehensiveTests {
         context.insert(makeTestWorkModel(title: "W1"))
         context.insert(makeTestWorkModel(title: "W2"))
 
-        // Presentations: 1
-        context.insert(makeTestPresentationModel())
-
         // Notes: 3
         context.insert(Note(body: "N1"))
         context.insert(Note(body: "N2"))
@@ -427,7 +379,6 @@ struct SettingsStatsViewModelComprehensiveTests {
         #expect(vm.plannedCount == 2)
         #expect(vm.givenCount == 2)
         #expect(vm.workModelsCount == 2)
-        #expect(vm.presentationsCount == 1)
         #expect(vm.notesCount == 3)
         #expect(vm.meetingsCount == 1)
     }

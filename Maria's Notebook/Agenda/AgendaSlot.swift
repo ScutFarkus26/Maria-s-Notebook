@@ -283,10 +283,13 @@ struct AgendaSlotDropDelegate: DropDelegate {
                 var ids = getCurrent().map { $0.id }
                 if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
                 let frames = itemFramesProvider()
-                let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: getCurrent().compactMap { item in
-                    if let rect = frames[item.id] { return (item.id, rect) }
-                    return nil
-                })
+                let dict: [UUID: CGRect] = Dictionary(
+                    getCurrent().compactMap { item -> (UUID, CGRect)? in
+                        if let rect = frames[item.id] { return (item.id, rect) }
+                        return nil
+                    },
+                    uniquingKeysWith: { first, _ in first }
+                )
                 let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
                 let bounded = max(0, min(insertionIndex, ids.count))
                 ids.insert(id, at: bounded)
@@ -335,10 +338,13 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         let current = getCurrent()
                         var ids = current.map { $0.id }
                         let frames = itemFramesProvider()
-                        let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-                            if let rect = frames[item.id] { return (item.id, rect) }
-                            return nil
-                        })
+                        let dict: [UUID: CGRect] = Dictionary(
+                            current.compactMap { item -> (UUID, CGRect)? in
+                                if let rect = frames[item.id] { return (item.id, rect) }
+                                return nil
+                            },
+                            uniquingKeysWith: { first, _ in first }
+                        )
                         let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
 
                         let existing = allStudentLessons.first(where: { sl in
@@ -396,10 +402,13 @@ struct AgendaSlotDropDelegate: DropDelegate {
                     var ids = getCurrent().map { $0.id }
                     if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
                     let frames = itemFramesProvider()
-                    let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: getCurrent().compactMap { item in
-                        if let rect = frames[item.id] { return (item.id, rect) }
-                        return nil
-                    })
+                    let dict: [UUID: CGRect] = Dictionary(
+                        getCurrent().compactMap { item -> (UUID, CGRect)? in
+                            if let rect = frames[item.id] { return (item.id, rect) }
+                            return nil
+                        },
+                        uniquingKeysWith: { first, _ in first }
+                    )
                     let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
                     let bounded = max(0, min(insertionIndex, ids.count))
                     ids.insert(id, at: bounded)
@@ -421,10 +430,13 @@ struct AgendaSlotDropDelegate: DropDelegate {
     private func computeIndex(_ info: DropInfo) -> Int {
         let current = getCurrent()
         let frames = itemFramesProvider()
-        let dict: [UUID: CGRect] = Dictionary(uniqueKeysWithValues: current.compactMap { item in
-            if let rect = frames[item.id] { return (item.id, rect) }
-            return nil
-        })
+        let dict: [UUID: CGRect] = Dictionary(
+            current.compactMap { item -> (UUID, CGRect)? in
+                if let rect = frames[item.id] { return (item.id, rect) }
+                return nil
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
         return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
     }
 }

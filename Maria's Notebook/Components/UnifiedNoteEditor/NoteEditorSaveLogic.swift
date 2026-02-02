@@ -88,22 +88,21 @@ extension UnifiedNoteEditor {
             note.work = work
 
         case .studentLesson(let sl):
+            // Try to find the corresponding Presentation (new unified model)
+            // to link the note to both for forward compatibility
+            let slIDString = sl.id.uuidString
+            let presentationDescriptor = FetchDescriptor<Presentation>(
+                predicate: #Predicate { $0.migratedFromStudentLessonID == slIDString }
+            )
+            if let pres = modelContext.safeFetchFirst(presentationDescriptor) {
+                // Prefer linking to Presentation for forward compatibility
+                note.lessonAssignment = pres
+            }
+            // Also link to StudentLesson for backward compatibility
             note.studentLesson = sl
 
-        case .presentation(let presentation):
-            note.presentation = presentation
-            if let legacyIDString = presentation.legacyStudentLessonID,
-               let legacyID = UUID(uuidString: legacyIDString) {
-                let descriptor = FetchDescriptor<StudentLesson>(
-                    predicate: #Predicate { $0.id == legacyID }
-                )
-                if let studentLesson = modelContext.safeFetchFirst(descriptor) {
-                    note.studentLesson = studentLesson
-                }
-            }
-
-        case .lessonAssignment(let assignment):
-            note.lessonAssignment = assignment
+        case .presentation(let pres):
+            note.lessonAssignment = pres
 
         case .attendance(let record):
             note.attendanceRecord = record

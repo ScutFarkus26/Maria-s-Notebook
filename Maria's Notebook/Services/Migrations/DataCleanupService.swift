@@ -269,38 +269,12 @@ enum DataCleanupService {
         return deletedCount
     }
 
-    /// Removes duplicate Presentation records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    /// Keeps the most recently created instance (by createdAt) and deletes the duplicates.
-    /// Returns the number of duplicate presentations removed.
+    /// DEPRECATED: Presentation model has been removed.
+    /// This function is kept for backward compatibility but always returns 0.
     @discardableResult
     static func deduplicatePresentations(using context: ModelContext) -> Int {
-        let fetch = FetchDescriptor<Presentation>()
-        let allPresentations = context.safeFetch(fetch)
-
-        // Group by ID
-        var presentationsByID: [UUID: [Presentation]] = [:]
-        for presentation in allPresentations {
-            presentationsByID[presentation.id, default: []].append(presentation)
-        }
-
-        var deletedCount = 0
-
-        // For each group with duplicates, keep the most recently created and delete the rest
-        for (_, presentations) in presentationsByID where presentations.count > 1 {
-            // Sort by createdAt descending - keep the most recently created
-            let sorted = presentations.sorted { $0.createdAt > $1.createdAt }
-            for duplicate in sorted.dropFirst() {
-                context.delete(duplicate)
-                deletedCount += 1
-            }
-        }
-
-        if deletedCount > 0 {
-            context.safeSave()
-        }
-
-        return deletedCount
+        // Presentation model has been removed - nothing to deduplicate
+        return 0
     }
 
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
@@ -531,7 +505,8 @@ enum DataCleanupService {
         results["Student"] = deduplicate(Student.self, using: context)
         results["Lesson"] = deduplicate(Lesson.self, using: context)
         results["StudentLesson"] = deduplicate(StudentLesson.self, using: context)
-        results["Presentation"] = deduplicate(Presentation.self, using: context)
+        // Presentation.self removed - model no longer exists
+        results["LessonAssignment"] = deduplicate(LessonAssignment.self, using: context)
         results["LessonPresentation"] = deduplicate(LessonPresentation.self, using: context)
 
         // Work-related models

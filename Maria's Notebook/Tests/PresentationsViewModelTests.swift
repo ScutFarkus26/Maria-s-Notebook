@@ -53,7 +53,6 @@ struct PresentationsViewModelIsBlockedTests {
             WorkModel.self,
             WorkParticipantEntity.self,
             WorkCheckIn.self,
-            Presentation.self,
             Note.self,
         ])
     }
@@ -113,7 +112,6 @@ struct PresentationsViewModelUpdateTests {
             WorkModel.self,
             WorkParticipantEntity.self,
             WorkCheckIn.self,
-            Presentation.self,
             Note.self,
         ])
     }
@@ -255,7 +253,6 @@ struct PresentationsViewModelMissWindowTests {
             WorkModel.self,
             WorkParticipantEntity.self,
             WorkCheckIn.self,
-            Presentation.self,
             Note.self,
         ])
     }
@@ -313,7 +310,6 @@ struct PresentationsViewModelEmptyDatabaseTests {
             WorkModel.self,
             WorkParticipantEntity.self,
             WorkCheckIn.self,
-            Presentation.self,
             Note.self,
         ])
     }
@@ -354,7 +350,6 @@ struct PresentationsViewModelCacheInvalidationTests {
             WorkModel.self,
             WorkParticipantEntity.self,
             WorkCheckIn.self,
-            Presentation.self,
             Note.self,
         ])
     }

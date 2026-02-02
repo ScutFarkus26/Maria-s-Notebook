@@ -125,10 +125,7 @@ enum BackupFetchHelpers {
             let arr = try context.fetch(FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T
         }
-        if type == Presentation.self {
-            let arr = try context.fetch(FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == id }))
-            return arr.first as? T
-        }
+        // Removed: Presentation (now uses LessonAssignment)
         if type == CommunityTopic.self {
             let arr = try context.fetch(FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id }))
             return arr.first as? T

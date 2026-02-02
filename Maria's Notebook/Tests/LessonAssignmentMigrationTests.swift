@@ -15,7 +15,6 @@ struct LessonAssignmentMigrationServiceTests {
             Student.self,
             Lesson.self,
             StudentLesson.self,
-            Presentation.self,
             LessonAssignment.self,
             LessonPresentation.self,
             Note.self,
@@ -123,53 +122,8 @@ struct LessonAssignmentMigrationServiceTests {
         #expect(assignments[0].presentedAt != nil)
     }
 
-    @Test("Links Presentation data to migrated LessonAssignment")
-    func linksPresentationData() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        MigrationFlag.reset(key: "Migration.lessonAssignment.v1")
-
-        // Create StudentLesson
-        let slID = UUID()
-        let lessonID = UUID()
-        let sl = StudentLesson(
-            id: slID,
-            lessonID: lessonID,
-            studentIDs: [UUID()],
-            scheduledFor: nil,
-            givenAt: Date(),
-            isPresented: true
-        )
-        context.insert(sl)
-
-        // Create linked Presentation
-        let presentation = Presentation(
-            presentedAt: Date(),
-            lessonID: lessonID.uuidString,
-            studentIDs: [UUID().uuidString],
-            legacyStudentLessonID: slID.uuidString,
-            trackID: "track-123",
-            trackStepID: "step-456",
-            lessonTitleSnapshot: "Test Lesson",
-            lessonSubtitleSnapshot: "Subheading"
-        )
-        context.insert(presentation)
-        try context.save()
-
-        let service = LessonAssignmentMigrationService(context: context)
-        _ = try await service.migrateAll()
-
-        let assignments = try context.fetch(FetchDescriptor<LessonAssignment>())
-        #expect(assignments.count == 1)
-
-        let la = assignments[0]
-        #expect(la.trackID == "track-123")
-        #expect(la.trackStepID == "step-456")
-        #expect(la.lessonTitleSnapshot == "Test Lesson")
-        #expect(la.lessonSubheadingSnapshot == "Subheading")
-        #expect(la.migratedFromPresentationID == presentation.id.uuidString)
-    }
+    // Note: Test "Links Presentation data to migrated LessonAssignment" removed
+    // because the Presentation model has been deleted.
 
     @Test("Migration is idempotent - running twice doesn't duplicate")
     func migrationIsIdempotent() async throws {
@@ -204,35 +158,8 @@ struct LessonAssignmentMigrationServiceTests {
         #expect(assignments.count == 1)
     }
 
-    @Test("Migrates orphaned Presentation without linked StudentLesson")
-    func migratesOrphanedPresentation() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        MigrationFlag.reset(key: "Migration.lessonAssignment.v1")
-
-        // Create a Presentation without a linked StudentLesson
-        let presentation = Presentation(
-            presentedAt: Date(),
-            lessonID: UUID().uuidString,
-            studentIDs: [UUID().uuidString],
-            legacyStudentLessonID: nil, // No linked StudentLesson
-            lessonTitleSnapshot: "Orphan Lesson"
-        )
-        context.insert(presentation)
-        try context.save()
-
-        let service = LessonAssignmentMigrationService(context: context)
-        let result = try await service.migrateAll()
-
-        #expect(result.presentationsMigrated == 1)
-
-        let assignments = try context.fetch(FetchDescriptor<LessonAssignment>())
-        #expect(assignments.count == 1)
-        #expect(assignments[0].state == .presented)
-        #expect(assignments[0].lessonTitleSnapshot == "Orphan Lesson")
-        #expect(assignments[0].migratedFromPresentationID == presentation.id.uuidString)
-    }
+    // Note: Test "Migrates orphaned Presentation without linked StudentLesson" removed
+    // because the Presentation model has been deleted.
 
     // MARK: - Validation Tests
 

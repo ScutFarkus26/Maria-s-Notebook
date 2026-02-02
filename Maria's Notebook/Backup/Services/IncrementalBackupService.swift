@@ -513,7 +513,6 @@ public final class IncrementalBackupService {
 
         progress(0.6, "Collecting meetings…")
         let studentMeetings: [StudentMeeting] = fetchFiltered(StudentMeeting.self)
-        let presentations: [Presentation] = fetchFiltered(Presentation.self)
 
         progress(0.7, "Collecting community data…")
         let communityTopics: [CommunityTopic] = fetchFiltered(CommunityTopic.self)
@@ -634,18 +633,8 @@ public final class IncrementalBackupService {
             )
         }
 
-        let presentationDTOs: [PresentationDTO] = presentations.map { p in
-            PresentationDTO(
-                id: p.id,
-                createdAt: p.createdAt,
-                presentedAt: p.presentedAt,
-                lessonID: p.lessonID,
-                studentIDs: p.studentIDs,
-                legacyStudentLessonID: p.legacyStudentLessonID,
-                lessonTitleSnapshot: p.lessonTitleSnapshot,
-                lessonSubtitleSnapshot: p.lessonSubtitleSnapshot
-            )
-        }
+        // Presentations are no longer exported; LessonAssignment is used instead
+        let presentationDTOs: [PresentationDTO] = []
 
         let topicDTOs: [CommunityTopicDTO] = communityTopics.map { t in
             CommunityTopicDTO(

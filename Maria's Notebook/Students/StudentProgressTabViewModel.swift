@@ -23,7 +23,7 @@ final class StudentProgressTabViewModel: ObservableObject {
     private var allLessons: [Lesson] = []
     private var allTrackSteps: [TrackStep] = []
     private var allLessonPresentations: [LessonPresentation] = []
-    private var allPresentations: [Presentation] = []
+    private var allLessonAssignments: [LessonAssignment] = []
     private var allWorkModels: [WorkModel] = []
     private var allNotes: [Note] = []
 
@@ -55,10 +55,11 @@ final class StudentProgressTabViewModel: ObservableObject {
         )
         let allProjects = context.safeFetch(projectDescriptor)
 
-        let presentationDescriptor = FetchDescriptor<Presentation>(
+        // Fetch LessonAssignments (unified model)
+        let assignmentDescriptor = FetchDescriptor<LessonAssignment>(
             sortBy: [SortDescriptor(\.presentedAt, order: .reverse)]
         )
-        allPresentations = context.safeFetch(presentationDescriptor)
+        allLessonAssignments = context.safeFetch(assignmentDescriptor)
 
         let workDescriptor = FetchDescriptor<WorkModel>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
@@ -96,7 +97,7 @@ final class StudentProgressTabViewModel: ObservableObject {
     // MARK: - Track Stats Computation
 
     struct TrackStats {
-        let presentations: [Presentation]
+        let lessonAssignments: [LessonAssignment]
         let workModels: [WorkModel]
         let notes: [Note]
         let presentationCount: Int
@@ -109,7 +110,7 @@ final class StudentProgressTabViewModel: ObservableObject {
     func trackStats(for enrollment: StudentTrackEnrollment, track: Track) -> TrackStats {
         guard let studentID = studentID else {
             return TrackStats(
-                presentations: [], workModels: [], notes: [],
+                lessonAssignments: [], workModels: [], notes: [],
                 presentationCount: 0, workCount: 0, noteCount: 0,
                 totalActivity: 0, lastActivityDate: nil
             )
@@ -118,9 +119,11 @@ final class StudentProgressTabViewModel: ObservableObject {
         let studentIDString = studentID.uuidString
         let trackIDString = track.id.uuidString
 
-        let presentations = allPresentations.filter {
-            $0.trackID == trackIDString && $0.studentIDs.contains(studentIDString)
+        // Get LessonAssignments (unified model) for this track and student
+        let lessonAssignments = allLessonAssignments.filter {
+            $0.trackID == trackIDString && $0.studentIDs.contains(studentIDString) && $0.state == .presented
         }
+
         let workModels = allWorkModels.filter {
             $0.trackID == trackIDString && $0.studentID == studentIDString
         }
@@ -128,21 +131,21 @@ final class StudentProgressTabViewModel: ObservableObject {
             $0.studentTrackEnrollment?.id == enrollment.id
         }
 
-        let presentationCount = presentations.count
+        let presentationCount = lessonAssignments.count
         let workCount = workModels.count
         let noteCount = notes.count
         let totalActivity = presentationCount + workCount + noteCount
 
         let lastActivityDate: Date? = {
             var dates: [Date] = []
-            dates.append(contentsOf: presentations.map { $0.presentedAt })
+            dates.append(contentsOf: lessonAssignments.compactMap { $0.presentedAt })
             dates.append(contentsOf: workModels.compactMap { $0.completedAt ?? $0.createdAt })
             dates.append(contentsOf: notes.map { $0.updatedAt })
             return dates.max()
         }()
 
         return TrackStats(
-            presentations: presentations,
+            lessonAssignments: lessonAssignments,
             workModels: workModels,
             notes: notes,
             presentationCount: presentationCount,

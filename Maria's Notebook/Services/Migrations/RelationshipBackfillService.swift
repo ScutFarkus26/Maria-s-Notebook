@@ -139,325 +139,36 @@ enum RelationshipBackfillService {
         }
     }
 
-    // MARK: - Presentation-StudentLesson Links
+    // MARK: - Presentation-StudentLesson Links (DEPRECATED)
 
-    /// Backfill Presentation.legacyStudentLessonID by linking to matching StudentLessons.
-    /// Idempotent: only sets legacyStudentLessonID when it is nil or empty.
+    /// DEPRECATED: Presentation model has been removed.
+    /// This migration has already been completed and is now a no-op.
+    /// Kept for backward compatibility with callers.
     static func backfillPresentationStudentLessonLinks(using context: ModelContext) async {
-        let flagKey = "Backfill.presentationStudentLessonLinks.v1"
-        await MigrationFlag.runIfNeeded(key: flagKey) {
-            let presentations = context.safeFetch(FetchDescriptor<Presentation>())
-            let studentLessons = context.safeFetch(FetchDescriptor<StudentLesson>())
-
-            let presentationsToBackfill = presentations.filter { presentation in
-                guard let legacyID = presentation.legacyStudentLessonID else { return true }
-                return legacyID.isEmpty
-            }
-
-            guard !presentationsToBackfill.isEmpty else { return }
-
-            let batchSize = 100
-            var changed = false
-
-            for batchStart in stride(from: 0, to: presentationsToBackfill.count, by: batchSize) {
-                if batchStart % 100 == 0 {
-                    await Task.yield()
-                }
-
-                let batchEnd = min(batchStart + batchSize, presentationsToBackfill.count)
-                let batch = Array(presentationsToBackfill[batchStart..<batchEnd])
-
-                for presentation in batch {
-                    if let existingID = presentation.legacyStudentLessonID, !existingID.isEmpty {
-                        continue
-                    }
-
-                    let pLessonID = presentation.lessonID
-                    let pStudentIDs = Set(presentation.studentIDs)
-                    let pDay = Calendar.current.startOfDay(for: presentation.presentedAt)
-
-                    var candidates: [StudentLesson] = []
-
-                    for sl in studentLessons {
-                        let slLessonIDMatch = sl.resolvedLessonID.uuidString == pLessonID || sl.lessonID == pLessonID
-                        guard slLessonIDMatch else { continue }
-
-                        let slStudentIDs = Set(sl.studentIDs)
-                        let overlap = pStudentIDs.intersection(slStudentIDs)
-                        guard overlap.count >= 1 else { continue }
-
-                        let slDay = sl.givenAt.map { Calendar.current.startOfDay(for: $0) }
-                        if let slDay {
-                            guard slDay == pDay else { continue }
-                        }
-
-                        candidates.append(sl)
-                    }
-
-                    guard let bestMatch = chooseBestMatch(
-                        candidates: candidates,
-                        presentation: presentation,
-                        pStudentIDs: pStudentIDs
-                    ) else {
-                        continue
-                    }
-
-                    presentation.legacyStudentLessonID = bestMatch.id.uuidString
-                    changed = true
-                }
-
-                if changed && (batchEnd % batchSize == 0 || batchEnd == presentationsToBackfill.count) {
-                    context.safeSave()
-                    changed = false
-                }
-            }
-
-            if changed {
-                context.safeSave()
-            }
-        }
+        // No-op: Presentation model has been removed.
+        // This migration was already run and is no longer needed.
     }
 
-    /// Repairs Presentation.legacyStudentLessonID for existing records that have incorrect or missing links.
-    /// Uses strict matching first (exact lessonID + exact studentIDs set match), then falls back to loose matching.
-    /// Idempotent: guarded by a UserDefaults flag so it runs once.
+    /// DEPRECATED: Presentation model has been removed.
+    /// This migration has already been completed and is now a no-op.
+    /// Kept for backward compatibility with callers.
     static func repairPresentationStudentLessonLinks_v2(using context: ModelContext) async {
-        let flagKey = "Repair.presentationStudentLessonLinks.v2"
-        await MigrationFlag.runIfNeeded(key: flagKey) {
-            let presentations = context.safeFetch(FetchDescriptor<Presentation>())
-            let studentLessons = context.safeFetch(FetchDescriptor<StudentLesson>())
-            let studentLessonByID = Dictionary(studentLessons.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
-
-            // Pre-build lookup dictionaries for O(1) access instead of O(n) loops per presentation
-            // Group StudentLessons by lessonID for fast lookup
-            var studentLessonsByLessonID: [String: [StudentLesson]] = [:]
-            for sl in studentLessons {
-                let resolvedID = sl.resolvedLessonID.uuidString
-                let rawID = sl.lessonID
-                studentLessonsByLessonID[resolvedID, default: []].append(sl)
-                if rawID != resolvedID {
-                    studentLessonsByLessonID[rawID, default: []].append(sl)
-                }
-            }
-
-            let batchSize = 100
-            var changed = false
-
-            for batchStart in stride(from: 0, to: presentations.count, by: batchSize) {
-                if batchStart % 50 == 0 {
-                    await Task.yield()
-                }
-
-                let batchEnd = min(batchStart + batchSize, presentations.count)
-                let batch = Array(presentations[batchStart..<batchEnd])
-
-                for presentation in batch {
-                    // Skip if legacyStudentLessonID already equals an existing StudentLesson.id.uuidString (valid link)
-                    if let existingID = presentation.legacyStudentLessonID,
-                       !existingID.isEmpty,
-                       let matchedSL = studentLessonByID[existingID] {
-                        let lessonMatch = presentation.lessonID == matchedSL.resolvedLessonID.uuidString || presentation.lessonID == matchedSL.lessonID
-                        let presentationStudentSet = Set(presentation.studentIDs)
-                        let slStudentSet = Set(matchedSL.studentIDs)
-                        let studentMatch = presentationStudentSet == slStudentSet
-
-                        if lessonMatch && studentMatch {
-                            continue
-                        }
-                    }
-
-                    let pLessonID = presentation.lessonID
-                    let pStudentIDs = Set(presentation.studentIDs)
-                    let pPresentedAt = presentation.presentedAt
-
-                    var matched: StudentLesson?
-
-                    // Use pre-built dictionary for O(1) lookup instead of O(n) loop
-                    let candidatesForLesson = studentLessonsByLessonID[pLessonID] ?? []
-
-                    // PASS 1: Strict matching (exact lessonID match + exact studentIDs set match)
-                    let strictCandidates = candidatesForLesson.filter { sl in
-                        Set(sl.studentIDs) == pStudentIDs
-                    }
-
-                    if !strictCandidates.isEmpty {
-                        // Find best match by time difference
-                        matched = strictCandidates.min { a, b in
-                            let aTime = abs(bestDate(for: a).timeIntervalSince(pPresentedAt))
-                            let bTime = abs(bestDate(for: b).timeIntervalSince(pPresentedAt))
-                            return aTime < bTime
-                        }
-                        // Fallback to oldest by creation date if time differences are all equal
-                        if matched == nil {
-                            matched = strictCandidates.min(by: { $0.createdAt < $1.createdAt })
-                        }
-                    }
-
-                    // PASS 2: Loose matching (for unmatched presentations)
-                    if matched == nil {
-                        let looseCandidates: [StudentLesson]
-                        if pStudentIDs.isEmpty {
-                            looseCandidates = candidatesForLesson
-                        } else {
-                            looseCandidates = candidatesForLesson.filter { sl in
-                                !pStudentIDs.intersection(Set(sl.studentIDs)).isEmpty
-                            }
-                        }
-
-                        if !looseCandidates.isEmpty {
-                            // Prefer same-day candidates
-                            let sameDayCandidates = looseCandidates.filter { candidate in
-                                guard let givenAt = candidate.givenAt else { return false }
-                                return Calendar.current.isDate(givenAt, inSameDayAs: pPresentedAt)
-                            }
-
-                            let candidatesToConsider = sameDayCandidates.isEmpty ? looseCandidates : sameDayCandidates
-
-                            // Find best match by time difference
-                            matched = candidatesToConsider.min { a, b in
-                                let aTime = a.givenAt.map { abs($0.timeIntervalSince(pPresentedAt)) } ?? 0
-                                let bTime = b.givenAt.map { abs($0.timeIntervalSince(pPresentedAt)) } ?? 0
-                                return aTime < bTime
-                            }
-                            // Fallback to oldest by creation date
-                            if matched == nil {
-                                matched = candidatesToConsider.min(by: { $0.createdAt < $1.createdAt })
-                            }
-                        }
-                    }
-
-                    if let matched = matched {
-                        presentation.legacyStudentLessonID = matched.id.uuidString
-                        changed = true
-                    }
-                }
-
-                if changed && (batchEnd % batchSize == 0 || batchEnd == presentations.count) {
-                    context.safeSave()
-                    changed = false
-                }
-            }
-
-            if changed {
-                context.safeSave()
-            }
-        }
+        // No-op: Presentation model has been removed.
+        // This migration was already run and is no longer needed.
     }
 
-    // MARK: - Note-StudentLesson Links
+    // MARK: - Note-StudentLesson Links (DEPRECATED)
 
-    /// Backfill Note.studentLesson for notes attached to Presentations with legacyStudentLessonID.
-    /// Idempotent: only sets studentLesson when it is nil and a matching StudentLesson exists.
+    /// DEPRECATED: Note.presentation relationship has been removed.
+    /// This migration has already been completed and is now a no-op.
+    /// Kept for backward compatibility with callers.
     static func backfillNoteStudentLessonFromPresentation(using context: ModelContext) async {
-        let flagKey = "Backfill.noteStudentLessonFromPresentation.v1"
-        await MigrationFlag.runIfNeeded(key: flagKey) {
-            let allNotes = context.safeFetch(FetchDescriptor<Note>())
-            let allStudentLessons = context.safeFetch(FetchDescriptor<StudentLesson>())
-            let studentLessonsByID = Dictionary(allStudentLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-
-            var changed = false
-            let batchSize = 100
-
-            for batchStart in stride(from: 0, to: allNotes.count, by: batchSize) {
-                if batchStart % (batchSize * 5) == 0 {
-                    await Task.yield()
-                }
-
-                let batchEnd = min(batchStart + batchSize, allNotes.count)
-                let batch = Array(allNotes[batchStart..<batchEnd])
-
-                for note in batch {
-                    guard let presentation = note.presentation else { continue }
-
-                    if note.studentLesson != nil {
-                        continue
-                    }
-
-                    guard let legacyIDString = presentation.legacyStudentLessonID,
-                          !legacyIDString.isEmpty,
-                          let legacyID = UUID(uuidString: legacyIDString) else {
-                        continue
-                    }
-
-                    guard let studentLesson = studentLessonsByID[legacyID] else {
-                        continue
-                    }
-
-                    note.studentLesson = studentLesson
-                    changed = true
-                }
-
-                if changed && (batchEnd % batchSize == 0 || batchEnd == allNotes.count) {
-                    context.safeSave()
-                    changed = false
-                }
-            }
-
-            if changed {
-                context.safeSave()
-            }
-        }
+        // No-op: Note.presentation relationship has been removed.
+        // This migration was already run and is no longer needed.
     }
 
     // MARK: - Helper Functions
-
-    /// Helper function to choose the best matching StudentLesson for a Presentation.
-    /// Selection criteria:
-    /// 1. Highest overlap count wins
-    /// 2. Tie-breaker: closest |sl.givenAt - p.presentedAt| if both exist
-    /// 3. Final fallback: earliest createdAt
-    private static func chooseBestMatch(
-        candidates: [StudentLesson],
-        presentation: Presentation,
-        pStudentIDs: Set<String>
-    ) -> StudentLesson? {
-        guard !candidates.isEmpty else { return nil }
-
-        let candidatesWithOverlap = candidates.map { sl -> (sl: StudentLesson, overlap: Int) in
-            let slStudentIDs = Set(sl.studentIDs)
-            let overlap = pStudentIDs.intersection(slStudentIDs).count
-            return (sl, overlap)
-        }
-
-        let maxOverlap = candidatesWithOverlap.map { $0.overlap }.max() ?? 0
-        let topCandidates = candidatesWithOverlap.filter { $0.overlap == maxOverlap }
-
-        if topCandidates.count == 1 {
-            return topCandidates[0].sl
-        }
-
-        let pDate = presentation.presentedAt
-        var bestCandidate: StudentLesson?
-        var minTimeDifference: TimeInterval = .greatestFiniteMagnitude
-
-        for (sl, _) in topCandidates {
-            if let slDate = sl.givenAt {
-                let timeDifference = abs(slDate.timeIntervalSince(pDate))
-                if timeDifference < minTimeDifference {
-                    minTimeDifference = timeDifference
-                    bestCandidate = sl
-                }
-            }
-        }
-
-        if let best = bestCandidate {
-            return best
-        }
-
-        return topCandidates.min(by: { $0.sl.createdAt < $1.sl.createdAt })?.sl
-    }
-
-    /// Helper function to get the best available date from a StudentLesson for time-based matching.
-    /// Priority: givenAt > scheduledFor > createdAt
-    private static func bestDate(for studentLesson: StudentLesson) -> Date {
-        if let givenAt = studentLesson.givenAt {
-            return givenAt
-        }
-        if let scheduledFor = studentLesson.scheduledFor {
-            return scheduledFor
-        }
-        return studentLesson.createdAt
-    }
+    // Note: chooseBestMatch and bestDate helpers removed - Presentation model no longer exists
 
     // MARK: - Run All Relationship Backfills
 

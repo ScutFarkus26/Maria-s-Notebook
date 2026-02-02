@@ -16,7 +16,7 @@ enum BackupSizeEstimator {
         "NonSchoolDay": 200,
         "SchoolDayOverride": 200,
         "StudentMeeting": 1200,
-        "Presentation": 800,
+        // Presentation removed - using LessonAssignment instead
         "CommunityTopic": 1500,
         "ProposedSolution": 1000,
         "CommunityAttachment": 600,
@@ -63,7 +63,7 @@ enum BackupSizeEstimator {
         counts["NonSchoolDay"] = safeFetchCount(NonSchoolDay.self, using: modelContext)
         counts["SchoolDayOverride"] = safeFetchCount(SchoolDayOverride.self, using: modelContext)
         counts["StudentMeeting"] = safeFetchCount(StudentMeeting.self, using: modelContext)
-        counts["Presentation"] = safeFetchCount(Presentation.self, using: modelContext)
+        // Presentation removed - using LessonAssignment instead
         counts["CommunityTopic"] = safeFetchCount(CommunityTopic.self, using: modelContext)
         counts["ProposedSolution"] = safeFetchCount(ProposedSolution.self, using: modelContext)
         counts["CommunityAttachment"] = safeFetchCount(CommunityAttachment.self, using: modelContext)

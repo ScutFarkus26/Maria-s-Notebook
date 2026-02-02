@@ -16,7 +16,6 @@ struct RelationshipBackfillServiceStudentLessonTests {
             Lesson.self,
             StudentLesson.self,
             LessonPresentation.self,
-            Presentation.self,
             Note.self,
         ])
     }

@@ -14,7 +14,8 @@ struct BackupEntityRegistry {
         NonSchoolDay.self,
         SchoolDayOverride.self,
         StudentMeeting.self,
-        Presentation.self,
+        // Presentation removed - using LessonAssignment instead
+        LessonAssignment.self,
         CommunityTopic.self,
         ProposedSolution.self,
         CommunityAttachment.self,

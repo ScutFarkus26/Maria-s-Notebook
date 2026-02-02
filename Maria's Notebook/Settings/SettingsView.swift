@@ -31,6 +31,9 @@ struct SettingsView: View {
                         #if DEBUG
                         // MARK: - Students Section
                         studentsSection
+
+                        // MARK: - Migration Diagnostics Section (Debug Only)
+                        migrationDiagnosticsSection
                         #endif
 
                         // MARK: - Attendance Section
@@ -107,6 +110,16 @@ struct SettingsView: View {
             SettingsCategoryHeader(title: "Students", systemImage: "person.3.fill")
             SettingsGroup(title: "Test Students", systemImage: "person.2.slash") {
                 TestStudentsSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private var migrationDiagnosticsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "Developer Tools", systemImage: "hammer.fill")
+            SettingsGroup(title: "Migration Diagnostics", systemImage: "stethoscope") {
+                MigrationDiagnosticsView()
                     .frame(maxWidth: .infinity)
             }
         }

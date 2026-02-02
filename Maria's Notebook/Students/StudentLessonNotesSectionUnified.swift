@@ -130,12 +130,8 @@ struct StudentLessonNotesSectionUnified: View {
             if notes.isEmpty {
                 let allNotes = try modelContext.fetch(FetchDescriptor<Note>())
                 notes = allNotes.filter { note in
-                    // Check via lessonAssignment relationship (preferred)
-                    if let noteLessonAssignment = note.lessonAssignment {
-                        return matchedIDs.contains(noteLessonAssignment.id)
-                    }
-                    // Legacy fallback: check via presentation relationship
-                    if let notePresentation = note.presentation {
+                    // Check via presentation relationship
+                    if let notePresentation = note.lessonAssignment {
                         return matchedIDs.contains(notePresentation.id)
                     }
                     return false

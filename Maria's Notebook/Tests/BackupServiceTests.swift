@@ -32,7 +32,6 @@ struct BackupServiceTests {
             NonSchoolDay.self,
             SchoolDayOverride.self,
             StudentMeeting.self,
-            Presentation.self,
             LessonPresentation.self,
             CommunityTopic.self,
             ProposedSolution.self,

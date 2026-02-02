@@ -51,8 +51,7 @@ struct EntityFetcherRegistry {
             return fetchSchoolDayOverride(id: id, context: context) as? T
         case is StudentMeeting.Type:
             return fetchStudentMeeting(id: id, context: context) as? T
-        case is Presentation.Type:
-            return fetchPresentation(id: id, context: context) as? T
+        // Removed: Presentation (now uses LessonAssignment)
         case is CommunityTopic.Type:
             return fetchCommunityTopic(id: id, context: context) as? T
         case is ProposedSolution.Type:
@@ -136,10 +135,7 @@ struct EntityFetcherRegistry {
         return (try? context.fetch(descriptor))?.first
     }
 
-    private func fetchPresentation(id: UUID, context: ModelContext) -> Presentation? {
-        let descriptor = FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == id })
-        return (try? context.fetch(descriptor))?.first
-    }
+    // Removed: fetchPresentation - model no longer exists (use LessonAssignment instead)
 
     private func fetchCommunityTopic(id: UUID, context: ModelContext) -> CommunityTopic? {
         let descriptor = FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id })

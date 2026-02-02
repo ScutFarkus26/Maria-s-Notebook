@@ -35,6 +35,11 @@ struct LessonAssignmentHistoryView: View {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
+    // Double deduplication ensures no crashes even with CloudKit sync race conditions
+    private var safeStudents: [Student] {
+        students.uniqueByID
+    }
+
     // Fetch Notes that are attached to a lesson assignment
     @Query(sort: \Note.createdAt, order: .reverse) private var recentNotes: [Note]
 
@@ -84,7 +89,7 @@ struct LessonAssignmentHistoryView: View {
         Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
     private var studentsByID: [UUID: Student] {
-        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        Dictionary(safeStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     // Available subjects from lessons (sorted, non-empty only)
@@ -95,8 +100,9 @@ struct LessonAssignmentHistoryView: View {
     }
 
     // Filtered assignments
+    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var filteredAssignments: [LessonAssignment] {
-        loadedAssignments.filter { la in
+        loadedAssignments.uniqueByID.filter { la in
             // Student filter
             if !selectedStudentIDs.isEmpty {
                 let assignmentStudentIDs = Set(la.studentUUIDs)
@@ -140,13 +146,15 @@ struct LessonAssignmentHistoryView: View {
             .reduce(into: [Date: [LessonAssignment]]()) { result, pair in
                 result[pair.0, default: []].append(pair.1)
             }
-            .mapValues { arr in arr.sorted { ($0.presentedAt ?? .distantPast) > ($1.presentedAt ?? .distantPast) } }
+            .mapValues { arr in
+                // DEDUPLICATION: Ensure no duplicate IDs within each day group
+                arr.uniqueByID.sorted { ($0.presentedAt ?? .distantPast) > ($1.presentedAt ?? .distantPast) }
+            }
         let days = dict.keys.sorted(by: >)
         return days.map { ($0, dict[$0] ?? []) }
     }
 
     private func loadAssignments(limit: Int? = nil) {
-        // Fetch only presented assignments
         let presentedState = LessonAssignmentState.presented.rawValue
         var descriptor = FetchDescriptor<LessonAssignment>(
             predicate: #Predicate { $0.stateRaw == presentedState },
@@ -207,7 +215,7 @@ struct LessonAssignmentHistoryView: View {
         // Extract primitive/Sendable values on main thread before background processing
         // This avoids passing SwiftData model objects across actor boundaries
         let assignmentIDs: [String] = recentNotes.compactMap { $0.lessonAssignment?.id.uuidString }
-        let studentData: [(UUID, String, String)] = students.map { ($0.id, $0.firstName, $0.lastName) }
+        let studentData: [(UUID, String, String)] = safeStudents.map { ($0.id, $0.firstName, $0.lastName) }
         let lessonData: [(UUID, String)] = lessons.map { ($0.id, $0.name) }
 
         // Build caches on background thread using only Sendable data
@@ -271,7 +279,7 @@ struct LessonAssignmentHistoryView: View {
         if selectedStudentIDs.isEmpty {
             return "All Students"
         } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
-                  let student = students.first(where: { $0.id == id }) {
+                  let student = safeStudents.first(where: { $0.id == id }) {
             return displayName(for: student)
         } else {
             return "\(selectedStudentIDs.count) Students"
@@ -296,7 +304,7 @@ struct LessonAssignmentHistoryView: View {
             Menu {
                 Button("All Students") { selectedStudentIDs.removeAll() }
                 Divider()
-                ForEach(students) { student in
+                ForEach(safeStudents) { student in
                     Button(action: {
                         if selectedStudentIDs.contains(student.id) {
                             selectedStudentIDs.remove(student.id)
@@ -436,7 +444,7 @@ struct LessonAssignmentHistoryView: View {
                 lastAssignmentCount = allAssignmentsForChangeDetection.count
                 lastNotesCount = recentNotes.count
                 lastLessonsCount = lessons.count
-                lastStudentsCount = students.count
+                lastStudentsCount = safeStudents.count
             }
             .onChange(of: allAssignmentsForChangeDetection.count) { _, newCount in
                 // Only reload when count actually changes
@@ -454,7 +462,7 @@ struct LessonAssignmentHistoryView: View {
                 lastLessonsCount = newCount
                 Task { await buildCachesAsync() }
             }
-            .onChange(of: students.count) { _, newCount in
+            .onChange(of: safeStudents.count) { _, newCount in
                 guard newCount != lastStudentsCount else { return }
                 lastStudentsCount = newCount
                 Task { await buildCachesAsync() }
