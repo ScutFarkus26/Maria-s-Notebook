@@ -115,7 +115,8 @@ final class StudentNotesViewModel: ObservableObject {
         let generalItems: [UnifiedNoteItem] = visibleNotes.compactMap { note in
             // Exclude if attached to Work (handled by Block 2)
             if note.work != nil { return nil }
-            // Exclude if attached to Presentation (handled by Block 3)
+            // Exclude if attached to Presentation/LessonAssignment (handled by Block 3)
+            if note.lessonAssignment != nil { return nil }
             if note.presentation != nil { return nil }
             // Exclude if attached to StudentMeeting (handled by Block 4)
             if note.studentMeeting != nil { return nil }
@@ -191,22 +192,65 @@ final class StudentNotesViewModel: ObservableObject {
             aggregated.append(contentsOf: workItems)
         }
         
-        // 3) Presentation-related notes
+        // 3) Presentation-related notes (from LessonAssignment - the new unified model)
+        let lessonAssignmentNoteFetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.lessonAssignment != nil },
+            sortBy: noteSort
+        )
+        let lessonAssignmentNotes: [Note] = (try? modelContext.fetch(lessonAssignmentNoteFetch)) ?? []
+        let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+        var lessonsByID: [UUID: Lesson] = [:]
+        for lesson in allLessons { lessonsByID[lesson.id] = lesson }
+
+        let assignmentItems: [UnifiedNoteItem] = lessonAssignmentNotes.compactMap { note in
+            guard let assignment = note.lessonAssignment,
+                  assignment.studentIDs.contains(studentIDString) else { return nil }
+
+            guard note.scope.applies(to: student.id) else { return nil }
+
+            let context: String = {
+                if let lessonID = UUID(uuidString: assignment.lessonID),
+                   let lesson = lessonsByID[lessonID] {
+                    let name = lesson.name.trimmed()
+                    return name.isEmpty ? "Presentation" : name
+                } else if let snapshot = assignment.lessonTitleSnapshot?.trimmed(),
+                          !snapshot.isEmpty {
+                    return snapshot
+                }
+                return "Presentation"
+            }()
+
+            return UnifiedNoteItem(
+                id: note.id,
+                date: note.updatedAt,
+                body: note.body,
+                source: .presentation,
+                contextText: context,
+                color: .purple,
+                associatedID: assignment.id,
+                category: note.category,
+                includeInReport: note.includeInReport,
+                imagePath: note.imagePath,
+                reportedBy: note.reportedBy,
+                reporterName: note.reporterName,
+                isPinned: note.isPinned
+            )
+        }
+        aggregated.append(contentsOf: assignmentItems)
+
+        // Legacy: Presentation-related notes (from old Presentation model)
         let presentationNoteFetch = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { $0.presentation != nil },
             sortBy: noteSort
         )
         let presentationNotes: [Note] = (try? modelContext.fetch(presentationNoteFetch)) ?? []
-        let allLessons: [Lesson] = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
-        var lessonsByID: [UUID: Lesson] = [:]
-        for lesson in allLessons { lessonsByID[lesson.id] = lesson }
-        
+
         let presentationItems: [UnifiedNoteItem] = presentationNotes.compactMap { note in
             guard let presentation = note.presentation,
                   presentation.studentIDs.contains(studentIDString) else { return nil }
-            
+
             guard note.scope.applies(to: student.id) else { return nil }
-            
+
             let context: String = {
                 if let lessonID = UUID(uuidString: presentation.lessonID),
                    let lesson = lessonsByID[lessonID] {
@@ -218,7 +262,7 @@ final class StudentNotesViewModel: ObservableObject {
                 }
                 return "Presentation"
             }()
-            
+
             return UnifiedNoteItem(
                 id: note.id,
                 date: note.updatedAt,

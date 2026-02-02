@@ -28,57 +28,52 @@ struct StudentLessonNotesSectionUnified: View {
         studentLesson.givenAt.map { Calendar.current.startOfDay(for: $0) }
     }
     
-    // Matched presentations using robust matching with legacyStudentLessonID as primary
-    private var matchedPresentations: [Presentation] {
+    // Matched LessonAssignments using robust matching with migratedFromStudentLessonID as primary
+    private var matchedLessonAssignments: [LessonAssignment] {
         do {
-            let allPresentations = try modelContext.fetch(FetchDescriptor<Presentation>())
-            
-            var matched: [Presentation] = []
+            let allAssignments = try modelContext.fetch(FetchDescriptor<LessonAssignment>())
+
+            var matched: [LessonAssignment] = []
             var seenIDs: Set<UUID> = []
-            
-            // Primary match: legacyStudentLessonID == studentLesson.id.uuidString
-            for p in allPresentations {
-                if let legacyID = p.legacyStudentLessonID,
+
+            // Primary match: migratedFromStudentLessonID == studentLesson.id.uuidString
+            for la in allAssignments {
+                if let legacyID = la.migratedFromStudentLessonID,
                    legacyID == slID,
-                   !seenIDs.contains(p.id) {
-                    matched.append(p)
-                    seenIDs.insert(p.id)
+                   !seenIDs.contains(la.id) {
+                    matched.append(la)
+                    seenIDs.insert(la.id)
                 }
             }
-            
+
             // Fallback: lessonID matches AND student set intersection/subset
-            // Task requirement #3: If no legacyStudentLessonID match, fallback to:
-            // - presentation.lessonID == studentLesson.resolvedLessonID.uuidString AND
-            // - presentation.studentUUIDs intersects/subset of studentLesson.resolvedStudentIDs
             if matched.isEmpty {
-                var candidates: [Presentation] = []
-                
-                for p in allPresentations {
-                    if seenIDs.contains(p.id) { continue }
-                    
-                    // Check lessonID match: presentation.lessonID == studentLesson.resolvedLessonID.uuidString
-                    let lessonMatch = p.lessonID == slLessonID || p.lessonID == studentLesson.lessonID
+                var candidates: [LessonAssignment] = []
+
+                for la in allAssignments {
+                    if seenIDs.contains(la.id) { continue }
+
+                    // Check lessonID match
+                    let lessonMatch = la.lessonID == slLessonID || la.lessonID == studentLesson.lessonID
                     guard lessonMatch else { continue }
-                    
-                    // Check student match: presentation.studentUUIDs intersects/subset of studentLesson.resolvedStudentIDs
-                    let pStudentUUIDs = Set(p.studentUUIDs.map { $0.uuidString })
-                    // Match if: exact equality, subset, or intersection (has common elements)
-                    let studentMatch = pStudentUUIDs == slStudentIDs || 
-                                     pStudentUUIDs.isSubset(of: slStudentIDs) ||
-                                     !pStudentUUIDs.intersection(slStudentIDs).isEmpty
+
+                    // Check student match
+                    let laStudentIDs = Set(la.studentIDs)
+                    let studentMatch = laStudentIDs == slStudentIDs ||
+                                     laStudentIDs.isSubset(of: slStudentIDs) ||
+                                     !laStudentIDs.intersection(slStudentIDs).isEmpty
                     guard studentMatch else { continue }
-                    
-                    candidates.append(p)
+
+                    candidates.append(la)
                 }
-                
-                // If multiple candidates, choose by time proximity (nearest in time)
+
+                // If multiple candidates, choose by time proximity
                 if candidates.count == 1 {
                     matched.append(candidates[0])
                 } else if candidates.count > 1 {
-                    // Find best match by time proximity
-                    var bestMatch: Presentation?
+                    var bestMatch: LessonAssignment?
                     var minTimeDifference: TimeInterval = .greatestFiniteMagnitude
-                    
+
                     let slDate: Date
                     if let givenAt = studentLesson.givenAt {
                         slDate = givenAt
@@ -87,55 +82,59 @@ struct StudentLessonNotesSectionUnified: View {
                     } else {
                         slDate = studentLesson.createdAt
                     }
-                    
+
                     for candidate in candidates {
-                        let timeDifference = abs(candidate.presentedAt.timeIntervalSince(slDate))
-                        if timeDifference < minTimeDifference {
-                            minTimeDifference = timeDifference
-                            bestMatch = candidate
+                        if let presentedAt = candidate.presentedAt {
+                            let timeDifference = abs(presentedAt.timeIntervalSince(slDate))
+                            if timeDifference < minTimeDifference {
+                                minTimeDifference = timeDifference
+                                bestMatch = candidate
+                            }
                         }
                     }
-                    
+
                     if let best = bestMatch {
                         matched.append(best)
                     } else {
-                        // Fallback to first candidate if no date comparison possible
                         matched.append(candidates[0])
                     }
                 }
             }
-            
+
             return matched
         } catch {
             return []
         }
     }
     
-    // Get matched presentation IDs for efficient note fetching
-    private var matchedPresentationIDs: Set<UUID> {
-        Set(matchedPresentations.map { $0.id })
+    // Get matched assignment IDs for efficient note fetching
+    private var matchedAssignmentIDs: Set<UUID> {
+        Set(matchedLessonAssignments.map { $0.id })
     }
-    
-    // Get notes from matched presentations using presentationIDs for efficient fetching
-    // Task requirement: Fetch notes where note.presentation is in the set of Presentations matching this StudentLesson
+
+    // Get notes from matched LessonAssignments
     private var presentationNotesForThisLesson: [Note] {
-        let matchedIDs = matchedPresentationIDs
+        let matchedIDs = matchedAssignmentIDs
         guard !matchedIDs.isEmpty else { return [] }
-        
+
         do {
             // Try to use relationship arrays first (more efficient)
             var notes: [Note] = []
-            for presentation in matchedPresentations {
-                if let presentationNotes = presentation.unifiedNotes {
-                    notes.append(contentsOf: presentationNotes)
+            for assignment in matchedLessonAssignments {
+                if let assignmentNotes = assignment.unifiedNotes {
+                    notes.append(contentsOf: assignmentNotes)
                 }
             }
-            
+
             // If relationship arrays are not available or incomplete, fetch all notes and filter
             if notes.isEmpty {
                 let allNotes = try modelContext.fetch(FetchDescriptor<Note>())
                 notes = allNotes.filter { note in
-                    // Check via presentation relationship
+                    // Check via lessonAssignment relationship (preferred)
+                    if let noteLessonAssignment = note.lessonAssignment {
+                        return matchedIDs.contains(noteLessonAssignment.id)
+                    }
+                    // Legacy fallback: check via presentation relationship
                     if let notePresentation = note.presentation {
                         return matchedIDs.contains(notePresentation.id)
                     }
@@ -152,7 +151,7 @@ struct StudentLessonNotesSectionUnified: View {
                     return true
                 }
             }
-            
+
             return notes
         } catch {
             return []

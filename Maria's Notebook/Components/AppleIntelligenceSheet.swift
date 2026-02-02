@@ -294,6 +294,10 @@ struct SmartNoteFormatter {
     private func resolveContextDetail(for note: Note) -> String {
         if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
         if let work = note.work { return "Work: \(work.title)" }
+        if let la = note.lessonAssignment {
+            let title = (la.lessonTitleSnapshot ?? "").trimmed()
+            return title.isEmpty ? "Presentation" : "Presentation: \(title)"
+        }
         if let sl = note.studentLesson, let l = sl.lesson { return "Presentation: \(l.name)" }
         if let pres = note.presentation {
             let title = (pres.lessonTitleSnapshot ?? "").trimmed()

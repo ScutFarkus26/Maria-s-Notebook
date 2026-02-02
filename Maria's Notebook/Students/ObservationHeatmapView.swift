@@ -156,8 +156,21 @@ struct ObservationHeatmapView: View {
                     }
                 }
                 
-                // Group 3: Presentation notes
-                if let presentation = note.presentation {
+                // Group 3: Presentation notes (from LessonAssignment - the new unified model)
+                if let assignment = note.lessonAssignment {
+                    // Store the most recent note per LessonAssignment
+                    if let existing = presentationNotesByPresentationID[assignment.id] {
+                        let existingDate = max(existing.updatedAt, existing.createdAt)
+                        let noteDate = max(note.updatedAt, note.createdAt)
+                        if noteDate > existingDate {
+                            presentationNotesByPresentationID[assignment.id] = note
+                        }
+                    } else {
+                        presentationNotesByPresentationID[assignment.id] = note
+                    }
+                }
+                // Legacy: Presentation notes (from old Presentation model)
+                else if let presentation = note.presentation {
                     // Store the most recent note per presentation
                     if let existing = presentationNotesByPresentationID[presentation.id] {
                         let existingDate = max(existing.updatedAt, existing.createdAt)
@@ -278,7 +291,26 @@ struct ObservationHeatmapView: View {
             ]
         )
         let presentationNotes: [Note] = (try? modelContext.fetch(presentationNoteFetch)) ?? []
-        
+
+        // 3a) Check LessonAssignment notes (new unified model)
+        let assignmentNoteFetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.lessonAssignment != nil }
+        )
+        let assignmentNotes: [Note] = (try? modelContext.fetch(assignmentNoteFetch)) ?? []
+
+        for note in assignmentNotes {
+            guard let assignment = note.lessonAssignment,
+                  assignment.studentIDs.contains(studentIDString) else {
+                continue
+            }
+
+            let noteDate = max(note.updatedAt, note.createdAt)
+            if mostRecentDate == nil || noteDate > mostRecentDate! {
+                mostRecentDate = noteDate
+            }
+        }
+
+        // 3b) Legacy: Check Presentation notes (old model)
         let allPresentations: [Presentation] = (try? modelContext.fetch(FetchDescriptor<Presentation>())) ?? []
         // Build dictionary safely, handling potential duplicates by keeping the first occurrence
         var presentationsByID: [UUID: Presentation] = [:]
@@ -287,13 +319,13 @@ struct ObservationHeatmapView: View {
                 presentationsByID[presentation.id] = presentation
             }
         }
-        
+
         for note in presentationNotes {
             guard let presentation = note.presentation,
                   presentation.studentIDs.contains(studentIDString) else {
                 continue
             }
-            
+
             let noteDate = max(note.updatedAt, note.createdAt)
             if mostRecentDate == nil || noteDate > mostRecentDate! {
                 mostRecentDate = noteDate
