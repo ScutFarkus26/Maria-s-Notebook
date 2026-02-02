@@ -357,6 +357,9 @@ struct ObservationsView: View {
         if let work = note.work {
             return "Work: \(work.title)"
         }
+        if note.lessonAssignment != nil {
+            return "Presentation"
+        }
         if note.studentLesson != nil {
             return "Presentation"
         }
@@ -480,6 +483,9 @@ struct ObservationsView: View {
         }
         if let work = note.work {
             return .work(work)
+        }
+        if let lessonAssignment = note.lessonAssignment {
+            return .lessonAssignment(lessonAssignment)
         }
         if let studentLesson = note.studentLesson {
             return .studentLesson(studentLesson)

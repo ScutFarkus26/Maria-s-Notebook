@@ -1,6 +1,12 @@
 import Foundation
 import SwiftData
 
+/// Errors that can occur during lifecycle operations
+enum LifecycleError: Error {
+    case invalidLessonID(String)
+    case invalidStudentID(String)
+}
+
 struct LifecycleService {
     /// Cleans orphaned student IDs from a StudentLesson by removing IDs that no longer exist in the database.
     /// This ensures referential integrity when using manual ID management instead of SwiftData relationships.
@@ -19,33 +25,39 @@ struct LifecycleService {
             }
         }
     }
-    
-    /// Record a Presentation (immutable) and create per-student WorkModel items.
-    /// Idempotent by `legacyStudentLessonID` on Presentation and (presentationID, studentID) on WorkModel.
+
+    /// Record a LessonAssignment (the unified presentation model) and create per-student WorkModel items.
+    /// Idempotent by `migratedFromStudentLessonID` on LessonAssignment and (presentationID, studentID) on WorkModel.
+    ///
+    /// This is the NEW unified method that creates LessonAssignment instead of the old Presentation model.
     static func recordPresentationAndExplodeWork(
         from studentLesson: StudentLesson,
         presentedAt: Date,
         modelContext: ModelContext
-    ) throws -> (presentation: Presentation, work: [WorkModel]) {
+    ) throws -> (lessonAssignment: LessonAssignment, work: [WorkModel]) {
         // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
         let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
         cleanOrphanedStudentIDs(for: studentLesson, validStudentIDs: validStudentIDs, modelContext: modelContext)
-        
+
         let legacyID = studentLesson.id.uuidString
         // CloudKit compatibility: lessonID is already String
         let lessonIDStr = studentLesson.lessonID
         // studentIDs is already [String] for CloudKit compatibility (now cleaned of orphans)
         let studentIDStrs = studentLesson.studentIDs
 
-        // 1) Lookup existing Presentation by legacy link
-        let existingPresentation: Presentation? = try fetchPresentation(byLegacyID: legacyID, context: modelContext)
+        // 1) Lookup existing LessonAssignment by legacy link (migrated from StudentLesson)
+        let existingAssignment: LessonAssignment? = try fetchLessonAssignment(byMigratedStudentLessonID: legacyID, context: modelContext)
 
-        let presentation: Presentation
-        if let p = existingPresentation {
-            presentation = p
-            // Update existing presentation with track info if not already set
-            if presentation.trackID == nil, let lesson = studentLesson.lesson {
+        let lessonAssignment: LessonAssignment
+        if let existing = existingAssignment {
+            lessonAssignment = existing
+            // Update to presented state if not already
+            if lessonAssignment.state != .presented {
+                lessonAssignment.markPresented(at: presentedAt)
+            }
+            // Update existing assignment with track info if not already set
+            if lessonAssignment.trackID == nil, let lesson = studentLesson.lesson {
                 let subject = lesson.subject.trimmed()
                 let group = lesson.group.trimmed()
                 if !subject.isEmpty && !group.isEmpty,
@@ -55,23 +67,23 @@ struct LifecycleService {
                        group: group,
                        modelContext: modelContext
                    ) {
-                    presentation.trackID = track.id.uuidString
+                    lessonAssignment.trackID = track.id.uuidString
                     // Find the TrackStep for this lesson
                     if let lessonUUID = UUID(uuidString: lessonIDStr) {
                         let allSteps = (try? modelContext.fetch(FetchDescriptor<TrackStep>())) ?? []
-                        if let step = allSteps.first(where: { 
-                            $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID 
+                        if let step = allSteps.first(where: {
+                            $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                         }) {
-                            presentation.trackStepID = step.id.uuidString
+                            lessonAssignment.trackStepID = step.id.uuidString
                         }
                     }
                 }
             }
         } else {
-            // Create new Presentation
+            // Create new LessonAssignment in presented state
             let title = studentLesson.lesson?.name
             let subtitle = studentLesson.lesson?.subheading
-            
+
             // Link to Track if lesson belongs to a track
             var trackID: String? = nil
             var trackStepID: String? = nil
@@ -89,34 +101,41 @@ struct LifecycleService {
                     // Find the TrackStep for this lesson
                     if let lessonUUID = UUID(uuidString: lessonIDStr) {
                         let allSteps = (try? modelContext.fetch(FetchDescriptor<TrackStep>())) ?? []
-                        if let step = allSteps.first(where: { 
-                            $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID 
+                        if let step = allSteps.first(where: {
+                            $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                         }) {
                             trackStepID = step.id.uuidString
                         }
                     }
                 }
             }
-            
-            presentation = Presentation(
+
+            // Convert student IDs from strings to UUIDs
+            let studentUUIDs = studentIDStrs.compactMap { UUID(uuidString: $0) }
+            guard let lessonUUID = UUID(uuidString: lessonIDStr) else {
+                throw LifecycleError.invalidLessonID(lessonIDStr)
+            }
+
+            lessonAssignment = LessonAssignment(
                 id: UUID(),
                 createdAt: Date(),
+                state: .presented,
                 presentedAt: presentedAt,
-                lessonID: lessonIDStr,
-                studentIDs: studentIDStrs,
-                legacyStudentLessonID: legacyID,
+                lessonID: lessonUUID,
+                studentIDs: studentUUIDs,
+                lesson: studentLesson.lesson,
                 trackID: trackID,
-                trackStepID: trackStepID,
-                lessonTitleSnapshot: title,
-                lessonSubtitleSnapshot: subtitle
+                trackStepID: trackStepID
             )
-            modelContext.insert(presentation)
+            lessonAssignment.lessonTitleSnapshot = title
+            lessonAssignment.lessonSubheadingSnapshot = subtitle
+            lessonAssignment.migratedFromStudentLessonID = legacyID
+
+            modelContext.insert(lessonAssignment)
             #if DEBUG
-            print("Presentation link set: legacyStudentLessonID=\(presentation.legacyStudentLessonID ?? "nil")")
+            print("LessonAssignment created: migratedFromStudentLessonID=\(lessonAssignment.migratedFromStudentLessonID ?? "nil")")
             #endif
         }
-
-        // Legacy note migration has been completed. All notes are now in the unified Note system.
 
         // 2) Ensure WorkModels exist per student
         var workForPresentation: [WorkModel] = []
@@ -124,17 +143,16 @@ struct LifecycleService {
         var skippedCount = 0
         for sid in studentIDStrs {
             // Check for existing WorkModel first
-            if let existing = try fetchWorkModel(presentationID: presentation.id.uuidString, studentID: sid, context: modelContext) {
+            if let existing = try fetchWorkModel(presentationID: lessonAssignment.id.uuidString, studentID: sid, context: modelContext) {
                 workForPresentation.append(existing)
                 skippedCount += 1
             } else {
                 // Create new WorkModel
                 guard let studentUUID = UUID(uuidString: sid),
-                      let lessonUUID = UUID(uuidString: lessonIDStr),
-                      let presentationUUID = UUID(uuidString: presentation.id.uuidString) else {
+                      let lessonUUID = UUID(uuidString: lessonIDStr) else {
                     continue
                 }
-                
+
                 let repository = WorkRepository(context: modelContext)
                 do {
                     let workModel = try repository.createWork(
@@ -142,19 +160,16 @@ struct LifecycleService {
                         lessonID: lessonUUID,
                         title: nil,
                         kind: .practiceLesson,
-                        presentationID: presentationUUID,
+                        presentationID: lessonAssignment.id,
                         scheduledDate: nil
                     )
-                    
+
                     // Link WorkModel to Track if lesson belongs to a track
-                    // Note: WorkModel doesn't have trackID field, so we can't link directly
-                    // The trackID will be set on the Presentation which is linked to this work
                     if let lesson = studentLesson.lesson {
                         let subject = lesson.subject.trimmed()
                         let group = lesson.group.trimmed()
                         if !subject.isEmpty && !group.isEmpty,
                            GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
-                            // Track exists - WorkModel link will be handled via Presentation.trackID
                             _ = try? GroupTrackService.getOrCreateTrack(
                                 subject: subject,
                                 group: group,
@@ -162,23 +177,22 @@ struct LifecycleService {
                             )
                         }
                     }
-                    
+
                     workForPresentation.append(workModel)
                     createdCount += 1
                 } catch {
-                    // WorkModel creation failed - log error
                     #if DEBUG
-                    print("⚠️ Failed to create WorkModel for presentation \(presentation.id.uuidString), student \(sid): \(error)")
+                    print("⚠️ Failed to create WorkModel for LessonAssignment \(lessonAssignment.id.uuidString), student \(sid): \(error)")
                     #endif
                 }
             }
         }
 
-        // 2.5) Upsert LessonPresentation records per student (shadow data for progress tracking)
-        let presentationIDStr = presentation.id.uuidString
+        // 2.5) Upsert LessonPresentation records per student (for individual progress tracking)
+        let assignmentIDStr = lessonAssignment.id.uuidString
         for sid in studentIDStrs {
             try upsertLessonPresentation(
-                presentationID: presentationIDStr,
+                presentationID: assignmentIDStr,
                 studentID: sid,
                 lessonID: lessonIDStr,
                 presentedAt: presentedAt,
@@ -186,19 +200,18 @@ struct LifecycleService {
             )
         }
 
-        // 3) Fetch all associated WorkModels for this presentation (e.g., backfill ordering)
-        let pid = presentation.id.uuidString
-        let allForPresentation = try fetchAllWorkModels(presentationID: pid, context: modelContext)
+        // 3) Fetch all associated WorkModels for this assignment
+        let allForAssignment = try fetchAllWorkModels(presentationID: assignmentIDStr, context: modelContext)
 
-        return (presentation, allForPresentation)
+        return (lessonAssignment, allForAssignment)
     }
 
     // MARK: - Fetch Helpers
 
-    private static func fetchPresentation(byLegacyID legacyID: String, context: ModelContext) throws -> Presentation? {
-        let descriptor = FetchDescriptor<Presentation>(predicate: #Predicate { $0.legacyStudentLessonID == legacyID })
-        let arr = try context.fetch(descriptor)
-        return arr.first
+    /// Fetches a LessonAssignment by the StudentLesson ID it was migrated from
+    private static func fetchLessonAssignment(byMigratedStudentLessonID legacyID: String, context: ModelContext) throws -> LessonAssignment? {
+        let descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.migratedFromStudentLessonID == legacyID })
+        return try context.fetch(descriptor).first
     }
 
     private static func fetchWorkModel(presentationID: String, studentID: String, context: ModelContext) throws -> WorkModel? {
@@ -349,19 +362,19 @@ struct LifecycleService {
         // Save tracks created above
         try context.save()
         
-        // 3. For each presented StudentLesson, ensure Presentation and LessonPresentation records exist
+        // 3. For each presented StudentLesson, ensure LessonAssignment and LessonPresentation records exist
         for studentLesson in presentedStudentLessons {
             // Clean orphaned IDs
             cleanOrphanedStudentIDs(for: studentLesson, validStudentIDs: validStudentIDs, modelContext: context)
-            
+
             // Skip if no valid students or invalid lessonID
             guard !studentLesson.studentIDs.isEmpty,
                   !studentLesson.lessonID.isEmpty,
                   UUID(uuidString: studentLesson.lessonID) != nil else { continue }
-            
+
             // Determine presented date
             let presentedAt = studentLesson.givenAt ?? studentLesson.createdAt
-            
+
             // Get lesson - try relationship first, then lookup
             let lesson: Lesson?
             if let relationshipLesson = studentLesson.lesson {
@@ -369,41 +382,41 @@ struct LifecycleService {
             } else {
                 lesson = lessonsByID[studentLesson.lessonID]
             }
-            
-            // Use the existing lifecycle service to create Presentation and LessonPresentation records
+
+            // Use the lifecycle service to create LessonAssignment and LessonPresentation records
             // This is idempotent, so safe to call multiple times
             do {
                 // Ensure lesson is set on studentLesson if not already set
                 if studentLesson.lesson == nil, let fetchedLesson = lesson {
                     studentLesson.lesson = fetchedLesson
                 }
-                
-                let (presentation, _) = try recordPresentationAndExplodeWork(
+
+                let (lessonAssignment, _) = try recordPresentationAndExplodeWork(
                     from: studentLesson,
                     presentedAt: presentedAt,
                     modelContext: context
                 )
                 presentationsUpdated += studentLesson.studentIDs.count
-                
+
                 // Update presentationID on any LessonPresentation records that were created without it
-                let presentationIDStr = presentation.id.uuidString
+                let assignmentIDStr = lessonAssignment.id.uuidString
                 let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
                 for studentIDStr in studentLesson.studentIDs {
-                    if let lp = allLessonPresentations.first(where: { 
-                        $0.lessonID == studentLesson.lessonID && 
-                        $0.studentID == studentIDStr && 
-                        $0.presentationID == nil 
+                    if let lp = allLessonPresentations.first(where: {
+                        $0.lessonID == studentLesson.lessonID &&
+                        $0.studentID == studentIDStr &&
+                        $0.presentationID == nil
                     }) {
-                        lp.presentationID = presentationIDStr
+                        lp.presentationID = assignmentIDStr
                     }
                 }
             } catch {
                 // If recordPresentationAndExplodeWork fails (e.g., lesson not found),
                 // still try to create LessonPresentation record directly
                 #if DEBUG
-                print("⚠️ Failed to create Presentation for StudentLesson \(studentLesson.id): \(error)")
+                print("⚠️ Failed to create LessonAssignment for StudentLesson \(studentLesson.id): \(error)")
                 #endif
-                
+
                 // Fallback: create LessonPresentation directly
                 for studentIDStr in studentLesson.studentIDs {
                     try upsertLessonPresentationByLessonAndStudent(

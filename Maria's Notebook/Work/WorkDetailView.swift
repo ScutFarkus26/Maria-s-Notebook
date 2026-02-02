@@ -20,7 +20,7 @@ struct WorkDetailView: View {
     @State private var relatedStudent: Student? = nil
 
     @State private var workModelNotes: [Note] = [] // Unified notes - loaded via relationship
-    @Query private var presentations: [Presentation]
+    @Query private var lessonAssignments: [LessonAssignment]
     @Query private var planItems: [WorkPlanItem]
     @Query private var peerWorks: [WorkModel]
 
@@ -205,7 +205,7 @@ struct WorkDetailView: View {
                         "lessons": relatedLessons.count,
                         "students": relatedStudent != nil ? 1 : 0,
                         "workModelNotes": workModelNotes.count,
-                        "presentations": presentations.count,
+                        "lessonAssignments": lessonAssignments.count,
                         "planItems": planItems.count,
                         "peerWorks": peerWorks.count
                     ]
