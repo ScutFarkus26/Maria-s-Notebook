@@ -269,14 +269,6 @@ enum DataCleanupService {
         return deletedCount
     }
 
-    /// DEPRECATED: Presentation model has been removed.
-    /// This function is kept for backward compatibility but always returns 0.
-    @discardableResult
-    static func deduplicatePresentations(using context: ModelContext) -> Int {
-        // Presentation model has been removed - nothing to deduplicate
-        return 0
-    }
-
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
     static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
@@ -505,7 +497,6 @@ enum DataCleanupService {
         results["Student"] = deduplicate(Student.self, using: context)
         results["Lesson"] = deduplicate(Lesson.self, using: context)
         results["StudentLesson"] = deduplicate(StudentLesson.self, using: context)
-        // Presentation.self removed - model no longer exists
         results["LessonAssignment"] = deduplicate(LessonAssignment.self, using: context)
         results["LessonPresentation"] = deduplicate(LessonPresentation.self, using: context)
 

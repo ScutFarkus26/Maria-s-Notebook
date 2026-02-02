@@ -1,6 +1,11 @@
 # Performance Audit: Query Patterns
 
-**Date:** Audit conducted on repository-wide SwiftData query patterns  
+> **Note:** This audit was conducted before the unified Presentation system migration.
+> Some references (e.g., `Presentation.swift`, `PresentationHistoryView.swift`) have been
+> renamed to use `LessonAssignment` internally. The analysis remains relevant for
+> understanding query patterns but file/model names may have changed.
+
+**Date:** Audit conducted on repository-wide SwiftData query patterns
 **Purpose:** Identify high-risk query patterns that load entire tables into memory
 
 ---
@@ -18,7 +23,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 **⚠️ REMAINING HIGH-RISK AREAS:**
 1. **Tests/CloudKitStatusView.swift** - Loads ALL 14 model types (HIGH) - Test/debug view, lower priority
 2. **Inbox/FollowUpInboxView.swift** - 7 unfiltered queries (HIGH)
-3. **Work/WorkContractDetailSheet.swift** - 6 unfiltered queries (HIGH)
+3. **Work/WorkModelDetailSheet.swift** - 6 unfiltered queries (HIGH)
 4. **Students/StudentLessonsRootView.swift** - 3 large join tables (HIGH)
 5. **Planning/PlanningWeekView.swift** - 3 large join tables (HIGH)
 6. **Presentations/PresentationsViewModel.swift** - Loads all StudentLesson, Lesson, Student (HIGH) - Algorithmic requirement
@@ -37,7 +42,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
   - `@Query private var students: [Student]` (unfiltered)
   - `@Query private var lessons: [Lesson]` (unfiltered)
   - `@Query private var studentLessons: [StudentLesson]` (unfiltered)
-  - `@Query private var workContracts: [WorkContract]` (unfiltered)
+  - `@Query private var workContracts: [WorkModel]` (unfiltered)
   - `@Query private var workPlanItems: [WorkPlanItem]` (unfiltered)
   - `@Query private var workCompletionRecords: [WorkCompletionRecord]` (unfiltered)
   - `@Query private var attendanceRecords: [AttendanceRecord]` (unfiltered)
@@ -66,15 +71,15 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
   - `@Query(filter: #Predicate<WorkNote> { $0.isLessonToGive == true }, sort: [...]) private var lessonReminderNotes: [WorkNote]` (filtered)
 - **Risk:** ✅ **RESOLVED** - No longer loads entire tables, uses efficient data loader pattern
 
-#### Work/WorkContractDetailSheet.swift
-- **Symbol:** `WorkContractDetailSheet` (View)
+#### Work/WorkModelDetailSheet.swift
+- **Symbol:** `WorkModelDetailSheet` (View)
 - **Queries:**
   - `@Query private var lessons: [Lesson]` (unfiltered)
   - `@Query private var students: [Student]` (unfiltered)
   - `@Query private var workNotes: [ScopedNote]` (unfiltered)
   - `@Query private var presentations: [Presentation]` (unfiltered)
   - `@Query private var planItems: [WorkPlanItem]` (unfiltered)
-  - `@Query private var peerContracts: [WorkContract]` (unfiltered)
+  - `@Query private var peerContracts: [WorkModel]` (unfiltered)
 - **Risk:** **HIGH** - Sheet view that loads 6 entire tables. Only needs data related to the single contract being viewed.
 
 #### Students/StudentLessonsRootView.swift
@@ -102,7 +107,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
   - `@Query(sort: [SortDescriptor(\ProjectWeekRoleAssignment.createdAt, order: .forward)]) private var allRoleAssignments: [ProjectWeekRoleAssignment]` (unfiltered, sorted)
   - `@Query(sort: [SortDescriptor(\ProjectSession.createdAt, order: .forward)]) private var allSessions: [ProjectSession]` (unfiltered, sorted)
   - `@Query(sort: [SortDescriptor(\ProjectAssignmentTemplate.createdAt, order: .forward)]) private var allTemplates: [ProjectAssignmentTemplate]` (unfiltered, sorted)
-  - `@Query private var contracts: [WorkContract]` (unfiltered)
+  - `@Query private var contracts: [WorkModel]` (unfiltered)
 - **Risk:** **MED-HIGH** - Loads all project-related tables plus all Students. Filters roles by `projectID` in memory (line 18). Should filter by project at database level.
 
 #### Projects/NewProjectSessionSheet.swift
@@ -214,7 +219,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
   - Caches loaded data to avoid repeated fetches
   - Added debouncing to search field (250ms delay)
 - **Queries:**
-  - `@Query(filter: #Predicate<WorkContract> { $0.statusRaw == "active" || $0.statusRaw == "review" })` - ✅ Filtered
+  - `@Query(filter: #Predicate<WorkModel> { $0.statusRaw == "active" || $0.statusRaw == "review" })` - ✅ Filtered
   - `@Query(sort: [SortDescriptor(\Lesson.id)])` - ✅ Change detection only (extracts IDs)
   - `@Query(sort: [SortDescriptor(\Student.id)])` - ✅ Change detection only (extracts IDs)
 - **Risk:** ✅ **RESOLVED** - Optimized with filtered queries, lazy loading, and lightweight change detection.
@@ -222,10 +227,10 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 #### Students/StudentMeetingsTab.swift
 - **Symbol:** `StudentMeetingsTab` (View)
 - **Queries:**
-  - `@Query(sort: [SortDescriptor(\WorkContract.createdAt, order: .reverse)]) private var contracts: [WorkContract]` (unfiltered, sorted)
+  - `@Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]) private var contracts: [WorkModel]` (unfiltered, sorted)
   - `@Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]` (unfiltered, sorted)
   - `@Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)]) private var meetings: [StudentMeeting]` (unfiltered, sorted)
-- **Risk:** **MED-HIGH** - Loads all WorkContract, Lesson, and StudentMeeting. Should filter by student.
+- **Risk:** **MED-HIGH** - Loads all WorkModel, Lesson, and StudentMeeting. Should filter by student.
 
 #### Attendance/AttendanceView.swift
 - **Symbol:** `AttendanceView` (View)
@@ -267,8 +272,8 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 - **Queries:**
   - `@Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]` (unfiltered, sorted)
   - `@Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]` (unfiltered, sorted)
-  - `@Query private var allWorkContracts: [WorkContract]` (unfiltered)
-- **Risk:** **MED-HIGH** - Loads all Students, Lessons, and WorkContract. Should filter by project/session.
+  - `@Query private var allWorkModels: [WorkModel]` (unfiltered)
+- **Risk:** **MED-HIGH** - Loads all Students, Lessons, and WorkModel. Should filter by project/session.
 
 #### Projects/ProjectEditorSheet.swift
 - **Symbol:** `ProjectEditorSheet` (View)
@@ -279,10 +284,10 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 #### Work/WorksLogView.swift
 - **Symbol:** `WorksLogView` (View)
 - **Queries:**
-  - `@Query(sort: [SortDescriptor(\WorkContract.createdAt, order: .reverse)]) private var contracts: [WorkContract]` (unfiltered, sorted)
+  - `@Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]) private var contracts: [WorkModel]` (unfiltered, sorted)
   - `@Query(...)` (line 8 - incomplete in grep)
   - `@Query(...)` (line 11 - incomplete in grep)
-- **Risk:** **MED** - Loads all WorkContract. May be acceptable for log view, but could paginate.
+- **Risk:** **MED** - Loads all WorkModel. May be acceptable for log view, but could paginate.
 
 ---
 
@@ -297,7 +302,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
   - `FetchDescriptor<StudentLesson>()` - unfiltered (loads all)
   - `FetchDescriptor<Lesson>()` - unfiltered (loads all)
   - `FetchDescriptor<Student>()` - unfiltered (loads all)
-  - `FetchDescriptor<WorkContract>(...)` - filtered (active/review only) - GOOD
+  - `FetchDescriptor<WorkModel>(...)` - filtered (active/review only) - GOOD
 - **Risk:** **HIGH** - ViewModel loads ALL StudentLesson, Lesson, and Student in init. Comments indicate algorithmic requirement (blocking logic, days-since calculations), but this is still problematic.
 
 #### AppCore/AppBootstrapper.swift
@@ -367,15 +372,15 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 - **Location:** Multiple methods (lines 282, 300, 326)
 - **Fetches:**
   - `FetchDescriptor<Lesson>()` - unfiltered (multiple locations)
-  - `FetchDescriptor<WorkContract>()` - unfiltered
-- **Risk:** **MED-HIGH** - Component loads all Lessons and WorkContract. Should filter by subject/class.
+  - `FetchDescriptor<WorkModel>()` - unfiltered
+- **Risk:** **MED-HIGH** - Component loads all Lessons and WorkModel. Should filter by subject/class.
 
 #### Projects/ProjectsRootView.swift
 - **Symbol:** `ProjectsRootView` (View)
 - **Location:** `deleteClub()` method (lines 164-197)
 - **Fetches:**
   - `FetchDescriptor<ProjectSession>()` - unfiltered
-  - `FetchDescriptor<WorkContract>()` - unfiltered
+  - `FetchDescriptor<WorkModel>()` - unfiltered
   - `FetchDescriptor<ProjectAssignmentTemplate>()` - unfiltered
   - `FetchDescriptor<ProjectRole>()` - unfiltered
   - `FetchDescriptor<ProjectTemplateWeek>()` - unfiltered
@@ -429,7 +434,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 
 ### 3. Inbox/FollowUpInboxView.swift
 - **Risk:** HIGH
-- **Reason:** 6 unfiltered queries (Lesson, Student, StudentLesson, WorkContract, WorkPlanItem, ScopedNote)
+- **Reason:** 6 unfiltered queries (Lesson, Student, StudentLesson, WorkModel, WorkPlanItem, ScopedNote)
 - **Impact:** Loads entire work/lesson ecosystem for inbox calculations
 
 ### 4. Students/StudentLessonsRootView.swift
@@ -442,7 +447,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 - **Reason:** 3 unfiltered queries, filters in memory for week view
 - **Impact:** Loads all StudentLesson, Lesson, Student, then filters by date range in Swift
 
-### 6. Work/WorkContractDetailSheet.swift
+### 6. Work/WorkModelDetailSheet.swift
 - **Risk:** HIGH
 - **Reason:** 6 unfiltered queries in a sheet/detail view
 - **Impact:** Sheet loads entire tables just to display details for one contract
@@ -489,7 +494,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 **Effort:** Medium - Need date range predicate  
 **Strategy:** Add @Query predicate for date range filtering (scheduledFor within week)
 
-### Target 4: Work/WorkContractDetailSheet.swift
+### Target 4: Work/WorkModelDetailSheet.swift
 **Priority:** HIGH  
 **Impact:** Medium - Sheet view, but loads 6 tables  
 **Effort:** Medium - Need to filter queries by contract relationships  
@@ -548,7 +553,7 @@ This audit identifies **25+ locations** with unfiltered queries loading entire t
 ## Notes
 
 - **StudentLesson** is a join table between Student and Lesson - typically the largest table
-- **WorkContract** and **WorkPlanItem** are frequently loaded together
+- **WorkModel** and **WorkPlanItem** are frequently loaded together
 - Many views load **Student** and **Lesson** tables together for lookup purposes
 - **Project**-related views often load all project tables + all Students/Lessons
 - Test/debug views (CloudKitStatusView) load all tables but are less critical

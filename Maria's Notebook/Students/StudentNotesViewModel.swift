@@ -237,9 +237,6 @@ final class StudentNotesViewModel: ObservableObject {
         }
         aggregated.append(contentsOf: presentationItems)
 
-        // Legacy Presentation notes removed - Note.presentation relationship no longer exists
-        // All presentation notes should now be linked via lessonAssignment
-
         // 4) Meeting-related notes
         let meetingFetch = FetchDescriptor<StudentMeeting>(
             predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },

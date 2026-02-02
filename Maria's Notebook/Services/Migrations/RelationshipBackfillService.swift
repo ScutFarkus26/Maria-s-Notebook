@@ -4,7 +4,7 @@ import SwiftData
 // MARK: - Relationship Backfill Service
 
 /// Service responsible for backfilling relationships between entities.
-/// Handles linking StudentLessons to Presentations, Notes, and other related entities.
+/// Handles linking StudentLessons to Lessons, Students, and other related entities.
 enum RelationshipBackfillService {
 
     // MARK: - StudentLesson Relationships
@@ -139,37 +139,6 @@ enum RelationshipBackfillService {
         }
     }
 
-    // MARK: - Presentation-StudentLesson Links (DEPRECATED)
-
-    /// DEPRECATED: Presentation model has been removed.
-    /// This migration has already been completed and is now a no-op.
-    /// Kept for backward compatibility with callers.
-    static func backfillPresentationStudentLessonLinks(using context: ModelContext) async {
-        // No-op: Presentation model has been removed.
-        // This migration was already run and is no longer needed.
-    }
-
-    /// DEPRECATED: Presentation model has been removed.
-    /// This migration has already been completed and is now a no-op.
-    /// Kept for backward compatibility with callers.
-    static func repairPresentationStudentLessonLinks_v2(using context: ModelContext) async {
-        // No-op: Presentation model has been removed.
-        // This migration was already run and is no longer needed.
-    }
-
-    // MARK: - Note-StudentLesson Links (DEPRECATED)
-
-    /// DEPRECATED: Note.presentation relationship has been removed.
-    /// This migration has already been completed and is now a no-op.
-    /// Kept for backward compatibility with callers.
-    static func backfillNoteStudentLessonFromPresentation(using context: ModelContext) async {
-        // No-op: Note.presentation relationship has been removed.
-        // This migration was already run and is no longer needed.
-    }
-
-    // MARK: - Helper Functions
-    // Note: chooseBestMatch and bestDate helpers removed - Presentation model no longer exists
-
     // MARK: - Run All Relationship Backfills
 
     /// Runs all relationship backfill migrations in sequence.
@@ -178,8 +147,5 @@ enum RelationshipBackfillService {
         await backfillRelationshipsIfNeeded(using: context)
         await backfillIsPresentedIfNeeded(using: context)
         await backfillScheduledForDayIfNeeded(using: context)
-        await backfillPresentationStudentLessonLinks(using: context)
-        await repairPresentationStudentLessonLinks_v2(using: context)
-        await backfillNoteStudentLessonFromPresentation(using: context)
     }
 }

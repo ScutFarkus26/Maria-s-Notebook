@@ -137,21 +137,6 @@ enum DataMigrations {
         await RelationshipBackfillService.backfillScheduledForDayIfNeeded(using: context)
     }
 
-    /// Backfill Presentation.legacyStudentLessonID by linking to matching StudentLessons.
-    static func backfillPresentationStudentLessonLinks(using context: ModelContext) async {
-        await RelationshipBackfillService.backfillPresentationStudentLessonLinks(using: context)
-    }
-
-    /// Repairs Presentation.legacyStudentLessonID for existing records.
-    static func repairPresentationStudentLessonLinks_v2(using context: ModelContext) async {
-        await RelationshipBackfillService.repairPresentationStudentLessonLinks_v2(using: context)
-    }
-
-    /// Backfill Note.studentLesson for notes attached to Presentations.
-    static func backfillNoteStudentLessonFromPresentation(using context: ModelContext) async {
-        await RelationshipBackfillService.backfillNoteStudentLessonFromPresentation(using: context)
-    }
-
     // MARK: - Legacy Notes Migrations (delegated to LegacyNotesMigrationService)
 
     /// Migrate legacy string notes on WorkModels into Note objects.

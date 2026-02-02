@@ -1,5 +1,9 @@
 # Optimization History & Status
 
+> **Note:** Some references in this document (e.g., `PresentationHistoryView.swift`)
+> have been renamed as part of the unified Presentation system migration.
+> The optimizations remain valid but file names may have changed.
+
 This document provides a comprehensive history of all performance, stability, and memory optimizations implemented in the app.
 
 ## 📊 Overall Statistics

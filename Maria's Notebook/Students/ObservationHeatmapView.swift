@@ -167,8 +167,6 @@ struct ObservationHeatmapView: View {
                         presentationNotesByPresentationID[assignment.id] = note
                     }
                 }
-                // Legacy: Presentation notes (from old Presentation model) - REMOVED
-                // Note.presentation relationship has been removed; use LessonAssignment
             }
 
             // Compute most recent date for each student
@@ -268,11 +266,8 @@ struct ObservationHeatmapView: View {
             }
         }
         
-        // 2) Check Note linked to Presentations (now LessonAssignments) that include this student
+        // 2) Check LessonAssignment notes that include this student
         let studentIDString = student.id.uuidString
-        // Legacy presentationNoteFetch removed - Note.presentation relationship no longer exists
-
-        // 3a) Check Presentation notes (unified model)
         let presentationNoteFetch = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { $0.lessonAssignment != nil }
         )
@@ -290,9 +285,7 @@ struct ObservationHeatmapView: View {
             }
         }
 
-        // 3b) All presentation notes are now linked via the presentation relationship
-
-        // 4) Check StudentMeeting records for this student
+        // 3) Check StudentMeeting records for this student
         let meetingFetch = FetchDescriptor<StudentMeeting>(
             predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
             sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]

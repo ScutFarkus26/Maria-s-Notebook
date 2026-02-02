@@ -259,27 +259,47 @@ Daily attendance tracking per student.
 
 ---
 
-### Presentation
+### Presentation (LessonAssignment)
 
-Immutable record of a lesson presentation event.
+Unified model for lesson scheduling and presentation history.
 
-**Location:** `Presentations/Presentation.swift`
+**Location:** `Models/Presentation.swift`
+
+**Note:** The SwiftData entity class is named `LessonAssignment` for database compatibility.
+Use the `Presentation` typealias in code for cleaner semantics.
+
+**Lifecycle:** `draft` → `scheduled` → `presented`
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | UUID | Unique identifier |
 | `createdAt` | Date | Creation timestamp |
-| `presentedAt` | Date | When presentation occurred |
+| `modifiedAt` | Date | Last modification |
+| `stateRaw` | String | State: "draft", "scheduled", "presented" |
+| `scheduledFor` | Date? | When scheduled (nil for drafts) |
+| `scheduledForDay` | Date | Denormalized start-of-day for queries |
+| `presentedAt` | Date? | When actually presented |
 | `lessonID` | String | Lesson ID (CloudKit string) |
-| `studentIDs` | [String] | Participating student IDs |
-| `legacyStudentLessonID` | String? | Legacy reference |
+| `studentIDs` | [String] | Participating student IDs (JSON-encoded) |
+| `needsPractice` | Bool | Students need more practice |
+| `needsAnotherPresentation` | Bool | Should present again |
+| `followUpWork` | String | Follow-up work description |
+| `notes` | String | General notes |
 | `trackID` | String? | Track ID if applicable |
 | `trackStepID` | String? | Track step ID |
-| `lessonTitleSnapshot` | String? | Snapshot of lesson title |
-| `lessonSubtitleSnapshot` | String? | Snapshot of lesson subtitle |
+| `lessonTitleSnapshot` | String? | Frozen title at presentation time |
+| `lessonSubheadingSnapshot` | String? | Frozen subheading |
+| `migratedFromStudentLessonID` | String? | Migration tracking |
+| `migratedFromPresentationID` | String? | Migration tracking |
 
 **Relationships:**
-- `unifiedNotes: [Note]?` - Attached notes
+- `lesson: Lesson?` - The lesson being presented
+- `unifiedNotes: [Note]?` - Attached notes (cascade delete)
+
+**Computed Properties:**
+- `state: PresentationState` - Type-safe state accessor
+- `studentUUIDs: [UUID]` - Student IDs as UUIDs
+- `isDraft`, `isScheduled`, `isPresented` - State helpers
 
 ---
 

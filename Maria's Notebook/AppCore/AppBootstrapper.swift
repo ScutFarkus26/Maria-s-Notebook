@@ -51,9 +51,6 @@ final class AppBootstrapper: ObservableObject {
         await DataMigrations.backfillRelationshipsIfNeeded(using: context)
         await DataMigrations.backfillIsPresentedIfNeeded(using: context)
         await DataMigrations.backfillScheduledForDayIfNeeded(using: context)
-        await DataMigrations.backfillPresentationStudentLessonLinks(using: context)
-        await DataMigrations.repairPresentationStudentLessonLinks_v2(using: context)
-        await DataMigrations.backfillNoteStudentLessonFromPresentation(using: context)
         
         // 3.7.5. Repair incorrectly scoped notes
         await DataMigrations.repairScopeForContextualNotes(using: context)
