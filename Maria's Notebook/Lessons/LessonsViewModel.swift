@@ -411,4 +411,36 @@ struct LessonsViewModel {
         
         return true
     }
+
+    // MARK: - Status Counts
+
+    /// Computes the number of students who need each lesson (have not been presented).
+    /// Returns a dictionary mapping lesson UUID to student count.
+    func computeLessonStatusCounts(
+        for lessonIDs: [UUID],
+        context: ModelContext
+    ) -> [UUID: Int] {
+        guard !lessonIDs.isEmpty else { return [:] }
+
+        var result: [UUID: Int] = [:]
+        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
+
+        // Fetch all StudentLesson records for these lessons
+        let descriptor = FetchDescriptor<StudentLesson>()
+        guard let studentLessons = try? context.fetch(descriptor) else { return [:] }
+
+        // Filter to our lessons and count students who haven't been presented
+        for sl in studentLessons {
+            guard lessonIDStrings.contains(sl.lessonID) else { continue }
+            guard let uuid = UUID(uuidString: sl.lessonID) else { continue }
+
+            // Student needs this lesson if not presented and not given
+            let needsLesson = !sl.isPresented && sl.givenAt == nil
+            if needsLesson {
+                result[uuid, default: 0] += 1
+            }
+        }
+
+        return result
+    }
 }

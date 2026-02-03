@@ -35,28 +35,45 @@ extension LessonsRootView {
     // MARK: - Lessons Content Column (Middle)
 
     var lessonsContentColumn: some View {
-        Group {
+        VStack(spacing: 0) {
+            // Filter chip bar (only show when a subject is selected or searching)
             let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
-            let shouldShowLessons = (selectedSubject != nil && !selectedSubject!.trimmed().isEmpty) || hasSearchText
+            let shouldShowFilters = (selectedSubject != nil && !selectedSubject!.trimmed().isEmpty) || hasSearchText
 
-            if shouldShowLessons {
-                if displayMode == .browse {
-                    browseModeLessons
-                } else {
-                    planModeList
-                }
-            } else {
-                emptyStateView
+            if shouldShowFilters && displayMode == .browse {
+                LessonsFilterChipBar(
+                    sourceFilter: $filterState.sourceFilter,
+                    personalKindFilter: $filterState.personalKindFilter,
+                    hasAttachmentFilter: $filterState.hasAttachmentFilter,
+                    needsAttentionFilter: $filterState.needsAttentionFilter
+                )
+
+                Divider()
             }
+
+            // Main content
+            Group {
+                let shouldShowLessons = (selectedSubject != nil && !selectedSubject!.trimmed().isEmpty) || hasSearchText
+
+                if shouldShowLessons {
+                    if displayMode == .browse {
+                        browseModeLessons
+                    } else {
+                        planModeList
+                    }
+                } else {
+                    emptyStateView
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(selectedSubject ?? "Lessons")
         .searchable(text: $filterState.searchText, placement: .toolbar)
     }
 
     private var browseModeLessons: some View {
         LessonsCardsGridView(
-            lessons: lessonsForSubject,
+            lessons: filteredLessonsForDisplay,
             isManualMode: false,
             onTapLesson: { lesson in
                 selectedLessonDetail = lesson
@@ -65,9 +82,47 @@ extension LessonsRootView {
             onGiveLesson: { lesson in
                 lessonToSchedule = lesson
             },
+            statusCounts: statusCounts,
             selectedSubject: selectedSubject,
-            selectedLessonID: selectedLessonDetail?.id
+            selectedLessonID: selectedLessonDetail?.id,
+            lastPresentedDates: lastPresentedDates,
+            showIntroductionCards: !hasActiveFilters
         )
+    }
+
+    /// Lessons filtered by chip bar filters
+    private var filteredLessonsForDisplay: [Lesson] {
+        var result = lessonsForSubject
+
+        // Source filter
+        if let source = filterState.sourceFilter {
+            result = result.filter { $0.source == source }
+        }
+
+        // Personal kind filter
+        if let kind = filterState.personalKindFilter {
+            result = result.filter { $0.personalKind == kind }
+        }
+
+        // Has attachment filter
+        if filterState.hasAttachmentFilter {
+            result = result.filter { $0.pagesFileBookmark != nil || $0.pagesFileRelativePath != nil }
+        }
+
+        // Needs attention filter (status count > 0)
+        if filterState.needsAttentionFilter, let counts = statusCounts {
+            result = result.filter { counts[$0.id, default: 0] > 0 }
+        }
+
+        return result
+    }
+
+    /// Whether any chip bar filters are active (used to hide introductions when filtering)
+    private var hasActiveFilters: Bool {
+        filterState.sourceFilter != nil ||
+        filterState.personalKindFilter != nil ||
+        filterState.hasAttachmentFilter ||
+        filterState.needsAttentionFilter
     }
 
     private var emptyStateView: some View {

@@ -18,7 +18,11 @@ final class LessonsFilterState: ObservableObject {
 
     @Published var sourceFilter: LessonSource? = nil // nil means All
     @Published var personalKindFilter: PersonalLessonKind? = nil // nil means All Types
-    
+
+    // New filter properties for chip bar
+    @Published var hasAttachmentFilter: Bool = false
+    @Published var needsAttentionFilter: Bool = false
+
     // Debounced search text for filtering (updates ~200ms after user stops typing)
     @Published private(set) var debouncedSearchText: String = ""
     
@@ -43,24 +47,46 @@ final class LessonsFilterState: ObservableObject {
     }
 
     /// Load from persisted raw strings (typically stored via SceneStorage in the view)
-    func loadFromPersisted(subjectRaw: String, groupRaw: String, searchRaw: String, expandedRaw: String, sourceRaw: String, personalKindRaw: String) {
+    func loadFromPersisted(
+        subjectRaw: String,
+        groupRaw: String,
+        searchRaw: String,
+        expandedRaw: String,
+        sourceRaw: String,
+        personalKindRaw: String,
+        hasAttachmentRaw: String = "",
+        needsAttentionRaw: String = ""
+    ) {
         self.selectedSubject = subjectRaw.trimmed().isEmpty ? nil : subjectRaw
         self.selectedGroup = groupRaw.trimmed().isEmpty ? nil : groupRaw
         self.searchText = searchRaw
         self.expandedSubjects = LessonsFilterPersistence.deserializeExpandedSubjects(expandedRaw)
         self.sourceFilter = sourceRaw.trimmed().isEmpty ? nil : LessonSource(rawValue: sourceRaw)
         self.personalKindFilter = personalKindRaw.trimmed().isEmpty ? nil : PersonalLessonKind(rawValue: personalKindRaw)
+        self.hasAttachmentFilter = hasAttachmentRaw == "true"
+        self.needsAttentionFilter = needsAttentionRaw == "true"
     }
 
     /// Create the raw strings suitable for persistence
-    func makePersisted() -> (subjectRaw: String, groupRaw: String, searchRaw: String, expandedRaw: String, sourceRaw: String, personalKindRaw: String) {
+    func makePersisted() -> (
+        subjectRaw: String,
+        groupRaw: String,
+        searchRaw: String,
+        expandedRaw: String,
+        sourceRaw: String,
+        personalKindRaw: String,
+        hasAttachmentRaw: String,
+        needsAttentionRaw: String
+    ) {
         let subjectRaw = (selectedSubject?.trimmed() ?? "")
         let groupRaw = (selectedGroup?.trimmed() ?? "")
         let searchRaw = searchText
         let expandedRaw = LessonsFilterPersistence.serializeExpandedSubjects(expandedSubjects)
         let sourceRaw = sourceFilter?.rawValue ?? ""
         let personalKindRaw = personalKindFilter?.rawValue ?? ""
-        return (subjectRaw, groupRaw, searchRaw, expandedRaw, sourceRaw, personalKindRaw)
+        let hasAttachmentRaw = hasAttachmentFilter ? "true" : ""
+        let needsAttentionRaw = needsAttentionFilter ? "true" : ""
+        return (subjectRaw, groupRaw, searchRaw, expandedRaw, sourceRaw, personalKindRaw, hasAttachmentRaw, needsAttentionRaw)
     }
 }
 

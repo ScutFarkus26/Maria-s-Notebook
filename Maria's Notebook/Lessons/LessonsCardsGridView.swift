@@ -17,6 +17,8 @@ struct LessonsCardsGridView: View {
     let statusCounts: [UUID: Int]?
     let selectedSubject: String?
     let selectedLessonID: UUID?
+    let lastPresentedDates: [UUID: Date]?
+    let showIntroductionCards: Bool
 
     init(
         lessons: [Lesson],
@@ -26,7 +28,9 @@ struct LessonsCardsGridView: View {
         onGiveLesson: ((Lesson) -> Void)? = nil,
         statusCounts: [UUID: Int]? = nil,
         selectedSubject: String? = nil,
-        selectedLessonID: UUID? = nil
+        selectedLessonID: UUID? = nil,
+        lastPresentedDates: [UUID: Date]? = nil,
+        showIntroductionCards: Bool = true
     ) {
         self.lessons = lessons
         self.isManualMode = isManualMode
@@ -36,6 +40,8 @@ struct LessonsCardsGridView: View {
         self.statusCounts = statusCounts
         self.selectedSubject = selectedSubject
         self.selectedLessonID = selectedLessonID
+        self.lastPresentedDates = lastPresentedDates
+        self.showIntroductionCards = showIntroductionCards
     }
 
     @State private var draggingLessonID: UUID?
@@ -57,6 +63,26 @@ struct LessonsCardsGridView: View {
     }
 
     private var idList: [UUID] { lessons.map { $0.id } }
+
+    /// Groups lessons by group and prepends introduction cards where available.
+    private var groupedItems: [(key: String, value: [LessonsGridItem])] {
+        let lessonGroups = groupedByGroup
+        return lessonGroups.map { entry -> (key: String, value: [LessonsGridItem]) in
+            var items: [LessonsGridItem] = []
+
+            // Add introduction card at the top of each group if available and enabled
+            if showIntroductionCards,
+               let subject = selectedSubject,
+               let intro = introductionStore.introduction(for: subject, group: entry.key.isEmpty ? nil : entry.key) {
+                items.append(.introduction(intro))
+            }
+
+            // Add lesson cards
+            items.append(contentsOf: entry.value.map { .lesson($0) })
+
+            return (key: entry.key, value: items)
+        }
+    }
 
     private var groupedByGroup: [(key: String, value: [Lesson])] {
         let dict = lessons.grouped { $0.group.trimmed() }
@@ -118,21 +144,23 @@ struct LessonsCardsGridView: View {
         return ScrollViewReader { scrollProxy in
             ScrollView {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                    if groupedByGroup.count > 1 {
-                        ForEach(groupedByGroup, id: \.key) { entry in
+                    if groupedItems.count > 1 {
+                        ForEach(groupedItems, id: \.key) { entry in
                             Section {
-                                ForEach(entry.value, id: \.id) { lesson in
-                                    card(lesson)
-                                        .id(lesson.id)
+                                ForEach(entry.value, id: \.id) { item in
+                                    gridItemView(item)
+                                        .id(item.id)
                                 }
                             } header: {
                                 groupHeader(for: entry.key, subject: selectedSubject)
                             }
                         }
                     } else {
-                        ForEach(lessons, id: \.id) { lesson in
-                            card(lesson)
-                                .id(lesson.id)
+                        // Single group or no grouping - show items directly
+                        let items = groupedItems.first?.value ?? lessons.map { LessonsGridItem.lesson($0) }
+                        ForEach(items, id: \.id) { item in
+                            gridItemView(item)
+                                .id(item.id)
                         }
                     }
                 }
@@ -215,6 +243,22 @@ struct LessonsCardsGridView: View {
         .padding(.top, 8)
     }
 
+    // MARK: - Grid Item View
+
+    @ViewBuilder
+    private func gridItemView(_ item: LessonsGridItem) -> some View {
+        switch item {
+        case .introduction(let intro):
+            IntroductionCard(
+                introduction: intro,
+                subjectColor: selectedSubject.map { AppColors.color(forSubject: $0) } ?? .accentColor,
+                onTap: { introductionToShow = intro }
+            )
+        case .lesson(let lesson):
+            card(lesson)
+        }
+    }
+
     // MARK: - Lesson Card
 
     @ViewBuilder
@@ -235,7 +279,8 @@ struct LessonsCardsGridView: View {
             disableAnimations: draggingLessonID != nil,
             shouldMeasureFrames: shouldMeasureFrames,
             shouldUseMatchedGeometry: shouldMeasureFrames,
-            statusCount: statusCounts?[lesson.id]
+            statusCount: statusCounts?[lesson.id],
+            lastPresentedDate: lastPresentedDates?[lesson.id]
         )
 #if os(macOS)
         .highPriorityGesture(TapGesture(count: 1).onEnded { onTapLesson(lesson) })
@@ -354,9 +399,14 @@ private struct LessonCardContainer: View {
     let shouldMeasureFrames: Bool
     let shouldUseMatchedGeometry: Bool
     let statusCount: Int?
+    let lastPresentedDate: Date?
 
     var body: some View {
-        let card = LessonCard(lesson: lesson, statusCount: statusCount)
+        let card = PaperLessonCard(
+            lesson: lesson,
+            statusCount: statusCount,
+            lastPresentedDate: lastPresentedDate
+        )
         let withMatchedGeometry = shouldUseMatchedGeometry
             ? AnyView(card.matchedGeometryEffect(id: lesson.id, in: gridNamespace))
             : AnyView(card)
@@ -393,118 +443,6 @@ private struct LessonCardContainer: View {
                     }
                 }
             )
-    }
-}
-
-// MARK: - Lesson Card
-private struct LessonCard: View {
-    let lesson: Lesson
-    let statusCount: Int?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-                    .lineLimit(nil)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .layoutPriority(1)
-                Spacer(minLength: 0)
-                if lesson.source == .personal {
-                    Text(lesson.personalKind?.badgeLabel ?? "Personal")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.primary.opacity(0.08)))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if !lesson.group.isEmpty || !lesson.subject.isEmpty {
-                Text(groupSubjectLine)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(nil)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if !lesson.subheading.isEmpty {
-                Text(lesson.subheading)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .lineLimit(nil)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else if let firstLine = writeUpFirstLine {
-                Text(firstLine)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .lineSpacing(2)
-        .padding(14)
-        .frame(minHeight: 100)
-        .background(
-            ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(cardBackgroundColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(subjectColor.opacity(0.3), lineWidth: 2)
-                    )
-                    .overlay(alignment: .leading) {
-                        Rectangle()
-                            .fill(subjectColor)
-                            .frame(width: 4)
-                            .padding(.vertical, 8)
-                            .padding(.leading, 1)
-                    }
-                    .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
-
-                if let count = statusCount, count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(Color.orange.opacity(0.15)))
-                        .overlay(Capsule().stroke(Color.orange.opacity(0.5)))
-                        .padding(10)
-                        .accessibilityLabel("\(count) students need this")
-                }
-            }
-        )
-    }
-
-    private var groupSubjectLine: String {
-        switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
-        case (false, false): return "\(lesson.subject) • \(lesson.group)"
-        case (false, true): return lesson.subject
-        case (true, false): return lesson.group
-        default: return ""
-        }
-    }
-
-    private var cardBackgroundColor: Color {
-        #if os(macOS)
-        return Color(NSColor.windowBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemBackground)
-        #endif
-    }
-
-    private var subjectColor: Color { AppColors.color(forSubject: lesson.subject) }
-
-    private var writeUpFirstLine: String? {
-        let trimmedWriteUp = lesson.writeUp.trimmed()
-        guard !trimmedWriteUp.isEmpty else { return nil }
-        return trimmedWriteUp.split(separator: "\n").first.map(String.init)
     }
 }
 
@@ -563,11 +501,14 @@ private class RightClickView: NSView {
             Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Introduction to base-10", writeUp: ""),
             Lesson(name: "Parts of Speech", subject: "Language", group: "Grammar", subheading: "Nouns and Verbs", writeUp: "")
         ],
-        isManualMode: true,
+        isManualMode: false,
         onTapLesson: { _ in },
-        onReorder: { _,_,_,_ in },
+        onReorder: nil,
         onGiveLesson: nil,
-        selectedSubject: nil
+        selectedSubject: "Math",
+        selectedLessonID: nil,
+        lastPresentedDates: nil,
+        showIntroductionCards: true
     )
 }
 

@@ -62,6 +62,10 @@ struct LessonsRootView: View {
     @State var reorderableGroups: [String] = []
     @State var isOrganizingGroups: Bool = false
 
+    // MARK: - Presentation History State
+    @State var statusCounts: [UUID: Int]? = nil
+    @State var lastPresentedDates: [UUID: Date]? = nil
+
     // MARK: - Migration
     @AppStorage("Lessons.sortIndexMigrated") var sortIndexMigrated: Bool = false
 
@@ -201,6 +205,9 @@ struct LessonsRootView: View {
         .task {
             await handleInitialLoad()
         }
+        .task(id: lessonsForSubject.map { $0.id }) {
+            await fetchPresentationHistory()
+        }
         .onChange(of: listSelectedSubject) { _, newValue in
             handleListSelectionChange(newValue)
         }
@@ -284,5 +291,31 @@ struct LessonsRootView: View {
             editMode = (newValue == .plan) ? .active : .inactive
             #endif
         }
+    }
+
+    // MARK: - Presentation History
+
+    @MainActor
+    private func fetchPresentationHistory() async {
+        let lessonIDs = lessonsForSubject.map { $0.id }
+        guard !lessonIDs.isEmpty else {
+            statusCounts = nil
+            lastPresentedDates = nil
+            return
+        }
+
+        // Fetch last presented dates
+        let history = LessonsPresentationHistoryProvider.fetchPresentationHistory(
+            lessonIDs: lessonIDs,
+            context: modelContext
+        )
+        lastPresentedDates = history.lastPresented
+
+        // Compute status counts (students needing each lesson)
+        // This uses the existing helper method if available, or we compute it here
+        statusCounts = helper.computeLessonStatusCounts(
+            for: lessonIDs,
+            context: modelContext
+        )
     }
 }
