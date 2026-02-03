@@ -270,9 +270,12 @@ struct WorksAgendaView: View {
         // Update or create a single plan item for this work
         let workID: UUID = w.id
         let workIDString = workID.uuidString
-        let fetch = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.workID == workIDString })
-        let existing = (try? modelContext.fetch(fetch)) ?? []
-        if let first = existing.sorted(by: { $0.scheduledDate < $1.scheduledDate }).first {
+        var fetch = FetchDescriptor<WorkPlanItem>(
+            predicate: #Predicate<WorkPlanItem> { $0.workID == workIDString },
+            sortBy: [SortDescriptor(\.scheduledDate, order: .forward)]
+        )
+        fetch.fetchLimit = 1
+        if let first = (try? modelContext.fetch(fetch))?.first {
             first.scheduledDate = today
         } else {
             let item = WorkPlanItem(workID: w.id, scheduledDate: today, reason: .progressCheck, note: nil)
