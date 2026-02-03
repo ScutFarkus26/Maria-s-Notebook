@@ -214,7 +214,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dto.id })
+            var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dto.id })
+            descriptor.fetchLimit = 1
             guard let existing = (try? modelContext.fetch(descriptor))?.first else { continue }
 
             conflicts.append(Conflict(
@@ -239,7 +240,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            let descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dto.id })
+            var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dto.id })
+            descriptor.fetchLimit = 1
             guard let existing = (try? modelContext.fetch(descriptor))?.first else { continue }
 
             conflicts.append(Conflict(
@@ -264,7 +266,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dto.id })
+            var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dto.id })
+            descriptor.fetchLimit = 1
             guard let existing = (try? modelContext.fetch(descriptor))?.first else { continue }
 
             let localSummary = "Scheduled: \(existing.scheduledFor?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")"
@@ -292,7 +295,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            let descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dto.id })
+            var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dto.id })
+            descriptor.fetchLimit = 1
             guard let existing = (try? modelContext.fetch(descriptor))?.first else { continue }
 
             let localPreview = String(existing.body.prefix(50)) + (existing.body.count > 50 ? "…" : "")
@@ -320,7 +324,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            let descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dto.id })
+            var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dto.id })
+            descriptor.fetchLimit = 1
             guard let existing = (try? modelContext.fetch(descriptor))?.first else { continue }
 
             conflicts.append(Conflict(
@@ -341,7 +346,8 @@ public final class ConflictResolutionService {
     // MARK: - Update Helpers
 
     private func updateStudent(_ dto: StudentDTO, in modelContext: ModelContext) throws {
-        let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dto.id })
+        var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dto.id })
+        descriptor.fetchLimit = 1
         guard let student = (try? modelContext.fetch(descriptor))?.first else { return }
 
         student.firstName = dto.firstName
@@ -354,7 +360,8 @@ public final class ConflictResolutionService {
     }
 
     private func updateLesson(_ dto: LessonDTO, in modelContext: ModelContext) throws {
-        let descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dto.id })
+        var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dto.id })
+        descriptor.fetchLimit = 1
         guard let lesson = (try? modelContext.fetch(descriptor))?.first else { return }
 
         lesson.name = dto.name
@@ -369,7 +376,8 @@ public final class ConflictResolutionService {
     }
 
     private func updateStudentLesson(_ dto: StudentLessonDTO, in modelContext: ModelContext) throws {
-        let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dto.id })
+        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dto.id })
+        descriptor.fetchLimit = 1
         guard let sl = (try? modelContext.fetch(descriptor))?.first else { return }
 
         sl.scheduledFor = dto.scheduledFor
@@ -381,7 +389,8 @@ public final class ConflictResolutionService {
     }
 
     private func updateNote(_ dto: NoteDTO, in modelContext: ModelContext) throws {
-        let descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dto.id })
+        var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dto.id })
+        descriptor.fetchLimit = 1
         guard let note = (try? modelContext.fetch(descriptor))?.first else { return }
 
         note.body = dto.body
@@ -394,7 +403,8 @@ public final class ConflictResolutionService {
     }
 
     private func updateProject(_ dto: ProjectDTO, in modelContext: ModelContext) throws {
-        let descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dto.id })
+        var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dto.id })
+        descriptor.fetchLimit = 1
         guard let project = (try? modelContext.fetch(descriptor))?.first else { return }
 
         project.title = dto.title

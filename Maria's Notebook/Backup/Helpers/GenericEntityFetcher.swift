@@ -91,104 +91,124 @@ struct EntityFetcherRegistry {
     // generic types - it requires the concrete type at compile time.
 
     private func fetchStudent(id: UUID, context: ModelContext) -> Student? {
-        let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchLesson(id: UUID, context: ModelContext) -> Lesson? {
-        let descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchStudentLesson(id: UUID, context: ModelContext) -> StudentLesson? {
-        let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchWorkModel(id: UUID, context: ModelContext) -> WorkModel? {
-        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchWorkPlanItem(id: UUID, context: ModelContext) -> WorkPlanItem? {
-        let descriptor = FetchDescriptor<WorkPlanItem>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<WorkPlanItem>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchNote(id: UUID, context: ModelContext) -> Note? {
-        let descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchNonSchoolDay(id: UUID, context: ModelContext) -> NonSchoolDay? {
-        let descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchSchoolDayOverride(id: UUID, context: ModelContext) -> SchoolDayOverride? {
-        let descriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchStudentMeeting(id: UUID, context: ModelContext) -> StudentMeeting? {
-        let descriptor = FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     // Removed: fetchPresentation - model no longer exists (use LessonAssignment instead)
 
     private func fetchCommunityTopic(id: UUID, context: ModelContext) -> CommunityTopic? {
-        let descriptor = FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchProposedSolution(id: UUID, context: ModelContext) -> ProposedSolution? {
-        let descriptor = FetchDescriptor<ProposedSolution>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<ProposedSolution>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchCommunityAttachment(id: UUID, context: ModelContext) -> CommunityAttachment? {
-        let descriptor = FetchDescriptor<CommunityAttachment>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<CommunityAttachment>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchAttendanceRecord(id: UUID, context: ModelContext) -> AttendanceRecord? {
-        let descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchWorkCompletionRecord(id: UUID, context: ModelContext) -> WorkCompletionRecord? {
-        let descriptor = FetchDescriptor<WorkCompletionRecord>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<WorkCompletionRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchProject(id: UUID, context: ModelContext) -> Project? {
-        let descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchProjectAssignmentTemplate(id: UUID, context: ModelContext) -> ProjectAssignmentTemplate? {
-        let descriptor = FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchProjectSession(id: UUID, context: ModelContext) -> ProjectSession? {
-        let descriptor = FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchProjectRole(id: UUID, context: ModelContext) -> ProjectRole? {
-        let descriptor = FetchDescriptor<ProjectRole>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<ProjectRole>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchProjectTemplateWeek(id: UUID, context: ModelContext) -> ProjectTemplateWeek? {
-        let descriptor = FetchDescriptor<ProjectTemplateWeek>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<ProjectTemplateWeek>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     private func fetchProjectWeekRoleAssignment(id: UUID, context: ModelContext) -> ProjectWeekRoleAssignment? {
-        let descriptor = FetchDescriptor<ProjectWeekRoleAssignment>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<ProjectWeekRoleAssignment>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 }
