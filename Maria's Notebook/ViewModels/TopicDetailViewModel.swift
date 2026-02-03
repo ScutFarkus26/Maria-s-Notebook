@@ -102,7 +102,9 @@ final class TopicDetailViewModel: ObservableObject {
 
         do {
             // Fetch the topic by ID
-            let topics = try context.fetch(Self.descriptorForTopic(id: topicID))
+            var descriptor = Self.descriptorForTopic(id: topicID)
+            descriptor.fetchLimit = 1
+            let topics = try context.fetch(descriptor)
             guard let topic = topics.first else {
                 self.topic = nil
                 return
@@ -179,4 +181,3 @@ final class TopicDetailViewModel: ObservableObject {
         }
     }
 }
-

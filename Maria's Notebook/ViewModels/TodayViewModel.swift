@@ -216,7 +216,8 @@ final class TodayViewModel: ObservableObject {
         let missingStudentIDs = notesResult.neededStudentIDs.subtracting(recentNoteStudentsByID.keys)
         var updatedRecentNoteStudents = recentNoteStudentsByID
         for studentID in missingStudentIDs {
-            let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+            var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+            descriptor.fetchLimit = 1
             if let student = context.safeFetch(descriptor).first {
                 updatedRecentNoteStudents[student.id] = student
             }

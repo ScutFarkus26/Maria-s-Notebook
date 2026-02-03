@@ -397,7 +397,8 @@ struct NewProjectSessionSheet: View {
 
     private func resolveGenericProjectLessonID(context: ModelContext) -> UUID {
         let name = "Project Work"
-        let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.name == name })
+        var fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.name == name })
+        fetch.fetchLimit = 1
         if let existing = try? context.fetch(fetch), let first = existing.first {
             return first.id
         }
@@ -406,4 +407,3 @@ struct NewProjectSessionSheet: View {
         return l.id
     }
 }
-

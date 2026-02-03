@@ -197,8 +197,10 @@ final class InboxSheetViewModel: ObservableObject {
                 return existing
             }
 
-            let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-            let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+            var lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+            lessonFetch.fetchLimit = 1
+            var studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+            studentFetch.fetchLimit = 1
             let lessonObj = (try? modelContext.fetch(lessonFetch))?.first
             let studentObj = (try? modelContext.fetch(studentFetch))?.first
 
