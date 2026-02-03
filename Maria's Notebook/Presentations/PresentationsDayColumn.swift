@@ -69,10 +69,10 @@ struct PresentationsDayColumn: View {
                                 .padding(8)
                         } else {
                             ForEach(scheduledLessonsForDay, id: \.id) { sl in
-                                StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false)
+                                StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false, enableMergeDrop: true)
                                     .onTapGesture { onSelect(sl) }
                                     .draggable(sl.id.uuidString) {
-                                        StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false).opacity(0.85)
+                                        StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
                                     }
                                     .contextMenu {
                                         Button("Clear Schedule", systemImage: "xmark.circle") {
@@ -263,4 +263,3 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         return calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
     }
 }
-

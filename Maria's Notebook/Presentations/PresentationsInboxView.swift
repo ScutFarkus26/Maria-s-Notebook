@@ -274,6 +274,7 @@ struct PresentationsInboxView: View {
                 day: Date(),
                 targetStudentLessonID: sl.id,
                 enableMissHighlight: true,
+                enableMergeDrop: true,
                 blockingWork: blockingWork,
                 cachedLessons: cachedLessons,
                 cachedStudents: cachedStudents
@@ -561,4 +562,3 @@ private struct InboxDropDelegate: DropDelegate {
         return true
     }
 }
-

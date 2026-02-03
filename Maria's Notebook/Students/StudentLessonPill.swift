@@ -48,6 +48,7 @@ struct StudentLessonPill: View {
     var targetStudentLessonID: UUID? = nil
     var showTimeBadge: Bool = true
     var enableMissHighlight: Bool = false
+    var enableMergeDrop: Bool = false
     var blockingWork: [UUID: WorkModel] = [:]
 
     // PERFORMANCE: Accept cached data instead of using @Query per-pill
@@ -69,6 +70,7 @@ struct StudentLessonPill: View {
     @State private var showTimeEditor: Bool = false
     @State private var isValidDragTarget: Bool = false
     @State private var selectedWorkForDetail: WorkModel? = nil
+    @State private var isMergeTargeted: Bool = false
 
     // Cached expensive computations to avoid recalculating during scroll
     @State private var cachedAttendanceStatuses: [UUID: AttendanceStatus] = [:]
@@ -268,6 +270,119 @@ struct StudentLessonPill: View {
         }
     }
 
+    private var ageIndicator: some View {
+        Rectangle()
+            .fill(ageColor)
+            .frame(width: UIConstants.ageIndicatorWidth)
+            .opacity(snapshot.isGiven ? 0.0 : 1.0)
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var studentChipsView: some View {
+        if !studentChips.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(studentChips, id: \.id) { chip in
+                        let isAbsent = (chip.status == .absent)
+                        // Removed !isAllSelected check here so that individuals are highlighted even if the whole group is in the lesson.
+                        let highlight = (!chip.hasHad && !suppressHighlighting)
+                        ChipView(
+                            label: chip.label,
+                            isMissing: chip.isMissing,
+                            isAbsent: isAbsent,
+                            subjectColor: subjectColor,
+                            hasHad: chip.hasHad,
+                            suppressIndicator: isAllSelected,
+                            highlight: highlight,
+                            blockingWork: chip.blockingWork,
+                            onTap: {
+                                if let c = chip.blockingWork {
+                                    selectedWorkForDetail = c
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var mergeHighlightOverlay: some View {
+        Group {
+            if isMergeTargeted {
+                Capsule()
+                    .stroke(Color.accentColor.opacity(0.9), lineWidth: 2)
+                    .overlay(
+                        Text("Merge")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(Color.accentColor.opacity(0.15))
+                            )
+                            .padding(6),
+                        alignment: .topTrailing
+                    )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var timeBadge: some View {
+        if showTimeBadge {
+            HStack(spacing: 6) {
+                if let scheduled = scheduledDate {
+                    CanonicalPillButton(
+                        isSelected: false,
+                        contentFont: .system(.caption2, design: .rounded),
+                        horizontalPadding: 6,
+                        verticalPadding: 3
+                    ) {
+                        showTimeEditor = true
+                    } content: {
+                        Text(Self.timeOnlyFormatter.string(from: scheduled))
+                    }
+                    #if os(macOS)
+                    .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
+                        DatePicker("Time", selection: Binding(get: {
+                            scheduledDate ?? Date()
+                        }, set: { newValue in
+                            setTime(newValue)
+                        }), displayedComponents: [.hourAndMinute])
+                        .datePickerStyle(.field)
+                        .padding()
+                    }
+                    #endif
+                }
+            }
+        }
+    }
+
+    private var pillContent: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Circle()
+                .fill(subjectColor)
+                .frame(width: 6, height: 6)
+                .padding(.top, 3)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(lessonName)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
+
+                studentChipsView
+            }
+            .lineSpacing(2)
+
+            Spacer(minLength: 0)
+        }
+    }
+
     private struct ChipView: View {
         let label: String
         let isMissing: Bool
@@ -326,91 +441,16 @@ struct StudentLessonPill: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Rectangle()
-                .fill(ageColor)
-                .frame(width: UIConstants.ageIndicatorWidth)
-                .opacity(snapshot.isGiven ? 0.0 : 1.0)
-                .accessibilityHidden(true)
+            ageIndicator
 
-            HStack(alignment: .top, spacing: 8) {
-                Circle()
-                    .fill(subjectColor)
-                    .frame(width: 6, height: 6)
-                    .padding(.top, 3)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(lessonName)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .lineLimit(nil)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .layoutPriority(1)
-
-                    if !studentChips.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(studentChips, id: \.id) { chip in
-                                    let isAbsent = (chip.status == .absent)
-                                    // Removed !isAllSelected check here so that individuals are highlighted even if the whole group is in the lesson.
-                                    let highlight = (!chip.hasHad && !suppressHighlighting)
-                                    ChipView(
-                                        label: chip.label,
-                                        isMissing: chip.isMissing,
-                                        isAbsent: isAbsent,
-                                        subjectColor: subjectColor,
-                                        hasHad: chip.hasHad,
-                                        suppressIndicator: isAllSelected,
-                                        highlight: highlight,
-                                        blockingWork: chip.blockingWork,
-                                        onTap: {
-                                            if let c = chip.blockingWork {
-                                                selectedWorkForDetail = c
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                .lineSpacing(2)
-
-                Spacer(minLength: 0)
-            }
+            pillContent
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(Capsule().fill(Color.primary.opacity(0.06)))
             .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
             .overlay(Capsule().stroke(Color.accentColor.opacity(isValidDragTarget ? 0.45 : 0.0), lineWidth: 2))
-            .overlay(alignment: .trailing) {
-                if showTimeBadge {
-                    HStack(spacing: 6) {
-                        if let scheduled = scheduledDate {
-                            CanonicalPillButton(
-                                isSelected: false,
-                                contentFont: .system(.caption2, design: .rounded),
-                                horizontalPadding: 6,
-                                verticalPadding: 3
-                            ) {
-                                showTimeEditor = true
-                            } content: {
-                                Text(Self.timeOnlyFormatter.string(from: scheduled))
-                            }
-                            #if os(macOS)
-                            .popover(isPresented: $showTimeEditor, arrowEdge: .top) {
-                                DatePicker("Time", selection: Binding(get: {
-                                    scheduledDate ?? Date()
-                                }, set: { newValue in
-                                    setTime(newValue)
-                                }), displayedComponents: [.hourAndMinute])
-                                .datePickerStyle(.field)
-                                .padding()
-                            }
-                            #endif
-                        }
-                    }
-                }
-            }
+            .overlay(mergeHighlightOverlay)
+            .overlay(alignment: .trailing) { timeBadge }
             .contentShape(Capsule())
             .accessibilityLabel(accessibilityLabel)
             .onDrop(of: [UTType.text], delegate: PillDropDelegate(
@@ -418,8 +458,10 @@ struct StudentLessonPill: View {
                 appRouter: appRouter,
                 targetLessonID: snapshot.lessonID,
                 targetStudentLessonID: targetStudentLessonID,
+                enableMergeDrop: enableMergeDrop,
                 setHighlight: { isValid in isValidDragTarget = isValid },
-                canAccept: { isValidDragTarget },
+                setMergeHighlight: { isValid in isMergeTargeted = isValid },
+                canAccept: { isValidDragTarget || isMergeTargeted },
                 onDidMutate: { reason in _ = saveCoordinator.save(modelContext, reason: reason) }
             ))
         }
@@ -468,7 +510,9 @@ struct StudentLessonPill: View {
         let appRouter: AppRouter
         let targetLessonID: UUID
         let targetStudentLessonID: UUID?
+        let enableMergeDrop: Bool
         let setHighlight: (Bool) -> Void
+        let setMergeHighlight: (Bool) -> Void
         let canAccept: () -> Bool
         let onDidMutate: (String) -> Void
 
@@ -479,12 +523,16 @@ struct StudentLessonPill: View {
             return canAccept() ? DropProposal(operation: .copy) : DropProposal(operation: .cancel)
         }
 
-        func dropExited(info: DropInfo) { setHighlight(false) }
+        func dropExited(info: DropInfo) {
+            setHighlight(false)
+            setMergeHighlight(false)
+        }
 
         func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [UTType.text]) }
 
         func performDrop(info: DropInfo) -> Bool {
             setHighlight(false)
+            setMergeHighlight(false)
             guard canAccept() else { return false }
             guard let targetID = targetStudentLessonID else { return false }
             let providers = info.itemProviders(for: [UTType.text])
@@ -492,47 +540,59 @@ struct StudentLessonPill: View {
             provider.loadObject(ofClass: NSString.self) { reading, _ in
                 guard let ns = reading as? NSString else { return }
                 let str = ns as String
-                guard let decoded = DragPayload.decode(str) else { return }
-                Task { @MainActor in
-                    let sourceID = decoded.sourceID
-                    let lessonID = decoded.lessonID
-                    let studentID = decoded.studentID
-                    var srcDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
-                    srcDesc.fetchLimit = 1
-                    var tgtDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetID })
-                    tgtDesc.fetchLimit = 1
-                    let src = (try? modelContext.fetch(srcDesc))?.first
-                    let tgt = (try? modelContext.fetch(tgtDesc))?.first
-                    guard let source = src, let target = tgt, source.id != target.id, lessonID == targetLessonID else { return }
-                    let studentIDString = studentID.uuidString
-                    if !target.studentIDs.contains(studentIDString) {
-                        target.studentIDs.append(studentIDString)
-                        if !target.students.contains(where: { $0.id == studentID }) {
-                            var stuDesc = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-                            stuDesc.fetchLimit = 1
-                            if let s = (try? modelContext.fetch(stuDesc))?.first {
-                                target.students.append(s)
-                            } else if let s2 = source.students.first(where: { $0.id == studentID }) {
-                                target.students.append(s2)
+                if let decoded = DragPayload.decode(str) {
+                    Task { @MainActor in
+                        let sourceID = decoded.sourceID
+                        let lessonID = decoded.lessonID
+                        let studentID = decoded.studentID
+                        var srcDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
+                        srcDesc.fetchLimit = 1
+                        var tgtDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetID })
+                        tgtDesc.fetchLimit = 1
+                        let src = (try? modelContext.fetch(srcDesc))?.first
+                        let tgt = (try? modelContext.fetch(tgtDesc))?.first
+                        guard let source = src, let target = tgt, source.id != target.id, lessonID == targetLessonID else { return }
+                        let studentIDString = studentID.uuidString
+                        if !target.studentIDs.contains(studentIDString) {
+                            target.studentIDs.append(studentIDString)
+                            if !target.students.contains(where: { $0.id == studentID }) {
+                                var stuDesc = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+                                stuDesc.fetchLimit = 1
+                                if let s = (try? modelContext.fetch(stuDesc))?.first {
+                                    target.students.append(s)
+                                } else if let s2 = source.students.first(where: { $0.id == studentID }) {
+                                    target.students.append(s2)
+                                }
                             }
+                            // Removed: target.syncSnapshotsFromRelationships()
                         }
-                        // Removed: target.syncSnapshotsFromRelationships()
+                        source.studentIDs.removeAll { $0 == studentIDString }
+                        if source.studentIDs.isEmpty {
+                            modelContext.delete(source)
+                        } else {
+                            let remainingIDs = source.studentIDs.compactMap { UUID(uuidString: $0) }
+                            // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
+                            // so we fetch all and filter in memory
+                            let remainingSet = Set(remainingIDs)
+                            let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+                            let fetched = allStudents.filter { remainingSet.contains($0.id) }
+                            source.students = fetched
+                            // Removed: source.syncSnapshotsFromRelationships()
+                        }
+                        onDidMutate("Move student between lessons")
+                        appRouter.refreshPlanningInbox()
                     }
-                    source.studentIDs.removeAll { $0 == studentIDString }
-                    if source.studentIDs.isEmpty {
-                        modelContext.delete(source)
-                    } else {
-                        let remainingIDs = source.studentIDs.compactMap { UUID(uuidString: $0) }
-                        // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
-                        // so we fetch all and filter in memory
-                        let remainingSet = Set(remainingIDs)
-                        let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
-                        let fetched = allStudents.filter { remainingSet.contains($0.id) }
-                        source.students = fetched
-                        // Removed: source.syncSnapshotsFromRelationships()
+                    return
+                }
+
+                if enableMergeDrop, let sourceID = UUID(uuidString: str.trimmed()) {
+                    Task { @MainActor in
+                        _ = StudentLessonMergeService.merge(
+                            sourceID: sourceID,
+                            targetID: targetID,
+                            context: modelContext
+                        )
                     }
-                    onDidMutate("Move student between lessons")
-                    appRouter.refreshPlanningInbox()
                 }
             }
             return true
@@ -549,10 +609,37 @@ struct StudentLessonPill: View {
                     let sourceID = decoded.sourceID
                     let lessonID = decoded.lessonID
                     Task { @MainActor in
-                        if lessonID == targetLessonID, sourceID != targetID { setHighlight(true) } else { setHighlight(false) }
+                        if lessonID == targetLessonID, sourceID != targetID {
+                            setHighlight(true)
+                            setMergeHighlight(false)
+                        } else {
+                            setHighlight(false)
+                            setMergeHighlight(false)
+                        }
+                    }
+                } else if enableMergeDrop, let sourceID = UUID(uuidString: str.trimmed()) {
+                    Task { @MainActor in
+                        guard sourceID != targetID else {
+                            setHighlight(false)
+                            setMergeHighlight(false)
+                            return
+                        }
+                        var srcDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
+                        srcDesc.fetchLimit = 1
+                        let source = (try? modelContext.fetch(srcDesc))?.first
+                        if let source, source.resolvedLessonID == targetLessonID, !source.isGiven {
+                            setHighlight(false)
+                            setMergeHighlight(true)
+                        } else {
+                            setHighlight(false)
+                            setMergeHighlight(false)
+                        }
                     }
                 } else {
-                    Task { @MainActor in setHighlight(false) }
+                    Task { @MainActor in
+                        setHighlight(false)
+                        setMergeHighlight(false)
+                    }
                 }
             }
         }
