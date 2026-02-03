@@ -414,9 +414,9 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         // Load unified Note objects from relationship
         // Refresh the assignment object to get updated relationships
         let targetID = assignment.id
-        if let refreshed = try? modelContext.fetch(
-            FetchDescriptor<LessonAssignment>(predicate: #Predicate<LessonAssignment> { $0.id == targetID })
-        ).first {
+        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate<LessonAssignment> { $0.id == targetID })
+        descriptor.fetchLimit = 1
+        if let refreshed = try? modelContext.fetch(descriptor).first {
             if let notes = refreshed.unifiedNotes {
                 self.unifiedNotes = Array(notes)
             } else {

@@ -652,91 +652,133 @@ public final class BackupService {
 
     private func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, using context: ModelContext) throws -> T? {
         if type == Student.self {
-            let arr = try context.fetch(FetchDescriptor<Student>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == Lesson.self {
-            let arr = try context.fetch(FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == StudentLesson.self {
-            let arr = try context.fetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == LessonAssignment.self {
-            let arr = try context.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         // WorkContract removed - use WorkModel instead
         if type == WorkModel.self {
-            let arr = try context.fetch(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == WorkPlanItem.self {
-            let arr = try context.fetch(FetchDescriptor<WorkPlanItem>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<WorkPlanItem>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         // Removed: ScopedNote
         if type == Note.self {
-            let arr = try context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == NonSchoolDay.self {
-            let arr = try context.fetch(FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == SchoolDayOverride.self {
-            let arr = try context.fetch(FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == StudentMeeting.self {
-            let arr = try context.fetch(FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         // Removed: Presentation (now uses LessonAssignment)
         if type == CommunityTopic.self {
-            let arr = try context.fetch(FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == ProposedSolution.self {
-            let arr = try context.fetch(FetchDescriptor<ProposedSolution>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<ProposedSolution>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         // Removed: MeetingNote
         if type == CommunityAttachment.self {
-            let arr = try context.fetch(FetchDescriptor<CommunityAttachment>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<CommunityAttachment>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == AttendanceRecord.self {
-            let arr = try context.fetch(FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == WorkCompletionRecord.self {
-            let arr = try context.fetch(FetchDescriptor<WorkCompletionRecord>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<WorkCompletionRecord>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == Project.self {
-            let arr = try context.fetch(FetchDescriptor<Project>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == ProjectAssignmentTemplate.self {
-            let arr = try context.fetch(FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == ProjectSession.self {
-            let arr = try context.fetch(FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == ProjectRole.self {
-            let arr = try context.fetch(FetchDescriptor<ProjectRole>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<ProjectRole>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == ProjectTemplateWeek.self {
-            let arr = try context.fetch(FetchDescriptor<ProjectTemplateWeek>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<ProjectTemplateWeek>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         if type == ProjectWeekRoleAssignment.self {
-            let arr = try context.fetch(FetchDescriptor<ProjectWeekRoleAssignment>(predicate: #Predicate { $0.id == id }))
+            var descriptor = FetchDescriptor<ProjectWeekRoleAssignment>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
         return nil

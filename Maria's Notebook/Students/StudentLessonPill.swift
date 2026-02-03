@@ -446,7 +446,8 @@ struct StudentLessonPill: View {
 
     private func setTime(_ newTime: Date) {
         guard let id = targetStudentLessonID else { return }
-        let desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+        var desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+        desc.fetchLimit = 1
         guard let sl = (try? modelContext.fetch(desc))?.first else { return }
         let baseDate = sl.scheduledFor ?? snapshot.scheduledFor ?? Date()
         let dayComps = calendar.dateComponents([.year, .month, .day], from: baseDate)
@@ -496,8 +497,10 @@ struct StudentLessonPill: View {
                     let sourceID = decoded.sourceID
                     let lessonID = decoded.lessonID
                     let studentID = decoded.studentID
-                    let srcDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
-                    let tgtDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetID })
+                    var srcDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
+                    srcDesc.fetchLimit = 1
+                    var tgtDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetID })
+                    tgtDesc.fetchLimit = 1
                     let src = (try? modelContext.fetch(srcDesc))?.first
                     let tgt = (try? modelContext.fetch(tgtDesc))?.first
                     guard let source = src, let target = tgt, source.id != target.id, lessonID == targetLessonID else { return }
@@ -505,7 +508,8 @@ struct StudentLessonPill: View {
                     if !target.studentIDs.contains(studentIDString) {
                         target.studentIDs.append(studentIDString)
                         if !target.students.contains(where: { $0.id == studentID }) {
-                            let stuDesc = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+                            var stuDesc = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+                            stuDesc.fetchLimit = 1
                             if let s = (try? modelContext.fetch(stuDesc))?.first {
                                 target.students.append(s)
                             } else if let s2 = source.students.first(where: { $0.id == studentID }) {

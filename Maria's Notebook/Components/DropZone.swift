@@ -370,8 +370,10 @@ struct BoardDropDelegate: DropDelegate {
         
         let new = StudentLessonFactory.makeUnscheduled(lessonID: lessonID, studentIDs: [studentID])
         
-        let lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-        let studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+        var lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+        lessonFetch.fetchLimit = 1
+        var studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+        studentFetch.fetchLimit = 1
         new.lesson = (try? modelContext.fetch(lessonFetch))?.first
         if let s = (try? modelContext.fetch(studentFetch))?.first {
             new.students = [s]

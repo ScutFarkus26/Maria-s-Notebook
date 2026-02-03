@@ -238,7 +238,8 @@ final class StudentLessonDetailViewModel {
 
         // Perform deletion asynchronously
         DispatchQueue.main.async {
-            let desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+            var desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+            desc.fetchLimit = 1
             if let toDelete = try? ctx.fetch(desc).first {
                 // Access relationship to avoid faults before deletion
                 _ = toDelete.studentIDs
@@ -464,4 +465,3 @@ final class StudentLessonDetailViewModel {
         }
     }
 }
-

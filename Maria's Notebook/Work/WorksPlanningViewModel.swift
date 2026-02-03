@@ -67,7 +67,9 @@ final class WorksPlanningViewModel {
 
     func scheduleCheckIn(for workID: UUID, on date: Date, context: ModelContext, saveCoordinator: SaveCoordinator) throws {
         let service = checkInServiceFactory(context)
-        if let work = try? context.fetch(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })).first {
+        var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
+        descriptor.fetchLimit = 1
+        if let work = try? context.fetch(descriptor).first {
             _ = try? service.createCheckIn(for: work, date: date, status: .scheduled, purpose: "", note: "")
             _ = saveCoordinator.save(context, reason: "Schedule check-in")
         }
