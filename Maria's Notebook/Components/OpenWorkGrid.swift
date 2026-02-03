@@ -13,7 +13,6 @@ struct OpenWorkGrid: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
-    @Query private var planItems: [WorkPlanItem]
 
     // MARK: - Layout
     // Choose 1 or 2 columns based on available width; never create 3+

@@ -2,6 +2,31 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
+@MainActor
+private enum RecentPresentationCache {
+    struct Key: Hashable {
+        let day: Date
+        let windowDays: Int
+    }
+
+    private static let maxEntries = 8
+    private static var values: [Key: Set<UUID>] = [:]
+    private static var order: [Key] = []
+
+    static func value(for key: Key) -> Set<UUID>? {
+        values[key]
+    }
+
+    static func store(_ value: Set<UUID>, for key: Key) {
+        values[key] = value
+        if !order.contains(key) { order.append(key) }
+        if order.count > maxEntries, let oldest = order.first {
+            order.removeFirst()
+            values.removeValue(forKey: oldest)
+        }
+    }
+}
+
 struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
@@ -101,7 +126,8 @@ struct StudentLessonPill: View {
 
         // 1) Explicit non-school day wins
         do {
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            nsDescriptor.fetchLimit = 1
             let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
@@ -115,7 +141,8 @@ struct StudentLessonPill: View {
 
         // 3) Weekend override makes it a school day
         do {
-            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            var ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            ovDescriptor.fetchLimit = 1
             let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
@@ -143,9 +170,8 @@ struct StudentLessonPill: View {
         cachedRecentlyPresentedIDs
     }
 
-    private func computeRecentlyPresentedStudentIDs() -> Set<UUID> {
+    private func computeRecentlyPresentedStudentIDs(anchor: Date) -> Set<UUID> {
         // Determine the window of recent school days to consider
-        let anchor = day ?? Date()
         let days = recentSchoolDayStarts(anchor: anchor, count: max(1, recentWindowDays))
         guard let start = days.first,
               let endExclusive = calendar.date(byAdding: .day, value: 1, to: (days.last ?? start)) else { return [] }
@@ -170,6 +196,20 @@ struct StudentLessonPill: View {
         let presented = (try? modelContext.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))) ?? []
         let filtered = presented.filter { !excludedLessonIDs.contains($0.resolvedLessonID) }
         return Set(filtered.flatMap { $0.resolvedStudentIDs })
+    }
+
+    @MainActor
+    private func loadRecentlyPresentedIDsShared(for day: Date) -> Set<UUID> {
+        let key = RecentPresentationCache.Key(
+            day: AppCalendar.startOfDay(day),
+            windowDays: max(1, recentWindowDays)
+        )
+        if let cached = RecentPresentationCache.value(for: key) {
+            return cached
+        }
+        let computed = computeRecentlyPresentedStudentIDs(anchor: day)
+        RecentPresentationCache.store(computed, for: key)
+        return computed
     }
 
     private var suppressHighlighting: Bool {
@@ -400,7 +440,7 @@ struct StudentLessonPill: View {
             guard lastCacheDay == nil || !AppCalendar.shared.isDate(lastCacheDay!, inSameDayAs: currentDay) else { return }
             lastCacheDay = currentDay
             cachedAttendanceStatuses = modelContext.attendanceStatuses(for: snapshot.studentIDs, on: currentDay)
-            cachedRecentlyPresentedIDs = computeRecentlyPresentedStudentIDs()
+            cachedRecentlyPresentedIDs = loadRecentlyPresentedIDsShared(for: currentDay)
         }
     }
 

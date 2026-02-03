@@ -20,9 +20,13 @@ struct WorkDetailView: View {
     @State private var relatedStudent: Student? = nil
 
     @State private var workModelNotes: [Note] = [] // Unified notes - loaded via relationship
+    #if DEBUG
     @Query private var lessonAssignments: [LessonAssignment]
+    #endif
     @Query private var planItems: [WorkPlanItem]
+    #if DEBUG
     @Query private var peerWorks: [WorkModel]
+    #endif
 
     @State private var resolvedPresentationID: UUID? = nil
     @State private var showPresentationNotes: Bool = true
@@ -72,8 +76,10 @@ struct WorkDetailView: View {
 
         let workIDString = workID.uuidString
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workIDString })
+        #if DEBUG
         // Query for peer works - will filter by lessonID after work is loaded
         _peerWorks = Query()
+        #endif
     }
 
     var body: some View {
