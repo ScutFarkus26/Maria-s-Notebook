@@ -15,7 +15,6 @@ struct DataManagementGrid: View {
     @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
     @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true
     @AppStorage("AutoBackup.retentionCount") private var autoBackupRetention = 10
-    @AppStorage("Backup.allowChecksumBypass") private var allowChecksumBypass = false
     @AppStorage("CloudBackup.scheduleEnabled") private var cloudBackupEnabled = false
 
     @State private var showingImporter = false
@@ -210,9 +209,6 @@ struct DataManagementGrid: View {
                 .controlSize(.small)
                 .disabled(isWorking)
             }
-        }
-        .contextMenu {
-            Toggle("Skip Checksum Validation", isOn: $allowChecksumBypass)
         }
     }
 

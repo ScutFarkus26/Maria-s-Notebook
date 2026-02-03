@@ -230,7 +230,6 @@ public final class IncrementalBackupService {
         var mergedNonSchoolDays: [UUID: NonSchoolDayDTO] = [:]
         var mergedSchoolDayOverrides: [UUID: SchoolDayOverrideDTO] = [:]
         var mergedStudentMeetings: [UUID: StudentMeetingDTO] = [:]
-        var mergedPresentations: [UUID: PresentationDTO] = [:]
         var mergedCommunityTopics: [UUID: CommunityTopicDTO] = [:]
         var mergedProposedSolutions: [UUID: ProposedSolutionDTO] = [:]
         var mergedCommunityAttachments: [UUID: CommunityAttachmentDTO] = [:]
@@ -267,7 +266,6 @@ public final class IncrementalBackupService {
             for dto in payload.nonSchoolDays { mergedNonSchoolDays[dto.id] = dto }
             for dto in payload.schoolDayOverrides { mergedSchoolDayOverrides[dto.id] = dto }
             for dto in payload.studentMeetings { mergedStudentMeetings[dto.id] = dto }
-            for dto in payload.presentations { mergedPresentations[dto.id] = dto }
             for dto in payload.communityTopics { mergedCommunityTopics[dto.id] = dto }
             for dto in payload.proposedSolutions { mergedProposedSolutions[dto.id] = dto }
             for dto in payload.communityAttachments { mergedCommunityAttachments[dto.id] = dto }
@@ -294,15 +292,12 @@ public final class IncrementalBackupService {
             studentLessons: Array(mergedStudentLessons.values),
             lessonAssignments: Array(mergedLessonAssignments.values),
             workPlanItems: Array(mergedWorkPlanItems.values),
-            scopedNotes: [],
             notes: Array(mergedNotes.values),
             nonSchoolDays: Array(mergedNonSchoolDays.values),
             schoolDayOverrides: Array(mergedSchoolDayOverrides.values),
             studentMeetings: Array(mergedStudentMeetings.values),
-            presentations: Array(mergedPresentations.values),
             communityTopics: Array(mergedCommunityTopics.values),
             proposedSolutions: Array(mergedProposedSolutions.values),
-            meetingNotes: [],
             communityAttachments: Array(mergedCommunityAttachments.values),
             attendance: Array(mergedAttendance.values),
             workCompletions: Array(mergedWorkCompletions.values),
@@ -348,7 +343,6 @@ public final class IncrementalBackupService {
             "NonSchoolDay": mergedNonSchoolDays.count,
             "SchoolDayOverride": mergedSchoolDayOverrides.count,
             "StudentMeeting": mergedStudentMeetings.count,
-            "Presentation": mergedPresentations.count,
             "CommunityTopic": mergedCommunityTopics.count,
             "ProposedSolution": mergedProposedSolutions.count,
             "CommunityAttachment": mergedCommunityAttachments.count,
@@ -633,9 +627,6 @@ public final class IncrementalBackupService {
             )
         }
 
-        // Presentations are no longer exported; LessonAssignment is used instead
-        let presentationDTOs: [PresentationDTO] = []
-
         let topicDTOs: [CommunityTopicDTO] = communityTopics.map { t in
             CommunityTopicDTO(
                 id: t.id,
@@ -803,15 +794,12 @@ public final class IncrementalBackupService {
             studentLessons: studentLessonDTOs,
             lessonAssignments: lessonAssignmentDTOs,
             workPlanItems: workPlanItemDTOs,
-            scopedNotes: [],
             notes: noteDTOs,
             nonSchoolDays: nonSchoolDTOs,
             schoolDayOverrides: schoolOverrideDTOs,
             studentMeetings: studentMeetingDTOs,
-            presentations: presentationDTOs,
             communityTopics: topicDTOs,
             proposedSolutions: solutionDTOs,
-            meetingNotes: [],
             communityAttachments: attachmentDTOs,
             attendance: attendanceDTOs,
             workCompletions: workCompletionDTOs,

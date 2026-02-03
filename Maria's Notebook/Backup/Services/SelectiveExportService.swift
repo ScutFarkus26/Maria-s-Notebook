@@ -468,9 +468,6 @@ public final class SelectiveExportService {
         let noteDTOs: [NoteDTO] = shouldInclude(.notes) ? collectNotes(modelContext: modelContext, filter: filter) : []
         counts["Note"] = noteDTOs.count
 
-        // Presentations are no longer exported; LessonAssignment is used instead
-        let presentationDTOs: [PresentationDTO] = []
-
         let nonSchoolDTOs: [NonSchoolDayDTO] = shouldInclude(.calendar) ? collectNonSchoolDays(modelContext: modelContext, filter: filter) : []
         counts["NonSchoolDay"] = nonSchoolDTOs.count
 
@@ -519,15 +516,12 @@ public final class SelectiveExportService {
             studentLessons: studentLessonDTOs,
             lessonAssignments: [], // Selective export doesn't include lesson assignments yet
             workPlanItems: [],
-            scopedNotes: [],
             notes: noteDTOs,
             nonSchoolDays: nonSchoolDTOs,
             schoolDayOverrides: schoolOverrideDTOs,
             studentMeetings: [],
-            presentations: presentationDTOs,
             communityTopics: [],
             proposedSolutions: [],
-            meetingNotes: [],
             communityAttachments: [],
             attendance: attendanceDTOs,
             workCompletions: workCompletionDTOs,

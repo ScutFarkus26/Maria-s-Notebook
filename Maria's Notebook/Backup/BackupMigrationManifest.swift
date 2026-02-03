@@ -9,90 +9,21 @@ public enum BackupMigrationManifest {
 
     // MARK: - Format Version History
 
-    /// Documentation of all format version changes
+    /// Documentation of format version 6 (current and only supported version)
     public static let versionHistory: [FormatVersionInfo] = [
-        FormatVersionInfo(
-            version: 1,
-            releaseDate: DateComponents(calendar: .current, year: 2024, month: 1, day: 1).date!,
-            description: "Initial backup format",
-            changes: [
-                "Initial schema with basic entities",
-                "Uncompressed JSON payload",
-                "No encryption support"
-            ],
-            breakingChanges: [],
-            migrationNotes: nil
-        ),
-        FormatVersionInfo(
-            version: 2,
-            releaseDate: DateComponents(calendar: .current, year: 2024, month: 3, day: 1).date!,
-            description: "Added BookClub entities",
-            changes: [
-                "Added BookClub, BookClubSession, BookClubRole entities",
-                "Added BookClubTemplateWeek, BookClubWeekRoleAssignment",
-                "Added BookClubAssignmentTemplate"
-            ],
-            breakingChanges: [],
-            migrationNotes: "No migration needed - new entities only"
-        ),
-        FormatVersionInfo(
-            version: 3,
-            releaseDate: DateComponents(calendar: .current, year: 2024, month: 5, day: 1).date!,
-            description: "Added attendance and work completion records",
-            changes: [
-                "Added AttendanceRecord entity",
-                "Added WorkCompletionRecord entity",
-                "Backward compatible arrays in payload"
-            ],
-            breakingChanges: [],
-            migrationNotes: "Missing arrays default to empty on import"
-        ),
-        FormatVersionInfo(
-            version: 4,
-            releaseDate: DateComponents(calendar: .current, year: 2024, month: 8, day: 1).date!,
-            description: "Added encryption support",
-            changes: [
-                "Added encryptedPayload field",
-                "AES-GCM encryption with HKDF-SHA256 key derivation",
-                "Salt prepended to encrypted data (32 bytes)"
-            ],
-            breakingChanges: [],
-            migrationNotes: "Encrypted backups require password for restore"
-        ),
-        FormatVersionInfo(
-            version: 5,
-            releaseDate: DateComponents(calendar: .current, year: 2024, month: 10, day: 1).date!,
-            description: "Checksum validation and deterministic encoding",
-            changes: [
-                "Added SHA256 checksum in manifest",
-                "Deterministic JSON encoding with .sortedKeys",
-                "Checksum validation on import"
-            ],
-            breakingChanges: [
-                "Old backups may fail checksum validation (use bypass option)"
-            ],
-            migrationNotes: "Enable 'Allow checksum bypass' for pre-v5 backups"
-        ),
         FormatVersionInfo(
             version: 6,
             releaseDate: DateComponents(calendar: .current, year: 2024, month: 12, day: 1).date!,
-            description: "Compression and Project rename",
+            description: "Current backup format with compression",
             changes: [
-                "Added LZFSE compression support",
-                "Added compressedPayload field",
-                "Renamed BookClub -> Project (with backward compatibility)",
-                "Added compression field in manifest",
-                "Removed ScopedNote entity (migrated to Note)",
-                "Removed MeetingNote entity"
+                "LZFSE compression for efficient storage",
+                "AES-GCM encryption with HKDF-SHA256 key derivation",
+                "SHA256 checksum validation",
+                "Deterministic JSON encoding with .sortedKeys",
+                "Project entities for group work tracking"
             ],
-            breakingChanges: [
-                "ScopedNote data is dropped during restore (already migrated)",
-                "MeetingNote data is dropped during restore"
-            ],
-            migrationNotes: """
-                BookClub entities automatically converted to Project entities during import.
-                Legacy keys (bookClubs, bookClubSessions, etc.) supported for backward compatibility.
-                """
+            breakingChanges: [],
+            migrationNotes: "This is the only supported backup format. Older backup formats (v1-v5) are no longer supported."
         )
     ]
 
@@ -209,52 +140,42 @@ public enum BackupMigrationManifest {
 
 extension BackupMigrationManifest {
 
-    /// Documents entity-specific schema changes for reference
+    /// Documents entity schemas in the current format (v6)
     public enum EntitySchemaChanges {
 
         // MARK: - Student
 
         public static let studentChanges: [EntityChange] = [
-            EntityChange(version: 1, entity: "Student", change: "Initial: id, firstName, lastName, birthday, level"),
-            EntityChange(version: 2, entity: "Student", change: "Added: dateStarted, nextLessons array"),
-            EntityChange(version: 3, entity: "Student", change: "Added: manualOrder for sorting")
+            EntityChange(version: 6, entity: "Student", change: "Fields: id, firstName, lastName, birthday, level, dateStarted, nextLessons, manualOrder")
         ]
 
         // MARK: - Lesson
 
         public static let lessonChanges: [EntityChange] = [
-            EntityChange(version: 1, entity: "Lesson", change: "Initial: id, name, subject, group, orderInGroup"),
-            EntityChange(version: 2, entity: "Lesson", change: "Added: subheading, writeUp"),
-            EntityChange(version: 3, entity: "Lesson", change: "Added: pagesFileRelativePath (optional)")
+            EntityChange(version: 6, entity: "Lesson", change: "Fields: id, name, subject, group, orderInGroup, subheading, writeUp, pagesFileRelativePath")
         ]
 
         // MARK: - Note
 
         public static let noteChanges: [EntityChange] = [
-            EntityChange(version: 1, entity: "ScopedNote", change: "Initial: id, createdAt, updatedAt, body, scope"),
-            EntityChange(version: 5, entity: "ScopedNote", change: "Added: studentLessonID, workID, presentationID"),
-            EntityChange(version: 6, entity: "Note", change: "Replaced ScopedNote with unified Note entity"),
             EntityChange(version: 6, entity: "Note", change: "Fields: id, createdAt, updatedAt, body, isPinned, scope (JSON), lessonID, imagePath")
         ]
 
-        // MARK: - Project (formerly BookClub)
+        // MARK: - Project
 
         public static let projectChanges: [EntityChange] = [
-            EntityChange(version: 2, entity: "BookClub", change: "Initial: id, createdAt, title, bookTitle, memberStudentIDs"),
-            EntityChange(version: 6, entity: "Project", change: "Renamed from BookClub; same fields"),
-            EntityChange(version: 6, entity: "ProjectSession", change: "Renamed from BookClubSession"),
-            EntityChange(version: 6, entity: "ProjectRole", change: "Renamed from BookClubRole"),
-            EntityChange(version: 6, entity: "ProjectTemplateWeek", change: "Renamed from BookClubTemplateWeek"),
-            EntityChange(version: 6, entity: "ProjectWeekRoleAssignment", change: "Renamed from BookClubWeekRoleAssignment"),
-            EntityChange(version: 6, entity: "ProjectAssignmentTemplate", change: "Renamed from BookClubAssignmentTemplate")
+            EntityChange(version: 6, entity: "Project", change: "Fields: id, createdAt, title, bookTitle, memberStudentIDs"),
+            EntityChange(version: 6, entity: "ProjectSession", change: "Fields: id, createdAt, projectID, meetingDate, chapterOrPages, notes, agendaItemsJSON, templateWeekID"),
+            EntityChange(version: 6, entity: "ProjectRole", change: "Fields: id, createdAt, projectID, title, summary, instructions"),
+            EntityChange(version: 6, entity: "ProjectTemplateWeek", change: "Fields: id, createdAt, projectID, weekIndex, readingRange, agendaItemsJSON, linkedLessonIDsJSON, workInstructions"),
+            EntityChange(version: 6, entity: "ProjectWeekRoleAssignment", change: "Fields: id, createdAt, weekID, studentID, roleID"),
+            EntityChange(version: 6, entity: "ProjectAssignmentTemplate", change: "Fields: id, createdAt, projectID, title, instructions, isShared, defaultLinkedLessonID")
         ]
 
         // MARK: - Attendance
 
         public static let attendanceChanges: [EntityChange] = [
-            EntityChange(version: 3, entity: "AttendanceRecord", change: "Initial: id, studentID, date, status"),
-            EntityChange(version: 4, entity: "AttendanceRecord", change: "Added: absenceReason, note"),
-            EntityChange(version: 5, entity: "AttendanceRecord", change: "Changed: studentID from UUID to String")
+            EntityChange(version: 6, entity: "AttendanceRecord", change: "Fields: id, studentID, date, status, absenceReason, note")
         ]
 
         public struct EntityChange: Identifiable, Sendable {
@@ -270,51 +191,41 @@ extension BackupMigrationManifest {
 
 extension BackupMigrationManifest {
 
-    /// Documents all payload fields and their introduction versions
+    /// Documents all payload fields in the current format
     public static let payloadFields: [PayloadField] = [
         // Core entities
-        PayloadField(name: "items", introducedIn: 1, description: "Legacy items array (unused)"),
-        PayloadField(name: "students", introducedIn: 1, description: "Student records"),
-        PayloadField(name: "lessons", introducedIn: 1, description: "Lesson definitions"),
-        PayloadField(name: "studentLessons", introducedIn: 1, description: "Lesson assignments to students"),
-        PayloadField(name: "workPlanItems", introducedIn: 1, description: "Scheduled work items"),
-        PayloadField(name: "scopedNotes", introducedIn: 1, removedIn: 6, description: "Legacy scoped notes (migrated to notes)"),
-        PayloadField(name: "notes", introducedIn: 6, description: "Unified notes entity"),
-        PayloadField(name: "nonSchoolDays", introducedIn: 1, description: "Calendar non-school days"),
-        PayloadField(name: "schoolDayOverrides", introducedIn: 1, description: "Calendar school day overrides"),
+        PayloadField(name: "items", introducedIn: 6, description: "Legacy items array (unused)"),
+        PayloadField(name: "students", introducedIn: 6, description: "Student records"),
+        PayloadField(name: "lessons", introducedIn: 6, description: "Lesson definitions"),
+        PayloadField(name: "studentLessons", introducedIn: 6, description: "Lesson assignments to students"),
+        PayloadField(name: "lessonAssignments", introducedIn: 6, description: "Unified lesson assignments"),
+        PayloadField(name: "workPlanItems", introducedIn: 6, description: "Scheduled work items"),
+        PayloadField(name: "notes", introducedIn: 6, description: "Notes and observations"),
+        PayloadField(name: "nonSchoolDays", introducedIn: 6, description: "Calendar non-school days"),
+        PayloadField(name: "schoolDayOverrides", introducedIn: 6, description: "Calendar school day overrides"),
 
-        // Meetings and presentations
-        PayloadField(name: "studentMeetings", introducedIn: 1, description: "Student meeting records"),
-        PayloadField(name: "presentations", introducedIn: 1, description: "Lesson presentation records"),
+        // Meetings
+        PayloadField(name: "studentMeetings", introducedIn: 6, description: "Student meeting records"),
 
         // Community
-        PayloadField(name: "communityTopics", introducedIn: 1, description: "Community discussion topics"),
-        PayloadField(name: "proposedSolutions", introducedIn: 1, description: "Solutions for community topics"),
-        PayloadField(name: "meetingNotes", introducedIn: 1, removedIn: 6, description: "Legacy meeting notes (removed)"),
-        PayloadField(name: "communityAttachments", introducedIn: 1, description: "Attachments for community topics"),
+        PayloadField(name: "communityTopics", introducedIn: 6, description: "Community discussion topics"),
+        PayloadField(name: "proposedSolutions", introducedIn: 6, description: "Solutions for community topics"),
+        PayloadField(name: "communityAttachments", introducedIn: 6, description: "Attachments for community topics"),
 
         // Attendance and work
-        PayloadField(name: "attendance", introducedIn: 3, description: "Attendance records"),
-        PayloadField(name: "workCompletions", introducedIn: 3, description: "Work completion records"),
+        PayloadField(name: "attendance", introducedIn: 6, description: "Attendance records"),
+        PayloadField(name: "workCompletions", introducedIn: 6, description: "Work completion records"),
 
-        // Projects (formerly BookClubs)
-        PayloadField(name: "projects", introducedIn: 6, description: "Project entities (renamed from bookClubs)"),
+        // Projects
+        PayloadField(name: "projects", introducedIn: 6, description: "Project entities for group work"),
         PayloadField(name: "projectAssignmentTemplates", introducedIn: 6, description: "Project assignment templates"),
         PayloadField(name: "projectSessions", introducedIn: 6, description: "Project session records"),
         PayloadField(name: "projectRoles", introducedIn: 6, description: "Project role definitions"),
         PayloadField(name: "projectTemplateWeeks", introducedIn: 6, description: "Project weekly templates"),
         PayloadField(name: "projectWeekRoleAssignments", introducedIn: 6, description: "Project role assignments per week"),
 
-        // Legacy BookClub keys (for backward compatibility)
-        PayloadField(name: "bookClubs", introducedIn: 2, removedIn: 6, description: "Legacy: now 'projects'"),
-        PayloadField(name: "bookClubAssignmentTemplates", introducedIn: 2, removedIn: 6, description: "Legacy: now 'projectAssignmentTemplates'"),
-        PayloadField(name: "bookClubSessions", introducedIn: 2, removedIn: 6, description: "Legacy: now 'projectSessions'"),
-        PayloadField(name: "bookClubRoles", introducedIn: 2, removedIn: 6, description: "Legacy: now 'projectRoles'"),
-        PayloadField(name: "bookClubTemplateWeeks", introducedIn: 2, removedIn: 6, description: "Legacy: now 'projectTemplateWeeks'"),
-        PayloadField(name: "bookClubWeekRoleAssignments", introducedIn: 2, removedIn: 6, description: "Legacy: now 'projectWeekRoleAssignments'"),
-
         // Preferences
-        PayloadField(name: "preferences", introducedIn: 1, description: "App preferences dictionary")
+        PayloadField(name: "preferences", introducedIn: 6, description: "App preferences dictionary")
     ]
 
     public struct PayloadField: Identifiable, Sendable {

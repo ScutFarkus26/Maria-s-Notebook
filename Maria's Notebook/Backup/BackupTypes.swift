@@ -123,34 +123,21 @@ public enum PreferenceValueDTO: Codable, Sendable, Equatable {
     }
 
     public init(from decoder: Decoder) throws {
-        // Try keyed container first
-        if let container = try? decoder.container(keyedBy: CodingKeys.self) {
-            let type = try container.decode(ValueType.self, forKey: .type)
-            switch type {
-            case .bool:
-                let v = try container.decode(Bool.self, forKey: .value)
-                self = .bool(v)
-            case .int:
-                let v = try container.decode(Int.self, forKey: .value)
-                self = .int(v)
-            case .double:
-                let v = try container.decode(Double.self, forKey: .value)
-                self = .double(v)
-            case .string:
-                let v = try container.decode(String.self, forKey: .value)
-                self = .string(v)
-            case .data:
-                let v = try container.decode(Data.self, forKey: .value)
-                self = .data(v)
-            case .date:
-                let v = try container.decode(Date.self, forKey: .value)
-                self = .date(v)
-            }
-        } else {
-            // Fallback for backward compatibility to legacy string
-            let singleContainer = try decoder.singleValueContainer()
-            let legacyValue = try singleContainer.decode(String.self)
-            self = .string(legacyValue)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(ValueType.self, forKey: .type)
+        switch type {
+        case .bool:
+            self = .bool(try container.decode(Bool.self, forKey: .value))
+        case .int:
+            self = .int(try container.decode(Int.self, forKey: .value))
+        case .double:
+            self = .double(try container.decode(Double.self, forKey: .value))
+        case .string:
+            self = .string(try container.decode(String.self, forKey: .value))
+        case .data:
+            self = .data(try container.decode(Data.self, forKey: .value))
+        case .date:
+            self = .date(try container.decode(Date.self, forKey: .value))
         }
     }
 
@@ -188,15 +175,12 @@ public struct BackupPayload: Codable, Sendable {
     public var studentLessons: [StudentLessonDTO]
     public var lessonAssignments: [LessonAssignmentDTO]
     public var workPlanItems: [WorkPlanItemDTO]
-    public var scopedNotes: [ScopedNoteDTO]
     public var notes: [NoteDTO]
     public var nonSchoolDays: [NonSchoolDayDTO]
     public var schoolDayOverrides: [SchoolDayOverrideDTO]
     public var studentMeetings: [StudentMeetingDTO]
-    public var presentations: [PresentationDTO]
     public var communityTopics: [CommunityTopicDTO]
     public var proposedSolutions: [ProposedSolutionDTO]
-    public var meetingNotes: [MeetingNoteDTO]
     public var communityAttachments: [CommunityAttachmentDTO]
 
     // Attendance and Work Completions
@@ -214,42 +198,6 @@ public struct BackupPayload: Codable, Sendable {
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO
 
-    enum CodingKeys: String, CodingKey {
-        case items
-        case students
-        case lessons
-        case studentLessons
-        case lessonAssignments
-        case workPlanItems
-        case scopedNotes
-        case notes
-        case nonSchoolDays
-        case schoolDayOverrides
-        case studentMeetings
-        case presentations
-        case communityTopics
-        case proposedSolutions
-        case meetingNotes
-        case communityAttachments
-        case attendance
-        case workCompletions
-        case projects
-        case projectAssignmentTemplates
-        case projectSessions
-        case projectRoles
-        case projectTemplateWeeks
-        case projectWeekRoleAssignments
-        // Backward compatibility: old bookClub keys
-        case bookClubs
-        case bookClubAssignmentTemplates
-        case bookClubSessions
-        case bookClubRoles
-        case bookClubTemplateWeeks
-        case bookClubWeekRoleAssignments
-        // Removed bookClubChoiceSets and bookClubChoiceItems
-        case preferences
-    }
-
     public init(
         items: [ItemDTO],
         students: [StudentDTO],
@@ -257,15 +205,12 @@ public struct BackupPayload: Codable, Sendable {
         studentLessons: [StudentLessonDTO],
         lessonAssignments: [LessonAssignmentDTO],
         workPlanItems: [WorkPlanItemDTO],
-        scopedNotes: [ScopedNoteDTO],
         notes: [NoteDTO],
         nonSchoolDays: [NonSchoolDayDTO],
         schoolDayOverrides: [SchoolDayOverrideDTO],
         studentMeetings: [StudentMeetingDTO],
-        presentations: [PresentationDTO],
         communityTopics: [CommunityTopicDTO],
         proposedSolutions: [ProposedSolutionDTO],
-        meetingNotes: [MeetingNoteDTO],
         communityAttachments: [CommunityAttachmentDTO],
         attendance: [AttendanceRecordDTO],
         workCompletions: [WorkCompletionRecordDTO],
@@ -283,15 +228,12 @@ public struct BackupPayload: Codable, Sendable {
         self.studentLessons = studentLessons
         self.lessonAssignments = lessonAssignments
         self.workPlanItems = workPlanItems
-        self.scopedNotes = scopedNotes
         self.notes = notes
         self.nonSchoolDays = nonSchoolDays
         self.schoolDayOverrides = schoolDayOverrides
         self.studentMeetings = studentMeetings
-        self.presentations = presentations
         self.communityTopics = communityTopics
         self.proposedSolutions = proposedSolutions
-        self.meetingNotes = meetingNotes
         self.communityAttachments = communityAttachments
         self.attendance = attendance
         self.workCompletions = workCompletions
@@ -302,112 +244,6 @@ public struct BackupPayload: Codable, Sendable {
         self.projectTemplateWeeks = projectTemplateWeeks
         self.projectWeekRoleAssignments = projectWeekRoleAssignments
         self.preferences = preferences
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.items = try container.decode([ItemDTO].self, forKey: .items)
-        self.students = try container.decode([StudentDTO].self, forKey: .students)
-        self.lessons = try container.decode([LessonDTO].self, forKey: .lessons)
-        self.studentLessons = try container.decode([StudentLessonDTO].self, forKey: .studentLessons)
-        // LessonAssignments: backward compatible (older backups won't have this key)
-        self.lessonAssignments = try container.decodeIfPresent([LessonAssignmentDTO].self, forKey: .lessonAssignments) ?? []
-        self.workPlanItems = try container.decode([WorkPlanItemDTO].self, forKey: .workPlanItems)
-        self.scopedNotes = try container.decode([ScopedNoteDTO].self, forKey: .scopedNotes)
-        self.notes = try container.decode([NoteDTO].self, forKey: .notes)
-        self.nonSchoolDays = try container.decode([NonSchoolDayDTO].self, forKey: .nonSchoolDays)
-        self.schoolDayOverrides = try container.decode([SchoolDayOverrideDTO].self, forKey: .schoolDayOverrides)
-        self.studentMeetings = try container.decode([StudentMeetingDTO].self, forKey: .studentMeetings)
-        self.presentations = try container.decode([PresentationDTO].self, forKey: .presentations)
-        self.communityTopics = try container.decode([CommunityTopicDTO].self, forKey: .communityTopics)
-        self.proposedSolutions = try container.decode([ProposedSolutionDTO].self, forKey: .proposedSolutions)
-        self.meetingNotes = try container.decode([MeetingNoteDTO].self, forKey: .meetingNotes)
-        self.communityAttachments = try container.decode([CommunityAttachmentDTO].self, forKey: .communityAttachments)
-
-        // New arrays (backward compatible)
-        self.attendance = try container.decodeIfPresent([AttendanceRecordDTO].self, forKey: .attendance) ?? []
-        self.workCompletions = try container.decodeIfPresent([WorkCompletionRecordDTO].self, forKey: .workCompletions) ?? []
-        
-        // Projects: Try new keys first, then fall back to old keys for backward compatibility
-        if let newProjects = try container.decodeIfPresent([ProjectDTO].self, forKey: .projects) {
-            self.projects = newProjects
-        } else if let oldBookClubs = try container.decodeIfPresent([BookClubDTO].self, forKey: .bookClubs) {
-            // Convert old BookClubDTO to new ProjectDTO
-            self.projects = oldBookClubs.map { BookClubDTO.toProjectDTO($0) }
-        } else {
-            self.projects = []
-        }
-        
-        if let newTemplates = try container.decodeIfPresent([ProjectAssignmentTemplateDTO].self, forKey: .projectAssignmentTemplates) {
-            self.projectAssignmentTemplates = newTemplates
-        } else if let oldTemplates = try container.decodeIfPresent([BookClubAssignmentTemplateDTO].self, forKey: .bookClubAssignmentTemplates) {
-            self.projectAssignmentTemplates = oldTemplates.map { BookClubAssignmentTemplateDTO.toProjectDTO($0) }
-        } else {
-            self.projectAssignmentTemplates = []
-        }
-        
-        if let newSessions = try container.decodeIfPresent([ProjectSessionDTO].self, forKey: .projectSessions) {
-            self.projectSessions = newSessions
-        } else if let oldSessions = try container.decodeIfPresent([BookClubSessionDTO].self, forKey: .bookClubSessions) {
-            self.projectSessions = oldSessions.map { BookClubSessionDTO.toProjectDTO($0) }
-        } else {
-            self.projectSessions = []
-        }
-        
-        if let newRoles = try container.decodeIfPresent([ProjectRoleDTO].self, forKey: .projectRoles) {
-            self.projectRoles = newRoles
-        } else if let oldRoles = try container.decodeIfPresent([BookClubRoleDTO].self, forKey: .bookClubRoles) {
-            self.projectRoles = oldRoles.map { BookClubRoleDTO.toProjectDTO($0) }
-        } else {
-            self.projectRoles = []
-        }
-        
-        if let newWeeks = try container.decodeIfPresent([ProjectTemplateWeekDTO].self, forKey: .projectTemplateWeeks) {
-            self.projectTemplateWeeks = newWeeks
-        } else if let oldWeeks = try container.decodeIfPresent([BookClubTemplateWeekDTO].self, forKey: .bookClubTemplateWeeks) {
-            self.projectTemplateWeeks = oldWeeks.map { BookClubTemplateWeekDTO.toProjectDTO($0) }
-        } else {
-            self.projectTemplateWeeks = []
-        }
-        
-        if let newAssignments = try container.decodeIfPresent([ProjectWeekRoleAssignmentDTO].self, forKey: .projectWeekRoleAssignments) {
-            self.projectWeekRoleAssignments = newAssignments
-        } else if let oldAssignments = try container.decodeIfPresent([BookClubWeekRoleAssignmentDTO].self, forKey: .bookClubWeekRoleAssignments) {
-            self.projectWeekRoleAssignments = oldAssignments.map { BookClubWeekRoleAssignmentDTO.toProjectDTO($0) }
-        } else {
-            self.projectWeekRoleAssignments = []
-        }
-
-        self.preferences = try container.decode(PreferencesDTO.self, forKey: .preferences)
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(items, forKey: .items)
-        try container.encode(students, forKey: .students)
-        try container.encode(lessons, forKey: .lessons)
-        try container.encode(studentLessons, forKey: .studentLessons)
-        try container.encode(lessonAssignments, forKey: .lessonAssignments)
-        try container.encode(workPlanItems, forKey: .workPlanItems)
-        try container.encode(scopedNotes, forKey: .scopedNotes)
-        try container.encode(notes, forKey: .notes)
-        try container.encode(nonSchoolDays, forKey: .nonSchoolDays)
-        try container.encode(schoolDayOverrides, forKey: .schoolDayOverrides)
-        try container.encode(studentMeetings, forKey: .studentMeetings)
-        try container.encode(presentations, forKey: .presentations)
-        try container.encode(communityTopics, forKey: .communityTopics)
-        try container.encode(proposedSolutions, forKey: .proposedSolutions)
-        try container.encode(meetingNotes, forKey: .meetingNotes)
-        try container.encode(communityAttachments, forKey: .communityAttachments)
-        try container.encode(attendance, forKey: .attendance)
-        try container.encode(workCompletions, forKey: .workCompletions)
-        try container.encode(projects, forKey: .projects)
-        try container.encode(projectAssignmentTemplates, forKey: .projectAssignmentTemplates)
-        try container.encode(projectSessions, forKey: .projectSessions)
-        try container.encode(projectRoles, forKey: .projectRoles)
-        try container.encode(projectTemplateWeeks, forKey: .projectTemplateWeeks)
-        try container.encode(projectWeekRoleAssignments, forKey: .projectWeekRoleAssignments)
-        try container.encode(preferences, forKey: .preferences)
     }
 }
 
@@ -527,18 +363,6 @@ public struct WorkPlanItemDTO: Codable, Sendable {
     public var note: String?
 }
 
-public struct ScopedNoteDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var updatedAt: Date
-    public var body: String
-    public var scope: String // serialized enum value
-    public var legacyFingerprint: String?
-    public var studentLessonID: UUID?
-    public var workID: UUID?
-    public var presentationID: UUID?
-}
-
 public struct NoteDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
@@ -572,17 +396,6 @@ public struct StudentMeetingDTO: Codable, Sendable {
     public var focus: String
     public var requests: String
     public var guideNotes: String
-}
-
-public struct PresentationDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var presentedAt: Date
-    public var lessonID: String
-    public var studentIDs: [String]
-    public var legacyStudentLessonID: String?
-    public var lessonTitleSnapshot: String?
-    public var lessonSubtitleSnapshot: String?
 }
 
 // MARK: - LessonAssignment DTO
@@ -670,14 +483,6 @@ public struct ProposedSolutionDTO: Codable, Sendable {
     public var isAdopted: Bool
 }
 
-public struct MeetingNoteDTO: Codable, Sendable {
-    public var id: UUID
-    public var topicID: UUID?
-    public var speaker: String
-    public var content: String
-    public var createdAt: Date
-}
-
 public struct CommunityAttachmentDTO: Codable, Sendable {
     public var id: UUID
     public var topicID: UUID?
@@ -694,88 +499,6 @@ public struct ProjectDTO: Codable, Sendable {
     public var title: String
     public var bookTitle: String?
     public var memberStudentIDs: [String]
-}
-
-// MARK: - Legacy BookClub DTOs (for backward compatibility)
-private struct BookClubDTO: Codable {
-    var id: UUID
-    var createdAt: Date
-    var title: String
-    var bookTitle: String?
-    var memberStudentIDs: [String]
-    
-    static func toProjectDTO(_ old: BookClubDTO) -> ProjectDTO {
-        ProjectDTO(id: old.id, createdAt: old.createdAt, title: old.title, bookTitle: old.bookTitle, memberStudentIDs: old.memberStudentIDs)
-    }
-}
-
-private struct BookClubAssignmentTemplateDTO: Codable {
-    var id: UUID
-    var createdAt: Date
-    var bookClubID: UUID
-    var title: String
-    var instructions: String
-    var isShared: Bool
-    var defaultLinkedLessonID: String?
-    
-    static func toProjectDTO(_ old: BookClubAssignmentTemplateDTO) -> ProjectAssignmentTemplateDTO {
-        ProjectAssignmentTemplateDTO(id: old.id, createdAt: old.createdAt, projectID: old.bookClubID, title: old.title, instructions: old.instructions, isShared: old.isShared, defaultLinkedLessonID: old.defaultLinkedLessonID)
-    }
-}
-
-private struct BookClubSessionDTO: Codable {
-    var id: UUID
-    var createdAt: Date
-    var bookClubID: UUID
-    var meetingDate: Date
-    var chapterOrPages: String?
-    var notes: String?
-    var agendaItemsJSON: String
-    var templateWeekID: UUID?
-    
-    static func toProjectDTO(_ old: BookClubSessionDTO) -> ProjectSessionDTO {
-        ProjectSessionDTO(id: old.id, createdAt: old.createdAt, projectID: old.bookClubID, meetingDate: old.meetingDate, chapterOrPages: old.chapterOrPages, notes: old.notes, agendaItemsJSON: old.agendaItemsJSON, templateWeekID: old.templateWeekID)
-    }
-}
-
-private struct BookClubRoleDTO: Codable {
-    var id: UUID
-    var createdAt: Date
-    var bookClubID: UUID
-    var title: String
-    var summary: String
-    var instructions: String
-    
-    static func toProjectDTO(_ old: BookClubRoleDTO) -> ProjectRoleDTO {
-        ProjectRoleDTO(id: old.id, createdAt: old.createdAt, projectID: old.bookClubID, title: old.title, summary: old.summary, instructions: old.instructions)
-    }
-}
-
-private struct BookClubTemplateWeekDTO: Codable {
-    var id: UUID
-    var createdAt: Date
-    var bookClubID: UUID
-    var weekIndex: Int
-    var readingRange: String
-    var agendaItemsJSON: String
-    var linkedLessonIDsJSON: String
-    var workInstructions: String
-    
-    static func toProjectDTO(_ old: BookClubTemplateWeekDTO) -> ProjectTemplateWeekDTO {
-        ProjectTemplateWeekDTO(id: old.id, createdAt: old.createdAt, projectID: old.bookClubID, weekIndex: old.weekIndex, readingRange: old.readingRange, agendaItemsJSON: old.agendaItemsJSON, linkedLessonIDsJSON: old.linkedLessonIDsJSON, workInstructions: old.workInstructions)
-    }
-}
-
-private struct BookClubWeekRoleAssignmentDTO: Codable {
-    var id: UUID
-    var createdAt: Date
-    var weekID: UUID
-    var studentID: String
-    var roleID: UUID
-    
-    static func toProjectDTO(_ old: BookClubWeekRoleAssignmentDTO) -> ProjectWeekRoleAssignmentDTO {
-        ProjectWeekRoleAssignmentDTO(id: old.id, createdAt: old.createdAt, weekID: old.weekID, studentID: old.studentID, roleID: old.roleID)
-    }
 }
 
 public struct ProjectAssignmentTemplateDTO: Codable, Sendable {

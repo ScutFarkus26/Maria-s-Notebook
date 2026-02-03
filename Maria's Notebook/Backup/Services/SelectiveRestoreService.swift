@@ -20,7 +20,6 @@ public final class SelectiveRestoreService {
         case notes = "Notes"
         case calendar = "Calendar (Non-School Days & Overrides)"
         case meetings = "Student Meetings"
-        case presentations = "Presentations"
         case community = "Community Topics & Solutions"
         case attendance = "Attendance Records"
         case workCompletions = "Work Completion Records"
@@ -39,7 +38,6 @@ public final class SelectiveRestoreService {
             case .notes: return "note.text"
             case .calendar: return "calendar"
             case .meetings: return "person.2.wave.2"
-            case .presentations: return "theatermasks"
             case .community: return "bubble.left.and.bubble.right"
             case .attendance: return "checkmark.circle"
             case .workCompletions: return "checkmark.square"
@@ -51,7 +49,6 @@ public final class SelectiveRestoreService {
         public var dependencies: [RestorableEntityType] {
             switch self {
             case .studentLessons: return [.students, .lessons]
-            case .presentations: return [.lessons]
             case .community: return []
             case .notes: return [.lessons]
             case .workPlanItems: return []
@@ -153,7 +150,6 @@ public final class SelectiveRestoreService {
         counts[.notes] = payload.notes.count
         counts[.calendar] = payload.nonSchoolDays.count + payload.schoolDayOverrides.count
         counts[.meetings] = payload.studentMeetings.count
-        counts[.presentations] = payload.presentations.count
         counts[.community] = payload.communityTopics.count + payload.proposedSolutions.count + payload.communityAttachments.count
         counts[.attendance] = payload.attendance.count
         counts[.workCompletions] = payload.workCompletions.count
@@ -223,8 +219,6 @@ public final class SelectiveRestoreService {
                 counts[type] = payload.nonSchoolDays.count + payload.schoolDayOverrides.count
             case .meetings:
                 counts[type] = payload.studentMeetings.count
-            case .presentations:
-                counts[type] = payload.presentations.count
             case .community:
                 counts[type] = payload.communityTopics.count + payload.proposedSolutions.count + payload.communityAttachments.count
             case .attendance:
@@ -290,7 +284,7 @@ public final class SelectiveRestoreService {
         // Import entities in dependency order
         let orderedTypes: [RestorableEntityType] = [
             .students, .lessons, .studentLessons, .workPlanItems,
-            .notes, .calendar, .meetings, .presentations,
+            .notes, .calendar, .meetings,
             .community, .attendance, .workCompletions, .projects
         ]
 
@@ -464,19 +458,6 @@ public final class SelectiveRestoreService {
                 }
             )
             imported = payload.studentMeetings.count
-
-        case .presentations:
-            // Import old Presentations as LessonAssignments (backward compatibility)
-            let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
-            BackupEntityImporter.importPresentationsAsLessonAssignments(
-                payload.presentations,
-                into: modelContext,
-                existingLessonAssignmentCheck: { [existingLessonAssignmentIDs] id in
-                    existingLessonAssignmentIDs.contains(id) ? LessonAssignment(state: .draft, lessonID: UUID(), studentIDs: []) : nil
-                },
-                allStudentLessons: allStudentLessons
-            )
-            imported = payload.presentations.count
 
         case .community:
             BackupEntityImporter.importCommunityTopics(

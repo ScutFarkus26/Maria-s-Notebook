@@ -81,15 +81,12 @@ public final class BackupService {
         let studentLessonDTOs = BackupDTOTransformers.toDTOs(studentLessons)
         let lessonAssignmentDTOs = BackupDTOTransformers.toDTOs(lessonAssignments)
         let workPlanItemDTOs = BackupDTOTransformers.toDTOs(workPlanItems)
-        let scopedNoteDTOs: [ScopedNoteDTO] = [] // Removed entity
         let noteDTOs = BackupDTOTransformers.toDTOs(notes)
         let nonSchoolDTOs = BackupDTOTransformers.toDTOs(nonSchoolDays)
         let schoolOverrideDTOs = BackupDTOTransformers.toDTOs(schoolDayOverrides)
         let studentMeetingDTOs = BackupDTOTransformers.toDTOs(studentMeetings)
-        let presentationDTOs: [PresentationDTO] = [] // No longer exported; LessonAssignment is used instead
         let topicDTOs = BackupDTOTransformers.toDTOs(communityTopics)
         let solutionDTOs = BackupDTOTransformers.toDTOs(proposedSolutions)
-        let meetingNoteDTOs: [MeetingNoteDTO] = [] // Removed entity
         let attachmentDTOs = BackupDTOTransformers.toDTOs(communityAttachments)
         let attendanceDTOs = BackupDTOTransformers.toDTOs(attendance)
         let workCompletionDTOs = BackupDTOTransformers.toDTOs(workCompletions)
@@ -109,15 +106,12 @@ public final class BackupService {
             studentLessons: studentLessonDTOs,
             lessonAssignments: lessonAssignmentDTOs,
             workPlanItems: workPlanItemDTOs,
-            scopedNotes: scopedNoteDTOs,
             notes: noteDTOs,
             nonSchoolDays: nonSchoolDTOs,
             schoolDayOverrides: schoolOverrideDTOs,
             studentMeetings: studentMeetingDTOs,
-            presentations: presentationDTOs,
             communityTopics: topicDTOs,
             proposedSolutions: solutionDTOs,
-            meetingNotes: meetingNoteDTOs,
             communityAttachments: attachmentDTOs,
             attendance: attendanceDTOs,
             workCompletions: workCompletionDTOs,
@@ -164,14 +158,12 @@ public final class BackupService {
             "StudentLesson": studentLessonDTOs.count,
             "LessonAssignment": lessonAssignmentDTOs.count,
             "WorkPlanItem": workPlanItemDTOs.count,
-            "ScopedNote": scopedNoteDTOs.count,
             "Note": noteDTOs.count,
             "NonSchoolDay": nonSchoolDTOs.count,
             "SchoolDayOverride": schoolOverrideDTOs.count,
             "StudentMeeting": studentMeetingDTOs.count,
             "CommunityTopic": topicDTOs.count,
             "ProposedSolution": solutionDTOs.count,
-            "MeetingNote": meetingNoteDTOs.count,
             "CommunityAttachment": attachmentDTOs.count,
             "AttendanceRecord": attendanceDTOs.count,
             "WorkCompletionRecord": workCompletionDTOs.count,
@@ -266,17 +258,8 @@ public final class BackupService {
 
         let payloadBytes: Data
         let isCompressed = envelope.manifest.compression != nil
-        
-        if envelope.payload != nil {
-            if let extracted = try extractPayloadBytes(from: data) {
-                payloadBytes = extracted
-            } else {
-                let encoder = JSONEncoder()
-                encoder.dateEncodingStrategy = .iso8601
-                encoder.outputFormatting = .sortedKeys
-                payloadBytes = try encoder.encode(envelope.payload!)
-            }
-        } else if let compressed = envelope.compressedPayload {
+
+        if let compressed = envelope.compressedPayload {
             progress(0.15, "Decompressing data…")
             payloadBytes = try codec.decompress(compressed)
         } else if let enc = envelope.encryptedPayload {
@@ -292,14 +275,11 @@ public final class BackupService {
                 payloadBytes = decryptedBytes
             }
         } else {
-            throw NSError(domain: "BackupService", code: 1101, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload."])
+            throw NSError(domain: "BackupService", code: 1101, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload. This may be an older backup format that is no longer supported."])
         }
 
         progress(0.20, "Validating checksum…")
-        let bypassEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.backupAllowChecksumBypass)
-        let shouldValidateChecksum = !bypassEnabled
-        
-        if shouldValidateChecksum && !envelope.manifest.sha256.isEmpty {
+        if !envelope.manifest.sha256.isEmpty {
             let sha = codec.sha256Hex(payloadBytes)
             guard sha == envelope.manifest.sha256 else {
                 throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch."])
@@ -364,22 +344,13 @@ public final class BackupService {
         // Resolve payload bytes
         let payloadBytes: Data
         let isCompressed = envelope.manifest.compression != nil
-        
-        if envelope.payload != nil {
-            if let extracted = try extractPayloadBytes(from: data) {
-                payloadBytes = extracted
-            } else {
-                let encoder = JSONEncoder()
-                encoder.dateEncodingStrategy = .iso8601
-                encoder.outputFormatting = .sortedKeys
-                payloadBytes = try encoder.encode(envelope.payload!)
-            }
-        } else if let compressed = envelope.compressedPayload {
+
+        if let compressed = envelope.compressedPayload {
             progress(0.15, "Decompressing data…")
             payloadBytes = try codec.decompress(compressed)
         } else if let enc = envelope.encryptedPayload {
             guard let password = password, !password.isEmpty else {
-                throw NSError(domain: "BackupService", code: 1103, userInfo: [NSLocalizedDescriptionKey: "Encrypted backup."])
+                throw NSError(domain: "BackupService", code: 1103, userInfo: [NSLocalizedDescriptionKey: "This backup is encrypted. Please provide a password."])
             }
             let decryptedBytes = try codec.decrypt(enc, password: password)
             if isCompressed {
@@ -388,7 +359,7 @@ public final class BackupService {
                 payloadBytes = decryptedBytes
             }
         } else {
-            throw NSError(domain: "BackupService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Missing payload."])
+            throw NSError(domain: "BackupService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload. This may be an older backup format that is no longer supported."])
         }
 
         var payload: BackupPayload
@@ -476,15 +447,6 @@ public final class BackupService {
             payload.studentMeetings,
             into: modelContext,
             existingCheck: { try fetchOne(StudentMeeting.self, id: $0, using: modelContext) }
-        )
-
-        // Import old Presentations as LessonAssignments (backward compatibility)
-        let allStudentLessons = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
-        try BackupEntityImporter.importPresentationsAsLessonAssignments(
-            payload.presentations,
-            into: modelContext,
-            existingLessonAssignmentCheck: { try fetchOne(LessonAssignment.self, id: $0, using: modelContext) },
-            allStudentLessons: allStudentLessons
         )
 
         try BackupEntityImporter.importProposedSolutions(
@@ -784,12 +746,6 @@ public final class BackupService {
         return nil
     }
 
-    // MARK: - Payload Extraction (delegated to BackupPayloadExtractor)
-
-    private func extractPayloadBytes(from envelopeData: Data) throws -> Data? {
-        try BackupPayloadExtractor.extractPayloadBytes(from: envelopeData)
-    }
-
     // Compression, decompression, encryption, and key derivation methods moved to BackupCodec
 
     // MARK: - Preferences (delegated to BackupPreferencesService)
@@ -833,15 +789,12 @@ public final class BackupService {
             studentLessons: uniqueBy(payload.studentLessons) { $0.id },
             lessonAssignments: uniqueBy(payload.lessonAssignments) { $0.id },
             workPlanItems: uniqueBy(payload.workPlanItems) { $0.id },
-            scopedNotes: uniqueBy(payload.scopedNotes) { $0.id },
             notes: uniqueBy(payload.notes) { $0.id },
             nonSchoolDays: uniqueBy(payload.nonSchoolDays) { $0.id },
             schoolDayOverrides: uniqueBy(payload.schoolDayOverrides) { $0.id },
             studentMeetings: uniqueBy(payload.studentMeetings) { $0.id },
-            presentations: uniqueBy(payload.presentations) { $0.id },
             communityTopics: uniqueBy(payload.communityTopics) { $0.id },
             proposedSolutions: uniqueBy(payload.proposedSolutions) { $0.id },
-            meetingNotes: uniqueBy(payload.meetingNotes) { $0.id },
             communityAttachments: uniqueBy(payload.communityAttachments) { $0.id },
             attendance: uniqueBy(payload.attendance) { $0.id },
             workCompletions: uniqueBy(payload.workCompletions) { $0.id },
