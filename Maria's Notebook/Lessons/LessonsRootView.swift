@@ -185,7 +185,7 @@ struct LessonsRootView: View {
                 lessonsContentColumn
                     .frame(maxWidth: .infinity)
 
-                if let selectedLesson = selectedLessonDetail {
+                if displayMode != .plan, let selectedLesson = selectedLessonDetail {
                     Divider()
                     lessonDetailPane(lesson: selectedLesson)
                         .frame(width: 520)
@@ -277,6 +277,8 @@ struct LessonsRootView: View {
             displayModeRaw = newValue.rawValue
             if newValue != .plan {
                 isOrganizingGroups = false
+            } else {
+                selectedLessonDetail = nil
             }
             #if os(iOS)
             editMode = (newValue == .plan) ? .active : .inactive

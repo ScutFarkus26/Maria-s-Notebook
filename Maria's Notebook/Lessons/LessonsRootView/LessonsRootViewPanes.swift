@@ -172,36 +172,11 @@ extension LessonsRootView {
         }()
 
         return ScrollViewReader { proxy in
-            #if os(macOS)
-            let selectionBinding = Binding<Lesson.ID?>(
-                get: { selectedLessonDetail?.id },
-                set: { newValue in
-                    guard let newValue else {
-                        selectedLessonDetail = nil
-                        return
-                    }
-                    if let lesson = lessonsForSubject.first(where: { $0.id == newValue }) {
-                        selectedLessonDetail = lesson
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            withAnimation {
-                                proxy.scrollTo(lesson.id, anchor: .center)
-                            }
-                        }
-                    }
-                }
-            )
-            List(selection: selectionBinding) {
-                expandedGroupsListRows(displayGroups: displayGroups, ungroupedLabel: ungroupedLabel, scrollProxy: proxy)
-            }
-            .listStyle(.plain)
-            .id("PlanModeList")
-            #else
             List {
                 expandedGroupsListRows(displayGroups: displayGroups, ungroupedLabel: ungroupedLabel, scrollProxy: proxy)
             }
             .listStyle(.plain)
             .id("PlanModeList")
-            #endif
         }
     }
 
@@ -237,6 +212,7 @@ extension LessonsRootView {
                             isSelected: selectedLessonDetail?.id == lesson.id,
                             showsReorderHandle: true,
                             onSelect: {
+                                guard displayMode != .plan else { return }
                                 selectedLessonDetail = lesson
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                     withAnimation {
@@ -248,13 +224,11 @@ extension LessonsRootView {
                                 lessonToSchedule = lesson
                             }
                         )
-                        .tag(lesson.id)
                     }
-                    #if os(iOS)
                     .onMove { source, destination in
                         moveLessonsInGroup(from: source, to: destination, group: group, ungroupedLabel: ungroupedLabel)
                     }
-                    #endif
+                    .moveDisabled(!canReorderInPlanMode)
                 } else {
                     ForEach(groupLessons, id: \.id) { lesson in
                         ExpandedLessonRowView(
@@ -262,6 +236,7 @@ extension LessonsRootView {
                             isSelected: selectedLessonDetail?.id == lesson.id,
                             showsReorderHandle: false,
                             onSelect: {
+                                guard displayMode != .plan else { return }
                                 selectedLessonDetail = lesson
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                     withAnimation {
@@ -273,7 +248,6 @@ extension LessonsRootView {
                                 lessonToSchedule = lesson
                             }
                         )
-                        .tag(lesson.id)
                     }
                 }
             } header: {
