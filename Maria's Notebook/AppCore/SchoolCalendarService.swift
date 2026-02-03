@@ -107,7 +107,8 @@ public final class SchoolCalendarService {
 
         if isWeekend {
             // Weekend logic
-            let overrideDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            var overrideDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            overrideDescriptor.fetchLimit = 1
             let overrides: [SchoolDayOverride] = try context.fetch(overrideDescriptor)
             
             let becameNonSchool: Bool
@@ -126,7 +127,8 @@ public final class SchoolCalendarService {
             return becameNonSchool
         } else {
             // Weekday logic
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            nsDescriptor.fetchLimit = 1
             let items: [NonSchoolDay] = try context.fetch(nsDescriptor)
             
             let isNowNonSchool: Bool

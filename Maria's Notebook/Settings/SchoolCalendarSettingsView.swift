@@ -163,7 +163,8 @@ struct SchoolCalendarSettingsView: View {
         let cal = calendar
         var d = cal.startOfDay(for: monthInterval.start)
         while d < monthInterval.end {
-            let descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == d })
+            var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == d })
+            descriptor.fetchLimit = 1
             if let arr = try? modelContext.fetch(descriptor), let existing = arr.first {
                 modelContext.delete(existing)
             }
@@ -183,7 +184,8 @@ struct SchoolCalendarSettingsView: View {
             let weekday = cal.component(.weekday, from: d)
             if weekday != 1 && weekday != 7 { // 1=Sun, 7=Sat
                 // ensure weekdays are not marked as non-school
-                let descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == d })
+                var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == d })
+                descriptor.fetchLimit = 1
                 let items = (try? modelContext.fetch(descriptor)) ?? []
                 if let existing = items.first {
                     modelContext.delete(existing)

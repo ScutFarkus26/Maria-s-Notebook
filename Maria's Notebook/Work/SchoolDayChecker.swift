@@ -112,9 +112,10 @@ enum SchoolDayChecker {
 
     private nonisolated static func hasNonSchoolDayRecord(for day: Date, using context: ModelContext) -> Bool {
         do {
-            let descriptor = FetchDescriptor<NonSchoolDay>(
+            var descriptor = FetchDescriptor<NonSchoolDay>(
                 predicate: #Predicate { $0.date == day }
             )
+            descriptor.fetchLimit = 1
             let records: [NonSchoolDay] = try context.fetch(descriptor)
             return !records.isEmpty
         } catch {
@@ -125,9 +126,10 @@ enum SchoolDayChecker {
 
     private nonisolated static func hasSchoolDayOverride(for day: Date, using context: ModelContext) -> Bool {
         do {
-            let descriptor = FetchDescriptor<SchoolDayOverride>(
+            var descriptor = FetchDescriptor<SchoolDayOverride>(
                 predicate: #Predicate { $0.date == day }
             )
+            descriptor.fetchLimit = 1
             let overrides: [SchoolDayOverride] = try context.fetch(descriptor)
             return !overrides.isEmpty
         } catch {

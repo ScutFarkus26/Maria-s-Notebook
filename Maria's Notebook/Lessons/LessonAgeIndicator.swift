@@ -92,7 +92,8 @@ struct LessonAgeHelper {
 
         // 1) Explicit non-school day wins
         do {
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            nsDescriptor.fetchLimit = 1
             let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
@@ -106,7 +107,8 @@ struct LessonAgeHelper {
 
         // 3) Weekend override makes it a school day
         do {
-            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            var ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            ovDescriptor.fetchLimit = 1
             let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
