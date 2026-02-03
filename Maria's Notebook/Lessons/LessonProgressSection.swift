@@ -302,7 +302,8 @@ struct LessonProgressSection: View {
                 practiceWork.lessonID = lessonID.uuidString
             } else {
                 // Try to get lessonID from studentLessonID
-                let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+                var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+                descriptor.fetchLimit = 1
                 if let studentLesson = (try? modelContext.fetch(descriptor))?.first {
                     practiceWork.lessonID = studentLesson.lessonID
                 }
@@ -311,7 +312,8 @@ struct LessonProgressSection: View {
                 practiceWork.studentID = firstStudentID.uuidString
             } else {
                 // Try to get studentID from studentLessonID
-                let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+                var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+                descriptor.fetchLimit = 1
                 if let studentLesson = (try? modelContext.fetch(descriptor))?.first,
                    let firstStudentID = studentLesson.resolvedStudentIDs.first {
                     practiceWork.studentID = firstStudentID.uuidString
@@ -472,4 +474,3 @@ private struct ActionPill: View {
         .symbolEffect(.bounce, value: bounce)
     }
 }
-

@@ -25,7 +25,8 @@ struct ProjectRepository: SavingRepository {
 
     /// Fetch a Project by ID
     func fetchProject(id: UUID) -> Project? {
-        let descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
@@ -110,7 +111,8 @@ struct ProjectRepository: SavingRepository {
 
     /// Fetch a ProjectSession by ID
     func fetchSession(id: UUID) -> ProjectSession? {
-        let descriptor = FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
@@ -188,7 +190,8 @@ struct ProjectRepository: SavingRepository {
 
     /// Fetch a ProjectAssignmentTemplate by ID
     func fetchTemplate(id: UUID) -> ProjectAssignmentTemplate? {
-        let descriptor = FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 

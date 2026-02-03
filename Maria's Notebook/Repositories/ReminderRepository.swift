@@ -25,7 +25,8 @@ struct ReminderRepository: SavingRepository {
 
     /// Fetch a Reminder by ID
     func fetchReminder(id: UUID) -> Reminder? {
-        let descriptor = FetchDescriptor<Reminder>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Reminder>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 

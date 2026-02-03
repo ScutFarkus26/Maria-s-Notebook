@@ -25,7 +25,8 @@ struct MeetingTemplateRepository: SavingRepository {
 
     /// Fetch a MeetingTemplate by ID
     func fetchTemplate(id: UUID) -> MeetingTemplate? {
-        let descriptor = FetchDescriptor<MeetingTemplate>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<MeetingTemplate>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 

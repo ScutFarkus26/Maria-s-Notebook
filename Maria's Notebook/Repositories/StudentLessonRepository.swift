@@ -26,7 +26,8 @@ struct StudentLessonRepository: SavingRepository {
 
     /// Fetch a StudentLesson by ID
     func fetchStudentLesson(id: UUID) -> StudentLesson? {
-        let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 

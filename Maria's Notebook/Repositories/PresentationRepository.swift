@@ -24,25 +24,28 @@ struct PresentationRepository: SavingRepository {
 
     /// Fetch a Presentation by ID
     func fetch(id: UUID) -> Presentation? {
-        let descriptor = FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Presentation>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     /// Fetch a Presentation by its migrated StudentLesson ID
     func fetchByStudentLessonID(_ studentLessonID: UUID) -> Presentation? {
         let idString = studentLessonID.uuidString
-        let descriptor = FetchDescriptor<Presentation>(
+        var descriptor = FetchDescriptor<Presentation>(
             predicate: #Predicate { $0.migratedFromStudentLessonID == idString }
         )
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
     /// Fetch a Presentation by its migrated old Presentation ID
     func fetchByOldPresentationID(_ presentationID: UUID) -> Presentation? {
         let idString = presentationID.uuidString
-        let descriptor = FetchDescriptor<Presentation>(
+        var descriptor = FetchDescriptor<Presentation>(
             predicate: #Predicate { $0.migratedFromPresentationID == idString }
         )
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 

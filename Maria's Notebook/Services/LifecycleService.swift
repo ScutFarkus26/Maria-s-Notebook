@@ -210,7 +210,8 @@ struct LifecycleService {
 
     /// Fetches a LessonAssignment by the StudentLesson ID it was migrated from
     private static func fetchLessonAssignment(byMigratedStudentLessonID legacyID: String, context: ModelContext) throws -> LessonAssignment? {
-        let descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.migratedFromStudentLessonID == legacyID })
+        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.migratedFromStudentLessonID == legacyID })
+        descriptor.fetchLimit = 1
         return try context.fetch(descriptor).first
     }
 
@@ -221,7 +222,9 @@ struct LifecycleService {
                 work.presentationID == presentationID && work.studentID == studentID
             }
         )
-        return try context.fetch(descriptor).first
+        var limitedDescriptor = descriptor
+        limitedDescriptor.fetchLimit = 1
+        return try context.fetch(limitedDescriptor).first
     }
 
     private static func fetchAllWorkModels(presentationID: String, context: ModelContext) throws -> [WorkModel] {
@@ -251,7 +254,9 @@ struct LifecycleService {
                 lp.presentationID == presentationID && lp.studentID == studentID
             }
         )
-        let existing = try context.fetch(descriptor).first
+        var limitedDescriptor = descriptor
+        limitedDescriptor.fetchLimit = 1
+        let existing = try context.fetch(limitedDescriptor).first
         
         if let existing = existing {
             // Update lastObservedAt to track when this presentation was last seen
@@ -284,7 +289,9 @@ struct LifecycleService {
                 lp.lessonID == lessonID && lp.studentID == studentID
             }
         )
-        let existing = try context.fetch(descriptor).first
+        var limitedDescriptor = descriptor
+        limitedDescriptor.fetchLimit = 1
+        let existing = try context.fetch(limitedDescriptor).first
         
         if let existing = existing {
             // Update lastObservedAt and presentedAt if the new date is earlier (preserve first presentation date)
@@ -555,4 +562,3 @@ struct LifecycleService {
         return (presentationsUpdated, mastered)
     }
 }
-

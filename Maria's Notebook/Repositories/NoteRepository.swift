@@ -25,7 +25,8 @@ struct NoteRepository: SavingRepository {
 
     /// Fetch a Note by ID
     func fetchNote(id: UUID) -> Note? {
-        let descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 

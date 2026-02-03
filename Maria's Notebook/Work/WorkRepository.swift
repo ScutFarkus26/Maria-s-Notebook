@@ -9,9 +9,11 @@ struct WorkRepository {
 
     /// Links a work item to its associated track and step if the lesson belongs to a track
     private func linkWorkToTrack(_ work: WorkModel, lessonID: UUID) {
-        guard let lesson = try? context.fetch(FetchDescriptor<Lesson>(
+        var descriptor = FetchDescriptor<Lesson>(
             predicate: #Predicate { $0.id == lessonID }
-        )).first else { return }
+        )
+        descriptor.fetchLimit = 1
+        guard let lesson = try? context.fetch(descriptor).first else { return }
 
         let subject = lesson.subject.trimmed()
         let group = lesson.group.trimmed()
@@ -54,7 +56,8 @@ struct WorkRepository {
 
     /// Fetch WorkModel by ID
     func fetchWorkModel(id: UUID) -> WorkModel? {
-        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
@@ -170,4 +173,3 @@ struct WorkRepository {
         try context.save()
     }
 }
-

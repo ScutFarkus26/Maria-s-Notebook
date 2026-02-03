@@ -374,7 +374,9 @@ final class StudentDetailViewModel: ObservableObject {
                 (work.statusRaw == activeRaw || work.statusRaw == reviewRaw)
             }
         )
-        let existingWork = (try? modelContext.fetch(descriptor))?.first
+        var limitedDescriptor = descriptor
+        limitedDescriptor.fetchLimit = 1
+        let existingWork = (try? modelContext.fetch(limitedDescriptor))?.first
 
         if let existing = existingWork {
             return existing
@@ -398,7 +400,8 @@ final class StudentDetailViewModel: ObservableObject {
 
     /// Fetch a WorkModel by ID
     func fetchWork(by id: UUID, modelContext: ModelContext) -> WorkModel? {
-        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> { $0.id == id })
+        var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? modelContext.fetch(descriptor))?.first
     }
 }

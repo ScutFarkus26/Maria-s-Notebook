@@ -25,7 +25,8 @@ struct DocumentRepository: SavingRepository {
 
     /// Fetch a Document by ID
     func fetchDocument(id: UUID) -> Document? {
-        let descriptor = FetchDescriptor<Document>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<Document>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 

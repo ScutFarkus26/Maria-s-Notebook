@@ -27,7 +27,8 @@ struct AttendanceRepository: SavingRepository {
 
     /// Fetch an AttendanceRecord by ID
     func fetchRecord(id: UUID) -> AttendanceRecord? {
-        let descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id })
+        var descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
 
