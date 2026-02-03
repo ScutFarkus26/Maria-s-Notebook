@@ -204,7 +204,6 @@ enum DataMigrations {
     /// Migrate StudentLesson and Presentation records to the new unified LessonAssignment model.
     /// This is part of the model consolidation effort to simplify the data model.
     /// Safe to run multiple times (idempotent).
-    @MainActor
     static func migrateLessonAssignmentsIfNeeded(using context: ModelContext) async {
         let service = LessonAssignmentMigrationService(context: context)
         _ = try? await service.migrateIfNeeded()

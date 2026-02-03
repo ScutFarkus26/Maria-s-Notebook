@@ -2,11 +2,14 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Combine
+import OSLog
 
 /// Handles the initial setup and database migrations for the app.
 /// Moves heavy synchronous work off the main UI rendering flow of the App struct.
 @MainActor
 final class AppBootstrapper: ObservableObject {
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "Bootstrapper")
+
     enum State {
         case idle
         case migrating
@@ -32,10 +35,7 @@ final class AppBootstrapper: ObservableObject {
         // 2. Critical Data Repairs
         // (Completed and removed)
         
-        // 3. Schema & Data Normalization (WorkModel logic disabled)
-        await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: context)
-        
-        // 3.5. Fix type mismatches in stored array properties
+        // 3. Schema & Data Normalization (quick, safe checks)
         DataMigrations.fixCommunityTopicTagsIfNeeded(using: context)
         DataMigrations.fixStudentLessonStudentIDsIfNeeded(using: context)
         
@@ -45,30 +45,6 @@ final class AppBootstrapper: ObservableObject {
         
         // 3.6.5. GroupTrack default behavior migration: All groups are tracks by default (sequential)
         DataMigrations.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
-
-        // 3.7. Legacy Backfill Migrations (one-time migrations)
-        // OPTIMIZATION: These are now async and yield periodically to avoid blocking UI
-        await DataMigrations.backfillRelationshipsIfNeeded(using: context)
-        await DataMigrations.backfillIsPresentedIfNeeded(using: context)
-        await DataMigrations.backfillScheduledForDayIfNeeded(using: context)
-        
-        // 3.7.5. Repair incorrectly scoped notes
-        await DataMigrations.repairScopeForContextualNotes(using: context)
-        
-        // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
-        // Run every launch since duplicates cause SwiftUI ForEach errors and data inconsistencies
-        DataMigrations.deduplicateAllModels(using: context)
-
-        // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
-        if Int.random(in: 1...10) == 1 {
-            await DataMigrations.repairDenormalizedScheduledForDay(using: context)
-            await DataMigrations.cleanOrphanedStudentIDs(using: context)
-        }
-
-        // 3.10. LessonAssignment Migration (StudentLesson + Presentation consolidation)
-        // This migration creates LessonAssignment records from existing StudentLesson and Presentation data.
-        // The original records are preserved; this is a non-destructive migration.
-        await DataMigrations.migrateLessonAssignmentsIfNeeded(using: context)
 
         // 4. Initialize Reminder Sync Service
         ReminderSyncService.shared.modelContext = context
@@ -84,10 +60,62 @@ final class AppBootstrapper: ObservableObject {
             }
         }
         
-        // 5. Signal UI
+        // 5. Signal UI (allow first render; heavy migrations continue in background)
         AppRouter.shared.refreshPlanningInbox()
         
         // print("AppBootstrapper: Startup checks complete.")
         state = .ready
+
+        // 6. Run heavy migrations and dedup in the background to avoid UI stalls
+        Task.detached(priority: .utility) { [modelContainer] in
+            await AppBootstrapper.runPostLaunchMigrations(modelContainer: modelContainer)
+        }
+    }
+
+    private static func runPostLaunchMigrations(modelContainer: ModelContainer) async {
+        let backgroundContext = ModelContext(modelContainer)
+        let start = Date()
+        logger.info("Post-launch migrations started")
+
+        // 3.1. Schema & Data Normalization (potentially heavy)
+        let normalizeStart = Date()
+        await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: backgroundContext)
+        logger.info("Post-launch migrations: normalizeGivenAt completed in \(formatSeconds(Date().timeIntervalSince(normalizeStart)))s")
+
+        // 3.7. Legacy Backfill Migrations (one-time migrations)
+        let backfillStart = Date()
+        await DataMigrations.backfillRelationshipsIfNeeded(using: backgroundContext)
+        await DataMigrations.backfillIsPresentedIfNeeded(using: backgroundContext)
+        await DataMigrations.backfillScheduledForDayIfNeeded(using: backgroundContext)
+        logger.info("Post-launch migrations: backfills completed in \(formatSeconds(Date().timeIntervalSince(backfillStart)))s")
+
+        // 3.7.5. Repair incorrectly scoped notes
+        let scopeRepairStart = Date()
+        await DataMigrations.repairScopeForContextualNotes(using: backgroundContext)
+        logger.info("Post-launch migrations: note scope repair completed in \(formatSeconds(Date().timeIntervalSince(scopeRepairStart)))s")
+
+        // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
+        let dedupStart = Date()
+        DataMigrations.deduplicateAllModels(using: backgroundContext)
+        logger.info("Post-launch migrations: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))s")
+
+        // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
+        if Int.random(in: 1...10) == 1 {
+            let integrityStart = Date()
+            await DataMigrations.repairDenormalizedScheduledForDay(using: backgroundContext)
+            await DataMigrations.cleanOrphanedStudentIDs(using: backgroundContext)
+            logger.info("Post-launch migrations: integrity repairs completed in \(formatSeconds(Date().timeIntervalSince(integrityStart)))s")
+        }
+
+        // 3.10. LessonAssignment Migration (StudentLesson + Presentation consolidation)
+        let lessonAssignmentStart = Date()
+        await DataMigrations.migrateLessonAssignmentsIfNeeded(using: backgroundContext)
+        logger.info("Post-launch migrations: lesson assignment migration completed in \(formatSeconds(Date().timeIntervalSince(lessonAssignmentStart)))s")
+
+        logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))s")
+    }
+
+    private static func formatSeconds(_ interval: TimeInterval) -> String {
+        String(format: "%.3f", interval)
     }
 }

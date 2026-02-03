@@ -454,13 +454,25 @@ enum DataCleanupService {
     @discardableResult
     private static func deduplicate<T: PersistentModel & Identifiable>(
         _ type: T.Type,
-        using context: ModelContext
+        using context: ModelContext,
+        merge: ((T, T) -> Void)? = nil
     ) -> Int where T.ID == UUID {
         let fetch = FetchDescriptor<T>()
         // Fetch raw without deduplication to find actual duplicates in the database
         let all = (try? context.fetch(fetch)) ?? []
 
-        // Group by ID
+        // Fast duplicate detection pass (avoids extra work if no duplicates exist)
+        var seen = Set<UUID>()
+        var hasDuplicates = false
+        for item in all {
+            if !seen.insert(item.id).inserted {
+                hasDuplicates = true
+                break
+            }
+        }
+        guard hasDuplicates else { return 0 }
+
+        // Group by ID (only when duplicates exist)
         var byID: [UUID: [T]] = [:]
         for item in all {
             byID[item.id, default: []].append(item)
@@ -470,7 +482,9 @@ enum DataCleanupService {
 
         // For each group with duplicates, keep the first and delete the rest
         for (_, items) in byID where items.count > 1 {
+            guard let canonical = items.first else { continue }
             for duplicate in items.dropFirst() {
+                merge?(canonical, duplicate)
                 context.delete(duplicate)
                 deletedCount += 1
             }
@@ -481,6 +495,238 @@ enum DataCleanupService {
         }
 
         return deletedCount
+    }
+
+    // MARK: - Strong Deduplication (Data-Preserving Merges)
+
+    @discardableResult
+    static func deduplicateStudentsStrong(using context: ModelContext) -> Int {
+        deduplicate(Student.self, using: context) { canonical, duplicate in
+            mergeStudent(canonical: canonical, duplicate: duplicate)
+        }
+    }
+
+    @discardableResult
+    static func deduplicateLessonsStrong(using context: ModelContext) -> Int {
+        deduplicate(Lesson.self, using: context) { canonical, duplicate in
+            mergeLesson(canonical: canonical, duplicate: duplicate)
+        }
+    }
+
+    @discardableResult
+    static func deduplicateLessonPresentationsStrong(using context: ModelContext) -> Int {
+        deduplicate(LessonPresentation.self, using: context) { canonical, duplicate in
+            mergeLessonPresentation(canonical: canonical, duplicate: duplicate)
+        }
+    }
+
+    @discardableResult
+    static func deduplicateWorkModelsStrong(using context: ModelContext) -> Int {
+        deduplicate(WorkModel.self, using: context) { canonical, duplicate in
+            mergeWorkModel(canonical: canonical, duplicate: duplicate)
+        }
+    }
+
+    @discardableResult
+    static func deduplicateNotesStrong(using context: ModelContext) -> Int {
+        deduplicate(Note.self, using: context) { canonical, duplicate in
+            mergeNote(canonical: canonical, duplicate: duplicate)
+        }
+    }
+
+    private static func mergeStudent(canonical: Student, duplicate: Student) {
+        if canonical.firstName.isEmpty { canonical.firstName = duplicate.firstName }
+        if canonical.lastName.isEmpty { canonical.lastName = duplicate.lastName }
+        if canonical.nickname == nil { canonical.nickname = duplicate.nickname }
+        if canonical.dateStarted == nil { canonical.dateStarted = duplicate.dateStarted }
+        if canonical.manualOrder == 0 && duplicate.manualOrder != 0 { canonical.manualOrder = duplicate.manualOrder }
+
+        if canonical.nextLessons.isEmpty {
+            canonical.nextLessons = duplicate.nextLessons
+        } else if !duplicate.nextLessons.isEmpty {
+            let merged = Set(canonical.nextLessons).union(duplicate.nextLessons)
+            canonical.nextLessons = Array(merged)
+        }
+
+        let duplicateDocs = duplicate.documents ?? []
+        if !duplicateDocs.isEmpty {
+            if canonical.documents == nil { canonical.documents = [] }
+            var existingIDs = Set((canonical.documents ?? []).map { $0.id })
+            for doc in duplicateDocs {
+                doc.student = canonical
+                if existingIDs.insert(doc.id).inserted {
+                    canonical.documents?.append(doc)
+                }
+            }
+        }
+    }
+
+    private static func mergeLesson(canonical: Lesson, duplicate: Lesson) {
+        if canonical.name.isEmpty { canonical.name = duplicate.name }
+        if canonical.subject.isEmpty { canonical.subject = duplicate.subject }
+        if canonical.group.isEmpty { canonical.group = duplicate.group }
+        if canonical.subheading.isEmpty { canonical.subheading = duplicate.subheading }
+        if canonical.writeUp.isEmpty { canonical.writeUp = duplicate.writeUp }
+        if canonical.orderInGroup == 0 && duplicate.orderInGroup != 0 { canonical.orderInGroup = duplicate.orderInGroup }
+        if canonical.sortIndex == 0 && duplicate.sortIndex != 0 { canonical.sortIndex = duplicate.sortIndex }
+        if canonical.pagesFileBookmark == nil { canonical.pagesFileBookmark = duplicate.pagesFileBookmark }
+        if canonical.pagesFileRelativePath == nil { canonical.pagesFileRelativePath = duplicate.pagesFileRelativePath }
+        if canonical.personalKindRaw == nil { canonical.personalKindRaw = duplicate.personalKindRaw }
+        if canonical.defaultWorkKindRaw == nil { canonical.defaultWorkKindRaw = duplicate.defaultWorkKindRaw }
+
+        let duplicateNotes = duplicate.notes ?? []
+        if !duplicateNotes.isEmpty {
+            if canonical.notes == nil { canonical.notes = [] }
+            var existingIDs = Set((canonical.notes ?? []).map { $0.id })
+            for note in duplicateNotes {
+                note.lesson = canonical
+                if existingIDs.insert(note.id).inserted {
+                    canonical.notes?.append(note)
+                }
+            }
+        }
+
+        let duplicateStudentLessons = duplicate.studentLessons ?? []
+        if !duplicateStudentLessons.isEmpty {
+            if canonical.studentLessons == nil { canonical.studentLessons = [] }
+            var existingIDs = Set((canonical.studentLessons ?? []).map { $0.id })
+            for studentLesson in duplicateStudentLessons {
+                studentLesson.lesson = canonical
+                if existingIDs.insert(studentLesson.id).inserted {
+                    canonical.studentLessons?.append(studentLesson)
+                }
+            }
+        }
+
+        let duplicateAssignments = duplicate.lessonAssignments ?? []
+        if !duplicateAssignments.isEmpty {
+            if canonical.lessonAssignments == nil { canonical.lessonAssignments = [] }
+            var existingIDs = Set((canonical.lessonAssignments ?? []).map { $0.id })
+            for assignment in duplicateAssignments {
+                assignment.lesson = canonical
+                if existingIDs.insert(assignment.id).inserted {
+                    canonical.lessonAssignments?.append(assignment)
+                }
+            }
+        }
+    }
+
+    private static func mergeLessonPresentation(canonical: LessonPresentation, duplicate: LessonPresentation) {
+        if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
+        if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
+        if canonical.presentationID == nil { canonical.presentationID = duplicate.presentationID }
+        if canonical.trackID == nil { canonical.trackID = duplicate.trackID }
+        if canonical.trackStepID == nil { canonical.trackStepID = duplicate.trackStepID }
+        if canonical.lastObservedAt == nil { canonical.lastObservedAt = duplicate.lastObservedAt }
+        if canonical.masteredAt == nil { canonical.masteredAt = duplicate.masteredAt }
+        if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }
+    }
+
+    private static func mergeWorkModel(canonical: WorkModel, duplicate: WorkModel) {
+        if canonical.title.isEmpty { canonical.title = duplicate.title }
+        if canonical.notes.isEmpty { canonical.notes = duplicate.notes }
+        if canonical.completedAt == nil { canonical.completedAt = duplicate.completedAt }
+        if canonical.lastTouchedAt == nil { canonical.lastTouchedAt = duplicate.lastTouchedAt }
+        if canonical.dueAt == nil { canonical.dueAt = duplicate.dueAt }
+        if canonical.completionOutcomeRaw == nil { canonical.completionOutcomeRaw = duplicate.completionOutcomeRaw }
+        if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
+        if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
+        if canonical.presentationID == nil { canonical.presentationID = duplicate.presentationID }
+        if canonical.trackID == nil { canonical.trackID = duplicate.trackID }
+        if canonical.trackStepID == nil { canonical.trackStepID = duplicate.trackStepID }
+        if canonical.scheduledNote == nil { canonical.scheduledNote = duplicate.scheduledNote }
+        if canonical.scheduledReasonRaw == nil { canonical.scheduledReasonRaw = duplicate.scheduledReasonRaw }
+        if canonical.sourceContextTypeRaw == nil { canonical.sourceContextTypeRaw = duplicate.sourceContextTypeRaw }
+        if canonical.sourceContextID == nil { canonical.sourceContextID = duplicate.sourceContextID }
+        if canonical.legacyStudentLessonID == nil { canonical.legacyStudentLessonID = duplicate.legacyStudentLessonID }
+
+        let duplicateParticipants = duplicate.participants ?? []
+        if !duplicateParticipants.isEmpty {
+            if canonical.participants == nil { canonical.participants = [] }
+            var existingIDs = Set((canonical.participants ?? []).map { $0.id })
+            for participant in duplicateParticipants {
+                participant.work = canonical
+                if existingIDs.insert(participant.id).inserted {
+                    canonical.participants?.append(participant)
+                }
+            }
+        }
+
+        let duplicateCheckIns = duplicate.checkIns ?? []
+        if !duplicateCheckIns.isEmpty {
+            if canonical.checkIns == nil { canonical.checkIns = [] }
+            var existingIDs = Set((canonical.checkIns ?? []).map { $0.id })
+            for checkIn in duplicateCheckIns {
+                checkIn.work = canonical
+                checkIn.workID = canonical.id.uuidString
+                if existingIDs.insert(checkIn.id).inserted {
+                    canonical.checkIns?.append(checkIn)
+                }
+            }
+        }
+
+        let duplicateSteps = duplicate.steps ?? []
+        if !duplicateSteps.isEmpty {
+            if canonical.steps == nil { canonical.steps = [] }
+            var existingIDs = Set((canonical.steps ?? []).map { $0.id })
+            for step in duplicateSteps {
+                step.work = canonical
+                if existingIDs.insert(step.id).inserted {
+                    canonical.steps?.append(step)
+                }
+            }
+        }
+
+        let duplicateNotes = duplicate.unifiedNotes ?? []
+        if !duplicateNotes.isEmpty {
+            if canonical.unifiedNotes == nil { canonical.unifiedNotes = [] }
+            var existingIDs = Set((canonical.unifiedNotes ?? []).map { $0.id })
+            for note in duplicateNotes {
+                note.work = canonical
+                if existingIDs.insert(note.id).inserted {
+                    canonical.unifiedNotes?.append(note)
+                }
+            }
+        }
+    }
+
+    private static func mergeNote(canonical: Note, duplicate: Note) {
+        if canonical.body.isEmpty { canonical.body = duplicate.body }
+        if !canonical.isPinned && duplicate.isPinned { canonical.isPinned = true }
+        if !canonical.includeInReport && duplicate.includeInReport { canonical.includeInReport = true }
+        if canonical.imagePath == nil || canonical.imagePath?.isEmpty == true {
+            canonical.imagePath = duplicate.imagePath
+        }
+        if canonical.reportedBy == nil { canonical.reportedBy = duplicate.reportedBy }
+        if canonical.reporterName == nil { canonical.reporterName = duplicate.reporterName }
+
+        if canonical.lesson == nil { canonical.lesson = duplicate.lesson }
+        if canonical.work == nil { canonical.work = duplicate.work }
+        if canonical.studentLesson == nil { canonical.studentLesson = duplicate.studentLesson }
+        if canonical.lessonAssignment == nil { canonical.lessonAssignment = duplicate.lessonAssignment }
+        if canonical.attendanceRecord == nil { canonical.attendanceRecord = duplicate.attendanceRecord }
+        if canonical.workCheckIn == nil { canonical.workCheckIn = duplicate.workCheckIn }
+        if canonical.workCompletionRecord == nil { canonical.workCompletionRecord = duplicate.workCompletionRecord }
+        if canonical.workPlanItem == nil { canonical.workPlanItem = duplicate.workPlanItem }
+        if canonical.studentMeeting == nil { canonical.studentMeeting = duplicate.studentMeeting }
+        if canonical.projectSession == nil { canonical.projectSession = duplicate.projectSession }
+        if canonical.communityTopic == nil { canonical.communityTopic = duplicate.communityTopic }
+        if canonical.reminder == nil { canonical.reminder = duplicate.reminder }
+        if canonical.schoolDayOverride == nil { canonical.schoolDayOverride = duplicate.schoolDayOverride }
+        if canonical.studentTrackEnrollment == nil { canonical.studentTrackEnrollment = duplicate.studentTrackEnrollment }
+
+        let duplicateLinks = duplicate.studentLinks ?? []
+        if !duplicateLinks.isEmpty {
+            if canonical.studentLinks == nil { canonical.studentLinks = [] }
+            var existingIDs = Set((canonical.studentLinks ?? []).map { $0.id })
+            for link in duplicateLinks {
+                link.note = canonical
+                link.noteID = canonical.id.uuidString
+                if existingIDs.insert(link.id).inserted {
+                    canonical.studentLinks?.append(link)
+                }
+            }
+        }
     }
 
     // MARK: - Deduplicate All Models
@@ -494,14 +740,14 @@ enum DataCleanupService {
         var results: [String: Int] = [:]
 
         // Core models (most likely to have user-visible duplicates)
-        results["Student"] = deduplicate(Student.self, using: context)
-        results["Lesson"] = deduplicate(Lesson.self, using: context)
+        results["Student"] = deduplicateStudentsStrong(using: context)
+        results["Lesson"] = deduplicateLessonsStrong(using: context)
         results["StudentLesson"] = deduplicate(StudentLesson.self, using: context)
         results["LessonAssignment"] = deduplicate(LessonAssignment.self, using: context)
-        results["LessonPresentation"] = deduplicate(LessonPresentation.self, using: context)
+        results["LessonPresentation"] = deduplicateLessonPresentationsStrong(using: context)
 
         // Work-related models
-        results["WorkModel"] = deduplicate(WorkModel.self, using: context)
+        results["WorkModel"] = deduplicateWorkModelsStrong(using: context)
         results["WorkCheckIn"] = deduplicate(WorkCheckIn.self, using: context)
         results["WorkCompletionRecord"] = deduplicate(WorkCompletionRecord.self, using: context)
         results["WorkPlanItem"] = deduplicate(WorkPlanItem.self, using: context)
@@ -523,7 +769,7 @@ enum DataCleanupService {
         results["StudentTrackEnrollment"] = deduplicate(StudentTrackEnrollment.self, using: context)
 
         // Notes and documents
-        results["Note"] = deduplicate(Note.self, using: context)
+        results["Note"] = deduplicateNotesStrong(using: context)
         results["NoteTemplate"] = deduplicate(NoteTemplate.self, using: context)
         results["NoteStudentLink"] = deduplicate(NoteStudentLink.self, using: context)
         results["Document"] = deduplicate(Document.self, using: context)

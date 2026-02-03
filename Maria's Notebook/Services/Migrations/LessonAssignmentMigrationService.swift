@@ -20,7 +20,6 @@ import OSLog
 ///
 /// Note: The Presentation model has been removed. This service now only migrates
 /// StudentLessons to LessonAssignments.
-@MainActor
 final class LessonAssignmentMigrationService {
     private let context: ModelContext
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "LessonAssignmentMigration")

@@ -297,6 +297,217 @@ struct DataCleanupServiceDeduplicationTests {
     }
 }
 
+// MARK: - Deduplication Merge Behavior Tests
+
+@Suite("DataCleanupService Dedup Merge Tests", .serialized)
+@MainActor
+struct DataCleanupServiceDedupMergeTests {
+
+    private func makeContainer() throws -> ModelContainer {
+        return try makeTestContainer(for: [
+            Student.self,
+            Document.self,
+            Lesson.self,
+            StudentLesson.self,
+            LessonPresentation.self,
+            Note.self,
+            NoteStudentLink.self,
+            WorkModel.self,
+            WorkParticipantEntity.self,
+            WorkCheckIn.self,
+            WorkStep.self,
+        ])
+    }
+
+    @Test("deduplicateStudentsStrong merges fields and documents")
+    func deduplicateStudentsStrongMergesFieldsAndDocuments() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+
+        let sharedID = UUID()
+        let studentA = Student(
+            id: sharedID,
+            firstName: "Alice",
+            lastName: "",
+            birthday: TestCalendar.date(year: 2015, month: 6, day: 15)
+        )
+        let studentB = Student(
+            id: sharedID,
+            firstName: "",
+            lastName: "Smith",
+            birthday: TestCalendar.date(year: 2015, month: 6, day: 15)
+        )
+
+        let document = Document(id: UUID(), title: "Report", category: "Test", student: studentB)
+        studentB.documents = [document]
+
+        context.insert(studentA)
+        context.insert(studentB)
+        context.insert(document)
+        try context.save()
+
+        let deletedCount = DataCleanupService.deduplicateStudentsStrong(using: context)
+        #expect(deletedCount == 1)
+
+        let remaining = context.safeFetch(FetchDescriptor<Student>())
+        #expect(remaining.count == 1)
+
+        let student = remaining[0]
+        #expect(!student.firstName.isEmpty)
+        #expect(!student.lastName.isEmpty)
+        #expect(student.documents?.count == 1)
+        #expect(student.documents?.first?.student?.id == student.id)
+    }
+
+    @Test("deduplicateLessonsStrong merges fields and relationships")
+    func deduplicateLessonsStrongMergesFieldsAndRelationships() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+
+        let sharedID = UUID()
+        let lessonA = Lesson(id: sharedID, name: "Intro", subject: "Math", group: "", subheading: "", writeUp: "")
+        let lessonB = Lesson(id: sharedID, name: "", subject: "", group: "Group A", subheading: "Sub", writeUp: "WriteUp")
+
+        let note = Note(body: "Lesson note", scope: .all, lesson: lessonB)
+        let studentLesson = StudentLesson(lesson: lessonB, students: [])
+
+        context.insert(lessonA)
+        context.insert(lessonB)
+        context.insert(note)
+        context.insert(studentLesson)
+        try context.save()
+
+        let deletedCount = DataCleanupService.deduplicateLessonsStrong(using: context)
+        #expect(deletedCount == 1)
+
+        let remaining = context.safeFetch(FetchDescriptor<Lesson>())
+        #expect(remaining.count == 1)
+
+        let lesson = remaining[0]
+        #expect(!lesson.name.isEmpty)
+        #expect(!lesson.group.isEmpty)
+        #expect(!lesson.subheading.isEmpty)
+        #expect(!lesson.writeUp.isEmpty)
+        #expect(lesson.notes?.count == 1)
+        #expect(lesson.notes?.first?.lesson?.id == lesson.id)
+        #expect(lesson.studentLessons?.count == 1)
+        #expect(lesson.studentLessons?.first?.lesson?.id == lesson.id)
+    }
+
+    @Test("deduplicateLessonPresentationsStrong merges fields")
+    func deduplicateLessonPresentationsStrongMergesFields() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+
+        let sharedID = UUID()
+        let lpA = LessonPresentation(
+            id: sharedID,
+            studentID: "student",
+            lessonID: "lesson",
+            notes: "Notes"
+        )
+        let lpB = LessonPresentation(
+            id: sharedID,
+            studentID: "",
+            lessonID: "",
+            presentationID: "presentation"
+        )
+
+        context.insert(lpA)
+        context.insert(lpB)
+        try context.save()
+
+        let deletedCount = DataCleanupService.deduplicateLessonPresentationsStrong(using: context)
+        #expect(deletedCount == 1)
+
+        let remaining = context.safeFetch(FetchDescriptor<LessonPresentation>())
+        #expect(remaining.count == 1)
+
+        let lp = remaining[0]
+        #expect(!lp.studentID.isEmpty)
+        #expect(!lp.lessonID.isEmpty)
+        #expect(lp.presentationID == "presentation")
+        #expect(lp.notes == "Notes")
+    }
+
+    @Test("deduplicateWorkModelsStrong merges fields and relationships")
+    func deduplicateWorkModelsStrongMergesFieldsAndRelationships() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+
+        let sharedID = UUID()
+        let workA = WorkModel(id: sharedID, title: "Work A", notes: "")
+        let workB = WorkModel(id: sharedID, title: "", notes: "Details")
+
+        let participant = WorkParticipantEntity(studentID: UUID(), work: workB)
+        let checkIn = WorkCheckIn(workID: workB.id, date: Date(), status: .scheduled, work: workB)
+        let step = WorkStep(work: workB, orderIndex: 0, title: "Step", instructions: "Do the thing")
+        let note = Note(body: "Work note", scope: .all, work: workB)
+
+        workB.participants = [participant]
+        workB.checkIns = [checkIn]
+        workB.steps = [step]
+        workB.unifiedNotes = [note]
+
+        context.insert(workA)
+        context.insert(workB)
+        context.insert(participant)
+        context.insert(checkIn)
+        context.insert(step)
+        context.insert(note)
+        try context.save()
+
+        let deletedCount = DataCleanupService.deduplicateWorkModelsStrong(using: context)
+        #expect(deletedCount == 1)
+
+        let remaining = context.safeFetch(FetchDescriptor<WorkModel>())
+        #expect(remaining.count == 1)
+
+        let work = remaining[0]
+        #expect(!work.title.isEmpty)
+        #expect(work.participants?.count == 1)
+        #expect(work.participants?.first?.work?.id == work.id)
+        #expect(work.checkIns?.count == 1)
+        #expect(work.checkIns?.first?.workID == work.id.uuidString)
+        #expect(work.steps?.count == 1)
+        #expect(work.steps?.first?.work?.id == work.id)
+        #expect(work.unifiedNotes?.count == 1)
+        #expect(work.unifiedNotes?.first?.work?.id == work.id)
+    }
+
+    @Test("deduplicateNotesStrong merges fields and student links")
+    func deduplicateNotesStrongMergesFieldsAndStudentLinks() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+
+        let student = makeTestStudent(firstName: "Alice", lastName: "Smith")
+        context.insert(student)
+
+        let sharedID = UUID()
+        let noteA = Note(id: sharedID, body: "Body", scope: .all)
+        let noteB = Note(id: sharedID, body: "", scope: .students([student.id]), reportedBy: "assistant")
+
+        context.insert(noteA)
+        context.insert(noteB)
+        noteB.syncStudentLinks(in: context)
+        try context.save()
+
+        let deletedCount = DataCleanupService.deduplicateNotesStrong(using: context)
+        #expect(deletedCount == 1)
+
+        let remaining = context.safeFetch(FetchDescriptor<Note>())
+        #expect(remaining.count == 1)
+
+        let note = remaining[0]
+        #expect(note.body == "Body")
+        #expect(note.reportedBy == "assistant")
+
+        let links = context.safeFetch(FetchDescriptor<NoteStudentLink>())
+        #expect(links.count == 1)
+        #expect(links.first?.note?.id == note.id)
+        #expect(links.first?.noteID == note.id.uuidString)
+    }
+}
 // MARK: - Unpresented StudentLesson Deduplication Tests
 
 @Suite("DataCleanupService Unpresented StudentLesson Tests", .serialized)

@@ -479,6 +479,11 @@ struct MariasNotebookApp: App {
     }
 
     init() {
+        // Disable CloudKit during tests to avoid entitlement-related crashes.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.enableCloudKitSync)
+        }
+
         // Start monitoring main thread for stutters (blocking > 100ms)
         // This runs in all build configurations (Debug and Release)
         PerformanceLogger.startStutterDetection()
@@ -822,4 +827,3 @@ struct MariasNotebookApp: App {
         #endif
     }
 }
-
