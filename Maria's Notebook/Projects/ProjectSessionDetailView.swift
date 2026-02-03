@@ -362,12 +362,15 @@ struct ProjectSessionDetailView: View {
                 .disabled(true)
                 
                 // Due Date - Display only
-                DatePicker("Due", selection: Binding(
-                    get: { work.dueAt ?? Date() },
-                    set: { _ in }
-                ), displayedComponents: .date)
-                .labelsHidden()
-                .disabled(true)
+                if let dueAt = work.dueAt {
+                    DatePicker("Due", selection: .constant(dueAt), displayedComponents: .date)
+                        .labelsHidden()
+                        .disabled(true)
+                } else {
+                    Text("No due date")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             // Linked Lesson display

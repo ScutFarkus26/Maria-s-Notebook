@@ -47,7 +47,7 @@ public struct OptionalDatePicker: View {
                 DatePicker(
                     dateLabel,
                     selection: Binding(
-                        get: { date ?? Date() },
+                        get: { date ?? DateCalculations.startOfDay(Date(), calendar: calendar) },
                         set: { date = $0 }
                     ),
                     displayedComponents: displayedComponents

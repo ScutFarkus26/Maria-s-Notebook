@@ -325,10 +325,19 @@ struct QuickNewWorkItemSheet: View {
 
             // Due date toggle and picker
             Toggle("Set due date", isOn: $hasDueDate)
+                .onChange(of: hasDueDate) { _, newValue in
+                    if newValue {
+                        if dueDate == nil {
+                            dueDate = AppCalendar.startOfDay(Date())
+                        }
+                    } else {
+                        dueDate = nil
+                    }
+                }
 
             if hasDueDate {
                 DatePicker("Due date", selection: Binding(
-                    get: { dueDate ?? Date() },
+                    get: { dueDate ?? AppCalendar.startOfDay(Date()) },
                     set: { dueDate = $0 }
                 ), displayedComponents: .date)
             }
