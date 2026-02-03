@@ -168,14 +168,33 @@ struct OpenWorkGrid: View {
     }
 
     private func needsAttention(for w: WorkModel) -> Bool {
-        // Conservative heuristic: overdue if dueAt in past, or stale if createdAt older than 10 days and no schedule.
+        // Needs attention if overdue by due date, or last note is 10+ days old.
         if let due = w.dueAt {
             let today = AppCalendar.startOfDay(Date())
             if AppCalendar.startOfDay(due) < today { return true }
         }
-        let age = ageDays(for: w)
-        if age >= 10 { return true }
-        return false
+        if let lastNoteDate = latestNoteDate(for: w) {
+            return daysSince(lastNoteDate) >= 10
+        }
+        let schoolDaysSinceCreated = LessonAgeHelper.schoolDaysSinceCreation(
+            createdAt: w.createdAt,
+            asOf: Date(),
+            using: modelContext,
+            calendar: calendar
+        )
+        return schoolDaysSinceCreated >= 10
+    }
+
+    private func latestNoteDate(for w: WorkModel) -> Date? {
+        let notes = w.unifiedNotes ?? []
+        return notes.map { max($0.updatedAt, $0.createdAt) }.max()
+    }
+
+    private func daysSince(_ date: Date) -> Int {
+        let start = AppCalendar.startOfDay(date)
+        let now = AppCalendar.startOfDay(Date())
+        let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
+        return comps.day ?? 0
     }
 }
 
