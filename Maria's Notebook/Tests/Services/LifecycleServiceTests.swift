@@ -1,0 +1,685 @@
+//
+//  LifecycleServiceTests.swift
+//  Maria's Notebook
+//
+//  Phase 5 Week 1: Service Layer Tests
+//  Target: 25 tests for LifecycleService
+//
+
+#if canImport(Testing)
+import Testing
+import Foundation
+import SwiftData
+@testable import Maria_s_Notebook
+
+@Suite("LifecycleService Tests")
+struct LifecycleServiceTests {
+    
+    // MARK: - Test Helpers
+    
+    /// Creates a test student with a unique name
+    private func createTestStudent(name: String = "Test Student", context: ModelContext) throws -> Student {
+        let student = Student(name: name)
+        context.insert(student)
+        try context.save()
+        return student
+    }
+    
+    /// Creates a test lesson with a unique name
+    private func createTestLesson(
+        name: String = "Test Lesson",
+        subject: String = "Math",
+        group: String = "Algebra",
+        context: ModelContext
+    ) throws -> Lesson {
+        let lesson = Lesson(
+            name: name,
+            lessonType: "Standard",
+            subject: subject,
+            subheading: "Test Subheading",
+            description: "Test Description",
+            body: "Test Body",
+            materials: "Test Materials",
+            group: group
+        )
+        context.insert(lesson)
+        try context.save()
+        return lesson
+    }
+    
+    /// Creates a test StudentLesson linking students to a lesson
+    private func createTestStudentLesson(
+        lesson: Lesson,
+        students: [Student],
+        isPresented: Bool = false,
+        givenAt: Date? = nil,
+        context: ModelContext
+    ) throws -> StudentLesson {
+        let studentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: students.map { $0.id },
+            createdAt: Date(),
+            scheduledFor: nil,
+            givenAt: givenAt,
+            isPresented: isPresented
+        )
+        studentLesson.lesson = lesson
+        studentLesson.students = students
+        context.insert(studentLesson)
+        try context.save()
+        return studentLesson
+    }
+    
+    // MARK: - Core Functionality Tests
+    
+    @Test("Record presentation creates LessonAssignment")
+    func recordPresentationCreatesLessonAssignment() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: A student and lesson
+        let student = try createTestStudent(name: "Alice", context: context)
+        let lesson = try createTestLesson(name: "Algebra Basics", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        // When: Recording a presentation
+        let presentedAt = Date()
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: presentedAt,
+            modelContext: context
+        )
+        
+        // Then: LessonAssignment created
+        #expect(result.lessonAssignment.id != UUID())
+        #expect(result.lessonAssignment.state == .presented)
+        #expect(result.lessonAssignment.presentedAt == presentedAt)
+        #expect(result.lessonAssignment.lessonID == lesson.id.uuidString)
+        #expect(result.lessonAssignment.studentIDs.contains(student.id.uuidString))
+    }
+    
+    @Test("Record presentation creates WorkModel items")
+    func recordPresentationCreatesWorkItems() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: Multiple students and a lesson
+        let student1 = try createTestStudent(name: "Bob", context: context)
+        let student2 = try createTestStudent(name: "Carol", context: context)
+        let lesson = try createTestLesson(name: "Geometry", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student1, student2],
+            context: context
+        )
+        
+        // When: Recording a presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Work items created for each student
+        #expect(result.work.count == 2)
+        #expect(result.work.allSatisfy { $0.status == .active })
+        
+        let workStudentIDs = Set(result.work.map { $0.studentID })
+        #expect(workStudentIDs.contains(student1.id.uuidString))
+        #expect(workStudentIDs.contains(student2.id.uuidString))
+    }
+    
+    @Test("Record presentation is idempotent")
+    func recordPresentationIsIdempotent() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: A presentation already recorded
+        let student = try createTestStudent(name: "Dave", context: context)
+        let lesson = try createTestLesson(name: "Calculus", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        let presentedAt = Date()
+        let firstResult = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: presentedAt,
+            modelContext: context
+        )
+        
+        // When: Recording the same presentation again
+        let secondResult = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: presentedAt,
+            modelContext: context
+        )
+        
+        // Then: Returns existing LessonAssignment, no duplicates created
+        #expect(firstResult.lessonAssignment.id == secondResult.lessonAssignment.id)
+        #expect(firstResult.work.count == secondResult.work.count)
+        
+        // Verify no duplicate work items in database
+        let allWork = try context.fetch(FetchDescriptor<WorkModel>())
+        let workForPresentation = allWork.filter {
+            $0.presentationID == firstResult.lessonAssignment.id.uuidString
+        }
+        #expect(workForPresentation.count == 1)
+    }
+    
+    @Test("Record presentation links to migratedFromStudentLessonID")
+    func recordPresentationLinksMigrationID() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: A StudentLesson with a specific ID
+        let student = try createTestStudent(name: "Eve", context: context)
+        let lesson = try createTestLesson(name: "Physics", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        // When: Recording a presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: LessonAssignment has migration link
+        #expect(result.lessonAssignment.migratedFromStudentLessonID == studentLesson.id.uuidString)
+    }
+    
+    @Test("Record presentation snapshots lesson title and subheading")
+    func recordPresentationSnapshotsLessonData() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: A lesson with title and subheading
+        let student = try createTestStudent(name: "Frank", context: context)
+        let lesson = try createTestLesson(
+            name: "Ancient Rome",
+            subject: "History",
+            group: "Ancient History",
+            context: context
+        )
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        // When: Recording a presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Title and subheading are frozen
+        #expect(result.lessonAssignment.lessonTitleSnapshot == "Ancient Rome")
+        #expect(result.lessonAssignment.lessonSubheadingSnapshot == "Test Subheading")
+    }
+    
+    // MARK: - WorkModel Creation Tests
+    
+    @Test("Work items have correct presentationID link")
+    func workItemsHavePresentationIDLink() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: A presentation
+        let student = try createTestStudent(name: "Grace", context: context)
+        let lesson = try createTestLesson(name: "Chemistry", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        // When: Recording a presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Work items linked to presentation
+        let presentationID = result.lessonAssignment.id.uuidString
+        #expect(result.work.allSatisfy { $0.presentationID == presentationID })
+    }
+    
+    @Test("Work items have correct student and lesson IDs")
+    func workItemsHaveCorrectForeignKeys() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: Students and lesson
+        let student1 = try createTestStudent(name: "Henry", context: context)
+        let student2 = try createTestStudent(name: "Irene", context: context)
+        let lesson = try createTestLesson(name: "Biology", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student1, student2],
+            context: context
+        )
+        
+        // When: Recording a presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Each work item has correct IDs
+        for work in result.work {
+            #expect(work.lessonID == lesson.id.uuidString)
+            #expect([student1.id.uuidString, student2.id.uuidString].contains(work.studentID))
+        }
+    }
+    
+    @Test("Work items created with practice lesson kind")
+    func workItemsHavePracticeLessonKind() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: A presentation
+        let student = try createTestStudent(name: "Jack", context: context)
+        let lesson = try createTestLesson(name: "English", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        // When: Recording a presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Work items have practice lesson kind
+        #expect(result.work.allSatisfy { $0.kind == .practiceLesson })
+    }
+    
+    // MARK: - Orphaned ID Cleanup Tests
+    
+    @Test("cleanOrphanedStudentIDs removes invalid student IDs")
+    func cleanOrphanedStudentIDsRemovesInvalidIDs() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: StudentLesson with valid and invalid student IDs
+        let validStudent = try createTestStudent(name: "Karen", context: context)
+        let lesson = try createTestLesson(name: "Art", context: context)
+        let invalidStudentID = UUID()
+        
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [validStudent],
+            context: context
+        )
+        // Manually add invalid ID
+        studentLesson.studentIDs = [validStudent.id.uuidString, invalidStudentID.uuidString]
+        
+        // When: Recording presentation (which cleans orphaned IDs)
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Only valid student ID remains
+        #expect(studentLesson.studentIDs.count == 1)
+        #expect(studentLesson.studentIDs.contains(validStudent.id.uuidString))
+        #expect(!studentLesson.studentIDs.contains(invalidStudentID.uuidString))
+        
+        // And work items only for valid student
+        #expect(result.work.count == 1)
+        #expect(result.work[0].studentID == validStudent.id.uuidString)
+    }
+    
+    @Test("cleanOrphanedStudentIDs handles empty student list")
+    func cleanOrphanedStudentIDsHandlesEmptyList() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: All students deleted
+        let lesson = try createTestLesson(name: "Music", context: context)
+        let invalidStudentID1 = UUID()
+        let invalidStudentID2 = UUID()
+        
+        let studentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: lesson.id,
+            studentIDs: [invalidStudentID1, invalidStudentID2]
+        )
+        studentLesson.lesson = lesson
+        context.insert(studentLesson)
+        try context.save()
+        
+        // When: Recording presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Student IDs cleared, no work items created
+        #expect(studentLesson.studentIDs.isEmpty)
+        #expect(result.work.isEmpty)
+    }
+    
+    // MARK: - LessonPresentation Upsert Tests
+    
+    @Test("Record presentation creates LessonPresentation records")
+    func recordPresentationCreatesLessonPresentations() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: A presentation
+        let student = try createTestStudent(name: "Leo", context: context)
+        let lesson = try createTestLesson(name: "Latin", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        // When: Recording a presentation
+        let presentedAt = Date()
+        _ = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: presentedAt,
+            modelContext: context
+        )
+        
+        // Then: LessonPresentation record exists
+        let allPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
+        let studentPresentations = allPresentations.filter {
+            $0.studentID == student.id.uuidString && $0.lessonID == lesson.id.uuidString
+        }
+        
+        #expect(studentPresentations.count == 1)
+        let presentation = studentPresentations[0]
+        #expect(presentation.state == .presented)
+        #expect(presentation.presentedAt == presentedAt)
+        #expect(presentation.lastObservedAt == presentedAt)
+    }
+    
+    @Test("LessonPresentation upsert updates existing records")
+    func lessonPresentationUpsertUpdatesExisting() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: An existing presentation
+        let student = try createTestStudent(name: "Mia", context: context)
+        let lesson = try createTestLesson(name: "Drama", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        let firstPresentedAt = Date(timeIntervalSinceNow: -86400) // Yesterday
+        _ = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: firstPresentedAt,
+            modelContext: context
+        )
+        
+        // When: Recording the same presentation again with new date
+        let secondPresentedAt = Date()
+        _ = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: secondPresentedAt,
+            modelContext: context
+        )
+        
+        // Then: Only one LessonPresentation exists with updated lastObservedAt
+        let allPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
+        let studentPresentations = allPresentations.filter {
+            $0.studentID == student.id.uuidString && $0.lessonID == lesson.id.uuidString
+        }
+        
+        #expect(studentPresentations.count == 1)
+        let presentation = studentPresentations[0]
+        #expect(presentation.lastObservedAt == secondPresentedAt)
+    }
+    
+    // MARK: - Error Handling Tests
+    
+    @Test("Record presentation throws error for invalid lesson ID")
+    func recordPresentationThrowsForInvalidLessonID() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: StudentLesson with invalid lesson ID
+        let student = try createTestStudent(name: "Noah", context: context)
+        let studentLesson = StudentLesson(
+            id: UUID(),
+            lessonID: UUID(),
+            studentIDs: [student.id]
+        )
+        studentLesson.lessonID = "invalid-uuid-string"
+        studentLesson.students = [student]
+        context.insert(studentLesson)
+        try context.save()
+        
+        // When/Then: Recording presentation throws error
+        #expect(throws: LifecycleError.self) {
+            try LifecycleService.recordPresentationAndExplodeWork(
+                from: studentLesson,
+                presentedAt: Date(),
+                modelContext: context
+            )
+        }
+    }
+    
+    @Test("Record presentation handles invalid student IDs gracefully")
+    func recordPresentationHandlesInvalidStudentIDsGracefully() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: StudentLesson with mix of valid and invalid student IDs
+        let validStudent = try createTestStudent(name: "Olivia", context: context)
+        let lesson = try createTestLesson(name: "Geography", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [validStudent],
+            context: context
+        )
+        // Add invalid student ID
+        studentLesson.studentIDs = [validStudent.id.uuidString, "invalid-uuid"]
+        
+        // When: Recording presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Only work for valid student created
+        #expect(result.work.count == 1)
+        #expect(result.work[0].studentID == validStudent.id.uuidString)
+    }
+    
+    // MARK: - State Update Tests
+    
+    @Test("Existing draft LessonAssignment updated to presented state")
+    func existingDraftLessonAssignmentUpdatedToPresented() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: An existing LessonAssignment in draft state
+        let student = try createTestStudent(name: "Paul", context: context)
+        let lesson = try createTestLesson(name: "Economics", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student],
+            context: context
+        )
+        
+        // Create draft LessonAssignment manually
+        let draftAssignment = LessonAssignment(
+            id: UUID(),
+            createdAt: Date(),
+            state: .draft,
+            presentedAt: nil,
+            lessonID: lesson.id,
+            studentIDs: [student.id],
+            lesson: lesson,
+            trackID: nil,
+            trackStepID: nil
+        )
+        draftAssignment.migratedFromStudentLessonID = studentLesson.id.uuidString
+        context.insert(draftAssignment)
+        try context.save()
+        
+        // When: Recording presentation
+        let presentedAt = Date()
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: presentedAt,
+            modelContext: context
+        )
+        
+        // Then: Same assignment updated to presented state
+        #expect(result.lessonAssignment.id == draftAssignment.id)
+        #expect(result.lessonAssignment.state == .presented)
+        #expect(result.lessonAssignment.presentedAt == presentedAt)
+    }
+    
+    // MARK: - Fetch Helper Tests
+    
+    @Test("fetchAllWorkModels returns all work for presentation")
+    func fetchAllWorkModelsReturnsAllWork() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: Multiple students in one presentation
+        let student1 = try createTestStudent(name: "Quinn", context: context)
+        let student2 = try createTestStudent(name: "Rachel", context: context)
+        let student3 = try createTestStudent(name: "Sam", context: context)
+        let lesson = try createTestLesson(name: "Philosophy", context: context)
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student1, student2, student3],
+            context: context
+        )
+        
+        // When: Recording presentation
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: All three work items returned
+        #expect(result.work.count == 3)
+        
+        let studentIDs = Set(result.work.map { $0.studentID })
+        #expect(studentIDs.contains(student1.id.uuidString))
+        #expect(studentIDs.contains(student2.id.uuidString))
+        #expect(studentIDs.contains(student3.id.uuidString))
+    }
+    
+    // MARK: - Integration Tests
+    
+    @Test("Complete flow: StudentLesson to LessonAssignment to WorkModels")
+    func completeFlowFromStudentLessonToWork() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: A fully set up StudentLesson
+        let student1 = try createTestStudent(name: "Tina", context: context)
+        let student2 = try createTestStudent(name: "Uma", context: context)
+        let lesson = try createTestLesson(
+            name: "World War II",
+            subject: "History",
+            group: "Modern History",
+            context: context
+        )
+        let studentLesson = try createTestStudentLesson(
+            lesson: lesson,
+            students: [student1, student2],
+            context: context
+        )
+        
+        // When: Full presentation flow
+        let presentedAt = Date()
+        let result = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson,
+            presentedAt: presentedAt,
+            modelContext: context
+        )
+        
+        // Then: Complete data structure created
+        // 1. LessonAssignment exists and is presented
+        #expect(result.lessonAssignment.state == .presented)
+        #expect(result.lessonAssignment.presentedAt == presentedAt)
+        #expect(result.lessonAssignment.lessonTitleSnapshot == "World War II")
+        
+        // 2. WorkModels created for both students
+        #expect(result.work.count == 2)
+        #expect(result.work.allSatisfy { $0.status == .active })
+        #expect(result.work.allSatisfy { $0.kind == .practiceLesson })
+        
+        // 3. LessonPresentation records created
+        let allPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
+        let relevantPresentations = allPresentations.filter {
+            $0.lessonID == lesson.id.uuidString &&
+            [student1.id.uuidString, student2.id.uuidString].contains($0.studentID)
+        }
+        #expect(relevantPresentations.count == 2)
+        
+        // 4. All records properly linked
+        let presentationID = result.lessonAssignment.id.uuidString
+        #expect(result.work.allSatisfy { $0.presentationID == presentationID })
+        #expect(relevantPresentations.allSatisfy { $0.presentationID == presentationID })
+    }
+    
+    @Test("Multiple presentations create separate data structures")
+    func multiplePresentationsCreateSeparateStructures() async throws {
+        let deps = AppDependencies.makeTest()
+        let context = deps.modelContext
+        
+        // Given: Two different presentations
+        let student = try createTestStudent(name: "Victor", context: context)
+        let lesson1 = try createTestLesson(name: "Algebra I", subject: "Math", group: "Algebra", context: context)
+        let lesson2 = try createTestLesson(name: "Algebra II", subject: "Math", group: "Algebra", context: context)
+        
+        let studentLesson1 = try createTestStudentLesson(lesson: lesson1, students: [student], context: context)
+        let studentLesson2 = try createTestStudentLesson(lesson: lesson2, students: [student], context: context)
+        
+        // When: Recording both presentations
+        let result1 = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson1,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        let result2 = try LifecycleService.recordPresentationAndExplodeWork(
+            from: studentLesson2,
+            presentedAt: Date(),
+            modelContext: context
+        )
+        
+        // Then: Separate LessonAssignments and WorkModels
+        #expect(result1.lessonAssignment.id != result2.lessonAssignment.id)
+        #expect(result1.work[0].id != result2.work[0].id)
+        #expect(result1.work[0].presentationID != result2.work[0].presentationID)
+    }
+}
+
+#endif
