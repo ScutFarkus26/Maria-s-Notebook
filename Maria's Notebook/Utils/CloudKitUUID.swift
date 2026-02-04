@@ -74,7 +74,7 @@ struct CloudKitUUID: Codable, Hashable, Sendable {
         hasher.combine(storage)
     }
     
-    static func == (lhs: CloudKitUUID, rhs: CloudKitUUID) -> Bool {
+    static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.storage == rhs.storage
     }
 }

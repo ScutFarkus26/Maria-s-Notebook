@@ -80,6 +80,7 @@
 				Tests/Performance/CloudKitBackupPerformanceTests.swift,
 				Tests/Performance/DatabaseQueryPerformanceTests.swift,
 				Tests/Performance/MemoryManagementTests.swift,
+				Tests/Performance/PerformanceBenchmarks.swift,
 				Tests/Performance/PerformanceRegressionTests.swift,
 				Tests/Performance/UIPerformanceTests.swift,
 				Tests/PhotoStorageServiceTests.swift,

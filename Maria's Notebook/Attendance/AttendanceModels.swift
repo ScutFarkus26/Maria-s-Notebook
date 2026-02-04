@@ -65,16 +65,27 @@ final class AttendanceRecord: Identifiable {
     // CloudKit compatibility: Store UUID as string
     var studentID: String = ""
     var date: Date = Date()          // normalized to start-of-day (local calendar)
-    @RawCodable var status: AttendanceStatus = .unmarked {
-        didSet {
+    private var statusRaw: String = "unmarked"
+    private var absenceReasonRaw: String = "none"
+    var note: String? = nil
+
+    // Computed enum mapping for convenient UI usage
+    var status: AttendanceStatus {
+        get { AttendanceStatus(rawValue: statusRaw) ?? .unmarked }
+        set { 
+            statusRaw = newValue.rawValue
             // Clear absence reason if status is not absent
-            if status != .absent {
-                absenceReason = .none
+            if newValue != .absent {
+                absenceReasonRaw = AbsenceReason.none.rawValue
             }
         }
     }
-    @RawCodable var absenceReason: AbsenceReason = .none
-    var note: String? = nil
+    
+    // Computed property for absence reason
+    var absenceReason: AbsenceReason {
+        get { AbsenceReason(rawValue: absenceReasonRaw) ?? .none }
+        set { absenceReasonRaw = newValue.rawValue }
+    }
     
     // Computed property for backward compatibility with UUID
     var studentIDUUID: UUID? {
@@ -97,8 +108,8 @@ final class AttendanceRecord: Identifiable {
         // CloudKit compatibility: Store UUID as string
         self.studentID = studentID.uuidString
         self.date = date
-        self.status = status
-        self.absenceReason = absenceReason
+        self.statusRaw = status.rawValue
+        self.absenceReasonRaw = absenceReason.rawValue
         self.note = note
     }
 }

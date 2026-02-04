@@ -6,7 +6,7 @@ import SwiftData
 
 @Model
 final class WorkPlanItem: Identifiable {
-    enum Reason: String, Codable, CaseIterable, Identifiable {
+    enum Reason: String, Codable, CaseIterable, Identifiable, Sendable {
         case progressCheck
         case dueDate
         case assessment

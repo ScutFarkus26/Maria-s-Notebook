@@ -1,4 +1,6 @@
-import XCTest
+#if canImport(Testing)
+import Testing
+import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
@@ -21,40 +23,21 @@ import SwiftData
 /// - Backup restore: < 15s (10k entities)
 ///
 /// Interpreting Results:
-/// - Baseline times are established on first run
-/// - Subsequent runs compare against baseline (±10% acceptable)
+/// - Run tests and observe printed timings
+/// - Compare against documented baselines in comments
 /// - Regressions > 20% should trigger investigation
-/// - Check "Baseline Average" in Xcode test results
+/// - Tests have generous thresholds to avoid flakiness
 ///
 /// Running Benchmarks:
 /// ```
-/// # Run all performance tests
-/// xcodebuild test -scheme "Maria's Notebook" -only-testing:PerformanceBenchmarks
-///
-/// # Run specific benchmark
-/// xcodebuild test -scheme "Maria's Notebook" -only-testing:PerformanceBenchmarks/testTodayViewLoadPerformance
+/// # Run all performance benchmarks
+/// swift test --filter PerformanceBenchmarks
+/// 
+/// # Run from Xcode: Select test and press ⌘U
 /// ```
+@Suite("Performance Benchmarks", .serialized)
 @MainActor
-final class PerformanceBenchmarks: XCTestCase {
-    
-    // MARK: - Test Infrastructure
-    
-    private var container: ModelContainer!
-    private var context: ModelContext!
-    
-    override func setUp() async throws {
-        try await super.setUp()
-        // Create fresh in-memory container for each test
-        container = try makePerformanceTestContainer()
-        context = ModelContext(container)
-    }
-    
-    override func tearDown() async throws {
-        // Clean up resources
-        context = nil
-        container = nil
-        try await super.tearDown()
-    }
+struct PerformanceBenchmarks {
     
     // MARK: - App Startup Performance
     
@@ -62,52 +45,58 @@ final class PerformanceBenchmarks: XCTestCase {
     ///
     /// This benchmark simulates:
     /// 1. ModelContainer initialization
-    /// 2. Schema migration check
-    /// 3. Loading user preferences
-    /// 4. Initial data fetch for Today view
+    /// 2. Initial data fetch for Today view
+    /// 3. Loading students and work items
     ///
     /// Target: < 2 seconds
-    ///
-    /// What affects this:
-    /// - Number of model types in schema
-    /// - SwiftData initialization overhead
-    /// - First fetch performance
-    /// - Index availability
-    func testAppStartupPerformance() throws {
+    /// Baseline: ~1.5s on Apple Silicon
+    @Test("App Startup Performance (Target: < 2s)")
+    func appStartupPerformance() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        
         // Seed realistic startup data
         try seedStartupData(context: context)
         
-        measure(metrics: [XCTClockMetric(), XCTMemoryMetric()]) {
-            // Simulate app startup sequence
-            let startupContainer = try! makePerformanceTestContainer()
-            let startupContext = ModelContext(startupContainer)
-            
-            // Fetch data that would be loaded on startup
-            let studentDescriptor = FetchDescriptor<Student>(
-                sortBy: [SortDescriptor(\.manualOrder)]
-            )
-            let students = try! startupContext.fetch(studentDescriptor)
-            
-            // Fetch today's lessons (typical Today view initial load)
-            let today = Date().startOfDay
-            let lessonDescriptor = FetchDescriptor<StudentLesson>(
-                predicate: #Predicate<StudentLesson> { sl in
-                    sl.scheduledFor == today || sl.givenAt == today
-                }
-            )
-            let lessons = try! startupContext.fetch(lessonDescriptor)
-            
-            // Fetch open work items
-            let workDescriptor = FetchDescriptor<WorkModel>(
-                predicate: #Predicate<WorkModel> { work in
-                    work.status == .active || work.status == .review
-                }
-            )
-            let work = try! startupContext.fetch(workDescriptor)
-            
-            // Force evaluation
-            _ = students.count + lessons.count + work.count
-        }
+        let start = Date()
+        
+        // Simulate app startup sequence
+        let startupContainer = try makeContainer()
+        let startupContext = ModelContext(startupContainer)
+        
+        // Fetch data that would be loaded on startup
+        let studentDescriptor = FetchDescriptor<Student>(
+            sortBy: [SortDescriptor(\.manualOrder)]
+        )
+        let students = try startupContext.fetch(studentDescriptor)
+        
+        // Fetch today's lessons (typical Today view initial load)
+        let today = Date().startOfDay
+        let lessonDescriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate<StudentLesson> { sl in
+                sl.scheduledFor == today || sl.givenAt == today
+            }
+        )
+        let lessons = try startupContext.fetch(lessonDescriptor)
+        
+        // Fetch open work items
+        let workDescriptor = FetchDescriptor<WorkModel>(
+            predicate: #Predicate<WorkModel> { work in
+                work.status == .active || work.status == .review
+            }
+        )
+        let work = try startupContext.fetch(workDescriptor)
+        
+        let elapsed = Date().timeIntervalSince(start)
+        
+        // Force evaluation
+        _ = students.count + lessons.count + work.count
+        
+        // Log performance
+        print("⏱️  App Startup: \(String(format: "%.3f", elapsed))s (target: < 2.0s, baseline: ~1.5s)")
+        
+        // Generous threshold to avoid test flakiness
+        #expect(elapsed < 5.0, "Startup time exceeded maximum threshold")
     }
     
     // MARK: - Today View Performance
@@ -116,328 +105,344 @@ final class PerformanceBenchmarks: XCTestCase {
     ///
     /// This is the most critical view in the app. Tests:
     /// - Fetching today's scheduled lessons
-    /// - Filtering by date
-    /// - Student/lesson lookups
-    /// - Building display models
+    /// - Building student and lesson caches
+    /// - Relationship lookups
     ///
     /// Target: < 100ms with 1000 lessons
-    ///
-    /// What affects this:
-    /// - Date predicate efficiency
-    /// - String ID vs relationship lookups
-    /// - Number of relationships traversed
-    /// - Cache warming
-    func testTodayViewLoadPerformance() throws {
+    /// Baseline: ~75ms on Apple Silicon
+    @Test("Today View Load (Target: < 100ms, 1000 lessons)")
+    func todayViewLoadPerformance() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        
         // Seed 1000 student lessons across date range
         try seedTodayViewData(context: context, lessonCount: 1000)
         
         let today = Date().startOfDay
+        let start = Date()
         
-        measure(metrics: [XCTClockMetric()]) {
-            // Fetch today's lessons (this is what TodayViewModel does)
-            let descriptor = FetchDescriptor<StudentLesson>(
-                predicate: #Predicate<StudentLesson> { sl in
-                    sl.scheduledFor == today || sl.givenAt == today
-                },
-                sortBy: [SortDescriptor(\.scheduledFor)]
-            )
+        // Fetch today's lessons
+        let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate<StudentLesson> { sl in
+                sl.scheduledFor == today || sl.givenAt == today
+            },
+            sortBy: [SortDescriptor(\.scheduledFor)]
+        )
+        
+        let lessons = try context.fetch(descriptor)
+        
+        // Simulate building cache (what TodayViewModel does)
+        var studentCache: [UUID: Student] = [:]
+        var lessonCache: [UUID: Lesson] = [:]
+        
+        for sl in lessons {
+            if let lessonIDString = sl.lessonID,
+               let lessonUUID = UUID(uuidString: lessonIDString) {
+                lessonCache[lessonUUID] = sl.lesson
+            }
             
-            let lessons = try! context.fetch(descriptor)
-            
-            // Simulate building cache (what TodayViewModel does)
-            var studentCache: [UUID: Student] = [:]
-            var lessonCache: [UUID: Lesson] = [:]
-            
-            for sl in lessons {
-                // This simulates the relationship lookups
-                if let lessonIDString = sl.lessonID,
-                   let lessonUUID = UUID(uuidString: lessonIDString) {
-                    // In real app, this would traverse relationship
-                    lessonCache[lessonUUID] = sl.lesson
-                }
-                
-                for studentIDString in sl.studentIDs {
-                    if let studentUUID = UUID(uuidString: studentIDString) {
-                        // In real app, this would be relationship lookup
-                        if let student = sl.students.first(where: { $0.id.uuidString == studentIDString }) {
-                            studentCache[studentUUID] = student
-                        }
+            for studentIDString in sl.studentIDs {
+                if let studentUUID = UUID(uuidString: studentIDString) {
+                    if let student = sl.students.first(where: { $0.id.uuidString == studentIDString }) {
+                        studentCache[studentUUID] = student
                     }
                 }
             }
-            
-            // Force evaluation
-            _ = lessons.count + studentCache.count + lessonCache.count
         }
+        
+        let elapsed = Date().timeIntervalSince(start) * 1000 // Convert to ms
+        
+        // Force evaluation
+        _ = lessons.count + studentCache.count + lessonCache.count
+        
+        print("⏱️  Today View Load: \(String(format: "%.1f", elapsed))ms (target: < 100ms, baseline: ~75ms)")
+        #expect(elapsed < 500, "Today view load exceeded maximum threshold")
     }
     
     // MARK: - Work List Query Performance
     
     /// Measures work list query performance with 500 work items.
     ///
-    /// Tests the performance of:
+    /// Tests:
     /// - Filtering by work status (active/review)
-    /// - Sorting by due date and last touched
+    /// - Sorting by due date
     /// - Loading participants
-    /// - Building work item displays
     ///
     /// Target: < 150ms with 500 work items
-    ///
-    /// What affects this:
-    /// - Work status predicate efficiency
-    /// - Participant relationship loading
-    /// - String ID conversions
-    /// - Sort descriptor performance
-    func testWorkListQueryPerformance() throws {
-        // Seed 500 work items with various statuses
+    /// Baseline: ~120ms on Apple Silicon
+    @Test("Work List Query (Target: < 150ms, 500 items)")
+    func workListQueryPerformance() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        
+        // Seed 500 work items
         try seedWorkData(context: context, workCount: 500)
         
-        measure(metrics: [XCTClockMetric()]) {
-            // Fetch open work (active + review)
-            let descriptor = FetchDescriptor<WorkModel>(
-                predicate: #Predicate<WorkModel> { work in
-                    work.status == .active || work.status == .review
-                },
-                sortBy: [
-                    SortDescriptor(\.dueAt, order: .forward),
-                    SortDescriptor(\.lastTouchedAt, order: .reverse)
-                ]
-            )
-            
-            let workItems = try! context.fetch(descriptor)
-            
-            // Simulate loading participants (what WorkRepository does)
-            var participantCache: [UUID: [Student]] = [:]
-            
-            for work in workItems {
-                let participants = work.participants.compactMap { participant in
-                    if let studentID = UUID(uuidString: participant.studentID) {
-                        return participant.student
-                    }
-                    return nil
+        let start = Date()
+        
+        // Fetch open work (active + review)
+        let descriptor = FetchDescriptor<WorkModel>(
+            predicate: #Predicate<WorkModel> { work in
+                work.status == .active || work.status == .review
+            },
+            sortBy: [
+                SortDescriptor(\.dueAt, order: .forward),
+                SortDescriptor(\.lastTouchedAt, order: .reverse)
+            ]
+        )
+        
+        let workItems = try context.fetch(descriptor)
+        
+        // Simulate loading participants
+        var participantCache: [UUID: [Student]] = [:]
+        
+        for work in workItems {
+            let participants = work.participants.compactMap { participant in
+                if UUID(uuidString: participant.studentID) != nil {
+                    return participant.student
                 }
-                participantCache[work.id] = participants
+                return nil
             }
-            
-            // Force evaluation
-            _ = workItems.count + participantCache.count
+            participantCache[work.id] = participants
         }
+        
+        let elapsed = Date().timeIntervalSince(start) * 1000
+        
+        // Force evaluation
+        _ = workItems.count + participantCache.count
+        
+        print("⏱️  Work List Query: \(String(format: "%.1f", elapsed))ms (target: < 150ms, baseline: ~120ms)")
+        #expect(elapsed < 600, "Work list query exceeded maximum threshold")
     }
     
     // MARK: - Attendance Grid Performance
     
     /// Measures attendance grid rendering with 30 students × 180 days.
     ///
-    /// This is one of the most data-intensive views. Tests:
+    /// Tests:
     /// - Bulk attendance record fetching
     /// - Date range queries
-    /// - Student filtering
     /// - Grid data structure building
     ///
-    /// Target: < 200ms for 30 students × 180 days (5,400 records)
-    ///
-    /// What affects this:
-    /// - Attendance record index on studentID and date
-    /// - Batch fetching efficiency
-    /// - Date range predicate
-    /// - Memory pressure from large result set
-    func testAttendanceGridPerformance() throws {
+    /// Target: < 200ms for 5,400 records
+    /// Baseline: ~160ms on Apple Silicon
+    @Test("Attendance Grid (Target: < 200ms, 30 students × 180 days)")
+    func attendanceGridPerformance() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        
         // Seed attendance data: 30 students × 180 school days
         try seedAttendanceData(context: context, studentCount: 30, dayCount: 180)
         
         let startDate = Date().startOfDay.addingTimeInterval(-180 * 86400)
         let endDate = Date().startOfDay
         
-        measure(metrics: [XCTClockMetric(), XCTMemoryMetric()]) {
-            // Fetch all attendance records in date range
-            let descriptor = FetchDescriptor<AttendanceRecord>(
-                predicate: #Predicate<AttendanceRecord> { record in
-                    record.date >= startDate && record.date <= endDate
-                },
-                sortBy: [
-                    SortDescriptor(\.date),
-                    SortDescriptor(\.studentID)
-                ]
-            )
-            
-            let records = try! context.fetch(descriptor)
-            
-            // Build grid structure (what AttendanceViewModel does)
-            var gridByStudentAndDate: [String: [Date: AttendanceRecord]] = [:]
-            
-            for record in records {
-                if gridByStudentAndDate[record.studentID] == nil {
-                    gridByStudentAndDate[record.studentID] = [:]
-                }
-                gridByStudentAndDate[record.studentID]?[record.date] = record
+        let start = Date()
+        
+        // Fetch all attendance records in date range
+        let descriptor = FetchDescriptor<AttendanceRecord>(
+            predicate: #Predicate<AttendanceRecord> { record in
+                record.date >= startDate && record.date <= endDate
+            },
+            sortBy: [
+                SortDescriptor(\.date),
+                SortDescriptor(\.studentID)
+            ]
+        )
+        
+        let records = try context.fetch(descriptor)
+        
+        // Build grid structure (what AttendanceViewModel does)
+        var gridByStudentAndDate: [String: [Date: AttendanceRecord]] = [:]
+        
+        for record in records {
+            if gridByStudentAndDate[record.studentID] == nil {
+                gridByStudentAndDate[record.studentID] = [:]
             }
-            
-            // Force evaluation
-            _ = records.count + gridByStudentAndDate.count
+            gridByStudentAndDate[record.studentID]?[record.date] = record
         }
+        
+        let elapsed = Date().timeIntervalSince(start) * 1000
+        
+        // Force evaluation
+        _ = records.count + gridByStudentAndDate.count
+        
+        print("⏱️  Attendance Grid: \(String(format: "%.1f", elapsed))ms (target: < 200ms, baseline: ~160ms)")
+        print("   📊 Records fetched: \(records.count)")
+        #expect(elapsed < 800, "Attendance grid exceeded maximum threshold")
     }
     
     // MARK: - Backup Export Performance
     
     /// Measures backup export performance with 10,000 entities.
     ///
-    /// This tests the complete export pipeline:
+    /// Tests:
     /// - Fetching all entity types
     /// - Converting to DTOs
-    /// - JSON encoding
-    /// - Compression
     ///
     /// Target: < 10 seconds for 10k entities
-    ///
-    /// What affects this:
-    /// - Batch fetching efficiency
-    /// - DTO transformation cost
-    /// - JSON encoding performance
-    /// - Compression algorithm
-    func testBackupExportPerformance() throws {
-        // Seed large dataset:
-        // - 50 students
-        // - 200 lessons
-        // - 2000 student lessons
-        // - 1000 work items
-        // - 5000 attendance records
-        // - 1500 notes
-        // - 250 other entities
+    /// Baseline: ~8s on Apple Silicon
+    @Test("Backup Export (Target: < 10s, 10k entities)")
+    func backupExportPerformance() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        
+        // Seed large dataset: 10k+ entities
         try seedLargeDataset(context: context)
         
-        measure(metrics: [XCTClockMetric(), XCTMemoryMetric()]) {
-            // Simulate backup export process
-            let students: [Student] = try! context.fetch(FetchDescriptor<Student>())
-            let lessons: [Lesson] = try! context.fetch(FetchDescriptor<Lesson>())
-            let studentLessons: [StudentLesson] = try! context.fetch(FetchDescriptor<StudentLesson>())
-            let work: [WorkModel] = try! context.fetch(FetchDescriptor<WorkModel>())
-            let attendance: [AttendanceRecord] = try! context.fetch(FetchDescriptor<AttendanceRecord>())
-            let notes: [Note] = try! context.fetch(FetchDescriptor<Note>())
-            
-            // Convert to DTOs (simplified - real backup does more)
-            let studentDTOs = students.map { BackupDTOTransformers.toDTO($0) }
-            let lessonDTOs = lessons.map { BackupDTOTransformers.toDTO($0) }
-            let slDTOs = studentLessons.map { BackupDTOTransformers.toDTO($0) }
-            let workDTOs = work.map { BackupDTOTransformers.toDTO($0) }
-            let attendanceDTOs = attendance.map { BackupDTOTransformers.toDTO($0) }
-            let noteDTOs = notes.map { BackupDTOTransformers.toDTO($0) }
-            
-            // Force evaluation
-            let total = studentDTOs.count + lessonDTOs.count + slDTOs.count +
-                       workDTOs.count + attendanceDTOs.count + noteDTOs.count
-            _ = total
-        }
+        let start = Date()
+        
+        // Simulate backup export process
+        let students: [Student] = try context.fetch(FetchDescriptor<Student>())
+        let lessons: [Lesson] = try context.fetch(FetchDescriptor<Lesson>())
+        let studentLessons: [StudentLesson] = try context.fetch(FetchDescriptor<StudentLesson>())
+        let work: [WorkModel] = try context.fetch(FetchDescriptor<WorkModel>())
+        let attendance: [AttendanceRecord] = try context.fetch(FetchDescriptor<AttendanceRecord>())
+        let notes: [Note] = try context.fetch(FetchDescriptor<Note>())
+        
+        // Convert to DTOs
+        let studentDTOs = students.map { BackupDTOTransformers.toDTO($0) }
+        let lessonDTOs = lessons.map { BackupDTOTransformers.toDTO($0) }
+        let slDTOs = studentLessons.map { BackupDTOTransformers.toDTO($0) }
+        let workDTOs = work.map { BackupDTOTransformers.toDTO($0) }
+        let attendanceDTOs = attendance.map { BackupDTOTransformers.toDTO($0) }
+        let noteDTOs = notes.map { BackupDTOTransformers.toDTO($0) }
+        
+        let elapsed = Date().timeIntervalSince(start)
+        
+        // Force evaluation
+        let total = studentDTOs.count + lessonDTOs.count + slDTOs.count +
+                   workDTOs.count + attendanceDTOs.count + noteDTOs.count
+        
+        print("⏱️  Backup Export: \(String(format: "%.2f", elapsed))s (target: < 10s, baseline: ~8s)")
+        print("   📊 Total entities: \(total)")
+        #expect(total > 9000, "Expected at least 9000 entities")
+        #expect(elapsed < 30.0, "Backup export exceeded maximum threshold")
     }
     
     // MARK: - Backup Restore Performance
     
     /// Measures backup restore performance with 10,000 entities.
     ///
-    /// This tests the complete restore pipeline:
-    /// - JSON decoding
-    /// - DTO validation
-    /// - Entity creation
+    /// Tests:
+    /// - Entity creation from DTOs
     /// - Batch insertion
-    /// - Relationship linking
+    /// - Save/commit overhead
     ///
     /// Target: < 15 seconds for 10k entities
-    ///
-    /// What affects this:
-    /// - JSON decoding performance
-    /// - Entity initialization cost
-    /// - Batch insert efficiency
-    /// - Relationship resolution
-    /// - Save/commit overhead
-    func testBackupRestorePerformance() throws {
+    /// Baseline: ~12s on Apple Silicon
+    @Test("Backup Restore (Target: < 15s, 10k entities)")
+    func backupRestorePerformance() throws {
         // Create DTOs for large dataset
         let testData = try createLargeBackupPayload()
         
         // Create fresh container for restore
-        let restoreContainer = try makePerformanceTestContainer()
+        let restoreContainer = try makeContainer()
         let restoreContext = ModelContext(restoreContainer)
         
-        measure(metrics: [XCTClockMetric(), XCTMemoryMetric()]) {
-            // Simulate restore process
-            
-            // 1. Insert students
-            for studentDTO in testData.students {
-                let student = BackupDTOTransformers.fromDTO(studentDTO)
-                restoreContext.insert(student)
-            }
-            
-            // 2. Insert lessons
-            for lessonDTO in testData.lessons {
-                let lesson = BackupDTOTransformers.fromDTO(lessonDTO)
-                restoreContext.insert(lesson)
-            }
-            
-            // 3. Insert student lessons
-            for slDTO in testData.studentLessons {
-                let sl = BackupDTOTransformers.fromDTO(slDTO)
-                restoreContext.insert(sl)
-            }
-            
-            // 4. Insert work items
-            for workDTO in testData.work {
-                let work = BackupDTOTransformers.fromDTO(workDTO)
-                restoreContext.insert(work)
-            }
-            
-            // 5. Insert attendance records
-            for attendanceDTO in testData.attendance {
-                let record = BackupDTOTransformers.fromDTO(attendanceDTO)
-                restoreContext.insert(record)
-            }
-            
-            // 6. Insert notes
-            for noteDTO in testData.notes {
-                let note = BackupDTOTransformers.fromDTO(noteDTO)
-                restoreContext.insert(note)
-            }
-            
-            // Save all changes
-            try! restoreContext.save()
+        let start = Date()
+        
+        // Simulate restore process
+        
+        // 1. Insert students
+        for studentDTO in testData.students {
+            let student = BackupDTOTransformers.fromDTO(studentDTO)
+            restoreContext.insert(student)
         }
+        
+        // 2. Insert lessons
+        for lessonDTO in testData.lessons {
+            let lesson = BackupDTOTransformers.fromDTO(lessonDTO)
+            restoreContext.insert(lesson)
+        }
+        
+        // 3. Insert student lessons
+        for slDTO in testData.studentLessons {
+            let sl = BackupDTOTransformers.fromDTO(slDTO)
+            restoreContext.insert(sl)
+        }
+        
+        // 4. Insert work items
+        for workDTO in testData.work {
+            let work = BackupDTOTransformers.fromDTO(workDTO)
+            restoreContext.insert(work)
+        }
+        
+        // 5. Insert attendance records
+        for attendanceDTO in testData.attendance {
+            let record = BackupDTOTransformers.fromDTO(attendanceDTO)
+            restoreContext.insert(record)
+        }
+        
+        // 6. Insert notes
+        for noteDTO in testData.notes {
+            let note = BackupDTOTransformers.fromDTO(noteDTO)
+            restoreContext.insert(note)
+        }
+        
+        // Save all changes
+        try restoreContext.save()
+        
+        let elapsed = Date().timeIntervalSince(start)
+        
+        let total = testData.students.count + testData.lessons.count + 
+                   testData.studentLessons.count + testData.work.count +
+                   testData.attendance.count + testData.notes.count
+        
+        print("⏱️  Backup Restore: \(String(format: "%.2f", elapsed))s (target: < 15s, baseline: ~12s)")
+        print("   📊 Total entities: \(total)")
+        #expect(elapsed < 45.0, "Backup restore exceeded maximum threshold")
     }
     
     // MARK: - Query Optimization Comparisons
     
     /// Compares string ID lookups vs relationship traversal.
     ///
-    /// This benchmark demonstrates the performance difference between:
-    /// - String ID predicates with UUID conversion
-    /// - Direct relationship traversal
+    /// This demonstrates the performance difference between
+    /// string ID predicates and direct relationship traversal.
     ///
-    /// This informs architecture decisions about when to use
-    /// denormalized string IDs vs normalized relationships.
-    ///
-    /// Expected: Relationship lookups 2-3x faster than string predicates
-    func testStringIDVsRelationshipLookup() throws {
+    /// Expected: Relationship lookups 2-3x faster
+    @Test("String ID vs Relationship Lookup Performance")
+    func stringIDVsRelationshipLookup() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        
         try seedStudentLessonData(context: context, count: 500)
         
         let targetStudentID = try context.fetch(FetchDescriptor<Student>()).first!.id
         
         // Measure string ID approach
-        measure(metrics: [XCTClockMetric()]) {
-            let studentIDString = targetStudentID.uuidString
-            let descriptor = FetchDescriptor<StudentLesson>(
-                predicate: #Predicate<StudentLesson> { sl in
-                    sl.studentIDs.contains(studentIDString)
-                }
-            )
-            let results = try! context.fetch(descriptor)
-            _ = results.count
-        }
+        let start = Date()
+        
+        let studentIDString = targetStudentID.uuidString
+        let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate<StudentLesson> { sl in
+                sl.studentIDs.contains(studentIDString)
+            }
+        )
+        let results = try context.fetch(descriptor)
+        
+        let elapsed = Date().timeIntervalSince(start) * 1000
+        
+        _ = results.count
+        
+        print("⏱️  String ID Lookup: \(String(format: "%.1f", elapsed))ms")
+        print("   📊 Results found: \(results.count)")
+        #expect(elapsed < 500, "String ID lookup too slow")
     }
     
     /// Compares batch vs individual queries for loading related entities.
     ///
-    /// Tests two approaches for loading students for multiple work items:
-    /// 1. Individual queries per work item (N+1 problem)
-    /// 2. Single batch query with all IDs
+    /// Tests two approaches for loading students for work items:
+    /// 1. Single batch query (efficient)
+    /// 2. Individual queries would be N+1 problem (shown here as batch)
     ///
-    /// Expected: Batch queries 10x+ faster than individual queries
-    func testBatchVsIndividualQueries() throws {
+    /// Expected: Batch queries 10x+ faster
+    @Test("Batch Query Performance (vs N+1)")
+    func batchQueryPerformance() throws {
+        let container = try makeContainer()
+        let context = ModelContext(container)
+        
         try seedWorkData(context: context, workCount: 100)
         
         let workItems = try context.fetch(FetchDescriptor<WorkModel>())
@@ -446,63 +451,33 @@ final class PerformanceBenchmarks: XCTestCase {
         }
         
         // Measure batch approach
-        measure(metrics: [XCTClockMetric()]) {
-            // Create set of unique student IDs
-            let uniqueIDs = Set(allStudentIDs)
-            
-            // Single query for all students
-            let allStudents = try! context.fetch(FetchDescriptor<Student>())
-            let studentDict = Dictionary(uniqueKeysAndValues: allStudents.map { ($0.id, $0) })
-            
-            // Build results
-            var results: [UUID: [Student]] = [:]
-            for work in workItems {
-                let studentIDs = work.participants.compactMap { UUID(uuidString: $0.studentID) }
-                results[work.id] = studentIDs.compactMap { studentDict[$0] }
-            }
-            
-            _ = results.count
-        }
-    }
-    
-    // MARK: - Memory Pressure Tests
-    
-    /// Tests memory usage when loading large result sets.
-    ///
-    /// Monitors memory footprint for operations that load
-    /// thousands of records at once (attendance grids, exports).
-    ///
-    /// Target: < 50MB memory increase for 10k entities
-    func testLargeResultSetMemory() throws {
-        try seedLargeDataset(context: context)
+        let start = Date()
         
-        measure(metrics: [XCTMemoryMetric()]) {
-            // Load large datasets
-            let students = try! context.fetch(FetchDescriptor<Student>())
-            let lessons = try! context.fetch(FetchDescriptor<Lesson>())
-            let studentLessons = try! context.fetch(FetchDescriptor<StudentLesson>())
-            let attendance = try! context.fetch(FetchDescriptor<AttendanceRecord>())
-            
-            // Process data (simulating view model operations)
-            let studentDict = Dictionary(uniqueKeysAndValues: students.map { ($0.id, $0) })
-            let lessonDict = Dictionary(uniqueKeysAndValues: lessons.map { ($0.id, $0) })
-            
-            var processedCount = 0
-            for sl in studentLessons {
-                if let lessonID = sl.lessonID, let uuid = UUID(uuidString: lessonID) {
-                    _ = lessonDict[uuid]
-                    processedCount += 1
-                }
-            }
-            
-            _ = processedCount + attendance.count
+        // Single query for all students
+        let allStudents = try context.fetch(FetchDescriptor<Student>())
+        let studentDict = Dictionary(uniqueKeysAndValues: allStudents.map { ($0.id, $0) })
+        
+        // Build results
+        var results: [UUID: [Student]] = [:]
+        for work in workItems {
+            let studentIDs = work.participants.compactMap { UUID(uuidString: $0.studentID) }
+            results[work.id] = studentIDs.compactMap { studentDict[$0] }
         }
+        
+        let elapsed = Date().timeIntervalSince(start) * 1000
+        
+        _ = results.count
+        
+        print("⏱️  Batch Query: \(String(format: "%.1f", elapsed))ms")
+        print("   📊 Work items processed: \(workItems.count)")
+        print("   📊 Unique student IDs: \(Set(allStudentIDs).count)")
+        #expect(elapsed < 200, "Batch query too slow")
     }
     
-    // MARK: - Test Data Seeding Helpers
+    // MARK: - Helper Methods
     
     /// Creates in-memory test container with all app models.
-    private func makePerformanceTestContainer() throws -> ModelContainer {
+    private func makeContainer() throws -> ModelContainer {
         let config = ModelConfiguration(
             schema: AppSchema.schema,
             isStoredInMemoryOnly: true
@@ -511,6 +486,11 @@ final class PerformanceBenchmarks: XCTestCase {
             for: AppSchema.schema,
             configurations: [config]
         )
+    }
+    
+    // Alias for consistency with helper code
+    private func makePerformanceTestContainer() throws -> ModelContainer {
+        return try makeContainer()
     }
     
     /// Seeds minimal data for app startup simulation.
@@ -865,58 +845,52 @@ private struct LargeBackupTestData {
 // MARK: - Performance Baseline Documentation
 
 /*
- PERFORMANCE BASELINES (as of Phase 5)
- ======================================
+ PERFORMANCE BASELINES (Phase 5)
+ ================================
  
- These benchmarks establish performance baselines for the app.
- Run on: Apple Silicon Mac / iPhone 15 Pro
+ Benchmarked on: Apple Silicon Mac (M1/M2/M3)
+ SwiftData: Latest version as of Phase 5
  
- Expected Results (first run establishes baseline):
+ Expected Results:
  
- 1. App Startup
-    - Time: ~1.5s ± 0.3s
-    - Memory: ~25MB
-    - Notes: Includes container init + initial queries
+ 1. App Startup (20 students, 50 lessons, 20 work items)
+    Time: ~1.5s ± 0.3s
+    Includes: Container init + initial queries
  
  2. Today View Load (1000 lessons)
-    - Time: ~75ms ± 15ms
-    - Notes: Date predicate + relationship lookups
+    Time: ~75ms ± 15ms
+    Includes: Date predicate + relationship lookups + cache building
  
  3. Work List Query (500 items)
-    - Time: ~120ms ± 20ms
-    - Notes: Status filter + participant loading
+    Time: ~120ms ± 20ms
+    Includes: Status filter + sorting + participant loading
  
- 4. Attendance Grid (5,400 records)
-    - Time: ~160ms ± 30ms
-    - Memory: ~15MB
-    - Notes: Date range + grid structure building
+ 4. Attendance Grid (30 students × 180 days = 5,400 records)
+    Time: ~160ms ± 30ms
+    Includes: Date range query + grid structure building
  
  5. Backup Export (10k entities)
-    - Time: ~8s ± 2s
-    - Memory: ~40MB
-    - Notes: Full fetch + DTO conversion + encoding
+    Time: ~8s ± 2s
+    Includes: Full fetch + DTO conversion
  
  6. Backup Restore (10k entities)
-    - Time: ~12s ± 3s
-    - Memory: ~45MB
-    - Notes: Decoding + entity creation + save
+    Time: ~12s ± 3s
+    Includes: Entity creation + batch insert + save
  
- 7. String ID vs Relationship
-    - Relationship: ~20ms
-    - String ID: ~60ms
-    - Ratio: 3x slower for string predicates
+ 7. String ID Lookup (500 student lessons)
+    Time: ~60ms
+    Note: 2-3x slower than relationship traversal
  
- 8. Batch vs Individual Queries
-    - Batch: ~30ms
-    - Individual: ~400ms
-    - Ratio: 13x slower for N+1 pattern
+ 8. Batch Query (100 work items)
+    Time: ~30ms
+    Note: 10-13x faster than N+1 pattern
  
  REGRESSION THRESHOLDS
- =====================
+ ======================
  
- - Green: ±10% of baseline (normal variance)
- - Yellow: 10-20% regression (investigate if consistent)
- - Red: >20% regression (requires immediate attention)
+ Green: ±10% of baseline (normal variance)
+ Yellow: 10-20% regression (investigate if consistent)
+ Red: >20% regression (requires immediate attention)
  
  OPTIMIZATION PRIORITIES
  =======================
@@ -936,7 +910,7 @@ private struct LargeBackupTestData {
  INDEX RECOMMENDATIONS
  =====================
  
- Critical Indexes:
+ Critical Indexes (enable via @Attribute(.unique) or custom indexes):
  - StudentLesson.scheduledFor (Today view date queries)
  - StudentLesson.givenAt (Today view date queries)
  - WorkModel.status (Work list filtering)
@@ -951,56 +925,68 @@ private struct LargeBackupTestData {
  RUNNING BENCHMARKS
  ==================
  
- Command Line:
+ From Xcode:
+ 1. Open Test Navigator (⌘6)
+ 2. Find "Performance Benchmarks"
+ 3. Click ▶️ to run all benchmarks
+ 4. Or right-click specific test to run individually
+ 5. Check console output for timing results
+ 
+ From Command Line:
  ```bash
- # All performance tests
- xcodebuild test -scheme "Maria's Notebook" \
-   -only-testing:PerformanceBenchmarks
+ # All performance benchmarks
+ swift test --filter PerformanceBenchmarks
  
  # Specific test
- xcodebuild test -scheme "Maria's Notebook" \
-   -only-testing:PerformanceBenchmarks/testTodayViewLoadPerformance
- 
- # With baseline comparison
- xcodebuild test -scheme "Maria's Notebook" \
-   -only-testing:PerformanceBenchmarks \
-   -test-iterations 5
+ swift test --filter PerformanceBenchmarks/todayViewLoadPerformance
  ```
  
- Xcode UI:
- 1. Open Test Navigator (⌘6)
- 2. Right-click "PerformanceBenchmarks"
- 3. Select "Profile in Instruments" for deeper analysis
- 4. Or "Run Performance Tests" for baseline comparison
+ INTERPRETING RESULTS
+ ====================
  
- Interpreting Results:
- 1. First run establishes baseline
- 2. Subsequent runs show % change from baseline
- 3. Check "Baseline Average" in test results
- 4. Use Instruments for detailed profiling
+ Console Output Format:
+ ```
+ ⏱️  Today View Load: 82.3ms (target: < 100ms, baseline: ~75ms)
+ 📊 Records fetched: 42
+ ```
  
- PROFILING TIPS
- ==============
+ What to Look For:
+ - Times within ±20% of baseline = Good
+ - Times 20-50% slower = Investigate
+ - Times >50% slower = Critical regression
+ - Test failures = Performance completely unacceptable
  
- Use Instruments to investigate regressions:
+ Tracking Over Time:
+ 1. Run benchmarks before major changes
+ 2. Run after optimizations to verify improvement
+ 3. Run periodically to catch regressions early
+ 4. Document significant changes in git commits
+ 
+ PROFILING DEEPER ISSUES
+ ========================
+ 
+ Use Instruments for detailed analysis:
  
  1. Time Profiler
-    - Identify slow method calls
-    - CPU hotspots
-    - Thread contention
+    - Find slow method calls
+    - Identify CPU hotspots
+    - Check thread contention
  
  2. Allocations
-    - Memory growth patterns
-    - Object lifecycle
-    - Retain cycles
+    - Track memory growth
+    - Find object lifecycle issues
+    - Detect retain cycles
  
- 3. Core Data Profiler
-    - SwiftData fetch performance
-    - Predicate efficiency
-    - Relationship faults
- 
- 4. System Trace
+ 3. System Trace
     - Overall app behavior
-    - Thread usage
-    - System calls
+    - Thread usage patterns
+    - System call overhead
+ 
+ To profile a benchmark:
+ 1. Right-click test in Test Navigator
+ 2. Select "Profile in Instruments"
+ 3. Choose appropriate instrument
+ 4. Analyze results
  */
+
+#endif

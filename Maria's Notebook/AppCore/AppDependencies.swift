@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import Combine
 
 /// Central dependency injection container for the application.
 ///
@@ -45,6 +46,9 @@ import SwiftUI
 final class AppDependencies: ObservableObject {
     let modelContext: ModelContext
     
+    // Required for ObservableObject conformance
+    nonisolated let objectWillChange = ObservableObjectPublisher()
+    
     // MARK: - Initialization
     
     init(modelContext: ModelContext) {
@@ -64,18 +68,15 @@ final class AppDependencies: ObservableObject {
     // MARK: - Data Services
     
     // Work-related services
-    private var _workCompletionService: WorkCompletionService?
+    // WorkCompletionService is an enum with static methods, no initialization needed
     var workCompletionService: WorkCompletionService {
-        if _workCompletionService == nil {
-            _workCompletionService = WorkCompletionService()
-        }
-        return _workCompletionService!
+        fatalError("WorkCompletionService is an enum with static methods, access directly")
     }
     
     private var _workCheckInService: WorkCheckInService?
     var workCheckInService: WorkCheckInService {
         if _workCheckInService == nil {
-            _workCheckInService = WorkCheckInService()
+            _workCheckInService = WorkCheckInService(context: modelContext)
         }
         return _workCheckInService!
     }
@@ -83,7 +84,7 @@ final class AppDependencies: ObservableObject {
     private var _workStepService: WorkStepService?
     var workStepService: WorkStepService {
         if _workStepService == nil {
-            _workStepService = WorkStepService()
+            _workStepService = WorkStepService(context: modelContext)
         }
         return _workStepService!
     }
@@ -185,13 +186,8 @@ final class AppDependencies: ObservableObject {
     
     // MARK: - Storage Services
     
-    private var _photoStorageService: PhotoStorageService?
-    var photoStorageService: PhotoStorageService {
-        if _photoStorageService == nil {
-            _photoStorageService = PhotoStorageService()
-        }
-        return _photoStorageService!
-    }
+    // PhotoStorageService is an enum with static methods, no initialization needed
+    // Access methods directly via PhotoStorageService.methodName()
     
     // MARK: - Calendar Services
     
@@ -213,13 +209,8 @@ final class AppDependencies: ObservableObject {
     
     // MARK: - CloudKit Services
     
-    private var _cloudKitConfigService: CloudKitConfigurationService?
-    var cloudKitConfigService: CloudKitConfigurationService {
-        if _cloudKitConfigService == nil {
-            _cloudKitConfigService = CloudKitConfigurationService()
-        }
-        return _cloudKitConfigService!
-    }
+    // CloudKitConfigurationService is an enum with static methods, no initialization needed
+    // Access methods directly via CloudKitConfigurationService.methodName()
     
     private var _cloudKitSyncStatusService: CloudKitSyncStatusService?
     var cloudKitSyncStatusService: CloudKitSyncStatusService {

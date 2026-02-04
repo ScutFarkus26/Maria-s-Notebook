@@ -137,7 +137,8 @@ enum GenericBackupCodec {
             print("GenericBackupCodec: Exporting \(entityType.entityName)...")
             
             let instances = try fetchAll(entityType, in: context)
-            try container.add(instances)
+            let data = try instances.map { try JSONEncoder().encode($0) }
+            container.entities[entityType.entityName] = data
             
             print("GenericBackupCodec: ✓ Exported \(instances.count) \(entityType.entityName)")
         }
@@ -169,7 +170,9 @@ enum GenericBackupCodec {
             let instances = try container.decode(entityType)
             
             for instance in instances {
-                context.insert(instance as! any PersistentModel)
+                if let model = instance as? (any PersistentModel) {
+                    context.insert(model)
+                }
             }
             
             print("GenericBackupCodec: ✓ Imported \(instances.count) \(entityType.entityName)")

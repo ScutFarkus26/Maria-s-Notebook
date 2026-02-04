@@ -107,7 +107,7 @@ enum TodayDataFetcher {
                 )
                 planItems = try context.fetch(planDescriptor)
             }
-            let planItemsByWork = planItems.grouped { CloudKitUUID.uuid(from: $0.workID) ?? UUID() }
+            let planItemsByWork = planItems.grouped { UUID(uuidString: $0.workID) ?? UUID() }
 
             // Fetch Notes
             let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date())

@@ -1,6 +1,6 @@
 import Foundation
 
-enum LessonSource: String, Codable, CaseIterable, Identifiable {
+enum LessonSource: String, Codable, CaseIterable, Identifiable, Sendable {
     case album
     case personal
     var id: String { rawValue }
@@ -13,7 +13,7 @@ enum LessonSource: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum PersonalLessonKind: String, Codable, CaseIterable, Identifiable {
+enum PersonalLessonKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case personal
     case observation
     case adaptation

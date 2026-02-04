@@ -88,10 +88,10 @@ struct WorkCompletionHistoryView: View {
             }
             // Fallback direct fetch.
             // CloudKit compatibility: Convert UUIDs to strings for comparison
-            let workIDString = workID.cloudKitString
+            let workIDString = workID.uuidString
             let predicate: Predicate<WorkCompletionRecord>
             if let studentID {
-                let studentIDString = studentID.cloudKitString
+                let studentIDString = studentID.uuidString
                 predicate = #Predicate { $0.workID == workIDString && $0.studentID == studentIDString }
             } else {
                 predicate = #Predicate { $0.workID == workIDString }

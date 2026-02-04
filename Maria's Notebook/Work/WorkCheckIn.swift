@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
+enum WorkCheckInStatus: String, Codable, CaseIterable {
     case scheduled = "Scheduled"
     case completed = "Completed"
     case skipped = "Skipped"
@@ -52,9 +52,18 @@ enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
     var workID: String = ""
     @Relationship var work: WorkModel?
     var date: Date = Date()
-    @RawCodable var status: WorkCheckInStatus = .scheduled
+    private var statusRaw: String = WorkCheckInStatus.scheduled.rawValue
     var note: String = ""
     var purpose: String = ""
+    
+    var status: WorkCheckInStatus {
+        get {
+            WorkCheckInStatus(rawValue: statusRaw) ?? .scheduled
+        }
+        set {
+            statusRaw = newValue.rawValue
+        }
+    }
     
     // Computed property for backward compatibility with UUID
     var workIDUUID: UUID? {
@@ -71,7 +80,7 @@ enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
         self.workID = workID.uuidString
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
-        self.status = status
+        self.statusRaw = status.rawValue
         self.purpose = purpose
         self.note = note
         self.work = work

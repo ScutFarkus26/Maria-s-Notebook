@@ -240,7 +240,11 @@ class ReactiveCache: Caching, ObservableObject {
     }
     
     deinit {
-        coordinator?.unregister(key: key)
+        let coordinator = self.coordinator
+        let key = self.key
+        Task { @MainActor in
+            coordinator?.unregister(key: key)
+        }
     }
 }
 

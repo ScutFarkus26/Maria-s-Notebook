@@ -10,7 +10,7 @@ import SwiftData
 
 @Model
 final class Student: Identifiable {
-    enum Level: String, Codable, CaseIterable, Sendable {
+    enum Level: String, Codable, CaseIterable {
         case lower = "Lower"
         case upper = "Upper"
     }
@@ -21,7 +21,7 @@ final class Student: Identifiable {
     var nickname: String? = nil
     var birthday: Date = Date()
     // Store level as raw string for CloudKit compatibility (SwiftData doesn't support enum defaults)
-    @RawCodable var level: Level = .lower
+    private var levelRaw: String = Level.lower.rawValue
     // CloudKit compatibility: Store UUIDs as strings
     var nextLessons: [String] = []
     var manualOrder: Int = 0
@@ -30,6 +30,12 @@ final class Student: Identifiable {
     /// Timestamp of when this record was last modified locally.
     /// Used for smarter CloudKit conflict resolution - prefer the most recently modified record.
     var modifiedAt: Date = Date()
+    
+    // Computed property for level enum
+    var level: Level {
+        get { Level(rawValue: levelRaw) ?? .lower }
+        set { levelRaw = newValue.rawValue }
+    }
 
     // Note: studentLessons relationship removed because StudentLesson.students is @Transient
     // Use queries filtered by studentIDs instead to find lessons for a student
@@ -58,7 +64,7 @@ final class Student: Identifiable {
         self.lastName = lastName
         self.nickname = nickname
         self.birthday = birthday
-        self.level = level
+        self.levelRaw = level.rawValue
         self.dateStarted = dateStarted
         // Convert UUIDs to strings for CloudKit compatibility
         self.nextLessons = nextLessons.map { $0.uuidString }

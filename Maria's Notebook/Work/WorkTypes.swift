@@ -6,7 +6,7 @@ import SwiftUI
 
 // MARK: - Work Kind
 /// Describes the type of work assignment
-public enum WorkKind: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+public enum WorkKind: String, Codable, CaseIterable, Hashable, Identifiable {
     case practiceLesson
     case followUpAssignment
     case research
@@ -26,7 +26,7 @@ public enum WorkKind: String, Codable, CaseIterable, Hashable, Identifiable, Sen
 
 // MARK: - Work Status
 /// Describes the lifecycle status of a work item
-public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable {
     case active
     case review
     case complete
@@ -44,7 +44,7 @@ public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable, S
 
 // MARK: - Completion Outcome
 /// Describes the outcome when work is completed
-public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifiable {
     case mastered
     case needsMorePractice
     case needsReview
@@ -66,7 +66,7 @@ public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifi
 
 // MARK: - Scheduled Reason
 /// Describes why a work item was scheduled
-public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiable {
     case checkIn
     case due
     case followUp
@@ -90,7 +90,7 @@ public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiab
 
 // MARK: - Work Source Context Type
 /// Describes the source context from which work was created
-public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Identifiable {
     case projectSession
     case bookClubSession
     case presentation
