@@ -137,11 +137,11 @@ final class ProposedSolution: Identifiable {
 /// Binary attachment (photo or file) associated with a community topic.
 @Model
 final class CommunityAttachment: Identifiable {
-    enum Kind: String, Codable, CaseIterable { case photo, file }
+    enum Kind: String, Codable, CaseIterable, Sendable { case photo, file }
 
     var id: UUID = UUID()
     var filename: String = ""
-    var kindRaw: String = Kind.file.rawValue
+    @RawCodable var kind: Kind = .file
     @Attribute(.externalStorage) var data: Data?
     var createdAt: Date = Date()
 
@@ -158,15 +158,10 @@ final class CommunityAttachment: Identifiable {
     ) {
         self.id = id
         self.filename = filename
-        self.kindRaw = kind.rawValue
+        self.kind = kind
         self.data = data
         self.createdAt = createdAt
         self.topic = topic
-    }
-
-    var kind: Kind {
-        get { Kind(rawValue: kindRaw) ?? .file }
-        set { kindRaw = newValue.rawValue }
     }
 }
 

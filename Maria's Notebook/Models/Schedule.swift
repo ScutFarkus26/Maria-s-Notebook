@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Days of the week for scheduling
-enum Weekday: String, Codable, CaseIterable, Identifiable {
+enum Weekday: String, Codable, CaseIterable, Identifiable, Sendable {
     case sunday = "Sunday"
     case monday = "Monday"
     case tuesday = "Tuesday"
@@ -165,7 +165,7 @@ final class ScheduleSlot: Identifiable {
     var studentID: String = ""
 
     /// Day of the week (stored as raw string for CloudKit)
-    private var weekdayRaw: String = Weekday.monday.rawValue
+    @RawCodable var weekday: Weekday = .monday
 
     /// Optional time (stored as string like "09:30" for CloudKit compatibility)
     var timeString: String?
@@ -185,12 +185,6 @@ final class ScheduleSlot: Identifiable {
     /// Parent schedule relationship
     var schedule: Schedule?
 
-    /// Computed property for weekday enum
-    var weekday: Weekday {
-        get { Weekday(rawValue: weekdayRaw) ?? .monday }
-        set { weekdayRaw = newValue.rawValue }
-    }
-
     init(
         id: UUID = UUID(),
         scheduleID: String = "",
@@ -205,7 +199,7 @@ final class ScheduleSlot: Identifiable {
         self.id = id
         self.scheduleID = scheduleID
         self.studentID = studentID
-        self.weekdayRaw = weekday.rawValue
+        self.weekday = weekday
         self.timeString = timeString
         self.sortOrder = sortOrder
         self.notes = notes

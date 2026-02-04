@@ -4,7 +4,7 @@ import SwiftData
 // MARK: - Assignment Mode
 
 /// Describes how work is assigned in a project session
-public enum SessionAssignmentMode: String, Codable, CaseIterable, Hashable, Identifiable {
+public enum SessionAssignmentMode: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case uniform    // Everyone gets the same work (auto-assigned to all)
     case choice     // Teacher offers N works, students pick M
 
@@ -150,8 +150,8 @@ final class ProjectSession: Identifiable {
 
     // MARK: - Assignment Mode Configuration
 
-    /// Raw storage for assignment mode (CloudKit compatible)
-    var assignmentModeRaw: String = "uniform"
+    /// Assignment mode (CloudKit compatible)
+    @RawCodable var assignmentMode: SessionAssignmentMode = .uniform
 
     /// For choice mode: minimum selections required per student (0 = no minimum)
     var minSelections: Int = 0
@@ -170,12 +170,6 @@ final class ProjectSession: Identifiable {
     var templateWeekIDUUID: UUID? {
         get { templateWeekID.flatMap { UUID(uuidString: $0) } }
         set { templateWeekID = newValue?.uuidString }
-    }
-
-    /// Type-safe access to assignment mode
-    var assignmentMode: SessionAssignmentMode {
-        get { SessionAssignmentMode(rawValue: assignmentModeRaw) ?? .uniform }
-        set { assignmentModeRaw = newValue.rawValue }
     }
 
     // Inverse relationship for Note.projectSession
@@ -204,7 +198,7 @@ final class ProjectSession: Identifiable {
         self.notes = notes
         self.agendaItemsJSON = agendaItemsJSON
         self.templateWeekID = templateWeekID?.uuidString
-        self.assignmentModeRaw = assignmentMode.rawValue
+        self.assignmentMode = assignmentMode
         self.minSelections = minSelections
         self.maxSelections = maxSelections
     }
