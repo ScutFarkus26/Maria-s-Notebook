@@ -200,30 +200,31 @@
 
 ### Issue: "Cannot convert value of type 'WorkKind' to expected argument type 'String'"
 
-**Problem**: WorkKind enum doesn't have displayName.
+**Problem**: Trying to use WorkKind incorrectly.
 
 **Solutions**:
-1. Add displayName to WorkKind:
+1. Use the displayName property (already defined in WorkTypes.swift):
    ```swift
-   extension WorkKind {
-       var displayName: String {
-           switch self {
-           case .practiceLesson: return "Practice"
-           case .followUp: return "Follow Up"
-           case .research: return "Research"
-           case .report: return "Report"
-           case .choice: return "Choice"
-           }
-       }
-   }
+   // In your code:
+   Text(work.kind?.displayName ?? "")
    ```
 
-2. Or use rawValue:
+2. The correct WorkKind cases are:
    ```swift
-   // In WorkPrintView, replace:
-   kind.displayName
-   // with:
-   kind.rawValue
+   // Correct enum cases:
+   .practiceLesson       // Not .practice
+   .followUpAssignment   // Not .followUp
+   .research
+   .report
+   ```
+
+3. WorkKind already has displayName extension in WorkTypes.swift:
+   ```swift
+   // Already defined - no need to add:
+   case .practiceLesson: return "Practice"
+   case .followUpAssignment: return "Follow-Up"
+   case .research: return "Project"
+   case .report: return "Report"
    ```
 
 ---

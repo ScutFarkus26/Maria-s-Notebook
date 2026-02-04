@@ -43,5 +43,7 @@ struct AppSchema {
         Supply.self,
         SupplyTransaction.self,
         Procedure.self,
+        Schedule.self,
+        ScheduleSlot.self,
     ])
 }

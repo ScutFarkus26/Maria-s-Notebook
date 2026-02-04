@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftUI
 import SwiftData
 
 // MARK: - Minimal Integration Example
@@ -232,9 +233,15 @@ struct Structure3: View {
             Text(item.title)
         }
         .toolbar {
+            #if os(iOS)
             ToolbarItem(placement: .navigationBarLeading) {
                 Button("Add") { showingAddSheet = true }
             }
+            #else
+            ToolbarItem(placement: .automatic) {
+                Button("Add") { showingAddSheet = true }
+            }
+            #endif
             
             ToolbarItem(placement: .primaryAction) {
                 WorkPrintButton(workItems: work, students: students, lessons: lessons,
@@ -255,7 +262,9 @@ struct Structure4: View {
             Text(item.title)
         }
         .navigationTitle("Work")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
             WorkPrintButton(workItems: work, students: students, lessons: lessons,
                           filterDescription: "All", sortDescription: "Default")
@@ -297,7 +306,9 @@ struct WithFiltering: View {
 }
 
 // MARK: - Preview
+// Note: Previews commented out - add back if you have .previewEnvironment() helper
 
+/*
 #Preview("Minimal Integration") {
     MinimalWorkViewWithPrint()
         .previewEnvironment()
@@ -312,3 +323,4 @@ struct WithFiltering: View {
     AfterWorkView()
         .previewEnvironment()
 }
+*/

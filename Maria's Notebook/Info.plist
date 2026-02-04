@@ -6,20 +6,16 @@
 	<string>Maria's Notebook</string>
 	<key>CFBundleName</key>
 	<string>Maria's Notebook</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>We need access to your camera to take photos for notes.</string>
-	<key>NSRemindersUsageDescription</key>
-	<string>We need access to your reminders to sync reminders from a specific list to your Today view.</string>
-	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>We need access to your calendars to show today's events in your Today view.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>We need full access to your calendars to show today's events in your Today view.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>We need access to your calendars to show today's events in your Today view.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to take photos for notes.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>We need access to your reminders to sync reminders from a specific list to your Today view.</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

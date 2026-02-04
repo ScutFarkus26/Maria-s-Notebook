@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftUI
 import SwiftData
 
 /// Example integration showing how to add print functionality to your Work view.
@@ -278,8 +279,11 @@ struct WorkRowView: View {
 }
 
 // MARK: - Preview
+// Note: Preview commented out - add back if you have .previewEnvironment() helper
 
+/*
 #Preview("Work List with Print") {
     ExampleWorkListViewWithPrint()
         .previewEnvironment()
 }
+*/
