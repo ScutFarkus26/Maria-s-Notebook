@@ -32,7 +32,9 @@ struct BackupEntityRegistry {
         ProjectSession.self,
         ProjectRole.self,
         ProjectTemplateWeek.self,
-        ProjectWeekRoleAssignment.self
+        ProjectWeekRoleAssignment.self,
+        Issue.self,
+        IssueAction.self
     ]
     
     /// Entity type names for progress reporting and error messages

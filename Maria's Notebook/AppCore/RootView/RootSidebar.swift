@@ -92,6 +92,12 @@ struct RootSidebar: View {
                     Label("Projects", systemImage: "folder")
                 }
             }
+            
+            Section("Analytics") {
+                NavigationLink(value: RootView.NavigationItem.presentationProgress) {
+                    Label("Presentation Progress", systemImage: "chart.line.uptrend.xyaxis")
+                }
+            }
 
             Section("Resources") {
                 NavigationLink(value: RootView.NavigationItem.supplies) {
@@ -104,6 +110,10 @@ struct RootSidebar: View {
 
                 NavigationLink(value: RootView.NavigationItem.schedules) {
                     Label("Schedules", systemImage: "clock.badge.checkmark")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.issues) {
+                    Label("Issues", systemImage: "exclamationmark.triangle")
                 }
             }
 
@@ -179,6 +189,14 @@ struct RootSidebar: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student projects")
             }
+            
+            Section("Analytics") {
+                Button { selection = .presentationProgress } label: {
+                    Label("Presentation Progress", systemImage: "chart.line.uptrend.xyaxis")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track presentations and their follow-up work")
+            }
 
             Section("Resources") {
                 Button { selection = .supplies } label: {
@@ -198,6 +216,12 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View recurring schedules")
+
+                Button { selection = .issues } label: {
+                    Label("Issues", systemImage: "exclamationmark.triangle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track and resolve classroom issues")
             }
 
             Section("System") {

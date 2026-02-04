@@ -43,14 +43,17 @@ extension WorkModel {
     /// Fetches all practice sessions that include this work item
     func fetchPracticeSessions(from context: ModelContext) -> [PracticeSession] {
         let workIDString = id.uuidString
+        
+        // Fetch all practice sessions and filter in memory
+        // This is necessary because SwiftData predicates don't support contains() on string arrays
         let descriptor = FetchDescriptor<PracticeSession>(
-            predicate: #Predicate { session in
-                session.workItemIDs.contains(workIDString)
-            },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         
-        return (try? context.fetch(descriptor)) ?? []
+        let allSessions = (try? context.fetch(descriptor)) ?? []
+        return allSessions.filter { session in
+            session.workItemIDs.contains(workIDString)
+        }
     }
 }
 
@@ -73,30 +76,38 @@ extension LessonAssignment {
         let studentUUIDStrings = studentIDs
         guard !studentUUIDStrings.isEmpty else { return [] }
         
+        // Convert string IDs to UUIDs
+        let uuids = studentUUIDStrings.compactMap { UUID(uuidString: $0) }
+        guard !uuids.isEmpty else { return [] }
+        
+        // Fetch all students and filter in-memory
+        // This is necessary because SwiftData predicates don't support id.uuidString keypaths
         let descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate { student in
-                studentUUIDStrings.contains(student.id.uuidString)
-            },
             sortBy: [SortDescriptor(\.firstName)]
         )
         
-        return (try? context.fetch(descriptor)) ?? []
+        let allStudents = (try? context.fetch(descriptor)) ?? []
+        return allStudents.filter { student in
+            studentUUIDStrings.contains(student.id.uuidString)
+        }
     }
     
     /// Fetches practice sessions related to work from this presentation
     func fetchRelatedPracticeSessions(from context: ModelContext) -> [PracticeSession] {
         let workItems = fetchRelatedWork(from: context)
-        let workIDs = workItems.map { $0.id.uuidString }
+        let workIDs = Set(workItems.map { $0.id.uuidString })
         guard !workIDs.isEmpty else { return [] }
         
+        // Fetch all practice sessions and filter in memory
+        // This is necessary because SwiftData predicates don't support complex array operations
         let descriptor = FetchDescriptor<PracticeSession>(
-            predicate: #Predicate { session in
-                session.workItemIDs.contains { workIDs.contains($0) }
-            },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         
-        return (try? context.fetch(descriptor)) ?? []
+        let allSessions = (try? context.fetch(descriptor)) ?? []
+        return allSessions.filter { session in
+            session.workItemIDs.contains(where: { workIDs.contains($0) })
+        }
     }
     
     /// Returns work completion statistics for this presentation
@@ -135,17 +146,19 @@ extension Lesson {
     /// Fetches all practice sessions involving this lesson's work
     func fetchAllPracticeSessions(from context: ModelContext) -> [PracticeSession] {
         let workItems = fetchAllWork(from: context)
-        let workIDs = workItems.map { $0.id.uuidString }
+        let workIDs = Set(workItems.map { $0.id.uuidString })
         guard !workIDs.isEmpty else { return [] }
         
+        // Fetch all practice sessions and filter in memory
+        // This is necessary because SwiftData predicates don't support complex array operations
         let descriptor = FetchDescriptor<PracticeSession>(
-            predicate: #Predicate { session in
-                session.workItemIDs.contains { workIDs.contains($0) }
-            },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         
-        return (try? context.fetch(descriptor)) ?? []
+        let allSessions = (try? context.fetch(descriptor)) ?? []
+        return allSessions.filter { session in
+            session.workItemIDs.contains(where: { workIDs.contains($0) })
+        }
     }
     
     /// Returns statistics about this lesson's usage
@@ -175,25 +188,39 @@ extension Lesson {
 extension PracticeSession {
     /// Fetches all students who participated in this session
     func fetchStudents(from context: ModelContext) -> [Student] {
+        guard !studentIDs.isEmpty else { return [] }
+        
+        // Convert string IDs to UUIDs for querying
+        let uuids = studentIDs.compactMap { UUID(uuidString: $0) }
+        guard !uuids.isEmpty else { return [] }
+        
+        // Fetch students by UUIDs
         let descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate { student in
-                studentIDs.contains(student.id.uuidString)
-            },
             sortBy: [SortDescriptor(\.firstName)]
         )
         
-        return (try? context.fetch(descriptor)) ?? []
+        let allStudents = (try? context.fetch(descriptor)) ?? []
+        return allStudents.filter { student in
+            studentIDs.contains(student.id.uuidString)
+        }
     }
     
     /// Fetches all work items practiced in this session
     func fetchWorkItems(from context: ModelContext) -> [WorkModel] {
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { work in
-                workItemIDs.contains(work.id.uuidString)
-            }
-        )
+        guard !workItemIDs.isEmpty else { return [] }
         
-        return (try? context.fetch(descriptor)) ?? []
+        // Convert string IDs to UUIDs for querying
+        let uuids = workItemIDs.compactMap { UUID(uuidString: $0) }
+        guard !uuids.isEmpty else { return [] }
+        
+        // Fetch all work items and filter in memory
+        // This is necessary because SwiftData predicates don't support checking if UUID is in string array
+        let descriptor = FetchDescriptor<WorkModel>()
+        let allWork = (try? context.fetch(descriptor)) ?? []
+        
+        return allWork.filter { work in
+            workItemIDs.contains(work.id.uuidString)
+        }
     }
     
     /// Fetches the common lesson if all work items are for the same lesson

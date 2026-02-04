@@ -4,7 +4,6 @@ import SwiftData
 struct IssueDetailSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppDependencies.self) var deps
     
     @Query(sort: \Student.firstName) private var allStudents: [Student]
     
@@ -117,7 +116,9 @@ struct IssueDetailSheet: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Issue" : "New Issue")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -342,7 +343,9 @@ struct IssueActionSheet: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Action" : "New Action")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -418,13 +421,11 @@ struct IssueActionSheet: View {
 #Preview("Issue List") {
     NavigationStack {
         IssuesListView()
-            .modelContainer(PreviewEnvironment.shared.container)
-            .environment(PreviewEnvironment.shared.deps)
     }
+    .previewEnvironment()
 }
 
 #Preview("New Issue") {
     IssueDetailSheet(issue: nil)
-        .modelContainer(PreviewEnvironment.shared.container)
-        .environment(PreviewEnvironment.shared.deps)
+        .previewEnvironment()
 }

@@ -30,6 +30,7 @@ struct WorkDetailView: View {
     #endif
 
     @State private var resolvedPresentationID: UUID? = nil
+    @State private var relatedPresentation: Presentation? = nil
     @State private var showPresentationNotes: Bool = true
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: Note? = nil
@@ -98,6 +99,8 @@ struct WorkDetailView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
                             headerSection()
+                            
+                            presentationContextSection()
 
                             if status == .complete { completionSection() }
                             if workKind == .report { stepsSection() }
@@ -593,6 +596,153 @@ struct WorkDetailView: View {
         }
     }
     
+    @ViewBuilder private func presentationContextSection() -> some View {
+        if let presentation = relatedPresentation {
+            DetailSectionCard(
+                title: "From Presentation",
+                icon: "calendar.badge.checkmark",
+                accentColor: .indigo
+            ) {
+                VStack(spacing: 14) {
+                    // Presentation date info
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.indigo.opacity(0.15))
+                                .frame(width: 44, height: 44)
+                            
+                            Image(systemName: presentation.isPresented ? "calendar.badge.checkmark" : "calendar")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.indigo)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            
+                            if let date = presentation.presentedAt ?? presentation.scheduledFor {
+                                Text(date.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.indigo.opacity(0.05))
+                    )
+                    
+                    // Presentation flags
+                    if presentation.needsPractice || presentation.needsAnotherPresentation || !presentation.followUpWork.isEmpty {
+                        VStack(spacing: 8) {
+                            if presentation.needsPractice {
+                                flagRow(icon: "arrow.counterclockwise", text: "Needs Practice", color: .orange)
+                            }
+                            
+                            if presentation.needsAnotherPresentation {
+                                flagRow(icon: "repeat", text: "Needs Re-presentation", color: .red)
+                            }
+                            
+                            if !presentation.followUpWork.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "list.clipboard")
+                                            .font(.system(size: 14, weight: .medium))
+                                        Text("Follow-up Work")
+                                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    }
+                                    .foregroundStyle(.blue)
+                                    
+                                    Text(presentation.followUpWork)
+                                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.blue.opacity(0.08))
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Presentation notes
+                    if !presentation.notes.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "note.text")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Presentation Notes")
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundStyle(.purple)
+                            
+                            Text(presentation.notes)
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.purple.opacity(0.08))
+                        )
+                    }
+                    
+                    // Students in presentation (if multiple)
+                    let students = presentation.fetchStudents(from: modelContext)
+                    if students.count > 1 {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Also presented to:")
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundStyle(.green)
+                            
+                            ForEach(students.filter { $0.id.uuidString != work?.studentID }) { student in
+                                Text("• \(StudentFormatter.displayName(for: student))")
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.green.opacity(0.08))
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func flagRow(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(color)
+            
+            Text(text)
+                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .foregroundStyle(.primary)
+            
+            Spacer()
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(color.opacity(0.08))
+        )
+    }
+    
     @ViewBuilder private func notesSection() -> some View {
         DetailSectionCard(
             title: "Notes",
@@ -736,6 +886,9 @@ struct WorkDetailView: View {
             let allStudents = modelContext.safeFetch(allStudentsDescriptor)
             relatedStudent = allStudents.first { $0.id == studentID }
         }
+        
+        // Load the presentation that spawned this work
+        relatedPresentation = work.fetchPresentation(from: modelContext)
 
         // Load the specific lesson
         if let lessonID = UUID(uuidString: work.lessonID) {

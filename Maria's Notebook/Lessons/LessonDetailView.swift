@@ -56,6 +56,16 @@ struct LessonDetailView: View {
                         editForm
                     } else {
                         infoSection
+                        
+                        // Journey Timeline
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Lesson Journey")
+                                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                            
+                            LessonJourneyTimeline(lesson: lesson, modelContext: modelContext)
+                                .frame(height: 350)
+                        }
+                        .padding(.top, 20)
                     }
                 }
                 .padding(.horizontal, 32)

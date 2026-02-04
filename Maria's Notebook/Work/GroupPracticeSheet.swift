@@ -26,6 +26,10 @@ struct GroupPracticeSheet: View {
     @State private var individualNotes: [UUID: String] = [:]
     @State private var showIndividualNotes: Bool = false
     
+    // Presentation and lesson context
+    @State private var relatedPresentation: Presentation? = nil
+    @State private var relatedLesson: Lesson? = nil
+    
     private var repository: PracticeSessionRepository {
         PracticeSessionRepository(modelContext: modelContext)
     }
@@ -68,6 +72,11 @@ struct GroupPracticeSheet: View {
                     VStack(alignment: .leading, spacing: 24) {
                         // Date selection
                         dateSection
+                        
+                        Divider()
+                        
+                        // Presentation & Lesson context
+                        presentationContextSection
                         
                         Divider()
                         
@@ -118,6 +127,87 @@ struct GroupPracticeSheet: View {
     }
     
     // MARK: - View Sections
+    
+    @ViewBuilder
+    private var presentationContextSection: some View {
+        if let lesson = relatedLesson {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "book.closed.fill")
+                        .foregroundStyle(.indigo)
+                        .font(.system(size: 16))
+                    Text("Lesson Context")
+                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    // Lesson info
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(lesson.name)
+                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            
+                            if !lesson.subject.isEmpty || !lesson.group.isEmpty {
+                                HStack(spacing: 6) {
+                                    if !lesson.subject.isEmpty {
+                                        Text(lesson.subject)
+                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    if !lesson.subject.isEmpty && !lesson.group.isEmpty {
+                                        Text("•")
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    
+                                    if !lesson.group.isEmpty {
+                                        Text(lesson.group)
+                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.indigo.opacity(0.08))
+                    )
+                    
+                    // Presentation info if available
+                    if let presentation = relatedPresentation {
+                        HStack(spacing: 8) {
+                            Image(systemName: presentation.isPresented ? "calendar.badge.checkmark" : "calendar")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.indigo)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(presentation.isPresented ? "Presented" : "Scheduled")
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                
+                                if let date = presentation.presentedAt ?? presentation.scheduledFor {
+                                    Text(date.formatted(date: .abbreviated, time: .omitted))
+                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.indigo.opacity(0.05))
+                        )
+                    }
+                }
+            }
+        }
+    }
     
     private var dateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -424,6 +514,10 @@ struct GroupPracticeSheet: View {
             selectedStudentIDs.insert(studentID)
         }
         selectedWorkItemIDs.insert(initialWorkItem.id)
+        
+        // Load presentation and lesson context
+        relatedPresentation = initialWorkItem.fetchPresentation(from: modelContext)
+        relatedLesson = initialWorkItem.fetchLesson(from: modelContext)
     }
     
     private func toggleStudent(_ student: Student) {

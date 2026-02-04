@@ -40,14 +40,32 @@ enum BlockingAlgorithmEngine {
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
 
+        #if DEBUG
+        let debugEnabled = false // Set to true to enable verbose blocking debug logs
+        if debugEnabled {
+            print("🔍 Checking blocking for: \(currentLesson.name) (StudentLesson ID: \(sl.id))")
+        }
+        #endif
+
         // Find the preceding lesson in the sequence (same subject/group, previous orderInGroup)
         guard let precedingLesson = findPrecedingLesson(
             currentLesson: currentLesson,
             lessons: lessons
         ) else {
             // No preceding lesson means no prerequisites to check
+            #if DEBUG
+            if debugEnabled {
+                print("   ↳ No preceding lesson → not blocked")
+            }
+            #endif
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
+
+        #if DEBUG
+        if debugEnabled {
+            print("   ↳ Preceding lesson: \(precedingLesson.name)")
+        }
+        #endif
 
         // Find the LessonAssignment for the preceding lesson with the same student group
         let studentIDs = Set(sl.resolvedStudentIDs.map { $0.uuidString })
@@ -62,13 +80,30 @@ enum BlockingAlgorithmEngine {
 
         guard let presentationID = precedingLessonAssignment?.id.uuidString else {
             // No presentation for preceding lesson means no prerequisites
+            #if DEBUG
+            if debugEnabled {
+                print("   ↳ No presentation found for preceding lesson → not blocked")
+            }
+            #endif
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
+
+        #if DEBUG
+        if debugEnabled {
+            print("   ↳ Found presentation ID: \(presentationID)")
+        }
+        #endif
 
         // Find WorkModel records linked to the preceding presentation
         let prerequisiteWork = workModels.filter { work in
             work.presentationID == presentationID
         }
+
+        #if DEBUG
+        if debugEnabled {
+            print("   ↳ Found \(prerequisiteWork.count) work items for preceding lesson")
+        }
+        #endif
 
         // Check if ANY prerequisite work is incomplete for any required student
         var prereqOpenCount = 0
@@ -76,16 +111,38 @@ enum BlockingAlgorithmEngine {
 
         for work in prerequisiteWork {
             if isWorkComplete(work: work, requiredStudentIDs: sl.resolvedStudentIDs) {
+                #if DEBUG
+                if debugEnabled {
+                    print("      • Work '\(work.title ?? "Untitled")' is complete")
+                }
+                #endif
                 continue // This work is complete
             }
 
             prereqOpenCount += 1
 
+            #if DEBUG
+            if debugEnabled {
+                print("      • Work '\(work.title ?? "Untitled")' is INCOMPLETE")
+            }
+            #endif
+
             // Check if this work blocks any required student
             if workHasIncompleteForRequiredStudents(work: work, requiredStudentIDs: sl.resolvedStudentIDs) {
                 isBlocked = true
+                #if DEBUG
+                if debugEnabled {
+                    print("         → BLOCKS this lesson")
+                }
+                #endif
             }
         }
+
+        #if DEBUG
+        if debugEnabled {
+            print("   ↳ Result: isBlocked=\(isBlocked), prereqOpenCount=\(prereqOpenCount)")
+        }
+        #endif
 
         return BlockingCheckResult(isBlocked: isBlocked, prereqOpenCount: prereqOpenCount)
     }

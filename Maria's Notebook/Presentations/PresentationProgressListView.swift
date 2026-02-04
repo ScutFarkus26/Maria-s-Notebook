@@ -1,6 +1,20 @@
 import SwiftUI
 import SwiftData
 
+extension LessonAssignment {
+    /// Fetches the lesson for this presentation
+    func fetchLesson(from context: ModelContext) -> Lesson? {
+        guard !lessonID.isEmpty,
+              let uuid = UUID(uuidString: lessonID) else { return nil }
+        
+        let descriptor = FetchDescriptor<Lesson>(
+            predicate: #Predicate { $0.id == uuid }
+        )
+        
+        return try? context.fetch(descriptor).first
+    }
+}
+
 /// Shows all presentations with their follow-up work and practice outcomes
 struct PresentationProgressListView: View {
     @Environment(\.modelContext) private var modelContext
@@ -23,7 +37,7 @@ struct PresentationProgressListView: View {
         if !searchText.isEmpty {
             presentations = presentations.filter { presentation in
                 if let lesson = presentation.fetchLesson(from: modelContext) {
-                    return lesson.title.localizedCaseInsensitiveContains(searchText)
+                    return lesson.name.localizedCaseInsensitiveContains(searchText)
                 }
                 return false
             }
@@ -110,11 +124,11 @@ struct PresentationProgressRow: View {
             // Lesson title and date
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(lesson?.title ?? "Unknown Lesson")
+                    Text(lesson?.name ?? "Unknown Lesson")
                         .font(.headline)
                     
-                    if let date = presentation.scheduledForDay {
-                        Text(date.formatted(date: .abbreviated, time: .omitted))
+                    if presentation.scheduledForDay != Date.distantPast {
+                        Text(presentation.scheduledForDay.formatted(date: .abbreviated, time: .omitted))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -212,14 +226,14 @@ struct PresentationProgressDetailView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     // Header section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(lesson?.title ?? "Unknown Lesson")
+                        Text(lesson?.name ?? "Unknown Lesson")
                             .font(.title)
                             .fontWeight(.bold)
                         
                         HStack {
-                            if let date = presentation.scheduledForDay {
+                            if presentation.scheduledForDay != Date.distantPast {
                                 Label(
-                                    date.formatted(date: .abbreviated, time: .omitted),
+                                    presentation.scheduledForDay.formatted(date: .abbreviated, time: .omitted),
                                     systemImage: "calendar"
                                 )
                             }
@@ -305,7 +319,7 @@ struct PresentationProgressDetailView: View {
                     }
                     
                     // Presentation flags
-                    if presentation.needsReview || presentation.needsReinforcement || presentation.needsFollowUp {
+                    if presentation.needsPractice || presentation.needsAnotherPresentation || !presentation.followUpWork.isEmpty {
                         Divider()
                         
                         VStack(alignment: .leading, spacing: 12) {
@@ -313,28 +327,28 @@ struct PresentationProgressDetailView: View {
                                 .font(.headline)
                             
                             VStack(alignment: .leading, spacing: 8) {
-                                if presentation.needsReview {
-                                    FlagBadge(text: "Needs Review", color: .orange)
+                                if presentation.needsPractice {
+                                    FlagBadge(text: "Needs Practice", color: .orange)
                                 }
-                                if presentation.needsReinforcement {
-                                    FlagBadge(text: "Needs Reinforcement", color: .red)
+                                if presentation.needsAnotherPresentation {
+                                    FlagBadge(text: "Needs Another Presentation", color: .red)
                                 }
-                                if presentation.needsFollowUp {
-                                    FlagBadge(text: "Needs Follow-Up", color: .blue)
+                                if !presentation.followUpWork.isEmpty {
+                                    FlagBadge(text: "Follow-Up Work", color: .blue)
                                 }
                             }
                         }
                     }
                     
                     // Notes
-                    if let notes = presentation.notes, !notes.isEmpty {
+                    if !presentation.notes.isEmpty {
                         Divider()
                         
                         VStack(alignment: .leading, spacing: 12) {
                             Label("Notes", systemImage: "note.text")
                                 .font(.headline)
                             
-                            Text(notes)
+                            Text(presentation.notes)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -343,7 +357,9 @@ struct PresentationProgressDetailView: View {
                 .padding()
             }
             .navigationTitle("Presentation Progress")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
@@ -423,7 +439,7 @@ struct PracticeSessionRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(session.title)
+                Text("Practice Session")
                     .font(.subheadline)
                 
                 Text(session.date.formatted(date: .abbreviated, time: .omitted))
@@ -433,8 +449,9 @@ struct PracticeSessionRow: View {
             
             Spacer()
             
-            if let duration = session.durationMinutes {
-                Text("\(duration) min")
+            if let duration = session.duration {
+                let minutes = Int(duration / 60)
+                Text("\(minutes) min")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -483,46 +500,4 @@ struct StatBadge: View {
     }
 }
 
-// Simple flow layout for wrapping views
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-    
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = FlowResult(in: proposal.replacingUnspecifiedDimensions().width, subviews: subviews, spacing: spacing)
-        return result.size
-    }
-    
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
-        for (index, subview) in subviews.enumerated() {
-            subview.place(at: CGPoint(x: bounds.minX + result.frames[index].minX, y: bounds.minY + result.frames[index].minY), proposal: .unspecified)
-        }
-    }
-    
-    struct FlowResult {
-        var frames: [CGRect] = []
-        var size: CGSize = .zero
-        
-        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
-            var x: CGFloat = 0
-            var y: CGFloat = 0
-            var lineHeight: CGFloat = 0
-            
-            for subview in subviews {
-                let size = subview.sizeThatFits(.unspecified)
-                
-                if x + size.width > maxWidth && x > 0 {
-                    x = 0
-                    y += lineHeight + spacing
-                    lineHeight = 0
-                }
-                
-                frames.append(CGRect(x: x, y: y, width: size.width, height: size.height))
-                lineHeight = max(lineHeight, size.height)
-                x += size.width + spacing
-            }
-            
-            self.size = CGSize(width: maxWidth, height: y + lineHeight)
-        }
-    }
-}
+

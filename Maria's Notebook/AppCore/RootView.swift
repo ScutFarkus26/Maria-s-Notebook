@@ -33,9 +33,13 @@ struct RootView: View {
         case planningAgenda
         case planningWork
         case planningProjects
+        
+        // Analytics
+        case presentationProgress
 
         case community
         case schedules
+        case issues
         case logs
         case settings
 
@@ -56,8 +60,10 @@ struct RootView: View {
             case .planningAgenda: return "Presentations"
             case .planningWork: return "Open Work"
             case .planningProjects: return "Projects"
+            case .presentationProgress: return "Presentation Progress"
             case .community: return "Community"
             case .schedules: return "Schedules"
+            case .issues: return "Issues"
             case .logs: return "Logs"
             case .settings: return "Settings"
             }
@@ -78,8 +84,10 @@ struct RootView: View {
             case .planningAgenda: return "calendar"
             case .planningWork: return "tray.full"
             case .planningProjects: return "folder"
+            case .presentationProgress: return "chart.line.uptrend.xyaxis"
             case .community: return "bubble.left.and.bubble.right"
             case .schedules: return "clock.badge.checkmark"
+            case .issues: return "exclamationmark.triangle"
             case .logs: return "list.bullet"
             case .settings: return "gear"
             }
@@ -121,8 +129,10 @@ struct RootView: View {
             case .planningChecklist, .planningAgenda, .planningWork, .planningProjects: return .planning
             case .community: return .community
             case .schedules: return nil
+            case .issues: return nil
             case .logs: return .logs
             case .settings: return .settings
+            case .presentationProgress: return nil
             }
         }
     }

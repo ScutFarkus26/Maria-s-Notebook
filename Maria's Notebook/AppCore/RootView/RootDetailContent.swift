@@ -57,10 +57,14 @@ struct RootDetailContent: View {
                 WorksAgendaView()
             case .planningProjects:
                 ProjectsRootView()
+            case .presentationProgress:
+                PresentationProgressListView()
             case .community:
                 CommunityMeetingsView()
             case .schedules:
                 SchedulesView()
+            case .issues:
+                IssuesListView()
             case .logs:
                 LogsMenuRootView()
             case .settings:
@@ -138,6 +142,7 @@ struct MoreMenuView: View {
                     moreMenuButton(.supplies)
                     moreMenuButton(.procedures)
                     moreMenuButton(.schedules)
+                    moreMenuButton(.issues)
                 }
 
                 Section("System") {

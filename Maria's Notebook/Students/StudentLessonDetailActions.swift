@@ -43,7 +43,26 @@ final class StudentLessonDetailActions: ObservableObject {
         studentLessonsAll: [StudentLesson],
         context: ModelContext
     ) {
-        guard !wasGiven, nowGiven, let next = nextLesson else { return }
+        #if DEBUG
+        print("🎯 autoCreateNextIfNeeded: wasGiven=\(wasGiven), nowGiven=\(nowGiven), hasNextLesson=\(nextLesson != nil)")
+        #endif
+        
+        guard !wasGiven, nowGiven, let next = nextLesson else {
+            #if DEBUG
+            if wasGiven {
+                print("   ↳ Skipping: lesson was already given")
+            } else if !nowGiven {
+                print("   ↳ Skipping: lesson not marked as given yet")
+            } else if nextLesson == nil {
+                print("   ↳ Skipping: no next lesson in sequence")
+            }
+            #endif
+            return
+        }
+
+        #if DEBUG
+        print("   ↳ Creating next lesson: \(next.name) for \(selectedStudentIDs.count) students")
+        #endif
 
         let result = PlanNextLessonService.planLesson(
             next,
@@ -53,6 +72,23 @@ final class StudentLessonDetailActions: ObservableObject {
             existingStudentLessons: studentLessonsAll,
             context: context
         )
+
+        #if DEBUG
+        switch result {
+        case .success(let studentLesson):
+            print("   ✅ Successfully created next lesson (ID: \(studentLesson.id))")
+        case .alreadyExists:
+            print("   ⚠️ Next lesson already exists in inbox")
+        case .noNextLesson:
+            print("   ⚠️ No next lesson found")
+        case .noCurrentLesson:
+            print("   ⚠️ Current lesson not found")
+        case .emptySubjectOrGroup:
+            print("   ⚠️ Empty subject or group")
+        case .noStudents:
+            print("   ⚠️ No students selected")
+        }
+        #endif
 
         if case .success = result {
             StudentLessonDetailUtilities.notifyInboxRefresh()

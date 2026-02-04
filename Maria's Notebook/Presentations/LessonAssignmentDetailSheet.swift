@@ -176,6 +176,9 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                 }
                             }
                         }
+                        
+                        // Work Items Summary
+                        workSummarySection(for: la)
 
                         // Notes
                         VStack(alignment: .leading, spacing: 8) {
@@ -324,6 +327,174 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         case .scheduled: return .blue
         case .presented: return .green
         }
+    }
+    
+    // MARK: - Work Summary Section
+    
+    @ViewBuilder
+    private func workSummarySection(for presentation: LessonAssignment) -> some View {
+        let workItems = presentation.fetchRelatedWork(from: modelContext)
+        
+        if !workItems.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "folder.badge.gearshape")
+                        .foregroundStyle(.blue)
+                    Text("Related Work")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    
+                    Spacer()
+                    
+                    // Completion stats
+                    let stats = presentation.workCompletionStats(from: modelContext)
+                    if stats.total > 0 {
+                        HStack(spacing: 4) {
+                            Text("\(stats.completed)/\(stats.total)")
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 12))
+                        }
+                        .foregroundStyle(stats.completed == stats.total ? .green : .secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill((stats.completed == stats.total ? Color.green : Color.secondary).opacity(0.1))
+                        )
+                    }
+                }
+                
+                VStack(spacing: 8) {
+                    ForEach(workItems) { work in
+                        workItemRow(work)
+                    }
+                }
+                
+                // Practice sessions for this presentation's work
+                let practiceSessions = presentation.fetchRelatedPracticeSessions(from: modelContext)
+                if !practiceSessions.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 14, weight: .medium))
+                            Text("Practice Sessions (\(practiceSessions.count))")
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundStyle(.purple)
+                        
+                        ForEach(practiceSessions.prefix(3)) { session in
+                            practiceSessionRow(session)
+                        }
+                        
+                        if practiceSessions.count > 3 {
+                            Text("+ \(practiceSessions.count - 3) more sessions")
+                                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                                .padding(.leading, 8)
+                        }
+                    }
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.purple.opacity(0.05))
+                    )
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func workItemRow(_ work: WorkModel) -> some View {
+        HStack(spacing: 12) {
+            // Status indicator
+            ZStack {
+                Circle()
+                    .fill(work.status.color.opacity(0.15))
+                    .frame(width: 36, height: 36)
+                
+                Image(systemName: work.status.iconName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(work.status.color)
+            }
+            
+            VStack(alignment: .leading, spacing: 3) {
+                Text(work.title)
+                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                
+                HStack(spacing: 6) {
+                    if let student = work.fetchStudent(from: modelContext) {
+                        Text(StudentFormatter.displayName(for: student))
+                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    if let kind = work.kind {
+                        Text("•")
+                            .foregroundStyle(.tertiary)
+                        Text(kind.rawValue)
+                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Status badge
+            Text(work.status.rawValue.capitalized)
+                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .foregroundStyle(work.status.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(work.status.color.opacity(0.12))
+                )
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.primary.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+    }
+    
+    @ViewBuilder
+    private func practiceSessionRow(_ session: PracticeSession) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: session.isGroupSession ? "person.2" : "person")
+                .font(.system(size: 12))
+                .foregroundStyle(.purple)
+            
+            Text(session.date.formatted(date: .abbreviated, time: .omitted))
+                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+            
+            if let duration = session.durationFormatted {
+                Text("•")
+                    .foregroundStyle(.tertiary)
+                Text(duration)
+                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
+            Text("\(session.participantCount) \(session.participantCount == 1 ? "student" : "students")")
+                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.purple.opacity(0.08))
+        )
     }
 
     @ViewBuilder

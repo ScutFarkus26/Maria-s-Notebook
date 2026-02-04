@@ -3,7 +3,6 @@ import SwiftData
 
 struct IssuesListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(AppDependencies.self) var deps
     
     @Query(sort: \Issue.createdAt, order: .reverse) private var allIssues: [Issue]
     
@@ -41,17 +40,17 @@ struct IssuesListView: View {
             // Summary stats
             Section {
                 HStack(spacing: 20) {
-                    StatCard(
+                    IssueStatCard(
                         title: "Open",
                         count: allIssues.filter { $0.status == .open }.count,
                         color: .blue
                     )
-                    StatCard(
+                    IssueStatCard(
                         title: "In Progress",
                         count: allIssues.filter { $0.status == .inProgress || $0.status == .investigating }.count,
                         color: .orange
                     )
-                    StatCard(
+                    IssueStatCard(
                         title: "Resolved",
                         count: allIssues.filter { $0.status == .resolved }.count,
                         color: .green
@@ -127,7 +126,7 @@ struct IssuesListView: View {
     }
 }
 
-struct StatCard: View {
+struct IssueStatCard: View {
     let title: String
     let count: Int
     let color: Color
@@ -208,7 +207,6 @@ struct IssueRowView: View {
 #Preview {
     NavigationStack {
         IssuesListView()
-            .modelContainer(PreviewEnvironment.shared.container)
-            .environment(PreviewEnvironment.shared.deps)
+            .previewEnvironment()
     }
 }

@@ -226,6 +226,13 @@ final class PresentationsViewModel: ObservableObject {
         var ready: [StudentLesson] = []
         var blocked: [StudentLesson] = []
 
+        #if DEBUG
+        let debugCategorization = false // Set to true to see presentation categorization
+        if debugCategorization {
+            print("\n📊 Categorizing \(allUnscheduled.count) unscheduled presentations:")
+        }
+        #endif
+
         for sl in allUnscheduled {
             let result = BlockingAlgorithmEngine.checkBlocking(
                 for: sl,
@@ -237,10 +244,28 @@ final class PresentationsViewModel: ObservableObject {
 
             if result.isBlocked {
                 blocked.append(sl)
+                #if DEBUG
+                if debugCategorization {
+                    let lessonName = lessons.first(where: { UUID(uuidString: sl.lessonID) == $0.id })?.name ?? "Unknown"
+                    print("   🟡 BLOCKED: \(lessonName) (prereq open work: \(result.prereqOpenCount))")
+                }
+                #endif
             } else {
                 ready.append(sl)
+                #if DEBUG
+                if debugCategorization {
+                    let lessonName = lessons.first(where: { UUID(uuidString: sl.lessonID) == $0.id })?.name ?? "Unknown"
+                    print("   🟢 READY: \(lessonName)")
+                }
+                #endif
             }
         }
+        
+        #if DEBUG
+        if debugCategorization {
+            print("   → Total: \(ready.count) ready, \(blocked.count) blocked\n")
+        }
+        #endif
         
         // Filter presented items for Inbox: presented (givenAt != nil or isPresented == true) AND has open work
         let presentedLessons = studentLessons.filter { $0.isGiven }
