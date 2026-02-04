@@ -24,6 +24,7 @@ struct WorkDetailView: View {
     @Query private var lessonAssignments: [LessonAssignment]
     #endif
     @Query private var planItems: [WorkPlanItem]
+    @Query private var allPracticeSessions: [PracticeSession]
     #if DEBUG
     @Query private var peerWorks: [WorkModel]
     #endif
@@ -37,6 +38,7 @@ struct WorkDetailView: View {
     @State private var showDeleteAlert: Bool = false
     @State private var showAddStepSheet: Bool = false
     @State private var stepBeingEdited: WorkStep? = nil
+    @State private var showGroupPracticeSheet: Bool = false
 
     @State private var status: WorkStatus
     @State private var workKind: WorkKind
@@ -62,6 +64,13 @@ struct WorkDetailView: View {
               let currentLessonID = UUID(uuidString: work.lessonID),
               relatedLessons.first(where: { $0.id == currentLessonID }) != nil else { return nil }
         return NextLessonResolver.resolveNextLesson(from: currentLessonID, lessons: relatedLessons)
+    }
+    
+    private var practiceSessions: [PracticeSession] {
+        guard let work = work else { return [] }
+        return allPracticeSessions
+            .filter { $0.workItemIDs.contains(work.id.uuidString) }
+            .sorted { $0.date > $1.date }
     }
 
     init(workID: UUID, onDone: (() -> Void)? = nil) {
@@ -92,6 +101,7 @@ struct WorkDetailView: View {
 
                             if status == .complete { completionSection() }
                             if workKind == .report { stepsSection() }
+                            practiceHistorySection()
                             notesSection()
                             calendarSection()
                         }.padding(28)
@@ -109,6 +119,25 @@ struct WorkDetailView: View {
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(Color.red.opacity(0.1))
                                 )
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            showGroupPracticeSheet = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.system(size: 12, weight: .medium))
+                                Text("Group Practice")
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.blue)
+                            )
                         }
                         .buttonStyle(.plain)
 
@@ -180,6 +209,11 @@ struct WorkDetailView: View {
                             noteBeingEdited = nil
                         }
                     )
+                }
+                .sheet(isPresented: $showGroupPracticeSheet) {
+                    GroupPracticeSheet(initialWorkItem: work) { _ in
+                        // Practice session saved - will automatically show in history
+                    }
                 }
                 .alert("Delete?", isPresented: $showDeleteAlert) {
                     Button("Delete", role: .destructive) { deleteWork() }
@@ -543,6 +577,22 @@ struct WorkDetailView: View {
         }
     }
 
+    @ViewBuilder private func practiceHistorySection() -> some View {
+        if !practiceSessions.isEmpty {
+            DetailSectionCard(
+                title: "Practice History",
+                icon: "person.2.fill",
+                accentColor: .blue
+            ) {
+                VStack(spacing: 12) {
+                    ForEach(practiceSessions) { session in
+                        PracticeSessionCard(session: session, displayMode: .standard)
+                    }
+                }
+            }
+        }
+    }
+    
     @ViewBuilder private func notesSection() -> some View {
         DetailSectionCard(
             title: "Notes",

@@ -128,6 +128,7 @@ final class Note: Identifiable {
     @Relationship var reminder: Reminder?
     @Relationship var schoolDayOverride: SchoolDayOverride?
     @Relationship var studentTrackEnrollment: StudentTrackEnrollment?
+    @Relationship var practiceSession: PracticeSession?
 
     /// Junction records for efficient multi-student scope queries.
     /// Automatically maintained when scope is set to `.students([UUID])`.
@@ -197,6 +198,7 @@ final class Note: Identifiable {
         if reminder != nil { return "reminder" }
         if schoolDayOverride != nil { return "schoolDayOverride" }
         if studentTrackEnrollment != nil { return "studentTrackEnrollment" }
+        if practiceSession != nil { return "practiceSession" }
         return "general"
     }
 
@@ -224,6 +226,7 @@ final class Note: Identifiable {
         reminder: Reminder? = nil,
         schoolDayOverride: SchoolDayOverride? = nil,
         studentTrackEnrollment: StudentTrackEnrollment? = nil,
+        practiceSession: PracticeSession? = nil,
         imagePath: String? = nil,
         reportedBy: String? = nil,
         reporterName: String? = nil
@@ -249,6 +252,7 @@ final class Note: Identifiable {
         self.reminder = reminder
         self.schoolDayOverride = schoolDayOverride
         self.studentTrackEnrollment = studentTrackEnrollment
+        self.practiceSession = practiceSession
         self.imagePath = imagePath
         self.reportedBy = reportedBy
         self.reporterName = reporterName

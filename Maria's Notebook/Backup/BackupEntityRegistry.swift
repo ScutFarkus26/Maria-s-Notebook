@@ -25,6 +25,7 @@ struct BackupEntityRegistry {
         WorkModel.self,
         WorkCheckIn.self,
         WorkParticipantEntity.self,
+        PracticeSession.self,
         // Project models
         Project.self,
         ProjectAssignmentTemplate.self,

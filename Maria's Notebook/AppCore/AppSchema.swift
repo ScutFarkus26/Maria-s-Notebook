@@ -13,6 +13,7 @@ struct AppSchema {
         WorkCheckIn.self,
         WorkParticipantEntity.self,
         WorkStep.self,
+        PracticeSession.self,
         AttendanceRecord.self,
         NonSchoolDay.self,
         SchoolDayOverride.self,
