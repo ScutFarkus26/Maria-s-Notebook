@@ -3,7 +3,7 @@ import SwiftData
 import SwiftUI
 
 @Model final class WorkModel: Identifiable {
-    enum WorkType: String, CaseIterable, Codable {
+    enum WorkType: String, CaseIterable, Codable, Sendable {
         case research = "Research"
         case followUp = "Follow Up"
         case practice = "Practice"
@@ -12,8 +12,7 @@ import SwiftUI
 
     var id: UUID = UUID()
     var title: String = ""
-    // Persisted raw value for the enum to keep storage simple and stable
-    private var workTypeRaw: String = "Research"
+    @RawCodable var workType: WorkType = .research
     var studentLessonID: UUID? = nil
     var notes: String = ""
     var createdAt: Date = Date()
@@ -28,7 +27,7 @@ import SwiftUI
     /// Work kind (practice, follow-up, research)
     var kindRaw: String? = nil
     /// Work status (active, review, complete)
-    var statusRaw: String = WorkStatus.active.rawValue
+    @RawCodable var status: WorkStatus = .active
     /// When the work was assigned (defaults to createdAt if not set)
     var assignedAt: Date = Date()
     /// Last meaningful touch date (for aging calculations)
@@ -51,9 +50,9 @@ import SwiftUI
     var trackStepID: String? = nil
     /// Scheduled note
     var scheduledNote: String? = nil
-    /// Scheduled reason raw value
+    /// Scheduled reason (optional)
     var scheduledReasonRaw: String? = nil
-    /// Source context type raw value (e.g., projectSession)
+    /// Source context type (e.g., projectSession)
     var sourceContextTypeRaw: String? = nil
     /// Source context ID (e.g., project session ID)
     var sourceContextID: String? = nil
@@ -90,7 +89,7 @@ import SwiftUI
     ) {
         self.id = id
         self.title = title
-        self.workTypeRaw = workType.rawValue
+        self.workType = workType
         self.studentLessonID = studentLessonID
         self.notes = notes
         // Use AppCalendar.shared for consistent date normalization across the app
@@ -102,7 +101,7 @@ import SwiftUI
         
         // Migration-ready fields
         self.kindRaw = kind?.rawValue
-        self.statusRaw = status.rawValue
+        self.status = status
         self.assignedAt = assignedAt ?? createdAt
         self.lastTouchedAt = lastTouchedAt
         self.dueAt = dueAt
@@ -119,11 +118,6 @@ import SwiftUI
         self.sourceContextID = sourceContextID
         self.legacyStudentLessonID = legacyStudentLessonID
     }
-
-    var workType: WorkType {
-        get { WorkType(rawValue: workTypeRaw) ?? .research }
-        set { workTypeRaw = newValue.rawValue }
-    }
     
     // MARK: - Computed Properties
 
@@ -131,12 +125,6 @@ import SwiftUI
     var kind: WorkKind? {
         get { kindRaw.flatMap { WorkKind(rawValue: $0) } }
         set { kindRaw = newValue?.rawValue }
-    }
-
-    /// Work status (active, review, complete)
-    var status: WorkStatus {
-        get { WorkStatus(rawValue: statusRaw) ?? .active }
-        set { statusRaw = newValue.rawValue }
     }
 
     /// Completion outcome (mastered, needsReview, etc.)

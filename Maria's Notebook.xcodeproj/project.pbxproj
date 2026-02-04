@@ -45,6 +45,7 @@
 				Tests/BackupServiceTests.swift,
 				Tests/CalendarSyncServiceTests.swift,
 				Tests/CloudKitSyncStatusServiceTests.swift,
+				Tests/CloudKitUUIDTests.swift,
 				Tests/CompileAudit.swift,
 				Tests/CSVUtilsTests.swift,
 				Tests/DataCleanupServiceTests.swift,

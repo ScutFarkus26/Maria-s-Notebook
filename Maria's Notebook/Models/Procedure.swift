@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Categories for classroom procedures
-enum ProcedureCategory: String, Codable, CaseIterable, Identifiable {
+enum ProcedureCategory: String, Codable, CaseIterable, Identifiable, Sendable {
     case dailyRoutines = "Daily Routines"
     case safety = "Safety & Emergency"
     case specialSchedules = "Special Schedules"
@@ -57,7 +57,7 @@ final class Procedure: Identifiable {
     var content: String = ""
 
     /// Category stored as raw string for CloudKit compatibility
-    private var categoryRaw: String = ProcedureCategory.other.rawValue
+    @RawCodable var category: ProcedureCategory = .other
 
     /// Icon name (SF Symbol or emoji)
     var icon: String = ""
@@ -70,12 +70,6 @@ final class Procedure: Identifiable {
 
     /// When this procedure was last modified
     var modifiedAt: Date = Date()
-
-    /// Computed property for category enum
-    var category: ProcedureCategory {
-        get { ProcedureCategory(rawValue: categoryRaw) ?? .other }
-        set { categoryRaw = newValue.rawValue }
-    }
 
     /// Computed property for related procedure IDs
     var relatedProcedureIDs: [String] {
@@ -108,7 +102,7 @@ final class Procedure: Identifiable {
         self.title = title
         self.summary = summary
         self.content = content
-        self.categoryRaw = category.rawValue
+        self.category = category
         self.icon = icon
         self.relatedProcedureIDsRaw = relatedProcedureIDs.joined(separator: ",")
         self.createdAt = createdAt

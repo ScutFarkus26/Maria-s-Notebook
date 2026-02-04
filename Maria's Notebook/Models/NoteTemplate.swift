@@ -21,12 +21,7 @@ final class NoteTemplate: Identifiable {
     var body: String = ""
 
     /// The category to auto-select when this template is used
-    private var categoryRaw: String = NoteCategory.general.rawValue
-
-    var category: NoteCategory {
-        get { NoteCategory(rawValue: categoryRaw) ?? .general }
-        set { categoryRaw = newValue.rawValue }
-    }
+    @RawCodable var category: NoteCategory = .general
 
     // MARK: - Organization
     /// Display order in the template list (lower = first)
@@ -50,7 +45,7 @@ final class NoteTemplate: Identifiable {
         self.createdAt = createdAt
         self.title = title
         self.body = body
-        self.categoryRaw = category.rawValue
+        self.category = category
         self.sortOrder = sortOrder
         self.isBuiltIn = isBuiltIn
     }

@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Categories for classroom supplies
-enum SupplyCategory: String, Codable, CaseIterable, Identifiable {
+enum SupplyCategory: String, Codable, CaseIterable, Identifiable, Sendable {
     case art = "Art"
     case math = "Math"
     case language = "Language"
@@ -63,7 +63,7 @@ final class Supply: Identifiable {
     var name: String = ""
 
     /// Category stored as raw string for CloudKit compatibility
-    private var categoryRaw: String = SupplyCategory.other.rawValue
+    @RawCodable var category: SupplyCategory = .other
 
     /// Storage location in the classroom
     var location: String = ""
@@ -92,12 +92,6 @@ final class Supply: Identifiable {
     /// Transaction history for this supply
     @Relationship(deleteRule: .cascade, inverse: \SupplyTransaction.supply)
     var transactions: [SupplyTransaction]? = []
-
-    /// Computed property for category enum
-    var category: SupplyCategory {
-        get { SupplyCategory(rawValue: categoryRaw) ?? .other }
-        set { categoryRaw = newValue.rawValue }
-    }
 
     /// Computed status based on current quantity vs threshold
     var status: SupplyStatus {
@@ -132,7 +126,7 @@ final class Supply: Identifiable {
     ) {
         self.id = id
         self.name = name
-        self.categoryRaw = category.rawValue
+        self.category = category
         self.location = location
         self.currentQuantity = currentQuantity
         self.minimumThreshold = minimumThreshold
