@@ -59,6 +59,8 @@ struct RootDetailContent: View {
                 ProjectsRootView()
             case .community:
                 CommunityMeetingsView()
+            case .schedules:
+                SchedulesView()
             case .logs:
                 LogsMenuRootView()
             case .settings:
@@ -120,23 +122,26 @@ struct MoreMenuView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             List {
-                Section("Classroom") {
-                    moreMenuButton(.lessons)
-                    moreMenuButton(.supplies)
-                    moreMenuButton(.procedures)
+                Section("Daily") {
                     moreMenuButton(.meetings)
-                    moreMenuButton(.community)
-                    moreMenuButton(.logs)
                 }
 
                 Section("Planning") {
+                    moreMenuButton(.lessons)
                     moreMenuButton(.planningChecklist)
                     moreMenuButton(.planningAgenda)
                     moreMenuButton(.planningWork)
                     moreMenuButton(.planningProjects)
                 }
 
+                Section("Resources") {
+                    moreMenuButton(.supplies)
+                    moreMenuButton(.procedures)
+                    moreMenuButton(.schedules)
+                }
+
                 Section("System") {
+                    moreMenuButton(.logs)
                     moreMenuButton(.settings)
                 }
             }

@@ -20,7 +20,7 @@ struct RootSidebar: View {
     #if os(macOS)
     private var macOSSidebar: some View {
         List(selection: $selection) {
-            Section("Classroom") {
+            Section("Daily") {
                 NavigationLink(value: RootView.NavigationItem.today) {
                     Label("Today", systemImage: "sun.max")
                 }
@@ -42,14 +42,6 @@ struct RootSidebar: View {
                     }
                 }
 
-                NavigationLink(value: RootView.NavigationItem.supplies) {
-                    Label("Supplies", systemImage: "shippingbox")
-                }
-
-                NavigationLink(value: RootView.NavigationItem.procedures) {
-                    Label("Procedures", systemImage: "doc.text")
-                }
-
                 NavigationLink(value: RootView.NavigationItem.meetings) {
                     Label("Meetings", systemImage: "person.2")
                 }
@@ -59,7 +51,7 @@ struct RootSidebar: View {
                 }
             }
 
-            Section("Curriculum") {
+            Section("Planning") {
                 NavigationLink(value: RootView.NavigationItem.lessons) {
                     Label("Lessons", systemImage: "book")
                 }
@@ -101,6 +93,20 @@ struct RootSidebar: View {
                 }
             }
 
+            Section("Resources") {
+                NavigationLink(value: RootView.NavigationItem.supplies) {
+                    Label("Supplies", systemImage: "shippingbox")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.procedures) {
+                    Label("Procedures", systemImage: "doc.text")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.schedules) {
+                    Label("Schedules", systemImage: "clock.badge.checkmark")
+                }
+            }
+
             Section("System") {
                 NavigationLink(value: RootView.NavigationItem.logs) {
                     Label("Logs", systemImage: "list.bullet")
@@ -116,7 +122,7 @@ struct RootSidebar: View {
 
     private var iOSSidebar: some View {
         List {
-            Section("Classroom") {
+            Section("Daily") {
                 Button { selection = .today } label: {
                     Label("Today", systemImage: "sun.max")
                 }
@@ -128,18 +134,6 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student profiles and records")
-
-                Button { selection = .supplies } label: {
-                    Label("Supplies", systemImage: "shippingbox")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Track classroom supplies and inventory")
-
-                Button { selection = .procedures } label: {
-                    Label("Procedures", systemImage: "doc.text")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View classroom procedures and routines")
 
                 Button { selection = .meetings } label: {
                     Label("Meetings", systemImage: "person.2")
@@ -154,7 +148,7 @@ struct RootSidebar: View {
                 .accessibilityHint("View community meetings and topics")
             }
 
-            Section("Curriculum") {
+            Section("Planning") {
                 Button { selection = .lessons } label: {
                     Label("Lessons", systemImage: "book")
                 }
@@ -184,6 +178,26 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student projects")
+            }
+
+            Section("Resources") {
+                Button { selection = .supplies } label: {
+                    Label("Supplies", systemImage: "shippingbox")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track classroom supplies and inventory")
+
+                Button { selection = .procedures } label: {
+                    Label("Procedures", systemImage: "doc.text")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View classroom procedures and routines")
+
+                Button { selection = .schedules } label: {
+                    Label("Schedules", systemImage: "clock.badge.checkmark")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View recurring schedules")
             }
 
             Section("System") {
