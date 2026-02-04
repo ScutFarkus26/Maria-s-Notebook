@@ -85,6 +85,7 @@
 				Tests/PresentationsViewModelTests.swift,
 				Tests/ProjectRepositoryTests.swift,
 				Tests/QuickNoteViewModelTests.swift,
+				Tests/RawCodableTests.swift,
 				Tests/RelationshipBackfillServiceTests.swift,
 				Tests/ReminderRepositoryTests.swift,
 				Tests/ReminderSyncServiceTests.swift,
