@@ -56,6 +56,7 @@
 				Tests/ErrorHandlingTests.swift,
 				Tests/FloridaGradeCalculatorTests.swift,
 				Tests/FollowUpInboxEngineTests.swift,
+				Tests/GenericBackupCodecTests.swift,
 				Tests/GroupTrackProgressResolverTests.swift,
 				Tests/GroupTrackServiceTests.swift,
 				Tests/InboxDataLoaderTests.swift,
