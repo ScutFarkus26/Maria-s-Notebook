@@ -12,17 +12,31 @@ struct WorkPrintView: View {
     
     @Environment(\.modelContext) private var modelContext
     
-    private var groupedWork: [(Student, [WorkModel])] {
+    private struct WorkPrintGroup: Identifiable {
+        let id: String
+        let title: String
+        let student: Student?
+        let works: [WorkModel]
+    }
+
+    private var groupedWork: [WorkPrintGroup] {
         // Group work by student for clearer organization
         let studentDict = Dictionary(grouping: workItems) { work in
             work.studentID
         }
-        
-        return studentDict.compactMap { (studentIDString, works) in
-            guard let studentID = UUID(uuidString: studentIDString),
-                  let student = students.first(where: { $0.id == studentID }) else {
-                return nil
+
+        let groups: [WorkPrintGroup] = studentDict.map { (studentIDString, works) in
+            let studentID = UUID(uuidString: studentIDString)
+            let student = studentID.flatMap { id in students.first(where: { $0.id == id }) }
+            let title: String
+            if let student = student {
+                title = student.fullName
+            } else if studentIDString.trimmed().isEmpty {
+                title = "Unassigned Student"
+            } else {
+                title = "Unknown Student"
             }
+
             let sorted = works.sorted { work1, work2 in
                 // Sort by due date, then by assigned date
                 if let due1 = work1.dueAt, let due2 = work2.dueAt {
@@ -32,8 +46,16 @@ struct WorkPrintView: View {
                 if work2.dueAt != nil { return false }
                 return work1.assignedAt < work2.assignedAt
             }
-            return (student, sorted)
-        }.sorted { $0.0.fullName < $1.0.fullName }
+
+            let groupID = studentIDString.trimmed().isEmpty ? "unassigned" : studentIDString
+            return WorkPrintGroup(id: groupID, title: title, student: student, works: sorted)
+        }
+
+        return groups.sorted { lhs, rhs in
+            if lhs.student != nil && rhs.student == nil { return true }
+            if lhs.student == nil && rhs.student != nil { return false }
+            return lhs.title < rhs.title
+        }
     }
     
     var body: some View {
@@ -46,7 +68,7 @@ struct WorkPrintView: View {
             
             // Work items grouped by student
             ForEach(Array(groupedWork.enumerated()), id: \.offset) { index, group in
-                studentSection(student: group.0, works: group.1)
+                studentSection(title: group.title, works: group.works)
                 
                 if index < groupedWork.count - 1 {
                     Divider()
@@ -103,10 +125,10 @@ struct WorkPrintView: View {
     }
     
     @ViewBuilder
-    private func studentSection(student: Student, works: [WorkModel]) -> some View {
+    private func studentSection(title: String, works: [WorkModel]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // Student name header
-            Text(student.fullName)
+            Text(title)
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.bottom, 4)
             
@@ -225,83 +247,49 @@ struct WorkPrintView: View {
 }
 
 #if os(iOS)
-/// iOS-specific print controller
-struct WorkPrintController: UIViewControllerRepresentable {
-    let workItems: [WorkModel]
-    let students: [Student]
-    let lessons: [Lesson]
-    let filterDescription: String
-    let sortDescription: String
-    
-    @Environment(\.dismiss) private var dismiss
-    
-    func makeUIViewController(context: Context) -> UIViewController {
-        let controller = UIViewController()
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        // Create the print view
-        let printView = WorkPrintView(
-            workItems: workItems,
-            students: students,
-            lessons: lessons,
-            filterDescription: filterDescription,
-            sortDescription: sortDescription
-        )
-        
-        // Render to PDF-ready format
-        let renderer = ImageRenderer(content: printView.frame(width: 612, height: 792)) // US Letter
-        
-        if let pdfData = renderer.pdf() {
-            let printController = UIPrintInteractionController.shared
-            printController.printingItem = pdfData
-            
-            let printInfo = UIPrintInfo.printInfo()
-            printInfo.outputType = .general
-            printInfo.jobName = "Open Work Report"
-            printController.printInfo = printInfo
-            
-            printController.present(animated: true) { _, completed, error in
-                if completed {
-                    print("Print job completed successfully")
-                }
-                if let error = error {
-                    print("Print job failed: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-}
+import UIKit
 
-extension ImageRenderer where Content == View {
-    func pdf() -> Data? {
-        let format = GraphicsImageRendererFormat()
-        format.scale = 1.0
-        
-        let pdfRenderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792))
+/// Helper to render SwiftUI views to PDF on iOS
+@MainActor
+struct PDFRenderer {
+    static func render<Content: View>(view: Content, size: CGSize) -> Data? {
+        let hostingController = UIHostingController(rootView: view.frame(width: size.width, height: size.height))
+        hostingController.view.bounds = CGRect(origin: .zero, size: size)
+        hostingController.view.backgroundColor = .white
+
+        // CRITICAL: The hosting controller's view must be in the view hierarchy for SwiftUI to render.
+        // Add it to a temporary window positioned offscreen.
+        let tempWindow = UIWindow(frame: CGRect(x: -10000, y: -10000, width: size.width, height: size.height))
+        tempWindow.rootViewController = hostingController
+        tempWindow.isHidden = false
+        tempWindow.layoutIfNeeded()
+
+        // Force layout and give SwiftUI time to render
+        hostingController.view.setNeedsLayout()
+        hostingController.view.layoutIfNeeded()
+
+        // Allow the run loop to process pending layout
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+
+        let pdfRenderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: size))
         let data = pdfRenderer.pdfData { context in
             context.beginPage()
-            
-            // Render the view
-            let controller = UIHostingController(rootView: self.content)
-            controller.view.bounds = CGRect(x: 0, y: 0, width: 612, height: 792)
-            controller.view.backgroundColor = .white
-            
-            let renderer = UIGraphicsImageRenderer(bounds: controller.view.bounds)
-            let image = renderer.image { rendererContext in
-                controller.view.layer.render(in: rendererContext.cgContext)
-            }
-            
-            image.draw(in: CGRect(x: 0, y: 0, width: 612, height: 792))
+            hostingController.view.layer.render(in: context.cgContext)
         }
-        
+
+        // Clean up: remove from window hierarchy
+        tempWindow.isHidden = true
+        tempWindow.rootViewController = nil
+
         return data
     }
 }
 #endif
 
 #if os(macOS)
+import AppKit
+import PDFKit
+
 /// macOS-specific print controller
 struct WorkPrintController: NSViewRepresentable {
     let workItems: [WorkModel]
@@ -309,20 +297,22 @@ struct WorkPrintController: NSViewRepresentable {
     let lessons: [Lesson]
     let filterDescription: String
     let sortDescription: String
-    
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        
+
         DispatchQueue.main.async {
             self.printContent()
         }
-        
+
         return view
     }
-    
+
     func updateNSView(_ nsView: NSView, context: Context) {}
-    
+
     private func printContent() {
+        let printableWidth: CGFloat = 612 - 72 // Page width minus margins
+
         let printView = WorkPrintView(
             workItems: workItems,
             students: students,
@@ -330,18 +320,87 @@ struct WorkPrintController: NSViewRepresentable {
             filterDescription: filterDescription,
             sortDescription: sortDescription
         )
-        
-        let hostingView = NSHostingView(rootView: printView.frame(width: 612, height: 792))
-        hostingView.frame = CGRect(x: 0, y: 0, width: 612, height: 792)
-        
-        let printOperation = NSPrintOperation(view: hostingView)
-        printOperation.printInfo.topMargin = 36
-        printOperation.printInfo.bottomMargin = 36
-        printOperation.printInfo.leftMargin = 36
-        printOperation.printInfo.rightMargin = 36
-        printOperation.printInfo.jobDisposition = .preview // Opens print preview
-        
-        printOperation.run()
+
+        guard let pdfData = renderViewToPDF(printView, width: printableWidth) else { return }
+
+        let printInfo = NSPrintInfo.shared.copy() as! NSPrintInfo
+        printInfo.topMargin = 36
+        printInfo.bottomMargin = 36
+        printInfo.leftMargin = 36
+        printInfo.rightMargin = 36
+        printInfo.jobDisposition = .preview
+
+        if let doc = PDFDocument(data: pdfData),
+           let operation = doc.printOperation(for: printInfo, scalingMode: .pageScaleToFit, autoRotate: false) {
+            operation.showsPrintPanel = true
+            operation.showsProgressPanel = true
+            operation.run()
+        }
+    }
+
+    private func renderViewToPDF<V: View>(_ view: V, width: CGFloat) -> Data? {
+        let hostingView = NSHostingView(rootView: view)
+        hostingView.appearance = NSAppearance(named: .aqua)
+
+        let tempWindow = NSWindow(
+            contentRect: NSRect(x: -10000, y: -10000, width: width, height: 2000),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        tempWindow.contentView = hostingView
+        tempWindow.backgroundColor = .white
+        tempWindow.makeKeyAndOrderFront(nil)
+
+        hostingView.frame = NSRect(x: 0, y: 0, width: width, height: 2000)
+        hostingView.needsLayout = true
+        hostingView.layoutSubtreeIfNeeded()
+
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
+
+        let fittingSize = hostingView.fittingSize
+        let finalHeight = max(fittingSize.height, 100)
+        let finalSize = NSSize(width: width, height: finalHeight)
+
+        hostingView.setFrameSize(finalSize)
+        tempWindow.setContentSize(finalSize)
+        hostingView.needsLayout = true
+        hostingView.layoutSubtreeIfNeeded()
+
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
+
+        let image = NSImage(size: finalSize)
+        image.lockFocus()
+        NSColor.white.setFill()
+        NSRect(origin: .zero, size: finalSize).fill()
+        if let context = NSGraphicsContext.current?.cgContext {
+            hostingView.layer?.render(in: context)
+        }
+        image.unlockFocus()
+
+        guard let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let cgImage = bitmap.cgImage else {
+            tempWindow.orderOut(nil)
+            return nil
+        }
+
+        let pdfData = NSMutableData()
+        var mediaBox = CGRect(origin: .zero, size: finalSize)
+
+        guard let consumer = CGDataConsumer(data: pdfData as CFMutableData),
+              let pdfContext = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+            tempWindow.orderOut(nil)
+            return nil
+        }
+
+        pdfContext.beginPDFPage(nil)
+        pdfContext.draw(cgImage, in: mediaBox)
+        pdfContext.endPDFPage()
+        pdfContext.closePDF()
+
+        tempWindow.orderOut(nil)
+        return pdfData as Data
     }
 }
 #endif
@@ -435,15 +494,15 @@ struct WorkPrintSheet: View {
     
     private func presentPrint() {
         #if os(iOS)
-        let renderer = ImageRenderer(content: WorkPrintView(
+        let printView = WorkPrintView(
             workItems: workItems,
             students: students,
             lessons: lessons,
             filterDescription: filterDescription,
             sortDescription: sortDescription
-        ).frame(width: 612, height: 792))
+        )
         
-        if let pdfData = renderer.pdf() {
+        if let pdfData = PDFRenderer.render(view: printView, size: CGSize(width: 612, height: 792)) {
             let printController = UIPrintInteractionController.shared
             printController.printingItem = pdfData
             
@@ -459,6 +518,8 @@ struct WorkPrintSheet: View {
             }
         }
         #else
+        let printableWidth: CGFloat = 612 - 72
+
         let printView = WorkPrintView(
             workItems: workItems,
             students: students,
@@ -466,42 +527,95 @@ struct WorkPrintSheet: View {
             filterDescription: filterDescription,
             sortDescription: sortDescription
         )
-        
-        let hostingView = NSHostingView(rootView: printView.frame(width: 612, height: 792))
-        hostingView.frame = CGRect(x: 0, y: 0, width: 612, height: 792)
-        
-        let printOperation = NSPrintOperation(view: hostingView)
-        printOperation.printInfo.topMargin = 36
-        printOperation.printInfo.bottomMargin = 36
-        printOperation.printInfo.leftMargin = 36
-        printOperation.printInfo.rightMargin = 36
-        
-        printOperation.runModal(for: NSApp.keyWindow!, delegate: nil, didRun: nil, contextInfo: nil)
+
+        guard let pdfData = renderSheetViewToPDF(printView, width: printableWidth) else {
+            dismiss()
+            return
+        }
+
+        let printInfo = NSPrintInfo.shared.copy() as! NSPrintInfo
+        printInfo.topMargin = 36
+        printInfo.bottomMargin = 36
+        printInfo.leftMargin = 36
+        printInfo.rightMargin = 36
+
+        if let doc = PDFDocument(data: pdfData),
+           let keyWindow = NSApp.keyWindow,
+           let operation = doc.printOperation(for: printInfo, scalingMode: .pageScaleToFit, autoRotate: false) {
+            operation.showsPrintPanel = true
+            operation.runModal(for: keyWindow, delegate: nil, didRun: nil, contextInfo: nil)
+        }
         dismiss()
         #endif
     }
+
+    #if os(macOS)
+    private func renderSheetViewToPDF<V: View>(_ view: V, width: CGFloat) -> Data? {
+        let hostingView = NSHostingView(rootView: view)
+        hostingView.appearance = NSAppearance(named: .aqua)
+
+        let tempWindow = NSWindow(
+            contentRect: NSRect(x: -10000, y: -10000, width: width, height: 2000),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        tempWindow.contentView = hostingView
+        tempWindow.backgroundColor = .white
+        tempWindow.makeKeyAndOrderFront(nil)
+
+        hostingView.frame = NSRect(x: 0, y: 0, width: width, height: 2000)
+        hostingView.needsLayout = true
+        hostingView.layoutSubtreeIfNeeded()
+
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
+
+        let fittingSize = hostingView.fittingSize
+        let finalHeight = max(fittingSize.height, 100)
+        let finalSize = NSSize(width: width, height: finalHeight)
+
+        hostingView.setFrameSize(finalSize)
+        tempWindow.setContentSize(finalSize)
+        hostingView.needsLayout = true
+        hostingView.layoutSubtreeIfNeeded()
+
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
+
+        let image = NSImage(size: finalSize)
+        image.lockFocus()
+        NSColor.white.setFill()
+        NSRect(origin: .zero, size: finalSize).fill()
+        if let context = NSGraphicsContext.current?.cgContext {
+            hostingView.layer?.render(in: context)
+        }
+        image.unlockFocus()
+
+        guard let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let cgImage = bitmap.cgImage else {
+            tempWindow.orderOut(nil)
+            return nil
+        }
+
+        let pdfData = NSMutableData()
+        var mediaBox = CGRect(origin: .zero, size: finalSize)
+
+        guard let consumer = CGDataConsumer(data: pdfData as CFMutableData),
+              let pdfContext = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+            tempWindow.orderOut(nil)
+            return nil
+        }
+
+        pdfContext.beginPDFPage(nil)
+        pdfContext.draw(cgImage, in: mediaBox)
+        pdfContext.endPDFPage()
+        pdfContext.closePDF()
+
+        tempWindow.orderOut(nil)
+        return pdfData as Data
+    }
+    #endif
 }
 
 // MARK: - Extensions
-
-extension WorkKind {
-    var displayName: String {
-        switch self {
-        case .practiceLesson: return "Practice"
-        case .followUp: return "Follow Up"
-        case .report: return "Report"
-        case .research: return "Research"
-        case .choice: return "Choice"
-        }
-    }
-}
-
-extension WorkStatus {
-    var displayName: String {
-        switch self {
-        case .active: return "Active"
-        case .review: return "Review"
-        case .complete: return "Complete"
-        }
-    }
-}
+// Note: WorkKind and WorkStatus displayName properties are defined in WorkTypes.swift
