@@ -480,6 +480,10 @@ struct StudentLessonPill: View {
             // Populate cache once on appear, not during scroll
             let currentDay = day ?? Date()
             guard lastCacheDay == nil || !AppCalendar.shared.isDate(lastCacheDay!, inSameDayAs: currentDay) else { return }
+            
+            // Defer state updates to avoid multiple updates per frame when many pills render simultaneously
+            await Task.yield()
+            
             lastCacheDay = currentDay
             cachedAttendanceStatuses = modelContext.attendanceStatuses(for: snapshot.studentIDs, on: currentDay)
             cachedRecentlyPresentedIDs = loadRecentlyPresentedIDsShared(for: currentDay)
