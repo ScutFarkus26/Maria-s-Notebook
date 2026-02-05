@@ -68,6 +68,8 @@ import OSLog
     var needsAnotherPresentation: Bool = false
     var followUpWork: String = ""
     var studentGroupKeyPersisted: String = ""
+    /// Manual override to unblock this lesson even if prerequisite work is incomplete
+    var manuallyUnblocked: Bool = false
 
     @Transient var students: [Student] = []
     @Relationship var lesson: Lesson?
@@ -92,7 +94,8 @@ import OSLog
         notes: String = "",
         needsPractice: Bool = false,
         needsAnotherPresentation: Bool = false,
-        followUpWork: String = ""
+        followUpWork: String = "",
+        manuallyUnblocked: Bool = false
     ) {
         self.id = id
         // CloudKit compatibility: Store UUID as string
@@ -110,6 +113,7 @@ import OSLog
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork
+        self.manuallyUnblocked = manuallyUnblocked
         self.unifiedNotes = []
     }
 
@@ -124,7 +128,8 @@ import OSLog
         notes: String = "",
         needsPractice: Bool = false,
         needsAnotherPresentation: Bool = false,
-        followUpWork: String = ""
+        followUpWork: String = "",
+        manuallyUnblocked: Bool = false
     ) {
         self.id = id
         self.lesson = lesson
@@ -144,6 +149,7 @@ import OSLog
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork
+        self.manuallyUnblocked = manuallyUnblocked
         self.unifiedNotes = []
     }
 

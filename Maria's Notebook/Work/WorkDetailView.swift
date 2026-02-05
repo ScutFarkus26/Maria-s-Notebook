@@ -25,6 +25,8 @@ struct WorkDetailView: View {
     #endif
     @Query private var planItems: [WorkPlanItem]
     @Query private var allPracticeSessions: [PracticeSession]
+    @Query(sort: \Lesson.sortIndex) private var allLessons: [Lesson]
+    @Query private var studentLessons: [StudentLesson]
     #if DEBUG
     @Query private var peerWorks: [WorkModel]
     #endif
@@ -40,6 +42,8 @@ struct WorkDetailView: View {
     @State private var showAddStepSheet: Bool = false
     @State private var stepBeingEdited: WorkStep? = nil
     @State private var showGroupPracticeSheet: Bool = false
+    @State private var showUnlockNextLessonAlert: Bool = false
+    @State private var nextLessonToUnlock: Lesson? = nil
 
     @State private var status: WorkStatus
     @State private var workKind: WorkKind
@@ -220,6 +224,16 @@ struct WorkDetailView: View {
                 }
                 .alert("Delete?", isPresented: $showDeleteAlert) {
                     Button("Delete", role: .destructive) { deleteWork() }
+                }
+                .alert("Unlock Next Lesson?", isPresented: $showUnlockNextLessonAlert) {
+                    Button("Unlock") {
+                        unlockNextLesson()
+                    }
+                    Button("Not Yet", role: .cancel) { }
+                } message: {
+                    if let nextLesson = nextLessonToUnlock {
+                        Text("Ready to unlock \(nextLesson.name) for \(relatedStudent?.firstName ?? "this student")?")
+                    }
                 }
                 .sheet(isPresented: $showAddStepSheet) {
                     WorkStepEditorSheet(work: work, existingStep: nil) {
@@ -417,6 +431,16 @@ struct WorkDetailView: View {
         Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 status = s
+                
+                // When marking as complete with good outcome, offer to unlock next lesson
+                if s == .complete, 
+                   let outcome = completionOutcome,
+                   outcome == .mastered || outcome == .needsReview,
+                   let work = work,
+                   let lessonID = UUID(uuidString: work.lessonID),
+                   let studentID = UUID(uuidString: work.studentID) {
+                    checkAndOfferUnlock(lessonID: lessonID, studentID: studentID)
+                }
             }
         } label: {
             HStack(spacing: 6) {
@@ -867,6 +891,47 @@ struct WorkDetailView: View {
         modelContext.delete(work)
         saveCoordinator.save(modelContext, reason: "Deleting work model")
         close()
+    }
+    
+    private func checkAndOfferUnlock(lessonID: UUID, studentID: UUID) {
+        // Find current lesson
+        guard let currentLesson = allLessons.first(where: { $0.id == lessonID }) else { return }
+        
+        // Find next lesson using PlanNextLessonService
+        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: allLessons) else {
+            return // No next lesson available
+        }
+        
+        // Check if already unlocked
+        let existingSLs = studentLessons.filter { sl in
+            sl.resolvedLessonID == nextLesson.id &&
+            sl.resolvedStudentIDs.contains(studentID)
+        }
+        
+        // If already manually unlocked, don't show prompt
+        if existingSLs.contains(where: { $0.manuallyUnblocked }) {
+            return
+        }
+        
+        // Show unlock prompt
+        nextLessonToUnlock = nextLesson
+        showUnlockNextLessonAlert = true
+    }
+    
+    private func unlockNextLesson() {
+        guard let work = work,
+              let lessonID = UUID(uuidString: work.lessonID),
+              let studentID = UUID(uuidString: work.studentID) else { return }
+        
+        _ = UnlockNextLessonService.unlockNextLesson(
+            after: lessonID,
+            for: studentID,
+            modelContext: modelContext,
+            lessons: allLessons,
+            studentLessons: studentLessons
+        )
+        
+        saveCoordinator.save(modelContext, reason: "Unlocking next lesson")
     }
 
     private func addPlan() {

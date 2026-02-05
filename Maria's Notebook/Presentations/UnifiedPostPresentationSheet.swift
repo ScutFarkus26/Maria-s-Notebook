@@ -51,6 +51,7 @@ struct UnifiedPostPresentationSheet: View {
 
     let students: [Student]
     let lessonName: String
+    let lessonID: UUID?
     let initialStatus: PresentationStatus
 
     // MARK: - Callbacks
@@ -68,9 +69,14 @@ struct UnifiedPostPresentationSheet: View {
     @State private var defaultCheckInDate: Date = AppCalendar.startOfDay(Date().addingTimeInterval(24*60*60))
     @State private var defaultDueEnabled: Bool = false
     @State private var defaultDueDate: Date = AppCalendar.startOfDay(Date().addingTimeInterval(7*24*60*60))
-    @State private var expandedStudentID: UUID? = nil
+    @State private var expandedStudentIDs: Set<UUID> = []
+    @State private var studentsToUnlock: Set<UUID> = []
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    @Query(sort: \Lesson.sortIndex) private var lessons: [Lesson]
+    @Query private var studentLessons: [StudentLesson]
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -81,6 +87,7 @@ struct UnifiedPostPresentationSheet: View {
     init(
         students: [Student],
         lessonName: String,
+        lessonID: UUID? = nil,
         initialStatus: PresentationStatus = .justPresented,
         onDone: @escaping (PresentationStatus, [StudentEntry], String) -> Void,
         onCancel: @escaping () -> Void
@@ -88,6 +95,7 @@ struct UnifiedPostPresentationSheet: View {
         let deduped = students.uniqueByID
         self.students = deduped
         self.lessonName = lessonName
+        self.lessonID = lessonID
         self.initialStatus = initialStatus
         self.onDone = onDone
         self.onCancel = onCancel
@@ -95,13 +103,16 @@ struct UnifiedPostPresentationSheet: View {
         _status = State(initialValue: initialStatus)
 
         var initialEntries: [UUID: StudentEntry] = [:]
+        var initialExpandedIDs: Set<UUID> = []
         for student in deduped {
             initialEntries[student.id] = StudentEntry(
                 id: student.id,
                 name: StudentFormatter.displayName(for: student)
             )
+            initialExpandedIDs.insert(student.id)
         }
         _entries = State(initialValue: initialEntries)
+        _expandedStudentIDs = State(initialValue: initialExpandedIDs)
     }
 
     // MARK: - Computed
@@ -330,7 +341,7 @@ struct UnifiedPostPresentationSheet: View {
     }
 
     private func studentEntryRow(for student: Student) -> some View {
-        let isExpanded = expandedStudentID == student.id
+        let isExpanded = expandedStudentIDs.contains(student.id)
         let entry = entries[student.id]
         let hasContent = !(entry?.observation.isEmpty ?? true) || !(entry?.assignment.isEmpty ?? true)
 
@@ -339,9 +350,9 @@ struct UnifiedPostPresentationSheet: View {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     if isExpanded {
-                        expandedStudentID = nil
+                        expandedStudentIDs.remove(student.id)
                     } else {
-                        expandedStudentID = student.id
+                        expandedStudentIDs.insert(student.id)
                     }
                 }
             } label: {
@@ -500,6 +511,54 @@ struct UnifiedPostPresentationSheet: View {
 
                         Spacer()
                     }
+                    
+                    // Unlock Next Lesson
+                    if let nextLesson = findNextLesson(for: student.id) {
+                        Divider()
+                            .padding(.vertical, 8)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Next Lesson")
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                
+                                Spacer()
+                            }
+                            
+                            HStack(spacing: 8) {
+                                Button {
+                                    if studentsToUnlock.contains(student.id) {
+                                        studentsToUnlock.remove(student.id)
+                                    } else {
+                                        studentsToUnlock.insert(student.id)
+                                    }
+                                } label: {
+                                    Image(systemName: studentsToUnlock.contains(student.id) ? "checkmark.square.fill" : "square")
+                                        .foregroundStyle(studentsToUnlock.contains(student.id) ? .green : .secondary)
+                                }
+                                .buttonStyle(.plain)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Unlock: \(nextLesson.name)")
+                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    
+                                    if studentsToUnlock.contains(student.id) {
+                                        Text("Will be unlocked when you click Done")
+                                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                            .foregroundStyle(.green)
+                                    } else {
+                                        Text("Lesson will remain blocked")
+                                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                
+                                Spacer()
+                            }
+                        }
+                    }
                 }
                 .padding(12)
                 .background(
@@ -542,6 +601,29 @@ struct UnifiedPostPresentationSheet: View {
         case 5: return "Mastered"
         default: return ""
         }
+    }
+    
+    private func findNextLesson(for studentID: UUID) -> Lesson? {
+        guard let currentLessonID = lessonID else { return nil }
+        guard let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else { return nil }
+        
+        // Use PlanNextLessonService to find the next lesson
+        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons) else {
+            return nil
+        }
+        
+        // Check if student already has this lesson manually unlocked
+        let existingSLs = studentLessons.filter { sl in
+            sl.resolvedLessonID == nextLesson.id &&
+            sl.resolvedStudentIDs.contains(studentID)
+        }
+        
+        // If any existing StudentLesson for this student+lesson combo is already manually unblocked, don't show
+        if existingSLs.contains(where: { $0.manuallyUnblocked }) {
+            return nil
+        }
+        
+        return nextLesson
     }
 
     // MARK: - Group Observation Section
@@ -588,6 +670,17 @@ struct UnifiedPostPresentationSheet: View {
                             finalEntries[i].dueDate = defaultDueDate
                         }
                     }
+                }
+                
+                // Unlock next lessons for selected students
+                if let currentLessonID = lessonID, !studentsToUnlock.isEmpty {
+                    _ = UnlockNextLessonService.unlockNextLesson(
+                        after: currentLessonID,
+                        for: studentsToUnlock,
+                        modelContext: modelContext,
+                        lessons: lessons,
+                        studentLessons: studentLessons
+                    )
                 }
 
                 onDone(status, finalEntries, groupObservation)

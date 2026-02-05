@@ -34,6 +34,11 @@ enum BlockingAlgorithmEngine {
         lessonAssignments: [LessonAssignment] = [],
         workModels: [WorkModel]
     ) -> BlockingCheckResult {
+        // Check for manual unlock override
+        if sl.manuallyUnblocked {
+            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
+        }
+        
         // Find the current lesson
         guard let currentLessonID = UUID(uuidString: sl.lessonID),
               let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else {
