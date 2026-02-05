@@ -142,15 +142,12 @@ struct BackupServiceTests {
             var lessons: [LessonDTO] = []
             var studentLessons: [StudentLessonDTO] = []
             var workPlanItems: [WorkPlanItemDTO] = []
-            var scopedNotes: [ScopedNoteDTO] = []
             var notes: [NoteDTO] = []
             var nonSchoolDays: [NonSchoolDayDTO] = []
             var schoolDayOverrides: [SchoolDayOverrideDTO] = []
             var studentMeetings: [StudentMeetingDTO] = []
-            var presentations: [PresentationDTO] = []
             var communityTopics: [CommunityTopicDTO] = []
             var proposedSolutions: [ProposedSolutionDTO] = []
-            var meetingNotes: [MeetingNoteDTO] = []
             var communityAttachments: [CommunityAttachmentDTO] = []
             var attendance: [AttendanceRecordDTO] = []
             var workCompletions: [WorkCompletionRecordDTO] = []
@@ -196,7 +193,7 @@ struct BackupServiceTests {
         let ctx = container.mainContext
         // Build a payload with duplicate student IDs
         let id = UUID()
-        let payload = BackupPayload(items: [], students: [StudentDTO(id: id, firstName: "A", lastName: "B", birthday: Date(), dateStarted: nil, level: .lower, nextLessons: [], manualOrder: 0, createdAt: nil, updatedAt: nil), StudentDTO(id: id, firstName: "C", lastName: "D", birthday: Date(), dateStarted: nil, level: .lower, nextLessons: [], manualOrder: 0, createdAt: nil, updatedAt: nil)], lessons: [], studentLessons: [], lessonAssignments: [], workPlanItems: [], scopedNotes: [], notes: [], nonSchoolDays: [], schoolDayOverrides: [], studentMeetings: [], presentations: [], communityTopics: [], proposedSolutions: [], meetingNotes: [], communityAttachments: [], attendance: [], workCompletions: [], projects: [], projectAssignmentTemplates: [], projectSessions: [], projectRoles: [], projectTemplateWeeks: [], projectWeekRoleAssignments: [], preferences: PreferencesDTO(values: [:]))
+        let payload = BackupPayload(items: [], students: [StudentDTO(id: id, firstName: "A", lastName: "B", birthday: Date(), dateStarted: nil, level: .lower, nextLessons: [], manualOrder: 0, createdAt: nil, updatedAt: nil), StudentDTO(id: id, firstName: "C", lastName: "D", birthday: Date(), dateStarted: nil, level: .lower, nextLessons: [], manualOrder: 0, createdAt: nil, updatedAt: nil)], lessons: [], studentLessons: [], lessonAssignments: [], workPlanItems: [], notes: [], nonSchoolDays: [], schoolDayOverrides: [], studentMeetings: [], communityTopics: [], proposedSolutions: [], communityAttachments: [], attendance: [], workCompletions: [], projects: [], projectAssignmentTemplates: [], projectSessions: [], projectRoles: [], projectTemplateWeeks: [], projectWeekRoleAssignments: [], preferences: PreferencesDTO(values: [:]))
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
         let bytes = try encoder.encode(payload)
         let sha = SHA256.hash(data: bytes).compactMap { String(format: "%02x", $0) }.joined()
@@ -216,7 +213,7 @@ struct BackupServiceTests {
         let ctx = container.mainContext
         let missingLesson = UUID()
         let sl = StudentLessonDTO(id: UUID(), lessonID: missingLesson, studentIDs: [], createdAt: Date(), scheduledFor: nil, givenAt: nil, isPresented: false, notes: "", needsPractice: false, needsAnotherPresentation: false, followUpWork: "", studentGroupKey: nil)
-        let payload = BackupPayload(items: [], students: [], lessons: [], studentLessons: [sl], lessonAssignments: [], workPlanItems: [], scopedNotes: [], notes: [], nonSchoolDays: [], schoolDayOverrides: [], studentMeetings: [], presentations: [], communityTopics: [], proposedSolutions: [], meetingNotes: [], communityAttachments: [], attendance: [], workCompletions: [], projects: [], projectAssignmentTemplates: [], projectSessions: [], projectRoles: [], projectTemplateWeeks: [], projectWeekRoleAssignments: [], preferences: PreferencesDTO(values: [:]))
+        let payload = BackupPayload(items: [], students: [], lessons: [], studentLessons: [sl], lessonAssignments: [], workPlanItems: [], notes: [], nonSchoolDays: [], schoolDayOverrides: [], studentMeetings: [], communityTopics: [], proposedSolutions: [], communityAttachments: [], attendance: [], workCompletions: [], projects: [], projectAssignmentTemplates: [], projectSessions: [], projectRoles: [], projectTemplateWeeks: [], projectWeekRoleAssignments: [], preferences: PreferencesDTO(values: [:]))
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
         let bytes = try encoder.encode(payload)
         let sha = SHA256.hash(data: bytes).compactMap { String(format: "%02x", $0) }.joined()
