@@ -27,6 +27,39 @@ struct PresentationsDayColumn: View {
         .sorted { ($0.scheduledFor ?? .distantPast) < ($1.scheduledFor ?? .distantPast) }
     }
     
+    private var workItemsForDay: [WorkPlanItem] {
+        let (start, end) = AppCalendar.dayRange(for: day)
+        let descriptor = FetchDescriptor<WorkPlanItem>(
+            predicate: #Predicate { $0.scheduledDate >= start && $0.scheduledDate < end }
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+    
+    enum CalendarItem: Identifiable {
+        case studentLesson(StudentLesson)
+        case workPlanItem(WorkPlanItem)
+        
+        var id: UUID {
+            switch self {
+            case .studentLesson(let sl): return sl.id
+            case .workPlanItem(let wpi): return wpi.id
+            }
+        }
+        
+        var sortDate: Date {
+            switch self {
+            case .studentLesson(let sl): return sl.scheduledFor ?? .distantPast
+            case .workPlanItem(let wpi): return wpi.scheduledDate
+            }
+        }
+    }
+    
+    private var allItemsForDay: [CalendarItem] {
+        let lessons = scheduledLessonsForDay.map { CalendarItem.studentLesson($0) }
+        let work = workItemsForDay.map { CalendarItem.workPlanItem($0) }
+        return (lessons + work).sorted { $0.sortDate < $1.sortDate }
+    }
+    
     private var uniqueStudentCount: Int {
         let allStudentIDs = scheduledLessonsForDay.flatMap { $0.studentIDs }
         return Set(allStudentIDs).count
@@ -62,31 +95,44 @@ struct PresentationsDayColumn: View {
 
                 ScrollView(.vertical, showsIndicators: true) {
                     LazyVStack(alignment: .leading, spacing: 6) {
-                        if scheduledLessonsForDay.isEmpty {
+                        if allItemsForDay.isEmpty {
                             Text("No plans yet")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .padding(8)
                         } else {
-                            ForEach(scheduledLessonsForDay, id: \.id) { sl in
-                                StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false, enableMergeDrop: true)
-                                    .onTapGesture { onSelect(sl) }
-                                    .draggable(sl.id.uuidString) {
-                                        StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
-                                    }
-                                    .contextMenu {
-                                        Button("Clear Schedule", systemImage: "xmark.circle") {
-                                            onClear(sl)
+                            ForEach(allItemsForDay) { item in
+                                switch item {
+                                case .studentLesson(let sl):
+                                    StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false, enableMergeDrop: true)
+                                        .onTapGesture { onSelect(sl) }
+                                        .draggable(UnifiedCalendarDragPayload.studentLesson(sl.id).stringRepresentation) {
+                                            StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
                                         }
-                                    }
-                                    .background(
-                                        GeometryReader { proxy in
-                                            Color.clear.preference(
-                                                key: PillFramePreference.self,
-                                                value: [sl.id: proxy.frame(in: .named(zoneSpaceID))]
-                                            )
+                                        .contextMenu {
+                                            Button("Clear Schedule", systemImage: "xmark.circle") {
+                                                onClear(sl)
+                                            }
                                         }
-                                    )
+                                        .background(
+                                            GeometryReader { proxy in
+                                                Color.clear.preference(
+                                                    key: PillFramePreference.self,
+                                                    value: [sl.id: proxy.frame(in: .named(zoneSpaceID))]
+                                                )
+                                            }
+                                        )
+                                case .workPlanItem(let wpi):
+                                    WorkPlanItemPill(item: wpi, isDulled: true)
+                                        .background(
+                                            GeometryReader { proxy in
+                                                Color.clear.preference(
+                                                    key: PillFramePreference.self,
+                                                    value: [wpi.id: proxy.frame(in: .named(zoneSpaceID))]
+                                                )
+                                            }
+                                        )
+                                }
                             }
                         }
                     }
@@ -96,7 +142,7 @@ struct PresentationsDayColumn: View {
                 // Insertion indicator overlay
                 if let idx = insertionIndex {
                     GeometryReader { proxy in
-                        let sortedFrames = scheduledLessonsForDay.compactMap { item -> (UUID, CGRect)? in
+                        let sortedFrames = allItemsForDay.compactMap { item -> (UUID, CGRect)? in
                             guard let rect = itemFrames[item.id] else { return nil }
                             return (item.id, rect)
                         }.sorted { $0.1.minY < $1.1.minY }
@@ -135,7 +181,7 @@ struct PresentationsDayColumn: View {
                 modelContext: modelContext,
                 allStudentLessons: allStudentLessons,
                 day: day,
-                getCurrent: { scheduledLessonsForDay },
+                getCurrentItems: { allItemsForDay },
                 itemFramesProvider: { itemFrames },
                 onTargetChange: { targeted in
                     withAnimation(.easeInOut(duration: 0.12)) { isTargeted = targeted }
@@ -165,7 +211,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
     let modelContext: ModelContext
     let allStudentLessons: [StudentLesson]
     let day: Date
-    let getCurrent: () -> [StudentLesson]
+    let getCurrentItems: () -> [PresentationsDayColumn.CalendarItem]
     let itemFramesProvider: () -> [UUID: CGRect]
     let onTargetChange: (Bool) -> Void
     let onInsertionIndexChange: (Int?) -> Void
@@ -197,7 +243,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
     }
 
     private func computeIndex(_ info: DropInfo) -> Int? {
-        let current = getCurrent()
+        let current = getCurrentItems()
         let frames = itemFramesProvider()
         let dict: [UUID: CGRect] = Dictionary(
             current.compactMap { item -> (UUID, CGRect)? in
@@ -213,19 +259,28 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
         provider.loadObject(ofClass: NSString.self) { reading, _ in
             guard let ns = reading as? NSString else { return }
-            let payload = (ns as String).trimmed()
-            if let id = UUID(uuidString: payload) {
-                Task { @MainActor in
-                    applyDrop(of: id, locationY: location.y)
-                }
+            let payloadString = (ns as String).trimmed()
+            guard let payload = UnifiedCalendarDragPayload.parse(payloadString) else { return }
+            Task { @MainActor in
+                applyDrop(payload: payload, locationY: location.y)
             }
         }
         return true
     }
 
     @MainActor
-    private func applyDrop(of id: UUID, locationY: CGFloat) {
-        let current = getCurrent()
+    private func applyDrop(payload: UnifiedCalendarDragPayload, locationY: CGFloat) {
+        switch payload {
+        case .studentLesson(let id):
+            applyStudentLessonDrop(id: id, locationY: locationY)
+        case .workPlanItem(let id):
+            applyWorkPlanItemDrop(id: id, locationY: locationY)
+        }
+    }
+    
+    @MainActor
+    private func applyStudentLessonDrop(id: UUID, locationY: CGFloat) {
+        let current = getCurrentItems()
         var ids = current.map { $0.id }
         if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
         let frames = itemFramesProvider()
@@ -242,9 +297,9 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         let baseDate = baseDateForDay(day: day, calendar: calendar)
         let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
         do {
-            for id in ids {
-                if let item = allStudentLessons.first(where: { $0.id == id }) {
-                    item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+            for itemID in ids {
+                if let item = allStudentLessons.first(where: { $0.id == itemID }) {
+                    item.setScheduledFor(timeMap[itemID], using: AppCalendar.shared)
                     #if DEBUG
                     item.checkInboxInvariant()
                     #endif
@@ -254,6 +309,33 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         } catch {
             #if DEBUG
             print("Presentations schedule save failed: \(error)")
+            #endif
+        }
+    }
+    
+    @MainActor
+    private func applyWorkPlanItemDrop(id: UUID, locationY: CGFloat) {
+        // Fetch the WorkPlanItem
+        let descriptor = FetchDescriptor<WorkPlanItem>(predicate: #Predicate<WorkPlanItem> { $0.id == id })
+        guard let item = (try? modelContext.fetch(descriptor))?.first else { return }
+        
+        // Update its scheduled date to this day
+        let normalized = AppCalendar.startOfDay(day)
+        item.scheduledDate = normalized
+        
+        // Also update the associated WorkModel's dueAt
+        if let workID = item.workID.asUUID {
+            let workDescriptor = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> { $0.id == workID })
+            if let work = (try? modelContext.fetch(workDescriptor))?.first {
+                work.dueAt = normalized
+            }
+        }
+        
+        do {
+            try modelContext.save()
+        } catch {
+            #if DEBUG
+            print("Work item schedule save failed: \(error)")
             #endif
         }
     }

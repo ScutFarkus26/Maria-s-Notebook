@@ -86,125 +86,25 @@ struct WorkAgendaCalendarPane: View {
 
     @ViewBuilder
     private func dayColumn(_ day: Date, availableHeight: CGFloat) -> some View {
-        let (start, end) = AppCalendar.dayRange(for: day)
-        let descriptor = FetchDescriptor<WorkPlanItem>(predicate: #Predicate { $0.scheduledDate >= start && $0.scheduledDate < end })
-        let items = (try? modelContext.fetch(descriptor)) ?? []
-        VStack(alignment: .leading, spacing: 6) {
-            Text(day.formatted(Date.FormatStyle().weekday(.abbreviated).day()))
-                .font(.headline)
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(items, id: \.id) { item in
-                    pill(item)
-                        .draggable(WorkAgendaDragPayload.checkIn(item.id).stringRepresentation) {
-                            pill(item).opacity(0.9)
-                        }
-                }
-            }
-            .padding(8)
-            .frame(minWidth: 260, idealWidth: 260, maxWidth: 260, minHeight: 0, idealHeight: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.08)))
-            .onDrop(of: [.plainText], isTargeted: nil) { providers in
-                handleDrop(providers: providers, onto: day)
-            }
-        }
-        .frame(height: availableHeight, alignment: .topLeading)
-    }
-
-    // MARK: - Data Fetching Helpers
-
-    private func fetchWork(id: UUID) -> WorkModel? {
-        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-        return modelContext.safeFetchFirst(descriptor)
-    }
-
-    private func workTitle(for id: UUID) -> String {
-        guard let work = fetchWork(id: id) else { return "Work" }
-
-        if let lessonID = work.lessonID.asUUID {
-            let descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-            if let lesson = modelContext.safeFetchFirst(descriptor) {
-                let name = lesson.name.trimmed()
-                if !name.isEmpty { return name }
-            }
-        }
-        return "Lesson \(String(work.lessonID.prefix(6)))"
-    }
-
-    private func studentName(for id: UUID) -> String {
-        guard let work = fetchWork(id: id),
-              let studentID = work.studentID.asUUID else { return "" }
-
-        let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-        if let student = modelContext.safeFetchFirst(descriptor) {
-            return StudentFormatter.displayName(for: student)
-        }
-        return ""
-    }
-
-    private func reasonLabel(_ reason: WorkPlanItem.Reason) -> String {
-        switch reason {
-        case .progressCheck:
-            return WorkScheduleDateLogic.label(for: .checkIn)
-        case .dueDate:
-            return WorkScheduleDateLogic.label(for: .due)
-        default:
-            return reason.label
-        }
-    }
-
-    @ViewBuilder
-    private func pill(_ item: WorkPlanItem) -> some View {
-        if let workID = item.workID.asUUID {
-            let title = workTitle(for: workID)
-            let name = studentName(for: workID)
-            let reasonText = item.reason.map { reasonLabel($0) } ?? nil
-            VStack(alignment: .leading, spacing: 4) {
-            // Top row: Name first, then lesson title
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if !name.trimmed().isEmpty {
-                    Text(name)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                }
-                Text(title)
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            // Second row: kind/reason (e.g., Check-In, Due)
-            if let rt = reasonText {
-                HStack(spacing: 6) {
-                    if let r = item.reason { Image(systemName: r.icon).foregroundStyle(.secondary) }
-                    Text(rt)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.06)))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture {
+        WorkAgendaDayColumn(day: day, availableHeight: availableHeight) { item in
             if let workID = item.workID.asUUID {
                 openDetail(workID: workID)
             }
         }
-        .contextMenu {
-            if let workID = item.workID.asUUID {
-                Button("Open", systemImage: "arrow.forward.circle") { openDetail(workID: workID) }
-            }
-            Button("Delete", role: .destructive) { deletePlan(item) }
-        }
-        } else {
-            Text("Invalid work ID").foregroundStyle(.red)
+        .onDrop(of: [.plainText], isTargeted: nil) { providers in
+            handleDrop(providers: providers, onto: day)
         }
     }
 
+    // MARK: - Data Fetching Helpers
+    
+    private func fetchWork(id: UUID) -> WorkModel? {
+        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
+        return modelContext.safeFetchFirst(descriptor)
+    }
+    
+    // MARK: - Actions
+    
     private func openDetail(workID: UUID) {
         selected = nil
         let token = SelectionToken(id: UUID(), contractID: workID)
@@ -219,15 +119,30 @@ struct WorkAgendaCalendarPane: View {
         provider.loadObject(ofClass: NSString.self) { reading, _ in
             guard let ns = reading as? NSString else { return }
             let s = (ns as String).trimmed()
-            guard let payload = WorkAgendaDragPayload.parse(s) else { return }
-            Task { @MainActor in
-                let normalizedDay = AppCalendar.startOfDay(day)
-                switch payload {
-                case .work(let id):
-                    prompt = PlanPrompt(workID: id, date: normalizedDay)
-                    updateWorkDueDate(workID: id, to: normalizedDay, reason: "Sync work dueDate on drop (prompt pending)")
-                case .checkIn(let id):
-                    reschedulePlanItem(id: id, to: normalizedDay)
+            
+            // Try parsing as UnifiedCalendarDragPayload first
+            if let unifiedPayload = UnifiedCalendarDragPayload.parse(s) {
+                Task { @MainActor in
+                    let normalizedDay = AppCalendar.startOfDay(day)
+                    switch unifiedPayload {
+                    case .studentLesson(let id):
+                        rescheduleStudentLesson(id: id, to: normalizedDay)
+                    case .workPlanItem(let id):
+                        reschedulePlanItem(id: id, to: normalizedDay)
+                    }
+                }
+            }
+            // Fallback to legacy WorkAgendaDragPayload for backwards compatibility
+            else if let legacyPayload = WorkAgendaDragPayload.parse(s) {
+                Task { @MainActor in
+                    let normalizedDay = AppCalendar.startOfDay(day)
+                    switch legacyPayload {
+                    case .work(let id):
+                        prompt = PlanPrompt(workID: id, date: normalizedDay)
+                        updateWorkDueDate(workID: id, to: normalizedDay, reason: "Sync work dueDate on drop (prompt pending)")
+                    case .checkIn(let id):
+                        reschedulePlanItem(id: id, to: normalizedDay)
+                    }
                 }
             }
         }
@@ -263,6 +178,17 @@ struct WorkAgendaCalendarPane: View {
             work.dueAt = normalized
         }
         _ = saveCoordinator.save(modelContext, reason: "Reschedule WorkPlanItem")
+    }
+    
+    private func rescheduleStudentLesson(id: UUID, to day: Date) {
+        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate<StudentLesson> { $0.id == id })
+        guard let lesson = modelContext.safeFetchFirst(fetch) else { return }
+        
+        let normalized = AppCalendar.startOfDay(day)
+        let baseDate = Calendar.current.date(byAdding: .hour, value: 9, to: normalized) ?? normalized
+        lesson.setScheduledFor(baseDate, using: AppCalendar.shared)
+        
+        _ = saveCoordinator.save(modelContext, reason: "Reschedule StudentLesson from Work view")
     }
 
     private func deletePlan(_ item: WorkPlanItem) {
