@@ -758,9 +758,9 @@ struct BackupMigrationManifestTests {
 
     @Test("Version info retrieval")
     func testVersionInfoRetrieval() {
-        let info = BackupMigrationManifest.info(for: 1)
+        let info = BackupMigrationManifest.info(for: 6)
         #expect(info != nil)
-        #expect(info?.version == 1)
+        #expect(info?.version == 6)
         #expect(!info!.description.isEmpty)
     }
 

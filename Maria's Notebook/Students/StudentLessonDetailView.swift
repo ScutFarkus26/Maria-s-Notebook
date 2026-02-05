@@ -19,6 +19,10 @@ struct StudentLessonDetailView: View {
     @Query private var lessons: [Lesson]
     @Query private var studentsAllRaw: [Student]
     @Query private var studentLessonsAll: [StudentLesson]
+    
+    private var lessonIDs: [UUID] {
+        lessons.map { $0.id }
+    }
 
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
@@ -76,7 +80,7 @@ struct StudentLessonDetailView: View {
                 lessonPickerVM.selectLesson(newVM.editingLessonID)
             }
         }
-        .onChange(of: lessons.map { $0.id }) { _, _ in
+        .onChange(of: lessonIDs) { _, _ in
             lessonPickerVM.configure(lessons: lessons, students: studentsAll)
         }
         .onChange(of: lessonPickerVM.selectedLessonID) { _, newValue in
@@ -301,56 +305,28 @@ struct StudentLessonDetailContentView: View {
         #if os(iOS)
         if horizontalSizeClass == .compact {
             // iPhone: Stack buttons vertically
-            VStack(spacing: 12) {
-                HStack(spacing: 8) {
-                    Button { selectJustPresented() } label: {
-                        StatePill(
-                            title: "Just Presented",
-                            systemImage: "checkmark.circle.fill",
-                            tint: .green,
-                            active: isJustPresentedActive
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 8) {
+                Button { selectJustPresented() } label: {
+                    StatePill(
+                        title: "Just Presented",
+                        systemImage: "checkmark.circle.fill",
+                        tint: .green,
+                        active: isJustPresentedActive
+                    )
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
 
-                    Button { selectPreviouslyPresented() } label: {
-                        StatePill(
-                            title: "Previously",
-                            systemImage: "clock.badge.checkmark",
-                            tint: .green,
-                            active: isPreviouslyPresentedActive
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
+                Button { selectPreviouslyPresented() } label: {
+                    StatePill(
+                        title: "Previously",
+                        systemImage: "clock.badge.checkmark",
+                        tint: .green,
+                        active: isPreviouslyPresentedActive
+                    )
                 }
-                
-                HStack(spacing: 8) {
-                    Button { selectNeedsAnother() } label: {
-                        StatePill(
-                            title: "Needs Another",
-                            systemImage: "arrow.clockwise.circle.fill",
-                            tint: .orange,
-                            active: isNeedsAnotherActive
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
-                    
-                    Button {
-                        vm.scheduleNextLessonToInbox(
-                            studentsAll: studentsAll,
-                            studentLessonsAll: studentLessonsAll,
-                            lessons: lessons
-                        )
-                    } label: {
-                        Label("Schedule", systemImage: "calendar.badge.plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(vm.nextLessonInGroup(from: lessons) == nil || vm.selectedStudentIDs.isEmpty)
-                    .frame(maxWidth: .infinity)
-                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
             }
         } else {
             // iPad: Original horizontal layout
@@ -376,31 +352,6 @@ struct StudentLessonDetailContentView: View {
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
-
-                Button { selectNeedsAnother() } label: {
-                    StatePill(
-                        title: "Needs Another Presentation",
-                        systemImage: "arrow.clockwise.circle.fill",
-                        tint: .orange,
-                        active: isNeedsAnotherActive
-                    )
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-                
-                Spacer()
-
-                Button {
-                    vm.scheduleNextLessonToInbox(
-                        studentsAll: studentsAll,
-                        studentLessonsAll: studentLessonsAll,
-                        lessons: lessons
-                    )
-                } label: {
-                    Label("Schedule Next Presentation", systemImage: "calendar.badge.plus")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(vm.nextLessonInGroup(from: lessons) == nil || vm.selectedStudentIDs.isEmpty)
             }
         }
         #else
@@ -427,31 +378,6 @@ struct StudentLessonDetailContentView: View {
             }
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
-
-            Button { selectNeedsAnother() } label: {
-                StatePill(
-                    title: "Needs Another Presentation",
-                    systemImage: "arrow.clockwise.circle.fill",
-                    tint: .orange,
-                    active: isNeedsAnotherActive
-                )
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
-            
-            Spacer()
-
-            Button {
-                vm.scheduleNextLessonToInbox(
-                    studentsAll: studentsAll,
-                    studentLessonsAll: studentLessonsAll,
-                    lessons: lessons
-                )
-            } label: {
-                Label("Schedule Next Presentation", systemImage: "calendar.badge.plus")
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(vm.nextLessonInGroup(from: lessons) == nil || vm.selectedStudentIDs.isEmpty)
         }
         #endif
     }

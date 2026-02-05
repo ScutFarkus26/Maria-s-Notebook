@@ -68,6 +68,12 @@ struct PresentationsView: View {
         studentsForChangeDetection.map { $0.id }
     }
     
+    private var activeWorkIDs: [UUID] {
+        workModelsForChangeDetection
+            .filter { $0.statusRaw != "complete" }
+            .map { $0.id }
+    }
+    
     // Active WorkModels: unresolved work items (statusRaw != "complete")
     private var activeWork: [WorkModel] {
         workModelsForChangeDetection.filter { $0.statusRaw != "complete" }
@@ -335,7 +341,7 @@ struct PresentationsView: View {
         .onChange(of: lessonIDs) { _, _ in
             updateViewModel()
         }
-        .onChange(of: activeWork.map { $0.id }) { _, _ in
+        .onChange(of: activeWorkIDs) { _, _ in
             updateViewModel()
         }
         .onChange(of: studentIDs) { _, _ in

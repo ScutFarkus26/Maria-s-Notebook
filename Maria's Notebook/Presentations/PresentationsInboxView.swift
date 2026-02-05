@@ -47,6 +47,23 @@ struct PresentationsInboxView: View {
 
     // Default sorting is by age
     private let sortMode: PresentationsSortMode = .age
+    
+    // Combined change detection key to consolidate onChange handlers
+    private struct CacheInvalidationKey: Equatable {
+        let searchText: String
+        let readyCount: Int
+        let blockedCount: Int
+        let filterID: UUID?
+    }
+    
+    private var cacheInvalidationKey: CacheInvalidationKey {
+        CacheInvalidationKey(
+            searchText: debouncedSearchText,
+            readyCount: readyLessons.count,
+            blockedCount: blockedLessons.count,
+            filterID: selectedStudentFilter
+        )
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -167,10 +184,7 @@ struct PresentationsInboxView: View {
             isTargeted: $isInboxTargeted
         ))
         .onAppear { updateCachesIfNeeded() }
-        .onChange(of: debouncedSearchText) { _, _ in updateCachesIfNeeded() }
-        .onChange(of: readyLessons.count) { _, _ in updateCachesIfNeeded() }
-        .onChange(of: blockedLessons.count) { _, _ in updateCachesIfNeeded() }
-        .onChange(of: selectedStudentFilter) { _, _ in updateCachesIfNeeded() }
+        .onChange(of: cacheInvalidationKey) { _, _ in updateCachesIfNeeded() }
     }
     
     // MARK: - Filtering and Sorting

@@ -22,6 +22,7 @@ struct AttendanceExpandedView: View {
     private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var allStudents: [Student] { allStudentsRaw.uniqueByID }
+    private var allStudentIDs: [UUID] { allStudents.map { $0.id } }
 
     @StateObject private var viewModel = AttendanceViewModel()
 
@@ -166,7 +167,7 @@ struct AttendanceExpandedView: View {
         .onChange(of: date) { _, _ in
             loadData()
         }
-        .onChange(of: allStudents.map { $0.id }) { _, _ in
+        .onChange(of: allStudentIDs) { _, _ in
             loadData()
         }
         .onChange(of: localSortKey) { _, newValue in

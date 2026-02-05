@@ -184,7 +184,7 @@ struct AgeStudentCard: View {
                 .lineLimit(1)
                 .offset(y: bob ? -2 : 2)
                 .animation(
-                    isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+                    isAnimating ? .easeInOut(duration: 1.6).repeatCount(60, autoreverses: true) : nil,
                     value: bob
                 )
         }
@@ -337,7 +337,7 @@ struct LastLessonStudentCard: View {
             .foregroundStyle(.white)
             .offset(y: bob ? -3 : 3)
             .animation(
-                isAnimating ? .easeInOut(duration: 1.4).repeatForever(autoreverses: true) : nil,
+                isAnimating ? .easeInOut(duration: 1.4).repeatCount(60, autoreverses: true) : nil,
                 value: bob
             )
             .accessibilityHidden(true)
@@ -364,7 +364,7 @@ struct LastLessonStudentCard: View {
                         .foregroundStyle(.white)
                         .offset(y: bob ? -2 : 2)
                         .animation(
-                            isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+                            isAnimating ? .easeInOut(duration: 1.6).repeatCount(60, autoreverses: true) : nil,
                             value: bob
                         )
                     Text(days == 1 ? "day" : "days")
@@ -555,7 +555,7 @@ struct BirthdayStudentCard: View {
                 .foregroundStyle(.white)
                 .offset(y: bob ? -2 : 2)
                 .animation(
-                    isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+                    isAnimating ? .easeInOut(duration: 1.6).repeatCount(60, autoreverses: true) : nil,
                     value: bob
                 )
             Text(daysUntil == 1 ? "day" : "days")
@@ -581,7 +581,7 @@ struct BirthdayStudentCard: View {
             .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
             .offset(y: bob ? -2 : 2)
             .animation(
-                isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+                isAnimating ? .easeInOut(duration: 1.6).repeatCount(60, autoreverses: true) : nil,
                 value: bob
             )
             .accessibilityHidden(true)
@@ -613,7 +613,7 @@ struct BirthdayStudentCard: View {
         .font(.title3)
         .offset(y: bob ? -6 : 6)
         .animation(
-            isAnimating ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true) : nil,
+            isAnimating ? .easeInOut(duration: 1.6).repeatCount(60, autoreverses: true) : nil,
             value: bob
         )
         .accessibilityHidden(true)

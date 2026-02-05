@@ -36,6 +36,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     @State private var isLoading: Bool = true
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: Note? = nil
+    @State private var showingEditSheet = false
 
     init(assignmentID: UUID, onDone: (() -> Void)? = nil) {
         self.assignmentID = assignmentID
@@ -75,6 +76,12 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                     Text("Presentation Info")
                         .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
                     Spacer()
+                    Button("Edit") {
+                        showingEditSheet = true
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(studentList(for: la).isEmpty)
+                    
                     Button(action: close) {
                         Text("Done")
                             .fontWeight(.semibold)
@@ -296,6 +303,9 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            editPresentationSheet
         }
         .task { @MainActor in
             isLoading = true
@@ -596,6 +606,77 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         } else {
             self.unifiedNotes = []
         }
+    }
+    
+    private var editPresentationSheet: some View {
+        guard let la = assignment else {
+            return AnyView(EmptyView())
+        }
+        
+        let studentList = studentList(for: la)
+        let lessonName = title(for: la)
+        
+        let initialStatus: UnifiedPostPresentationSheet.PresentationStatus = {
+            if la.state == .presented {
+                return .justPresented
+            } else {
+                return .justPresented
+            }
+        }()
+        
+        return AnyView(
+            UnifiedPostPresentationSheet(
+                students: studentList,
+                lessonName: lessonName,
+                initialStatus: initialStatus,
+                onDone: { status, studentEntries, groupObservation in
+                    updatePresentation(status: status, entries: studentEntries, groupObservation: groupObservation)
+                    showingEditSheet = false
+                },
+                onCancel: {
+                    showingEditSheet = false
+                }
+            )
+        )
+    }
+    
+    @MainActor
+    private func updatePresentation(status: UnifiedPostPresentationSheet.PresentationStatus, entries: [UnifiedPostPresentationSheet.StudentEntry], groupObservation: String) {
+        guard let la = assignment else { return }
+        
+        // Update presentation state
+        switch status {
+        case .justPresented:
+            la.state = .presented
+            la.presentedAt = Date()
+            la.needsAnotherPresentation = false
+        case .previouslyPresented:
+            la.state = .presented
+            la.needsAnotherPresentation = false
+        case .needsAnother:
+            la.state = .scheduled
+            la.needsAnotherPresentation = true
+        }
+        
+        // Update notes with group observation
+        if !groupObservation.isEmpty {
+            if la.notes.isEmpty {
+                la.notes = groupObservation
+            } else {
+                la.notes += "\n\n" + groupObservation
+            }
+        }
+        
+        // Save changes
+        try? modelContext.save()
+        
+        // Reload the assignment to reflect changes
+        let targetID = assignmentID
+        let descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == targetID })
+        if let refreshed = modelContext.safeFetchFirst(descriptor) {
+            self.assignment = refreshed
+        }
+        reloadNotes()
     }
 
     private func close() {

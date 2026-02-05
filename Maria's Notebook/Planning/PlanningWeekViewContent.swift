@@ -19,6 +19,10 @@ struct PlanningWeekViewContent: View {
     let lessons: [Lesson]
     let students: [Student]
     
+    private var inboxLessonIDs: [UUID] {
+        inboxLessons.map { $0.id }
+    }
+    
     @Binding var inboxOrderRaw: String
     @Binding var startDate: Date
     @Binding var activeSheet: PlanningWeekViewContent.ActiveSheet?
@@ -302,7 +306,7 @@ struct PlanningWeekViewContent: View {
         .onChange(of: startDate) { _, _ in
             loadWeekStudentLessons()
         }
-        .onChange(of: inboxLessons.map { $0.id }) { _, _ in
+        .onChange(of: inboxLessonIDs) { _, _ in
             syncInboxOrderWithCurrentBase()
         }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in

@@ -219,6 +219,7 @@ struct PresentationProgressDetailView: View {
     @State private var students: [Student] = []
     @State private var workItems: [WorkModel] = []
     @State private var practiceSessions: [PracticeSession] = []
+    @State private var showingEditSheet = false
     
     var body: some View {
         NavigationStack {
@@ -361,11 +362,21 @@ struct PresentationProgressDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
                         onDone()
                     }
                 }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Edit") {
+                        showingEditSheet = true
+                    }
+                    .disabled(students.isEmpty || lesson == nil)
+                }
+            }
+            .sheet(isPresented: $showingEditSheet) {
+                editPresentationSheet
             }
             .task {
                 loadData()
@@ -379,6 +390,61 @@ struct PresentationProgressDetailView: View {
         case .scheduled: return .blue
         case .draft: return .gray
         }
+    }
+    
+    private var editPresentationSheet: some View {
+        let initialStatus: UnifiedPostPresentationSheet.PresentationStatus = {
+            if presentation.state == .presented {
+                return .justPresented
+            } else {
+                return .justPresented
+            }
+        }()
+        
+        return UnifiedPostPresentationSheet(
+            students: students,
+            lessonName: lesson?.name ?? "Unknown Lesson",
+            initialStatus: initialStatus,
+            onDone: { status, studentEntries, groupObservation in
+                updatePresentation(status: status, entries: studentEntries, groupObservation: groupObservation)
+                showingEditSheet = false
+            },
+            onCancel: {
+                showingEditSheet = false
+            }
+        )
+    }
+    
+    @MainActor
+    private func updatePresentation(status: UnifiedPostPresentationSheet.PresentationStatus, entries: [UnifiedPostPresentationSheet.StudentEntry], groupObservation: String) {
+        // Update presentation state
+        switch status {
+        case .justPresented:
+            presentation.state = .presented
+            presentation.presentedAt = Date()
+            presentation.needsAnotherPresentation = false
+        case .previouslyPresented:
+            presentation.state = .presented
+            presentation.needsAnotherPresentation = false
+        case .needsAnother:
+            presentation.state = .scheduled
+            presentation.needsAnotherPresentation = true
+        }
+        
+        // Update notes with group observation
+        if !groupObservation.isEmpty {
+            if presentation.notes.isEmpty {
+                presentation.notes = groupObservation
+            } else {
+                presentation.notes += "\n\n" + groupObservation
+            }
+        }
+        
+        // Save changes
+        try? modelContext.save()
+        
+        // Reload data to reflect changes
+        loadData()
     }
     
     @MainActor

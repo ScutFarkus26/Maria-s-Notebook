@@ -20,6 +20,7 @@ struct StudentsView<WorkloadContent: View>: View {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
     private var uniqueStudents: [Student] { students.uniqueByID }
+    private var uniqueStudentIDs: [UUID] { uniqueStudents.map { $0.id } }
 
     // OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -441,7 +442,7 @@ struct StudentsView<WorkloadContent: View>: View {
                     await loadDataOnDemand()
                 }
             }
-            .onChange(of: uniqueStudents.map { $0.id }) { _, _ in
+            .onChange(of: uniqueStudentIDs) { _, _ in
                 ensureInitialManualOrderIfNeeded()
                 if viewModel.repairManualOrderUniquenessIfNeeded(uniqueStudents) {
                     try? modelContext.save()
