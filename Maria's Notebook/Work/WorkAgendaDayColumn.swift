@@ -82,7 +82,8 @@ struct WorkAgendaDayColumn: View {
                             day: day,
                             targetStudentLessonID: sl.id,
                             showTimeBadge: false,
-                            enableMergeDrop: false
+                            enableMergeDrop: false,
+                            showAgeIndicator: false
                         )
                         .opacity(0.5)
                         .draggable(UnifiedCalendarDragPayload.studentLesson(sl.id).stringRepresentation) {
@@ -91,7 +92,8 @@ struct WorkAgendaDayColumn: View {
                                 day: day,
                                 targetStudentLessonID: sl.id,
                                 showTimeBadge: false,
-                                enableMergeDrop: false
+                                enableMergeDrop: false,
+                                showAgeIndicator: false
                             )
                             .opacity(0.45)
                         }

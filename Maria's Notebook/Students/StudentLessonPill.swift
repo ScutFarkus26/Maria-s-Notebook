@@ -49,6 +49,7 @@ struct StudentLessonPill: View {
     var showTimeBadge: Bool = true
     var enableMissHighlight: Bool = false
     var enableMergeDrop: Bool = false
+    var showAgeIndicator: Bool = true
     var blockingWork: [UUID: WorkModel] = [:]
 
     // PERFORMANCE: Accept cached data instead of using @Query per-pill
@@ -441,7 +442,9 @@ struct StudentLessonPill: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ageIndicator
+            if showAgeIndicator {
+                ageIndicator
+            }
 
             pillContent
             .padding(.horizontal, 10)
