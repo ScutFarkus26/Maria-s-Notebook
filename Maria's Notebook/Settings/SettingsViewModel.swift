@@ -25,9 +25,16 @@ final class SettingsViewModel: ObservableObject {
     @Published var estimatedBackupSize: Int64? = nil
 
     // Internal
-    private let backupService = BackupService()
+    private let dependencies: AppDependencies
+    private var backupService: BackupService { dependencies.backupService }
     private var pendingImportURL: URL? = nil
     private var exportURL: URL? = nil
+    
+    // MARK: - Initialization
+    
+    init(dependencies: AppDependencies) {
+        self.dependencies = dependencies
+    }
 
     // MARK: - Last Backup Date
     private static let lastBackupKey = "LastBackupTimeInterval"

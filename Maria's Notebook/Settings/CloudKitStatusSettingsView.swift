@@ -3,7 +3,12 @@ import SwiftData
 
 struct CloudKitStatusSettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var syncService = CloudKitSyncStatusService.shared
+    @Environment(\.dependencies) private var dependencies
+    @StateObject private var syncService: CloudKitSyncStatusService
+    
+    init() {
+        _syncService = StateObject(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
+    }
 
     private var isCloudKitEnabled: Bool {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)

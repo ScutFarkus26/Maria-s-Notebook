@@ -146,7 +146,7 @@ final class AppDependencies: ObservableObject {
     private var _selectiveRestoreService: SelectiveRestoreService?
     var selectiveRestoreService: SelectiveRestoreService {
         if _selectiveRestoreService == nil {
-            _selectiveRestoreService = SelectiveRestoreService()
+            _selectiveRestoreService = SelectiveRestoreService(backupService: backupService)
         }
         return _selectiveRestoreService!
     }
@@ -154,9 +154,49 @@ final class AppDependencies: ObservableObject {
     private var _cloudBackupService: CloudBackupService?
     var cloudBackupService: CloudBackupService {
         if _cloudBackupService == nil {
-            _cloudBackupService = CloudBackupService()
+            _cloudBackupService = CloudBackupService(backupService: backupService)
         }
         return _cloudBackupService!
+    }
+    
+    private var _incrementalBackupService: IncrementalBackupService?
+    var incrementalBackupService: IncrementalBackupService {
+        if _incrementalBackupService == nil {
+            _incrementalBackupService = IncrementalBackupService(backupService: backupService)
+        }
+        return _incrementalBackupService!
+    }
+    
+    private var _backupSharingService: BackupSharingService?
+    var backupSharingService: BackupSharingService {
+        if _backupSharingService == nil {
+            _backupSharingService = BackupSharingService(backupService: backupService)
+        }
+        return _backupSharingService!
+    }
+    
+    private var _backupTransactionManager: BackupTransactionManager?
+    var backupTransactionManager: BackupTransactionManager {
+        if _backupTransactionManager == nil {
+            _backupTransactionManager = BackupTransactionManager(backupService: backupService)
+        }
+        return _backupTransactionManager!
+    }
+    
+    private var _selectiveExportService: SelectiveExportService?
+    var selectiveExportService: SelectiveExportService {
+        if _selectiveExportService == nil {
+            _selectiveExportService = SelectiveExportService(backupService: backupService)
+        }
+        return _selectiveExportService!
+    }
+    
+    private var _autoBackupManager: AutoBackupManager?
+    var autoBackupManager: AutoBackupManager {
+        if _autoBackupManager == nil {
+            _autoBackupManager = AutoBackupManager(backupService: backupService)
+        }
+        return _autoBackupManager!
     }
     
     // MARK: - Migration Services
@@ -182,6 +222,16 @@ final class AppDependencies: ObservableObject {
             _reportGeneratorService = ReportGeneratorService()
         }
         return _reportGeneratorService!
+    }
+    
+    // MARK: - UI Services
+    
+    private var _toastService: ToastService?
+    var toastService: ToastService {
+        if _toastService == nil {
+            _toastService = ToastService.shared
+        }
+        return _toastService!
     }
     
     // MARK: - Storage Services

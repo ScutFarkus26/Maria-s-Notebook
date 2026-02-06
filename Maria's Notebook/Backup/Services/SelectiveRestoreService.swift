@@ -117,8 +117,14 @@ public final class SelectiveRestoreService {
 
     // MARK: - Properties
 
-    private let backupService = BackupService()
+    private let backupService: BackupService
     private let codec = BackupCodec()
+    
+    // MARK: - Initialization
+    
+    public init(backupService: BackupService) {
+        self.backupService = backupService
+    }
 
     // MARK: - Public API
 

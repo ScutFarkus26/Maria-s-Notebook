@@ -109,7 +109,7 @@ public final class CloudBackupService: ObservableObject {
 
     // MARK: - Properties
 
-    private let backupService = BackupService()
+    private let backupService: BackupService
     private let fileManager = FileManager.default
 
     /// The iCloud Drive backup directory name
@@ -604,7 +604,9 @@ public final class CloudBackupService: ObservableObject {
 
     // MARK: - Initialization
 
-    public init() {
+    public init(backupService: BackupService) {
+        self.backupService = backupService
+        
         // Load last cloud backup date
         let timestamp = UserDefaults.standard.double(forKey: Keys.lastCloudBackupDate)
         if timestamp > 0 {

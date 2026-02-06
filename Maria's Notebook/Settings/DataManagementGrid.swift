@@ -10,7 +10,13 @@ import UIKit
 
 struct DataManagementGrid: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var viewModel = SettingsViewModel()
+    @Environment(\.dependencies) private var dependencies
+    @StateObject private var viewModel: SettingsViewModel
+    
+    init() {
+        // Initialize with default dependencies - will be overridden by environment
+        _viewModel = StateObject(wrappedValue: SettingsViewModel(dependencies: AppDependenciesKey.defaultValue))
+    }
 
     @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
     @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true

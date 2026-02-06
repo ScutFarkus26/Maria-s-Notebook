@@ -6,13 +6,16 @@ import EventKit
 /// Supports selecting multiple calendars to sync.
 public struct CalendarSyncSettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @ObservedObject private var syncService = CalendarSyncService.shared
+    @Environment(\.dependencies) private var dependencies
+    @StateObject private var syncService: CalendarSyncService
     @State private var selectedCalendarIdentifiers: Set<String> = []
     @State private var availableCalendars: [CalendarSyncService.CalendarInfo] = []
     @State private var isRefreshing: Bool = false
     @State private var lastSyncStatus: String? = nil
 
-    public init() {}
+    public init() {
+        _syncService = StateObject(wrappedValue: AppDependenciesKey.defaultValue.calendarSync)
+    }
 
     private var needsAuthorization: Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
@@ -208,7 +211,7 @@ private struct CalendarToggleRow: View {
     }
 }
 
-#Preview {
+#Preview("Calendar Sync Settings") {
     CalendarSyncSettingsView()
         .previewEnvironment()
 }

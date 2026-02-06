@@ -38,9 +38,12 @@ final class StudentDetailViewModel: ObservableObject {
     @Published var selectedStudentLessonForDetail: StudentLesson? = nil
     @Published var toastMessage: String? = nil
 
+    private let dependencies: AppDependencies
+    
     // MARK: - Initialization
-    init(student: Student) {
+    init(student: Student, dependencies: AppDependencies) {
         self.student = student
+        self.dependencies = dependencies
     }
 
     // MARK: - Data Loading
@@ -171,7 +174,7 @@ final class StudentDetailViewModel: ObservableObject {
     // MARK: - UI Actions moved from View
     func showToast(_ message: String) {
         // Delegate to centralized ToastService
-        ToastService.shared.showInfo(message)
+        dependencies.toastService.showInfo(message)
     }
 
     func latestStudentLesson(for lessonID: UUID, studentID: UUID) -> StudentLesson? {

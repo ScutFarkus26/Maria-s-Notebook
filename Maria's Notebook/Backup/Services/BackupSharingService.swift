@@ -80,8 +80,14 @@ public final class BackupSharingService {
 
     // MARK: - Properties
 
-    private let backupService = BackupService()
+    private let backupService: BackupService
     private let codec = BackupCodec()
+    
+    // MARK: - Initialization
+    
+    public init(backupService: BackupService) {
+        self.backupService = backupService
+    }
 
     /// Directory for temporary share files
     private var shareDirectory: URL {

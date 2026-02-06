@@ -3,8 +3,13 @@ import SwiftUI
 /// A compact sync status badge for navigation bars and toolbars.
 /// Shows a small indicator with optional popover for details.
 struct SyncStatusBadge: View {
-    @StateObject private var syncService = CloudKitSyncStatusService.shared
+    @Environment(\.dependencies) private var dependencies
+    @StateObject private var syncService: CloudKitSyncStatusService
     @State private var showingPopover = false
+    
+    init() {
+        _syncService = StateObject(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
+    }
 
     private var isCloudKitActive: Bool {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
@@ -36,7 +41,12 @@ struct SyncStatusBadge: View {
 
 /// Popover content showing sync status details
 struct SyncStatusPopover: View {
-    @StateObject private var syncService = CloudKitSyncStatusService.shared
+    @Environment(\.dependencies) private var dependencies
+    @StateObject private var syncService: CloudKitSyncStatusService
+    
+    init() {
+        _syncService = StateObject(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

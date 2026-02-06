@@ -6,15 +6,18 @@ import SwiftUI
 /// AppDelegate to handle automatic backups on app termination
 final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
     private var modelContainer: ModelContainer?
-    private let autoBackupManager = AutoBackupManager()
+    private var autoBackupManager: AutoBackupManager?
     
     func setModelContainer(_ container: ModelContainer) {
         self.modelContainer = container
+        // Create AutoBackupManager with BackupService
+        self.autoBackupManager = AutoBackupManager(backupService: BackupService())
     }
     
     func applicationWillTerminate(_ notification: Notification) {
         // Perform automatic backup before app quits
-        guard let modelContainer = modelContainer else { return }
+        guard let modelContainer = modelContainer,
+              let autoBackupManager = autoBackupManager else { return }
         
         let modelContext = modelContainer.mainContext
         

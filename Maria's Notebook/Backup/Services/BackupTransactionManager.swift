@@ -44,8 +44,14 @@ public final class BackupTransactionManager {
 
     // MARK: - Properties
 
-    private let backupService = BackupService()
+    private let backupService: BackupService
     private let codec = BackupCodec()
+    
+    // MARK: - Initialization
+    
+    public init(backupService: BackupService) {
+        self.backupService = backupService
+    }
 
     /// Directory for storing transaction checkpoints
     private var checkpointDirectory: URL {

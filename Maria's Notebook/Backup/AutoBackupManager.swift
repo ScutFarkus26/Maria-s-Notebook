@@ -53,13 +53,15 @@ class AutoBackupManager: ObservableObject {
 
     // MARK: - Properties
 
-    private let backupService = BackupService()
+    private let backupService: BackupService
     private var scheduledBackupTask: Task<Void, Never>?
     private var modelContext: ModelContext?
 
     // MARK: - Initialization
 
-    init() {
+    init(backupService: BackupService) {
+        self.backupService = backupService
+        
         // Load last scheduled backup date from UserDefaults
         let timestamp = UserDefaults.standard.double(forKey: "AutoBackup.lastScheduledDate")
         if timestamp > 0 {

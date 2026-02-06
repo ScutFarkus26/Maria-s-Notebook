@@ -90,7 +90,14 @@ public final class SelectiveExportService {
 
     // MARK: - Properties
 
+    private let backupService: BackupService
     private let codec = BackupCodec()
+    
+    // MARK: - Initialization
+    
+    public init(backupService: BackupService) {
+        self.backupService = backupService
+    }
 
     // MARK: - Public API
 
@@ -282,7 +289,7 @@ public final class SelectiveExportService {
         excludedCounts["Project"] = allProjects.count - includedProjects.count
 
         // Estimate size
-        let estimatedSize = BackupService().estimateBackupSizeFromCounts(includedCounts)
+        let estimatedSize = backupService.estimateBackupSizeFromCounts(includedCounts)
 
         return ExportStatistics(
             filter: filter,

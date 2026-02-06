@@ -20,8 +20,9 @@ struct ReportGeneratorView: View {
     @State private var showingShareSheet: Bool = false
     @State private var showingPreview: Bool = false
     @State private var errorMessage: String?
-
-    private let reportService = ReportGeneratorService()
+    
+    @Environment(\.dependencies) private var dependencies
+    private var reportService: ReportGeneratorService { dependencies.reportGeneratorService }
 
     private var effectiveDateRange: ClosedRange<Date> {
         if selectedDateRange == .custom {

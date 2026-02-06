@@ -50,8 +50,14 @@ public final class IncrementalBackupService {
 
     // MARK: - Properties
 
-    private let backupService = BackupService()
+    private let backupService: BackupService
     private let codec = BackupCodec()
+    
+    // MARK: - Initialization
+    
+    public init(backupService: BackupService) {
+        self.backupService = backupService
+    }
 
     /// The date of the last incremental backup
     public var lastBackupDate: Date? {

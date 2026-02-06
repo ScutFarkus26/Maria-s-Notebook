@@ -233,6 +233,6 @@ struct StudentDetailView: View {
     init(student: Student, onDone: (() -> Void)? = nil) {
         self.student = student
         self.onDone = onDone
-        _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student))
+        _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student, dependencies: AppDependenciesKey.defaultValue))
     }
 }
