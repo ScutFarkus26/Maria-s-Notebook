@@ -24,6 +24,7 @@ struct LessonDetailView: View {
     @State private var draftGroup: String = ""
     @State private var draftSubheading: String = ""
     @State private var draftWriteUp: String = ""
+    @State private var draftSuggestedFollowUpWork: String = ""
     @State private var draftSource: LessonSource = .album
     @State private var draftPersonalKind: PersonalLessonKind = .personal
     @State private var showDeleteAlert = false
@@ -211,6 +212,34 @@ struct LessonDetailView: View {
             }
             .padding(.top, 6)
 
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20)
+                    Text("Suggested Follow-Up Work")
+                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                if lesson.suggestedFollowUpWorkItems.isEmpty {
+                    Text("No suggestions yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(lesson.suggestedFollowUpWorkItems, id: \.self) { item in
+                            HStack(alignment: .top, spacing: 8) {
+                                Text("•")
+                                    .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                Text(item)
+                                    .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.top, 6)
+
             if let url = resolvedPagesURL {
                 HStack { Spacer() }
                 OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
@@ -285,6 +314,18 @@ struct LessonDetailView: View {
                     .frame(minHeight: 160)
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
             }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Suggested Follow-Up Work")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Text("Enter one suggestion per line")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                    .foregroundStyle(.tertiary)
+                TextEditor(text: $draftSuggestedFollowUpWork)
+                    .frame(minHeight: 120)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+            }
         }
         .padding(.horizontal, 8)
     }
@@ -319,6 +360,7 @@ struct LessonDetailView: View {
                         updated.group = draftGroup.trimmed()
                         updated.subheading = draftSubheading.trimmed()
                         updated.writeUp = draftWriteUp
+                        updated.suggestedFollowUpWork = draftSuggestedFollowUpWork
                         updated.source = draftSource
                         if draftSource == .personal {
                             updated.personalKind = draftPersonalKind
@@ -358,6 +400,7 @@ struct LessonDetailView: View {
         draftGroup = lesson.group
         draftSubheading = lesson.subheading
         draftWriteUp = lesson.writeUp
+        draftSuggestedFollowUpWork = lesson.suggestedFollowUpWork
         draftSource = lesson.source
         draftPersonalKind = lesson.personalKind ?? .personal
     }

@@ -124,6 +124,12 @@ struct UnifiedPostPresentationSheet: View {
     private var sortedStudents: [Student] {
         students.sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
     }
+    
+    private var suggestedWorkItems: [String] {
+        guard let lessonID = lessonID else { return [] }
+        guard let lesson = lessons.first(where: { $0.id == lessonID }) else { return [] }
+        return lesson.suggestedFollowUpWorkItems
+    }
 
     // MARK: - Body
 
@@ -261,6 +267,44 @@ struct UnifiedPostPresentationSheet: View {
             Label("Quick Assignment", systemImage: "doc.text.fill")
                 .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
+
+            // Suggested follow-up work from lesson
+            if !suggestedWorkItems.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Suggested by lesson:")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(suggestedWorkItems.enumerated()), id: \.offset) { index, suggestion in
+                            Button {
+                                bulkAssignment = suggestion
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 11))
+                                    Text(suggestion)
+                                        .lineLimit(2)
+                                    Spacer()
+                                    Image(systemName: "arrow.right.circle.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(Color.accentColor.opacity(0.08))
+                                )
+                                .foregroundStyle(.primary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(.bottom, 4)
+            }
 
             HStack(spacing: 8) {
                 TextField("Set same assignment for all students...", text: $bulkAssignment)
@@ -447,6 +491,15 @@ struct UnifiedPostPresentationSheet: View {
                         ), axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(1...3)
+                        
+                        // Suggested work quick-pick buttons
+                        if !suggestedWorkItems.isEmpty && (entries[student.id]?.assignment ?? "").isEmpty {
+                            HStack(spacing: 6) {
+                                ForEach(Array(suggestedWorkItems.prefix(3).enumerated()), id: \.offset) { index, suggestion in
+                                    suggestedWorkButton(for: suggestion, studentID: student.id)
+                                }
+                            }
+                        }
                     }
 
                     // Schedule
@@ -692,6 +745,31 @@ struct UnifiedPostPresentationSheet: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
+    }
+    
+    // MARK: - Helper Views
+    
+    private func suggestedWorkButton(for suggestion: String, studentID: UUID) -> some View {
+        Button {
+            entries[studentID]?.assignment = suggestion
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 9))
+                let truncated = suggestion.count > 20 ? String(suggestion.prefix(20)) + "..." : suggestion
+                Text(truncated)
+                    .lineLimit(1)
+            }
+            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+            )
+            .foregroundStyle(Color.accentColor)
+        }
+        .buttonStyle(.plain)
     }
 }
 

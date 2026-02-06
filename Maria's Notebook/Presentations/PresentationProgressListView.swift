@@ -20,31 +20,12 @@ struct PresentationProgressListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \LessonAssignment.scheduledForDay, order: .reverse) private var allPresentations: [LessonAssignment]
     
+    @StateObject private var viewModel = PresentationProgressViewModel()
+    
     @State private var searchText = ""
     @State private var filterState: PresentationState?
     @State private var selectedPresentation: LessonAssignment?
     @State private var showingProgressDetail = false
-    
-    private var filteredPresentations: [LessonAssignment] {
-        var presentations = allPresentations
-        
-        // Filter by state
-        if let filterState = filterState {
-            presentations = presentations.filter { $0.state == filterState }
-        }
-        
-        // Filter by search
-        if !searchText.isEmpty {
-            presentations = presentations.filter { presentation in
-                if let lesson = presentation.fetchLesson(from: modelContext) {
-                    return lesson.name.localizedCaseInsensitiveContains(searchText)
-                }
-                return false
-            }
-        }
-        
-        return presentations
-    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -81,17 +62,17 @@ struct PresentationProgressListView: View {
             Divider()
             
             // List
-            List(filteredPresentations) { presentation in
-                PresentationProgressRow(presentation: presentation)
+            List(viewModel.presentations) { cached in
+                PresentationProgressRow(cachedData: cached)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        selectedPresentation = presentation
+                        selectedPresentation = cached.presentation
                         showingProgressDetail = true
                     }
             }
             .searchable(text: $searchText, prompt: "Search lessons...")
             .overlay {
-                if filteredPresentations.isEmpty {
+                if viewModel.presentations.isEmpty {
                     ContentUnavailableView(
                         "No Presentations",
                         systemImage: "presentation.person.line",
@@ -107,28 +88,55 @@ struct PresentationProgressListView: View {
                 }
             }
         }
+        .onAppear {
+            viewModel.update(
+                modelContext: modelContext,
+                presentations: allPresentations,
+                filterState: filterState,
+                searchText: searchText
+            )
+        }
+        .onChange(of: allPresentations) { _, newPresentations in
+            viewModel.update(
+                modelContext: modelContext,
+                presentations: newPresentations,
+                filterState: filterState,
+                searchText: searchText
+            )
+        }
+        .onChange(of: filterState) { _, _ in
+            viewModel.update(
+                modelContext: modelContext,
+                presentations: allPresentations,
+                filterState: filterState,
+                searchText: searchText
+            )
+        }
+        .onChange(of: searchText) { _, _ in
+            viewModel.update(
+                modelContext: modelContext,
+                presentations: allPresentations,
+                filterState: filterState,
+                searchText: searchText
+            )
+        }
     }
 }
 
 /// Row showing presentation preview with stats
 struct PresentationProgressRow: View {
-    @Environment(\.modelContext) private var modelContext
-    let presentation: LessonAssignment
-    
-    @State private var lesson: Lesson?
-    @State private var workStats: (completed: Int, total: Int) = (0, 0)
-    @State private var practiceCount: Int = 0
+    let cachedData: PresentationWithCachedData
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Lesson title and date
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(lesson?.name ?? "Unknown Lesson")
+                    Text(cachedData.lesson.name)
                         .font(.headline)
                     
-                    if presentation.scheduledForDay != Date.distantPast {
-                        Text(presentation.scheduledForDay.formatted(date: .abbreviated, time: .omitted))
+                    if cachedData.presentation.scheduledForDay != Date.distantPast {
+                        Text(cachedData.presentation.scheduledForDay.formatted(date: .abbreviated, time: .omitted))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -137,7 +145,7 @@ struct PresentationProgressRow: View {
                 Spacer()
                 
                 // State badge
-                Text(presentation.state.rawValue.capitalized)
+                Text(cachedData.presentation.state.rawValue.capitalized)
                     .font(.caption)
                     .fontWeight(.medium)
                     .padding(.horizontal, 8)
@@ -148,12 +156,12 @@ struct PresentationProgressRow: View {
             }
             
             // Students
-            if !presentation.studentIDs.isEmpty {
+            if !cachedData.presentation.studentIDs.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "person.2.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("\(presentation.studentIDs.count) students")
+                    Text("\(cachedData.presentation.studentIDs.count) students")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -163,24 +171,24 @@ struct PresentationProgressRow: View {
             HStack(spacing: 12) {
                 StatBadge(
                     icon: "doc.text.fill",
-                    value: "\(workStats.total)",
+                    value: "\(cachedData.workStats.total)",
                     label: "Work Items",
                     color: .blue
                 )
                 
-                if workStats.total > 0 {
+                if cachedData.workStats.total > 0 {
                     StatBadge(
                         icon: "checkmark.circle.fill",
-                        value: "\(workStats.completed)",
+                        value: "\(cachedData.workStats.completed)",
                         label: "Completed",
                         color: .green
                     )
                 }
                 
-                if practiceCount > 0 {
+                if cachedData.practiceCount > 0 {
                     StatBadge(
                         icon: "figure.run",
-                        value: "\(practiceCount)",
+                        value: "\(cachedData.practiceCount)",
                         label: "Practice",
                         color: .orange
                     )
@@ -189,23 +197,14 @@ struct PresentationProgressRow: View {
             .padding(.top, 4)
         }
         .padding(.vertical, 8)
-        .task {
-            loadData()
-        }
     }
     
     private var stateBadgeColor: Color {
-        switch presentation.state {
+        switch cachedData.presentation.state {
         case .presented: return .green
         case .scheduled: return .blue
         case .draft: return .gray
         }
-    }
-    
-    private func loadData() {
-        lesson = presentation.fetchLesson(from: modelContext)
-        workStats = presentation.workCompletionStats(from: modelContext)
-        practiceCount = presentation.fetchRelatedPracticeSessions(from: modelContext).count
     }
 }
 

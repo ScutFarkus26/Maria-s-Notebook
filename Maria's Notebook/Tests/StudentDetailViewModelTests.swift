@@ -13,7 +13,7 @@ struct StudentDetailViewModelInitializationTests {
     @Test("StudentDetailViewModel initializes with student")
     func initializesWithStudent() {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
 
         #expect(vm.student.id == student.id)
         #expect(vm.student.firstName == "Alice")
@@ -22,7 +22,7 @@ struct StudentDetailViewModelInitializationTests {
     @Test("StudentDetailViewModel starts with empty lessons")
     func startsWithEmptyLessons() {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
 
         #expect(vm.lessons.isEmpty)
     }
@@ -30,7 +30,7 @@ struct StudentDetailViewModelInitializationTests {
     @Test("StudentDetailViewModel starts with empty studentLessons")
     func startsWithEmptyStudentLessons() {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
 
         #expect(vm.studentLessons.isEmpty)
     }
@@ -38,7 +38,7 @@ struct StudentDetailViewModelInitializationTests {
     @Test("StudentDetailViewModel starts with empty caches")
     func startsWithEmptyCaches() {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
 
         #expect(vm.lessonsByID.isEmpty)
         #expect(vm.studentLessonsByID.isEmpty)
@@ -47,7 +47,7 @@ struct StudentDetailViewModelInitializationTests {
     @Test("StudentDetailViewModel starts with nil selections")
     func startsWithNilSelections() {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
 
         #expect(vm.selectedLessonForGive == nil)
         #expect(vm.selectedStudentLessonForDetail == nil)
@@ -57,7 +57,7 @@ struct StudentDetailViewModelInitializationTests {
     @Test("StudentDetailViewModel giveStartGiven defaults to false")
     func giveStartGivenDefaultsFalse() {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
 
         #expect(vm.giveStartGiven == false)
     }
@@ -131,7 +131,7 @@ struct StudentDetailViewModelDataLoadingTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.lessons.count == 1)
@@ -154,7 +154,7 @@ struct StudentDetailViewModelDataLoadingTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.studentLessons.count == 1)
@@ -183,7 +183,7 @@ struct StudentDetailViewModelDataLoadingTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: alice)
+        let vm = StudentDetailViewModel(student: alice, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.studentLessons.count == 1)
@@ -207,7 +207,7 @@ struct StudentDetailViewModelDataLoadingTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.lessonsByID[lesson.id] != nil)
@@ -230,7 +230,7 @@ struct StudentDetailViewModelDataLoadingTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.studentLessonsByID[sl.id] != nil)
@@ -273,7 +273,7 @@ struct StudentDetailViewModelMasteredPlannedTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.presentedLessonIDs.contains(lesson.id))
@@ -296,7 +296,7 @@ struct StudentDetailViewModelMasteredPlannedTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.plannedLessonIDs.contains(lesson.id))
@@ -340,7 +340,7 @@ struct StudentDetailViewModelNextLessonsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.nextLessonsForStudent.count == 1)
@@ -363,7 +363,7 @@ struct StudentDetailViewModelNextLessonsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.nextLessonsForStudent.isEmpty)
@@ -397,7 +397,7 @@ struct StudentDetailViewModelNextLessonsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         #expect(vm.nextLessonsForStudent.count == 3)
@@ -448,7 +448,7 @@ struct StudentDetailViewModelLookupMethodsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         let latest = vm.latestStudentLesson(for: lesson.id, studentID: student.id)
@@ -466,7 +466,7 @@ struct StudentDetailViewModelLookupMethodsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         let unknownLessonID = UUID()
@@ -492,7 +492,7 @@ struct StudentDetailViewModelLookupMethodsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         let upcoming = vm.upcomingStudentLesson(for: lesson.id, studentID: student.id)
@@ -516,7 +516,7 @@ struct StudentDetailViewModelLookupMethodsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.loadData(modelContext: context)
 
         let upcoming = vm.upcomingStudentLesson(for: lesson.id, studentID: student.id)
@@ -558,7 +558,7 @@ struct StudentDetailViewModelWorkMethodsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         vm.updateWorkModels([work])
 
         #expect(vm.workModelsForStudent.count == 1)
@@ -580,7 +580,7 @@ struct StudentDetailViewModelWorkMethodsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         let works = vm.fetchWorkModelsForStudent(modelContext: context)
 
         #expect(works.count == 1)
@@ -600,7 +600,7 @@ struct StudentDetailViewModelWorkMethodsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         let fetched = vm.fetchWork(by: work.id, modelContext: context)
 
         #expect(fetched?.id == work.id)
@@ -617,7 +617,7 @@ struct StudentDetailViewModelWorkMethodsTests {
 
         try context.save()
 
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
         let unknownID = UUID()
         let fetched = vm.fetchWork(by: unknownID, modelContext: context)
 
@@ -634,7 +634,7 @@ struct StudentDetailViewModelToastTests {
     @Test("showToast delegates to ToastService")
     func showToastDelegatesToToastService() {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let vm = StudentDetailViewModel(student: student)
+        let vm = StudentDetailViewModel(student: student, dependencies: AppDependencies.makeTest())
 
         // Clear any existing toasts
         ToastService.shared.clearAll()

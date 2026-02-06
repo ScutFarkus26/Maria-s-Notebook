@@ -47,7 +47,7 @@ struct ClosureCaptureTests {
         // Use an actor-isolated approach to track deallocation
         let tracker = DeallocTracker()
 
-        class TestObserver {
+        class TestObserver: @unchecked Sendable {
             var observer: NSObjectProtocol?
             let tracker: DeallocTracker
 

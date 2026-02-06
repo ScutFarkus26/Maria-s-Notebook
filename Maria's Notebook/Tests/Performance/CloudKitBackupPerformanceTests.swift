@@ -80,12 +80,14 @@ struct IncrementalBackupBehaviorTests {
         try context.save()
 
         // Service should be creatable (MainActor isolated)
-        let _ = IncrementalBackupService()
+        let backupService = BackupService()
+        let _ = IncrementalBackupService(backupService: backupService)
     }
 
     @Test("Incremental backup tracking can be reset")
     func incrementalBackupReset() {
-        let service = IncrementalBackupService()
+        let backupService = BackupService()
+        let service = IncrementalBackupService(backupService: backupService)
 
         // Reset tracking
         service.resetIncrementalTracking()
@@ -380,7 +382,8 @@ struct CloudBackupServicePerformanceTests {
 
     @Test("CloudBackupService can be created")
     func cloudBackupServiceCreation() {
-        let service = CloudBackupService()
+        let backupService = BackupService()
+        let service = CloudBackupService(backupService: backupService)
 
         // Should have observable state
         let _ = service.isPerformingBackup
@@ -391,7 +394,8 @@ struct CloudBackupServicePerformanceTests {
 
     @Test("CloudBackupService can check iCloud availability")
     func cloudBackupServiceICloudCheck() {
-        let service = CloudBackupService()
+        let backupService = BackupService()
+        let service = CloudBackupService(backupService: backupService)
 
         // Should be able to check (result depends on system state)
         let _ = service.isICloudAvailable
@@ -399,7 +403,8 @@ struct CloudBackupServicePerformanceTests {
 
     @Test("Schedule configuration can be updated")
     func scheduleConfigurationUpdate() {
-        let service = CloudBackupService()
+        let backupService = BackupService()
+        let service = CloudBackupService(backupService: backupService)
 
         let newConfig = CloudBackupService.ScheduleConfiguration(
             enabled: true,
@@ -414,7 +419,7 @@ struct CloudBackupServicePerformanceTests {
         #expect(service.scheduleConfiguration.retentionCount == 5)
 
         // Reset to default
-        service.scheduleConfiguration = .default
+        service.scheduleConfiguration = CloudBackupService.ScheduleConfiguration.default
     }
 }
 

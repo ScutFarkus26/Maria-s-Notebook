@@ -2,7 +2,7 @@
 
 **Started:** 2026-02-03
 **Status:** Phase 1, 4, 5 Complete
-**Current Phase:** Phase 4 (Dependency Injection) - COMPLETE ✅
+**Current Phase:** Phase 6 (Backup System Overhaul) - PLANNING 🟡
 **Branch:** `refactor/phase-1-foundation`
 
 ---
@@ -47,7 +47,7 @@ See `CRITICAL_ISSUE_RAWCODABLE.md` for full technical analysis.
 | **Phase 5: Testing** | 🟢 Complete | 100% | 93 new tests, 2373+ total |
 | **Phase 2: Type Safety** | 🔴 CANCELLED | 0% | @CloudKitUUID incompatible with @Model |
 | **Phase 3: Data Model** | 🟡 POSTPONED | 0% | Requires VersionedSchema + migration |
-| **Phase 6: Backup** | ⚪ Next | 0% | GenericBackupCodec ready & tested |
+| **Phase 6: Backup** | 🟡 Planning | 0% | Eliminate 37 DTOs, ~2,000 LOC reduction |
 | **Phase 7: State Mgmt** | ⚪ Ready | 0% | CacheCoordinator ready & tested |
 | **Phase 8: Migration** | ⚪ Ready | 0% | MigrationRegistry ready & tested |
 
@@ -381,6 +381,137 @@ Fatal error: 'try!' expression unexpectedly raised an error
 ### Decision
 
 🟡 **POSTPONE Phase 3** - Proceed with lower-risk Phases 6, 7, 8 first.
+
+---
+
+## Phase 6: Backup System Overhaul - PLANNING 🟡
+
+**Status:** Planning - Implementation plan created
+**Date:** 2026-02-05
+**Risk Level:** 🟡 MEDIUM - Production backup system changes require careful testing
+**Estimated Duration:** 5 weeks + 6 months deprecation period
+
+### Overview
+
+Phase 6 will eliminate the parallel DTO hierarchy (37 DTO types, ~1,500 lines of transformation code) by implementing the GenericBackupCodec system with BackupEncodable protocol conformance across all 48 models.
+
+### Exploration Findings
+
+An exploration agent analyzed the backup system architecture and found:
+
+**Current System:**
+- 37 DTO types creating parallel model hierarchy
+- ~1,500 lines of manual transformation code in BackupDTOTransformers
+- 41 Swift files organized into Services/, Helpers/, and Core
+- GenericBackupCodec exists (278 lines) but is a placeholder
+- Legacy DTO system is production-ready but maintenance-heavy
+
+**Key Challenge:**
+- Every model change requires updates in 4 files (Model + DTO + Transformer + Importer)
+- ~2,000 lines of boilerplate code to maintain
+
+**Proposed Solution:**
+- Replace DTO hierarchy with BackupEncodable protocol conformance
+- Models become their own backup format (single source of truth)
+- Automatic Codable synthesis reduces boilerplate
+- Eliminate ~2,000 lines of transformation code
+
+### Implementation Strategy
+
+**Approach:** Incremental Migration (Recommended by exploration agent)
+
+**6 Sub-Phases:**
+
+1. **Phase 6A: Foundation Setup** (Week 1)
+   - Create BackupEncodableRegistry
+   - Implement GenericBackupCodec core methods
+   - Add dual-format support (write both DTO + generic)
+   - Format version migration (v1 → v2)
+
+2. **Phase 6B: Pilot Migration** (Week 2)
+   - Migrate 3 simplest models (NonSchoolDay, SchoolDayOverride, CommunityAttachment)
+   - Validate round-trip backup/restore
+   - Test backward compatibility with legacy DTOs
+
+3. **Phase 6C: Core Domain Models** (Week 3)
+   - Migrate Student, Lesson, WorkModel, Note (4 core models)
+   - Custom CodingKeys for enum properties and relationships
+   - Handle polymorphic Note relationships
+
+4. **Phase 6D: Remaining Models** (Week 4)
+   - Migrate all 41 remaining models
+   - Batch approach by domain (Lesson-related, Student-related, etc.)
+   - Complete BackupEncodable conformance for all 48 models
+
+5. **Phase 6E: Deprecate DTO System** (Week 5)
+   - Switch to generic format as primary
+   - Mark DTO types as @available(*, deprecated)
+   - Update documentation
+
+6. **Phase 6F: Cleanup** (+6 months)
+   - Remove deprecated DTO code (~2,000 lines)
+   - Simplify BackupService
+   - Pure generic format (v7)
+
+### Technical Challenges & Solutions
+
+**Challenge 1: SwiftData Relationships Are Not Codable**
+- Solution: Omit relationships from CodingKeys, encode IDs if needed
+
+**Challenge 2: Manual Enum Pattern Storage**
+- Solution: Custom CodingKeys to encode raw values (`statusRaw` as "status")
+
+**Challenge 3: Generic fetchAll<T>() with #Predicate**
+- Solution: Require dual conformance (BackupEncodable + PersistentModel)
+
+### Success Metrics
+
+| Metric | Target |
+|--------|--------|
+| Build Errors | 0 |
+| Test Failures | 0 |
+| Lines of Code Removed | ~2,000 |
+| Backup/Restore Performance | Same or better |
+| Backward Compatibility | 6 months |
+
+### Risk Mitigation
+
+- ✅ Dual-format support for 6 months (safe rollback)
+- ✅ Incremental migration (test each model in isolation)
+- ✅ Pilot migration first (3 simple models)
+- ✅ Extensive testing (unit + integration + performance)
+- ✅ Production backup before starting
+
+### Files Created
+
+- **PHASE_6_PLAN.md** (comprehensive 6-week implementation plan)
+  - Detailed sub-phase breakdown
+  - Technical challenge solutions
+  - Testing strategy
+  - Rollback procedures
+  - Success criteria
+
+### Current State
+
+✅ **Planning Complete:** Implementation plan created and documented
+⏳ **Awaiting User Approval:** Need confirmation before proceeding with Phase 6A
+
+### Open Questions for User
+
+Before proceeding with Phase 6, need confirmation on:
+1. Dual-format duration (6 months vs 12 months?)
+2. Pilot testing on production backup first?
+3. Rollback threshold (acceptable error rate?)
+4. Performance requirements (5 seconds for 10k entities?)
+5. Cleanup timing (wait 6 months or proceed immediately?)
+
+### Next Action
+
+**After user approval:** Begin Phase 6A (Foundation Setup)
+- Create BackupEncodableRegistry.swift
+- Implement GenericBackupCodec core methods
+- Add dual-format support to BackupService
+- Write integration tests
 
 ---
 

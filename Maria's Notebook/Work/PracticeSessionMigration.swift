@@ -63,7 +63,7 @@ struct PracticeSessionMigration {
         // Create practice sessions from grouped check-ins
         for (_, checkInGroup) in checkInsByDateAndWork {
             guard let firstCheckIn = checkInGroup.first,
-                  let work = firstCheckIn.work else {
+                  firstCheckIn.work != nil else {
                 continue
             }
             

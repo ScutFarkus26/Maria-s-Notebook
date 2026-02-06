@@ -20,6 +20,8 @@ final class Lesson: Identifiable {
     var subheading: String = ""
     /// Markdown or rich text source for the lesson write-up
     var writeUp: String = ""
+    /// Suggested follow-up work items (newline-separated list)
+    var suggestedFollowUpWork: String = ""
 
     /// Raw storage for source ("album" or "personal"). Defaults to album for backward compatibility.
     var sourceRaw: String = "album"
@@ -63,6 +65,15 @@ final class Lesson: Identifiable {
         get { defaultWorkKindRaw.flatMap { WorkKind(rawValue: $0) } }
         set { defaultWorkKindRaw = newValue?.rawValue }
     }
+    
+    /// Helper to access suggested follow-up work as an array of individual items
+    @Transient
+    var suggestedFollowUpWorkItems: [String] {
+        suggestedFollowUpWork
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
 
     // FIX: Made optional for CloudKit
     // Relationship with explicit inverse and cascade delete rule
@@ -87,6 +98,7 @@ final class Lesson: Identifiable {
         sortIndex: Int = 0,
         subheading: String = "",
         writeUp: String = "",
+        suggestedFollowUpWork: String = "",
         pagesFileBookmark: Data? = nil,
         pagesFileRelativePath: String? = nil,
         sourceRaw: String = "album",
@@ -101,6 +113,7 @@ final class Lesson: Identifiable {
         self.sortIndex = sortIndex
         self.subheading = subheading
         self.writeUp = writeUp
+        self.suggestedFollowUpWork = suggestedFollowUpWork
         self.pagesFileBookmark = pagesFileBookmark
         self.pagesFileRelativePath = pagesFileRelativePath
         self.sourceRaw = sourceRaw
