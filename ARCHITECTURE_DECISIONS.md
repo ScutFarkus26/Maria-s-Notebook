@@ -136,58 +136,110 @@ extension WorkModel {
 
 ---
 
-## ADR-002: CloudKitUUID Property Wrapper for Type-Safe UUID Storage
+## ADR-002: CloudKitUUID Property Wrapper - REJECTED
 
-**Status:** ACCEPTED
-**Date:** 2026-02-04
+**Status:** REJECTED (Previously thought ACCEPTED)
+**Date:** 2026-02-04 (Initial), 2026-02-05 (Rejection discovered)
 
 ### Context
 
 CloudKit requires UUID foreign keys to be stored as `String` for sync compatibility. This creates type safety issues:
 
 ```swift
-// Before: Error-prone string handling
-var studentID: String = ""  // Any string accepted, no type safety
+// Current approach: Manual String storage
+var studentID: String = ""  // CloudKit compatible but not type-safe
 
-// Later in code:
+// Manual conversion everywhere:
 if let uuid = UUID(uuidString: work.studentID) {
     // Use uuid
 }
 ```
 
+We attempted to use `@CloudKitUUID` property wrapper for type-safe UUID access:
+
+```swift
+// Attempted approach (REJECTED)
+@CloudKitUUID var studentID: UUID = UUID()
+
+// Would have provided type-safe access
+let id = work.studentID  // UUID type
+```
+
+### Problem Discovered
+
+**SwiftData's @Model macro is incompatible with custom property wrappers.**
+
+When attempting to use `@CloudKitUUID` on WorkModel and WorkParticipantEntity:
+
+```
+Error: Invalid redeclaration of synthesized property '_studentID'
+Error: Cannot assign value of type 'WorkParticipantEntity._SwiftDataNoType' to type 'CloudKitUUID'
+```
+
+**Root Cause:**
+- SwiftData's @Model macro automatically synthesizes storage properties (e.g., `_studentID`)
+- @CloudKitUUID property wrapper also creates a `storage` property
+- These conflict, causing compilation errors
+- This is the **same fundamental issue** as ADR-001 (@RawCodable rejection)
+
 ### Decision
 
-Use `@CloudKitUUID` property wrapper for type-safe UUID access with String storage:
+**REJECTED:** Cannot use @CloudKitUUID property wrapper with SwiftData @Model classes.
+
+**Continue using manual String storage with computed UUID properties where needed:**
 
 ```swift
-@CloudKitUUID var studentID: UUID = UUID()
+@Model
+final class WorkModel {
+    // CloudKit-compatible String storage
+    var studentID: String = ""
+    var lessonID: String = ""
 
-// Access as UUID
-let id = work.studentID  // UUID type
-
-// Access raw String if needed via projected value
-let stringID = work.$studentID  // String type
+    // Computed UUID access if needed
+    var studentUUID: UUID? {
+        UUID(uuidString: studentID)
+    }
+}
 ```
 
-### Why This Works (Unlike @RawCodable)
+### Why This Doesn't Work (Same as @RawCodable)
 
-UUIDs are **not used in Predicate comparisons**. Queries filter by String ID fields:
+Property wrappers are fundamentally incompatible with SwiftData's @Model macro:
 
-```swift
-// ✅ WORKS - Predicate doesn't need to access @CloudKitUUID
-@CloudKitUUID var studentID: UUID = UUID()
+1. **Storage Conflicts:** Both @Model and property wrappers try to manage storage
+2. **Macro Synthesis:** @Model synthesizes properties that conflict with wrapper internals
+3. **No Workaround:** Cannot override or configure macro behavior
+4. **Framework Limitation:** This is a SwiftData architectural constraint
 
-// Query uses String comparison
-let idString = student.id.uuidString
-@Query(filter: #Predicate<WorkModel> { $0.studentIDString == idString })
-```
+### Attempted Migration Results
 
-### Benefits
+**Phase 2 Migration Attempt:**
+- Target: 47 UUID String fields across 20 models
+- Pilot: WorkModel (2 fields: studentID, lessonID)
+- Result: Build failed with macro synthesis errors
+- Action: Reverted all changes, WorkModel returned to String storage
 
-- ✅ Type safety: Only UUID values accepted
-- ✅ No manual conversions needed
-- ✅ CloudKit compatible (stores as String)
-- ✅ No Predicate conflicts (UUIDs not queried)
+### Consequences
+
+**Accepted Reality:**
+- ✅ Manual String storage remains necessary for CloudKit compatibility
+- ✅ Manual UUID conversions where type safety needed
+- ✅ 47 UUID fields stay as String (not a problem in practice)
+- ✅ Computed properties provide UUID access when needed
+
+**Rejected Alternatives:**
+- ❌ @CloudKitUUID property wrapper (SwiftData incompatible)
+- ❌ Custom storage with @Model (macro conflicts)
+- ❌ Protocol-based solutions (same storage issues)
+
+### Phase 2 Impact
+
+**Phase 2 (CloudKitUUID Migration) is CANCELLED:**
+- Cannot proceed with planned 47-field migration
+- No viable alternative approach exists
+- String storage is the only SwiftData-compatible solution
+
+**Phase 2 marked as:** 🔴 BLOCKED - SwiftData Framework Limitation
 
 ---
 

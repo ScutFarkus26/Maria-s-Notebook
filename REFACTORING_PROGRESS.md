@@ -45,7 +45,7 @@ See `CRITICAL_ISSUE_RAWCODABLE.md` for full technical analysis.
 | **Phase 1: Foundation** | 🟢 Complete | 100% | Property wrappers ≠ SwiftData |
 | **Phase 4: Services (DI)** | 🟢 Complete | 100% | 17 files, zero behavior changes |
 | **Phase 5: Testing** | 🟢 Complete | 100% | 93 new tests, 2373+ total |
-| **Phase 2: Type Safety** | ⚪ Ready | 0% | CloudKitUUID viable & tested |
+| **Phase 2: Type Safety** | 🔴 CANCELLED | 0% | @CloudKitUUID incompatible with @Model |
 | **Phase 7: State Mgmt** | ⚪ Ready | 0% | CacheCoordinator ready & tested |
 | **Phase 6: Backup** | ⚪ Ready | 0% | GenericBackupCodec ready & tested |
 | **Phase 3: Data Model** | ⚪ Ready | 0% | Manual enum pattern required |
@@ -204,6 +204,71 @@ See `CRITICAL_ISSUE_RAWCODABLE.md` for full technical analysis.
 3. ✅ **Explicit storage over clever abstractions**
 4. ✅ **Test framework compatibility early**
 5. ✅ **Document architectural decisions (ADRs)**
+
+---
+
+## Phase 2: CloudKitUUID Migration - CANCELLED 🔴
+
+**Status:** BLOCKED - SwiftData Framework Limitation
+**Date:** 2026-02-05
+**Duration:** 2 hours (investigation and documentation)
+
+### What Happened
+
+Attempted to migrate 47 UUID String fields across 20 models to use `@CloudKitUUID` property wrapper for type safety. Pilot migration on WorkModel revealed a critical incompatibility.
+
+### Build Failure
+
+```
+Error: Invalid redeclaration of synthesized property '_studentID'
+Error: Cannot assign value of type 'WorkParticipantEntity._SwiftDataNoType' to type 'CloudKitUUID'
+```
+
+**Root Cause:** SwiftData's @Model macro synthesizes storage properties that conflict with property wrapper internals. This is the **same issue as ADR-001 (@RawCodable rejection)**.
+
+### Decision
+
+❌ **Phase 2 CANCELLED** - Cannot use custom property wrappers with SwiftData @Model classes.
+
+### Actions Taken
+
+1. ✅ Attempted pilot migration (WorkModel, WorkParticipantEntity)
+2. ✅ Discovered macro synthesis conflicts
+3. ✅ Reverted all changes (clean build restored)
+4. ✅ Updated ADR-002 from ACCEPTED → REJECTED
+5. ✅ Created PHASE_2_BLOCKED.md documentation
+6. ✅ Updated REFACTORING_PROGRESS.md
+
+### Lessons Learned
+
+- **Property wrappers incompatible with @Model:** General rule, not specific to @CloudKitUUID
+- **Test early:** ADR-002 was based on theory, should have tested with actual build
+- **Accept framework constraints:** String UUID storage is only viable approach
+- **CloudKitUUID still useful:** Can be used in non-@Model classes (ViewModels, API models, etc.)
+
+### Impact
+
+- ⚪ **No negative impact:** String storage works fine, no changes committed
+- ✅ **Clean build maintained:** 0 errors, 0 warnings
+- ✅ **Tests still passing:** 2,066/2,088 tests
+- ✅ **Documentation updated:** ADR-002 corrected, lessons captured
+
+### Files Affected
+
+**Modified then reverted:**
+- Maria's Notebook/Work/WorkModel.swift (reverted to String storage)
+- Maria's Notebook/Work/WorkParticipantEntity.swift (reverted to String storage)
+
+**Documentation updated:**
+- ARCHITECTURE_DECISIONS.md (ADR-002: ACCEPTED → REJECTED)
+- PHASE_2_BLOCKED.md (new file, detailed analysis)
+- REFACTORING_PROGRESS.md (this file)
+
+### Recommendation
+
+**Skip Phase 2, proceed to Phase 3 (Data Model Consolidation).**
+
+Phases 1, 4, and 5 complete. Phase 3 is ready to begin.
 
 ---
 
