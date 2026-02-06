@@ -95,9 +95,6 @@ final class AttendanceRecord: Identifiable {
     
     // Inverse relationship for Note.attendanceRecord
     @Relationship(deleteRule: .cascade, inverse: \Note.attendanceRecord) var notes: [Note]? = []
-    
-    // Phase 3B: Domain-specific note types
-    @Relationship(deleteRule: .cascade, inverse: \AttendanceNote.attendance) var attendanceNotes: [AttendanceNote]? = []
 
     init(
         id: UUID = UUID(),

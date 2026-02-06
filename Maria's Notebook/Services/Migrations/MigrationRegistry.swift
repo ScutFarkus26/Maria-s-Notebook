@@ -78,14 +78,14 @@ struct MigrationRegistry {
             print("Migration v2: Already applied (Note extraction)")
         },
         
-        // Phase 3 migrations (to be applied)
-        Migration(
-            version: 3,
-            "Split Note model into domain-specific types"
-        ) { context in
-            // This will be implemented in Phase 3
-            try await NoteSplitMigration.execute(context: context)
-        },
+        // Phase 3 migrations (NOT YET IMPLEMENTED - commented out)
+        // Migration(
+        //     version: 3,
+        //     "Split Note model into domain-specific types"
+        // ) { context in
+        //     // This will be implemented in Phase 3
+        //     try await NoteSplitMigration.execute(context: context)
+        // },
         
         Migration(
             version: 4,
@@ -111,13 +111,13 @@ struct MigrationRegistry {
     
     /// Registered rollbacks for emergency recovery
     static let rollbacks: [Rollback] = [
-        Rollback(
-            from: 3,
-            to: 2,
-            "Reverse Note split - combine back to generic Note"
-        ) { context in
-            try await NoteSplitMigration.reverse(context: context)
-        }
+        // Rollback(
+        //     from: 3,
+        //     to: 2,
+        //     "Reverse Note split - combine back to generic Note"
+        // ) { context in
+        //     try await NoteSplitMigration.reverse(context: context)
+        // }
     ]
     
     // MARK: - Version Management

@@ -76,115 +76,7 @@ struct NoteRepository: SavingRepository {
 
     // MARK: - Create
 
-    /// Phase 3B: Create domain-specific note based on context
-    /// This is called alongside old Note creation during dual-write period
-    private func createDomainSpecificNote(
-        content: String,
-        category: NoteCategory,
-        scope: NoteScope,
-        lesson: Lesson? = nil,
-        work: WorkModel? = nil,
-        studentLesson: StudentLesson? = nil,
-        studentMeeting: StudentMeeting? = nil,
-        lessonAssignment: Presentation? = nil,
-        attendanceRecord: AttendanceRecord? = nil,
-        workCheckIn: WorkCheckIn? = nil,
-        workCompletionRecord: WorkCompletionRecord? = nil,
-        workPlanItem: WorkPlanItem? = nil,
-        projectSession: ProjectSession? = nil,
-        communityTopic: CommunityTopic? = nil,
-        reminder: Reminder? = nil,
-        schoolDayOverride: SchoolDayOverride? = nil,
-        studentTrackEnrollment: StudentTrackEnrollment? = nil,
-        practiceSession: PracticeSession? = nil,
-        issue: Issue? = nil
-    ) {
-        // Determine primary context and create appropriate domain-specific note
-        if let lesson = lesson {
-            let lessonNote = LessonNote(
-                content: content,
-                category: category,
-                lesson: lesson,
-                scope: scope
-            )
-            context.insert(lessonNote)
-        } else if let work = work {
-            let workNote = WorkNote(
-                content: content,
-                category: category,
-                work: work,
-                checkInID: workCheckIn?.id.uuidString,
-                completionRecordID: workCompletionRecord?.id.uuidString,
-                workPlanItemID: workPlanItem?.id.uuidString
-            )
-            context.insert(workNote)
-        } else if let studentLesson = studentLesson {
-            // StudentLesson notes: Create one note per student (multi-student lessons)
-            for student in studentLesson.students {
-                let studentNote = StudentNote(
-                    content: content,
-                    category: category,
-                    student: student,
-                    studentLessonID: studentLesson.id.uuidString
-                )
-                context.insert(studentNote)
-            }
-        } else if let studentMeeting = studentMeeting {
-            // StudentMeeting notes attach to the student (lookup by studentID)
-            if let studentUUID = UUID(uuidString: studentMeeting.studentID) {
-                let studentDescriptor = FetchDescriptor<Student>(
-                    predicate: #Predicate<Student> { $0.id == studentUUID }
-                )
-                if let student = try? context.fetch(studentDescriptor).first {
-                    let studentNote = StudentNote(
-                        content: content,
-                        category: category,
-                        student: student,
-                        meetingID: studentMeeting.id.uuidString
-                    )
-                    context.insert(studentNote)
-                }
-            }
-        } else if let attendanceRecord = attendanceRecord {
-            let attendanceNote = AttendanceNote(
-                content: content,
-                category: category,
-                attendance: attendanceRecord
-            )
-            context.insert(attendanceNote)
-        } else if let presentation = lessonAssignment {
-            let presentationNote = PresentationNote(
-                content: content,
-                category: category,
-                presentation: presentation,
-                scope: scope
-            )
-            context.insert(presentationNote)
-        } else if let projectSession = projectSession {
-            let projectNote = ProjectNote(
-                content: content,
-                category: category,
-                projectSession: projectSession
-            )
-            context.insert(projectNote)
-        } else {
-            // GeneralNote for all other contexts (or standalone notes)
-            let generalNote = GeneralNote(
-                content: content,
-                category: category,
-                scope: scope,
-                communityTopicID: communityTopic?.id.uuidString,
-                reminderID: reminder?.id.uuidString,
-                issueID: issue?.id.uuidString,
-                schoolDayOverrideID: schoolDayOverride?.id.uuidString,
-                trackEnrollmentID: studentTrackEnrollment?.id.uuidString,
-                practiceSessionID: practiceSession?.id.uuidString
-            )
-            context.insert(generalNote)
-        }
-    }
-
-    /// Create a new Note (with Phase 3B dual-write to domain-specific types)
+    /// Create a new Note
     /// - Parameters:
     ///   - body: The note content
     ///   - category: The note category. Defaults to .general
@@ -195,18 +87,6 @@ struct NoteRepository: SavingRepository {
     ///   - work: Optional work relationship
     ///   - studentLesson: Optional studentLesson relationship
     ///   - studentMeeting: Optional studentMeeting relationship
-    ///   - lessonAssignment: Optional presentation relationship
-    ///   - attendanceRecord: Optional attendance relationship
-    ///   - workCheckIn: Optional work check-in relationship
-    ///   - workCompletionRecord: Optional work completion relationship
-    ///   - workPlanItem: Optional work plan item relationship
-    ///   - projectSession: Optional project session relationship
-    ///   - communityTopic: Optional community topic relationship
-    ///   - reminder: Optional reminder relationship
-    ///   - schoolDayOverride: Optional school day override relationship
-    ///   - studentTrackEnrollment: Optional track enrollment relationship
-    ///   - practiceSession: Optional practice session relationship
-    ///   - issue: Optional issue relationship
     ///   - imagePath: Optional image path
     ///   - reportedBy: Optional reporter type
     ///   - reporterName: Optional reporter name
@@ -222,23 +102,10 @@ struct NoteRepository: SavingRepository {
         work: WorkModel? = nil,
         studentLesson: StudentLesson? = nil,
         studentMeeting: StudentMeeting? = nil,
-        lessonAssignment: Presentation? = nil,
-        attendanceRecord: AttendanceRecord? = nil,
-        workCheckIn: WorkCheckIn? = nil,
-        workCompletionRecord: WorkCompletionRecord? = nil,
-        workPlanItem: WorkPlanItem? = nil,
-        projectSession: ProjectSession? = nil,
-        communityTopic: CommunityTopic? = nil,
-        reminder: Reminder? = nil,
-        schoolDayOverride: SchoolDayOverride? = nil,
-        studentTrackEnrollment: StudentTrackEnrollment? = nil,
-        practiceSession: PracticeSession? = nil,
-        issue: Issue? = nil,
         imagePath: String? = nil,
         reportedBy: String? = nil,
         reporterName: String? = nil
     ) -> Note {
-        // Create OLD Note (for backward compatibility)
         let note = Note(
             body: body,
             scope: scope,
@@ -259,29 +126,6 @@ struct NoteRepository: SavingRepository {
         if case .students = scope {
             note.syncStudentLinks(in: context)
         }
-
-        // Phase 3B: DUAL-WRITE - Also create domain-specific note
-        createDomainSpecificNote(
-            content: body,
-            category: category,
-            scope: scope,
-            lesson: lesson,
-            work: work,
-            studentLesson: studentLesson,
-            studentMeeting: studentMeeting,
-            lessonAssignment: lessonAssignment,
-            attendanceRecord: attendanceRecord,
-            workCheckIn: workCheckIn,
-            workCompletionRecord: workCompletionRecord,
-            workPlanItem: workPlanItem,
-            projectSession: projectSession,
-            communityTopic: communityTopic,
-            reminder: reminder,
-            schoolDayOverride: schoolDayOverride,
-            studentTrackEnrollment: studentTrackEnrollment,
-            practiceSession: practiceSession,
-            issue: issue
-        )
 
         return note
     }

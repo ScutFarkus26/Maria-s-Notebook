@@ -181,9 +181,6 @@ final class ProjectSession: Identifiable {
     // Inverse relationship for Note.projectSession
     // Note: 'notes' is a String field, so we use 'noteItems' for the relationship array
     @Relationship(deleteRule: .cascade, inverse: \Note.projectSession) var noteItems: [Note]? = []
-    
-    // Phase 3B: Domain-specific note types
-    @Relationship(deleteRule: .cascade, inverse: \ProjectNote.projectSession) var projectNotes: [ProjectNote]? = []
 
     init(
         id: UUID = UUID(),

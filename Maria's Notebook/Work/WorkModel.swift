@@ -23,8 +23,6 @@ import SwiftUI
     @Relationship(deleteRule: .cascade, inverse: \WorkStep.work) var steps: [WorkStep]? = []
     // CloudKit compatibility: Relationship arrays must be optional
     @Relationship(deleteRule: .cascade, inverse: \Note.work) var unifiedNotes: [Note]? = []
-    // Phase 3B: Domain-specific note types
-    @Relationship(deleteRule: .cascade, inverse: \WorkNote.work) var workNotes: [WorkNote]? = []
     
     // MARK: - Core Work Fields
     /// Work kind (practice, follow-up, research)
@@ -100,7 +98,6 @@ import SwiftUI
         self.completedAt = completedAt.map { AppCalendar.startOfDay($0) }
         self.participants = participants
         self.unifiedNotes = []
-        self.workNotes = []
         for p in (self.participants ?? []) { p.work = self }
         
         // Migration-ready fields
