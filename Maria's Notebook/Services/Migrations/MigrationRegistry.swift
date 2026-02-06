@@ -260,20 +260,7 @@ enum MigrationError: LocalizedError {
 
 // MARK: - Phase 3 Migration Stubs
 
-/// Placeholder for Note split migration (implemented in Phase 3)
-enum NoteSplitMigration {
-    @MainActor
-    static func execute(context: ModelContext) async throws {
-        // Implementation will be added in Phase 3
-        print("NoteSplitMigration: Placeholder - implementation pending")
-    }
-    
-    @MainActor
-    static func reverse(context: ModelContext) async throws {
-        // Rollback implementation
-        print("NoteSplitMigration: Rollback placeholder")
-    }
-}
+// Note: NoteSplitMigration is now implemented in NoteSplitMigration.swift
 
 /// Placeholder for legacy field cleanup (implemented in Phase 1.3)
 enum LegacyFieldCleanupMigration {
