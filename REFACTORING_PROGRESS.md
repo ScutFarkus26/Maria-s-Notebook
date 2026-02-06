@@ -46,12 +46,12 @@ See `CRITICAL_ISSUE_RAWCODABLE.md` for full technical analysis.
 | **Phase 4: Services (DI)** | 🟢 Complete | 100% | 17 files, zero behavior changes |
 | **Phase 5: Testing** | 🟢 Complete | 100% | 93 new tests, 2373+ total |
 | **Phase 2: Type Safety** | 🔴 CANCELLED | 0% | @CloudKitUUID incompatible with @Model |
+| **Phase 3: Data Model** | 🟡 POSTPONED | 0% | Requires VersionedSchema + migration |
+| **Phase 6: Backup** | ⚪ Next | 0% | GenericBackupCodec ready & tested |
 | **Phase 7: State Mgmt** | ⚪ Ready | 0% | CacheCoordinator ready & tested |
-| **Phase 6: Backup** | ⚪ Ready | 0% | GenericBackupCodec ready & tested |
-| **Phase 3: Data Model** | ⚪ Ready | 0% | Manual enum pattern required |
 | **Phase 8: Migration** | ⚪ Ready | 0% | MigrationRegistry ready & tested |
 
-**Timeline Status:** Phases 1, 4, and 5 complete. DI infrastructure production-ready. 2,066/2,088 tests passing.
+**Timeline Status:** Phases 1, 4, and 5 complete. Phase 3 postponed. Next: Phase 6 (Backup). 2,066/2,093 tests passing.
 
 ---
 
@@ -266,9 +266,121 @@ Error: Cannot assign value of type 'WorkParticipantEntity._SwiftDataNoType' to t
 
 ### Recommendation
 
-**Skip Phase 2, proceed to Phase 3 (Data Model Consolidation).**
+**Skip Phase 2, proceed with Option C (Low-Risk First): Phases 6, 7, 8 before Phase 3.**
 
-Phases 1, 4, and 5 complete. Phase 3 is ready to begin.
+Phases 1, 4, and 5 complete. Phase 3 postponed due to schema migration complexity.
+
+---
+
+## Phase 3: Data Model Consolidation - POSTPONED 🟡
+
+**Status:** POSTPONED - Schema Migration Required
+**Date:** 2026-02-05
+**Duration:** 3 hours (attempted implementation, reverted)
+
+### What Happened
+
+Attempted to implement Phase 3 (split Note model into 7 domain-specific types) but discovered critical schema migration requirements.
+
+**Timeline:**
+1. **Phase 3A:** Created 7 new note types (LessonNote, WorkNote, etc.) + NoteProtocol
+2. **Phase 3B:** Implemented dual-write pattern in NoteRepository
+3. **Phase 3C:** Created NoteSplitMigration service
+4. **Crash:** App crashed with `SwiftDataError.loadIssueModelContainer`
+5. **Discovery:** New schema types require proper VersionedSchema migration
+6. **Revert:** Removed all Phase 3 changes (1,095 lines deleted)
+7. **Recovery:** Restored production database, app stable
+
+### Build Errors Encountered
+
+```
+SwiftDataError.loadIssueModelContainer
+Fatal error: 'try!' expression unexpectedly raised an error
+```
+
+**Root Cause:** Cannot add new @Model types to AppSchema without:
+1. VersionedSchema definition (V1 → V2)
+2. SchemaMigrationPlan implementation
+3. Data migration strategy
+4. Testing on production backup copy
+
+### Actions Taken
+
+1. ✅ Backed up production database (41MB, 252 notes)
+2. ✅ Attempted fresh database creation
+3. ✅ Discovered CloudKit sync interference
+4. ✅ Reverted all Phase 3 code changes
+5. ✅ Restored production database from backup
+6. ✅ Verified app stability (0 errors, 0 warnings)
+7. ✅ Created PHASE_3_INCIDENT_REPORT.md
+
+### Files Affected
+
+**Created then deleted:**
+- Maria's Notebook/Models/Notes/NoteProtocol.swift
+- Maria's Notebook/Models/Notes/LessonNote.swift
+- Maria's Notebook/Models/Notes/WorkNote.swift
+- Maria's Notebook/Models/Notes/StudentNote.swift
+- Maria's Notebook/Models/Notes/AttendanceNote.swift
+- Maria's Notebook/Models/Notes/PresentationNote.swift
+- Maria's Notebook/Models/Notes/ProjectNote.swift
+- Maria's Notebook/Models/Notes/GeneralNote.swift
+- Maria's Notebook/Services/Migrations/NoteSplitMigration.swift
+
+**Modified then reverted:**
+- Maria's Notebook/AppCore/AppSchema.swift (removed 7 new types)
+- Maria's Notebook/Repositories/NoteRepository.swift (removed dual-write)
+- Maria's Notebook/Lessons/LessonModel.swift (removed lessonNotes relationship)
+- Maria's Notebook/Work/WorkModel.swift (removed workNotes relationship)
+- Maria's Notebook/Students/StudentModel.swift (removed studentNotes relationship)
+- (+ 5 more model files)
+
+**Documentation created:**
+- PHASE_3_INCIDENT_REPORT.md (lessons learned, recovery steps)
+
+### Lessons Learned
+
+1. **VersionedSchema Required:** Cannot add new model types without proper migration
+2. **CloudKit Sync Interference:** Deleting database triggers cloud restore
+3. **Test on Backups First:** Never test schema changes on production database
+4. **Schema Migration Complexity:** Requires 2-3 weeks to implement properly
+5. **Current Note Model Works:** Polymorphism is organizational concern, not functional problem
+
+### Why Postponed
+
+**Time Investment vs Value:**
+- Proper implementation requires: VersionedSchema study + SchemaMigrationPlan + testing
+- Estimated timeline: 2-3 weeks
+- Current Note model works well (no functional issues)
+- Higher-value work available in Phases 6-8
+
+**Alternative Approach:**
+- Address query performance with better indexing
+- Improve code organization without schema changes
+- Revisit when SwiftData migration patterns mature
+
+### Commits
+
+**Commit 94df84d** - "Revert Phase 3A-3C: Remove domain-specific note types"
+- Removed 1,095 lines of Phase 3 code
+- Restored app to stable state
+- Production data preserved (76 students, 252 notes, 524 lessons, 897 work items)
+
+**Commit 026d574** - "docs: Add Phase 3 incident report"
+- Comprehensive documentation of what happened
+- Lessons learned for future schema changes
+- Recommendations for proper migration approach
+
+### Current State
+
+✅ **App Stable:** 0 errors, 0 warnings, launches successfully
+✅ **Data Safe:** Production backup at `~/Desktop/maria-backup-20260205-215922/`
+✅ **Tests Passing:** 2,066/2,093 tests (99%)
+✅ **Documentation Complete:** Incident report, lessons learned, architecture decisions
+
+### Decision
+
+🟡 **POSTPONE Phase 3** - Proceed with lower-risk Phases 6, 7, 8 first.
 
 ---
 
