@@ -32,7 +32,7 @@ final class ProjectNote: NoteProtocol {
     
     // MARK: - Relationship
     /// The project session this note is attached to (REQUIRED)
-    @Relationship(deleteRule: .cascade, inverse: \ProjectSession.projectNotes)
+    @Relationship(deleteRule: .cascade)
     var projectSession: ProjectSession
     
     // MARK: - Initialization
@@ -52,15 +52,5 @@ final class ProjectNote: NoteProtocol {
         self.authorID = authorID
         self.categoryRaw = category.rawValue
         self.projectSession = projectSession
-    }
-}
-
-// MARK: - ProjectSession Relationship Extension
-extension ProjectSession {
-    /// Inverse relationship to ProjectNote
-    @Relationship(deleteRule: .cascade)
-    var projectNotes: [ProjectNote]? {
-        get { nil } // SwiftData manages this
-        set { } // SwiftData manages this
     }
 }

@@ -34,7 +34,7 @@ final class WorkNote: NoteProtocol {
     
     // MARK: - Relationship
     /// The work item this note is attached to (REQUIRED)
-    @Relationship(deleteRule: .cascade, inverse: \WorkModel.workNotes)
+    @Relationship(deleteRule: .cascade)
     var work: WorkModel
     
     // MARK: - Optional Context Links
@@ -70,15 +70,5 @@ final class WorkNote: NoteProtocol {
         self.checkInID = checkInID
         self.completionRecordID = completionRecordID
         self.workPlanItemID = workPlanItemID
-    }
-}
-
-// MARK: - WorkModel Relationship Extension
-extension WorkModel {
-    /// Inverse relationship to WorkNote
-    @Relationship(deleteRule: .cascade)
-    var workNotes: [WorkNote]? {
-        get { nil } // SwiftData manages this
-        set { } // SwiftData manages this
     }
 }

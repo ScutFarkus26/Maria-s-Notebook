@@ -33,7 +33,7 @@ final class PresentationNote: NoteProtocol {
     
     // MARK: - Relationship
     /// The presentation this note is attached to (REQUIRED)
-    @Relationship(deleteRule: .cascade, inverse: \Presentation.presentationNotes)
+    @Relationship(deleteRule: .cascade)
     var presentation: Presentation
     
     // MARK: - Scope
@@ -73,15 +73,5 @@ final class PresentationNote: NoteProtocol {
         self.categoryRaw = category.rawValue
         self.presentation = presentation
         self.scope = scope
-    }
-}
-
-// MARK: - Presentation Relationship Extension
-extension Presentation {
-    /// Inverse relationship to PresentationNote
-    @Relationship(deleteRule: .cascade)
-    var presentationNotes: [PresentationNote]? {
-        get { nil } // SwiftData manages this
-        set { } // SwiftData manages this
     }
 }

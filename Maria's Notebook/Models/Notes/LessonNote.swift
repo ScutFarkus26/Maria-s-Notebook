@@ -33,7 +33,7 @@ final class LessonNote: NoteProtocol {
     
     // MARK: - Relationship
     /// The lesson this note is attached to (REQUIRED)
-    @Relationship(deleteRule: .cascade, inverse: \Lesson.lessonNotes)
+    @Relationship(deleteRule: .cascade)
     var lesson: Lesson
     
     // MARK: - Scope
@@ -73,15 +73,5 @@ final class LessonNote: NoteProtocol {
         self.categoryRaw = category.rawValue
         self.lesson = lesson
         self.scope = scope
-    }
-}
-
-// MARK: - Lesson Relationship Extension
-extension Lesson {
-    /// Inverse relationship to LessonNote
-    @Relationship(deleteRule: .cascade)
-    var lessonNotes: [LessonNote]? { 
-        get { nil } // SwiftData manages this
-        set { } // SwiftData manages this
     }
 }

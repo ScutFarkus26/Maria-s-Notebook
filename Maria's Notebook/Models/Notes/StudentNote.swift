@@ -34,7 +34,7 @@ final class StudentNote: NoteProtocol {
     
     // MARK: - Relationship
     /// The student this note is about (REQUIRED)
-    @Relationship(deleteRule: .cascade, inverse: \Student.studentNotes)
+    @Relationship(deleteRule: .cascade)
     var student: Student
     
     // MARK: - Optional Context Links
@@ -65,15 +65,5 @@ final class StudentNote: NoteProtocol {
         self.student = student
         self.meetingID = meetingID
         self.studentLessonID = studentLessonID
-    }
-}
-
-// MARK: - Student Relationship Extension
-extension Student {
-    /// Inverse relationship to StudentNote
-    @Relationship(deleteRule: .cascade)
-    var studentNotes: [StudentNote]? {
-        get { nil } // SwiftData manages this
-        set { } // SwiftData manages this
     }
 }

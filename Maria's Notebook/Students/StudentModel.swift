@@ -43,6 +43,10 @@ final class Student: Identifiable {
 
     @Relationship(deleteRule: .cascade, inverse: \Document.student)
     var documents: [Document]? = []
+    
+    // Phase 3B: Domain-specific note types
+    @Relationship(deleteRule: .cascade, inverse: \StudentNote.student)
+    var studentNotes: [StudentNote]? = []
 
     var fullName: String {
         "\(firstName) \(lastName)"

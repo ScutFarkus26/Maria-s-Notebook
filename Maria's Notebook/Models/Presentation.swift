@@ -127,6 +127,10 @@ final class LessonAssignment: Identifiable {
     /// Notes attached to this presentation.
     @Relationship(deleteRule: .cascade, inverse: \Note.lessonAssignment)
     var unifiedNotes: [Note]? = []
+    
+    // Phase 3B: Domain-specific note types
+    @Relationship(deleteRule: .cascade, inverse: \PresentationNote.presentation)
+    var presentationNotes: [PresentationNote]? = []
 
     /// Transient array for resolved Student objects.
     @Transient var students: [Student] = []

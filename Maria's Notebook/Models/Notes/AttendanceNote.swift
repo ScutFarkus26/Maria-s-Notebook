@@ -32,7 +32,7 @@ final class AttendanceNote: NoteProtocol {
     
     // MARK: - Relationship
     /// The attendance record this note is attached to (REQUIRED)
-    @Relationship(deleteRule: .cascade, inverse: \AttendanceRecord.attendanceNotes)
+    @Relationship(deleteRule: .cascade)
     var attendance: AttendanceRecord
     
     // MARK: - Initialization
@@ -52,15 +52,5 @@ final class AttendanceNote: NoteProtocol {
         self.authorID = authorID
         self.categoryRaw = category.rawValue
         self.attendance = attendance
-    }
-}
-
-// MARK: - AttendanceRecord Relationship Extension
-extension AttendanceRecord {
-    /// Inverse relationship to AttendanceNote
-    @Relationship(deleteRule: .cascade)
-    var attendanceNotes: [AttendanceNote]? {
-        get { nil } // SwiftData manages this
-        set { } // SwiftData manages this
     }
 }
