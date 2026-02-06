@@ -21,7 +21,6 @@ struct DataManagementGrid: View {
     @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
     @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true
     @AppStorage("AutoBackup.retentionCount") private var autoBackupRetention = 10
-    @AppStorage("CloudBackup.scheduleEnabled") private var cloudBackupEnabled = false
 
     @State private var showingImporter = false
     @State private var showingExporter = false
@@ -49,9 +48,6 @@ struct DataManagementGrid: View {
                 storageCard
                 autoBackupCard
             }
-
-            // iCloud row
-            iCloudRow
         }
         .fileImporter(
             isPresented: $showingImporter,
@@ -298,17 +294,6 @@ struct DataManagementGrid: View {
                 .disabled(!autoBackupEnabled)
             }
         }
-    }
-
-    // MARK: - iCloud Row
-
-    private var iCloudRow: some View {
-        SettingsToggleRow(
-            title: "iCloud Backup",
-            systemImage: "icloud.fill",
-            color: .cyan,
-            isOn: $cloudBackupEnabled
-        )
     }
 
     // MARK: - Result Banner

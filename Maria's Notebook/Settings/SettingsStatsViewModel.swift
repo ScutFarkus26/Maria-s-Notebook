@@ -16,6 +16,8 @@ class SettingsStatsViewModel: ObservableObject {
     @Published var presentationsCount: Int = 0
     @Published var notesCount: Int = 0
     @Published var meetingsCount: Int = 0
+    @Published var noteTemplatesCount: Int = 0
+    @Published var meetingTemplatesCount: Int = 0
     
     @Published var isLoading: Bool = false
     
@@ -44,6 +46,8 @@ class SettingsStatsViewModel: ObservableObject {
             let presentations = loadCount(for: LessonAssignment.self, context: context)
             let notes = loadCount(for: Note.self, context: context)
             let meetings = loadCount(for: StudentMeeting.self, context: context)
+            let noteTemplates = loadCount(for: NoteTemplate.self, context: context)
+            let meetingTemplates = loadCount(for: MeetingTemplate.self, context: context)
             
             // Load filtered counts
             let planned = loadFilteredCount(
@@ -67,6 +71,8 @@ class SettingsStatsViewModel: ObservableObject {
             self.presentationsCount = presentations
             self.notesCount = notes
             self.meetingsCount = meetings
+            self.noteTemplatesCount = noteTemplates
+            self.meetingTemplatesCount = meetingTemplates
             
             self.lastLoadDate = Date()
             self.isLoading = false

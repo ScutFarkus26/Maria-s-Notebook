@@ -25,62 +25,28 @@ struct SettingsView: View {
                 Divider()
                 ScrollView {
                     VStack(spacing: 24) {
-                        // MARK: - School Configuration Section
-                        schoolConfigurationSection
+                        // MARK: - 1. General
+                        generalSection
+
+                        // MARK: - 2. Data & Sync
+                        dataSyncSection
+
+                        // MARK: - 3. Backup & Data Management
+                        backupManagementSection
+
+                        // MARK: - 4. Templates
+                        templatesSection
+
+                        // MARK: - 5. Communication
+                        communicationSection
+
+                        // MARK: - 6. Database
+                        databaseSection
 
                         #if DEBUG
-                        // MARK: - Students Section
-                        studentsSection
-
-                        // MARK: - Migration Diagnostics Section (Debug Only)
-                        migrationDiagnosticsSection
+                        // MARK: - 7. Advanced (Debug Only)
+                        advancedSection
                         #endif
-
-                        // MARK: - Attendance Section
-                        attendanceSection
-
-                        // MARK: - Reminders Section
-                        remindersSection
-
-                        // MARK: - Calendar Section
-                        calendarSection
-
-                        // MARK: - Notes Section
-                        notesSection
-
-                        // MARK: - Meetings Section
-                        meetingsSection
-
-                        // MARK: - Display & Colors Section
-                        displaySection
-
-                        // MARK: - Data Management Section
-                        dataManagementSection
-
-                        // MARK: - Overview Section
-                        SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
-                            // Row 1: Core (Existing)
-                            OverviewStatsGrid(
-                                studentsCount: statsViewModel.studentsCount,
-                                lessonsCount: statsViewModel.lessonsCount,
-                                plannedCount: statsViewModel.plannedCount,
-                                givenCount: statsViewModel.givenCount,
-                                columns: overviewColumns
-                            )
-
-                            Divider()
-
-                            // Row 2: Detail (New)
-                            LazyVGrid(columns: overviewColumns, spacing: 16) {
-                                StatCard(title: "Work Items", value: "\(statsViewModel.workModelsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
-                                StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "paintpalette.fill")
-                                StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
-                                StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
-                            }
-                        }
-
-                        // MARK: - iCloud Status Section
-                        iCloudStatusSection
                     }
                     .frame(maxWidth: 900)
                     .padding(.horizontal, 24)
@@ -103,141 +69,217 @@ struct SettingsView: View {
         }
     }
 
-    // Extracted sections to reduce type-checker complexity
-    #if DEBUG
-    private var studentsSection: some View {
+    // MARK: - Section Definitions
+    
+    // 1. General
+    private var generalSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Students", systemImage: "person.3.fill")
-            SettingsGroup(title: "Test Students", systemImage: "person.2.slash") {
-                TestStudentsSettingsView()
+            SettingsCategoryHeader(title: "General", systemImage: "gear")
+            VStack(spacing: 12) {
+                SettingsGroup(title: "School Calendar", systemImage: "calendar.badge.exclamationmark") {
+                    SchoolCalendarSettingsView()
+                        .frame(maxWidth: .infinity)
+                }
+                
+                SettingsGroup(title: "Display & Colors", systemImage: "paintpalette.fill") {
+                    VStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Lesson Age Indicators")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            LessonAgeSettingsView()
+                        }
+                        
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Work Age Indicators")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            WorkAgeSettingsView()
+                        }
+                    }
                     .frame(maxWidth: .infinity)
+                }
             }
         }
     }
-
-    private var migrationDiagnosticsSection: some View {
+    
+    // 2. Data & Sync
+    private var dataSyncSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Developer Tools", systemImage: "hammer.fill")
-            SettingsGroup(title: "Migration Diagnostics", systemImage: "stethoscope") {
-                MigrationDiagnosticsView()
+            SettingsCategoryHeader(title: "Data & Sync", systemImage: "arrow.triangle.2.circlepath")
+            VStack(spacing: 12) {
+                SettingsGroup(title: "iCloud", systemImage: "icloud.fill") {
+                    VStack(spacing: 12) {
+                        CloudKitStatusSettingsView()
+                        
+                        Divider()
+                        
+                        iCloudBackupToggle
+                    }
                     .frame(maxWidth: .infinity)
+                }
+                
+                SettingsGroup(title: "Reminders", systemImage: "bell.fill") {
+                    ReminderSyncSettingsView()
+                        .frame(maxWidth: .infinity)
+                }
+                
+                SettingsGroup(title: "Calendar", systemImage: "calendar") {
+                    CalendarSyncSettingsView()
+                        .frame(maxWidth: .infinity)
+                }
             }
         }
     }
-    #endif
-
-    private var dataManagementSection: some View {
+    
+    // 3. Backup & Data Management
+    private var backupManagementSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Data Management", systemImage: "externaldrive.fill")
+            SettingsCategoryHeader(title: "Backup & Data Management", systemImage: "externaldrive.fill")
             DataManagementGrid()
         }
     }
-
-    private var schoolConfigurationSection: some View {
+    
+    // 4. Templates
+    private var templatesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "School Configuration", systemImage: "building.columns.fill")
-            SettingsGroup(title: "School Calendar", systemImage: "calendar.badge.exclamationmark") {
-                SchoolCalendarSettingsView()
-                    .frame(maxWidth: .infinity)
+            SettingsCategoryHeader(title: "Templates", systemImage: "doc.on.doc.fill")
+            VStack(spacing: 12) {
+                SettingsGroup(title: "Note Templates", systemImage: "note.text.badge.plus") {
+                    VStack(spacing: 8) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(statsViewModel.noteTemplatesCount)")
+                                    .font(.title2.weight(.semibold))
+                                    .foregroundColor(.primary)
+                                Text("Templates Available")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                        
+                        Divider()
+                        
+                        NavigationLink {
+                            NoteTemplateManagementView()
+                        } label: {
+                            HStack {
+                                Text("Manage Templates")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                
+                SettingsGroup(title: "Meeting Templates", systemImage: "person.2.fill") {
+                    VStack(spacing: 8) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(statsViewModel.meetingTemplatesCount)")
+                                    .font(.title2.weight(.semibold))
+                                    .foregroundColor(.primary)
+                                Text("Templates Available")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                        
+                        Divider()
+                        
+                        NavigationLink {
+                            MeetingTemplateManagementView()
+                        } label: {
+                            HStack {
+                                Text("Manage Templates")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
         }
     }
-
-    private var attendanceSection: some View {
+    
+    // 5. Communication
+    private var communicationSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Attendance", systemImage: "checkmark.circle.fill")
-            SettingsGroup(title: "Attendance Email", systemImage: "envelope") {
+            SettingsCategoryHeader(title: "Communication", systemImage: "envelope.fill")
+            SettingsGroup(title: "Attendance Email", systemImage: "checkmark.circle.fill") {
                 AttendanceEmailSettingsView()
                     .frame(maxWidth: .infinity)
             }
         }
     }
-
-    private var remindersSection: some View {
+    
+    // 6. Database
+    private var databaseSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Reminders", systemImage: "bell.fill")
-            SettingsGroup(title: "Reminder Sync", systemImage: "bell.badge") {
-                ReminderSyncSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-        }
-    }
-
-    private var calendarSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Calendar", systemImage: "calendar")
-            SettingsGroup(title: "Calendar Sync", systemImage: "calendar.badge.checkmark") {
-                CalendarSyncSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-        }
-    }
-
-    private var notesSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Notes", systemImage: "note.text")
-            SettingsGroup(title: "Note Templates", systemImage: "note.text.badge.plus") {
-                NavigationLink {
-                    NoteTemplateManagementView()
-                } label: {
-                    HStack {
-                        Text("Manage Templates")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            SettingsCategoryHeader(title: "Database", systemImage: "cylinder.fill")
+            SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
+                // Row 1: Core (Existing)
+                OverviewStatsGrid(
+                    studentsCount: statsViewModel.studentsCount,
+                    lessonsCount: statsViewModel.lessonsCount,
+                    plannedCount: statsViewModel.plannedCount,
+                    givenCount: statsViewModel.givenCount,
+                    columns: overviewColumns
+                )
+                
+                Divider()
+                
+                // Row 2: Detail (New)
+                LazyVGrid(columns: overviewColumns, spacing: 16) {
+                    StatCard(title: "Work Items", value: "\(statsViewModel.workModelsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
+                    StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "paintpalette.fill")
+                    StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
+                    StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
                 }
-                .buttonStyle(.plain)
             }
         }
     }
-
-    private var meetingsSection: some View {
+    
+    #if DEBUG
+    // 7. Advanced (Debug Only)
+    private var advancedSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Meetings", systemImage: "person.2.fill")
-            SettingsGroup(title: "Weekly Meeting Templates", systemImage: "list.bullet.clipboard") {
-                NavigationLink {
-                    MeetingTemplateManagementView()
-                } label: {
-                    HStack {
-                        Text("Manage Templates")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private var displaySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "Display & Colors", systemImage: "paintpalette.fill")
+            SettingsCategoryHeader(title: "Advanced", systemImage: "wrench.and.screwdriver.fill")
             VStack(spacing: 12) {
-                SettingsGroup(title: "Lesson Age Indicators", systemImage: "clock.fill") {
-                    LessonAgeSettingsView()
+                SettingsGroup(title: "Developer Tools", systemImage: "hammer.fill") {
+                    MigrationDiagnosticsView()
                         .frame(maxWidth: .infinity)
                 }
-
-                SettingsGroup(title: "Work Age Indicators", systemImage: "clock.badge.checkmark.fill") {
-                    WorkAgeSettingsView()
+                
+                SettingsGroup(title: "Test Students", systemImage: "person.2.slash") {
+                    TestStudentsSettingsView()
                         .frame(maxWidth: .infinity)
                 }
             }
         }
     }
-
-    private var iCloudStatusSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsCategoryHeader(title: "iCloud", systemImage: "icloud.fill")
-            SettingsGroup(title: "iCloud Status", systemImage: "arrow.triangle.2.circlepath.icloud") {
-                CloudKitStatusSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-        }
+    #endif
+    
+    // iCloud Backup Toggle (extracted from DataManagementGrid)
+    @AppStorage("CloudBackup.scheduleEnabled") private var cloudBackupEnabled = false
+    
+    private var iCloudBackupToggle: some View {
+        SettingsToggleRow(
+            title: "Enable iCloud Backup",
+            systemImage: "icloud.and.arrow.up",
+            color: .cyan,
+            isOn: $cloudBackupEnabled
+        )
     }
 }
 
