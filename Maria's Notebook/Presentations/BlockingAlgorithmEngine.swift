@@ -58,20 +58,24 @@ enum BlockingAlgorithmEngine {
         }
 
         // Find the LessonAssignment for the preceding lesson with the same student group
-        let studentIDs = Set(sl.resolvedStudentIDs.map { $0.uuidString })
+        // Pre-compute student ID set once for efficiency
+        let studentIDStrings = Set(sl.resolvedStudentIDs.map { $0.uuidString })
+        let precedingLessonIDString = precedingLesson.id.uuidString
 
         // Find in LessonAssignment (unified model)
         let precedingLessonAssignment = lessonAssignments.first { assignment in
-            guard assignment.lessonID == precedingLesson.id.uuidString,
+            guard assignment.lessonID == precedingLessonIDString,
                   assignment.state == .presented else { return false }
             let assignmentStudentIDs = Set(assignment.studentIDs)
-            return assignmentStudentIDs == studentIDs
+            return assignmentStudentIDs == studentIDStrings
         }
 
-        guard let presentationID = precedingLessonAssignment?.id.uuidString else {
+        guard let precedingLessonAssignment else {
             // No presentation for preceding lesson means no prerequisites
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
+
+        let presentationID = precedingLessonAssignment.id.uuidString
 
         // Find WorkModel records linked to the preceding presentation
         let prerequisiteWork = workModels.filter { work in
@@ -83,14 +87,10 @@ enum BlockingAlgorithmEngine {
         var isBlocked = false
 
         for work in prerequisiteWork {
-            if isWorkComplete(work: work, requiredStudentIDs: sl.resolvedStudentIDs) {
-                continue // This work is complete
-            }
-
-            prereqOpenCount += 1
-
-            // Check if this work blocks any required student
-            if workHasIncompleteForRequiredStudents(work: work, requiredStudentIDs: sl.resolvedStudentIDs) {
+            let workIsComplete = isWorkComplete(work: work, requiredStudentIDs: sl.resolvedStudentIDs)
+            
+            if !workIsComplete {
+                prereqOpenCount += 1
                 isBlocked = true
             }
         }
@@ -166,14 +166,4 @@ enum BlockingAlgorithmEngine {
         return false
     }
 
-    /// Check if work has incomplete status for any required student.
-    ///
-    /// - Parameters:
-    ///   - work: The WorkModel to check
-    ///   - requiredStudentIDs: The student IDs to check
-    /// - Returns: True if any required student has incomplete work
-    static func workHasIncompleteForRequiredStudents(work: WorkModel, requiredStudentIDs: [UUID]) -> Bool {
-        // This is the inverse of isWorkComplete - if work is not complete, it has incomplete status
-        return !isWorkComplete(work: work, requiredStudentIDs: requiredStudentIDs)
-    }
 }
