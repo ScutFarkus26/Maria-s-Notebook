@@ -12,14 +12,7 @@ struct WorkDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
-    @State private var work: WorkModel? = nil
-
-    // OPTIMIZATION: Load only related lessons and students instead of all
-    @State private var relatedLesson: Lesson? = nil
-    @State private var relatedLessons: [Lesson] = [] // For NextLessonResolver - same subject/group
-    @State private var relatedStudent: Student? = nil
-
-    @State private var workModelNotes: [Note] = [] // Unified notes - loaded via relationship
+    @StateObject private var viewModel: WorkDetailViewModel
     #if DEBUG
     @Query private var lessonAssignments: [LessonAssignment]
     #endif
@@ -31,62 +24,22 @@ struct WorkDetailView: View {
     @Query private var peerWorks: [WorkModel]
     #endif
 
-    @State private var resolvedPresentationID: UUID? = nil
-    @State private var relatedPresentation: Presentation? = nil
-    @State private var showPresentationNotes: Bool = true
-    @State private var showAddNoteSheet: Bool = false
-    @State private var noteBeingEdited: Note? = nil
-    @State private var showScheduleSheet: Bool = false
-    @State private var showPlannedBanner: Bool = false
-    @State private var showDeleteAlert: Bool = false
-    @State private var showAddStepSheet: Bool = false
-    @State private var stepBeingEdited: WorkStep? = nil
-    @State private var showGroupPracticeSheet: Bool = false
-    @State private var showUnlockNextLessonAlert: Bool = false
-    @State private var nextLessonToUnlock: Lesson? = nil
-
-    @State private var status: WorkStatus
-    @State private var workKind: WorkKind
-    @State private var workTitle: String = ""
-    @State private var completionOutcome: CompletionOutcome? = nil
-    @State private var completionNote: String = ""
-
-    @State private var newPlanDate: Date = Date()
-    @State private var newPlanReason: WorkPlanItem.Reason = .progressCheck
-    @State private var newPlanNote: String = ""
-
     private var scheduleDates: WorkScheduleDates {
-        guard let work = work else {
-            return WorkScheduleDates(primaryDate: nil, primaryKind: nil, secondaryDate: nil, secondaryKind: nil)
-        }
-        let workIDString = work.id.uuidString
-        let items = planItems.filter { $0.workID == workIDString }
-        return WorkScheduleDateLogic.compute(forPlanItems: items)
+        viewModel.scheduleDates(planItems: planItems)
     }
 
     private var likelyNextLesson: Lesson? {
-        guard let work = work,
-              let currentLessonID = UUID(uuidString: work.lessonID),
-              relatedLessons.first(where: { $0.id == currentLessonID }) != nil else { return nil }
-        return NextLessonResolver.resolveNextLesson(from: currentLessonID, lessons: relatedLessons)
+        viewModel.likelyNextLesson(allLessons: allLessons)
     }
     
     private var practiceSessions: [PracticeSession] {
-        guard let work = work else { return [] }
-        return allPracticeSessions
-            .filter { $0.workItemIDs.contains(work.id.uuidString) }
-            .sorted { $0.date > $1.date }
+        viewModel.practiceSessions(allSessions: allPracticeSessions)
     }
 
     init(workID: UUID, onDone: (() -> Void)? = nil) {
         self.workID = workID
         self.onDone = onDone
-        // Initialize with default values - will be updated when work is loaded
-        _status = State(initialValue: .active)
-        _workTitle = State(initialValue: "")
-        _completionOutcome = State(initialValue: nil)
-        _completionNote = State(initialValue: "")
-        _workKind = State(initialValue: .practiceLesson)
+        _viewModel = StateObject(wrappedValue: WorkDetailViewModel(workID: workID))
 
         let workIDString = workID.uuidString
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workIDString })
@@ -98,25 +51,55 @@ struct WorkDetailView: View {
 
     var body: some View {
         Group {
-            if let work = work {
-                VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 24) {
-                            headerSection()
-                            
-                            presentationContextSection()
+            if let work = viewModel.work {
+                mainContent(work: work)
+            } else {
+                ContentUnavailableView("Work not found", systemImage: "doc.questionmark")
+                    #if os(macOS)
+                    .frame(minWidth: 400, minHeight: 200)
+                    #endif
+            }
+        }
+        .onAppear {
+            viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
+            if viewModel.work != nil {
+                #if DEBUG
+                PerformanceLogger.logScreenLoad(
+                    screenName: "WorkDetailView",
+                    itemCounts: [
+                        "lessons": viewModel.relatedLessons.count,
+                        "students": viewModel.relatedStudent != nil ? 1 : 0,
+                        "workModelNotes": viewModel.workModelNotes.count,
+                        "lessonAssignments": lessonAssignments.count,
+                        "planItems": planItems.count,
+                        "peerWorks": peerWorks.count
+                    ]
+                )
+                #endif
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func mainContent(work: WorkModel) -> some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    headerSection()
+                    
+                    presentationContextSection()
 
-                            if status == .complete { completionSection() }
-                            if workKind == .report { stepsSection() }
-                            practiceHistorySection()
-                            notesSection()
-                            calendarSection()
-                        }.padding(28)
-                    }
-                    Divider()
-                    HStack(spacing: 12) {
+                    if viewModel.status == .complete { completionSection() }
+                    if viewModel.workKind == .report { stepsSection() }
+                    practiceHistorySection()
+                    notesSection()
+                    calendarSection()
+                }.padding(28)
+            }
+            Divider()
+            HStack(spacing: 12) {
                         Button {
-                            showDeleteAlert = true
+                            viewModel.showDeleteAlert = true
                         } label: {
                             Image(systemName: "trash")
                                 .font(.system(size: 14, weight: .medium))
@@ -130,7 +113,7 @@ struct WorkDetailView: View {
                         .buttonStyle(.plain)
                         
                         Button {
-                            showGroupPracticeSheet = true
+                            viewModel.showGroupPracticeSheet = true
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "person.2.fill")
@@ -184,114 +167,65 @@ struct WorkDetailView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(20)
-                    .background(.bar)
+                .padding(20)
+                .background(.bar)
+        }
+        .sheet(isPresented: $viewModel.showScheduleSheet) {
+                    WorkModelScheduleNextLessonSheet(work: work) { viewModel.showPlannedBanner = true }
                 }
-                .sheet(isPresented: $showScheduleSheet) {
-                    WorkModelScheduleNextLessonSheet(work: work) { showPlannedBanner = true }
-                }
-                .sheet(isPresented: $showAddNoteSheet) {
+                .sheet(isPresented: $viewModel.showAddNoteSheet) {
                     UnifiedNoteEditor(
                         context: .work(work),
                         initialNote: nil,
                         onSave: { _ in
                             // Note is automatically saved via relationship
-                            showAddNoteSheet = false
-                            loadWorkNotes() // Reload notes
+                            viewModel.showAddNoteSheet = false
                         },
                         onCancel: {
-                            showAddNoteSheet = false
+                            viewModel.showAddNoteSheet = false
                         }
                     )
                 }
-                .sheet(item: $noteBeingEdited) { note in
+                .sheet(item: $viewModel.noteBeingEdited) { note in
                     UnifiedNoteEditor(
                         context: .work(work),
                         initialNote: note,
                         onSave: { _ in
-                            noteBeingEdited = nil
-                            loadWorkNotes() // Reload notes
+                            viewModel.noteBeingEdited = nil
                         },
                         onCancel: {
-                            noteBeingEdited = nil
+                            viewModel.noteBeingEdited = nil
                         }
                     )
                 }
-                .sheet(isPresented: $showGroupPracticeSheet) {
+                .sheet(isPresented: $viewModel.showGroupPracticeSheet) {
                     GroupPracticeSheet(initialWorkItem: work) { _ in
                         // Practice session saved - will automatically show in history
                     }
                 }
-                .alert("Delete?", isPresented: $showDeleteAlert) {
+                .alert("Delete?", isPresented: $viewModel.showDeleteAlert) {
                     Button("Delete", role: .destructive) { deleteWork() }
                 }
-                .alert("Unlock Next Lesson?", isPresented: $showUnlockNextLessonAlert) {
+                .alert("Unlock Next Lesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
                     Button("Unlock") {
                         unlockNextLesson()
                     }
                     Button("Not Yet", role: .cancel) { }
                 } message: {
-                    if let nextLesson = nextLessonToUnlock {
-                        Text("Ready to unlock \(nextLesson.name) for \(relatedStudent?.firstName ?? "this student")?")
+                    if let nextLesson = viewModel.nextLessonToUnlock {
+                        Text("Ready to unlock \(nextLesson.name) for \(viewModel.relatedStudent?.firstName ?? "this student")?")
                     }
                 }
-                .sheet(isPresented: $showAddStepSheet) {
+                .sheet(isPresented: $viewModel.showAddStepSheet) {
                     WorkStepEditorSheet(work: work, existingStep: nil) {
                         // Step was added - force refresh
                     }
                 }
-                .sheet(item: $stepBeingEdited) { step in
-                    WorkStepEditorSheet(work: work, existingStep: step) {
-                        stepBeingEdited = nil
-                    }
+            .sheet(item: $viewModel.stepBeingEdited) { step in
+                WorkStepEditorSheet(work: work, existingStep: step) {
+                    viewModel.stepBeingEdited = nil
                 }
-            } else {
-                ContentUnavailableView("Work not found", systemImage: "doc.questionmark")
-                    #if os(macOS)
-                    .frame(minWidth: 400, minHeight: 200)
-                    #endif
             }
-        }
-        .onAppear {
-            loadWork()
-            if work != nil {
-                #if DEBUG
-                PerformanceLogger.logScreenLoad(
-                    screenName: "WorkDetailView",
-                    itemCounts: [
-                        "lessons": relatedLessons.count,
-                        "students": relatedStudent != nil ? 1 : 0,
-                        "workModelNotes": workModelNotes.count,
-                        "lessonAssignments": lessonAssignments.count,
-                        "planItems": planItems.count,
-                        "peerWorks": peerWorks.count
-                    ]
-                )
-                #endif
-                resolvedPresentationID = resolvePresentationID()
-                reloadPresentationNotes()
-            }
-        }
-    }
-
-    private func loadWork() {
-        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
-        let fetchedWork = modelContext.safeFetchFirst(descriptor)
-        work = fetchedWork
-
-        if let fetchedWork = fetchedWork {
-            status = fetchedWork.status
-            workTitle = fetchedWork.title
-            workKind = fetchedWork.kind ?? .practiceLesson
-            completionOutcome = fetchedWork.completionOutcome
-            // Note: WorkModel doesn't have completionNote field, so we'll leave it empty
-            completionNote = ""
-
-            // Load related data immediately after work is loaded
-            // Pass the work directly since @State hasn't updated yet
-            loadRelatedData(for: fetchedWork)
-            loadWorkNotes(for: fetchedWork)
-        }
     }
 
     @ViewBuilder
@@ -304,15 +238,15 @@ struct WorkDetailView: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [workKind.color.opacity(0.8), workKind.color],
+                                colors: [viewModel.workKind.color.opacity(0.8), viewModel.workKind.color],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 80, height: 80)
-                        .shadow(color: workKind.color.opacity(0.3), radius: 12, x: 0, y: 6)
+                        .shadow(color: viewModel.workKind.color.opacity(0.3), radius: 12, x: 0, y: 6)
 
-                    Image(systemName: workKind.iconName)
+                    Image(systemName: viewModel.workKind.iconName)
                         .font(.system(size: 32, weight: .semibold))
                         .foregroundStyle(.white)
                 }
@@ -337,7 +271,7 @@ struct WorkDetailView: View {
                 Text("Title")
                     .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
-                TextField("Work Title", text: $workTitle)
+                TextField("Work Title", text: $viewModel.workTitle)
                     .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
                     .padding(12)
                     .background(
@@ -376,8 +310,8 @@ struct WorkDetailView: View {
 
                     Spacer()
 
-                    if status != .complete, likelyNextLesson != nil {
-                        Button { showScheduleSheet = true } label: {
+                    if viewModel.status != .complete, likelyNextLesson != nil {
+                        Button { viewModel.showScheduleSheet = true } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "lock.open.fill")
                                 Text("Unlock")
@@ -399,10 +333,10 @@ struct WorkDetailView: View {
     }
 
     @ViewBuilder private func kindPill(_ kind: WorkKind) -> some View {
-        let isSelected = workKind == kind
+        let isSelected = viewModel.workKind == kind
         Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                workKind = kind
+                viewModel.workKind = kind
             }
         } label: {
             HStack(spacing: 6) {
@@ -427,16 +361,16 @@ struct WorkDetailView: View {
     }
 
     @ViewBuilder private func statusPill(_ s: WorkStatus) -> some View {
-        let isSelected = status == s
+        let isSelected = viewModel.status == s
         Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                status = s
+                viewModel.status = s
                 
                 // When marking as complete with good outcome, offer to unlock next lesson
                 if s == .complete, 
-                   let outcome = completionOutcome,
+                   let outcome = viewModel.completionOutcome,
                    outcome == .mastered || outcome == .needsReview,
-                   let work = work,
+                   let work = viewModel.work,
                    let lessonID = UUID(uuidString: work.lessonID),
                    let studentID = UUID(uuidString: work.studentID) {
                     checkAndOfferUnlock(lessonID: lessonID, studentID: studentID)
@@ -474,10 +408,10 @@ struct WorkDetailView: View {
 
                 FlowLayout(spacing: 8) {
                     ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
-                        let isSelected = completionOutcome == outcome
+                        let isSelected = viewModel.completionOutcome == outcome
                         Button {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                completionOutcome = outcome
+                                viewModel.completionOutcome = outcome
                             }
                         } label: {
                             HStack(spacing: 6) {
@@ -499,7 +433,7 @@ struct WorkDetailView: View {
                 }
 
                 // Completion note
-                TextField("Add a completion note...", text: $completionNote)
+                TextField("Add a completion note...", text: $viewModel.completionNote)
                     .font(.system(size: AppTheme.FontSize.body, design: .rounded))
                     .padding(12)
                     .background(
@@ -516,7 +450,7 @@ struct WorkDetailView: View {
             icon: "list.bullet.clipboard.fill",
             accentColor: .green,
             trailing: {
-                Button { showAddStepSheet = true } label: {
+                Button { viewModel.showAddStepSheet = true } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(.green)
@@ -524,7 +458,7 @@ struct WorkDetailView: View {
                 .buttonStyle(.plain)
             }
         ) {
-            if let work = work {
+            if let work = viewModel.work {
                 let orderedSteps = work.orderedSteps
                 if orderedSteps.isEmpty {
                     HStack {
@@ -547,7 +481,7 @@ struct WorkDetailView: View {
                     VStack(spacing: 8) {
                         ForEach(orderedSteps) { step in
                             WorkStepRow(step: step) {
-                                stepBeingEdited = step
+                                viewModel.stepBeingEdited = step
                             }
                         }
                     }
@@ -574,7 +508,7 @@ struct WorkDetailView: View {
     @ViewBuilder private func calendarSection() -> some View {
         DetailSectionCard(title: "Schedule Check-In", icon: "calendar.badge.plus", accentColor: .blue) {
             HStack(spacing: 12) {
-                DatePicker("", selection: $newPlanDate, displayedComponents: .date)
+                DatePicker("", selection: $viewModel.newPlanDate, displayedComponents: .date)
                     .labelsHidden()
                     .datePickerStyle(.compact)
 
@@ -621,7 +555,7 @@ struct WorkDetailView: View {
     }
     
     @ViewBuilder private func presentationContextSection() -> some View {
-        if let presentation = relatedPresentation {
+        if let presentation = viewModel.relatedPresentation {
             DetailSectionCard(
                 title: "From Presentation",
                 icon: "calendar.badge.checkmark",
@@ -729,7 +663,7 @@ struct WorkDetailView: View {
                             }
                             .foregroundStyle(.green)
                             
-                            ForEach(students.filter { $0.id.uuidString != work?.studentID }) { student in
+                            ForEach(students.filter { $0.id.uuidString != viewModel.work?.studentID }) { student in
                                 Text("• \(StudentFormatter.displayName(for: student))")
                                     .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                                     .foregroundStyle(.secondary)
@@ -773,7 +707,7 @@ struct WorkDetailView: View {
             icon: "note.text",
             accentColor: .purple,
             trailing: {
-                Button { showAddNoteSheet = true } label: {
+                Button { viewModel.showAddNoteSheet = true } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(.purple)
@@ -781,7 +715,7 @@ struct WorkDetailView: View {
                 .buttonStyle(.plain)
             }
         ) {
-            if workModelNotes.isEmpty {
+            if viewModel.workModelNotes.isEmpty {
                 HStack {
                     Spacer()
                     VStack(spacing: 8) {
@@ -800,7 +734,7 @@ struct WorkDetailView: View {
                 }
             } else {
                 VStack(spacing: 10) {
-                    ForEach(workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                    ForEach(viewModel.workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
                         noteRow(note)
                     }
                 }
@@ -840,7 +774,7 @@ struct WorkDetailView: View {
                 Spacer()
 
                 Button {
-                    noteBeingEdited = note
+                    viewModel.noteBeingEdited = note
                 } label: {
                     Image(systemName: "pencil.circle")
                         .font(.system(size: 16))
@@ -874,23 +808,16 @@ struct WorkDetailView: View {
 
 
     private func save() {
-        guard let work = work else { return }
-        work.status = status
-        work.title = workTitle
-        work.kind = workKind
-        work.completionOutcome = completionOutcome
-        // Note: WorkModel doesn't have completionNote field, so we skip it
-        saveCoordinator.save(modelContext, reason: "Saving work model")
+        viewModel.save(modelContext: modelContext, saveCoordinator: saveCoordinator)
         close()
     }
 
     private func close() { onDone?() ?? dismiss() }
 
     private func deleteWork() {
-        guard let work = work else { return }
-        modelContext.delete(work)
-        saveCoordinator.save(modelContext, reason: "Deleting work model")
-        close()
+        viewModel.deleteWork(modelContext: modelContext, saveCoordinator: saveCoordinator) {
+            close()
+        }
     }
     
     private func checkAndOfferUnlock(lessonID: UUID, studentID: UUID) {
@@ -914,12 +841,12 @@ struct WorkDetailView: View {
         }
         
         // Show unlock prompt
-        nextLessonToUnlock = nextLesson
-        showUnlockNextLessonAlert = true
+        viewModel.nextLessonToUnlock = nextLesson
+        viewModel.showUnlockNextLessonAlert = true
     }
     
     private func unlockNextLesson() {
-        guard let work = work,
+        guard let work = viewModel.work,
               let lessonID = UUID(uuidString: work.lessonID),
               let studentID = UUID(uuidString: work.studentID) else { return }
         
@@ -935,75 +862,18 @@ struct WorkDetailView: View {
     }
 
     private func addPlan() {
-        guard let work = work else { return }
-        let item = WorkPlanItem(workID: work.id, scheduledDate: newPlanDate, reason: newPlanReason)
+        guard let work = viewModel.work else { return }
+        let item = WorkPlanItem(workID: work.id, scheduledDate: viewModel.newPlanDate, reason: viewModel.newPlanReason)
         modelContext.insert(item)
         saveCoordinator.save(modelContext, reason: "Adding plan item")
     }
 
-    /// OPTIMIZATION: Load only related lessons and students on demand
-    private func loadRelatedData(for workModel: WorkModel? = nil) {
-        guard let work = workModel ?? self.work else { return }
-
-        // Load the specific student first (most important for display)
-        if let studentID = UUID(uuidString: work.studentID) {
-            let allStudentsDescriptor = FetchDescriptor<Student>()
-            let allStudents = modelContext.safeFetch(allStudentsDescriptor)
-            relatedStudent = allStudents.first { $0.id == studentID }
-        }
-        
-        // Load the presentation that spawned this work
-        relatedPresentation = work.fetchPresentation(from: modelContext)
-
-        // Load the specific lesson
-        if let lessonID = UUID(uuidString: work.lessonID) {
-            let lessonDescriptor = FetchDescriptor<Lesson>(
-                predicate: #Predicate<Lesson> { $0.id == lessonID }
-            )
-            relatedLesson = modelContext.safeFetchFirst(lessonDescriptor)
-
-            // If we found the lesson, load lessons in the same subject/group for NextLessonResolver
-            if let lesson = relatedLesson {
-                let subject = lesson.subject.trimmed()
-                let group = lesson.group.trimmed()
-                // Only load related lessons if subject/group are non-empty
-                if !subject.isEmpty && !group.isEmpty {
-                    // Load all lessons and filter in memory (predicates don't support trimmingCharacters or caseInsensitiveCompare)
-                    let allLessonsDescriptor = FetchDescriptor<Lesson>(
-                        sortBy: [SortDescriptor(\.orderInGroup)]
-                    )
-                    let allLessons = modelContext.safeFetch(allLessonsDescriptor)
-                    relatedLessons = allLessons.filter { l in
-                        let lSubject = l.subject.trimmed()
-                        let lGroup = l.group.trimmed()
-                        return lSubject.caseInsensitiveCompare(subject) == .orderedSame &&
-                               lGroup.caseInsensitiveCompare(group) == .orderedSame
-                    }
-                }
-            }
-        }
-    }
-
     private func studentName() -> String {
-        relatedStudent?.firstName ?? "Student"
+        viewModel.relatedStudent?.firstName ?? "Student"
     }
 
     private func lessonTitle() -> String {
-        return relatedLesson?.name ?? "Lesson"
-    }
-
-    private func resolvePresentationID() -> UUID? {
-        guard let work = work, let pid = work.presentationID else { return nil }
-        return UUID(uuidString: pid)
-    }
-
-    private func reloadPresentationNotes() { /* Logic for ScopedNotes */ }
-
-    /// Load work notes via relationships
-    private func loadWorkNotes(for workModel: WorkModel? = nil) {
-        guard let work = workModel ?? self.work else { return }
-        // Load notes via relationships
-        workModelNotes = Array(work.unifiedNotes ?? [])
+        return viewModel.relatedLesson?.name ?? "Lesson"
     }
 
 }
