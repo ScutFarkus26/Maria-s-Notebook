@@ -41,13 +41,8 @@ struct StudentsView<WorkloadContent: View>: View {
         lessonsForChangeDetection.map { $0.id }
     }
     
-    // OPTIMIZATION: Cache data loaded on-demand based on mode and filters
-    @State private var cachedAttendanceRecords: [AttendanceRecord] = []
-    @State private var cachedStudentLessons: [StudentLesson] = []
-    @State private var cachedLessons: [UUID: Lesson] = [:]
-    @State private var cachedDaysSinceLastLesson: [UUID: Int] = [:]
-    
-    private let viewModel = StudentsViewModel()
+    // OPTIMIZATION: Cache data loaded on-demand based on mode and filters (moved to ViewModel)
+    @StateObject private var viewModel = StudentsViewModel()
 
     // MARK: - App Storage for Roster Mode
     @AppStorage("StudentsView.sortOrder") private var studentsSortOrderRaw: String = "alphabetical"
@@ -98,24 +93,24 @@ struct StudentsView<WorkloadContent: View>: View {
 
     // Logic helpers
     private var hiddenTestStudentIDs: Set<UUID> {
-        StudentsFilterService.computeHiddenTestStudentIDs(
+        viewModel.hiddenTestStudentIDs(
             students: uniqueStudents,
-            showTestStudents: showTestStudents,
-            testStudentNamesRaw: testStudentNamesRaw
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
         )
     }
 
     private var presentNowIDs: Set<UUID> {
-        StudentsFilterService.computePresentNowIDs(
-            attendanceRecords: cachedAttendanceRecords,
-            hiddenTestStudentIDs: hiddenTestStudentIDs
+        viewModel.presentNowIDs(
+            from: viewModel.cachedAttendanceRecords,
+            calendar: calendar
         )
     }
     
     private var presentNowCount: Int { presentNowIDs.count }
 
     // OPTIMIZATION: Use cached version instead of recomputing on every view update
-    private var daysSinceLastLessonByStudent: [UUID: Int] { cachedDaysSinceLastLesson }
+    private var daysSinceLastLessonByStudent: [UUID: Int] { viewModel.cachedDaysSinceLastLesson }
 
     // Computed property to get effective sort order based on mode
     private var effectiveSortOrder: SortOrder {
@@ -967,33 +962,15 @@ struct StudentsView<WorkloadContent: View>: View {
     /// Loads data on-demand based on current mode and filters
     @MainActor
     private func loadDataOnDemand() async {
-        guard mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson else {
-            // Clear caches when not in roster mode
-            cachedAttendanceRecords = []
-            cachedStudentLessons = []
-            cachedLessons = [:]
-            cachedDaysSinceLastLesson = [:]
-            return
-        }
-
-        // Load today's attendance records using the data loader
-        cachedAttendanceRecords = StudentsDataLoader.loadTodaysAttendance(context: modelContext)
-
-        // Load days since last lesson only when in lastLesson mode or roster mode
-        // (roster mode needs it for the list row display)
-        if mode == .lastLesson || mode == .roster {
-            cachedDaysSinceLastLesson = StudentsFilterService.computeDaysSinceLastPresentation(
-                students: uniqueStudents,
-                modelContext: modelContext,
-                calendar: calendar
-            )
-        } else {
-            cachedDaysSinceLastLesson = [:]
-        }
-
-        // Clear studentLessons cache (no longer needed for lastLesson mode)
-        cachedStudentLessons = []
-        cachedLessons = [:]
+        viewModel.loadDataOnDemand(
+            mode: mode,
+            modelContext: modelContext,
+            calendar: calendar,
+            attendanceRecordIDs: Set(attendanceRecordIDs),
+            studentLessonIDs: Set(studentLessonIDs),
+            lessonIDs: Set(lessonIDs),
+            students: uniqueStudents
+        )
     }
 
     private func ensureInitialManualOrderIfNeeded() {

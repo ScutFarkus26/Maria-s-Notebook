@@ -1,7 +1,21 @@
 import Foundation
 import SwiftData
+import Combine
 
-struct StudentsViewModel {
+@MainActor
+final class StudentsViewModel: ObservableObject {
+    // MARK: - Cache State
+    @Published var cachedAttendanceRecords: [AttendanceRecord] = []
+    @Published var cachedStudentLessons: [StudentLesson] = []
+    @Published var cachedLessons: [UUID: Lesson] = [:]
+    @Published var cachedDaysSinceLastLesson: [UUID: Int] = [:]
+    
+    // MARK: - Change Detection
+    private var lastAttendanceIDs: Set<UUID> = []
+    private var lastStudentLessonIDs: Set<UUID> = []
+    private var lastLessonIDs: Set<UUID> = []
+    
+    // MARK: - Filtering & Sorting
     func filteredStudents(
         modelContext: ModelContext,
         filter: StudentsFilter,
@@ -191,6 +205,92 @@ struct StudentsViewModel {
         return newAllIDs
     }
 
+    // MARK: - Data Loading
+    func loadDataOnDemand(
+        mode: StudentMode,
+        modelContext: ModelContext,
+        calendar: Calendar,
+        attendanceRecordIDs: Set<UUID>,
+        studentLessonIDs: Set<UUID>,
+        lessonIDs: Set<UUID>,
+        students: [Student]
+    ) {
+        // Only load data for modes that need it
+        guard mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson else {
+            return
+        }
+        
+        // Check if data changed
+        let dataChanged = attendanceRecordIDs != lastAttendanceIDs ||
+                         studentLessonIDs != lastStudentLessonIDs ||
+                         lessonIDs != lastLessonIDs
+        
+        guard dataChanged else { return }
+        
+        // Load today's attendance records for roster view
+        if mode == .roster || mode == .age || mode == .birthday {
+            let today = calendar.startOfDay(for: Date())
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+            let descriptor = FetchDescriptor<AttendanceRecord>(
+                predicate: #Predicate<AttendanceRecord> { record in
+                    record.date >= today && record.date < tomorrow
+                }
+            )
+            cachedAttendanceRecords = modelContext.safeFetch(descriptor)
+        }
+        
+        // Load data for lastLesson mode
+        if mode == .lastLesson {
+            cachedDaysSinceLastLesson = computeDaysSinceLastLessonCache(
+                for: students,
+                using: modelContext,
+                calendar: calendar
+            )
+        }
+        
+        // Update change tracking
+        lastAttendanceIDs = attendanceRecordIDs
+        lastStudentLessonIDs = studentLessonIDs
+        lastLessonIDs = lessonIDs
+    }
+    
+    // MARK: - Computed Helpers
+    func presentNowIDs(from cachedRecords: [AttendanceRecord], calendar: Calendar) -> Set<UUID> {
+        let today = calendar.startOfDay(for: Date())
+        let filtered = cachedRecords.filter { 
+            let recordDay = calendar.startOfDay(for: $0.date)
+            return recordDay == today && $0.status == .present
+        }
+        return Set(filtered.compactMap { UUID(uuidString: $0.studentID) })
+    }
+    
+    func hiddenTestStudentIDs(
+        students: [Student],
+        show: Bool,
+        namesRaw: String
+    ) -> Set<UUID> {
+        guard !show else { return [] }
+        
+        let testNames = namesRaw
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+        
+        guard !testNames.isEmpty else { return [] }
+        
+        return Set(students
+            .filter { student in
+                let firstName = student.firstName.lowercased()
+                let lastName = student.lastName.lowercased()
+                let fullName = student.fullName.lowercased()
+                return testNames.contains(where: { testName in
+                    firstName.contains(testName) || 
+                    lastName.contains(testName) || 
+                    fullName.contains(testName)
+                })
+            }
+            .map { $0.id })
+    }
+    
     // MARK: - Helpers
     private func nextBirthday(from birthday: Date, relativeTo today: Date = Date()) -> Date {
         let cal = Calendar.current
