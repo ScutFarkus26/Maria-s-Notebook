@@ -97,11 +97,15 @@ final class TodayCacheManager {
         let missingIDs = ids.filter { studentsByID[$0] == nil }
         guard !missingIDs.isEmpty else { return }
 
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
+        // PERFORMANCE: Fetch all students once and filter in memory
+        // SwiftData #Predicate doesn't support capturing local Set variables
         let allStudents = context.safeFetch(FetchDescriptor<Student>())
-        let filtered = allStudents.filter { missingIDs.contains($0.id) }
+        
+        // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
+        let missingIDSet = Set(missingIDs)
+        let filtered = allStudents.filter { missingIDSet.contains($0.id) }
         let visibleStudents = TestStudentsFilter.filterVisible(filtered)
+        
         for student in visibleStudents {
             studentsByID[student.id] = student
         }
@@ -115,10 +119,14 @@ final class TodayCacheManager {
         let missingIDs = ids.filter { lessonsByID[$0] == nil }
         guard !missingIDs.isEmpty else { return }
 
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
+        // PERFORMANCE: Fetch all lessons once and filter in memory
+        // SwiftData #Predicate doesn't support capturing local Set variables
         let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
-        let filtered = allLessons.filter { missingIDs.contains($0.id) }
+        
+        // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
+        let missingIDSet = Set(missingIDs)
+        let filtered = allLessons.filter { missingIDSet.contains($0.id) }
+        
         for lesson in filtered {
             lessonsByID[lesson.id] = lesson
         }

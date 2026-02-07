@@ -66,40 +66,41 @@ final class StudentsViewModel: ObservableObject {
         
         var fetched = modelContext.safeFetch(descriptor)
         
-        // Apply in-memory filters that can't be done in predicates:
-        // 1. Level filtering (levelRaw is private, so can't be used in predicates)
-        // 2. presentNow filtering (SwiftData #Predicate doesn't support capturing local Set variables)
-        switch filter {
-        case .all:
-            break // No level filter needed
-        case .upper:
-            fetched = fetched.filter { $0.level == .upper }
-        case .lower:
-            fetched = fetched.filter { $0.level == .lower }
-        case .presentNow:
-            if let ids = presentNowIDs, !ids.isEmpty {
-                fetched = fetched.filter { ids.contains($0.id) }
-            } else {
-                fetched = [] // No IDs means no matches
+        // PERFORMANCE: Combine all in-memory filters into a single pass to avoid creating intermediate arrays
+        let query = searchString.trimmed().isEmpty ? nil : searchString.normalizedForComparison()
+        let testFilter = TestStudentsFiltering.buildTestStudentFilter(showTestStudents: showTestStudents, testStudentNames: testStudentNames)
+        
+        fetched = fetched.filter { student in
+            // 1. Level filtering (levelRaw is private, so can't be used in predicates)
+            switch filter {
+            case .all:
+                break
+            case .upper:
+                if student.level != .upper { return false }
+            case .lower:
+                if student.level != .lower { return false }
+            case .presentNow:
+                if let ids = presentNowIDs, !ids.isEmpty {
+                    if !ids.contains(student.id) { return false }
+                } else {
+                    return false // No IDs means no matches
+                }
             }
-        }
-        
-        // 2. Test student filtering (requires checking against a set of names)
-        fetched = TestStudentsFiltering.filterVisible(
-            students: fetched,
-            showTestStudents: showTestStudents,
-            testStudentNames: testStudentNames
-        )
-        
-        // 3. Search string filtering (SwiftData predicates don't support string contains well)
-        if !searchString.trimmed().isEmpty {
-            let query = searchString.normalizedForComparison()
-            fetched = fetched.filter { student in
+            
+            // 2. Test student filtering
+            if !testFilter(student) { return false }
+            
+            // 3. Search string filtering
+            if let query = query {
                 let firstName = student.firstName.lowercased()
                 let lastName = student.lastName.lowercased()
                 let fullName = student.fullName.lowercased()
-                return firstName.contains(query) || lastName.contains(query) || fullName.contains(query)
+                if !firstName.contains(query) && !lastName.contains(query) && !fullName.contains(query) {
+                    return false
+                }
             }
+            
+            return true
         }
         
         // Apply in-memory sorting for complex sorts
@@ -329,8 +330,15 @@ final class StudentsViewModel: ObservableObject {
         using modelContext: ModelContext,
         calendar: Calendar
     ) -> [UUID: Int] {
-        // Fetch all student lessons once, sorted by date descending for efficiency
+        // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
+        let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date()) ?? Date().addingTimeInterval(-365*24*3600)
+        
+        // Fetch student lessons from last year, sorted by date descending for efficiency
+        // Use simple date filter on createdAt as predicate, then filter more precisely in memory
         let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate { sl in
+                sl.createdAt >= oneYearAgo
+            },
             sortBy: [
                 SortDescriptor(\StudentLesson.givenAt, order: .reverse),
                 SortDescriptor(\StudentLesson.scheduledFor, order: .reverse),
@@ -400,9 +408,16 @@ final class StudentsViewModel: ObservableObject {
         using modelContext: ModelContext,
         calendar: Calendar = .current
     ) -> Int {
-        // Fetch all student lessons sorted by date descending
+        // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
+        let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date()) ?? Date().addingTimeInterval(-365*24*3600)
+        
+        // Fetch student lessons from last year sorted by date descending
         // We fetch all because SwiftData predicates can't easily query JSON-encoded arrays
+        // Use simple date filter on createdAt as predicate, then filter more precisely in memory
         let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate { sl in
+                sl.createdAt >= oneYearAgo
+            },
             sortBy: [
                 SortDescriptor(\StudentLesson.givenAt, order: .reverse),
                 SortDescriptor(\StudentLesson.scheduledFor, order: .reverse),

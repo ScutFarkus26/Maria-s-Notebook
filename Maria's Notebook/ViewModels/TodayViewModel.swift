@@ -215,10 +215,12 @@ final class TodayViewModel: ObservableObject {
         let notesResult = TodayDataFetcher.fetchRecentNotes(context: context)
         let missingStudentIDs = notesResult.neededStudentIDs.subtracting(recentNoteStudentsByID.keys)
         var updatedRecentNoteStudents = recentNoteStudentsByID
-        for studentID in missingStudentIDs {
-            var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-            descriptor.fetchLimit = 1
-            if let student = context.safeFetch(descriptor).first {
+        
+        // PERFORMANCE: Batch fetch all missing students in a single query instead of N queries
+        if !missingStudentIDs.isEmpty {
+            let allStudents = context.safeFetch(FetchDescriptor<Student>())
+            let missingStudents = allStudents.filter { missingStudentIDs.contains($0.id) }
+            for student in missingStudents {
                 updatedRecentNoteStudents[student.id] = student
             }
         }

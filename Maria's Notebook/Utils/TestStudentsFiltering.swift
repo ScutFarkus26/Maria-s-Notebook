@@ -34,6 +34,26 @@ enum TestStudentsFiltering {
             return !hiddenNames.contains(name)
         }
     }
+    
+    /// Builds a filter closure for test student filtering.
+    /// - Parameters:
+    ///   - showTestStudents: Whether to show test students
+    ///   - testStudentNames: Comma/semicolon-separated list of test student names
+    /// - Returns: A closure that returns true if the student should be visible
+    static func buildTestStudentFilter(
+        showTestStudents: Bool,
+        testStudentNames: String
+    ) -> (Student) -> Bool {
+        guard !showTestStudents else { return { _ in true } }
+        
+        let hiddenNames = normalizedHiddenNames(from: testStudentNames)
+        guard !hiddenNames.isEmpty else { return { _ in true } }
+        
+        return { student in
+            let name = student.fullName.trimmed().lowercased()
+            return !hiddenNames.contains(name)
+        }
+    }
 }
 
 

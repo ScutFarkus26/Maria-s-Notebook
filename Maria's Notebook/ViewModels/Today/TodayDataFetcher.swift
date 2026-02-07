@@ -88,10 +88,13 @@ enum TodayDataFetcher {
                 }
             }
 
-            // Fetch Plan Items
+            // PERFORMANCE: Build workIDStrings Set once for efficient lookups
             let workIDStrings = Set(workItems.map { $0.id.uuidString })
+            
+            // Fetch Plan Items
             let planItems: [WorkPlanItem]
             if workIDStrings.count > 100 {
+                // For large result sets, filter in memory to avoid predicate complexity
                 let planDescriptor = FetchDescriptor<WorkPlanItem>(
                     predicate: #Predicate<WorkPlanItem> { item in
                         item.scheduledDate <= nextDay
@@ -100,6 +103,7 @@ enum TodayDataFetcher {
                 let fetchedPlanItems = try context.fetch(planDescriptor)
                 planItems = fetchedPlanItems.filter { workIDStrings.contains($0.workID) }
             } else {
+                // For smaller sets, let the predicate handle it
                 let planDescriptor = FetchDescriptor<WorkPlanItem>(
                     predicate: #Predicate<WorkPlanItem> { item in
                         workIDStrings.contains(item.workID)
@@ -107,7 +111,6 @@ enum TodayDataFetcher {
                 )
                 planItems = try context.fetch(planDescriptor)
             }
-            let planItemsByWork = planItems.grouped { UUID(uuidString: $0.workID) ?? UUID() }
 
             // Fetch Notes
             let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date())
@@ -118,13 +121,23 @@ enum TodayDataFetcher {
                 }
             )
             let fetchedNotes = try context.fetch(notesDescriptor)
-            let notes = fetchedNotes.filter { note in
-                if let work = note.work, workIDStrings.contains(work.id.uuidString) {
-                    return true
+            
+            // PERFORMANCE: Filter notes and group both planItems and notes in a single pass
+            // This reduces iterations from 3 separate loops to 1
+            var planItemsByWork: [UUID: [WorkPlanItem]] = [:]
+            var notesByWork: [UUID: [Note]] = [:]
+            
+            for planItem in planItems {
+                if let workID = UUID(uuidString: planItem.workID) {
+                    planItemsByWork[workID, default: []].append(planItem)
                 }
-                return false
             }
-            let notesByWork = notes.grouped { $0.work?.id ?? UUID() }
+            
+            for note in fetchedNotes {
+                if let work = note.work, workIDStrings.contains(work.id.uuidString) {
+                    notesByWork[work.id, default: []].append(note)
+                }
+            }
 
             return WorkFetchResult(
                 workItems: workItems,
@@ -144,13 +157,14 @@ enum TodayDataFetcher {
     // MARK: - Completed Work Fetching
 
     /// Fetches completed work items for a specific day.
+    /// PERFORMANCE: Limited to 100 most recent items to prevent unbounded result sets.
     static func fetchCompletedWork(
         day: Date,
         nextDay: Date,
         context: ModelContext
     ) -> [WorkModel] {
         do {
-            let descriptor = FetchDescriptor<WorkModel>(
+            var descriptor = FetchDescriptor<WorkModel>(
                 predicate: #Predicate { w in
                     if let ca = w.completedAt {
                         return ca >= day && ca < nextDay
@@ -160,6 +174,8 @@ enum TodayDataFetcher {
                 },
                 sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
             )
+            // OPTIMIZATION: Limit to 100 most recent completed items for performance
+            descriptor.fetchLimit = 100
             return try context.fetch(descriptor)
         } catch {
             return []

@@ -187,29 +187,44 @@ struct LessonsViewModel {
         }
         let scoped = modelContext.safeFetch(scopedDescriptor)
         
+        // PERFORMANCE: Pre-compute sort indices for all lessons to avoid repeated lookups during comparison
         let subjectIndex = subjectIndexMap(from: scoped)
         var groupIndexCache: [String: [String: Int]] = [:]
-
-        // Sorting logic (Unchanged)
-        if !query.isEmpty {
-            return fetched.sorted { lhs, rhs in
-                let ls = subjectIndex[norm(lhs.subject)] ?? Int.max
-                let rs = subjectIndex[norm(rhs.subject)] ?? Int.max
-                if ls == rs {
-                    let lg = indexForGroup(lhs.group, inSubject: lhs.subject, cache: &groupIndexCache, lessons: scoped)
-                    let rg = indexForGroup(rhs.group, inSubject: rhs.subject, cache: &groupIndexCache, lessons: scoped)
-                    if lg == rg {
-                        if lhs.orderInGroup == rhs.orderInGroup {
-                            let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-                            if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
-                            return nameOrder == .orderedAscending
-                        }
-                        return lhs.orderInGroup < rhs.orderInGroup
-                    }
-                    return lg < rg
+        
+        // Pre-compute group indices for all unique subjects in fetched results
+        let uniqueSubjects = Set(fetched.map { norm($0.subject) })
+        for subject in uniqueSubjects {
+            if groupIndexCache[subject] == nil {
+                // Find the original (non-normalized) subject name for lookup
+                if let originalSubject = scoped.first(where: { norm($0.subject) == subject })?.subject {
+                    groupIndexCache[subject] = groupIndex(for: originalSubject, lessons: scoped)
                 }
-                return ls < rs
             }
+        }
+
+        // Sorting logic with pre-computed indices
+        if !query.isEmpty {
+            // OPTIMIZATION: Pre-compute all sort keys to avoid repeated calculations during comparison
+            let sortKeys = fetched.map { lesson -> (subjectIdx: Int, groupIdx: Int, orderInGroup: Int, name: String, id: String) in
+                let subjectIdx = subjectIndex[norm(lesson.subject)] ?? Int.max
+                let groupIdx = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
+                return (subjectIdx, groupIdx, lesson.orderInGroup, lesson.name, lesson.id.uuidString)
+            }
+            
+            let indexedLessons = zip(fetched, sortKeys).map { ($0, $1) }
+            let sorted = indexedLessons.sorted { lhs, rhs in
+                let (_, lKeys) = lhs
+                let (_, rKeys) = rhs
+                
+                if lKeys.subjectIdx != rKeys.subjectIdx { return lKeys.subjectIdx < rKeys.subjectIdx }
+                if lKeys.groupIdx != rKeys.groupIdx { return lKeys.groupIdx < rKeys.groupIdx }
+                if lKeys.orderInGroup != rKeys.orderInGroup { return lKeys.orderInGroup < rKeys.orderInGroup }
+                
+                let nameOrder = lKeys.name.localizedCaseInsensitiveCompare(rKeys.name)
+                if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+                return lKeys.id < rKeys.id
+            }
+            return sorted.map { $0.0 }
         } else if selectedGroup != nil {
             return fetched.sorted { lhs, rhs in
                 if lhs.orderInGroup == rhs.orderInGroup {
@@ -234,24 +249,27 @@ struct LessonsViewModel {
                 return nameOrder == .orderedAscending
             }
         } else {
-            return fetched.sorted { lhs, rhs in
-                let ls = subjectIndex[norm(lhs.subject)] ?? Int.max
-                let rs = subjectIndex[norm(rhs.subject)] ?? Int.max
-                if ls == rs {
-                    let lg = indexForGroup(lhs.group, inSubject: lhs.subject, cache: &groupIndexCache, lessons: scoped)
-                    let rg = indexForGroup(rhs.group, inSubject: rhs.subject, cache: &groupIndexCache, lessons: scoped)
-                    if lg == rg {
-                        if lhs.orderInGroup == rhs.orderInGroup {
-                            let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-                            if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
-                            return nameOrder == .orderedAscending
-                        }
-                        return lhs.orderInGroup < rhs.orderInGroup
-                    }
-                    return lg < rg
-                }
-                return ls < rs
+            // OPTIMIZATION: Pre-compute all sort keys to avoid repeated calculations during comparison
+            let sortKeys = fetched.map { lesson -> (subjectIdx: Int, groupIdx: Int, orderInGroup: Int, name: String, id: String) in
+                let subjectIdx = subjectIndex[norm(lesson.subject)] ?? Int.max
+                let groupIdx = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
+                return (subjectIdx, groupIdx, lesson.orderInGroup, lesson.name, lesson.id.uuidString)
             }
+            
+            let indexedLessons = zip(fetched, sortKeys).map { ($0, $1) }
+            let sorted = indexedLessons.sorted { lhs, rhs in
+                let (_, lKeys) = lhs
+                let (_, rKeys) = rhs
+                
+                if lKeys.subjectIdx != rKeys.subjectIdx { return lKeys.subjectIdx < rKeys.subjectIdx }
+                if lKeys.groupIdx != rKeys.groupIdx { return lKeys.groupIdx < rKeys.groupIdx }
+                if lKeys.orderInGroup != rKeys.orderInGroup { return lKeys.orderInGroup < rKeys.orderInGroup }
+                
+                let nameOrder = lKeys.name.localizedCaseInsensitiveCompare(rKeys.name)
+                if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+                return lKeys.id < rKeys.id
+            }
+            return sorted.map { $0.0 }
         }
     }
     

@@ -52,9 +52,10 @@ final class DataQueryService {
             return ids.compactMap { cache[$0] }
         }
 
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
+        // PERFORMANCE: Fetch all students and filter with Set lookup (O(1) per check)
+        // SwiftData #Predicate doesn't support capturing local Set variables
         let allStudents = context.safeFetch(FetchDescriptor<Student>())
+        // ids is already a Set, so .contains() is O(1)
         return allStudents.filter { ids.contains($0.id) }
     }
 
@@ -107,9 +108,10 @@ final class DataQueryService {
             return ids.compactMap { cache[$0] }
         }
 
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
+        // PERFORMANCE: Fetch all lessons and filter with Set lookup (O(1) per check)
+        // SwiftData #Predicate doesn't support capturing local Set variables
         let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
+        // ids is already a Set, so .contains() is O(1)
         return allLessons.filter { ids.contains($0.id) }
     }
 
