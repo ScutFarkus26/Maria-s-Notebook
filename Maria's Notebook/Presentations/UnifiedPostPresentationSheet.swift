@@ -61,16 +61,7 @@ struct UnifiedPostPresentationSheet: View {
 
     // MARK: - State
 
-    @State private var status: PresentationStatus
-    @State private var entries: [UUID: StudentEntry] = [:]
-    @State private var groupObservation: String = ""
-    @State private var bulkAssignment: String = ""
-    @State private var defaultCheckInEnabled: Bool = false
-    @State private var defaultCheckInDate: Date = AppCalendar.startOfDay(Date().addingTimeInterval(24*60*60))
-    @State private var defaultDueEnabled: Bool = false
-    @State private var defaultDueDate: Date = AppCalendar.startOfDay(Date().addingTimeInterval(7*24*60*60))
-    @State private var expandedStudentIDs: Set<UUID> = []
-    @State private var studentsToUnlock: Set<UUID> = []
+    @StateObject private var viewModel: PostPresentationFormViewModel
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -100,25 +91,14 @@ struct UnifiedPostPresentationSheet: View {
         self.onDone = onDone
         self.onCancel = onCancel
 
-        _status = State(initialValue: initialStatus)
-
-        var initialEntries: [UUID: StudentEntry] = [:]
-        var initialExpandedIDs: Set<UUID> = []
-        for student in deduped {
-            initialEntries[student.id] = StudentEntry(
-                id: student.id,
-                name: StudentFormatter.displayName(for: student)
-            )
-            initialExpandedIDs.insert(student.id)
-        }
-        _entries = State(initialValue: initialEntries)
-        _expandedStudentIDs = State(initialValue: initialExpandedIDs)
+        // Initialize ViewModel
+        _viewModel = StateObject(wrappedValue: PostPresentationFormViewModel(students: deduped, initialStatus: initialStatus))
     }
 
     // MARK: - Computed
 
     private var canDismiss: Bool {
-        status == .justPresented || status == .previouslyPresented
+        viewModel.canDismiss
     }
 
     private var sortedStudents: [Student] {
@@ -237,7 +217,7 @@ struct UnifiedPostPresentationSheet: View {
 
     private func statusButton(for s: PresentationStatus) -> some View {
         Button {
-            status = s
+            viewModel.status = s
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: s.systemImage)
@@ -250,11 +230,11 @@ struct UnifiedPostPresentationSheet: View {
             .foregroundStyle(s.tint)
             .background(
                 Capsule(style: .continuous)
-                    .fill(s.tint.opacity(status == s ? 0.20 : 0.10))
+                    .fill(s.tint.opacity(viewModel.status == s ? 0.20 : 0.10))
             )
             .overlay(
                 Capsule(style: .continuous)
-                    .strokeBorder(s.tint.opacity(status == s ? 0.5 : 0.25), lineWidth: status == s ? 2 : 1)
+                    .strokeBorder(s.tint.opacity(viewModel.status == s ? 0.5 : 0.25), lineWidth: viewModel.status == s ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
@@ -278,7 +258,7 @@ struct UnifiedPostPresentationSheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(suggestedWorkItems.enumerated()), id: \.offset) { index, suggestion in
                             Button {
-                                bulkAssignment = suggestion
+                                viewModel.bulkAssignment = suggestion
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "sparkles")
@@ -307,35 +287,35 @@ struct UnifiedPostPresentationSheet: View {
             }
 
             HStack(spacing: 8) {
-                TextField("Set same assignment for all students...", text: $bulkAssignment)
+                TextField("Set same assignment for all students...", text: $viewModel.bulkAssignment)
                     .textFieldStyle(.roundedBorder)
 
                 Button("Apply") {
                     applyBulkAssignment()
                 }
                 .buttonStyle(.bordered)
-                .disabled(bulkAssignment.trimmed().isEmpty)
+                .disabled(viewModel.bulkAssignment.trimmed().isEmpty)
             }
 
             // Default schedule toggles
             HStack(spacing: 16) {
-                Toggle("Check-in", isOn: $defaultCheckInEnabled)
+                Toggle("Check-in", isOn: $viewModel.defaultCheckInEnabled)
                     .toggleStyle(.switch)
                     .fixedSize()
 
-                if defaultCheckInEnabled {
-                    DatePicker("", selection: $defaultCheckInDate, displayedComponents: .date)
+                if viewModel.defaultCheckInEnabled {
+                    DatePicker("", selection: $viewModel.defaultCheckInDate, displayedComponents: .date)
                         .labelsHidden()
                 }
 
                 Spacer()
 
-                Toggle("Due", isOn: $defaultDueEnabled)
+                Toggle("Due", isOn: $viewModel.defaultDueEnabled)
                     .toggleStyle(.switch)
                     .fixedSize()
 
-                if defaultDueEnabled {
-                    DatePicker("", selection: $defaultDueDate, displayedComponents: .date)
+                if viewModel.defaultDueEnabled {
+                    DatePicker("", selection: $viewModel.defaultDueDate, displayedComponents: .date)
                         .labelsHidden()
                 }
             }
@@ -345,16 +325,16 @@ struct UnifiedPostPresentationSheet: View {
     }
 
     private func applyBulkAssignment() {
-        let trimmed = bulkAssignment.trimmed()
+        let trimmed = viewModel.bulkAssignment.trimmed()
         guard !trimmed.isEmpty else { return }
 
-        for studentID in entries.keys {
-            entries[studentID]?.assignment = trimmed
-            if defaultCheckInEnabled {
-                entries[studentID]?.checkInDate = defaultCheckInDate
+        for studentID in viewModel.entries.keys {
+            viewModel.entries[studentID]?.assignment = trimmed
+            if viewModel.defaultCheckInEnabled {
+                viewModel.entries[studentID]?.checkInDate = viewModel.defaultCheckInDate
             }
-            if defaultDueEnabled {
-                entries[studentID]?.dueDate = defaultDueDate
+            if viewModel.defaultDueEnabled {
+                viewModel.entries[studentID]?.dueDate = viewModel.defaultDueDate
             }
         }
     }
@@ -371,8 +351,8 @@ struct UnifiedPostPresentationSheet: View {
                 Spacer()
 
                 // Completion indicator
-                let completed = entries.values.filter { !$0.observation.isEmpty || !$0.assignment.isEmpty }.count
-                Text("\(completed)/\(entries.count)")
+                let completed = viewModel.entries.values.filter { !$0.observation.isEmpty || !$0.assignment.isEmpty }.count
+                Text("\(completed)/\(viewModel.entries.count)")
                     .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
                     .foregroundStyle(.tertiary)
             }
@@ -385,8 +365,8 @@ struct UnifiedPostPresentationSheet: View {
     }
 
     private func studentEntryRow(for student: Student) -> some View {
-        let isExpanded = expandedStudentIDs.contains(student.id)
-        let entry = entries[student.id]
+        let isExpanded = viewModel.expandedStudentIDs.contains(student.id)
+        let entry = viewModel.entries[student.id]
         let hasContent = !(entry?.observation.isEmpty ?? true) || !(entry?.assignment.isEmpty ?? true)
 
         return VStack(spacing: 0) {
@@ -394,9 +374,9 @@ struct UnifiedPostPresentationSheet: View {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     if isExpanded {
-                        expandedStudentIDs.remove(student.id)
+                        viewModel.expandedStudentIDs.remove(student.id)
                     } else {
-                        expandedStudentIDs.insert(student.id)
+                        viewModel.expandedStudentIDs.insert(student.id)
                     }
                 }
             } label: {
@@ -446,11 +426,11 @@ struct UnifiedPostPresentationSheet: View {
                         HStack(spacing: 8) {
                             ForEach(1...5, id: \.self) { level in
                                 Button {
-                                    entries[student.id]?.understandingLevel = level
+                                    viewModel.entries[student.id]?.understandingLevel = level
                                 } label: {
                                     Circle()
                                         .fill(understandingColor(for: level).opacity(
-                                            (entries[student.id]?.understandingLevel ?? 3) >= level ? 1.0 : 0.2
+                                            (viewModel.entries[student.id]?.understandingLevel ?? 3) >= level ? 1.0 : 0.2
                                         ))
                                         .frame(width: 24, height: 24)
                                 }
@@ -459,7 +439,7 @@ struct UnifiedPostPresentationSheet: View {
 
                             Spacer()
 
-                            Text(understandingLabel(for: entries[student.id]?.understandingLevel ?? 3))
+                            Text(understandingLabel(for: viewModel.entries[student.id]?.understandingLevel ?? 3))
                                 .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                                 .foregroundStyle(.secondary)
                         }
@@ -472,8 +452,8 @@ struct UnifiedPostPresentationSheet: View {
                             .foregroundStyle(.secondary)
 
                         TextField("Note about this student...", text: Binding(
-                            get: { entries[student.id]?.observation ?? "" },
-                            set: { entries[student.id]?.observation = $0 }
+                            get: { viewModel.entries[student.id]?.observation ?? "" },
+                            set: { viewModel.entries[student.id]?.observation = $0 }
                         ), axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(2...4)
@@ -486,14 +466,14 @@ struct UnifiedPostPresentationSheet: View {
                             .foregroundStyle(.secondary)
 
                         TextField("Assignment for this student...", text: Binding(
-                            get: { entries[student.id]?.assignment ?? "" },
-                            set: { entries[student.id]?.assignment = $0 }
+                            get: { viewModel.entries[student.id]?.assignment ?? "" },
+                            set: { viewModel.entries[student.id]?.assignment = $0 }
                         ), axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(1...3)
                         
                         // Suggested work quick-pick buttons
-                        if !suggestedWorkItems.isEmpty && (entries[student.id]?.assignment ?? "").isEmpty {
+                        if !suggestedWorkItems.isEmpty && (viewModel.entries[student.id]?.assignment ?? "").isEmpty {
                             HStack(spacing: 6) {
                                 ForEach(Array(suggestedWorkItems.prefix(3).enumerated()), id: \.offset) { index, suggestion in
                                     suggestedWorkButton(for: suggestion, studentID: student.id)
@@ -509,13 +489,13 @@ struct UnifiedPostPresentationSheet: View {
                                 .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
                                 .foregroundStyle(.secondary)
 
-                            let hasCheckIn = entries[student.id]?.checkInDate != nil
+                            let hasCheckIn = viewModel.entries[student.id]?.checkInDate != nil
                             HStack(spacing: 4) {
                                 Button {
                                     if hasCheckIn {
-                                        entries[student.id]?.checkInDate = nil
+                                        viewModel.entries[student.id]?.checkInDate = nil
                                     } else {
-                                        entries[student.id]?.checkInDate = defaultCheckInDate
+                                        viewModel.entries[student.id]?.checkInDate = viewModel.defaultCheckInDate
                                     }
                                 } label: {
                                     Image(systemName: hasCheckIn ? "checkmark.square.fill" : "square")
@@ -525,8 +505,8 @@ struct UnifiedPostPresentationSheet: View {
 
                                 if hasCheckIn {
                                     DatePicker("", selection: Binding(
-                                        get: { entries[student.id]?.checkInDate ?? defaultCheckInDate },
-                                        set: { entries[student.id]?.checkInDate = $0 }
+                                        get: { viewModel.entries[student.id]?.checkInDate ?? viewModel.defaultCheckInDate },
+                                        set: { viewModel.entries[student.id]?.checkInDate = $0 }
                                     ), displayedComponents: .date)
                                     .labelsHidden()
                                 }
@@ -538,13 +518,13 @@ struct UnifiedPostPresentationSheet: View {
                                 .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
                                 .foregroundStyle(.secondary)
 
-                            let hasDue = entries[student.id]?.dueDate != nil
+                            let hasDue = viewModel.entries[student.id]?.dueDate != nil
                             HStack(spacing: 4) {
                                 Button {
                                     if hasDue {
-                                        entries[student.id]?.dueDate = nil
+                                        viewModel.entries[student.id]?.dueDate = nil
                                     } else {
-                                        entries[student.id]?.dueDate = defaultDueDate
+                                        viewModel.entries[student.id]?.dueDate = viewModel.defaultDueDate
                                     }
                                 } label: {
                                     Image(systemName: hasDue ? "checkmark.square.fill" : "square")
@@ -554,8 +534,8 @@ struct UnifiedPostPresentationSheet: View {
 
                                 if hasDue {
                                     DatePicker("", selection: Binding(
-                                        get: { entries[student.id]?.dueDate ?? defaultDueDate },
-                                        set: { entries[student.id]?.dueDate = $0 }
+                                        get: { viewModel.entries[student.id]?.dueDate ?? viewModel.defaultDueDate },
+                                        set: { viewModel.entries[student.id]?.dueDate = $0 }
                                     ), displayedComponents: .date)
                                     .labelsHidden()
                                 }
@@ -581,14 +561,14 @@ struct UnifiedPostPresentationSheet: View {
                             
                             HStack(spacing: 8) {
                                 Button {
-                                    if studentsToUnlock.contains(student.id) {
-                                        studentsToUnlock.remove(student.id)
+                                    if viewModel.studentsToUnlock.contains(student.id) {
+                                        viewModel.studentsToUnlock.remove(student.id)
                                     } else {
-                                        studentsToUnlock.insert(student.id)
+                                        viewModel.studentsToUnlock.insert(student.id)
                                     }
                                 } label: {
-                                    Image(systemName: studentsToUnlock.contains(student.id) ? "checkmark.square.fill" : "square")
-                                        .foregroundStyle(studentsToUnlock.contains(student.id) ? .green : .secondary)
+                                    Image(systemName: viewModel.studentsToUnlock.contains(student.id) ? "checkmark.square.fill" : "square")
+                                        .foregroundStyle(viewModel.studentsToUnlock.contains(student.id) ? .green : .secondary)
                                 }
                                 .buttonStyle(.plain)
                                 
@@ -597,7 +577,7 @@ struct UnifiedPostPresentationSheet: View {
                                         .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
                                         .foregroundStyle(.primary)
                                     
-                                    if studentsToUnlock.contains(student.id) {
+                                    if viewModel.studentsToUnlock.contains(student.id) {
                                         Text("Will be unlocked when you click Done")
                                             .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
                                             .foregroundStyle(.green)
@@ -624,7 +604,7 @@ struct UnifiedPostPresentationSheet: View {
     }
 
     private func understandingIndicator(for studentID: UUID) -> some View {
-        let level = entries[studentID]?.understandingLevel ?? 3
+        let level = viewModel.entries[studentID]?.understandingLevel ?? 3
         return HStack(spacing: 2) {
             ForEach(1...5, id: \.self) { i in
                 Circle()
@@ -687,7 +667,7 @@ struct UnifiedPostPresentationSheet: View {
                 .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
 
-            TextField("Notes about the presentation overall...", text: $groupObservation, axis: .vertical)
+            TextField("Notes about the presentation overall...", text: $viewModel.groupObservation, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(3...6)
         }
@@ -713,30 +693,30 @@ struct UnifiedPostPresentationSheet: View {
 
             Button("Done") {
                 // Apply default dates to entries that don't have them but have assignments
-                var finalEntries = Array(entries.values)
+                var finalEntries = Array(viewModel.entries.values)
                 for i in finalEntries.indices {
                     if !finalEntries[i].assignment.isEmpty {
-                        if defaultCheckInEnabled && finalEntries[i].checkInDate == nil {
-                            finalEntries[i].checkInDate = defaultCheckInDate
+                        if viewModel.defaultCheckInEnabled && finalEntries[i].checkInDate == nil {
+                            finalEntries[i].checkInDate = viewModel.defaultCheckInDate
                         }
-                        if defaultDueEnabled && finalEntries[i].dueDate == nil {
-                            finalEntries[i].dueDate = defaultDueDate
+                        if viewModel.defaultDueEnabled && finalEntries[i].dueDate == nil {
+                            finalEntries[i].dueDate = viewModel.defaultDueDate
                         }
                     }
                 }
                 
                 // Unlock next lessons for selected students
-                if let currentLessonID = lessonID, !studentsToUnlock.isEmpty {
+                if let currentLessonID = lessonID, !viewModel.studentsToUnlock.isEmpty {
                     _ = UnlockNextLessonService.unlockNextLesson(
                         after: currentLessonID,
-                        for: studentsToUnlock,
+                        for: viewModel.studentsToUnlock,
                         modelContext: modelContext,
                         lessons: lessons,
                         studentLessons: studentLessons
                     )
                 }
 
-                onDone(status, finalEntries, groupObservation)
+                onDone(viewModel.status, finalEntries, viewModel.groupObservation)
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
@@ -751,7 +731,7 @@ struct UnifiedPostPresentationSheet: View {
     
     private func suggestedWorkButton(for suggestion: String, studentID: UUID) -> some View {
         Button {
-            entries[studentID]?.assignment = suggestion
+            viewModel.entries[studentID]?.assignment = suggestion
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "sparkles")
