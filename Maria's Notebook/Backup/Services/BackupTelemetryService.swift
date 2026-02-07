@@ -4,12 +4,12 @@ import SwiftUI
 /// Collects and reports telemetry data for backup/restore operations
 /// Helps track success rates, performance, and identify issues
 @MainActor
-public final class BackupTelemetryService: ObservableObject {
+public final class BackupTelemetryService {
     
     // MARK: - Types
     
-    public struct TelemetryEvent: Codable, Identifiable {
-        public let id = UUID()
+    public struct TelemetryEvent: Codable, Identifiable, Sendable {
+        public let id: UUID
         public let timestamp: Date
         public let eventType: EventType
         public let operation: OperationType
@@ -19,6 +19,30 @@ public final class BackupTelemetryService: ObservableObject {
         public let fileSize: Int64?
         public let errorMessage: String?
         public let metadata: [String: String]
+        
+        public init(
+            id: UUID = UUID(),
+            timestamp: Date,
+            eventType: EventType,
+            operation: OperationType,
+            success: Bool,
+            duration: TimeInterval? = nil,
+            entityCount: Int? = nil,
+            fileSize: Int64? = nil,
+            errorMessage: String? = nil,
+            metadata: [String: String] = [:]
+        ) {
+            self.id = id
+            self.timestamp = timestamp
+            self.eventType = eventType
+            self.operation = operation
+            self.success = success
+            self.duration = duration
+            self.entityCount = entityCount
+            self.fileSize = fileSize
+            self.errorMessage = errorMessage
+            self.metadata = metadata
+        }
         
         public enum EventType: String, Codable {
             case backupStarted
@@ -46,7 +70,7 @@ public final class BackupTelemetryService: ObservableObject {
         }
     }
     
-    public struct PerformanceMetrics: Codable {
+    public struct PerformanceMetrics: Codable, Sendable {
         public var averageBackupDuration: TimeInterval
         public var averageRestoreDuration: TimeInterval
         public var averageFileSize: Int64
@@ -79,8 +103,13 @@ public final class BackupTelemetryService: ObservableObject {
         }
     }
     
-    public struct TelemetryReport: Identifiable {
-        public let id = UUID()
+    public struct ErrorCount: Sendable {
+        public let error: String
+        public let count: Int
+    }
+    
+    public struct TelemetryReport: Identifiable, Sendable {
+        public let id: UUID
         public let generatedAt: Date
         public let periodStart: Date
         public let periodEnd: Date
@@ -92,21 +121,53 @@ public final class BackupTelemetryService: ObservableObject {
         public let successfulRestores: Int
         public let failedRestores: Int
         public let metrics: PerformanceMetrics
-        public let topErrors: [(error: String, count: Int)]
+        public let topErrors: [ErrorCount]
         public let deviceInfo: DeviceInfo
+        
+        public init(
+            id: UUID = UUID(),
+            generatedAt: Date,
+            periodStart: Date,
+            periodEnd: Date,
+            totalEvents: Int,
+            totalBackups: Int,
+            totalRestores: Int,
+            successfulBackups: Int,
+            failedBackups: Int,
+            successfulRestores: Int,
+            failedRestores: Int,
+            metrics: PerformanceMetrics,
+            topErrors: [ErrorCount],
+            deviceInfo: DeviceInfo
+        ) {
+            self.id = id
+            self.generatedAt = generatedAt
+            self.periodStart = periodStart
+            self.periodEnd = periodEnd
+            self.totalEvents = totalEvents
+            self.totalBackups = totalBackups
+            self.totalRestores = totalRestores
+            self.successfulBackups = successfulBackups
+            self.failedBackups = failedBackups
+            self.successfulRestores = successfulRestores
+            self.failedRestores = failedRestores
+            self.metrics = metrics
+            self.topErrors = topErrors
+            self.deviceInfo = deviceInfo
+        }
     }
     
-    public struct DeviceInfo: Codable {
+    public struct DeviceInfo: Codable, Sendable {
         public let model: String
         public let osVersion: String
         public let appVersion: String
         public let appBuild: String
     }
     
-    // MARK: - Published State
+    // MARK: - State
     
-    @Published public private(set) var recentEvents: [TelemetryEvent] = []
-    @Published public private(set) var currentMetrics: PerformanceMetrics?
+    public private(set) var recentEvents: [TelemetryEvent] = []
+    public private(set) var currentMetrics: PerformanceMetrics?
     
     // MARK: - Properties
     
@@ -286,7 +347,7 @@ public final class BackupTelemetryService: ObservableObject {
             .mapValues { $0.count }
             .sorted { $0.value > $1.value }
             .prefix(5)
-            .map { (error: $0.key, count: $0.value) }
+            .map { ErrorCount(error: $0.key, count: $0.value) }
         
         return TelemetryReport(
             generatedAt: Date(),

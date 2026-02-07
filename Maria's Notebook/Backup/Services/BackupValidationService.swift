@@ -13,11 +13,21 @@ public final class BackupValidationService {
         public var errors: [ValidationError]
         public var warnings: [ValidationWarning]
         public var recommendations: [String]
+        public var entityTypeDetails: [String: EntityTypeValidation]
         
         public var canProceed: Bool {
             // Can proceed if valid or only has warnings
             return isValid || errors.isEmpty
         }
+    }
+    
+    public struct EntityTypeValidation {
+        public let entityType: String
+        public let willInsert: Int
+        public let willUpdate: Int
+        public let willSkip: Int
+        public let willDelete: Int
+        public let issues: [String]
     }
     
     public struct ValidationError: Identifiable {
@@ -91,7 +101,10 @@ public final class BackupValidationService {
             }
         }
         
-        // Phase 7: Generate recommendations
+        // Phase 7: Generate entity type details
+        let entityTypeDetails = generateEntityTypeDetails(payload, mode: mode, context: modelContext)
+        
+        // Phase 8: Generate recommendations
         recommendations.append(contentsOf: generateRecommendations(payload, errors: errors, warnings: warnings))
         
         let isValid = errors.filter { $0.severity == .critical || $0.severity == .error }.isEmpty
@@ -100,7 +113,8 @@ public final class BackupValidationService {
             isValid: isValid,
             errors: errors,
             warnings: warnings,
-            recommendations: recommendations
+            recommendations: recommendations,
+            entityTypeDetails: entityTypeDetails
         )
     }
     
@@ -496,6 +510,71 @@ public final class BackupValidationService {
         descriptor.fetchLimit = 1
         let results = try context.fetch(descriptor)
         return !results.isEmpty
+    }
+    
+    // MARK: - Entity Type Details
+    
+    private func generateEntityTypeDetails(
+        _ payload: BackupPayload,
+        mode: BackupService.RestoreMode,
+        context: ModelContext?
+    ) -> [String: EntityTypeValidation] {
+        var details: [String: EntityTypeValidation] = [:]
+        
+        // Count entities from each collection in payload
+        var entityCounts: [(String, Int)] = []
+        entityCounts.append(("Student", payload.students.count))
+        entityCounts.append(("Lesson", payload.lessons.count))
+        entityCounts.append(("StudentLesson", payload.studentLessons.count))
+        entityCounts.append(("LessonAssignment", payload.lessonAssignments.count))
+        entityCounts.append(("WorkPlanItem", payload.workPlanItems.count))
+        entityCounts.append(("Note", payload.notes.count))
+        entityCounts.append(("NonSchoolDay", payload.nonSchoolDays.count))
+        entityCounts.append(("SchoolDayOverride", payload.schoolDayOverrides.count))
+        entityCounts.append(("StudentMeeting", payload.studentMeetings.count))
+        entityCounts.append(("CommunityTopic", payload.communityTopics.count))
+        entityCounts.append(("ProposedSolution", payload.proposedSolutions.count))
+        entityCounts.append(("CommunityAttachment", payload.communityAttachments.count))
+        entityCounts.append(("AttendanceRecord", payload.attendance.count))
+        entityCounts.append(("WorkCompletionRecord", payload.workCompletions.count))
+        entityCounts.append(("Project", payload.projects.count))
+        entityCounts.append(("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count))
+        entityCounts.append(("ProjectSession", payload.projectSessions.count))
+        entityCounts.append(("ProjectRole", payload.projectRoles.count))
+        entityCounts.append(("ProjectTemplateWeek", payload.projectTemplateWeeks.count))
+        entityCounts.append(("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count))
+        
+        for (entityType, count) in entityCounts where count > 0 {
+            let willInsert: Int
+            let willUpdate: Int
+            let willSkip: Int
+            let willDelete: Int
+            
+            switch mode {
+            case .replace:
+                willInsert = count
+                willUpdate = 0
+                willSkip = 0
+                willDelete = 0  // Would need context to calculate
+            case .merge:
+                // Simplified - would need to actually check for duplicates
+                willInsert = count
+                willUpdate = 0
+                willSkip = 0
+                willDelete = 0
+            }
+            
+            details[entityType] = EntityTypeValidation(
+                entityType: entityType,
+                willInsert: willInsert,
+                willUpdate: willUpdate,
+                willSkip: willSkip,
+                willDelete: willDelete,
+                issues: []
+            )
+        }
+        
+        return details
     }
     
     // MARK: - Recommendations

@@ -83,15 +83,30 @@ public final class BackupIntegrityMonitor: ObservableObject {
     @Published private(set) var latestReport: IntegrityReport?
     @Published private(set) var isScanning = false
     @Published private(set) var lastScanDate: Date?
+    @Published private(set) var nextScheduledScanDate: Date?
 
     // MARK: - Settings
 
     @AppStorage("BackupIntegrity.autoVerifyEnabled") private var autoVerifyEnabled = true
+    @AppStorage("BackupIntegrity.scheduledVerificationEnabled") private var scheduledVerificationEnabled = false
+    @AppStorage("BackupIntegrity.verificationIntervalHours") private var verificationIntervalHours = 24
     @AppStorage("BackupIntegrity.warningDaysThreshold") private var warningDaysThreshold = 7
 
     // MARK: - Properties
 
     private let codec = BackupCodec()
+    private let checksumService = ChecksumVerificationService()
+    private var scheduledVerificationTask: Task<Void, Never>?
+    
+    // MARK: - Initialization
+    
+    public init() {
+        // Load last scan date from UserDefaults
+        let timestamp = UserDefaults.standard.double(forKey: "BackupIntegrity.lastScanDate")
+        if timestamp > 0 {
+            lastScanDate = Date(timeIntervalSinceReferenceDate: timestamp)
+        }
+    }
 
     // MARK: - Public API
 
@@ -288,6 +303,75 @@ public final class BackupIntegrityMonitor: ObservableObject {
         return deletedCount
     }
 
+    // MARK: - Scheduled Verification
+    
+    /// Starts scheduled background verification
+    public func startScheduledVerification() {
+        stopScheduledVerification()
+        
+        guard scheduledVerificationEnabled && verificationIntervalHours > 0 else { return }
+        
+        scheduledVerificationTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self = self else { break }
+                
+                // Calculate time until next scan
+                let intervalSeconds = TimeInterval(self.verificationIntervalHours * 3600)
+                let nextScanTime: Date
+                
+                if let lastScan = self.lastScanDate {
+                    nextScanTime = lastScan.addingTimeInterval(intervalSeconds)
+                } else {
+                    // First scan after interval from now
+                    nextScanTime = Date().addingTimeInterval(intervalSeconds)
+                }
+                
+                self.nextScheduledScanDate = nextScanTime
+                
+                let waitTime = max(0, nextScanTime.timeIntervalSinceNow)
+                
+                // Wait until next scan time
+                if waitTime > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                }
+                
+                // Check if still enabled and not cancelled
+                guard !Task.isCancelled, self.scheduledVerificationEnabled else { break }
+                
+                // Perform scheduled scan
+                await self.performScheduledScan()
+            }
+        }
+    }
+    
+    /// Stops scheduled verification
+    public func stopScheduledVerification() {
+        scheduledVerificationTask?.cancel()
+        scheduledVerificationTask = nil
+        nextScheduledScanDate = nil
+    }
+    
+    /// Performs a scheduled integrity scan
+    private func performScheduledScan() async {
+        let report = await performIntegrityScan()
+        
+        // Save last scan date
+        UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: "BackupIntegrity.lastScanDate")
+        
+        // Post notification if issues found
+        if !report.health.isHealthy {
+            NotificationCenter.default.post(
+                name: .backupIntegrityIssuesDetected,
+                object: self,
+                userInfo: ["report": report]
+            )
+        }
+        
+        #if DEBUG
+        print("BackupIntegrityMonitor: Scheduled scan complete. Health: \(report.health)")
+        #endif
+    }
+
     // MARK: - Settings Access
 
     var isAutoVerifyEnabled: Bool {
@@ -298,6 +382,29 @@ public final class BackupIntegrityMonitor: ObservableObject {
     var backupWarningDaysThreshold: Int {
         get { warningDaysThreshold }
         set { warningDaysThreshold = max(1, min(newValue, 30)) }
+    }
+    
+    var isScheduledVerificationEnabled: Bool {
+        get { scheduledVerificationEnabled }
+        set {
+            scheduledVerificationEnabled = newValue
+            if newValue {
+                startScheduledVerification()
+            } else {
+                stopScheduledVerification()
+            }
+        }
+    }
+    
+    var verificationInterval: Int {
+        get { verificationIntervalHours }
+        set {
+            verificationIntervalHours = max(1, min(newValue, 168)) // Max 1 week
+            // Restart scheduled verification with new interval
+            if scheduledVerificationEnabled {
+                startScheduledVerification()
+            }
+        }
     }
 
     // MARK: - Private Helpers
@@ -369,4 +476,10 @@ extension BackupIntegrityMonitor {
 
         return .healthy
     }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let backupIntegrityIssuesDetected = Notification.Name("BackupIntegrityIssuesDetected")
 }

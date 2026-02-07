@@ -4,45 +4,18 @@ import SwiftUI
 import Combine
 
 /// ViewModel for managing post-presentation form state and logic.
+/// Works with UnifiedPostPresentationSheet's nested types for compatibility.
 @MainActor
 final class PostPresentationFormViewModel: ObservableObject {
-    // MARK: - Nested Types
+    // MARK: - Type Aliases (using sheet's nested types)
     
-    enum PresentationStatus: String, CaseIterable, Identifiable {
-        case justPresented
-        case previouslyPresented
-        case needsAnother
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .justPresented: return "Just Presented"
-            case .previouslyPresented: return "Previously Presented"
-            case .needsAnother: return "Needs Another"
-            }
-        }
-
-        var systemImage: String {
-            switch self {
-            case .justPresented: return "checkmark.circle.fill"
-            case .previouslyPresented: return "clock.badge.checkmark"
-            case .needsAnother: return "arrow.clockwise.circle.fill"
-            }
-        }
-
-        var tint: Color {
-            switch self {
-            case .justPresented, .previouslyPresented: return .green
-            case .needsAnother: return .orange
-            }
-        }
-    }
+    typealias PresentationStatus = UnifiedPostPresentationSheet.PresentationStatus
+    typealias StudentEntry = UnifiedPostPresentationSheet.StudentEntry
     
     // MARK: - Published State
     
     @Published var status: PresentationStatus
-    @Published var entries: [UUID: PresentationStudentEntry] = [:]
+    @Published var entries: [UUID: StudentEntry] = [:]
     @Published var groupObservation: String = ""
     @Published var bulkAssignment: String = ""
     @Published var defaultCheckInEnabled: Bool = false
@@ -71,7 +44,7 @@ final class PostPresentationFormViewModel: ObservableObject {
         // Initialize entries
         self.entries = Dictionary(
             uniqueKeysWithValues: students.map { student in
-                (student.id, PresentationStudentEntry(id: student.id, name: student.firstName))
+                (student.id, StudentEntry(id: student.id, name: StudentFormatter.displayName(for: student)))
             }
         )
     }
@@ -100,8 +73,8 @@ final class PostPresentationFormViewModel: ObservableObject {
         bulkAssignment = ""
     }
 
-    /// Returns final entries with default dates applied to entries with assignments.
-    func getFinalEntries() -> [UUID: PresentationStudentEntry] {
+    /// Returns final entries as array with default dates applied to entries with assignments.
+    func getFinalEntries() -> [StudentEntry] {
         var finalEntries = entries
 
         // Apply default dates to entries with assignments
@@ -120,26 +93,24 @@ final class PostPresentationFormViewModel: ObservableObject {
             finalEntries[id] = updated
         }
 
-        return finalEntries
+        return Array(finalEntries.values)
     }
 
     /// Unlocks next lessons for selected students.
     func unlockNextLessonsIfNeeded(
+        lessonID: UUID,
         modelContext: ModelContext,
-        lesson: Lesson,
-        allLessons: [Lesson],
-        allStudentLessons: [StudentLesson]
+        lessons: [Lesson],
+        studentLessons: [StudentLesson]
     ) {
         guard !studentsToUnlock.isEmpty else { return }
 
-        let studentIDStrings = studentsToUnlock.map { $0.uuidString }
-
-        UnlockNextLessonService.unlockNextLesson(
-            afterLesson: lesson,
-            forStudentIDs: studentIDStrings,
-            allLessons: allLessons,
-            allStudentLessons: allStudentLessons,
-            modelContext: modelContext
+        _ = UnlockNextLessonService.unlockNextLesson(
+            after: lessonID,
+            for: studentsToUnlock,
+            modelContext: modelContext,
+            lessons: lessons,
+            studentLessons: studentLessons
         )
     }
 }

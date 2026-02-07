@@ -10,11 +10,13 @@ import SwiftData
 import OSLog
 
 @Model final class StudentLesson: Identifiable {
+    #Index<StudentLesson>([\.lessonID], [\.scheduledForDay], [\.scheduledFor], [\.isPresented], [\.createdAt])
+    
     /// Logger for StudentLesson data issues
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "StudentLesson")
 
     var id: UUID = UUID()
-    // CloudKit compatibility: Store UUIDs as strings
+    // CloudKit compatibility: Store UUIDs as strings - indexed for lesson-specific queries
     var lessonID: String = ""
     // MIGRATION NOTE: The old database may have studentIDs stored as UUIDs instead of Strings.
     // We now store as JSON-encoded Data to avoid SwiftData type conflicts.
@@ -49,6 +51,7 @@ import OSLog
         }
     }
     var createdAt: Date = Date()
+    // Indexed for inbox queries (used with isPresented and givenAt)
     var scheduledFor: Date? {
         didSet {
             if let date = scheduledFor {
@@ -59,9 +62,10 @@ import OSLog
             }
         }
     }
-    // Denormalized start-of-day for efficient querying and sorting
+    // Denormalized start-of-day for efficient querying and sorting - indexed for date range queries
     var scheduledForDay: Date = Date.distantPast
     var givenAt: Date?
+    // Indexed for presentation status filtering
     var isPresented: Bool = false
     var notes: String = ""
     var needsPractice: Bool = false

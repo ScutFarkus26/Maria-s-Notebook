@@ -60,10 +60,13 @@ enum AbsenceReason: String, Codable, CaseIterable, Sendable {
 
 @Model
 final class AttendanceRecord: Identifiable {
+    #Index<AttendanceRecord>([\.date], [\.studentID])
+    
     // Persistent fields
     var id: UUID = UUID()
-    // CloudKit compatibility: Store UUID as string
+    // CloudKit compatibility: Store UUID as string - indexed for student-specific queries
     var studentID: String = ""
+    // Indexed for date-based queries (used in 20+ locations)
     var date: Date = Date()          // normalized to start-of-day (local calendar)
     private var statusRaw: String = "unmarked"
     private var absenceReasonRaw: String = "none"

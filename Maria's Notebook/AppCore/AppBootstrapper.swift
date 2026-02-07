@@ -74,6 +74,11 @@ final class AppBootstrapper: ObservableObject {
 
     private static func runPostLaunchMigrations(modelContainer: ModelContainer) async {
         let backgroundContext = ModelContext(modelContainer)
+        
+        // Disable autosave to prevent triggering CloudKit sync during heavy migrations
+        // This reduces store coordinator changes that can tear down the CloudKit delegate
+        backgroundContext.autosaveEnabled = false
+        
         let start = Date()
         logger.info("Post-launch migrations started")
 
@@ -111,6 +116,14 @@ final class AppBootstrapper: ObservableObject {
         let lessonAssignmentStart = Date()
         await DataMigrations.migrateLessonAssignmentsIfNeeded(using: backgroundContext)
         logger.info("Post-launch migrations: lesson assignment migration completed in \(formatSeconds(Date().timeIntervalSince(lessonAssignmentStart)))s")
+
+        // Save all migration changes in one batch to minimize store coordinator changes
+        do {
+            try backgroundContext.save()
+            logger.info("Post-launch migrations: saved all changes successfully")
+        } catch {
+            logger.error("Post-launch migrations: failed to save changes - \(error.localizedDescription)")
+        }
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))s")
     }

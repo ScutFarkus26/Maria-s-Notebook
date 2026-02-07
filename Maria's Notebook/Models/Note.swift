@@ -82,8 +82,11 @@ enum NoteScope: Codable, Equatable {
 
 @Model
 final class Note: Identifiable {
+    #Index<Note>([\.createdAt], [\.searchIndexStudentID], [\.scopeIsAll])
+    
     // Identity & timestamps
     var id: UUID = UUID()
+    // Indexed for sorting and recent notes queries
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
 
@@ -110,7 +113,9 @@ final class Note: Identifiable {
     
     // Search index attributes for database-level filtering
     // These are maintained automatically when scope changes
+    // Indexed for student-specific note queries
     var searchIndexStudentID: UUID? = nil
+    // Indexed for scope-based filtering
     var scopeIsAll: Bool = false
 
     // Relationships - All possible contexts (only one should be set per note)

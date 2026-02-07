@@ -343,7 +343,7 @@ public final class StreamingBackupWriter {
             
             // Transform to DTOs within autoreleasepool
             let dtos: [Any] = autoreleasepool {
-                return BackupDTOTransformers.toDTOs(fetchedBatch) as [Any]
+                return transformToDTOs(fetchedBatch) as [Any]
             }
             
             allDTOs.append(contentsOf: dtos)
@@ -354,6 +354,53 @@ public final class StreamingBackupWriter {
         }
         
         return allDTOs
+    }
+    
+    private func transformToDTOs<T: PersistentModel>(_ entities: [T]) -> [Any] {
+        switch entities {
+        case let students as [Student]:
+            return BackupDTOTransformers.toDTOs(students)
+        case let lessons as [Lesson]:
+            return BackupDTOTransformers.toDTOs(lessons)
+        case let studentLessons as [StudentLesson]:
+            return BackupDTOTransformers.toDTOs(studentLessons)
+        case let assignments as [LessonAssignment]:
+            return BackupDTOTransformers.toDTOs(assignments)
+        case let workPlanItems as [WorkPlanItem]:
+            return BackupDTOTransformers.toDTOs(workPlanItems)
+        case let notes as [Note]:
+            return BackupDTOTransformers.toDTOs(notes)
+        case let nonSchoolDays as [NonSchoolDay]:
+            return BackupDTOTransformers.toDTOs(nonSchoolDays)
+        case let overrides as [SchoolDayOverride]:
+            return BackupDTOTransformers.toDTOs(overrides)
+        case let meetings as [StudentMeeting]:
+            return BackupDTOTransformers.toDTOs(meetings)
+        case let topics as [CommunityTopic]:
+            return BackupDTOTransformers.toDTOs(topics)
+        case let solutions as [ProposedSolution]:
+            return BackupDTOTransformers.toDTOs(solutions)
+        case let attachments as [CommunityAttachment]:
+            return BackupDTOTransformers.toDTOs(attachments)
+        case let records as [AttendanceRecord]:
+            return BackupDTOTransformers.toDTOs(records)
+        case let completionRecords as [WorkCompletionRecord]:
+            return BackupDTOTransformers.toDTOs(completionRecords)
+        case let projects as [Project]:
+            return BackupDTOTransformers.toDTOs(projects)
+        case let templates as [ProjectAssignmentTemplate]:
+            return BackupDTOTransformers.toDTOs(templates)
+        case let sessions as [ProjectSession]:
+            return BackupDTOTransformers.toDTOs(sessions)
+        case let roles as [ProjectRole]:
+            return BackupDTOTransformers.toDTOs(roles)
+        case let weeks as [ProjectTemplateWeek]:
+            return BackupDTOTransformers.toDTOs(weeks)
+        case let roleAssignments as [ProjectWeekRoleAssignment]:
+            return BackupDTOTransformers.toDTOs(roleAssignments)
+        default:
+            return []
+        }
     }
     
     private func streamFetchRaw<T: PersistentModel>(

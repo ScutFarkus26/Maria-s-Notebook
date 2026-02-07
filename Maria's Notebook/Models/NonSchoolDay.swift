@@ -2,8 +2,10 @@ import Foundation
 import SwiftData
 
 @Model final class NonSchoolDay: Identifiable {
+    #Index<NonSchoolDay>([\.date])
+    
     var id: UUID = UUID()
-    /// Stored as start-of-day for the selected date
+    /// Stored as start-of-day for the selected date - indexed for calendar queries (used 20+ times)
     var date: Date = Date()
     var reason: String?
 

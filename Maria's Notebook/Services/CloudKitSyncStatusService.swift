@@ -32,6 +32,9 @@ final class CloudKitSyncStatusService: ObservableObject {
     /// Whether iCloud account is available
     @Published private(set) var isICloudAvailable: Bool = true
 
+    /// Timestamp when the service was initialized (used for startup grace period)
+    private let initializationTime: Date = Date()
+
     // MARK: - Types
 
     enum SyncHealth: Equatable, Sendable {
@@ -93,6 +96,7 @@ final class CloudKitSyncStatusService: ObservableObject {
     private var remoteChangeObserver: NSObjectProtocol?
     private var saveObserver: NSObjectProtocol?
     private var iCloudAccountObserver: NSObjectProtocol?
+    private var storeCoordinatorChangeObserver: NSObjectProtocol?
     private var syncStartTime: Date?
     private var modelContainer: ModelContainer?
     private var syncingTask: Task<Void, Never>?
@@ -104,6 +108,7 @@ final class CloudKitSyncStatusService: ObservableObject {
     private var pendingSaveTask: Task<Void, Never>?
     private var pendingICloudTask: Task<Void, Never>?
     private var pendingNetworkTask: Task<Void, Never>?
+    private var pendingStoreChangeTask: Task<Void, Never>?
 
     /// Pending sync count - tracks how many saves are waiting for CloudKit confirmation
     private var pendingSyncCount: Int = 0
@@ -140,8 +145,28 @@ final class CloudKitSyncStatusService: ObservableObject {
         // Start network monitoring
         startNetworkMonitoring()
 
-        // Determine initial health
-        updateSyncHealth()
+        // Set initial health based on persisted state
+        // If we have a recent successful sync and no errors, start with healthy
+        // This prevents showing "offline" during CloudKit initialization teardowns
+        let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
+        let isActive = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
+        
+        if isEnabled && isActive {
+            if let lastSync = lastSuccessfulSync {
+                let elapsed = Date().timeIntervalSince(lastSync)
+                if elapsed < 3600 && lastSyncError == nil { // Within 1 hour and no errors
+                    syncHealth = .healthy
+                } else {
+                    syncHealth = .unknown
+                }
+            } else {
+                syncHealth = .unknown
+            }
+        } else {
+            syncHealth = .offline
+        }
+        
+        // updateSyncHealth() will be called after configure() delay completes
     }
 
     deinit {
@@ -154,9 +179,21 @@ final class CloudKitSyncStatusService: ObservableObject {
 
     func configure(with container: ModelContainer) {
         self.modelContainer = container
-        startObserving()
-        startICloudAccountMonitoring()
-        updateSyncHealth()
+        
+        // Delay starting observers to allow CloudKit initialization to complete
+        // SwiftData creates temporary stores during CloudKit setup that get torn down
+        // We don't want to report these expected teardowns as errors
+        Task { [weak self] in
+            // Wait 2 seconds for initial CloudKit setup to complete
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.startObserving()
+                self.startICloudAccountMonitoring()
+                self.updateSyncHealth()
+            }
+        }
     }
 
     // MARK: - Observation
@@ -193,6 +230,24 @@ final class CloudKitSyncStatusService: ObservableObject {
                 }
             }
         }
+
+        // Observe store coordinator changes (CloudKit delegate teardowns)
+        // This notification fires when stores are added/removed from the coordinator
+        // which can happen during migrations or configuration changes
+        storeCoordinatorChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreCoordinatorStoresDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                // Cancel any pending task to prevent accumulation
+                self.pendingStoreChangeTask?.cancel()
+                self.pendingStoreChangeTask = Task { @MainActor [weak self] in
+                    self?.handleStoreCoordinatorChange()
+                }
+            }
+        }
     }
 
     private nonisolated func stopObserving() {
@@ -206,6 +261,8 @@ final class CloudKitSyncStatusService: ObservableObject {
             self?.pendingICloudTask = nil
             self?.pendingNetworkTask?.cancel()
             self?.pendingNetworkTask = nil
+            self?.pendingStoreChangeTask?.cancel()
+            self?.pendingStoreChangeTask = nil
 
             if let observer = self?.remoteChangeObserver {
                 NotificationCenter.default.removeObserver(observer)
@@ -216,9 +273,13 @@ final class CloudKitSyncStatusService: ObservableObject {
             if let observer = self?.iCloudAccountObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
+            if let observer = self?.storeCoordinatorChangeObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
             self?.remoteChangeObserver = nil
             self?.saveObserver = nil
             self?.iCloudAccountObserver = nil
+            self?.storeCoordinatorChangeObserver = nil
         }
     }
 
@@ -308,6 +369,48 @@ final class CloudKitSyncStatusService: ObservableObject {
     }
 
     // MARK: - Event Handlers
+
+    private func handleStoreCoordinatorChange() {
+        // The persistent store coordinator's stores changed
+        // This can happen during:
+        // 1. Initial CloudKit setup (expected - SwiftData creates temp stores)
+        // 2. Migrations or configuration changes
+        // 3. CloudKit delegate teardown/rebuild
+        
+        // During app initialization (first 15 seconds), these changes are expected
+        // as SwiftData sets up CloudKit integration. Ignore them to avoid false "offline" reports.
+        let timeSinceInit = Date().timeIntervalSince(initializationTime)
+        if timeSinceInit < 15 {
+            // Still in startup phase - these teardowns are expected
+            return
+        }
+        
+        let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
+        let isActive = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
+        
+        guard isEnabled && isActive else { return }
+        
+        // Schedule a delayed health check to see if CloudKit reconnects
+        // If it doesn't reconnect within 3 seconds, we'll update the health status
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+            guard !Task.isCancelled else { return }
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                // Only update if we're still showing as active but haven't had recent sync
+                if let lastSync = self.lastSuccessfulSync {
+                    let elapsed = Date().timeIntervalSince(lastSync)
+                    if elapsed > 10 { // More than 10 seconds since last sync
+                        // Try to trigger a sync to reconnect
+                        Task {
+                            _ = await self.syncNow()
+                        }
+                    }
+                }
+                self.updateSyncHealth()
+            }
+        }
+    }
 
     private func handleRemoteChange() {
         // A remote change was received from CloudKit - this confirms sync is working
@@ -453,6 +556,15 @@ final class CloudKitSyncStatusService: ObservableObject {
 
         // Check for errors
         if let error = lastSyncError, !error.isEmpty {
+            // Don't show error if it's just a temporary store coordinator issue
+            // and we have a recent successful sync
+            if let lastSync = lastSuccessfulSync {
+                let elapsed = Date().timeIntervalSince(lastSync)
+                if elapsed < 30 { // Within 30 seconds - likely just a temporary store change
+                    syncHealth = .healthy
+                    return
+                }
+            }
             syncHealth = .error(error)
             return
         }

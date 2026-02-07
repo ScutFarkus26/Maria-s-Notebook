@@ -512,10 +512,13 @@ struct MariasNotebookApp: App {
         
         // NOTE: CoreData+CloudKit error messages and WAL maintenance logs in console
         // SwiftData uses Core Data internally, and during CloudKit initialization,
-        // it creates temporary stores that get torn down, causing harmless error messages.
-        // These errors (like "store was removed from coordinator" and "file:///dev/null")
+        // it creates temporary stores (file:///dev/null) that get torn down, causing harmless error messages.
+        // These errors (like "store was removed from coordinator" and error code 134060)
         // are expected during initialization and don't affect functionality.
-        // The container is successfully created (see "✅ CloudKit container created successfully!" message).
+        //
+        // The CloudKitSyncStatusService has been configured to ignore these expected teardowns
+        // by delaying observer setup for 2 seconds and implementing a 15-second startup grace period.
+        // This prevents false "offline" reports in the UI while still monitoring for real connection issues.
         //
         // Additionally, in Debug builds, you may see verbose SQLite logs including:
         // - WAL checkpoint operations

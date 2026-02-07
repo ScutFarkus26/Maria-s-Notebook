@@ -1,9 +1,10 @@
 import SwiftUI
 import Charts
+import UniformTypeIdentifiers
 
 /// Telemetry dashboard for backup/restore statistics and monitoring
 struct TelemetryDashboardView: View {
-    @ObservedObject var telemetry: BackupTelemetryService
+    let telemetry: BackupTelemetryService
     @State private var selectedPeriod: Period = .week
     @State private var report: BackupTelemetryService.TelemetryReport?
     

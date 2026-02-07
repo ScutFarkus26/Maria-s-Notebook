@@ -9,11 +9,7 @@ public final class EnhancedBackupService {
     
     // MARK: - Types
     
-    public enum RestoreMode: String, CaseIterable, Identifiable, Codable, Sendable {
-        case merge
-        case replace
-        public var id: String { rawValue }
-    }
+    public typealias RestoreMode = BackupService.RestoreMode
     
     public enum ExportMode {
         case standard      // Original implementation (for compatibility)
@@ -23,14 +19,12 @@ public final class EnhancedBackupService {
     
     public enum ImportMode {
         case standard      // Original implementation
-        case transactional // New transactional implementation (recommended)
     }
     
     // MARK: - Services
     
     private let legacyBackupService = BackupService()
     private let streamingWriter: StreamingBackupWriter
-    private let transactionalRestore: TransactionalRestoreService
     private let validationService: BackupValidationService
     private let checksumService: ChecksumVerificationService
     private let incrementalService: IncrementalBackupService
@@ -40,7 +34,7 @@ public final class EnhancedBackupService {
     // MARK: - Configuration
     
     public var preferredExportMode: ExportMode = .streaming
-    public var preferredImportMode: ImportMode = .transactional
+    public var preferredImportMode: ImportMode = .standard
     public var enableAutoVerification: Bool = true
     public var enableSigning: Bool = true
     
@@ -49,11 +43,6 @@ public final class EnhancedBackupService {
     public init() {
         self.streamingWriter = StreamingBackupWriter(configuration: .default)
         self.validationService = BackupValidationService()
-        self.transactionalRestore = TransactionalRestoreService(
-            configuration: .default,
-            backupService: legacyBackupService,
-            validationService: validationService
-        )
         self.checksumService = ChecksumVerificationService()
         self.incrementalService = IncrementalBackupService(backupService: legacyBackupService)
         self.integrityMonitor = BackupIntegrityMonitor()
@@ -192,51 +181,26 @@ public final class EnhancedBackupService {
             )
         }
         
-        // Perform import based on mode
-        switch actualImportMode {
-        case .transactional:
-            let result = try await transactionalRestore.restore(
-                payload: payload,
-                into: modelContext,
-                mode: mode,
-                progress: { phase, prog, msg, detail in
-                    progress(prog, msg)
-                }
-            )
-            
-            return EnhancedRestoreResult(
-                success: result.success,
-                importMode: .transactional,
-                importedEntities: result.importedEntities,
-                failedEntities: result.failedEntities,
-                validationResult: validationResult,
-                errors: result.errors.map { $0.message },
-                warnings: result.warnings + validationResult.warnings.map { $0.message },
-                duration: Date().timeIntervalSince(startTime),
-                restorePointURL: result.restorePointURL
-            )
-            
-        case .standard:
-            let summary = try await legacyBackupService.importBackup(
-                modelContext: modelContext,
-                from: url,
-                mode: mode,
-                password: password,
-                progress: progress
-            )
-            
-            return EnhancedRestoreResult(
-                success: true,
-                importMode: .standard,
-                importedEntities: summary.entityCounts,
-                failedEntities: [:],
-                validationResult: validationResult,
-                errors: [],
-                warnings: validationResult.warnings.map { $0.message },
-                duration: Date().timeIntervalSince(startTime),
-                restorePointURL: nil
-            )
-        }
+        // Perform import using standard mode
+        let summary = try await legacyBackupService.importBackup(
+            modelContext: modelContext,
+            from: url,
+            mode: mode,
+            password: password,
+            progress: progress
+        )
+        
+        return EnhancedRestoreResult(
+            success: true,
+            importMode: .standard,
+            importedEntities: summary.entityCounts,
+            failedEntities: [:],
+            validationResult: validationResult,
+            errors: [],
+            warnings: validationResult.warnings.map { $0.message },
+            duration: Date().timeIntervalSince(startTime),
+            restorePointURL: nil
+        )
     }
     
     // MARK: - Preview

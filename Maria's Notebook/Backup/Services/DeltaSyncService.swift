@@ -383,7 +383,12 @@ extension CloudBackupService {
         let deltaService = DeltaSyncService()
         
         // Find previous cloud backup if not specified
-        let previousBackup = previousVersion ?? (try await findMostRecentBackup(excluding: cloudURL.lastPathComponent))
+        let previousBackup: URL?
+        if let prev = previousVersion {
+            previousBackup = prev
+        } else {
+            previousBackup = try await findMostRecentBackup(excluding: cloudURL.lastPathComponent)
+        }
         
         return try await deltaService.syncToCloud(
             localURL: localURL,

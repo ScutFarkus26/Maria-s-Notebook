@@ -22,6 +22,8 @@ import SwiftData
 /// compatibility with existing data. Use the `Presentation` typealias in code.
 @Model
 final class LessonAssignment: Identifiable {
+    #Index<LessonAssignment>([\.stateRaw], [\.scheduledForDay], [\.presentedAt], [\.lessonID])
+    
     // MARK: - Identity & Timestamps
 
     var id: UUID = UUID()
@@ -30,7 +32,7 @@ final class LessonAssignment: Identifiable {
 
     // MARK: - State Machine
 
-    /// Current state in the lifecycle. Use `state` computed property for type-safe access.
+    /// Current state in the lifecycle - indexed for frequent state-based filtering
     var stateRaw: String = LessonAssignmentState.draft.rawValue
 
     /// Type-safe state accessor.
@@ -52,12 +54,12 @@ final class LessonAssignment: Identifiable {
         }
     }
 
-    /// Denormalized start-of-day for efficient querying and sorting.
+    /// Denormalized start-of-day for efficient querying and sorting - indexed for date range queries
     var scheduledForDay: Date = Date.distantPast
 
     // MARK: - Presentation Record
 
-    /// When the lesson was actually presented. Nil until state becomes .presented.
+    /// When the lesson was actually presented - indexed for historical queries
     var presentedAt: Date?
 
     /// Frozen lesson title at time of presentation (for historical accuracy).
@@ -82,7 +84,7 @@ final class LessonAssignment: Identifiable {
 
     // MARK: - CloudKit-Compatible Foreign Keys
 
-    /// Lesson UUID stored as string for CloudKit compatibility.
+    /// Lesson UUID stored as string for CloudKit compatibility - indexed for lesson-specific queries
     var lessonID: String = ""
 
     /// Student UUIDs stored as JSON-encoded data for CloudKit compatibility.

@@ -3,6 +3,8 @@ import SwiftData
 import SwiftUI
 
 @Model final class WorkModel: Identifiable {
+    #Index<WorkModel>([\.statusRaw], [\.createdAt], [\.completedAt], [\.dueAt], [\.studentID])
+    
     enum WorkType: String, CaseIterable, Codable {
         case research = "Research"
         case followUp = "Follow Up"
@@ -27,19 +29,19 @@ import SwiftUI
     // MARK: - Core Work Fields
     /// Work kind (practice, follow-up, research)
     var kindRaw: String? = nil
-    /// Work status (active, review, complete)
+    /// Work status (active, review, complete) - indexed for frequent filtering
     var statusRaw: String = WorkStatus.active.rawValue
     /// When the work was assigned (defaults to createdAt if not set)
     var assignedAt: Date = Date()
     /// Last meaningful touch date (for aging calculations)
     var lastTouchedAt: Date? = nil
-    /// Due date for the work
+    /// Due date for the work - indexed for date range queries
     var dueAt: Date? = nil
     /// Completion outcome (mastered, needsReview, etc.)
     var completionOutcomeRaw: String? = nil
     /// Legacy contract ID for traceability (from migration)
     var legacyContractID: UUID? = nil
-    /// Student ID (CloudKit compatible string)
+    /// Student ID (CloudKit compatible string) - indexed for student-specific queries
     var studentID: String = ""
     /// Lesson ID (CloudKit compatible string)
     var lessonID: String = ""
