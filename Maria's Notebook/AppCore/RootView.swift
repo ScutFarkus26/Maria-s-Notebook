@@ -168,6 +168,8 @@ struct RootView: View {
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
+    @Environment(\.dependencies) private var dependencies
+    @Environment(\.calendar) private var calendar
     @State private var isShowingQuickNote = false
     @State private var isShowingNewPresentation = false
     @State private var isShowingNewWorkItem = false
@@ -175,6 +177,16 @@ struct RootView: View {
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
+    
+    // Preferences for presentations preloading
+    @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
+    @AppStorage("LessonsAgenda.missWindow") private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    
+    private var missWindow: PresentationsMissWindow {
+        PresentationsMissWindow(rawValue: missWindowRaw) ?? .all
+    }
 
     // MARK: - Computed
     private var selectedNavItem: NavigationItem {
@@ -208,6 +220,23 @@ struct RootView: View {
             mainContent
         }
         .onAppear(perform: handleMigration)
+        // DISABLED: Preload causes crashes when database is not fully ready
+        // The presentations view will load data on-demand when navigated to
+        // .task {
+        //     // Wait longer for the database to be fully initialized before preloading
+        //     // This prevents crashes during CloudKit initialization and heavy migrations
+        //     try? await Task.sleep(for: .seconds(5))
+        //     
+        //     // Preload presentations data in the background for instant navigation
+        //     // This runs once when the view appears and warms up the cache
+        //     dependencies.preloadPresentationsData(
+        //         calendar: calendar,
+        //         inboxOrderRaw: inboxOrderRaw,
+        //         missWindow: missWindow,
+        //         showTestStudents: showTestStudents,
+        //         testStudentNamesRaw: testStudentNamesRaw
+        //     )
+        // }
         .onChange(of: appRouter.navigationDestination, handleNavigationDestinationChange)
         .onChange(of: appRouter.selectedNavItem, handleSelectedNavItemChange)
         .onChange(of: appRouter.selectedTab, handleSelectedTabChange)

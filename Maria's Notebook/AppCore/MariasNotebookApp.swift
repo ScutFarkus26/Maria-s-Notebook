@@ -196,8 +196,15 @@ struct MariasNotebookApp: App {
                     #if swift(>=6.0)
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
                         do {
+                            let cloudKitLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "CloudKit")
+                            let cloudKitStart = Date()
+                            cloudKitLogger.info("Starting CloudKit container initialization...")
+                            
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                             let container = try ModelContainer(for: schema, configurations: config)
+                            
+                            cloudKitLogger.info("CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(cloudKitStart)))s")
+                            
                             UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
                             // Clear any previous error since CloudKit is now active
                             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
@@ -231,8 +238,15 @@ struct MariasNotebookApp: App {
                     #else
                     if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
                         do {
+                            let cloudKitLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "CloudKit")
+                            let cloudKitStart = Date()
+                            cloudKitLogger.info("Starting CloudKit container initialization...")
+                            
                             let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                             let container = try ModelContainer(for: schema, configurations: config)
+                            
+                            cloudKitLogger.info("CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(cloudKitStart)))s")
+                            
                             UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
                             // Clear any previous error since CloudKit is now active
                             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
@@ -280,10 +294,17 @@ struct MariasNotebookApp: App {
         }
 
         do {
-            // Attempt migration before opening store (if needed)
-            _ = MariasNotebookApp.attemptAttendanceRecordMigrationIfNeeded()
+            let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "Container")
             
+            // Attempt migration before opening store (if needed)
+            let migrationCheckStart = Date()
+            _ = MariasNotebookApp.attemptAttendanceRecordMigrationIfNeeded()
+            logger.info("createModelContainer: Migration check completed in \(String(format: "%.3f", Date().timeIntervalSince(migrationCheckStart)))s")
+            
+            let ubiquityStart = Date()
             let _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
+            logger.info("createModelContainer: Ubiquity check completed in \(String(format: "%.3f", Date().timeIntervalSince(ubiquityStart)))s")
+            
             if useInMemory {
                 let container = try makeContainer(inMemory: true)
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
@@ -292,6 +313,7 @@ struct MariasNotebookApp: App {
                 return container
             } else {
                 // Validate store file before attempting to open
+                let validationStart = Date()
                 let storeURL = MariasNotebookApp.storeFileURL()
                 let fm = FileManager.default
                 if fm.fileExists(atPath: storeURL.path) {
@@ -304,11 +326,31 @@ struct MariasNotebookApp: App {
                         )
                     }
                 }
+                logger.info("createModelContainer: Store validation completed in \(String(format: "%.3f", Date().timeIntervalSince(validationStart)))s")
                 
                 // CloudKit compatibility: All model fixes are complete. Enable CloudKit by default.
                 // Users can disable it via the settings toggle if needed.
                 let enableCloudKit = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
-                let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
+                
+                let containerCreateStart = Date()
+                logger.info("createModelContainer: Starting container creation (CloudKit: \(enableCloudKit))...")
+                
+                // Try CloudKit first if enabled, but fall back to local if it takes too long or fails
+                let container: ModelContainer
+                if enableCloudKit {
+                    do {
+                        container = try makeContainer(inMemory: false, cloud: true)
+                        logger.info("createModelContainer: CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(containerCreateStart)))s")
+                    } catch {
+                        logger.warning("createModelContainer: CloudKit initialization failed, falling back to local storage: \(error.localizedDescription)")
+                        // Fall back to local storage if CloudKit fails
+                        container = try makeContainer(inMemory: false, cloud: false)
+                        logger.info("createModelContainer: Local container created as fallback in \(String(format: "%.3f", Date().timeIntervalSince(containerCreateStart)))s")
+                    }
+                } else {
+                    container = try makeContainer(inMemory: false, cloud: false)
+                    logger.info("createModelContainer: Local container created in \(String(format: "%.3f", Date().timeIntervalSince(containerCreateStart)))s")
+                }
                 UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 if !enableCloudKit {
@@ -431,6 +473,9 @@ struct MariasNotebookApp: App {
             return existing
         }
         
+        // Signal that we're initializing the container (this is what takes time)
+        AppBootstrapper.shared.setState(.initializingContainer)
+        
         // CRITICAL: If you see a crash at this line (calling createModelContainer()),
         // SwiftData is asserting internally during schema processing.
         // 
@@ -443,10 +488,22 @@ struct MariasNotebookApp: App {
         // NOTE: We cannot catch SwiftData's internal assertions - they crash immediately.
 
         do {
+            let containerStart = Date()
+            let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "Container")
+            logger.info("ModelContainer: Starting initialization...")
+            
             let container = try MariasNotebookApp.createModelContainer()
+            
+            logger.info("ModelContainer: Creation completed in \(String(format: "%.3f", Date().timeIntervalSince(containerStart)))s")
+            
             // Configure SQLite to suppress detached signature errors
             MariasNotebookApp.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
             MariasNotebookApp._sharedModelContainer = container
+            
+            // Reset state to idle so bootstrap can start
+            AppBootstrapper.shared.setState(.idle)
+            
+            logger.info("ModelContainer: Total initialization time: \(String(format: "%.3f", Date().timeIntervalSince(containerStart)))s")
             return container
         } catch {
             // This should never be reached if createModelContainer handles all errors properly,
@@ -545,8 +602,26 @@ struct MariasNotebookApp: App {
         #endif
     }
 
+    private var loadingMessage: String {
+        switch bootstrapper.state {
+        case .idle:
+            return "Starting up..."
+        case .initializingContainer:
+            return "Initializing database..."
+        case .migrating:
+            return "Running migrations..."
+        case .ready:
+            return "Ready"
+        }
+    }
+    
     var body: some Scene {
-        WindowGroup("", id: "mainWindow") {
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "App")
+        logger.info("App body: Starting scene body evaluation")
+        
+        return WindowGroup("", id: "mainWindow") {
+            let _ = logger.info("App body: Inside WindowGroup closure, bootstrapper state: \(String(describing: bootstrapper.state))")
+            
             Group {
                 // Show database error view if there's an initialization error
                 if databaseErrorCoordinator.error != nil || MariasNotebookApp.initError != nil {
@@ -576,7 +651,7 @@ struct MariasNotebookApp: App {
                         VStack(spacing: 20) {
                             ProgressView()
                                 .controlSize(.large)
-                            Text("Preparing Database...")
+                            Text(loadingMessage)
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)

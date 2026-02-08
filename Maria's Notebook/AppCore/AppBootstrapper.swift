@@ -12,6 +12,7 @@ final class AppBootstrapper: ObservableObject {
 
     enum State {
         case idle
+        case initializingContainer
         case migrating
         case ready
     }
@@ -21,21 +22,29 @@ final class AppBootstrapper: ObservableObject {
     static let shared = AppBootstrapper()
     private init() {}
     
+    func setState(_ newState: State) {
+        state = newState
+    }
+    
     func bootstrap(modelContainer: ModelContainer) async {
         guard state == .idle else { return }
         state = .migrating
         
         let context = modelContainer.mainContext
         
-        // print("AppBootstrapper: Starting startup checks...")
+        let startTime = Date()
+        Self.logger.info("Bootstrap: Starting startup checks...")
         
         // 1. Calendar Setup
+        let calendarStart = Date()
         AppCalendar.adopt(timeZoneFrom: Calendar.current)
+        Self.logger.info("Bootstrap: Calendar setup completed in \(Self.formatSeconds(Date().timeIntervalSince(calendarStart)))s")
         
         // 2. Critical Data Repairs
         // (Completed and removed)
         
         // 3. Schema & Data Normalization (quick, safe checks)
+        let migrationStart = Date()
         DataMigrations.fixCommunityTopicTagsIfNeeded(using: context)
         DataMigrations.fixStudentLessonStudentIDsIfNeeded(using: context)
         
@@ -45,25 +54,30 @@ final class AppBootstrapper: ObservableObject {
         
         // 3.6.5. GroupTrack default behavior migration: All groups are tracks by default (sequential)
         DataMigrations.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
+        Self.logger.info("Bootstrap: Quick migrations completed in \(Self.formatSeconds(Date().timeIntervalSince(migrationStart)))s")
 
         // 4. Initialize Reminder Sync Service
+        let reminderStart = Date()
         ReminderSyncService.shared.modelContext = context
         // Perform initial sync if configured
         if ReminderSyncService.shared.syncListName != nil {
             Task {
                 do {
                     try await ReminderSyncService.shared.syncReminders()
-                    // print("AppBootstrapper: Initial reminder sync completed")
+                    Self.logger.info("Bootstrap: Initial reminder sync completed")
                 } catch {
-                    // print("AppBootstrapper: Initial reminder sync failed: \(error.localizedDescription)")
+                    Self.logger.error("Bootstrap: Initial reminder sync failed: \(error.localizedDescription)")
                 }
             }
         }
+        Self.logger.info("Bootstrap: Reminder service setup completed in \(Self.formatSeconds(Date().timeIntervalSince(reminderStart)))s")
         
         // 5. Signal UI (allow first render; heavy migrations continue in background)
+        let routerStart = Date()
         AppRouter.shared.refreshPlanningInbox()
+        Self.logger.info("Bootstrap: Router refresh completed in \(Self.formatSeconds(Date().timeIntervalSince(routerStart)))s")
         
-        // print("AppBootstrapper: Startup checks complete.")
+        Self.logger.info("Bootstrap: Initial phase complete in \(Self.formatSeconds(Date().timeIntervalSince(startTime)))s - transitioning to ready state")
         state = .ready
 
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
