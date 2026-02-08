@@ -22,6 +22,8 @@ struct StudentOverviewTab: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     
+    @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
+    
     private func lessonName(for work: WorkModel) -> String {
         if let id = UUID(uuidString: work.lessonID), let lesson = lessonsByID[id] {
             return lesson.name
@@ -42,12 +44,8 @@ struct StudentOverviewTab: View {
         if let lastNoteDate = latestNoteDate(for: work) {
             return daysSince(lastNoteDate) >= 10
         }
-        let schoolDaysSinceCreated = LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: work.createdAt,
-            asOf: Date(),
-            using: modelContext,
-            calendar: calendar
-        )
+        // Use cached value to avoid repeated database queries during rendering
+        let schoolDaysSinceCreated = cachedAgeSchoolDays[work.id] ?? 0
         return schoolDaysSinceCreated >= 10
     }
 
@@ -71,8 +69,8 @@ struct StudentOverviewTab: View {
     }
     
     private func ageSchoolDays(for work: WorkModel) -> Int {
-        let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
-        return LessonAgeHelper.schoolDaysSinceCreation(createdAt: lastTouch, asOf: Date(), using: modelContext, calendar: calendar)
+        // Use cached value to avoid repeated database queries during rendering
+        return cachedAgeSchoolDays[work.id] ?? 0
     }
     
     private func metadata(for work: WorkModel) -> String {
@@ -153,5 +151,41 @@ struct StudentOverviewTab: View {
                 NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
             }
         }
+        .task(id: workCache.map { $0.id }) {
+            await precomputeAgeValues()
+        }
+    }
+    
+    // MARK: - Performance Optimization
+    
+    /// Precompute age values once for all work items to avoid repeated database queries during rendering
+    private func precomputeAgeValues() async {
+        let cache = SchoolDayCalculationCache.shared
+        let today = Date()
+        
+        guard !workCache.isEmpty else {
+            cachedAgeSchoolDays = [:]
+            return
+        }
+        
+        // Find date range for all work items
+        let allDates = workCache.map { work in
+            WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
+        }
+        
+        guard let minDate = allDates.min(), let maxDate = allDates.max() else { return }
+        
+        // Preload school days cache for entire range
+        cache.preloadNonSchoolDays(from: minDate, to: today, using: modelContext, calendar: calendar)
+        
+        // Compute all age values using cached data
+        var result: [UUID: Int] = [:]
+        for work in workCache {
+            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
+            let age = cache.schoolDaysSinceCreation(createdAt: lastTouch, asOf: today, using: modelContext, calendar: calendar)
+            result[work.id] = age
+        }
+        
+        cachedAgeSchoolDays = result
     }
 }

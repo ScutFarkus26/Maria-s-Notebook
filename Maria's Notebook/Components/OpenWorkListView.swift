@@ -4,9 +4,11 @@ import SwiftData
 struct OpenWorkListView: View {
     @Environment(\.modelContext) private var modelContext
 
-    @Query(sort: [
-        SortDescriptor(\WorkModel.createdAt, order: .reverse)
-    ]) private var allWorks: [WorkModel]
+    // OPTIMIZATION: Query only open works at database level instead of loading all and filtering in memory
+    @Query(
+        filter: #Predicate<WorkModel> { $0.statusRaw != "complete" },
+        sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]
+    ) private var openWorks: [WorkModel]
 
     @Query private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
@@ -23,10 +25,6 @@ struct OpenWorkListView: View {
 
     private var studentLessonsByID: [UUID: StudentLesson] {
         Dictionary(studentLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-    }
-
-    private var openWorks: [WorkModel] {
-        allWorks.filter { $0.isOpen }
     }
 
     /// Paginated open works for display

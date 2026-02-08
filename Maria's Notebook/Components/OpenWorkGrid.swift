@@ -13,6 +13,8 @@ struct OpenWorkGrid: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
+    
+    @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
 
     // MARK: - Layout
     // Choose 1 or 2 columns based on available width; never create 3+
@@ -27,8 +29,7 @@ struct OpenWorkGrid: View {
                     ForEach(groupedSections, id: \.key) { section in
                         Section(header: groupHeader(title: section.key, count: section.items.count)) {
                             ForEach(section.items, id: \.id) { item in
-                                let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: item.work, checkIns: item.work.checkIns, notes: item.work.unifiedNotes)
-                                let ageSchoolDays = LessonAgeHelper.schoolDaysSinceCreation(createdAt: lastTouch, asOf: Date(), using: modelContext, calendar: calendar)
+                                let ageSchoolDays = cachedAgeSchoolDays[item.work.id] ?? 0
                                 WorkCard.grid(
                                     work: item.work,
                                     lessonTitle: item.title,
@@ -47,6 +48,42 @@ struct OpenWorkGrid: View {
                 .padding(.vertical, 6)
             }
         }
+        .task {
+            await precomputeAgeValues()
+        }
+        .onChange(of: works.map { $0.id }) { _, _ in
+            Task {
+                await precomputeAgeValues()
+            }
+        }
+    }
+    
+    // MARK: - Performance Optimization
+    
+    /// Precompute age values once for all works to avoid repeated calculations during rendering
+    private func precomputeAgeValues() async {
+        let cache = SchoolDayCalculationCache.shared
+        let today = Date()
+        
+        // Find date range for all works
+        let allDates = works.map { work in
+            WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
+        }
+        
+        guard let minDate = allDates.min(), let maxDate = allDates.max() else { return }
+        
+        // Preload school days cache for entire range
+        cache.preloadNonSchoolDays(from: minDate, to: today, using: modelContext, calendar: calendar)
+        
+        // Compute all age values using cached data
+        var result: [UUID: Int] = [:]
+        for work in works {
+            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
+            let age = cache.schoolDaysSinceCreation(createdAt: lastTouch, asOf: today, using: modelContext, calendar: calendar)
+            result[work.id] = age
+        }
+        
+        cachedAgeSchoolDays = result
     }
 
     private func groupHeader(title: String, count: Int) -> some View {
@@ -176,12 +213,8 @@ struct OpenWorkGrid: View {
         if let lastNoteDate = latestNoteDate(for: w) {
             return daysSince(lastNoteDate) >= 10
         }
-        let schoolDaysSinceCreated = LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: w.createdAt,
-            asOf: Date(),
-            using: modelContext,
-            calendar: calendar
-        )
+        // Use cached age value instead of recalculating
+        let schoolDaysSinceCreated = cachedAgeSchoolDays[w.id] ?? 0
         return schoolDaysSinceCreated >= 10
     }
 
