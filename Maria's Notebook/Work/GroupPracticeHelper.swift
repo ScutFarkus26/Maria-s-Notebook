@@ -53,11 +53,11 @@ struct GroupPracticeBadge: View {
 struct QuickGroupPracticeButton: View {
     let work: WorkModel
     let availablePartners: [WorkModel]
-    @Binding var showGroupPracticeSheet: Bool
-    
+    @Binding var showPracticeSessionSheet: Bool
+
     var body: some View {
         Button {
-            showGroupPracticeSheet = true
+            showPracticeSessionSheet = true
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "person.2.fill")

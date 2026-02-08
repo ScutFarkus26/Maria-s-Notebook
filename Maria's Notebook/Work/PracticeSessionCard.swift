@@ -101,6 +101,30 @@ struct PracticeSessionCard: View {
                     }
                 }
                 
+                // Quality metrics (if available)
+                if session.practiceQuality != nil || session.independenceLevel != nil {
+                    HStack(spacing: 12) {
+                        if let quality = session.practiceQuality {
+                            qualityIndicator(level: quality, color: .blue, label: "Quality")
+                        }
+                        
+                        if let independence = session.independenceLevel {
+                            qualityIndicator(level: independence, color: .green, label: "Independence")
+                        }
+                    }
+                }
+                
+                // Behavior tags (if any)
+                if !session.activeBehaviors.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(session.activeBehaviors, id: \.self) { behavior in
+                                behaviorTag(behavior)
+                            }
+                        }
+                    }
+                }
+                
                 // Notes preview
                 if !session.sharedNotes.isEmpty {
                     Text(session.sharedNotes)
@@ -170,6 +194,105 @@ struct PracticeSessionCard: View {
                         
                         Text(StudentFormatter.displayName(for: student))
                             .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    }
+                }
+            }
+            
+            // Quality metrics
+            if session.practiceQuality != nil || session.independenceLevel != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Quality Metrics")
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    
+                    HStack(spacing: 16) {
+                        if let quality = session.practiceQuality, let label = session.practiceQualityLabel {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Engagement")
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 6) {
+                                    ForEach(1...5, id: \.self) { level in
+                                        Circle()
+                                            .fill(Color.blue.opacity(quality >= level ? 1.0 : 0.2))
+                                            .frame(width: 12, height: 12)
+                                    }
+                                    Text(label)
+                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                        
+                        if let independence = session.independenceLevel, let label = session.independenceLevelLabel {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Independence")
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 6) {
+                                    ForEach(1...5, id: \.self) { level in
+                                        Circle()
+                                            .fill(Color.green.opacity(independence >= level ? 1.0 : 0.2))
+                                            .frame(width: 12, height: 12)
+                                    }
+                                    Text(label)
+                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.green)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Observable behaviors
+            if !session.activeBehaviors.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Observed Behaviors")
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    
+                    FlowLayout(spacing: 6) {
+                        ForEach(session.activeBehaviors, id: \.self) { behavior in
+                            behaviorTag(behavior)
+                        }
+                    }
+                }
+            }
+            
+            // Next steps / action items
+            if session.hasActionFlags || session.hasNextSteps {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Next Steps")
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        if session.needsReteaching {
+                            actionRow(icon: "arrow.counterclockwise", text: "Needs Reteaching", color: .orange)
+                        }
+                        if session.readyForCheckIn {
+                            actionRow(icon: "checkmark.circle", text: "Ready for Check-in", color: .blue)
+                        }
+                        if session.readyForAssessment {
+                            actionRow(icon: "star.circle", text: "Ready for Assessment", color: .green)
+                        }
+                        if let checkIn = session.checkInScheduledFor {
+                            actionRow(icon: "calendar", text: "Check-in: \(formatDate(checkIn))", color: .indigo)
+                        }
+                        if !session.followUpActions.isEmpty {
+                            HStack(alignment: .top, spacing: 6) {
+                                Image(systemName: "list.bullet")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.purple)
+                                Text(session.followUpActions)
+                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .foregroundStyle(.primary)
+                            }
+                        }
                     }
                 }
             }
@@ -300,6 +423,57 @@ struct PracticeSessionCard: View {
         formatter.dateStyle = .long
         formatter.timeStyle = .none
         return formatter.string(from: date)
+    }
+    
+    @ViewBuilder
+    private func qualityIndicator(level: Int, color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            ForEach(1...5, id: \.self) { index in
+                Circle()
+                    .fill(color.opacity(level >= index ? 1.0 : 0.2))
+                    .frame(width: 6, height: 6)
+            }
+            Text(label)
+                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    @ViewBuilder
+    private func behaviorTag(_ behavior: String) -> some View {
+        Text(behavior)
+            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+            .foregroundStyle(behaviorColor(for: behavior))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(behaviorColor(for: behavior).opacity(0.15))
+            )
+    }
+    
+    private func behaviorColor(for behavior: String) -> Color {
+        switch behavior {
+        case "Breakthrough!": return .green
+        case "Struggled": return .orange
+        case "Needs reteaching": return .red
+        case "Ready for check-in", "Ready for assessment": return .blue
+        case "Asked for help": return .purple
+        case "Helped peer": return .teal
+        default: return .gray
+        }
+    }
+    
+    @ViewBuilder
+    private func actionRow(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(color)
+            Text(text)
+                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .foregroundStyle(.primary)
+        }
     }
 }
 

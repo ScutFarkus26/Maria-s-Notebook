@@ -80,6 +80,8 @@ struct WorkDetailView: View {
         }
     }
     
+    @State private var selectedPracticeSession: PracticeSession? = nil
+    
     @ViewBuilder
     private func mainContent(work: WorkModel) -> some View {
         VStack(spacing: 0) {
@@ -91,10 +93,14 @@ struct WorkDetailView: View {
 
                     if viewModel.status == .complete { completionSection() }
                     if viewModel.workKind == .report { stepsSection() }
+                    if !practiceSessions.isEmpty { practiceOverviewSection() }
                     practiceHistorySection()
                     notesSection()
                     calendarSection()
                 }.padding(28)
+            }
+            .sheet(item: $selectedPracticeSession) { session in
+                practiceSessionDetailSheet(session: session)
             }
             Divider()
             HStack(spacing: 12) {
@@ -113,12 +119,12 @@ struct WorkDetailView: View {
                         .buttonStyle(.plain)
                         
                         Button {
-                            viewModel.showGroupPracticeSheet = true
+                            viewModel.showPracticeSessionSheet = true
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "person.2.fill")
                                     .font(.system(size: 12, weight: .medium))
-                                Text("Group Practice")
+                                Text("Add Practice")
                                     .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
                             }
                             .foregroundStyle(.white)
@@ -198,8 +204,8 @@ struct WorkDetailView: View {
                         }
                     )
                 }
-                .sheet(isPresented: $viewModel.showGroupPracticeSheet) {
-                    GroupPracticeSheet(initialWorkItem: work) { _ in
+                .sheet(isPresented: $viewModel.showPracticeSessionSheet) {
+                    PracticeSessionSheet(initialWorkItem: work) { _ in
                         // Practice session saved - will automatically show in history
                     }
                 }
@@ -538,6 +544,104 @@ struct WorkDetailView: View {
         }
     }
 
+    @ViewBuilder private func practiceOverviewSection() -> some View {
+        let stats = calculatePracticeStats()
+
+        DetailSectionCard(
+            title: "Practice Overview",
+            icon: "chart.bar.fill",
+            accentColor: .green
+        ) {
+            VStack(spacing: 16) {
+                // Top row: Sessions and Time
+                HStack(spacing: 16) {
+                    statBox(
+                        value: "\(stats.totalSessions)",
+                        label: stats.totalSessions == 1 ? "Session" : "Sessions",
+                        icon: "calendar",
+                        color: .blue
+                    )
+
+                    if let totalTime = stats.totalDuration {
+                        statBox(
+                            value: totalTime,
+                            label: "Practice Time",
+                            icon: "clock",
+                            color: .purple
+                        )
+                    }
+                }
+
+                // Quality metrics row
+                if stats.avgQuality != nil || stats.avgIndependence != nil {
+                    HStack(spacing: 16) {
+                        if let avgQuality = stats.avgQuality {
+                            qualityMetricBox(
+                                level: avgQuality,
+                                label: "Avg Quality",
+                                icon: "star.fill",
+                                color: .blue
+                            )
+                        }
+
+                        if let avgIndependence = stats.avgIndependence {
+                            qualityMetricBox(
+                                level: avgIndependence,
+                                label: "Avg Independence",
+                                icon: "figure.walk",
+                                color: .green
+                            )
+                        }
+                    }
+                }
+
+                // Behavior highlights
+                if !stats.topBehaviors.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Recent Observations")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        FlowLayout(spacing: 6) {
+                            ForEach(stats.topBehaviors, id: \.self) { behavior in
+                                behaviorPill(behavior)
+                            }
+                        }
+                    }
+                }
+
+                // Action items
+                if stats.needsReteaching > 0 || stats.upcomingCheckIns > 0 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Action Items")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 12) {
+                            if stats.needsReteaching > 0 {
+                                actionItemBox(
+                                    count: stats.needsReteaching,
+                                    label: "Needs Reteaching",
+                                    icon: "arrow.counterclockwise",
+                                    color: .orange
+                                )
+                            }
+
+                            if stats.upcomingCheckIns > 0 {
+                                actionItemBox(
+                                    count: stats.upcomingCheckIns,
+                                    label: "Check-ins Scheduled",
+                                    icon: "calendar.badge.clock",
+                                    color: .blue
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @ViewBuilder private func practiceHistorySection() -> some View {
         if !practiceSessions.isEmpty {
             DetailSectionCard(
@@ -547,7 +651,32 @@ struct WorkDetailView: View {
             ) {
                 VStack(spacing: 12) {
                     ForEach(practiceSessions) { session in
-                        PracticeSessionCard(session: session, displayMode: .standard)
+                        PracticeSessionCard(session: session, displayMode: .standard) {
+                            selectedPracticeSession = session
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func practiceSessionDetailSheet(session: PracticeSession) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    PracticeSessionCard(session: session, displayMode: .expanded)
+                }
+                .padding(20)
+            }
+            .navigationTitle("Practice Session")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        selectedPracticeSession = nil
                     }
                 }
             }
@@ -806,6 +935,172 @@ struct WorkDetailView: View {
         }
     }
 
+
+    // MARK: - Practice Overview Helpers
+
+    private struct PracticeStats {
+        var totalSessions: Int = 0
+        var totalDuration: String? = nil
+        var avgQuality: Double? = nil
+        var avgIndependence: Double? = nil
+        var topBehaviors: [String] = []
+        var needsReteaching: Int = 0
+        var upcomingCheckIns: Int = 0
+    }
+
+    private func calculatePracticeStats() -> PracticeStats {
+        var stats = PracticeStats()
+
+        stats.totalSessions = practiceSessions.count
+
+        // Calculate total duration
+        let totalSeconds = practiceSessions.compactMap { $0.duration }.reduce(0, +)
+        if totalSeconds > 0 {
+            let minutes = Int(totalSeconds / 60)
+            if minutes < 60 {
+                stats.totalDuration = "\(minutes) min"
+            } else {
+                let hours = Double(minutes) / 60.0
+                stats.totalDuration = String(format: "%.1f hrs", hours)
+            }
+        }
+
+        // Calculate average quality
+        let qualityScores = practiceSessions.compactMap { $0.practiceQuality }
+        if !qualityScores.isEmpty {
+            stats.avgQuality = Double(qualityScores.reduce(0, +)) / Double(qualityScores.count)
+        }
+
+        // Calculate average independence
+        let independenceScores = practiceSessions.compactMap { $0.independenceLevel }
+        if !independenceScores.isEmpty {
+            stats.avgIndependence = Double(independenceScores.reduce(0, +)) / Double(independenceScores.count)
+        }
+
+        // Collect all behaviors
+        var behaviorCounts: [String: Int] = [:]
+        for session in practiceSessions {
+            for behavior in session.activeBehaviors {
+                behaviorCounts[behavior, default: 0] += 1
+            }
+        }
+
+        // Get top 3 behaviors
+        stats.topBehaviors = behaviorCounts
+            .sorted { $0.value > $1.value }
+            .prefix(3)
+            .map { $0.key }
+
+        // Count action items
+        stats.needsReteaching = practiceSessions.filter { $0.needsReteaching }.count
+        stats.upcomingCheckIns = practiceSessions.filter { $0.checkInScheduledFor != nil }.count
+
+        return stats
+    }
+
+    @ViewBuilder
+    private func statBox(value: String, label: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(color)
+
+                Text(value)
+                    .font(.system(size: AppTheme.FontSize.titleMedium, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+            }
+
+            Text(label)
+                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(color.opacity(0.08))
+        )
+    }
+
+    @ViewBuilder
+    private func qualityMetricBox(level: Double, label: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(color)
+
+            HStack(spacing: 4) {
+                ForEach(1...5, id: \.self) { index in
+                    Circle()
+                        .fill(color.opacity(level >= Double(index) ? 1.0 : 0.2))
+                        .frame(width: 8, height: 8)
+                }
+            }
+
+            Text(label)
+                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(color.opacity(0.08))
+        )
+    }
+
+    @ViewBuilder
+    private func behaviorPill(_ behavior: String) -> some View {
+        let color = behaviorColor(for: behavior)
+
+        Text(behavior)
+            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(color.opacity(0.15))
+            )
+    }
+
+    private func behaviorColor(for behavior: String) -> Color {
+        switch behavior {
+        case "Breakthrough!": return .green
+        case "Struggled": return .orange
+        case "Needs reteaching": return .red
+        case "Ready for check-in", "Ready for assessment": return .blue
+        case "Asked for help": return .purple
+        case "Helped peer": return .teal
+        default: return .gray
+        }
+    }
+
+    @ViewBuilder
+    private func actionItemBox(count: Int, label: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(color)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(count)")
+                    .font(.system(size: AppTheme.FontSize.body, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Text(label)
+                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(color.opacity(0.1))
+        )
+    }
 
     private func save() {
         viewModel.save(modelContext: modelContext, saveCoordinator: saveCoordinator)

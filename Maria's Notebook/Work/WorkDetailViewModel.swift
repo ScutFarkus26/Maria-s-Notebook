@@ -22,7 +22,7 @@ final class WorkDetailViewModel: ObservableObject {
     @Published var showDeleteAlert = false
     @Published var showAddStepSheet = false
     @Published var stepBeingEdited: WorkStep?
-    @Published var showGroupPracticeSheet = false
+    @Published var showPracticeSessionSheet = false
     @Published var showUnlockNextLessonAlert = false
     @Published var nextLessonToUnlock: Lesson?
     

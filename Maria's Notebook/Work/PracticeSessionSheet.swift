@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Sheet for recording a group practice session with multiple students
-struct GroupPracticeSheet: View {
+/// Sheet for recording a practice session (solo or group) with students
+struct PracticeSessionSheet: View {
     let initialWorkItem: WorkModel
     var onSave: ((PracticeSession) -> Void)? = nil
     
@@ -24,11 +24,18 @@ struct GroupPracticeSheet: View {
     @State private var location: String = ""
     @State private var hasLocation: Bool = false
     @State private var searchText: String = ""
-    
+
+    // Session quality metrics
+    @State private var practiceQuality: Int? = nil
+    @State private var independenceLevel: Int? = nil
+
     // Individual notes per student (optional)
     @State private var individualNotes: [UUID: String] = [:]
     @State private var individualUnderstandingLevels: [UUID: Int] = [:]
     @State private var showIndividualNotes: Bool = false
+    
+    // Student selection sheet
+    @State private var showStudentSelector: Bool = false
     
     // Presentation and lesson context
     @State private var relatedPresentation: Presentation? = nil
@@ -258,19 +265,19 @@ struct GroupPracticeSheet: View {
                         
                         Divider()
                         
-                        // Currently practicing section
+                        // Currently practicing section with add button
                         currentlyPracticingSection
-                        
-                        Divider()
-                        
-                        // Add students section
-                        addStudentsSection
                         
                         Divider()
                         
                         // Shared notes
                         sharedNotesSection
-                        
+
+                        Divider()
+
+                        // Quality metrics
+                        qualityMetricsSection
+
                         // Optional fields
                         optionalFieldsSection
                         
@@ -281,13 +288,17 @@ struct GroupPracticeSheet: View {
                     }
                     .padding(24)
                 }
+                .scrollDismissesKeyboard(.interactively)
+                .sheet(isPresented: $showStudentSelector) {
+                    studentSelectorSheet
+                }
                 
                 Divider()
                 
                 // Bottom bar
                 bottomBar
             }
-            .navigationTitle("Group Practice Session")
+            .navigationTitle("Practice Session")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -405,9 +416,29 @@ struct GroupPracticeSheet: View {
     
     private var currentlyPracticingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Currently Practicing")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
+            HStack {
+                Text("Students")
+                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+                
+                Button {
+                    showStudentSelector = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Add Partners")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Color.accentColor))
+                }
+                .buttonStyle(.plain)
+            }
             
             ForEach(selectedStudents) { student in
                 HStack {
@@ -451,47 +482,59 @@ struct GroupPracticeSheet: View {
         }
     }
     
-    private var addStudentsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Add Practice Partners")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
+    private var studentSelectorSheet: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Search bar
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 14))
 
-            // Search bar
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 14))
+                    TextField("Search students...", text: $searchText)
+                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                        .textFieldStyle(.plain)
 
-                TextField("Search students...", text: $searchText)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                    .textFieldStyle(.plain)
-
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 16))
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.system(size: 16))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                }
+                .padding(12)
+                .background(Color.primary.opacity(0.05))
+                
+                Divider()
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if orderedStudents.isEmpty {
+                            emptyPartnersMessage
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding()
+                        } else {
+                            studentSelectionList
+                        }
+                    }
+                    .padding(20)
                 }
             }
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.05))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-            )
-
-            if orderedStudents.isEmpty {
-                emptyPartnersMessage
-            } else {
-                studentSelectionList
+            .navigationTitle("Add Practice Partners")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        showStudentSelector = false
+                        searchText = "" // Clear search on dismiss
+                    }
+                }
             }
         }
     }
@@ -594,10 +637,11 @@ struct GroupPracticeSheet: View {
                 .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary)
             
-            TextEditor(text: $sharedNotes)
+            TextField("Add session notes...", text: $sharedNotes, axis: .vertical)
                 .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                .frame(minHeight: 120)
-                .padding(8)
+                .lineLimit(5...10)
+                .textFieldStyle(.plain)
+                .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.primary.opacity(0.05))
@@ -608,7 +652,99 @@ struct GroupPracticeSheet: View {
                 )
         }
     }
-    
+
+    private var qualityMetricsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Session Quality")
+                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+
+            // Practice Quality
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Engagement Level")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 12) {
+                    ForEach(1...5, id: \.self) { level in
+                        Button {
+                            practiceQuality = (practiceQuality == level) ? nil : level
+                        } label: {
+                            Circle()
+                                .fill(Color.blue.opacity(practiceQuality == level ? 1.0 : 0.2))
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Text("\(level)")
+                                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(practiceQuality == level ? .white : .blue)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if let quality = practiceQuality {
+                        Text(qualityLabel(for: quality))
+                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            // Independence Level
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Independence Level")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 12) {
+                    ForEach(1...5, id: \.self) { level in
+                        Button {
+                            independenceLevel = (independenceLevel == level) ? nil : level
+                        } label: {
+                            Circle()
+                                .fill(Color.green.opacity(independenceLevel == level ? 1.0 : 0.2))
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Text("\(level)")
+                                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(independenceLevel == level ? .white : .green)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if let independence = independenceLevel {
+                        Text(independenceLabel(for: independence))
+                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private func qualityLabel(for level: Int) -> String {
+        switch level {
+        case 1: return "Distracted"
+        case 2: return "Minimal"
+        case 3: return "Adequate"
+        case 4: return "Good"
+        case 5: return "Excellent"
+        default: return ""
+        }
+    }
+
+    private func independenceLabel(for level: Int) -> String {
+        switch level {
+        case 1: return "Constant Help"
+        case 2: return "Frequent Guidance"
+        case 3: return "Some Support"
+        case 4: return "Mostly Independent"
+        case 5: return "Fully Independent"
+        default: return ""
+        }
+    }
+
     private var optionalFieldsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Duration toggle
@@ -717,13 +853,14 @@ struct GroupPracticeSheet: View {
                     .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
 
-                TextEditor(text: Binding(
+                TextField("Add notes for \(StudentFormatter.displayName(for: student))...", text: Binding(
                     get: { individualNotes[student.id] ?? "" },
                     set: { individualNotes[student.id] = $0 }
-                ))
+                ), axis: .vertical)
                 .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                .frame(minHeight: 80)
-                .padding(8)
+                .lineLimit(3...8)
+                .textFieldStyle(.plain)
+                .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.primary.opacity(0.05))
@@ -854,6 +991,10 @@ struct GroupPracticeSheet: View {
             sharedNotes: sharedNotes,
             location: hasLocation ? location : nil
         )
+
+        // Set quality metrics
+        session.practiceQuality = practiceQuality
+        session.independenceLevel = independenceLevel
         
         // Create individual notes with understanding levels if provided
         for studentID in selectedStudentIDs {
@@ -940,7 +1081,7 @@ struct GroupPracticeSheet: View {
     context.insert(work2)
     context.insert(work3)
     
-    return GroupPracticeSheet(initialWorkItem: work1)
+    return PracticeSessionSheet(initialWorkItem: work1)
         .modelContainer(container)
         .environmentObject(SaveCoordinator())
 }
