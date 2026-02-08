@@ -19,7 +19,7 @@ struct StudentsChipsRow: View {
         HStack {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(students.filter { selectedIDs.contains($0.id) }.sorted { $0.firstName < $1.firstName }) { student in
+                    ForEach(students.filter { selectedIDs.contains($0.id) }.sorted(by: StudentSortComparator.byFirstName)) { student in
                         HStack(spacing: 4) {
                             Text(displayName(for: student))
                                 .font(.subheadline)

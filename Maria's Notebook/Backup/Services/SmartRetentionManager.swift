@@ -211,7 +211,7 @@ public final class SmartRetentionManager {
                     shouldKeep: true,
                     reason: "Daily backup representative"
                 )
-                dailyBuckets[dayKey] = classification
+                dailyBuckets.insertIfAbsent(classification, forKey: dayKey)
                 continue
             }
             
@@ -227,7 +227,7 @@ public final class SmartRetentionManager {
                     shouldKeep: true,
                     reason: "Weekly backup representative"
                 )
-                weeklyBuckets[weekKey] = classification
+                weeklyBuckets.insertIfAbsent(classification, forKey: weekKey)
                 continue
             }
             
@@ -243,7 +243,7 @@ public final class SmartRetentionManager {
                     shouldKeep: true,
                     reason: "Monthly backup representative"
                 )
-                monthlyBuckets[monthKey] = classification
+                monthlyBuckets.insertIfAbsent(classification, forKey: monthKey)
                 continue
             }
             

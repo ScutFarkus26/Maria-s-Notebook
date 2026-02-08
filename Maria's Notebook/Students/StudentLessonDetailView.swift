@@ -620,7 +620,7 @@ struct StudentLessonDetailContentView: View {
         // studentsAll is already deduplicated, but filter first then sort for clarity
         studentsAll
             .filter { vm.selectedStudentIDs.contains($0.id) }
-            .sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
+            .sorted(by: StudentSortComparator.byFirstName)
     }
     
     private func resolveLessonPagesURL() -> URL? {

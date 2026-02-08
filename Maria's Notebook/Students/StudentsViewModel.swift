@@ -139,9 +139,7 @@ final class StudentsViewModel: ObservableObject {
         guard !all.isEmpty else { return false }
         let allZero = all.allSatisfy { $0.manualOrder == 0 }
         if allZero {
-            let sorted = all.sorted { (lhs: Student, rhs: Student) -> Bool in
-                lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-            }
+            let sorted = all.sorted(by: StudentSortComparator.byFirstName)
             var changed = false
             for (idx, s) in sorted.enumerated() {
                 if s.manualOrder != idx { s.manualOrder = idx; changed = true }

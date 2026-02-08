@@ -167,9 +167,7 @@ struct AttendanceStore {
         // Build dictionary safely, handling potential duplicates by keeping the first occurrence
         var existingByStudent: [String: AttendanceRecord] = [:]
         for record in existing {
-            if existingByStudent[record.studentID] == nil {
-                existingByStudent[record.studentID] = record
-            }
+            existingByStudent.insertIfAbsent(record, forKey: record.studentID)
         }
 
         var didInsert = false
@@ -178,7 +176,7 @@ struct AttendanceStore {
                 let rec = AttendanceRecord(studentID: student.id, date: day, status: .unmarked, absenceReason: .none, note: nil)
                 context.insert(rec)
                 existing.append(rec)
-                existingByStudent[student.cloudKitKey] = rec
+                existingByStudent.insertIfAbsent(rec, forKey: student.cloudKitKey)
                 didInsert = true
             }
         }

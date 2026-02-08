@@ -185,11 +185,11 @@ struct AttendanceViewModelStatusCyclingTests {
         let record = makeTestAttendanceRecord(studentID: student.id, status: .unmarked)
         context.insert(record)
 
-        vm.recordsByStudent[student.id.uuidString] = record
+        vm.recordsByStudent[student.cloudKitKey] = record
 
         vm.cycleStatus(for: student, modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.status == .present)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .present)
     }
 
     @Test("cycleStatus transitions present to absent")
@@ -204,11 +204,11 @@ struct AttendanceViewModelStatusCyclingTests {
         let record = makeTestAttendanceRecord(studentID: student.id, status: .present)
         context.insert(record)
 
-        vm.recordsByStudent[student.id.uuidString] = record
+        vm.recordsByStudent[student.cloudKitKey] = record
 
         vm.cycleStatus(for: student, modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.status == .absent)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .absent)
     }
 
     @Test("cycleStatus transitions absent to tardy")
@@ -223,11 +223,11 @@ struct AttendanceViewModelStatusCyclingTests {
         let record = makeTestAttendanceRecord(studentID: student.id, status: .absent)
         context.insert(record)
 
-        vm.recordsByStudent[student.id.uuidString] = record
+        vm.recordsByStudent[student.cloudKitKey] = record
 
         vm.cycleStatus(for: student, modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.status == .tardy)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .tardy)
     }
 
     @Test("cycleStatus transitions tardy to leftEarly")
@@ -242,11 +242,11 @@ struct AttendanceViewModelStatusCyclingTests {
         let record = makeTestAttendanceRecord(studentID: student.id, status: .tardy)
         context.insert(record)
 
-        vm.recordsByStudent[student.id.uuidString] = record
+        vm.recordsByStudent[student.cloudKitKey] = record
 
         vm.cycleStatus(for: student, modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.status == .leftEarly)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .leftEarly)
     }
 
     @Test("cycleStatus transitions leftEarly to present")
@@ -261,11 +261,11 @@ struct AttendanceViewModelStatusCyclingTests {
         let record = makeTestAttendanceRecord(studentID: student.id, status: .leftEarly)
         context.insert(record)
 
-        vm.recordsByStudent[student.id.uuidString] = record
+        vm.recordsByStudent[student.cloudKitKey] = record
 
         vm.cycleStatus(for: student, modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.status == .present)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .present)
     }
 
     @Test("cycleStatus does nothing for unknown student")
@@ -279,7 +279,7 @@ struct AttendanceViewModelStatusCyclingTests {
 
         vm.cycleStatus(for: student, modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString] == nil)
+        #expect(vm.recordsByStudent[student.cloudKitKey] == nil)
     }
 }
 
@@ -312,8 +312,8 @@ struct AttendanceViewModelLoadingTests {
         vm.load(for: date, students: [student1, student2], modelContext: context)
 
         #expect(vm.recordsByStudent.count == 2)
-        #expect(vm.recordsByStudent[student1.id.uuidString] != nil)
-        #expect(vm.recordsByStudent[student2.id.uuidString] != nil)
+        #expect(vm.recordsByStudent[student1.cloudKitKey] != nil)
+        #expect(vm.recordsByStudent[student2.cloudKitKey] != nil)
     }
 
     @Test("load filters to provided students only")
@@ -337,7 +337,7 @@ struct AttendanceViewModelLoadingTests {
         vm.load(for: date, students: [student1, student2], modelContext: context)
 
         #expect(vm.recordsByStudent.count == 2)
-        #expect(vm.recordsByStudent[student3.id.uuidString] == nil)
+        #expect(vm.recordsByStudent[student3.cloudKitKey] == nil)
     }
 
     @Test("load handles empty student list")
@@ -380,7 +380,7 @@ struct AttendanceViewModelLoadingTests {
         let date = TestCalendar.date(year: 2025, month: 1, day: 15)
         vm.load(for: date, students: [student], modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.status == .unmarked)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .unmarked)
     }
 }
 
@@ -520,13 +520,13 @@ struct AttendanceViewModelActionsTests {
         vm.load(for: date, students: [student1, student2], modelContext: context)
 
         // Verify initial state is unmarked
-        #expect(vm.recordsByStudent[student1.id.uuidString]?.status == .unmarked)
-        #expect(vm.recordsByStudent[student2.id.uuidString]?.status == .unmarked)
+        #expect(vm.recordsByStudent[student1.cloudKitKey]?.status == .unmarked)
+        #expect(vm.recordsByStudent[student2.cloudKitKey]?.status == .unmarked)
 
         vm.markAllPresent(students: [student1, student2], modelContext: context)
 
-        #expect(vm.recordsByStudent[student1.id.uuidString]?.status == .present)
-        #expect(vm.recordsByStudent[student2.id.uuidString]?.status == .present)
+        #expect(vm.recordsByStudent[student1.cloudKitKey]?.status == .present)
+        #expect(vm.recordsByStudent[student2.cloudKitKey]?.status == .present)
     }
 
     @Test("resetDay sets all to unmarked")
@@ -546,14 +546,14 @@ struct AttendanceViewModelActionsTests {
         vm.load(for: date, students: [student1, student2], modelContext: context)
         vm.markAllPresent(students: [student1, student2], modelContext: context)
 
-        #expect(vm.recordsByStudent[student1.id.uuidString]?.status == .present)
-        #expect(vm.recordsByStudent[student2.id.uuidString]?.status == .present)
+        #expect(vm.recordsByStudent[student1.cloudKitKey]?.status == .present)
+        #expect(vm.recordsByStudent[student2.cloudKitKey]?.status == .present)
 
         // Now reset
         vm.resetDay(students: [student1, student2], modelContext: context)
 
-        #expect(vm.recordsByStudent[student1.id.uuidString]?.status == .unmarked)
-        #expect(vm.recordsByStudent[student2.id.uuidString]?.status == .unmarked)
+        #expect(vm.recordsByStudent[student1.cloudKitKey]?.status == .unmarked)
+        #expect(vm.recordsByStudent[student2.cloudKitKey]?.status == .unmarked)
     }
 
     @Test("updateNote persists note")
@@ -570,7 +570,7 @@ struct AttendanceViewModelActionsTests {
 
         vm.updateNote(for: student, note: "Doctor appointment", modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.note == "Doctor appointment")
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.note == "Doctor appointment")
     }
 
     @Test("updateNote trims whitespace")
@@ -587,7 +587,7 @@ struct AttendanceViewModelActionsTests {
 
         vm.updateNote(for: student, note: "  Trimmed note  ", modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.note == "Trimmed note")
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.note == "Trimmed note")
     }
 
     @Test("updateNote sets nil for empty string")
@@ -604,11 +604,11 @@ struct AttendanceViewModelActionsTests {
 
         // First set a note
         vm.updateNote(for: student, note: "Some note", modelContext: context)
-        #expect(vm.recordsByStudent[student.id.uuidString]?.note != nil)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.note != nil)
 
         // Now clear it
         vm.updateNote(for: student, note: "   ", modelContext: context)
-        #expect(vm.recordsByStudent[student.id.uuidString]?.note == nil)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.note == nil)
     }
 
     @Test("updateAbsenceReason only works when absent")
@@ -626,7 +626,7 @@ struct AttendanceViewModelActionsTests {
         // Student is unmarked, so this should not work
         vm.updateAbsenceReason(for: student, reason: .sick, modelContext: context)
         // Use AbsenceReason.none explicitly to avoid confusion with Optional.none
-        #expect(vm.recordsByStudent[student.id.uuidString]?.absenceReason == AbsenceReason.none)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.absenceReason == AbsenceReason.none)
 
         // Mark as absent first
         vm.cycleStatus(for: student, modelContext: context)  // unmarked -> present
@@ -634,7 +634,7 @@ struct AttendanceViewModelActionsTests {
 
         // Now setting reason should work
         vm.updateAbsenceReason(for: student, reason: .sick, modelContext: context)
-        #expect(vm.recordsByStudent[student.id.uuidString]?.absenceReason == .sick)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.absenceReason == .sick)
     }
 
     @Test("updateAbsenceReason can set vacation reason")
@@ -649,11 +649,11 @@ struct AttendanceViewModelActionsTests {
         let record = makeTestAttendanceRecord(studentID: student.id, status: .absent)
         context.insert(record)
 
-        vm.recordsByStudent[student.id.uuidString] = record
+        vm.recordsByStudent[student.cloudKitKey] = record
 
         vm.updateAbsenceReason(for: student, reason: .vacation, modelContext: context)
 
-        #expect(vm.recordsByStudent[student.id.uuidString]?.absenceReason == .vacation)
+        #expect(vm.recordsByStudent[student.cloudKitKey]?.absenceReason == .vacation)
     }
 }
 

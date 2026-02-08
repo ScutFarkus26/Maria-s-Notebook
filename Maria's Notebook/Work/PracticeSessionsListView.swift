@@ -233,7 +233,7 @@ struct PracticeSessionsListView: View {
                         }
                         .buttonStyle(.plain)
                         
-                        ForEach(allStudents.sorted { $0.firstName < $1.firstName }) { student in
+                        ForEach(allStudents.sorted(by: StudentSortComparator.byFirstName)) { student in
                             studentChip(student)
                         }
                     }

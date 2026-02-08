@@ -102,7 +102,7 @@ struct UnifiedPostPresentationSheet: View {
     }
 
     private var sortedStudents: [Student] {
-        students.sorted { $0.firstName.localizedCaseInsensitiveCompare($1.firstName) == .orderedAscending }
+        students.sorted(by: StudentSortComparator.byFirstName)
     }
     
     private var suggestedWorkItems: [String] {

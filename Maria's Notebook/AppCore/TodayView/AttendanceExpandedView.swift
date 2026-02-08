@@ -127,41 +127,48 @@ struct AttendanceExpandedView: View {
         .padding(.vertical, 10)
     }
 
+    private var nonSchoolDayWarning: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+            Text("Non-school day. Attendance optional.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.bottom, 8)
+    }
+
+    private var attendanceGrid: some View {
+        AttendanceGrid(
+            students: filteredStudents,
+            recordsByStudentID: viewModel.recordsByStudentID,
+            onCycleStatus: { student in
+                viewModel.cycleStatus(for: student, modelContext: modelContext)
+                saveCoordinator.save(modelContext, reason: "Update status")
+                onChange()
+            },
+            onUpdateNote: { student, note in
+                viewModel.updateNote(for: student, note: note, modelContext: modelContext)
+                saveCoordinator.save(modelContext, reason: "Update note")
+            },
+            onUpdateAbsenceReason: { student, reason in
+                viewModel.updateAbsenceReason(for: student, reason: reason, modelContext: modelContext)
+                saveCoordinator.save(modelContext, reason: "Update reason")
+            }
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Divider()
 
             actionBar
 
-            // Grid
             if isNonSchoolDay {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
-                    Text("Non-school day. Attendance optional.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.bottom, 8)
+                nonSchoolDayWarning
             }
 
-            AttendanceGrid(
-                students: filteredStudents,
-                recordsByStudentID: viewModel.recordsByStudent,
-                onCycleStatus: { student in
-                    viewModel.cycleStatus(for: student, modelContext: modelContext)
-                    saveCoordinator.save(modelContext, reason: "Update status")
-                    onChange()
-                },
-                onUpdateNote: { student, note in
-                    viewModel.updateNote(for: student, note: note, modelContext: modelContext)
-                    saveCoordinator.save(modelContext, reason: "Update note")
-                },
-                onUpdateAbsenceReason: { student, reason in
-                    viewModel.updateAbsenceReason(for: student, reason: reason, modelContext: modelContext)
-                    saveCoordinator.save(modelContext, reason: "Update reason")
-                }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            attendanceGrid
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {

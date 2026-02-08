@@ -45,9 +45,7 @@ final class AttendanceViewModel: ObservableObject {
             // Build dictionary safely, handling potential duplicates by keeping the first occurrence
             var recordsByStudentID: [String: AttendanceRecord] = [:]
             for record in filtered {
-                if recordsByStudentID[record.studentID] == nil {
-                    recordsByStudentID[record.studentID] = record
-                }
+                recordsByStudentID.insertIfAbsent(record, forKey: record.studentID)
             }
             self.recordsByStudentID = recordsByStudentID
         } catch {

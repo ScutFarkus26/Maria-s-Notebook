@@ -3,7 +3,7 @@ import SwiftData
 import OSLog
 
 extension ModelContext {
-    private static let logger = Logger(subsystem: "com.mariasnotebook", category: "database")
+    private static let logger = Logger.app(category: "database")
     
     /// Safely fetches entities, returning an empty array on error instead of throwing.
     /// - Parameter descriptor: The FetchDescriptor to use for the fetch

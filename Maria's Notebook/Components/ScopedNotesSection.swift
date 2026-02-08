@@ -139,7 +139,7 @@ struct ScopedNotesSection: View {
                 HStack {
                     Picker("Scope", selection: $scopeChoice) {
                         Text("All").tag(ScopeChoice.all)
-                        ForEach(availableStudents.sorted(by: { displayName(for: $0) < displayName(for: $1) }), id: \.id) { student in
+                        ForEach(availableStudents.sorted(by: StudentSortComparator.byFirstName), id: \.id) { student in
                             Text(displayName(for: student))
                                 .tag(ScopeChoice.student(student.id))
                         }
