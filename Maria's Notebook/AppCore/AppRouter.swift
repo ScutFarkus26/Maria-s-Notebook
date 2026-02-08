@@ -182,7 +182,7 @@ class AppRouter: ObservableObject {
     func signalAppDataWillBeReplaced() {
         appDataWillBeReplaced = true
         // Reset after a brief moment to allow observers to react
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + UIConstants.navigationResetDelay) {
             self.appDataWillBeReplaced = false
         }
     }
@@ -191,7 +191,7 @@ class AppRouter: ObservableObject {
     func signalAppDataDidRestore() {
         appDataDidRestore = true
         // Reset after a brief moment to allow observers to react
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + UIConstants.navigationResetDelay) {
             self.appDataDidRestore = false
         }
     }

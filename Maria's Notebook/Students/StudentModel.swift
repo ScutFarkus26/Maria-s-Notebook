@@ -39,7 +39,6 @@ final class Student: Identifiable {
 
     // Note: studentLessons relationship removed because StudentLesson.students is @Transient
     // Use queries filtered by studentIDs instead to find lessons for a student
-    // var studentLessons: [StudentLesson]? = [] // Removed - cannot have relationship to @Transient property
 
     @Relationship(deleteRule: .cascade, inverse: \Document.student)
     var documents: [Document]? = []

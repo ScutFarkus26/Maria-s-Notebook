@@ -28,6 +28,10 @@ enum UIConstants {
     static let planningNavigationStepSchoolDays: Int = 7
 
     static let scheduleSpacingSeconds: Int = 1
+    
+    /// Delay in seconds before resetting navigation state
+    /// Used after navigation actions to allow UI transitions to complete
+    static let navigationResetDelay: TimeInterval = 0.1
 
     // MARK: - Sheet Sizes (macOS)
 

@@ -27,7 +27,7 @@ final class AppBootstrapping {
     
     // MARK: - Logger
     
-    private static let resetLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "Reset")
+    private static let resetLogger = Logger.app(category: "Reset")
     
     // MARK: - Store Management
     
@@ -113,7 +113,55 @@ final class AppBootstrapping {
         let schema = AppSchema.schema
         
         let useInMemory = UserDefaults.standard.bool(forKey: UserDefaultsKeys.useInMemoryStoreOnce)
-        let _ = UserDefaults.standard.bool(forKey: UserDefaultsKeys.allowLocalStoreFallback)
+        
+        // Helper to extract detailed error message from NSError
+        func extractDetailedErrorMessage(_ error: Error) -> String {
+            let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
+            guard let nsError = error as NSError? else {
+                return errorDescription
+            }
+            
+            let userInfo = nsError.userInfo
+            if let underlyingError = userInfo[NSUnderlyingErrorKey] as? NSError {
+                return underlyingError.localizedDescription
+            } else if let errorMessage = userInfo[NSLocalizedDescriptionKey] as? String {
+                return errorMessage
+            }
+            return errorDescription
+        }
+        
+        // Helper to create CloudKit-enabled container with fallback handling
+        func createCloudKitContainer(schema: Schema, storeURL: URL, containerID: String) throws -> ModelContainer {
+            guard #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) else {
+                throw NSError(domain: "MariasNotebook", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
+            }
+            
+            do {
+                let cloudKitLogger = Logger.app(category: "CloudKit")
+                let cloudKitStart = Date()
+                cloudKitLogger.info("Starting CloudKit container initialization...")
+                
+                let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
+                let container = try ModelContainer(for: schema, configurations: config)
+                
+                cloudKitLogger.info("CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(cloudKitStart)))s")
+                
+                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
+                // Clear any previous error since CloudKit is now active
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                return container
+            } catch {
+                // CloudKit initialization failed - fall back to local store
+                // Store the error for display in the UI
+                let detailedError = extractDetailedErrorMessage(error)
+                UserDefaults.standard.set(detailedError, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                // Fall back to local store
+                let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
+                let container = try ModelContainer(for: schema, configurations: config)
+                UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
+                return container
+            }
+        }
         
         // Helper to create container with defensive error handling
         func makeContainer(inMemory: Bool, url: URL? = nil, cloud: Bool = false) throws -> ModelContainer {
@@ -157,91 +205,7 @@ final class AppBootstrapping {
                         return container
                     }
 
-                    #if swift(>=6.0)
-                    if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-                        do {
-                            let cloudKitLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "CloudKit")
-                            let cloudKitStart = Date()
-                            cloudKitLogger.info("Starting CloudKit container initialization...")
-                            
-                            let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
-                            let container = try ModelContainer(for: schema, configurations: config)
-                            
-                            cloudKitLogger.info("CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(cloudKitStart)))s")
-                            
-                            UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
-                            // Clear any previous error since CloudKit is now active
-                            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
-                            return container
-                        } catch {
-                            // CloudKit initialization failed - fall back to local store
-                            // Store the error for display in the UI
-                            let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
-                            if let nsError = error as NSError? {
-                                let userInfo = nsError.userInfo
-                                // Try to get more detailed error information
-                                var detailedError = errorDescription
-                                if let underlyingError = userInfo[NSUnderlyingErrorKey] as? NSError {
-                                    detailedError = underlyingError.localizedDescription
-                                } else if let errorMessage = userInfo[NSLocalizedDescriptionKey] as? String {
-                                    detailedError = errorMessage
-                                }
-                                UserDefaults.standard.set(detailedError, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
-                            } else {
-                                UserDefaults.standard.set(errorDescription, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
-                            }
-                            // Fall back to local store
-                            let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
-                            let container = try ModelContainer(for: schema, configurations: config)
-                            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
-                            return container
-                        }
-                    } else {
-                        throw NSError(domain: "MariasNotebook", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
-                    }
-                    #else
-                    if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-                        do {
-                            let cloudKitLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "CloudKit")
-                            let cloudKitStart = Date()
-                            cloudKitLogger.info("Starting CloudKit container initialization...")
-                            
-                            let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
-                            let container = try ModelContainer(for: schema, configurations: config)
-                            
-                            cloudKitLogger.info("CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(cloudKitStart)))s")
-                            
-                            UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
-                            // Clear any previous error since CloudKit is now active
-                            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
-                            return container
-                        } catch {
-                            // CloudKit initialization failed - fall back to local store
-                            // Store the error for display in the UI
-                            let errorDescription = (error as NSError?)?.localizedDescription ?? String(describing: error)
-                            if let nsError = error as NSError? {
-                                let userInfo = nsError.userInfo
-                                // Try to get more detailed error information
-                                var detailedError = errorDescription
-                                if let underlyingError = userInfo[NSUnderlyingErrorKey] as? NSError {
-                                    detailedError = underlyingError.localizedDescription
-                                } else if let errorMessage = userInfo[NSLocalizedDescriptionKey] as? String {
-                                    detailedError = errorMessage
-                                }
-                                UserDefaults.standard.set(detailedError, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
-                            } else {
-                                UserDefaults.standard.set(errorDescription, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
-                            }
-                            // Fall back to local store
-                            let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
-                            let container = try ModelContainer(for: schema, configurations: config)
-                            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
-                            return container
-                        }
-                    } else {
-                        throw NSError(domain: "MariasNotebook", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
-                    }
-                    #endif
+                    return try createCloudKitContainer(schema: schema, storeURL: storeURL, containerID: containerID)
                 } else {
                     // Explicitly disable CloudKit for SwiftData (we use CloudDocuments for file storage instead)
                     let config = ModelConfiguration(
@@ -258,7 +222,7 @@ final class AppBootstrapping {
         }
 
         do {
-            let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "Container")
+            let logger = Logger.app(category: "Container")
             
             // Attempt migration before opening store (if needed)
             let migrationCheckStart = Date()
@@ -451,7 +415,7 @@ final class AppBootstrapping {
 
         do {
             let containerStart = Date()
-            let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "Container")
+            let logger = Logger.app(category: "Container")
             logger.info("ModelContainer: Starting initialization...")
             
             let container = try AppBootstrapping.createModelContainer()

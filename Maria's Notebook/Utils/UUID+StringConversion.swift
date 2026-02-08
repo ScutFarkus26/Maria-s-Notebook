@@ -13,6 +13,14 @@ extension String {
     var asUUIDOrNew: UUID {
         UUID(uuidString: self) ?? UUID()
     }
+    
+    /// Converts string to UUID with custom fallback value
+    /// Use when a specific default UUID is needed instead of generating a new one
+    /// - Parameter defaultValue: The UUID to return if conversion fails
+    /// - Returns: The converted UUID or the default value
+    func asUUID(or defaultValue: UUID) -> UUID {
+        UUID(uuidString: self) ?? defaultValue
+    }
 }
 
 extension UUID {

@@ -25,21 +25,9 @@ final class AttendanceViewModel: ObservableObject {
     func sortedAndFiltered(students: [Student]) -> [Student] {
         switch sortKey {
         case .firstName:
-            return students.sorted { lhs, rhs in
-                let c = lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName)
-                if c == .orderedSame {
-                    return lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName) == .orderedAscending
-                }
-                return c == .orderedAscending
-            }
+            return students.sorted(by: StudentSortComparator.byFirstName)
         case .lastName:
-            return students.sorted { lhs, rhs in
-                let c = lhs.lastName.localizedCaseInsensitiveCompare(rhs.lastName)
-                if c == .orderedSame {
-                    return lhs.firstName.localizedCaseInsensitiveCompare(rhs.firstName) == .orderedAscending
-                }
-                return c == .orderedAscending
-            }
+            return students.sorted(by: StudentSortComparator.byLastName)
         }
     }
 
