@@ -320,16 +320,16 @@ final class AppBootstrapping {
                                     NSLocalizedDescriptionKey: "Database schema migration required. The AttendanceRecord.studentID property needs to be migrated from UUID to String format. Automatic reset failed. Please use 'Reset Local Database' manually to resolve this."
                                 ]
                             )
-                            AppErrorHandling.handleDatabaseInitError(migrationError)
+                            DatabaseInitializationService.handleDatabaseInitError(migrationError)
                         }
                     } else {
-                        AppErrorHandling.handleDatabaseInitError(error)
+                        DatabaseInitializationService.handleDatabaseInitError(error)
                     }
                 } else {
-                    AppErrorHandling.handleDatabaseInitError(error)
+                    DatabaseInitializationService.handleDatabaseInitError(error)
                 }
             } else {
-                AppErrorHandling.handleDatabaseInitError(error)
+                DatabaseInitializationService.handleDatabaseInitError(error)
             }
             
             // As a last resort, try to create an in-memory container
@@ -345,7 +345,7 @@ final class AppBootstrapping {
                 return fallbackContainer
             } catch let finalError {
                 // Set the error so the UI can display it
-                AppErrorHandling.handleCriticalDatabaseInitError(
+                DatabaseInitializationService.handleCriticalDatabaseInitError(
                     originalError: error,
                     finalError: finalError,
                     errorCode: 5001
@@ -361,7 +361,7 @@ final class AppBootstrapping {
                     let fallbackContainer = try ModelContainer(for: schema, configurations: fallbackConfig)
                     
                     // Set the error so the UI can display it
-                    AppErrorHandling.handleCriticalDatabaseInitError(
+                    DatabaseInitializationService.handleCriticalDatabaseInitError(
                         originalError: error,
                         finalError: finalError,
                         errorCode: 5001
@@ -371,7 +371,7 @@ final class AppBootstrapping {
                 } catch let fallbackContainerError {
                     // Even creating an in-memory fallback container failed - this should never happen
                     // Set error state instead of crashing so user can recover
-                    AppErrorHandling.handleCriticalDatabaseInitError(
+                    DatabaseInitializationService.handleCriticalDatabaseInitError(
                         originalError: error,
                         finalError: finalError,
                         emptyContainerError: fallbackContainerError,

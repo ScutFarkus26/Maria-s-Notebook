@@ -7,7 +7,7 @@ import SwiftData
 final class AttendanceViewModel: ObservableObject {
     @Published var selectedDate: Date
     // CloudKit compatibility: Use String keys since studentID is now String
-    @Published var recordsByStudent: [String: AttendanceRecord] = [:]
+    @Published var recordsByStudentID: [String: AttendanceRecord] = [:]
 
     enum SortKey: String, CaseIterable { case firstName, lastName }
     @Published var sortKey: SortKey = .lastName
@@ -43,13 +43,13 @@ final class AttendanceViewModel: ObservableObject {
             let allowed = Set(students.map { $0.id.uuidString })
             let filtered = records.filter { allowed.contains($0.studentID) }
             // Build dictionary safely, handling potential duplicates by keeping the first occurrence
-            var recordsByStudent: [String: AttendanceRecord] = [:]
+            var recordsByStudentID: [String: AttendanceRecord] = [:]
             for record in filtered {
-                if recordsByStudent[record.studentID] == nil {
-                    recordsByStudent[record.studentID] = record
+                if recordsByStudentID[record.studentID] == nil {
+                    recordsByStudentID[record.studentID] = record
                 }
             }
-            self.recordsByStudent = recordsByStudent
+            self.recordsByStudentID = recordsByStudentID
         } catch {
             // For now, ignore errors; UI will simply show unmarked
         }
@@ -59,44 +59,34 @@ final class AttendanceViewModel: ObservableObject {
     func cycleStatus(for student: Student, modelContext: ModelContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.id.uuidString
-        guard let rec = recordsByStudent[studentIDString] else { return }
-        let next = nextStatus(after: rec.status)
+        guard let rec = recordsByStudentID[studentIDString] else { return }
+        let next = rec.status.next()
         let store = AttendanceStore(context: modelContext)
         if store.updateStatus(rec, to: next) {
-            recordsByStudent[studentIDString]?.status = next
-        }
-    }
-
-    private func nextStatus(after current: AttendanceStatus) -> AttendanceStatus {
-        switch current {
-        case .unmarked: return .present
-        case .present: return .absent
-        case .absent: return .tardy
-        case .tardy: return .leftEarly
-        case .leftEarly: return .present
+            recordsByStudentID[studentIDString]?.status = next
         }
     }
 
     func updateNote(for student: Student, note: String?, modelContext: ModelContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.id.uuidString
-        guard let rec = recordsByStudent[studentIDString] else { return }
+        guard let rec = recordsByStudentID[studentIDString] else { return }
         let store = AttendanceStore(context: modelContext)
         if store.updateNote(rec, to: note) {
             let trimmed = note?.trimmed() ?? ""
-            recordsByStudent[studentIDString]?.note = trimmed.isEmpty ? nil : trimmed
+            recordsByStudentID[studentIDString]?.note = trimmed.isEmpty ? nil : trimmed
         }
     }
 
     func updateAbsenceReason(for student: Student, reason: AbsenceReason, modelContext: ModelContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.id.uuidString
-        guard let rec = recordsByStudent[studentIDString] else { return }
+        guard let rec = recordsByStudentID[studentIDString] else { return }
         // Only allow setting absence reason if status is absent
         guard rec.status == .absent else { return }
         let store = AttendanceStore(context: modelContext)
         if store.updateAbsenceReason(rec, to: reason) {
-            recordsByStudent[studentIDString]?.absenceReason = reason
+            recordsByStudentID[studentIDString]?.absenceReason = reason
         }
     }
 
@@ -107,7 +97,7 @@ final class AttendanceViewModel: ObservableObject {
             // CloudKit compatibility: Convert UUIDs to Strings for comparison
             let allowed = Set(students.map { $0.id.uuidString })
             for rec in updated where allowed.contains(rec.studentID) {
-                recordsByStudent[rec.studentID] = rec
+                recordsByStudentID[rec.studentID] = rec
             }
         } catch { }
     }
@@ -119,17 +109,17 @@ final class AttendanceViewModel: ObservableObject {
             // CloudKit compatibility: Convert UUIDs to Strings for comparison
             let allowed = Set(students.map { $0.id.uuidString })
             for rec in updated where allowed.contains(rec.studentID) {
-                recordsByStudent[rec.studentID] = rec
+                recordsByStudentID[rec.studentID] = rec
             }
         } catch { }
     }
 
     // MARK: - Stats
-    var countPresent: Int { recordsByStudent.values.filter { $0.status == .present }.count }
-    var countAbsent: Int { recordsByStudent.values.filter { $0.status == .absent }.count }
-    var countTardy: Int { recordsByStudent.values.filter { $0.status == .tardy }.count }
-    var countLeftEarly: Int { recordsByStudent.values.filter { $0.status == .leftEarly }.count }
-    var countUnmarked: Int { recordsByStudent.values.filter { $0.status == .unmarked }.count }
+    var countPresent: Int { recordsByStudentID.values.filter { $0.status == .present }.count }
+    var countAbsent: Int { recordsByStudentID.values.filter { $0.status == .absent }.count }
+    var countTardy: Int { recordsByStudentID.values.filter { $0.status == .tardy }.count }
+    var countLeftEarly: Int { recordsByStudentID.values.filter { $0.status == .leftEarly }.count }
+    var countUnmarked: Int { recordsByStudentID.values.filter { $0.status == .unmarked }.count }
 
     /// "In Class" counts students who are either Present or Tardy.
     /// This is a derived metric for the header summary only and does not change stored data.

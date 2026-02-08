@@ -346,7 +346,7 @@ final class AppDependencies: ObservableObject {
     // MARK: - Testing Support
     
     /// Create dependencies with in-memory storage for testing
-    static func makeTest() -> AppDependencies {
+    static func makeTest() throws -> AppDependencies {
         let schema = Schema([
             Student.self,
             Lesson.self,
@@ -355,7 +355,7 @@ final class AppDependencies: ObservableObject {
             // Add more models as needed for tests
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: schema, configurations: [config])
+        let container = try ModelContainer(for: schema, configurations: [config])
         return AppDependencies(modelContext: container.mainContext)
     }
     
@@ -372,8 +372,12 @@ struct AppDependenciesKey: EnvironmentKey {
         // This should never be used in production - only for previews
         let schema = Schema([Student.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: schema, configurations: [config])
-        return AppDependencies(modelContext: container.mainContext)
+        do {
+            let container = try ModelContainer(for: schema, configurations: [config])
+            return AppDependencies(modelContext: container.mainContext)
+        } catch {
+            fatalError("Failed to create preview container: \(error.localizedDescription)")
+        }
     }()
 }
 

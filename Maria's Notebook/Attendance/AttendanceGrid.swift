@@ -3,18 +3,18 @@ import SwiftData
 
 struct AttendanceGrid: View {
     let students: [Student]
-    let recordsByStudent: [String: AttendanceRecord]
+    let recordsByStudentID: [String: AttendanceRecord]
     let onCycleStatus: (Student) -> Void
     let onUpdateNote: (Student, String?) -> Void
     let onUpdateAbsenceReason: (Student, AbsenceReason) -> Void
 
     // Layout constants
-    private let horizontalPadding: CGFloat = 16
-    private let verticalPadding: CGFloat = 16
-    private let cardSpacing: CGFloat = 12
-    private let minCardWidth: CGFloat = 120
-    private let maxCardWidth: CGFloat = 280
-    private let minCardHeight: CGFloat = 70
+    private let horizontalPadding: CGFloat = UIConstants.AttendanceGrid.horizontalPadding
+    private let verticalPadding: CGFloat = UIConstants.AttendanceGrid.verticalPadding
+    private let cardSpacing: CGFloat = UIConstants.AttendanceGrid.cardSpacing
+    private let minCardWidth: CGFloat = UIConstants.AttendanceGrid.minCardWidth
+    private let maxCardWidth: CGFloat = UIConstants.AttendanceGrid.maxCardWidth
+    private let minCardHeight: CGFloat = UIConstants.AttendanceGrid.minCardHeight
 
     var body: some View {
         GeometryReader { geometry in
@@ -37,7 +37,7 @@ struct AttendanceGrid: View {
                         ForEach(students, id: \.id) { student in
                             AttendanceCard(
                                 student: student,
-                                record: recordsByStudent[student.id.uuidString],
+                                record: recordsByStudentID[student.id.uuidString],
                                 isEditing: true,
                                 onTap: {
                                     onCycleStatus(student)
@@ -61,7 +61,7 @@ struct AttendanceGrid: View {
                         ForEach(students, id: \.id) { student in
                             AttendanceCard(
                                 student: student,
-                                record: recordsByStudent[student.id.uuidString],
+                                record: recordsByStudentID[student.id.uuidString],
                                 isEditing: true,
                                 onTap: {
                                     onCycleStatus(student)

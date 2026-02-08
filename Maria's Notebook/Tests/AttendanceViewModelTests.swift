@@ -19,7 +19,7 @@ struct AttendanceViewModelInitializationTests {
         #expect(vm.selectedDate == expected)
     }
 
-    @Test("AttendanceViewModel recordsByStudent starts empty")
+    @Test("AttendanceViewModel recordsByStudentID starts empty")
     func recordsByStudentStartsEmpty() {
         let vm = AttendanceViewModel()
 

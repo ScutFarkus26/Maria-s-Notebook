@@ -143,7 +143,7 @@ struct AttendanceExpandedView: View {
 
             AttendanceGrid(
                 students: filteredStudents,
-                recordsByStudent: viewModel.recordsByStudent,
+                recordsByStudentID: viewModel.recordsByStudent,
                 onCycleStatus: { student in
                     viewModel.cycleStatus(for: student, modelContext: modelContext)
                     saveCoordinator.save(modelContext, reason: "Update status")
@@ -209,7 +209,7 @@ struct AttendanceExpandedView: View {
 
     private func names(for status: AttendanceStatus) -> [String] {
         filteredStudents.compactMap { s in
-            if let rec = viewModel.recordsByStudent[s.id.uuidString], rec.status == status {
+            if let rec = viewModel.recordsByStudentID[s.id.uuidString], rec.status == status {
                 return s.fullName
             }
             return nil

@@ -30,6 +30,17 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
         case .leftEarly: return Color.purple.opacity(0.35)
         }
     }
+    
+    /// Returns the next status in the cycle: unmarked → present → absent → tardy → leftEarly → unmarked
+    func next() -> AttendanceStatus {
+        switch self {
+        case .unmarked: return .present
+        case .present: return .absent
+        case .absent: return .tardy
+        case .tardy: return .leftEarly
+        case .leftEarly: return .unmarked
+        }
+    }
 }
 
 // MARK: - Absence Reason
