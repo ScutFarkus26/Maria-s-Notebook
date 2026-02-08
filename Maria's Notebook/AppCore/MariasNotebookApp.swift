@@ -56,10 +56,9 @@ struct MariasNotebookApp: App {
     // MARK: - Scene
     
     var body: some Scene {
-        let logger = Logger.app(category: "App")
-        logger.info("App body: Starting scene body evaluation")
-        
-        return WindowGroup("", id: "mainWindow") {
+        WindowGroup("", id: "mainWindow") {
+            let logger = Logger.app(category: "App")
+            let _ = logger.info("App body: Starting scene body evaluation")
             let _ = logger.info("App body: Inside WindowGroup closure, bootstrapper state: \(String(describing: bootstrapper.state))")
             
             Group {
