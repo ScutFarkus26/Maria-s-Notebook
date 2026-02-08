@@ -27,6 +27,7 @@ struct GroupPracticeSheet: View {
     
     // Individual notes per student (optional)
     @State private var individualNotes: [UUID: String] = [:]
+    @State private var individualUnderstandingLevels: [UUID: Int] = [:]
     @State private var showIndividualNotes: Bool = false
     
     // Presentation and lesson context
@@ -665,60 +666,105 @@ struct GroupPracticeSheet: View {
     
     private var individualNotesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button {
-                withAnimation {
-                    showIndividualNotes.toggle()
-                }
-            } label: {
-                HStack {
-                    Text("Individual Notes")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-                    
-                    Text("(Optional)")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                    
-                    Image(systemName: showIndividualNotes ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
+            Text("Individual Student Notes")
+                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+
+            ForEach(selectedStudents) { student in
+                individualStudentCard(for: student)
             }
-            .buttonStyle(.plain)
-            
-            if showIndividualNotes {
-                ForEach(selectedStudents) { student in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(StudentFormatter.displayName(for: student))
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                        
-                        TextEditor(text: Binding(
-                            get: { individualNotes[student.id] ?? "" },
-                            set: { individualNotes[student.id] = $0 }
-                        ))
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .frame(minHeight: 60)
-                        .padding(8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.primary.opacity(0.05))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-                        )
+        }
+    }
+
+    @ViewBuilder
+    private func individualStudentCard(for student: Student) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Student name
+            Text(StudentFormatter.displayName(for: student))
+                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+
+            // Understanding level picker
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Understanding")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    ForEach(1...5, id: \.self) { level in
+                        Button {
+                            individualUnderstandingLevels[student.id] = level
+                        } label: {
+                            Circle()
+                                .fill(understandingColor(for: level).opacity(
+                                    (individualUnderstandingLevels[student.id] ?? 3) >= level ? 1.0 : 0.2
+                                ))
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(.plain)
                     }
+
+                    Spacer()
+
+                    Text(understandingLabel(for: individualUnderstandingLevels[student.id] ?? 3))
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
                 }
             }
+
+            // Notes
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Notes")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                TextEditor(text: Binding(
+                    get: { individualNotes[student.id] ?? "" },
+                    set: { individualNotes[student.id] = $0 }
+                ))
+                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .frame(minHeight: 80)
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(0.05))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                )
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+    }
+
+    private func understandingColor(for level: Int) -> Color {
+        switch level {
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .yellow
+        case 4: return .green
+        case 5: return .blue
+        default: return .gray
+        }
+    }
+
+    private func understandingLabel(for level: Int) -> String {
+        switch level {
+        case 1: return "Struggling"
+        case 2: return "Needs Support"
+        case 3: return "Developing"
+        case 4: return "Proficient"
+        case 5: return "Mastered"
+        default: return ""
         }
     }
     
     private var bottomBar: some View {
         HStack(spacing: 12) {
-            Spacer()
-            
             Button {
                 dismiss()
             } label: {
@@ -733,7 +779,9 @@ struct GroupPracticeSheet: View {
                     )
             }
             .buttonStyle(.plain)
-            
+
+            Spacer()
+
             Button {
                 saveSession()
             } label: {
@@ -807,12 +855,29 @@ struct GroupPracticeSheet: View {
             location: hasLocation ? location : nil
         )
         
-        // Create individual notes if provided
-        for (studentID, noteText) in individualNotes {
-            guard !noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
-            
+        // Create individual notes with understanding levels if provided
+        for studentID in selectedStudentIDs {
+            let noteText = individualNotes[studentID] ?? ""
+            let understandingLevel = individualUnderstandingLevels[studentID]
+
+            // Only create note if there's text or understanding level
+            guard !noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || understandingLevel != nil else {
+                continue
+            }
+
+            // Build note body with understanding level prefix if available
+            var fullNoteBody = ""
+            if let level = understandingLevel {
+                fullNoteBody = "Understanding: \(understandingLabel(for: level))"
+                if !noteText.isEmpty {
+                    fullNoteBody += "\n\n\(noteText)"
+                }
+            } else {
+                fullNoteBody = noteText
+            }
+
             let note = Note(
-                body: noteText,
+                body: fullNoteBody,
                 scope: .student(studentID),
                 category: .academic,
                 practiceSession: session
