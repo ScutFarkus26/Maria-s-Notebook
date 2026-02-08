@@ -325,7 +325,7 @@ struct QuickNewPresentationSheet: View {
         }
 
         modelContext.insert(lessonAssignment)
-        _ = saveCoordinator.save(modelContext, reason: "Quick New Presentation")
+        saveCoordinator.save(modelContext, reason: "Quick New Presentation")
         dismiss()
     }
 }

@@ -24,7 +24,7 @@ enum RelationshipBackfillService {
             let lessonsByID = lessons.toDictionary(by: \.id)
 
             // OPTIMIZATION: Process in batches and save periodically to avoid memory pressure
-            let batchSize = 1000
+            let batchSize = BatchingConstants.defaultBatchSize
             var changed = false
             var processed = 0
 
@@ -79,7 +79,7 @@ enum RelationshipBackfillService {
         let flagKey = "Backfill.isPresentedFromGivenAt.v1"
         await MigrationFlag.runIfNeeded(key: flagKey) {
             let sls = context.safeFetch(FetchDescriptor<StudentLesson>())
-            let batchSize = 1000
+            let batchSize = BatchingConstants.defaultBatchSize
             var changed = false
 
             for batchStart in stride(from: 0, to: sls.count, by: batchSize) {
@@ -112,7 +112,7 @@ enum RelationshipBackfillService {
         let flagKey = "Backfill.scheduledForDay.v1"
         await MigrationFlag.runIfNeeded(key: flagKey) {
             let sls = context.safeFetch(FetchDescriptor<StudentLesson>())
-            let batchSize = 1000
+            let batchSize = BatchingConstants.defaultBatchSize
             var needsSave = false
 
             for batchStart in stride(from: 0, to: sls.count, by: batchSize) {

@@ -34,7 +34,6 @@ struct StudentsRootView: View {
     // We keep the state here to persist it, but pass it down as a binding
     @AppStorage("StudentsRootView.mode") private var modeRaw: String = StudentMode.roster.rawValue
     
-    // FIX: Add 'nonmutating' to the setter
     private var mode: StudentMode {
         get { StudentMode(rawValue: modeRaw) ?? .roster }
         set { modeRaw = newValue.rawValue }

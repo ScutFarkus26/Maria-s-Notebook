@@ -29,7 +29,7 @@ extension ModelContext {
         guard !studentIDs.isEmpty else { return [:] }
         let day = date.normalizedDay()
         // CloudKit compatibility: Convert UUIDs to Strings for comparison
-        let requestedStrings = Set(studentIDs.map { $0.uuidString })
+        let requestedStrings = Set(studentIDs.uuidStrings)
         let descriptor = FetchDescriptor<AttendanceRecord>(
             predicate: #Predicate { $0.date == day }
         )

@@ -4,6 +4,7 @@
 import Foundation
 import Combine
 import UserNotifications
+import OSLog
 #if os(macOS)
 import AppKit
 #endif
@@ -121,9 +122,7 @@ public final class BackupNotificationService: ObservableObject {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
             return granted
         } catch {
-            #if DEBUG
-            print("BackupNotificationService: Failed to request permission: \(error)")
-            #endif
+            Logger.backup.error("Failed to request permission: \(error)")
             return false
         }
     }
@@ -325,9 +324,7 @@ public final class BackupNotificationService: ObservableObject {
 
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                #if DEBUG
-                print("BackupNotificationService: Failed to send notification: \(error)")
-                #endif
+                Logger.backup.error("Failed to send notification: \(error)")
             }
         }
 

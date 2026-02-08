@@ -76,7 +76,7 @@ struct LessonAssignmentBackupTests {
         #expect(dtos.count == 3)
         #expect(dtos[0].studentIDs.count == 1)
         #expect(dtos[1].studentIDs.count == 2)
-        #expect(dtos[2].studentIDs.count == 0)
+        #expect(dtos[2].studentIDs.isEmpty)
     }
 
     // MARK: - DTO Encoding/Decoding Tests
@@ -220,7 +220,7 @@ struct LessonAssignmentBackupTests {
         decoder.dateDecodingStrategy = .iso8601
 
         let payload = try decoder.decode(BackupPayload.self, from: data)
-        #expect(payload.lessonAssignments.count == 0)
+        #expect(payload.lessonAssignments.isEmpty)
     }
 
     // MARK: - State Preservation Tests

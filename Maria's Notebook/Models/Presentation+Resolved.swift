@@ -23,7 +23,7 @@ extension Presentation {
     var studentGroupKey: String {
         if !studentGroupKeyPersisted.isEmpty { return studentGroupKeyPersisted }
         let ids = resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
-        return ids.map { $0.uuidString }.joined(separator: ",")
+        return ids.uuidStrings.joined(separator: ",")
     }
 
     /// Display title - prefer snapshot for historical accuracy, fall back to lesson relationship.

@@ -259,7 +259,7 @@ struct PDFRenderer {
 
         // CRITICAL: The hosting controller's view must be in the view hierarchy for SwiftUI to render.
         // Add it to a temporary window positioned offscreen.
-        let tempWindow = UIWindow(frame: CGRect(x: -10000, y: -10000, width: size.width, height: size.height))
+        let tempWindow = UIWindow(frame: CGRect(x: TimeoutConstants.offscreenCoordinate, y: TimeoutConstants.offscreenCoordinate, width: size.width, height: size.height))
         tempWindow.rootViewController = hostingController
         tempWindow.isHidden = false
         tempWindow.layoutIfNeeded()
@@ -323,7 +323,7 @@ struct WorkPrintController: NSViewRepresentable {
 
         guard let pdfData = renderViewToPDF(printView, width: printableWidth) else { return }
 
-        let printInfo = NSPrintInfo.shared.copy() as! NSPrintInfo
+        guard let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo else { return }
         printInfo.topMargin = 36
         printInfo.bottomMargin = 36
         printInfo.leftMargin = 36
@@ -343,7 +343,7 @@ struct WorkPrintController: NSViewRepresentable {
         hostingView.appearance = NSAppearance(named: .aqua)
 
         let tempWindow = NSWindow(
-            contentRect: NSRect(x: -10000, y: -10000, width: width, height: 2000),
+            contentRect: NSRect(x: TimeoutConstants.offscreenCoordinate, y: TimeoutConstants.offscreenCoordinate, width: width, height: 2000),
             styleMask: [.titled],
             backing: .buffered,
             defer: false
@@ -533,7 +533,7 @@ struct WorkPrintSheet: View {
             return
         }
 
-        let printInfo = NSPrintInfo.shared.copy() as! NSPrintInfo
+        guard let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo else { return }
         printInfo.topMargin = 36
         printInfo.bottomMargin = 36
         printInfo.leftMargin = 36
@@ -555,7 +555,7 @@ struct WorkPrintSheet: View {
         hostingView.appearance = NSAppearance(named: .aqua)
 
         let tempWindow = NSWindow(
-            contentRect: NSRect(x: -10000, y: -10000, width: width, height: 2000),
+            contentRect: NSRect(x: TimeoutConstants.offscreenCoordinate, y: TimeoutConstants.offscreenCoordinate, width: width, height: 2000),
             styleMask: [.titled],
             backing: .buffered,
             defer: false

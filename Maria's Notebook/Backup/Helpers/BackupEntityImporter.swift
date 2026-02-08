@@ -36,7 +36,7 @@ enum BackupEntityImporter {
                 level: dto.level == .upper ? .upper : .lower
             )
             student.dateStarted = dto.dateStarted
-            student.nextLessons = dto.nextLessons.map { $0.uuidString }
+            student.nextLessons = dto.nextLessons.uuidStrings
             student.manualOrder = dto.manualOrder
             modelContext.insert(student)
             studentsByID[student.id] = student

@@ -3,6 +3,7 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Identifiable Entity Protocol
 
@@ -219,7 +220,7 @@ struct EntityFetcherRegistry {
 @MainActor
 struct BatchEntityFetcher {
 
-    nonisolated static let defaultBatchSize = 1000
+    nonisolated static let defaultBatchSize = BatchingConstants.defaultBatchSize
 
     /// Fetches all entities of a type in batches to prevent memory issues
     static func fetchInBatches<T: PersistentModel>(
@@ -227,6 +228,7 @@ struct BatchEntityFetcher {
         context: ModelContext,
         batchSize: Int = defaultBatchSize
     ) -> [T] {
+        precondition(batchSize > 0, "Batch size must be positive")
         var allEntities: [T] = []
         var offset = 0
 
@@ -261,6 +263,7 @@ struct BatchEntityFetcher {
         context: ModelContext,
         batchSize: Int = defaultBatchSize
     ) -> [T] {
+        precondition(batchSize > 0, "Batch size must be positive")
         var allEntities: [T] = []
         var offset = 0
         var consecutiveErrors = 0
@@ -297,9 +300,7 @@ struct BatchEntityFetcher {
                 offset += batchSize
 
             case .failure(let error):
-                #if DEBUG
-                print("BatchEntityFetcher: Error fetching \(String(describing: type)) at offset \(offset): \(error)")
-                #endif
+                Logger.backup.error("Error fetching \(String(describing: type)) at offset \(offset): \(error)")
                 consecutiveErrors += 1
                 offset += batchSize // Skip this batch and try next
             }

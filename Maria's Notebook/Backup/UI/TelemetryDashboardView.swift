@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import UniformTypeIdentifiers
+import OSLog
 
 /// Telemetry dashboard for backup/restore statistics and monitoring
 struct TelemetryDashboardView: View {
@@ -220,12 +221,12 @@ struct TelemetryDashboardView: View {
                     do {
                         try data.write(to: url, options: .atomic)
                     } catch {
-                        print("Failed to write telemetry export: \(error.localizedDescription)")
+                        Logger.backup.error("Failed to write telemetry export: \(error.localizedDescription)")
                     }
                 }
             }
         } catch {
-            print("Failed to export telemetry: \(error)")
+            Logger.backup.error("Failed to export telemetry: \(error)")
         }
     }
 }

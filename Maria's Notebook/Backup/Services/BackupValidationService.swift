@@ -601,7 +601,7 @@ public final class BackupValidationService {
         }
         
         let totalEntities = payload.students.count + payload.lessons.count + payload.notes.count
-        if totalEntities > 10000 {
+        if totalEntities > BatchingConstants.largeDatasetThreshold {
             recommendations.append("Large backup detected (\(totalEntities) entities). Restore may take several minutes.")
         }
         

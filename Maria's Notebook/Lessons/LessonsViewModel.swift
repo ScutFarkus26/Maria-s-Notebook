@@ -443,7 +443,7 @@ struct LessonsViewModel {
         guard !lessonIDs.isEmpty else { return [:] }
 
         var result: [UUID: Int] = [:]
-        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
+        let lessonIDStrings = Set(lessonIDs.uuidStrings)
 
         // Fetch all StudentLesson records for these lessons
         let descriptor = FetchDescriptor<StudentLesson>()

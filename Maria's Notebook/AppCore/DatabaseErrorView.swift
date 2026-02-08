@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 #if os(macOS)
 import UniformTypeIdentifiers
 #else
@@ -115,7 +116,7 @@ struct DatabaseErrorView: View {
             defaultFilename: "database-error-diagnostics.txt"
         ) { result in
             if case .success = result {
-                print("✅ Diagnostics exported successfully")
+                Logger.database.info("Diagnostics exported successfully")
             }
         }
         #endif
@@ -145,7 +146,7 @@ struct DatabaseErrorView: View {
             } catch {
                 resetError = "Failed to reset database: \(error.localizedDescription)"
                 isResetting = false
-                print("❌ Failed to reset database: \(error)")
+                Logger.database.error("Failed to reset database: \(error)")
             }
         }
     }

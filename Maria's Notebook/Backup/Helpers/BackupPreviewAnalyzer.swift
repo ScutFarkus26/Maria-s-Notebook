@@ -127,7 +127,9 @@ enum BackupPreviewAnalyzer {
         // StudentLessons - special handling for missing lesson references
         let lessonsInStore = Set(((try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []).map { $0.id })
         let lessonsInPayload = Set(payload.lessons.map { $0.id })
-        let studentLessonAnalysis = payload.studentLessons.reduce(into: (ins: 0, sk: 0, missingLesson: 0)) { acc, sl in
+        let studentLessonAnalysis = payload.studentLessons.reduce(
+            into: (ins: 0, sk: 0, missingLesson: 0)
+        ) { (acc: inout (ins: Int, sk: Int, missingLesson: Int), sl: StudentLessonDTO) in
             let hasLesson = lessonsInStore.contains(sl.lessonID) || lessonsInPayload.contains(sl.lessonID)
             if !hasLesson {
                 acc.sk += 1
@@ -144,7 +146,9 @@ enum BackupPreviewAnalyzer {
         }
 
         // LessonAssignments - similar handling for missing lesson references
-        let lessonAssignmentAnalysis = payload.lessonAssignments.reduce(into: (ins: 0, sk: 0, missingLesson: 0)) { acc, la in
+        let lessonAssignmentAnalysis = payload.lessonAssignments.reduce(
+            into: (ins: 0, sk: 0, missingLesson: 0)
+        ) { (acc: inout (ins: Int, sk: Int, missingLesson: Int), la: LessonAssignmentDTO) in
             guard let lessonUUID = UUID(uuidString: la.lessonID) else {
                 acc.sk += 1
                 acc.missingLesson += 1

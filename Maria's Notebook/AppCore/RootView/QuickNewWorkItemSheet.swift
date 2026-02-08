@@ -381,7 +381,7 @@ struct QuickNewWorkItemSheet: View {
                     createdWorkID = work.id
                 }
             }
-            _ = saveCoordinator.save(modelContext, reason: "Quick New Work Item")
+            saveCoordinator.save(modelContext, reason: "Quick New Work Item")
             dismiss()
 
             // If user wants to open the detail view, call the callback after dismiss

@@ -27,7 +27,7 @@ enum ChecklistMatrixBuilder {
         // CloudKit compatibility: Convert UUIDs to strings for comparison
         // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
         // so we fetch all and filter in memory
-        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
+        let lessonIDStrings = Set(lessonIDs.uuidStrings)
         let allStudentLessons = context.safeFetch(FetchDescriptor<StudentLesson>())
         let allSLs = allStudentLessons.filter { lessonIDStrings.contains($0.lessonID) }
 

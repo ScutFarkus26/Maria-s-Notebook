@@ -4,6 +4,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import OSLog
 
 /// Monitors backup integrity and provides health status
 @MainActor
@@ -11,7 +12,7 @@ public final class BackupIntegrityMonitor: ObservableObject {
 
     // MARK: - Types
 
-    public enum BackupHealth: Sendable {
+    public enum BackupHealth: Sendable, CustomStringConvertible {
         case healthy
         case warning(String)
         case critical(String)
@@ -25,6 +26,14 @@ public final class BackupIntegrityMonitor: ObservableObject {
             switch self {
             case .healthy: return nil
             case .warning(let msg), .critical(let msg): return msg
+            }
+        }
+
+        public var description: String {
+            switch self {
+            case .healthy: return "healthy"
+            case .warning(let msg): return "warning: \(msg)"
+            case .critical(let msg): return "critical: \(msg)"
             }
         }
 
@@ -291,9 +300,7 @@ public final class BackupIntegrityMonitor: ObservableObject {
                 try FileManager.default.removeItem(at: file.url)
                 deletedCount += 1
             } catch {
-                #if DEBUG
-                print("BackupIntegrityMonitor: Failed to delete \(file.fileName): \(error)")
-                #endif
+                Logger.backup.error("Failed to delete \(file.fileName): \(error)")
             }
         }
 
@@ -366,10 +373,8 @@ public final class BackupIntegrityMonitor: ObservableObject {
                 userInfo: ["report": report]
             )
         }
-        
-        #if DEBUG
-        print("BackupIntegrityMonitor: Scheduled scan complete. Health: \(report.health)")
-        #endif
+
+        Logger.backup.info("Scheduled scan complete. Health: \(report.health)")
     }
 
     // MARK: - Settings Access

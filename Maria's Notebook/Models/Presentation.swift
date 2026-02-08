@@ -182,7 +182,7 @@ final class LessonAssignment: Identifiable {
         self.scheduledForDay = scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
         self.presentedAt = presentedAt
         self.lessonID = lessonID.uuidString
-        self._studentIDsData = try? JSONEncoder().encode(studentIDs.map { $0.uuidString })
+        self._studentIDsData = try? JSONEncoder().encode(studentIDs.uuidStrings)
         self.lesson = lesson
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
@@ -212,7 +212,7 @@ final class LessonAssignment: Identifiable {
         self.lesson = lesson
         self.lessonID = lesson.id.uuidString
         self.students = students
-        self._studentIDsData = try? JSONEncoder().encode(students.map { $0.id.uuidString })
+        self._studentIDsData = try? JSONEncoder().encode(students.uuidStrings)
         self.unifiedNotes = []
 
         updateDenormalizedKeys()
@@ -253,13 +253,13 @@ final class LessonAssignment: Identifiable {
     /// Updates denormalized keys for efficient querying.
     func updateDenormalizedKeys() {
         let ids = studentUUIDs.sorted { $0.uuidString < $1.uuidString }
-        self.studentGroupKeyPersisted = ids.map { $0.uuidString }.joined(separator: ",")
+        self.studentGroupKeyPersisted = ids.uuidStrings.joined(separator: ",")
     }
 
     /// Syncs transient relationships from stored IDs.
     func syncSnapshotsFromRelationships() {
         self.lessonID = self.lesson?.id.uuidString ?? self.lessonID
-        let stringIDs = self.students.map { $0.id.uuidString }
+        let stringIDs = self.students.uuidStrings
         self.studentIDs = stringIDs
         updateDenormalizedKeys()
     }

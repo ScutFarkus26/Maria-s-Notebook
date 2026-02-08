@@ -1,12 +1,20 @@
 import Foundation
 import SwiftData
+import OSLog
 
 extension ModelContext {
+    private static let logger = Logger(subsystem: "com.mariasnotebook", category: "database")
+    
     /// Safely fetches entities, returning an empty array on error instead of throwing.
     /// - Parameter descriptor: The FetchDescriptor to use for the fetch
     /// - Returns: An array of fetched entities, or an empty array if the fetch fails
     func safeFetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) -> [T] {
-        (try? fetch(descriptor)) ?? []
+        do {
+            return try fetch(descriptor)
+        } catch {
+            Self.logger.error("Failed to fetch \(String(describing: T.self)): \(error.localizedDescription)")
+            return []
+        }
     }
     
     /// Safely fetches a single entity, returning nil on error or if not found.

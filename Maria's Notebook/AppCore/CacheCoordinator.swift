@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+import OSLog
+
+private let logger = Logger.cache
 
 /// Centralized cache lifecycle coordinator for Phase 7 state management.
 ///
@@ -45,7 +48,7 @@ final class CacheCoordinator: ObservableObject {
         caches[key] = cache
         metrics[key] = CacheMetrics(key: key)
         
-        print("CacheCoordinator: Registered cache '\(key)'")
+        logger.info("Registered cache '\(key)'")
     }
     
     /// Unregister a cache
@@ -53,7 +56,7 @@ final class CacheCoordinator: ObservableObject {
         caches.removeValue(forKey: key)
         metrics.removeValue(forKey: key)
         
-        print("CacheCoordinator: Unregistered cache '\(key)'")
+        logger.info("Unregistered cache '\(key)'")
     }
     
     // MARK: - Invalidation
@@ -61,7 +64,7 @@ final class CacheCoordinator: ObservableObject {
     /// Invalidate a specific cache by key
     func invalidate(key: String) {
         guard let cache = caches[key] else {
-            print("CacheCoordinator: Warning - cache '\(key)' not found")
+            logger.error("Warning - cache '\(key)' not found")
             return
         }
         
@@ -70,7 +73,7 @@ final class CacheCoordinator: ObservableObject {
         
         invalidationSubject.send(.specific(key))
         
-        print("CacheCoordinator: Invalidated cache '\(key)'")
+        logger.info("Invalidated cache '\(key)'")
     }
     
     /// Invalidate all registered caches
@@ -82,7 +85,7 @@ final class CacheCoordinator: ObservableObject {
         
         invalidationSubject.send(.all)
         
-        print("CacheCoordinator: Invalidated all caches (\(caches.count) total)")
+        logger.info("Invalidated all caches (\(self.caches.count) total)")
     }
     
     /// Invalidate caches matching a pattern
@@ -95,7 +98,7 @@ final class CacheCoordinator: ObservableObject {
         
         invalidationSubject.send(.pattern(pattern))
         
-        print("CacheCoordinator: Invalidated \(matchingKeys.count) caches matching '\(pattern)'")
+        logger.info("Invalidated \(matchingKeys.count) caches matching '\(pattern)'")
     }
     
     // MARK: - Metrics
@@ -135,7 +138,7 @@ final class CacheCoordinator: ObservableObject {
         caches.removeAll()
         metrics.removeAll()
         
-        print("CacheCoordinator: Reset complete")
+        logger.info("Reset complete")
     }
 }
 

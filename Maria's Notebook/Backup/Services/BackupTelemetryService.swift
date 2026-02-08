@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import OSLog
 
 /// Collects and reports telemetry data for backup/restore operations
 /// Helps track success rates, performance, and identify issues
@@ -171,7 +172,7 @@ public final class BackupTelemetryService {
     
     // MARK: - Properties
     
-    private let maxStoredEvents = 1000
+    private let maxStoredEvents = BatchingConstants.defaultBatchSize
     private let persistenceKey = "BackupTelemetry.events"
     
     // MARK: - Initialization
@@ -399,7 +400,7 @@ public final class BackupTelemetryService {
             let data = try encoder.encode(recentEvents)
             UserDefaults.standard.set(data, forKey: persistenceKey)
         } catch {
-            print("BackupTelemetryService: Failed to persist events: \(error)")
+            Logger.backup.error("Failed to persist events: \(error)")
         }
     }
     
@@ -413,7 +414,7 @@ public final class BackupTelemetryService {
             decoder.dateDecodingStrategy = .iso8601
             recentEvents = try decoder.decode([TelemetryEvent].self, from: data)
         } catch {
-            print("BackupTelemetryService: Failed to load events: \(error)")
+            Logger.backup.error("Failed to load events: \(error)")
         }
     }
     

@@ -164,7 +164,7 @@ struct PresentationsView: View {
     }
     
     private var days: [Date] {
-        // FIXED: Strictly respect the startDate cursor. 
+        // Strictly respect the startDate cursor. 
         // The logic to "start at earliest lesson" is handled by the initial value of startDate in onAppear.
         // This allows the user to click "Today" and actually go to today, even if there are older lessons.
         let baseDate = calendar.startOfDay(for: startDate)
@@ -175,7 +175,7 @@ struct PresentationsView: View {
         var cursor = baseDate
         var safety = 0
         
-        while result.count < maxDays && safety < 1000 {
+        while result.count < maxDays && safety < BatchingConstants.defaultBatchSize {
             if !isNonSchool(cursor) {
                 result.append(cursor)
             }

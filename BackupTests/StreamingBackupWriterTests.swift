@@ -76,7 +76,7 @@ struct StreamingBackupWriterTests {
         
         // Verify file size is reasonable
         let attributes = try FileManager.default.attributesOfItem(atPath: tempURL.path)
-        let fileSize = attributes[.size] as! Int64
+        let fileSize = attributes[.size] as? Int64 ?? 0
         #expect(fileSize > 0)
         
         // Cleanup

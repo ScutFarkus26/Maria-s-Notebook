@@ -557,7 +557,7 @@ public final class BackupService {
     private func safeFetchInBatches<T: PersistentModel>(
         _ type: T.Type,
         using context: ModelContext,
-        batchSize: Int = 1000
+        batchSize: Int = BatchingConstants.defaultBatchSize
     ) -> [T] {
         var allEntities: [T] = []
         var offset = 0
@@ -580,7 +580,7 @@ public final class BackupService {
     private func safeFetchInBatchesWithErrorHandling<T: PersistentModel>(
         _ type: T.Type,
         using context: ModelContext,
-        batchSize: Int = 1000
+        batchSize: Int = BatchingConstants.defaultBatchSize
     ) -> [T] {
         var allEntities: [T] = []
         var offset = 0

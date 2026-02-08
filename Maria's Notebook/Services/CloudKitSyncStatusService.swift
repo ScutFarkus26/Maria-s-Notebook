@@ -114,7 +114,7 @@ final class CloudKitSyncStatusService: ObservableObject {
     private var pendingSyncCount: Int = 0
 
     /// Maximum time to wait for sync confirmation before assuming success (in nanoseconds)
-    private let syncTimeoutNanoseconds: UInt64 = 10_000_000_000 // 10 seconds
+    private let syncTimeoutNanoseconds: UInt64 = TimeoutConstants.defaultSyncTimeout
 
     // MARK: - Retry Logic
 
@@ -451,7 +451,7 @@ final class CloudKitSyncStatusService: ObservableObject {
         // The handleRemoteChange() method will cancel this task if sync completes
         syncingTask = Task { [weak self] in
             // Use longer timeout for more accurate sync status
-            try? await Task.sleep(nanoseconds: self?.syncTimeoutNanoseconds ?? 10_000_000_000)
+            try? await Task.sleep(nanoseconds: self?.syncTimeoutNanoseconds ?? TimeoutConstants.defaultSyncTimeout)
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 guard let self = self, self.isSyncing else { return }

@@ -3,6 +3,7 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 /// Manages backup transactions with rollback capability.
 /// Creates safety checkpoints before destructive operations and provides
@@ -149,9 +150,7 @@ public final class BackupTransactionManager {
             } catch {
                 // If checkpoint fails, we still allow the import to proceed
                 // but warn the user
-                #if DEBUG
-                print("BackupTransactionManager: Checkpoint creation failed: \(error)")
-                #endif
+                Logger.backup.error("Checkpoint creation failed: \(error)")
             }
         }
 

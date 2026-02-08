@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Backup Fetch Helpers
 
@@ -20,8 +21,9 @@ enum BackupFetchHelpers {
     static func safeFetchInBatches<T: PersistentModel>(
         _ type: T.Type,
         using context: ModelContext,
-        batchSize: Int = 1000
+        batchSize: Int = BatchingConstants.defaultBatchSize
     ) -> [T] {
+        precondition(batchSize > 0, "Batch size must be positive")
         var allEntities: [T] = []
         var offset = 0
 
@@ -45,8 +47,9 @@ enum BackupFetchHelpers {
     static func safeFetchInBatchesWithErrorHandling<T: PersistentModel>(
         _ type: T.Type,
         using context: ModelContext,
-        batchSize: Int = 1000
+        batchSize: Int = BatchingConstants.defaultBatchSize
     ) -> [T] {
+        precondition(batchSize > 0, "Batch size must be positive")
         var allEntities: [T] = []
         var offset = 0
 
@@ -74,9 +77,7 @@ enum BackupFetchHelpers {
         if let results = try? context.fetch(FetchDescriptor<T>()) {
             return results
         }
-        #if DEBUG
-        print("BackupService: Warning - Could not fetch \(String(describing: type)). Skipping this entity type.")
-        #endif
+        Logger.backup.error("Could not fetch \(String(describing: type)). Skipping this entity type.")
         return []
     }
 

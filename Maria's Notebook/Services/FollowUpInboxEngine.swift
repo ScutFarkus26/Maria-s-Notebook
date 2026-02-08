@@ -151,7 +151,8 @@ struct FollowUpInboxEngine {
             while cursor < today {
                 if !isNonSchoolDaySync(cursor) { count += 1 }
                 cursor = AppCalendar.addingDays(1, to: cursor)
-                if count > 36500 { break }
+                assert(count < BatchingConstants.maxDaysToIterate, "Date iteration safety limit exceeded")
+                if count > BatchingConstants.maxDaysToIterate { break }
             }
             return max(0, count)
         }

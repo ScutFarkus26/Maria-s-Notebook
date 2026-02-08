@@ -14,6 +14,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 #if os(iOS)
 import MessageUI
 import UIKit
@@ -350,7 +351,7 @@ struct TodayView: View {
                     try await syncService.syncReminders()
                 } catch {
                     #if DEBUG
-                    print("TodayView: Reminder sync failed: \(error.localizedDescription)")
+                    Logger.sync.error("Reminder sync failed: \(error.localizedDescription)")
                     #endif
                 }
             }
@@ -366,7 +367,7 @@ struct TodayView: View {
                     try await calendarSyncService.syncEvents()
                 } catch {
                     #if DEBUG
-                    print("TodayView: Calendar sync failed: \(error.localizedDescription)")
+                    Logger.sync.error("Calendar sync failed: \(error.localizedDescription)")
                     #endif
                 }
             }

@@ -3,6 +3,7 @@
 
 import Foundation
 import Combine
+import OSLog
 
 /// Service for managing backups in iCloud Drive
 /// Provides automatic cloud sync for backup files without requiring manual file management
@@ -459,9 +460,7 @@ public final class CloudBackupService: ObservableObject {
                     let jitter = Double.random(in: 0...0.5)
                     let actualDelay = min(delay + jitter, retryConfiguration.maxDelaySeconds)
 
-                    #if DEBUG
-                    print("CloudBackupService: Attempt \(attempt + 1) failed: \(error.localizedDescription). Retrying in \(actualDelay)s...")
-                    #endif
+                    Logger.backup.error("Attempt \(attempt + 1) failed: \(error.localizedDescription). Retrying in \(actualDelay)s...")
 
                     try await Task.sleep(nanoseconds: UInt64(actualDelay * 1_000_000_000))
                     delay *= retryConfiguration.backoffMultiplier
@@ -584,9 +583,7 @@ public final class CloudBackupService: ObservableObject {
             )
 
         } catch {
-            #if DEBUG
-            print("CloudBackupService: Scheduled backup failed: \(error.localizedDescription)")
-            #endif
+            Logger.backup.error("Scheduled backup failed: \(error.localizedDescription)")
 
             NotificationCenter.default.post(
                 name: .cloudBackupFailed,

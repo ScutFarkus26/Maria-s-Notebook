@@ -49,18 +49,18 @@ struct TopicDetailView: View, Identifiable {
                         newSolutionProposedBy: $newSolutionProposedBy,
                         onToggleAdopted: { s in
                             vm.toggleSolutionAdopted(s)
-                            _ = saveCoordinator.save(modelContext, reason: "Toggle solution adopted")
+                            saveCoordinator.save(modelContext, reason: "Toggle solution adopted")
                         },
                         onDelete: { s in
                             vm.deleteSolution(context: modelContext, s)
-                            _ = saveCoordinator.save(modelContext, reason: "Delete solution")
+                            saveCoordinator.save(modelContext, reason: "Delete solution")
                         },
                         onAdd: {
                             let title = newSolutionTitle.trimmed()
                             let details = newSolutionDetails.trimmed()
                             let proposedBy = newSolutionProposedBy.trimmed()
                             vm.addSolution(context: modelContext, title: title, details: details, proposedBy: proposedBy)
-                            _ = saveCoordinator.save(modelContext, reason: "Add proposed solution")
+                            saveCoordinator.save(modelContext, reason: "Add proposed solution")
                             newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
                         }
                     )
@@ -70,7 +70,7 @@ struct TopicDetailView: View, Identifiable {
                         showingImagePicker: $showingImagePicker,
                         onDelete: { a in
                             vm.deleteAttachment(context: modelContext, a)
-                            _ = saveCoordinator.save(modelContext, reason: "Delete attachment")
+                            saveCoordinator.save(modelContext, reason: "Delete attachment")
                         }
                     )
 
@@ -80,14 +80,14 @@ struct TopicDetailView: View, Identifiable {
                         newNoteContent: $newNoteContent,
                         onDelete: { n in
                             vm.deleteNote(context: modelContext, n)
-                            _ = saveCoordinator.save(modelContext, reason: "Delete note")
+                            saveCoordinator.save(modelContext, reason: "Delete note")
                         },
                         onAdd: {
                             let speaker = newNoteSpeaker.trimmed()
                             let content = newNoteContent.trimmed()
                             guard !content.isEmpty else { return }
                             vm.addNote(context: modelContext, speaker: speaker, content: content)
-                            _ = saveCoordinator.save(modelContext, reason: "Add note")
+                            saveCoordinator.save(modelContext, reason: "Add note")
                             newNoteSpeaker = ""; newNoteContent = ""
                         }
                     )

@@ -375,7 +375,7 @@ struct WorkCheckInServiceDeletionTests {
 
         try service.delete(checkIn, from: work)
 
-        #expect(work.checkIns?.count == 0)
+        #expect(work.checkIns?.isEmpty == true)
     }
 
     @Test("delete without work reference still removes from context")

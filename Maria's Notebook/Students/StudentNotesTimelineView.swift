@@ -468,8 +468,7 @@ private struct StudentNotesTimelineList: View {
 
     @MainActor
     private func resolveEditableNote(from item: UnifiedNoteItem) -> Note? {
-        // FIX: Removed "guard item.source == .general" check.
-        // Now we simply attempt to look up the Note by ID.
+        // Attempt to look up the Note by ID.
         // If it returns a valid Note object (whether attached to Work, Lesson, or General), it will be editable.
         return viewModel.note(by: item.id)
     }

@@ -18,7 +18,7 @@ enum BackupSizeEstimator {
         "StudentMeeting": 1200,
         // Presentation removed - using LessonAssignment instead
         "CommunityTopic": 1500,
-        "ProposedSolution": 1000,
+        "ProposedSolution": BatchingConstants.estimatedBytesPerEntity,
         "CommunityAttachment": 600,
         "AttendanceRecord": 300,
         "WorkCompletionRecord": 400,
@@ -31,7 +31,7 @@ enum BackupSizeEstimator {
     ]
 
     /// Default bytes per entity when type is unknown
-    static let defaultBytesPerEntity: Int = 1000
+    static let defaultBytesPerEntity: Int = BatchingConstants.estimatedBytesPerEntity
 
     /// Overhead for the backup envelope (metadata, headers, etc.)
     static let envelopeOverhead: Int64 = 2048
@@ -84,7 +84,7 @@ enum BackupSizeEstimator {
     /// - Parameter counts: Dictionary mapping entity type names to counts
     /// - Returns: Estimated compressed backup size in bytes
     static func estimateFromCounts(_ counts: [String: Int]) -> Int64 {
-        let uncompressedSize = counts.reduce(0) { total, pair in
+        let uncompressedSize = counts.reduce(0) { (total: Int, pair: (key: String, value: Int)) -> Int in
             let averageSize = averageBytesPerEntity[pair.key] ?? defaultBytesPerEntity
             return total + (averageSize * pair.value)
         }

@@ -465,7 +465,7 @@ struct StudentLessonPill: View {
                 setHighlight: { isValid in isValidDragTarget = isValid },
                 setMergeHighlight: { isValid in isMergeTargeted = isValid },
                 canAccept: { isValidDragTarget || isMergeTargeted },
-                onDidMutate: { reason in _ = saveCoordinator.save(modelContext, reason: reason) }
+                onDidMutate: { reason in saveCoordinator.save(modelContext, reason: reason) }
             ))
         }
         .sheet(item: $selectedWorkForDetail) { work in
@@ -509,7 +509,7 @@ struct StudentLessonPill: View {
         merged.minute = timeComps.minute
         let combined = calendar.date(from: merged) ?? newTime
         sl.setScheduledFor(combined, using: calendar)
-        _ = saveCoordinator.save(modelContext, reason: "Update lesson time")
+        saveCoordinator.save(modelContext, reason: "Update lesson time")
     }
 
     private struct PillDropDelegate: DropDelegate {

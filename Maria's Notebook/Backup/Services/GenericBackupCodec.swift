@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Generic protocol-based backup codec that eliminates parallel DTO hierarchies.
 ///
@@ -130,17 +131,17 @@ enum GenericBackupCodec {
         
         // Discover all BackupEncodable types from AppSchema
         let backupableTypes = discoverBackupableTypes()
-        
-        print("GenericBackupCodec: Found \(backupableTypes.count) backupable entity types")
-        
+
+        Logger.backup.info("Found \(backupableTypes.count) backupable entity types")
+
         for entityType in backupableTypes {
-            print("GenericBackupCodec: Exporting \(entityType.entityName)...")
-            
+            Logger.backup.info("Exporting \(entityType.entityName)...")
+
             let instances = try fetchAll(entityType, in: context)
             let data = try instances.map { try JSONEncoder().encode($0) }
             container.entities[entityType.entityName] = data
-            
-            print("GenericBackupCodec: ✓ Exported \(instances.count) \(entityType.entityName)")
+
+            Logger.backup.info("✓ Exported \(instances.count) \(entityType.entityName)")
         }
         
         container.metadata.totalSize = estimateSize(container)
@@ -161,21 +162,21 @@ enum GenericBackupCodec {
         
         for entityType in backupableTypes {
             guard container.entities.keys.contains(entityType.entityName) else {
-                print("GenericBackupCodec: Skipping \(entityType.entityName) (not in backup)")
+                Logger.backup.info("Skipping \(entityType.entityName) (not in backup)")
                 continue
             }
-            
-            print("GenericBackupCodec: Importing \(entityType.entityName)...")
-            
+
+            Logger.backup.info("Importing \(entityType.entityName)...")
+
             let instances = try container.decode(entityType)
-            
+
             for instance in instances {
                 if let model = instance as? (any PersistentModel) {
                     context.insert(model)
                 }
             }
-            
-            print("GenericBackupCodec: ✓ Imported \(instances.count) \(entityType.entityName)")
+
+            Logger.backup.info("✓ Imported \(instances.count) \(entityType.entityName)")
         }
         
         try context.save()

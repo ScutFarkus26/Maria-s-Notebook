@@ -13,7 +13,7 @@ enum InboxOrderStore {
     }
 
     static func serialize(_ ids: [UUID]) -> String {
-        ids.map { $0.uuidString }.joined(separator: ",")
+        ids.uuidStrings.joined(separator: ",")
     }
 
     static func orderedUnscheduled(from all: [StudentLesson], orderRaw: String) -> [StudentLesson] {

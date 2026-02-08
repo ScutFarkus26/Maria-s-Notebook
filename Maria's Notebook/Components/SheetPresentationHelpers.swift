@@ -3,10 +3,6 @@ import SwiftUI
 /// Helper utilities for consistent sheet presentation patterns across the app.
 /// Reduces boilerplate and ensures consistent behavior.
 extension View {
-    // FIX: The redundant `sheet<Item: Identifiable...>` extension was removed here.
-    // It conflicted with the standard SwiftUI `sheet(item:onDismiss:content:)` modifier,
-    // causing "Ambiguous use" errors in various views.
-    
     /// Presents a sheet for an optional UUID, useful for detail views.
     /// This extension is KEPT because standard SwiftUI does not natively support `Binding<UUID?>` items directly.
     /// - Parameters:

@@ -41,7 +41,7 @@ struct CSVParserTests {
 
         #expect(result != nil)
         #expect(result?.headers == ["Header1", "Header2", "Header3"])
-        #expect(result?.rows.count == 0)
+        #expect(result?.rows.isEmpty == true)
     }
 
     @Test("Returns synthesized header for empty string")

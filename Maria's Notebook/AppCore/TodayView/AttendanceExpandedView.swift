@@ -98,7 +98,7 @@ struct AttendanceExpandedView: View {
                 // Reset
                 Button {
                     viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
-                    _ = saveCoordinator.save(modelContext, reason: "Reset day")
+                    saveCoordinator.save(modelContext, reason: "Reset day")
                     onChange()
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
@@ -110,7 +110,7 @@ struct AttendanceExpandedView: View {
                 // Mark All Present
                 Button("Mark All Present") {
                     viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
-                    _ = saveCoordinator.save(modelContext, reason: "Mark all present")
+                    saveCoordinator.save(modelContext, reason: "Mark all present")
                     onChange()
                 }
                 .buttonStyle(.borderedProminent)
@@ -146,16 +146,16 @@ struct AttendanceExpandedView: View {
                 recordsByStudent: viewModel.recordsByStudent,
                 onCycleStatus: { student in
                     viewModel.cycleStatus(for: student, modelContext: modelContext)
-                    _ = saveCoordinator.save(modelContext, reason: "Update status")
+                    saveCoordinator.save(modelContext, reason: "Update status")
                     onChange()
                 },
                 onUpdateNote: { student, note in
                     viewModel.updateNote(for: student, note: note, modelContext: modelContext)
-                    _ = saveCoordinator.save(modelContext, reason: "Update note")
+                    saveCoordinator.save(modelContext, reason: "Update note")
                 },
                 onUpdateAbsenceReason: { student, reason in
                     viewModel.updateAbsenceReason(for: student, reason: reason, modelContext: modelContext)
-                    _ = saveCoordinator.save(modelContext, reason: "Update reason")
+                    saveCoordinator.save(modelContext, reason: "Update reason")
                 }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
