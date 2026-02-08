@@ -69,66 +69,69 @@ struct AttendanceExpandedView: View {
         return viewModel.sortedAndFiltered(students: visible)
     }
 
+    private var actionBar: some View {
+        HStack(spacing: 12) {
+            // Sort
+            Picker("Sort", selection: $localSortKey) {
+                Text("First").tag(AttendanceViewModel.SortKey.firstName)
+                Text("Last").tag(AttendanceViewModel.SortKey.lastName)
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 160)
+
+            Spacer()
+
+            // Lock
+            Button {
+                isEditing.toggle()
+                setLocked(!isEditing, for: date)
+            } label: {
+                Label(isEditing ? "Lock" : "Unlock", systemImage: isEditing ? "lock.fill" : "lock.open")
+            }
+            .buttonStyle(.bordered)
+            .help(isEditing ? "Lock this day" : "Unlock this day")
+
+            // Reset
+            Button {
+                viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
+                saveCoordinator.save(modelContext, reason: "Reset day")
+                onChange()
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+            }
+            .buttonStyle(.bordered)
+            .disabled(isNonSchoolDay || !isEditing)
+            .help("Reset Day")
+
+            // Mark All Present
+            Button("Mark All Present") {
+                viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
+                saveCoordinator.save(modelContext, reason: "Mark all present")
+                onChange()
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isNonSchoolDay || !isEditing)
+
+            // Email
+            if emailEnabled {
+                Button {
+                    prepareAttendanceEmail()
+                } label: {
+                    Label("Email", systemImage: "envelope")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isNonSchoolDay)
+            }
+        }
+        .padding(.vertical, 10)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Divider()
 
-            // Action Bar
-            HStack(spacing: 12) {
-                // Sort
-                Picker("Sort", selection: $localSortKey) {
-                    Text("First").tag(AttendanceViewModel.SortKey.firstName)
-                    Text("Last").tag(AttendanceViewModel.SortKey.lastName)
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 160)
-
-                Spacer()
-
-                // Lock
-                Button {
-                    isEditing.toggle()
-                    setLocked(!isEditing, for: date)
-                } label: {
-                    Label(isEditing ? "Lock" : "Unlock", systemImage: isEditing ? "lock.fill" : "lock.open")
-                }
-                .buttonStyle(.bordered)
-                .help(isEditing ? "Lock this day" : "Unlock this day")
-
-                // Reset
-                Button {
-                    viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
-                    saveCoordinator.save(modelContext, reason: "Reset day")
-                    onChange()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                }
-                .buttonStyle(.bordered)
-                .disabled(isNonSchoolDay || !isEditing)
-                .help("Reset Day")
-
-                // Mark All Present
-                Button("Mark All Present") {
-                    viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
-                    saveCoordinator.save(modelContext, reason: "Mark all present")
-                    onChange()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isNonSchoolDay || !isEditing)
-
-                // Email
-                if emailEnabled {
-                    Button {
-                        prepareAttendanceEmail()
-                    } label: {
-                        Label("Email", systemImage: "envelope")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isNonSchoolDay)
-                }
-            }
-            .padding(.vertical, 10)
+            actionBar
 
             // Grid
             if isNonSchoolDay {
