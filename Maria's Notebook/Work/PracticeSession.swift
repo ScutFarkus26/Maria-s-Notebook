@@ -30,10 +30,54 @@ final class PracticeSession: Identifiable {
     
     /// Shared observations and notes about the group practice session
     var sharedNotes: String = ""
-    
+
     /// Location or context where practice occurred (e.g., "Small table", "Outside", "Library corner")
     var location: String? = nil
-    
+
+    // MARK: - Practice Quality Metrics
+
+    /// Quality of practice engagement (1-5 scale)
+    /// 1: Distracted/off-task, 2: Minimal engagement, 3: Adequate focus, 4: Good engagement, 5: Deep focused practice
+    var practiceQuality: Int? = nil
+
+    /// Level of independence shown (1-5 scale)
+    /// 1: Constant help needed, 2: Frequent guidance, 3: Some support, 4: Mostly independent, 5: Fully independent
+    var independenceLevel: Int? = nil
+
+    // MARK: - Observable Behaviors (Flags)
+
+    /// Student asked for help during practice
+    var askedForHelp: Bool = false
+
+    /// Student helped a peer during practice
+    var helpedPeer: Bool = false
+
+    /// Student struggled with concept
+    var struggledWithConcept: Bool = false
+
+    /// Student made a breakthrough or "aha moment"
+    var madeBreakthrough: Bool = false
+
+    /// Student needs reteaching of concept
+    var needsReteaching: Bool = false
+
+    /// Student is ready for a check-in assessment
+    var readyForCheckIn: Bool = false
+
+    /// Student is ready for formal assessment
+    var readyForAssessment: Bool = false
+
+    // MARK: - Next Steps
+
+    /// Scheduled check-in date (if student needs follow-up support)
+    var checkInScheduledFor: Date? = nil
+
+    /// Follow-up actions or next steps
+    var followUpActions: String = ""
+
+    /// Materials or resources used during practice
+    var materialsUsed: String = ""
+
     // MARK: - Relationships
     
     /// Rich notes attached to this practice session (with multi-student scope support)
@@ -50,7 +94,19 @@ final class PracticeSession: Identifiable {
         studentIDs: [String] = [],
         workItemIDs: [String] = [],
         sharedNotes: String = "",
-        location: String? = nil
+        location: String? = nil,
+        practiceQuality: Int? = nil,
+        independenceLevel: Int? = nil,
+        askedForHelp: Bool = false,
+        helpedPeer: Bool = false,
+        struggledWithConcept: Bool = false,
+        madeBreakthrough: Bool = false,
+        needsReteaching: Bool = false,
+        readyForCheckIn: Bool = false,
+        readyForAssessment: Bool = false,
+        checkInScheduledFor: Date? = nil,
+        followUpActions: String = "",
+        materialsUsed: String = ""
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -60,6 +116,18 @@ final class PracticeSession: Identifiable {
         self.workItemIDs = workItemIDs
         self.sharedNotes = sharedNotes
         self.location = location
+        self.practiceQuality = practiceQuality
+        self.independenceLevel = independenceLevel
+        self.askedForHelp = askedForHelp
+        self.helpedPeer = helpedPeer
+        self.struggledWithConcept = struggledWithConcept
+        self.madeBreakthrough = madeBreakthrough
+        self.needsReteaching = needsReteaching
+        self.readyForCheckIn = readyForCheckIn
+        self.readyForAssessment = readyForAssessment
+        self.checkInScheduledFor = checkInScheduledFor
+        self.followUpActions = followUpActions
+        self.materialsUsed = materialsUsed
     }
     
     // MARK: - Computed Properties
@@ -95,7 +163,56 @@ final class PracticeSession: Identifiable {
             return String(format: "%.1f hrs", hours)
         }
     }
-    
+
+    /// Label for practice quality level
+    var practiceQualityLabel: String? {
+        guard let quality = practiceQuality else { return nil }
+        switch quality {
+        case 1: return "Distracted"
+        case 2: return "Minimal"
+        case 3: return "Adequate"
+        case 4: return "Good"
+        case 5: return "Excellent"
+        default: return nil
+        }
+    }
+
+    /// Label for independence level
+    var independenceLevelLabel: String? {
+        guard let independence = independenceLevel else { return nil }
+        switch independence {
+        case 1: return "Needs Constant Help"
+        case 2: return "Frequent Guidance"
+        case 3: return "Some Support"
+        case 4: return "Mostly Independent"
+        case 5: return "Fully Independent"
+        default: return nil
+        }
+    }
+
+    /// Returns active behavior flags as readable strings
+    var activeBehaviors: [String] {
+        var behaviors: [String] = []
+        if askedForHelp { behaviors.append("Asked for help") }
+        if helpedPeer { behaviors.append("Helped peer") }
+        if struggledWithConcept { behaviors.append("Struggled") }
+        if madeBreakthrough { behaviors.append("Breakthrough!") }
+        if needsReteaching { behaviors.append("Needs reteaching") }
+        if readyForCheckIn { behaviors.append("Ready for check-in") }
+        if readyForAssessment { behaviors.append("Ready for assessment") }
+        return behaviors
+    }
+
+    /// Returns true if any action flags are set
+    var hasActionFlags: Bool {
+        needsReteaching || readyForCheckIn || readyForAssessment
+    }
+
+    /// Returns true if there are scheduled next steps
+    var hasNextSteps: Bool {
+        checkInScheduledFor != nil || !followUpActions.isEmpty
+    }
+
     // MARK: - Helper Methods
     
     /// Checks if a specific student participated in this session
