@@ -329,8 +329,9 @@ struct PresentationsView: View {
             syncRecentWindowWithMissWindow()
         }
         .onChange(of: startDate) { _, new in
-            startDateRaw = new.timeIntervalSinceReferenceDate
-            Task {
+            // Debounce to prevent multiple updates per frame
+            Task { @MainActor in
+                startDateRaw = new.timeIntervalSinceReferenceDate
                 await loadNonSchoolDates()
             }
         }

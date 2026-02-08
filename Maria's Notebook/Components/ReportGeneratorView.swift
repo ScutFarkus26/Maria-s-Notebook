@@ -142,16 +142,22 @@ struct ReportGeneratorView: View {
                 fetchNoteCount()
             }
             .onChange(of: selectedDateRange) { _, _ in
-                fetchNoteCount()
+                Task { @MainActor in
+                    fetchNoteCount()
+                }
             }
             .onChange(of: customStartDate) { _, _ in
                 if selectedDateRange == .custom {
-                    fetchNoteCount()
+                    Task { @MainActor in
+                        fetchNoteCount()
+                    }
                 }
             }
             .onChange(of: customEndDate) { _, _ in
                 if selectedDateRange == .custom {
-                    fetchNoteCount()
+                    Task { @MainActor in
+                        fetchNoteCount()
+                    }
                 }
             }
             #if os(iOS)

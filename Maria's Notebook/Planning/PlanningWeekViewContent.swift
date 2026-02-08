@@ -304,7 +304,9 @@ struct PlanningWeekViewContent: View {
             loadWeekStudentLessons()
         }
         .onChange(of: startDate) { _, _ in
-            loadWeekStudentLessons()
+            Task { @MainActor in
+                loadWeekStudentLessons()
+            }
         }
         .onChange(of: inboxLessonIDs) { _, _ in
             syncInboxOrderWithCurrentBase()
