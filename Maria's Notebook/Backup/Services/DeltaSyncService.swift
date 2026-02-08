@@ -46,7 +46,7 @@ public final class DeltaSyncService {
     // MARK: - Configuration
     
     public struct Configuration {
-        public var chunkSize: Int = 64 * 1024  // 64KB chunks
+        public var chunkSize: Int = BackupConstants.deltaChunkSize
         public var compressionEnabled: Bool = true
         public var checksumValidation: Bool = true
         
@@ -58,8 +58,8 @@ public final class DeltaSyncService {
     
     // MARK: - Initialization
     
-    public init(configuration: Configuration = .default) {
-        self.configuration = configuration
+    public init(configuration: Configuration? = nil) {
+        self.configuration = configuration ?? Configuration()
     }
     
     // MARK: - Delta Generation
@@ -215,7 +215,7 @@ public final class DeltaSyncService {
         let manifest = try await generateDelta(from: remoteBaseURL, to: localURL)
         
         // If delta is larger than threshold, upload full file
-        if manifest.compressionRatio > 0.8 {  // Delta is >80% of original size
+        if manifest.compressionRatio > BackupConstants.deltaCompressionThreshold {
             progress(0.3, "Delta too large, uploading full file…")
             return try await uploadFullFile(
                 localURL: localURL,
@@ -356,8 +356,7 @@ public final class DeltaSyncService {
     }
     
     private func sha256(_ data: Data) -> String {
-        let hash = SHA256.hash(data: data)
-        return hash.compactMap { String(format: "%02x", $0) }.joined()
+        return data.sha256Hex
     }
     
     private func formatBytes(_ bytes: Int) -> String {

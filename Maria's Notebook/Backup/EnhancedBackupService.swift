@@ -156,7 +156,6 @@ public final class EnhancedBackupService {
         progress: @escaping (Double, String) -> Void
     ) async throws -> EnhancedRestoreResult {
         
-        let actualImportMode = importMode ?? preferredImportMode
         let startTime = Date()
         
         // Extract and validate payload first

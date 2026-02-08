@@ -287,7 +287,8 @@ final class StudentLessonDetailViewModel {
         showMovedBanner = true
         
         // Hide banner after delay
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             showMovedBanner = false
         }

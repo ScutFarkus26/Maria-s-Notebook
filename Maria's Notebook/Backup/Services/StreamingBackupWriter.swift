@@ -9,7 +9,7 @@ public final class StreamingBackupWriter {
     // MARK: - Types
     
     public struct Configuration {
-        public var batchSize: Int = 500
+        public var batchSize: Int = BackupConstants.streamingBatchSize
         public var useAutoreleasePool: Bool = true
         public var enableParallelProcessing: Bool = true
         
@@ -43,8 +43,8 @@ public final class StreamingBackupWriter {
     
     // MARK: - Initialization
     
-    public init(configuration: Configuration = .default) {
-        self.configuration = configuration
+    public init(configuration: Configuration? = nil) {
+        self.configuration = configuration ?? Configuration()
     }
     
     // MARK: - Streaming Export
@@ -76,7 +76,6 @@ public final class StreamingBackupWriter {
         
         // Phase 2: Stream each entity type in batches with autoreleasepool
         var processedEntities = 0
-        var entityChecksums: [String: String] = [:]
         
         // Collect DTOs with parallel processing where possible
         let (studentDTOs, lessonDTOs, noteDTOs) = try await withThrowingTaskGroup(of: (String, [Any]).self) { group in
@@ -132,7 +131,13 @@ public final class StreamingBackupWriter {
                     processedEntities += count
                     progress(0.30, "Processing notes…", processedEntities, type)
                 })
-                return (s as! [StudentDTO], l as! [LessonDTO], n as! [NoteDTO])
+                // Safe cast with error handling
+                guard let students = s as? [StudentDTO],
+                      let lessons = l as? [LessonDTO],
+                      let notes = n as? [NoteDTO] else {
+                    throw WriteError.encodingFailed(NSError(domain: "StreamingBackupWriter", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to cast entity types during sequential processing"]))
+                }
+                return (students, lessons, notes)
             }
         }
         
@@ -222,9 +227,7 @@ public final class StreamingBackupWriter {
         progress(0.70, "Encoding and compressing…", processedEntities, nil)
         
         // Encode with checksum
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .sortedKeys
+        let encoder = JSONEncoder.backupConfigured()
         let payloadBytes = try encoder.encode(payload)
         let sha = codec.sha256Hex(payloadBytes)
         
@@ -332,24 +335,28 @@ public final class StreamingBackupWriter {
         let typeName = String(describing: type)
         
         while true {
-            let batch: [T]? = autoreleasepool {
+            let batch: [T] = try autoreleasepool {
                 var descriptor = FetchDescriptor<T>()
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = configuration.batchSize
-                return try? context.fetch(descriptor)
+                do {
+                    return try context.fetch(descriptor)
+                } catch {
+                    throw WriteError.encodingFailed(error)
+                }
             }
             
-            guard let fetchedBatch = batch, !fetchedBatch.isEmpty else { break }
+            guard !batch.isEmpty else { break }
             
             // Transform to DTOs within autoreleasepool
             let dtos: [Any] = autoreleasepool {
-                return transformToDTOs(fetchedBatch) as [Any]
+                return transformToDTOs(batch) as [Any]
             }
             
             allDTOs.append(contentsOf: dtos)
-            progress(fetchedBatch.count, typeName)
+            progress(batch.count, typeName)
             
-            if fetchedBatch.count < configuration.batchSize { break }
+            if batch.count < configuration.batchSize { break }
             offset += configuration.batchSize
         }
         
@@ -411,18 +418,22 @@ public final class StreamingBackupWriter {
         var offset = 0
         
         while true {
-            let batch: [T]? = autoreleasepool {
+            let batch: [T] = try autoreleasepool {
                 var descriptor = FetchDescriptor<T>()
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = configuration.batchSize
-                return try? context.fetch(descriptor)
+                do {
+                    return try context.fetch(descriptor)
+                } catch {
+                    throw WriteError.encodingFailed(error)
+                }
             }
             
-            guard let fetchedBatch = batch, !fetchedBatch.isEmpty else { break }
+            guard !batch.isEmpty else { break }
             
-            allEntities.append(contentsOf: fetchedBatch)
+            allEntities.append(contentsOf: batch)
             
-            if fetchedBatch.count < configuration.batchSize { break }
+            if batch.count < configuration.batchSize { break }
             offset += configuration.batchSize
         }
         
@@ -458,8 +469,7 @@ public final class StreamingBackupWriter {
     
     private func verifyBackupFile(at url: URL) throws {
         let data = try Data(contentsOf: url)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.backupConfigured()
         let _ = try decoder.decode(BackupEnvelope.self, from: data)
     }
 }

@@ -43,9 +43,7 @@ public final class ChecksumVerificationService {
     public func generateChecksumManifest(for payload: BackupPayload) throws -> ChecksumManifest {
         var entityChecksums: [String: String] = [:]
         
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .sortedKeys
+        let encoder = JSONEncoder.backupConfigured()
         
         // Generate checksums for each entity type
         entityChecksums["Student"] = try checksumFor(payload.students, encoder: encoder)
@@ -182,7 +180,7 @@ public final class ChecksumVerificationService {
         if let compressed = envelope.compressedPayload {
             let codec = BackupCodec()
             payloadBytes = try codec.decompress(compressed)
-        } else if let encrypted = envelope.encryptedPayload {
+        } else if envelope.encryptedPayload != nil {
             // Can't verify encrypted payload without password
             return true  // Assume valid if encrypted
         } else {
@@ -191,9 +189,7 @@ public final class ChecksumVerificationService {
             ])
         }
         
-        let actualChecksum = SHA256.hash(data: payloadBytes)
-            .compactMap { String(format: "%02x", $0) }
-            .joined()
+        let actualChecksum = payloadBytes.sha256Hex
         
         return actualChecksum == envelope.manifest.sha256
     }
@@ -202,16 +198,12 @@ public final class ChecksumVerificationService {
     
     private func checksumFor<T: Encodable>(_ entities: [T], encoder: JSONEncoder) throws -> String {
         let data = try encoder.encode(entities)
-        return SHA256.hash(data: data)
-            .compactMap { String(format: "%02x", $0) }
-            .joined()
+        return data.sha256Hex
     }
     
     private func checksumFor<T: Encodable>(_ entity: T, encoder: JSONEncoder) throws -> String {
         let data = try encoder.encode(entity)
-        return SHA256.hash(data: data)
-            .compactMap { String(format: "%02x", $0) }
-            .joined()
+        return data.sha256Hex
     }
     
     private func checksumForAny(_ entity: any Encodable, encoder: JSONEncoder) throws -> String {

@@ -95,7 +95,7 @@ public final class CloudSyncConflictResolver {
         
         // Check for simultaneous modification (timestamps very close)
         let timeDiff = abs(localInfo.timestamp.timeIntervalSince(remoteInfo.timestamp))
-        if timeDiff < 60 { // Within 1 minute
+        if timeDiff < BackupConstants.simultaneousModificationThreshold {
             conflicts.append(Conflict(
                 localBackup: localInfo,
                 remoteBackup: remoteInfo,
@@ -109,7 +109,7 @@ public final class CloudSyncConflictResolver {
         let remoteTotal = remoteInfo.totalEntities
         let entityDiff = abs(localTotal - remoteTotal)
         
-        if entityDiff > (max(localTotal, remoteTotal) / 10) { // More than 10% difference
+        if Double(entityDiff) > (Double(max(localTotal, remoteTotal)) * BackupConstants.entityDiffThreshold) {
             conflicts.append(Conflict(
                 localBackup: localInfo,
                 remoteBackup: remoteInfo,
@@ -380,8 +380,7 @@ public final class CloudSyncConflictResolver {
     
     private func extractBackupInfo(from url: URL) async throws -> BackupInfo {
         let data = try Data(contentsOf: url)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.backupConfigured()
         let envelope = try decoder.decode(BackupEnvelope.self, from: data)
         
         return BackupInfo(
@@ -396,8 +395,7 @@ public final class CloudSyncConflictResolver {
     
     private func loadPayload(from url: URL) async throws -> BackupPayload {
         let data = try Data(contentsOf: url)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.backupConfigured()
         let envelope = try decoder.decode(BackupEnvelope.self, from: data)
         
         let codec = BackupCodec()
@@ -405,7 +403,7 @@ public final class CloudSyncConflictResolver {
         
         if let compressed = envelope.compressedPayload {
             payloadBytes = try codec.decompress(compressed)
-        } else if let encrypted = envelope.encryptedPayload {
+        } else if envelope.encryptedPayload != nil {
             throw NSError(
                 domain: "CloudSyncConflictResolver",
                 code: 2,
@@ -430,16 +428,11 @@ public final class CloudSyncConflictResolver {
     ) -> BackupPayload {
         
         // Merge students (union, prefer newer on conflict)
-        var studentMap: [UUID: StudentDTO] = [:]
-        for student in local.students {
-            studentMap[student.id] = student
-        }
-        for student in remote.students {
-            // If remote is newer or student doesn't exist locally, use remote
-            if remoteTimestamp > localTimestamp || studentMap[student.id] == nil {
-                studentMap[student.id] = student
-            }
-        }
+        let allStudents = local.students + remote.students
+        let studentMap = Dictionary(
+            allStudents.map { ($0.id, $0) },
+            uniquingKeysWith: { remoteTimestamp > localTimestamp ? $1 : $0 }
+        )
         
         // Similar logic for other entity types...
         // This is simplified - real implementation would be more sophisticated

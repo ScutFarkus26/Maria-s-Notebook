@@ -26,6 +26,7 @@ struct PresentationsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dependencies) private var dependencies
 
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -131,8 +132,11 @@ struct PresentationsView: View {
         case calendar = "Calendar"
     }
     
-    // OPTIMIZATION: Use ViewModel to cache expensive computations
-    @StateObject private var viewModel = PresentationsViewModel()
+    // OPTIMIZATION: Use shared ViewModel from dependencies for instant loading
+    // The shared instance persists across navigation and preloads data in the background
+    private var viewModel: PresentationsViewModel {
+        dependencies.presentationsViewModel
+    }
     
     // Computed properties that use ViewModel (preserves exact same functionality)
     private var readyLessons: [StudentLesson] { viewModel.readyLessons }
@@ -167,7 +171,7 @@ struct PresentationsView: View {
         
         // Compute school days starting exactly at baseDate, extending forward
         var result: [Date] = []
-        let maxDays = 14
+        let maxDays = BackupConstants.maxCalendarDaysInGrid
         var cursor = baseDate
         var safety = 0
         

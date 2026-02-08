@@ -325,51 +325,70 @@ final class StudentsViewModel: ObservableObject {
 
     /// Computes days since last lesson for multiple students efficiently.
     /// Fetches all student lessons once and filters in memory to avoid repeated queries.
-    private func computeDaysSinceLastLessonCache(
-        for students: [Student],
-        using modelContext: ModelContext,
-        calendar: Calendar
-    ) -> [UUID: Int] {
-        // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
-        let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date()) ?? Date().addingTimeInterval(-365*24*3600)
+    // MARK: - Shared Helper for Lesson Queries
+    
+    /// Shared data structure containing pre-fetched lesson data for efficient computation.
+    private struct LessonQueryContext {
+        let allStudentLessons: [StudentLesson]
+        let excludedLessonIDs: Set<UUID>
+        let calendar: Calendar
+        let modelContext: ModelContext
         
-        // Fetch student lessons from last year, sorted by date descending for efficiency
-        // Use simple date filter on createdAt as predicate, then filter more precisely in memory
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { sl in
-                sl.createdAt >= oneYearAgo
-            },
-            sortBy: [
-                SortDescriptor(\StudentLesson.givenAt, order: .reverse),
-                SortDescriptor(\StudentLesson.scheduledFor, order: .reverse),
-                SortDescriptor(\StudentLesson.createdAt, order: .reverse)
-            ]
-        )
-        let allStudentLessons = modelContext.safeFetch(descriptor)
-        
-        // Fetch lessons to exclude (parsha lessons)
-        let lessonsDescriptor = FetchDescriptor<Lesson>()
-        let allLessons = modelContext.safeFetch(lessonsDescriptor)
-        let excludedLessonIDs: Set<UUID> = {
+        init(modelContext: ModelContext, calendar: Calendar) {
+            self.calendar = calendar
+            self.modelContext = modelContext
+            
+            // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
+            let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date()) ?? Date().addingTimeInterval(-365*24*3600)
+            
+            // Fetch student lessons from last year, sorted by date descending for efficiency
+            let descriptor = FetchDescriptor<StudentLesson>(
+                predicate: #Predicate { sl in
+                    sl.createdAt >= oneYearAgo
+                },
+                sortBy: [
+                    SortDescriptor(\StudentLesson.givenAt, order: .reverse),
+                    SortDescriptor(\StudentLesson.scheduledFor, order: .reverse),
+                    SortDescriptor(\StudentLesson.createdAt, order: .reverse)
+                ]
+            )
+            self.allStudentLessons = modelContext.safeFetch(descriptor)
+            
+            // Fetch lessons to exclude (parsha lessons) - cache this as Set for O(1) lookup
+            let lessonsDescriptor = FetchDescriptor<Lesson>()
+            let allLessons = modelContext.safeFetch(lessonsDescriptor)
             func norm(_ s: String) -> String { s.normalizedForComparison() }
             let ids = allLessons.filter { l in
                 let s = norm(l.subject)
                 let g = norm(l.group)
                 return s == "parsha" || g == "parsha"
             }.map { $0.id }
-            return Set(ids)
-        }()
-        
-        // Filter to only given lessons that aren't excluded
-        let givenLessons = allStudentLessons.filter { 
-            $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) 
+            self.excludedLessonIDs = Set(ids)
         }
+        
+        /// Returns all given, non-excluded student lessons
+        func givenLessons() -> [StudentLesson] {
+            allStudentLessons.filter { 
+                $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) 
+            }
+        }
+    }
+    
+    private func computeDaysSinceLastLessonCache(
+        for students: [Student],
+        using modelContext: ModelContext,
+        calendar: Calendar
+    ) -> [UUID: Int] {
+        // Build shared query context once
+        let context = LessonQueryContext(modelContext: modelContext, calendar: calendar)
+        let givenLessons = context.givenLessons()
         
         // Build a map of student ID to most recent lesson date
         var lastDateByStudent: [UUID: Date] = [:]
         for sl in givenLessons {
             let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
             for sid in sl.resolvedStudentIDs {
+                // Update if this is the first date or a more recent date
                 if let existing = lastDateByStudent[sid] {
                     if when > existing {
                         lastDateByStudent[sid] = when
@@ -408,58 +427,13 @@ final class StudentsViewModel: ObservableObject {
         using modelContext: ModelContext,
         calendar: Calendar = .current
     ) -> Int {
-        // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
-        let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date()) ?? Date().addingTimeInterval(-365*24*3600)
-        
-        // Fetch student lessons from last year sorted by date descending
-        // We fetch all because SwiftData predicates can't easily query JSON-encoded arrays
-        // Use simple date filter on createdAt as predicate, then filter more precisely in memory
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { sl in
-                sl.createdAt >= oneYearAgo
-            },
-            sortBy: [
-                SortDescriptor(\StudentLesson.givenAt, order: .reverse),
-                SortDescriptor(\StudentLesson.scheduledFor, order: .reverse),
-                SortDescriptor(\StudentLesson.createdAt, order: .reverse)
-            ]
-        )
-        let allStudentLessons = modelContext.safeFetch(descriptor)
-        
-        // Fetch lessons to exclude (parsha lessons)
-        let lessonsDescriptor = FetchDescriptor<Lesson>()
-        let allLessons = modelContext.safeFetch(lessonsDescriptor)
-        let excludedLessonIDs: Set<UUID> = {
-            func norm(_ s: String) -> String { s.normalizedForComparison() }
-            let ids = allLessons.filter { l in
-                let s = norm(l.subject)
-                let g = norm(l.group)
-                return s == "parsha" || g == "parsha"
-            }.map { $0.id }
-            return Set(ids)
-        }()
-        
-        // Find the most recent given lesson for this student
-        let studentID = student.id
-        let relevantLessons = allStudentLessons.filter { sl in
-            sl.isGiven 
-            && !excludedLessonIDs.contains(sl.resolvedLessonID)
-            && sl.resolvedStudentIDs.contains(studentID)
-        }
-        
-        guard let mostRecent = relevantLessons.first else {
-            return -1 // No lesson found
-        }
-        
-        let lastDate = mostRecent.givenAt ?? mostRecent.scheduledFor ?? mostRecent.createdAt
-        
-        // Calculate school days since last lesson
-        return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: lastDate,
-            asOf: Date(),
+        // Reuse the shared logic by calling the batch method with a single student
+        let result = computeDaysSinceLastLessonCache(
+            for: [student],
             using: modelContext,
             calendar: calendar
         )
+        return result[student.id] ?? -1
     }
 }
 

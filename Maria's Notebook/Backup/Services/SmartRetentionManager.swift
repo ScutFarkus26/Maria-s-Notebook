@@ -73,8 +73,8 @@ public final class SmartRetentionManager {
     
     // MARK: - Initialization
     
-    public init(policy: RetentionPolicy = .default) {
-        self.policy = policy
+    public init(policy: RetentionPolicy? = nil) {
+        self.policy = policy ?? RetentionPolicy()
     }
     
     // MARK: - Analysis

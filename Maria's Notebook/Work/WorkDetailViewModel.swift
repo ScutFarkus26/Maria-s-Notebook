@@ -149,7 +149,7 @@ final class WorkDetailViewModel: ObservableObject {
     ) {
         guard status == .complete,
               completionOutcome == .mastered,
-              let currentLesson = relatedLesson,
+              relatedLesson != nil,
               let studentID = UUID(uuidString: work?.studentID ?? ""),
               let nextLesson = likelyNextLesson(allLessons: allLessons) else {
             return

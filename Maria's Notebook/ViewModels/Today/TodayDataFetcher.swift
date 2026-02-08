@@ -68,12 +68,15 @@ enum TodayDataFetcher {
                 ?? actualReferenceDate.addingTimeInterval(-90*24*3600)
 
             // Fetch Active/Review WorkModels with date filter
-            let workDescriptor = FetchDescriptor<WorkModel>(
+            // PERFORMANCE: Add fetch limit to prevent unbounded result sets
+            var workDescriptor = FetchDescriptor<WorkModel>(
                 predicate: #Predicate { w in
                     (w.statusRaw == "active" || w.statusRaw == "review") &&
                     w.createdAt >= cutoffDate
-                }
+                },
+                sortBy: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]
             )
+            workDescriptor.fetchLimit = 1000 // Reasonable limit for active work items
             let workItems = try context.fetch(workDescriptor)
 
             // Collect student/lesson IDs from work
@@ -115,11 +118,14 @@ enum TodayDataFetcher {
             // Fetch Notes
             let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date())
                 ?? Date().addingTimeInterval(-90*24*3600)
-            let notesDescriptor = FetchDescriptor<Note>(
+            // PERFORMANCE: Add fetch limit and sort to prevent unbounded result sets
+            var notesDescriptor = FetchDescriptor<Note>(
                 predicate: #Predicate<Note> { note in
                     note.createdAt >= notesCutoffDate && note.work != nil
-                }
+                },
+                sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
             )
+            notesDescriptor.fetchLimit = 500 // Reasonable limit for recent notes
             let fetchedNotes = try context.fetch(notesDescriptor)
             
             // PERFORMANCE: Filter notes and group both planItems and notes in a single pass

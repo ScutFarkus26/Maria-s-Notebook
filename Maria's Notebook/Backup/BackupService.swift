@@ -125,9 +125,7 @@ public final class BackupService {
         )
 
         progress(BackupProgress.progress(for: .encoding), "Encoding data…")
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .sortedKeys
+        let encoder = JSONEncoder.backupConfigured()
         let payloadBytes = try encoder.encode(payload)
         let sha = codec.sha256Hex(payloadBytes)
 

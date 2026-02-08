@@ -188,7 +188,7 @@ struct TelemetryDashboardView: View {
         .onAppear {
             updateReport()
         }
-        .onChange(of: selectedPeriod) { _ in
+        .onChange(of: selectedPeriod) {
             updateReport()
         }
     }
@@ -203,8 +203,8 @@ struct TelemetryDashboardView: View {
     }
     
     private func successRateColor(_ rate: Double) -> Color {
-        if rate >= 95 { return .green }
-        if rate >= 80 { return .orange }
+        if rate >= Double(BackupConstants.telemetrySuccessThreshold) { return .green }
+        if rate >= Double(BackupConstants.telemetryWarningThreshold) { return .orange }
         return .red
     }
     
@@ -217,7 +217,11 @@ struct TelemetryDashboardView: View {
             
             panel.begin { response in
                 if response == .OK, let url = panel.url {
-                    try? data.write(to: url)
+                    do {
+                        try data.write(to: url, options: .atomic)
+                    } catch {
+                        print("Failed to write telemetry export: \(error.localizedDescription)")
+                    }
                 }
             }
         } catch {

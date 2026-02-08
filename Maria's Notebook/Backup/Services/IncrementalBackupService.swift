@@ -111,9 +111,7 @@ public final class IncrementalBackupService {
         progress(0.3, "Encoding \(changedCount) entities…")
 
         // Encode payload
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .sortedKeys
+        let encoder = JSONEncoder.backupConfigured()
         let payloadBytes = try encoder.encode(payload)
         let sha = codec.sha256Hex(payloadBytes)
 
@@ -317,9 +315,7 @@ public final class IncrementalBackupService {
         )
 
         // Encode and write
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .sortedKeys
+        let encoder = JSONEncoder.backupConfigured()
         let payloadBytes = try encoder.encode(consolidatedPayload)
         let sha = codec.sha256Hex(payloadBytes)
 
@@ -428,9 +424,7 @@ public final class IncrementalBackupService {
         let payloadBytes: Data
 
         if let payload = envelope.payload {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            encoder.outputFormatting = .sortedKeys
+            let encoder = JSONEncoder.backupConfigured()
             payloadBytes = try encoder.encode(payload)
         } else if let compressed = envelope.compressedPayload {
             payloadBytes = try codec.decompress(compressed)
