@@ -56,7 +56,7 @@ struct MariasNotebookApp: App {
     // MARK: - Scene
     
     var body: some Scene {
-        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "App")
+        let logger = Logger.app(category: "App")
         logger.info("App body: Starting scene body evaluation")
         
         return WindowGroup("", id: "mainWindow") {

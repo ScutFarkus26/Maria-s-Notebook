@@ -17,7 +17,7 @@ import OSLog
 @MainActor
 final class LessonAssignmentMigrationValidator {
     private let context: ModelContext
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "LessonAssignmentValidation")
+    private let logger = Logger.app(category: "LessonAssignmentValidation")
 
     init(context: ModelContext) {
         self.context = context

@@ -37,7 +37,7 @@ struct AttendanceGrid: View {
                         ForEach(students, id: \.id) { student in
                             AttendanceCard(
                                 student: student,
-                                record: recordsByStudentID[student.id.uuidString],
+                                record: recordsByStudentID[student.cloudKitKey],
                                 isEditing: true,
                                 onTap: {
                                     onCycleStatus(student)
@@ -61,7 +61,7 @@ struct AttendanceGrid: View {
                         ForEach(students, id: \.id) { student in
                             AttendanceCard(
                                 student: student,
-                                record: recordsByStudentID[student.id.uuidString],
+                                record: recordsByStudentID[student.cloudKitKey],
                                 isEditing: true,
                                 onTap: {
                                     onCycleStatus(student)

@@ -19,7 +19,7 @@ public final class SyncedPreferencesStore: ObservableObject {
 
     private let kvStore = NSUbiquitousKeyValueStore.default
     private let userDefaults = UserDefaults.standard
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "SyncedPreferences")
+    private let logger = Logger.app(category: "SyncedPreferences")
 
     // MARK: - Quota Monitoring
 

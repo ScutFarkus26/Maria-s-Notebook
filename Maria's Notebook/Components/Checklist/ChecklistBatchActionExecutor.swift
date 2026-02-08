@@ -94,7 +94,7 @@ enum ChecklistBatchActionExecutor {
 
     private static func toggleScheduledNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
         let lessonIDString = lesson.id.uuidString
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.cloudKitKey
 
         let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
 
@@ -125,7 +125,7 @@ enum ChecklistBatchActionExecutor {
     }
 
     private static func togglePresentedNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.cloudKitKey
         let lessonIDString = lesson.id.uuidString
 
         let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
@@ -151,7 +151,7 @@ enum ChecklistBatchActionExecutor {
     }
 
     private static func markCompleteNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.cloudKitKey
         let lessonIDString = lesson.id.uuidString
 
         // First, ensure the lesson is marked as presented
@@ -178,7 +178,7 @@ enum ChecklistBatchActionExecutor {
 
     private static func clearStatusNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
         let lid = lesson.id
-        let sidString = student.id.uuidString
+        let sidString = student.cloudKitKey
         let lidString = lid.uuidString
 
         let sls = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lidString }))

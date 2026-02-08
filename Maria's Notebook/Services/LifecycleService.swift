@@ -21,7 +21,7 @@ struct LifecycleService {
             studentLesson.studentIDs = cleanedIDs
             // Also update the transient relationship array
             studentLesson.students = studentLesson.students.filter { student in
-                validStudentIDs.contains(student.id.uuidString)
+                validStudentIDs.contains(student.cloudKitKey)
             }
         }
     }

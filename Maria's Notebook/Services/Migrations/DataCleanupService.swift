@@ -34,7 +34,7 @@ enum DataCleanupService {
                 sl.studentIDs = cleanedIDs
                 // Also update the transient relationship array
                 sl.students = sl.students.filter { student in
-                    validStudentIDs.contains(student.id.uuidString)
+                    validStudentIDs.contains(student.cloudKitKey)
                 }
                 cleaned += 1
             }

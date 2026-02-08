@@ -6,7 +6,7 @@ import OSLog
 /// Service for managing CloudKit configuration and status.
 enum CloudKitConfigurationService {
 
-    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "CloudKit")
+    private static let logger = Logger.app(category: "CloudKit")
 
     // MARK: - Container ID
 

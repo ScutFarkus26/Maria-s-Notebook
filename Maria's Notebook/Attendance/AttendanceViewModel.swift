@@ -58,7 +58,7 @@ final class AttendanceViewModel: ObservableObject {
     // MARK: - Actions
     func cycleStatus(for student: Student, modelContext: ModelContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }
         let next = rec.status.next()
         let store = AttendanceStore(context: modelContext)
@@ -69,7 +69,7 @@ final class AttendanceViewModel: ObservableObject {
 
     func updateNote(for student: Student, note: String?, modelContext: ModelContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }
         let store = AttendanceStore(context: modelContext)
         if store.updateNote(rec, to: note) {
@@ -80,7 +80,7 @@ final class AttendanceViewModel: ObservableObject {
 
     func updateAbsenceReason(for student: Student, reason: AbsenceReason, modelContext: ModelContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }
         // Only allow setting absence reason if status is absent
         guard rec.status == .absent else { return }

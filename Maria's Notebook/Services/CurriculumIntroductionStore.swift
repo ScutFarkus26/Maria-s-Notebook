@@ -13,7 +13,7 @@ import os.log
 final class CurriculumIntroductionStore: ObservableObject {
     static let shared = CurriculumIntroductionStore()
 
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook", category: "CurriculumIntroductionStore")
+    private let logger = Logger.app(category: "CurriculumIntroductionStore")
 
     /// All loaded introductions (merged from bundle defaults and user customizations)
     @Published private(set) var introductions: [CurriculumIntroduction] = []

@@ -209,7 +209,7 @@ struct AttendanceExpandedView: View {
 
     private func names(for status: AttendanceStatus) -> [String] {
         filteredStudents.compactMap { s in
-            if let rec = viewModel.recordsByStudentID[s.id.uuidString], rec.status == status {
+            if let rec = viewModel.recordsByStudentID[s.cloudKitKey], rec.status == status {
                 return s.fullName
             }
             return nil

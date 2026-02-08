@@ -174,11 +174,11 @@ struct AttendanceStore {
 
         var didInsert = false
         for student in students {
-            if existingByStudent[student.id.uuidString] == nil {
+            if existingByStudent[student.cloudKitKey] == nil {
                 let rec = AttendanceRecord(studentID: student.id, date: day, status: .unmarked, absenceReason: .none, note: nil)
                 context.insert(rec)
                 existing.append(rec)
-                existingByStudent[student.id.uuidString] = rec
+                existingByStudent[student.cloudKitKey] = rec
                 didInsert = true
             }
         }

@@ -4,7 +4,7 @@ import OSLog
 /// Performance logger for measuring SwiftData query performance and detecting main thread stutters.
 /// Available in both Debug and Release builds.
 enum PerformanceLogger {
-    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "Performance")
+    private static let logger = Logger.app(category: "Performance")
     
     /// Measures the duration of a block and logs it with a screen name and item count.
     /// - Parameters:

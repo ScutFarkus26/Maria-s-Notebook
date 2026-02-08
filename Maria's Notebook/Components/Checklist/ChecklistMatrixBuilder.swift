@@ -38,8 +38,8 @@ enum ChecklistMatrixBuilder {
 
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
-            let studentSLs = allSLs.filter { $0.studentIDs.contains(student.id.uuidString) }
-            let studentIDString = student.id.uuidString
+            let studentSLs = allSLs.filter { $0.studentIDs.contains(student.cloudKitKey) }
+            let studentIDString = student.cloudKitKey
 
             // Filter WorkModels for this student
             let studentWorkModels = allWorkModels.filter { work in

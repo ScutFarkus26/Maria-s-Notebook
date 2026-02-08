@@ -14,7 +14,7 @@ import OSLog
 @MainActor
 final class MigrationDiagnosticService {
     private let context: ModelContext
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook", category: "MigrationDiagnostics")
+    private let logger = Logger.app(category: "MigrationDiagnostics")
 
     init(context: ModelContext) {
         self.context = context
