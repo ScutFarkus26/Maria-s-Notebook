@@ -250,7 +250,7 @@ struct CloudKitSyncStatusBehaviorTests {
 
     @Test("SyncHealth states are distinct")
     func syncHealthStatesDistinct() {
-        let states: [CloudKitSyncStatusService.SyncHealth] = [
+        let states: [CloudKitHealthCheck.SyncHealth] = [
             .healthy,
             .syncing,
             .warning,

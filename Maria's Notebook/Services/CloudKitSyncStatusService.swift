@@ -3,7 +3,6 @@ import SwiftUI
 import SwiftData
 import CoreData
 import Combine
-import Network
 
 /// Service that monitors CloudKit sync activity and provides status information.
 /// Since SwiftData doesn't expose per-record sync status, this service tracks
@@ -23,91 +22,42 @@ final class CloudKitSyncStatusService: ObservableObject {
     /// The last sync error message, if any
     @Published private(set) var lastSyncError: String?
 
-    /// Overall sync health status
-    @Published private(set) var syncHealth: SyncHealth = .unknown
+    /// Overall sync health status (delegated to CloudKitHealthCheck)
+    var syncHealth: CloudKitHealthCheck.SyncHealth {
+        healthCheck.syncHealth
+    }
 
-    /// Whether network is available
-    @Published private(set) var isNetworkAvailable: Bool = true
+    /// Whether network is available (delegated to NetworkMonitoring)
+    var isNetworkAvailable: Bool {
+        networkMonitor.isNetworkAvailable
+    }
 
-    /// Whether iCloud account is available
-    @Published private(set) var isICloudAvailable: Bool = true
+    /// Whether iCloud account is available (delegated to CloudKitHealthCheck)
+    var isICloudAvailable: Bool {
+        healthCheck.isICloudAvailable
+    }
 
     /// Timestamp when the service was initialized (used for startup grace period)
     private let initializationTime: Date = Date()
 
-    // MARK: - Types
+    // MARK: - Specialized Services
 
-    enum SyncHealth: Equatable, Sendable {
-        case healthy          // Recent successful sync, no errors
-        case syncing          // Currently syncing
-        case warning          // Minor issues (e.g., slow sync)
-        case error(String)    // Sync error occurred
-        case offline          // No network or iCloud unavailable
-        case unknown          // Status unknown (startup)
-
-        nonisolated static func == (lhs: SyncHealth, rhs: SyncHealth) -> Bool {
-            switch (lhs, rhs) {
-            case (.healthy, .healthy): return true
-            case (.syncing, .syncing): return true
-            case (.warning, .warning): return true
-            case (.error(let l), .error(let r)): return l == r
-            case (.offline, .offline): return true
-            case (.unknown, .unknown): return true
-            default: return false
-            }
-        }
-
-        var color: Color {
-            switch self {
-            case .healthy: return .green
-            case .syncing: return .blue
-            case .warning: return .orange
-            case .error: return .red
-            case .offline: return .gray
-            case .unknown: return .gray
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .healthy: return "checkmark.icloud"
-            case .syncing: return "arrow.triangle.2.circlepath.icloud"
-            case .warning: return "exclamationmark.icloud"
-            case .error: return "xmark.icloud"
-            case .offline: return "icloud.slash"
-            case .unknown: return "icloud"
-            }
-        }
-
-        var displayText: String {
-            switch self {
-            case .healthy: return "Synced"
-            case .syncing: return "Syncing..."
-            case .warning: return "Sync Delayed"
-            case .error: return "Sync Error"
-            case .offline: return "Offline"
-            case .unknown: return "Checking..."
-            }
-        }
-    }
+    private let networkMonitor = NetworkMonitoring()
+    private let retryLogic = SyncRetryLogic()
+    private let healthCheck = CloudKitHealthCheck()
 
     // MARK: - Private State
 
     private var remoteChangeObserver: NSObjectProtocol?
     private var saveObserver: NSObjectProtocol?
-    private var iCloudAccountObserver: NSObjectProtocol?
     private var storeCoordinatorChangeObserver: NSObjectProtocol?
     private var syncStartTime: Date?
     private var modelContainer: ModelContainer?
     private var syncingTask: Task<Void, Never>?
-    private var networkMonitor: NWPathMonitor?
-    private let networkQueue = DispatchQueue(label: "com.mariasnotebook.networkmonitor")
 
     // Task tracking for notification handlers to prevent accumulation
     private var pendingRemoteChangeTask: Task<Void, Never>?
     private var pendingSaveTask: Task<Void, Never>?
-    private var pendingICloudTask: Task<Void, Never>?
-    private var pendingNetworkTask: Task<Void, Never>?
     private var pendingStoreChangeTask: Task<Void, Never>?
 
     /// Pending sync count - tracks how many saves are waiting for CloudKit confirmation
@@ -115,20 +65,6 @@ final class CloudKitSyncStatusService: ObservableObject {
 
     /// Maximum time to wait for sync confirmation before assuming success (in nanoseconds)
     private let syncTimeoutNanoseconds: UInt64 = TimeoutConstants.defaultSyncTimeout
-
-    // MARK: - Retry Logic
-
-    /// Current retry attempt count for failed syncs
-    private var retryAttempt: Int = 0
-
-    /// Maximum number of retry attempts before giving up
-    private let maxRetryAttempts: Int = 5
-
-    /// Base delay for exponential backoff (in seconds)
-    private let baseRetryDelay: Double = 2.0
-
-    /// Task for retry operations
-    private var retryTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -139,40 +75,30 @@ final class CloudKitSyncStatusService: ObservableObject {
         }
         lastSyncError = UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
-        // Check initial iCloud availability
-        isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
-
-        // Start network monitoring
-        startNetworkMonitoring()
-
-        // Set initial health based on persisted state
-        // If we have a recent successful sync and no errors, start with healthy
-        // This prevents showing "offline" during CloudKit initialization teardowns
-        let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
-        let isActive = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
-        
-        if isEnabled && isActive {
-            if let lastSync = lastSuccessfulSync {
-                let elapsed = Date().timeIntervalSince(lastSync)
-                if elapsed < 3600 && lastSyncError == nil { // Within 1 hour and no errors
-                    syncHealth = .healthy
-                } else {
-                    syncHealth = .unknown
-                }
-            } else {
-                syncHealth = .unknown
+        // Setup network monitoring callbacks
+        networkMonitor.setNetworkChangeHandler { [weak self] isAvailable in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                self.handleNetworkChange(isAvailable: isAvailable)
             }
-        } else {
-            syncHealth = .offline
         }
-        
-        // updateSyncHealth() will be called after configure() delay completes
+
+        // Setup iCloud account monitoring callbacks
+        healthCheck.setICloudChangeHandler { [weak self] isAvailable in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                self.handleICloudAccountChange(isAvailable: isAvailable)
+            }
+        }
+
+        // Update health status after initialization
+        updateSyncHealth()
     }
 
     deinit {
         stopObserving()
         // Note: Cannot call stopNetworkMonitoring() from deinit since it's MainActor-isolated
-        // The NWPathMonitor will be cleaned up when the object is deallocated
+        // The specialized services will be cleaned up when deallocated
     }
 
     // MARK: - Setup
@@ -190,7 +116,7 @@ final class CloudKitSyncStatusService: ObservableObject {
             await MainActor.run { [weak self] in
                 guard let self = self else { return }
                 self.startObserving()
-                self.startICloudAccountMonitoring()
+                self.healthCheck.startICloudAccountMonitoring()
                 self.updateSyncHealth()
             }
         }
@@ -257,10 +183,6 @@ final class CloudKitSyncStatusService: ObservableObject {
             self?.pendingRemoteChangeTask = nil
             self?.pendingSaveTask?.cancel()
             self?.pendingSaveTask = nil
-            self?.pendingICloudTask?.cancel()
-            self?.pendingICloudTask = nil
-            self?.pendingNetworkTask?.cancel()
-            self?.pendingNetworkTask = nil
             self?.pendingStoreChangeTask?.cancel()
             self?.pendingStoreChangeTask = nil
 
@@ -270,102 +192,47 @@ final class CloudKitSyncStatusService: ObservableObject {
             if let observer = self?.saveObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
-            if let observer = self?.iCloudAccountObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
             if let observer = self?.storeCoordinatorChangeObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
             self?.remoteChangeObserver = nil
             self?.saveObserver = nil
-            self?.iCloudAccountObserver = nil
             self?.storeCoordinatorChangeObserver = nil
         }
     }
 
-    // MARK: - iCloud Account Monitoring
+    // MARK: - Network & iCloud Change Handlers
 
-    private func startICloudAccountMonitoring() {
-        // Observe iCloud account changes (sign-in/sign-out)
-        iCloudAccountObserver = NotificationCenter.default.addObserver(
-            forName: .NSUbiquityIdentityDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                // Cancel any pending task to prevent accumulation
-                self.pendingICloudTask?.cancel()
-                self.pendingICloudTask = Task { @MainActor [weak self] in
-                    self?.handleICloudAccountChange()
-                }
+    private func handleNetworkChange(isAvailable: Bool) {
+        if isAvailable {
+            // Network restored - clear network-related errors and trigger retry
+            if let error = lastSyncError, error.contains("network") || error.contains("offline") || error.contains("Waiting") {
+                lastSyncError = nil
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
             }
+            // Trigger retry for any pending syncs
+            retryPendingSync()
         }
+        updateSyncHealth()
     }
 
-    private func handleICloudAccountChange() {
-        let wasAvailable = isICloudAvailable
-        isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
-
-        if wasAvailable != isICloudAvailable {
-            if isICloudAvailable {
-                // User signed into iCloud - clear any offline errors and retry
-                if lastSyncError?.contains("iCloud") == true || lastSyncError?.contains("signed in") == true || lastSyncError?.contains("Sign into") == true {
-                    lastSyncError = nil
-                    UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
-                }
-                // Trigger retry for any pending syncs
-                retryPendingSync()
-            } else {
-                // User signed out of iCloud
-                lastSyncError = "iCloud account signed out. Sign in to resume syncing."
-                UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
-                // Cancel any pending retries
-                retryTask?.cancel()
-                retryTask = nil
+    private func handleICloudAccountChange(isAvailable: Bool) {
+        if isAvailable {
+            // User signed into iCloud - clear any offline errors and retry
+            if lastSyncError?.contains("iCloud") == true || lastSyncError?.contains("signed in") == true || lastSyncError?.contains("Sign into") == true {
+                lastSyncError = nil
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
             }
-            updateSyncHealth()
+            // Trigger retry for any pending syncs
+            retryPendingSync()
+        } else {
+            // User signed out of iCloud
+            lastSyncError = "iCloud account signed out. Sign in to resume syncing."
+            UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+            // Cancel any pending retries
+            retryLogic.cancelRetry()
         }
-    }
-
-    // MARK: - Network Monitoring
-
-    private func startNetworkMonitoring() {
-        networkMonitor = NWPathMonitor()
-        networkMonitor?.pathUpdateHandler = { [weak self] path in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                // Cancel any pending task to prevent accumulation
-                self.pendingNetworkTask?.cancel()
-                self.pendingNetworkTask = Task { @MainActor [weak self] in
-                    self?.handleNetworkChange(path)
-                }
-            }
-        }
-        networkMonitor?.start(queue: networkQueue)
-    }
-
-    private func stopNetworkMonitoring() {
-        networkMonitor?.cancel()
-        networkMonitor = nil
-    }
-
-    private func handleNetworkChange(_ path: NWPath) {
-        let wasAvailable = isNetworkAvailable
-        isNetworkAvailable = path.status == .satisfied
-
-        if wasAvailable != isNetworkAvailable {
-            if isNetworkAvailable {
-                // Network restored - clear network-related errors and trigger retry
-                if let error = lastSyncError, error.contains("network") || error.contains("offline") || error.contains("Waiting") {
-                    lastSyncError = nil
-                    UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
-                }
-                // Trigger retry for any pending syncs
-                retryPendingSync()
-            }
-            updateSyncHealth()
-        }
+        updateSyncHealth()
     }
 
     // MARK: - Event Handlers
@@ -418,11 +285,9 @@ final class CloudKitSyncStatusService: ObservableObject {
         lastSyncError = nil
         isSyncing = false
         pendingSyncCount = 0
-        retryAttempt = 0 // Reset retry count on success
+        retryLogic.resetRetryCount()
         syncingTask?.cancel()
         syncingTask = nil
-        retryTask?.cancel()
-        retryTask = nil
 
         // Persist
         UserDefaults.standard.set(lastSuccessfulSync!.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
@@ -522,127 +387,65 @@ final class CloudKitSyncStatusService: ObservableObject {
     // MARK: - Health Assessment
 
     private func updateSyncHealth() {
-        // Check if CloudKit is enabled and active
         let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
         let isActive = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
 
-        guard isEnabled else {
-            syncHealth = .offline
-            return
-        }
-
-        guard isActive else {
-            syncHealth = .offline
-            return
-        }
-
-        // Check network availability
-        guard isNetworkAvailable else {
-            syncHealth = .offline
-            return
-        }
-
-        // Check iCloud availability
-        guard isICloudAvailable else {
-            syncHealth = .offline
-            return
-        }
-
-        // Check current state
-        if isSyncing {
-            syncHealth = .syncing
-            return
-        }
-
-        // Check for errors
-        if let error = lastSyncError, !error.isEmpty {
-            // Don't show error if it's just a temporary store coordinator issue
-            // and we have a recent successful sync
-            if let lastSync = lastSuccessfulSync {
-                let elapsed = Date().timeIntervalSince(lastSync)
-                if elapsed < 30 { // Within 30 seconds - likely just a temporary store change
-                    syncHealth = .healthy
-                    return
-                }
-            }
-            syncHealth = .error(error)
-            return
-        }
-
-        // Check recency of last sync
-        if let lastSync = lastSuccessfulSync {
-            let elapsed = Date().timeIntervalSince(lastSync)
-            if elapsed < 300 { // Within 5 minutes
-                syncHealth = .healthy
-            } else if elapsed < 3600 { // Within 1 hour
-                syncHealth = .healthy // Still healthy, just not recent
-            } else {
-                syncHealth = .warning // More than an hour since last sync
-            }
-        } else {
-            syncHealth = .unknown
-        }
+        healthCheck.updateSyncHealth(
+            isSyncing: isSyncing,
+            lastSuccessfulSync: lastSuccessfulSync,
+            lastSyncError: lastSyncError,
+            isNetworkAvailable: isNetworkAvailable,
+            isEnabled: isEnabled,
+            isActive: isActive
+        )
     }
 
     /// Clear any stored error state
     func clearError() {
         lastSyncError = nil
-        retryAttempt = 0
-        retryTask?.cancel()
-        retryTask = nil
+        retryLogic.resetRetryCount()
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
         updateSyncHealth()
     }
 
     // MARK: - Retry Logic
 
-    /// Schedules a retry with exponential backoff
+    /// Schedules a retry with exponential backoff (delegated to SyncRetryLogic)
     private func scheduleRetry() {
-        guard retryAttempt < maxRetryAttempts else {
-            lastSyncError = "Sync failed after \(maxRetryAttempts) attempts. Please try again later."
-            UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
-            updateSyncHealth()
-            return
-        }
-
-        retryTask?.cancel()
-
-        // Calculate delay with exponential backoff: 2s, 4s, 8s, 16s, 32s
-        let delay = baseRetryDelay * pow(2.0, Double(retryAttempt))
-        retryAttempt += 1
-
-        retryTask = Task { [weak self] in
-            guard let self = self else { return }
-
-            // Wait for the backoff delay
-            let delayNanoseconds = UInt64(delay * 1_000_000_000)
-            try? await Task.sleep(nanoseconds: delayNanoseconds)
-            guard !Task.isCancelled else { return }
-
-            // Check if conditions are now favorable
-            guard self.isNetworkAvailable && self.isICloudAvailable else {
-                // Still offline, schedule another retry
-                self.scheduleRetry()
-                return
+        retryLogic.scheduleRetry(
+            canRetry: { [weak self] in
+                guard let self = self else { return false }
+                return self.isNetworkAvailable && self.isICloudAvailable
+            },
+            syncAction: { [weak self] in
+                guard let self = self else { return false }
+                return await self.syncNow()
+            },
+            onMaxRetriesReached: { [weak self] in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    self.lastSyncError = "Sync failed after 5 attempts. Please try again later."
+                    UserDefaults.standard.set(self.lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+                    self.updateSyncHealth()
+                }
             }
-
-            // Attempt sync
-            let success = await self.syncNow()
-            if !success && self.retryAttempt < self.maxRetryAttempts {
-                self.scheduleRetry()
-            }
-        }
+        )
     }
 
     /// Called when network is restored to trigger pending retries
     func retryPendingSync() {
-        guard isNetworkAvailable && isICloudAvailable else { return }
-        guard lastSyncError != nil || pendingSyncCount > 0 else { return }
-
-        // Reset retry count and try immediately
-        retryAttempt = 0
-        Task {
-            await syncNow()
-        }
+        retryLogic.retryPendingSync(
+            canRetry: { [weak self] in
+                guard let self = self else { return false }
+                return self.isNetworkAvailable && self.isICloudAvailable
+            },
+            hasPendingWork: { [weak self] in
+                guard let self = self else { return false }
+                return self.lastSyncError != nil || self.pendingSyncCount > 0
+            },
+            syncAction: { [weak self] in
+                _ = await self?.syncNow()
+            }
+        )
     }
 }

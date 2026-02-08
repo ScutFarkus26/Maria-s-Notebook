@@ -15,44 +15,44 @@ struct SyncHealthTests {
 
     @Test("SyncHealth color properties")
     func testSyncHealthColors() {
-        #expect(CloudKitSyncStatusService.SyncHealth.healthy.color == .green)
-        #expect(CloudKitSyncStatusService.SyncHealth.syncing.color == .blue)
-        #expect(CloudKitSyncStatusService.SyncHealth.warning.color == .orange)
-        #expect(CloudKitSyncStatusService.SyncHealth.error("test").color == .red)
-        #expect(CloudKitSyncStatusService.SyncHealth.offline.color == .gray)
-        #expect(CloudKitSyncStatusService.SyncHealth.unknown.color == .gray)
+        #expect(CloudKitHealthCheck.SyncHealth.healthy.color == .green)
+        #expect(CloudKitHealthCheck.SyncHealth.syncing.color == .blue)
+        #expect(CloudKitHealthCheck.SyncHealth.warning.color == .orange)
+        #expect(CloudKitHealthCheck.SyncHealth.error("test").color == .red)
+        #expect(CloudKitHealthCheck.SyncHealth.offline.color == .gray)
+        #expect(CloudKitHealthCheck.SyncHealth.unknown.color == .gray)
     }
 
     @Test("SyncHealth icon properties")
     func testSyncHealthIcons() {
-        #expect(CloudKitSyncStatusService.SyncHealth.healthy.icon == "checkmark.icloud")
-        #expect(CloudKitSyncStatusService.SyncHealth.syncing.icon == "arrow.triangle.2.circlepath.icloud")
-        #expect(CloudKitSyncStatusService.SyncHealth.warning.icon == "exclamationmark.icloud")
-        #expect(CloudKitSyncStatusService.SyncHealth.error("test").icon == "xmark.icloud")
-        #expect(CloudKitSyncStatusService.SyncHealth.offline.icon == "icloud.slash")
-        #expect(CloudKitSyncStatusService.SyncHealth.unknown.icon == "icloud")
+        #expect(CloudKitHealthCheck.SyncHealth.healthy.icon == "checkmark.icloud")
+        #expect(CloudKitHealthCheck.SyncHealth.syncing.icon == "arrow.triangle.2.circlepath.icloud")
+        #expect(CloudKitHealthCheck.SyncHealth.warning.icon == "exclamationmark.icloud")
+        #expect(CloudKitHealthCheck.SyncHealth.error("test").icon == "xmark.icloud")
+        #expect(CloudKitHealthCheck.SyncHealth.offline.icon == "icloud.slash")
+        #expect(CloudKitHealthCheck.SyncHealth.unknown.icon == "icloud")
     }
 
     @Test("SyncHealth display text")
     func testSyncHealthDisplayText() {
-        #expect(CloudKitSyncStatusService.SyncHealth.healthy.displayText == "Synced")
-        #expect(CloudKitSyncStatusService.SyncHealth.syncing.displayText == "Syncing...")
-        #expect(CloudKitSyncStatusService.SyncHealth.warning.displayText == "Sync Delayed")
-        #expect(CloudKitSyncStatusService.SyncHealth.error("Network error").displayText == "Sync Error")
-        #expect(CloudKitSyncStatusService.SyncHealth.offline.displayText == "Offline")
-        #expect(CloudKitSyncStatusService.SyncHealth.unknown.displayText == "Checking...")
+        #expect(CloudKitHealthCheck.SyncHealth.healthy.displayText == "Synced")
+        #expect(CloudKitHealthCheck.SyncHealth.syncing.displayText == "Syncing...")
+        #expect(CloudKitHealthCheck.SyncHealth.warning.displayText == "Sync Delayed")
+        #expect(CloudKitHealthCheck.SyncHealth.error("Network error").displayText == "Sync Error")
+        #expect(CloudKitHealthCheck.SyncHealth.offline.displayText == "Offline")
+        #expect(CloudKitHealthCheck.SyncHealth.unknown.displayText == "Checking...")
     }
 
     @Test("SyncHealth equality for error cases")
     func testSyncHealthEquality() {
-        let error1 = CloudKitSyncStatusService.SyncHealth.error("Error A")
-        let error2 = CloudKitSyncStatusService.SyncHealth.error("Error A")
-        let error3 = CloudKitSyncStatusService.SyncHealth.error("Error B")
+        let error1 = CloudKitHealthCheck.SyncHealth.error("Error A")
+        let error2 = CloudKitHealthCheck.SyncHealth.error("Error A")
+        let error3 = CloudKitHealthCheck.SyncHealth.error("Error B")
 
         #expect(error1 == error2)
         #expect(error1 != error3)
-        #expect(CloudKitSyncStatusService.SyncHealth.healthy == CloudKitSyncStatusService.SyncHealth.healthy)
-        #expect(CloudKitSyncStatusService.SyncHealth.healthy != CloudKitSyncStatusService.SyncHealth.syncing)
+        #expect(CloudKitHealthCheck.SyncHealth.healthy == CloudKitHealthCheck.SyncHealth.healthy)
+        #expect(CloudKitHealthCheck.SyncHealth.healthy != CloudKitHealthCheck.SyncHealth.syncing)
     }
 }
 

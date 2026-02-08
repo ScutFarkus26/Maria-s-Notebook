@@ -147,7 +147,7 @@ struct CloudKitStatusSettingsView: View {
 
 /// Animated sync status indicator
 struct SyncStatusIndicator: View {
-    let health: CloudKitSyncStatusService.SyncHealth
+    let health: CloudKitHealthCheck.SyncHealth
 
     @State private var isAnimating = false
 
