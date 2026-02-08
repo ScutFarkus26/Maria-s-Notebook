@@ -12,18 +12,26 @@ struct UnifiedPresentationWorkflowPanel: View {
         let studentID: UUID
         var title: String
         var kind: WorkKind
+        var status: WorkStatus
+        var completionOutcome: CompletionOutcome?
+        var completionNote: String
         var checkInDate: Date?
         var dueDate: Date?
         var notes: String
+        var showMoreDetails: Bool
         
-        init(studentID: UUID, title: String = "", kind: WorkKind = .practiceLesson) {
+        init(studentID: UUID, title: String = "", kind: WorkKind = .practiceLesson, status: WorkStatus = .active) {
             self.id = UUID()
             self.studentID = studentID
             self.title = title
             self.kind = kind
+            self.status = status
+            self.completionOutcome = nil
+            self.completionNote = ""
             self.checkInDate = nil
             self.dueDate = nil
             self.notes = ""
+            self.showMoreDetails = false
         }
     }
     
@@ -751,112 +759,330 @@ struct UnifiedPresentationWorkflowPanel: View {
     
     @ViewBuilder
     private func workDraftCard(draft: WorkItemDraft, studentID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Title and remove button
-            HStack {
-                TextField("Work title", text: Binding(
+        VStack(alignment: .leading, spacing: 14) {
+            // Title field with WorkDetailView styling
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Title")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                TextField("Work Title", text: Binding(
                     get: { draft.title },
                     set: { newTitle in
                         updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.title = newTitle }
                     }
                 ))
-                .textFieldStyle(.roundedBorder)
+                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.primary.opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+            }
+            
+            // Work kind pill buttons (matching WorkDetailView)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Type")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                
+                HStack(spacing: 8) {
+                    ForEach(WorkKind.allCases) { kind in
+                        workKindPill(kind: kind, draft: draft, studentID: studentID)
+                    }
+                }
+            }
+            
+            // Status pills (matching WorkDetailView)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Status")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                
+                HStack(spacing: 8) {
+                    ForEach(WorkStatus.allCases) { status in
+                        workStatusPill(status: status, draft: draft, studentID: studentID)
+                    }
+                    
+                    Spacer()
+                }
+            }
+            
+            // Dates (collapsed by default)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Dates")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Check-in")
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                        
+                        HStack(spacing: 4) {
+                            Button {
+                                toggleCheckInDate(studentID: studentID, draftID: draft.id)
+                            } label: {
+                                Image(systemName: draft.checkInDate != nil ? "checkmark.square.fill" : "square")
+                                    .foregroundStyle(draft.checkInDate != nil ? .blue : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            if draft.checkInDate != nil {
+                                DatePicker("", selection: Binding(
+                                    get: { draft.checkInDate ?? Date() },
+                                    set: { newDate in
+                                        updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.checkInDate = newDate }
+                                    }
+                                ), displayedComponents: .date)
+                                .labelsHidden()
+                            }
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Due Date")
+                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                        
+                        HStack(spacing: 4) {
+                            Button {
+                                toggleDueDate(studentID: studentID, draftID: draft.id)
+                            } label: {
+                                Image(systemName: draft.dueDate != nil ? "checkmark.square.fill" : "square")
+                                    .foregroundStyle(draft.dueDate != nil ? .blue : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            if draft.dueDate != nil {
+                                DatePicker("", selection: Binding(
+                                    get: { draft.dueDate ?? Date() },
+                                    set: { newDate in
+                                        updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.dueDate = newDate }
+                                    }
+                                ), displayedComponents: .date)
+                                .labelsHidden()
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                }
+            }
+            
+            // Notes field
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Notes")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                TextField("Add notes...", text: Binding(
+                    get: { draft.notes },
+                    set: { newNotes in
+                        updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.notes = newNotes }
+                    }
+                ), axis: .vertical)
+                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.primary.opacity(0.04))
+                )
+                .lineLimit(2...4)
+            }
+            
+            // More Details expandable section (for Complete status)
+            if draft.status == .complete {
+                VStack(alignment: .leading, spacing: 10) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            updateWorkDraft(studentID: studentID, draftID: draft.id) { 
+                                $0.showMoreDetails.toggle() 
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: draft.showMoreDetails ? "chevron.down" : "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("Completion Details")
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            Spacer()
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    if draft.showMoreDetails {
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Outcome picker
+                            Text("Outcome")
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            
+                            FlowLayout(spacing: 8) {
+                                ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
+                                    completionOutcomePill(outcome: outcome, draft: draft, studentID: studentID)
+                                }
+                            }
+                            
+                            // Completion note
+                            Text("Completion Note")
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            TextField("Add completion note...", text: Binding(
+                                get: { draft.completionNote },
+                                set: { newNote in
+                                    updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.completionNote = newNote }
+                                }
+                            ), axis: .vertical)
+                            .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.primary.opacity(0.04))
+                            )
+                            .lineLimit(2...4)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.green.opacity(0.08))
+                )
+            }
+            
+            // Bottom actions
+            HStack {
+                // Info hint for full editor
+                HStack(spacing: 4) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 11))
+                    Text("Full editor available after saving")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                }
+                .foregroundStyle(.tertiary)
+                
+                Spacer()
                 
                 Button {
                     removeWorkDraft(studentID: studentID, draftID: draft.id)
                 } label: {
-                    Image(systemName: "trash")
-                        .foregroundStyle(.red)
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("Remove")
+                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    }
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.red.opacity(0.1))
+                    )
                 }
                 .buttonStyle(.plain)
             }
-            
-            // Work kind picker
-            Picker("Type", selection: Binding(
-                get: { draft.kind },
-                set: { newKind in
-                    updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.kind = newKind }
-                }
-            )) {
-                Text("Practice").tag(WorkKind.practiceLesson)
-                Text("Follow-Up").tag(WorkKind.followUpAssignment)
-                Text("Project").tag(WorkKind.research)
-                Text("Report").tag(WorkKind.report)
-            }
-            .pickerStyle(.segmented)
-            
-            // Dates
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Check-in")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    
-                    HStack(spacing: 4) {
-                        Button {
-                            toggleCheckInDate(studentID: studentID, draftID: draft.id)
-                        } label: {
-                            Image(systemName: draft.checkInDate != nil ? "checkmark.square.fill" : "square")
-                                .foregroundStyle(draft.checkInDate != nil ? .blue : .secondary)
-                        }
-                        .buttonStyle(.plain)
-                        
-                        if draft.checkInDate != nil {
-                            DatePicker("", selection: Binding(
-                                get: { draft.checkInDate ?? Date() },
-                                set: { newDate in
-                                    updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.checkInDate = newDate }
-                                }
-                            ), displayedComponents: .date)
-                            .labelsHidden()
-                        }
-                    }
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Due Date")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    
-                    HStack(spacing: 4) {
-                        Button {
-                            toggleDueDate(studentID: studentID, draftID: draft.id)
-                        } label: {
-                            Image(systemName: draft.dueDate != nil ? "checkmark.square.fill" : "square")
-                                .foregroundStyle(draft.dueDate != nil ? .blue : .secondary)
-                        }
-                        .buttonStyle(.plain)
-                        
-                        if draft.dueDate != nil {
-                            DatePicker("", selection: Binding(
-                                get: { draft.dueDate ?? Date() },
-                                set: { newDate in
-                                    updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.dueDate = newDate }
-                                }
-                            ), displayedComponents: .date)
-                            .labelsHidden()
-                        }
-                    }
-                }
-                
-                Spacer()
-            }
-            
-            // Notes
-            TextField("Notes (optional)", text: Binding(
-                get: { draft.notes },
-                set: { newNotes in
-                    updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.notes = newNotes }
-                }
-            ), axis: .vertical)
-            .textFieldStyle(.roundedBorder)
-            .lineLimit(2...4)
         }
-        .padding(10)
+        .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+        )
+    }
+    
+    // MARK: - Work Draft Pill Buttons
+    
+    @ViewBuilder
+    private func workKindPill(kind: WorkKind, draft: WorkItemDraft, studentID: UUID) -> some View {
+        let isSelected = draft.kind == kind
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.kind = kind }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: kind.iconName)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(kind.shortLabel)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(isSelected ? .white : kind.color)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(isSelected ? kind.color : kind.color.opacity(0.12))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(kind.color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private func workStatusPill(status: WorkStatus, draft: WorkItemDraft, studentID: UUID) -> some View {
+        let isSelected = draft.status == status
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.status = status }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: status.iconName)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(status.displayName)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(isSelected ? .white : status.color)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(isSelected ? status.color : status.color.opacity(0.12))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(status.color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private func completionOutcomePill(outcome: CompletionOutcome, draft: WorkItemDraft, studentID: UUID) -> some View {
+        let isSelected = draft.completionOutcome == outcome
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.completionOutcome = outcome }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: outcome.iconName)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(outcome.displayName)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(isSelected ? .white : outcome.color)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(isSelected ? outcome.color : outcome.color.opacity(0.12))
+            )
+        }
+        .buttonStyle(.plain)
     }
     
     // MARK: - Work Draft Management
@@ -948,9 +1174,25 @@ struct UnifiedPresentationWorkflowPanel: View {
                         scheduledDate: draft.dueDate
                     )
                     
-                    // Update notes after creation if present
-                    if !draft.notes.isEmpty {
-                        work.notes = draft.notes
+                    // Update status, notes, and completion details after creation
+                    work.status = draft.status
+                    
+                    // Combine notes and completion note if present
+                    var allNotes = draft.notes
+                    if draft.status == .complete && !draft.completionNote.isEmpty {
+                        if !allNotes.isEmpty {
+                            allNotes += "\n\nCompletion: " + draft.completionNote
+                        } else {
+                            allNotes = "Completion: " + draft.completionNote
+                        }
+                    }
+                    if !allNotes.isEmpty {
+                        work.notes = allNotes
+                    }
+                    
+                    // Set completion outcome if status is complete
+                    if draft.status == .complete, let outcome = draft.completionOutcome {
+                        work.completionOutcome = outcome
                     }
                 } catch {
                     Logger.app(category: "UnifiedPresentationWorkflow").error("Failed to create work item: \(error)")
