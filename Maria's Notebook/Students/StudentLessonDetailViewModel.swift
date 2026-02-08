@@ -36,6 +36,12 @@ final class StudentLessonDetailViewModel {
     var showDeleteAlert: Bool = false
     var showingMoveStudentsSheet: Bool = false
     
+    // MARK: - Workflow Panel State (for embedded presentation workflow)
+    var showWorkflowPanel: Bool = false
+    var presentationViewModel: PostPresentationFormViewModel?
+    var savedScrollPosition: CGPoint = .zero
+    var hasUnsavedWorkflowChanges: Bool = false
+    
     // MARK: - Move Students UI State
     var studentsToMove: Set<UUID> = []
     var showMovedBanner: Bool = false
@@ -464,5 +470,19 @@ final class StudentLessonDetailViewModel {
                 )
             }
         }
+    }
+    
+    // MARK: - Workflow Panel Management
+    
+    /// Enters workflow mode by initializing the presentation view model
+    func enterWorkflowMode(students: [Student]) {
+        presentationViewModel = PostPresentationFormViewModel(students: students)
+        showWorkflowPanel = true
+    }
+    
+    /// Exits workflow mode and cleans up the presentation view model
+    func exitWorkflowMode() {
+        presentationViewModel = nil
+        showWorkflowPanel = false
     }
 }

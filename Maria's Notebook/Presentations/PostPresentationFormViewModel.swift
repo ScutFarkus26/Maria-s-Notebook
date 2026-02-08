@@ -47,6 +47,9 @@ final class PostPresentationFormViewModel: ObservableObject {
                 (student.id, StudentEntry(id: student.id, name: StudentFormatter.displayName(for: student)))
             }
         )
+        
+        // Auto-expand all students by default
+        self.expandedStudentIDs = Set(students.map { $0.id })
     }
 
     // MARK: - Actions

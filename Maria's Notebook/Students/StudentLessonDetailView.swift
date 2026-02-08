@@ -104,6 +104,67 @@ struct StudentLessonDetailView: View {
     }
 }
 
+// MARK: - Independent Workflow Window
+
+#if os(macOS)
+struct IndependentWorkflowWindow: View {
+    @ObservedObject var presentationViewModel: PostPresentationFormViewModel
+    let students: [Student]
+    let lessonName: String
+    let lessonID: UUID
+    let onComplete: () -> Void
+    let onCancel: () -> Void
+    
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("\(lessonName) Presentation Workflow")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                
+                Spacer()
+                
+                Button("Close") {
+                    dismiss()
+                    onCancel()
+                }
+                .buttonStyle(.bordered)
+                
+                Button("Complete & Save") {
+                    onComplete()
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+            .background(.bar)
+            
+            Divider()
+            
+            // Workflow panel (just presentation + work items)
+            UnifiedPresentationWorkflowPanel(
+                presentationViewModel: presentationViewModel,
+                students: students,
+                lessonName: lessonName,
+                lessonID: lessonID,
+                onComplete: {
+                    onComplete()
+                    dismiss()
+                },
+                onCancel: {
+                    dismiss()
+                    onCancel()
+                },
+                triggerCompletion: nil
+            )
+        }
+    }
+}
+#endif
+
 // MARK: - Content Subview
 /// Extracts the content so `vm` can be treated as non-optional for Bindings
 struct StudentLessonDetailContentView: View {
@@ -119,12 +180,70 @@ struct StudentLessonDetailContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @State private var lessonPickerFocused: Bool = false
+    @State private var showUnsavedChangesAlert: Bool = false
+    @State private var showIndependentWorkflowWindow: Bool = false
     
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
 
     var body: some View {
+        Group {
+            if vm.showWorkflowPanel {
+                threePanelLayout
+            } else {
+                planningView
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: vm.showWorkflowPanel)
+        #if os(macOS)
+        .frame(
+            minWidth: vm.showWorkflowPanel ? 1400 : 720,
+            idealWidth: vm.showWorkflowPanel ? 1600 : 720,
+            minHeight: vm.showWorkflowPanel ? 700 : 800,
+            idealHeight: vm.showWorkflowPanel ? 800 : 900
+        )
+        .onChange(of: vm.showWorkflowPanel) { _, isShowing in
+            if isShowing {
+                // Force window to resize when entering workflow mode
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    if let window = NSApplication.shared.keyWindow {
+                        let newSize = NSSize(width: 1600, height: 800)
+                        window.setFrame(
+                            NSRect(origin: window.frame.origin, size: newSize),
+                            display: true,
+                            animate: true
+                        )
+                    }
+                }
+            }
+        }
+        #endif
+        #if os(macOS)
+        .sheet(isPresented: $showIndependentWorkflowWindow) {
+            if let presentationVM = vm.presentationViewModel {
+                IndependentWorkflowWindow(
+                    presentationViewModel: presentationVM,
+                    students: studentsAll.filter { vm.selectedStudentIDs.contains($0.id) },
+                    lessonName: vm.lessonObject(from: lessons)?.name ?? "Lesson",
+                    lessonID: vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID,
+                    onComplete: {
+                        handleWorkflowComplete()
+                        showIndependentWorkflowWindow = false
+                    },
+                    onCancel: {
+                        showIndependentWorkflowWindow = false
+                    }
+                )
+                .frame(minWidth: 1400, idealWidth: 1600, minHeight: 700, idealHeight: 800)
+            }
+        }
+        #endif
+    }
+    
+    // MARK: - Planning View (Single Column)
+    
+    private var planningView: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 0) {
@@ -183,9 +302,6 @@ struct StudentLessonDetailContentView: View {
             }
             .dismissKeyboardOnScroll()
         }
-#if os(macOS)
-        .frame(minWidth: 720, minHeight: 640)
-#endif
         .safeAreaInset(edge: .bottom) { bottomBar }
         .alert("Delete Presentation?", isPresented: $vm.showDeleteAlert) {
             Button("Delete", role: .destructive) {
@@ -204,9 +320,6 @@ struct StudentLessonDetailContentView: View {
         .sheet(isPresented: $vm.showingMoveStudentsSheet) {
             moveStudentsSheet
         }
-        .sheet(isPresented: $vm.showAssignmentComposer) {
-            assignmentComposerSheet
-        }
         .onChange(of: vm.showingStudentPickerPopover) { _, isShowing in
             if !isShowing && lessonPickerFocused {
                 lessonPickerFocused = false
@@ -217,6 +330,307 @@ struct StudentLessonDetailContentView: View {
         }
         .onDisappear {
             vm.flushNotesAutosaveIfNeeded()
+        }
+    }
+    
+    // MARK: - Three Panel Layout (Planning + Presentation + Work)
+    
+    private var threePanelLayout: some View {
+        guard let presentationVM = vm.presentationViewModel else {
+            return AnyView(EmptyView())
+        }
+        
+        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
+        let lessonTitle = vm.lessonObject(from: lessons)?.name ?? "Lesson"
+        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
+        
+        return AnyView(
+            VStack(spacing: 0) {
+                // Header toolbar
+                HStack {
+                    Button {
+                        checkAndExitWorkflowMode()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                    
+                    Text("\(lessonTitle) Presentation Workflow")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    
+                    Spacer()
+                    
+                    #if os(macOS)
+                    Button {
+                        popOutToIndependentWindow(
+                            presentationVM: presentationVM,
+                            lessonTitle: lessonTitle,
+                            lessonID: lessonID,
+                            selectedStudents: selectedStudents
+                        )
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.forward.square")
+                            Text("Pop Out")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Open in independent window")
+                    #endif
+                    
+                    Button("Complete & Save") {
+                        handleWorkflowComplete()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canCompleteWorkflow(presentationVM: presentationVM))
+                }
+                .padding()
+                .background(.bar)
+                
+                Divider()
+                
+                // Three-panel layout
+                GeometryReader { geometry in
+                    HStack(spacing: 0) {
+                        // Left Panel: Planning View
+                        VStack(spacing: 0) {
+                            // Header
+                            VStack(spacing: 8) {
+                                Text("Planning")
+                                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(.bar)
+                            
+                            Divider()
+                            
+                            ScrollView {
+                                VStack(spacing: 0) {
+                                    // 1. Lesson Title & Tags Header
+                                    lessonHeaderSection
+                                        .padding(.horizontal, 24)
+                                        .padding(.top, 24)
+                                
+                                // 2. Conditional Lesson Picker
+                                if vm.lessonObject(from: lessons) == nil || vm.showLessonPicker {
+                                    lessonPickerSection
+                                        .padding(.horizontal, 24)
+                                        .padding(.top, 16)
+                                } else {
+                                    ChangeLessonControl(showLessonPicker: $vm.showLessonPicker)
+                                        .padding(.horizontal, 24)
+                                        .padding(.top, 8)
+                                }
+                                
+                                // 3. Student Pills Block
+                                studentPillsSection
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 20)
+                                
+                                Divider()
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 20)
+                                
+                                // 4. Inbox/Scheduling Status Row
+                                inboxStatusSection
+                                    .padding(.horizontal, 24)
+                                
+                                Divider()
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 20)
+                                
+                                // 5. Notes Section
+                                notesSection
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 24)
+                                    .padding(.bottom, 32)
+                                }
+                            }
+                        }
+                        .frame(width: geometry.size.width * 0.28)
+                        .background(Color.primary.opacity(0.01))
+                        
+                        Divider()
+                        
+                        // Middle + Right Panels: Presentation and Work Items (from UnifiedPresentationWorkflowPanel)
+                        // The panel internally splits into presentation (left) and work items (right)
+                        UnifiedPresentationWorkflowPanel(
+                            presentationViewModel: presentationVM,
+                            students: selectedStudents,
+                            lessonName: lessonTitle,
+                            lessonID: lessonID,
+                            onComplete: { handleWorkflowComplete() },
+                            onCancel: { vm.exitWorkflowMode() },
+                            triggerCompletion: nil
+                        )
+                        .frame(width: geometry.size.width * 0.72)
+                    }
+                }
+            }
+            .onKeyPress { press in
+                // Handle Escape key
+                if press.key == .escape {
+                    vm.exitWorkflowMode()
+                    return .handled
+                }
+                
+                // Handle Cmd+1 through Cmd+5 for understanding levels
+                if press.modifiers.contains(.command),
+                   let keyChar = press.characters.first,
+                   let level = Int(String(keyChar)),
+                   (1...5).contains(level) {
+                    applyUnderstandingToAll(level: level, presentationVM: presentationVM)
+                    return .handled
+                }
+                
+                return .ignored
+            }
+            .onSubmit {
+                // Cmd+Return to complete & save
+                if canCompleteWorkflow(presentationVM: presentationVM) {
+                    handleWorkflowComplete()
+                }
+            }
+            .alert("Unsaved Changes", isPresented: $showUnsavedChangesAlert) {
+                Button("Discard Changes", role: .destructive) {
+                    vm.exitWorkflowMode()
+                }
+                Button("Continue Editing", role: .cancel) {}
+            } message: {
+                Text("You have unsaved changes in the workflow. Are you sure you want to go back?")
+            }
+        )
+    }
+    
+    // Helper for keyboard shortcut
+    private func applyUnderstandingToAll(level: Int, presentationVM: PostPresentationFormViewModel) {
+        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
+        for student in selectedStudents {
+            if presentationVM.entries[student.id] != nil {
+                presentationVM.entries[student.id]?.understandingLevel = level
+            }
+        }
+    }
+    
+    // Check for unsaved changes before exiting workflow
+    private func checkAndExitWorkflowMode() {
+        guard let presentationVM = vm.presentationViewModel else {
+            vm.exitWorkflowMode()
+            return
+        }
+        
+        // Check if there are any changes (notes, observations, or understanding levels set)
+        let hasChanges = presentationVM.entries.values.contains { entry in
+            !entry.observation.isEmpty || 
+            !entry.assignment.isEmpty || 
+            entry.understandingLevel != 3 // 3 is default
+        } || !presentationVM.groupObservation.isEmpty
+        
+        if hasChanges {
+            showUnsavedChangesAlert = true
+        } else {
+            vm.exitWorkflowMode()
+        }
+    }
+    
+    // Pop out workflow to independent window
+    #if os(macOS)
+    private func popOutToIndependentWindow(
+        presentationVM: PostPresentationFormViewModel,
+        lessonTitle: String,
+        lessonID: UUID,
+        selectedStudents: [Student]
+    ) {
+        // Show the independent window
+        showIndependentWorkflowWindow = true
+        
+        // Exit the embedded workflow mode to return to planning view
+        // The presentation view model is still held by vm, so the independent window can use it
+        vm.showWorkflowPanel = false
+    }
+    #endif
+    
+    // MARK: - Workflow Panel View (Embedded)
+    
+    private var workflowPanelView: some View {
+        guard let presentationVM = vm.presentationViewModel else {
+            return AnyView(EmptyView())
+        }
+        
+        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
+        let lessonTitle = vm.lessonObject(from: lessons)?.name ?? "Lesson"
+        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
+        
+        return AnyView(
+            VStack(spacing: 0) {
+                // Header with back button and complete button
+                HStack {
+                    Button {
+                        vm.exitWorkflowMode()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Back to Planning")
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                    
+                    Text("Presentation Workflow")
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    Button("Complete & Save") {
+                        handleWorkflowComplete()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!presentationVM.canDismiss)
+                }
+                .padding()
+                .background(.bar)
+                
+                Divider()
+                
+                // Embedded workflow panel
+                UnifiedPresentationWorkflowPanel(
+                    presentationViewModel: presentationVM,
+                    students: selectedStudents,
+                    lessonName: lessonTitle,
+                    lessonID: lessonID,
+                    onComplete: { handleWorkflowComplete() },
+                    onCancel: { vm.exitWorkflowMode() },
+                    triggerCompletion: nil
+                )
+            }
+        )
+    }
+    
+    private func handleWorkflowComplete() {
+        // Sync state back to detail VM
+        vm.isPresented = true
+        vm.givenAt = calendar.startOfDay(for: Date())
+        vm.needsAnotherPresentation = false
+        
+        // Save everything
+        vm.save(
+            studentsAll: studentsAll,
+            lessons: lessons,
+            studentLessonsAll: studentLessonsAll,
+            calendar: calendar
+        ) {
+            // Exit workflow mode
+            vm.exitWorkflowMode()
+            
+            // Optionally dismiss the entire detail view
+            handleDone()
         }
     }
     
@@ -535,57 +949,19 @@ struct StudentLessonDetailContentView: View {
     private var assignmentComposerSheet: some View {
         let selected = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
         let lessonTitle = vm.lessonObject(from: lessons)?.name ?? "Lesson"
+        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
 
-        // Determine initial status based on current VM state
-        let initialStatus: UnifiedPostPresentationSheet.PresentationStatus = {
-            if isJustPresentedActive {
-                return .justPresented
-            } else if isPreviouslyPresentedActive {
-                return .previouslyPresented
-            } else if isNeedsAnotherActive {
-                return .needsAnother
-            }
-            return .justPresented
-        }()
-
-        return UnifiedPostPresentationSheet(
+        return UnifiedPresentationWorkflowSheet(
             students: selected,
             lessonName: lessonTitle,
-            initialStatus: initialStatus,
-            onDone: { status, studentEntries, groupObservation in
-                // Update VM state based on selected status
-                switch status {
-                case .justPresented:
-                    vm.isPresented = true
-                    vm.givenAt = calendar.startOfDay(for: Date())
-                    vm.needsAnotherPresentation = false
-                case .previouslyPresented:
-                    vm.isPresented = true
-                    vm.needsAnotherPresentation = false
-                    if let date = vm.givenAt, calendar.isDateInToday(date) {
-                        vm.givenAt = nil
-                    }
-                case .needsAnother:
-                    vm.isPresented = false
-                    vm.givenAt = nil
-                    vm.needsAnotherPresentation = true
-                }
-
-                // Add group observation to notes if provided
-                if !groupObservation.trimmed().isEmpty {
-                    if vm.notes.isEmpty {
-                        vm.notes = groupObservation
-                    } else {
-                        vm.notes += "\n\n" + groupObservation
-                    }
-                }
-
-                // Create follow-up assignments from student entries
-                createFollowUpAssignmentsFromEntries(studentEntries)
-
-                // Create per-student notes for observations
-                createStudentObservationNotes(studentEntries)
-
+            lessonID: lessonID,
+            onComplete: {
+                // Work items are created by the workflow sheet
+                // Update VM state to mark as presented
+                vm.isPresented = true
+                vm.givenAt = calendar.startOfDay(for: Date())
+                vm.needsAnotherPresentation = false
+                
                 vm.showAssignmentComposer = false
                 vm.save(
                     studentsAll: studentsAll,
@@ -817,14 +1193,22 @@ struct StudentLessonDetailContentView: View {
         vm.isPresented = true
         vm.givenAt = calendar.startOfDay(for: Date())
         vm.needsAnotherPresentation = false
-        vm.showAssignmentComposer = true
+        
+        // Enter workflow mode instead of showing sheet
+        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
+        vm.enterWorkflowMode(students: selectedStudents)
     }
+    
     private func selectPreviouslyPresented() {
         vm.isPresented = true
         vm.needsAnotherPresentation = false
         if let date = vm.givenAt, calendar.isDateInToday(date) {
             vm.givenAt = nil
         }
+        
+        // Enter workflow mode instead of showing sheet
+        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
+        vm.enterWorkflowMode(students: selectedStudents)
         vm.showAssignmentComposer = true
     }
     private func selectNeedsAnother() {
@@ -845,62 +1229,15 @@ struct StudentLessonDetailContentView: View {
         )
     }
 
-    /// Creates follow-up assignments from the unified post-presentation sheet entries
-    private func createFollowUpAssignmentsFromEntries(_ entries: [UnifiedPostPresentationSheet.StudentEntry]) {
-        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
 
-        // Convert entries to the format expected by the assignment service
-        var legacyAssignments: [PostPresentationAssignmentsSheet.AssignmentEntry] = []
 
-        for entry in entries {
-            let trimmedAssignment = entry.assignment.trimmed()
-            guard !trimmedAssignment.isEmpty else { continue }
-
-            // Determine schedule from check-in or due date
-            var schedule: PostPresentationAssignmentsSheet.Schedule? = nil
-            if let checkIn = entry.checkInDate {
-                schedule = PostPresentationAssignmentsSheet.Schedule(date: checkIn, kind: .checkIn)
-            } else if let due = entry.dueDate {
-                schedule = PostPresentationAssignmentsSheet.Schedule(date: due, kind: .dueDate)
-            }
-
-            let legacyEntry = PostPresentationAssignmentsSheet.AssignmentEntry(
-                studentID: entry.id,
-                text: trimmedAssignment,
-                schedule: schedule
-            )
-            legacyAssignments.append(legacyEntry)
-        }
-
-        if !legacyAssignments.isEmpty {
-            StudentLessonAssignmentService.createFollowUpAssignments(
-                legacyAssignments,
-                lessonID: lessonID,
-                studentLessonsAll: studentLessonsAll,
-                modelContext: modelContext
-            )
-        }
+    // MARK: - Workflow Helpers
+    
+    private func canCompleteWorkflow(presentationVM: PostPresentationFormViewModel) -> Bool {
+        // Must have valid presentation status
+        return presentationVM.canDismiss
     }
-
-    /// Creates observation notes for students based on their entries from the unified sheet
-    @MainActor
-    private func createStudentObservationNotes(_ entries: [UnifiedPostPresentationSheet.StudentEntry]) {
-        for entry in entries {
-            let trimmedObservation = entry.observation.trimmed()
-            guard !trimmedObservation.isEmpty else { continue }
-
-            // Create a note scoped to this specific student
-            let note = Note(
-                body: trimmedObservation,
-                scope: .student(entry.id),
-                category: .academic,
-                studentLesson: vm.studentLesson
-            )
-            modelContext.insert(note)
-            note.syncStudentLinksIfNeeded(in: modelContext)
-        }
-    }
-
+    
     // MARK: - Absent Logic
     private var scheduledAttendanceDay: Date { AppCalendar.startOfDay(Date()) }
 

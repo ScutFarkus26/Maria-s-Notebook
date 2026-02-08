@@ -506,59 +506,30 @@ struct PresentationProgressDetailView: View {
     }
     
     private var editPresentationSheet: some View {
-        let initialStatus: UnifiedPostPresentationSheet.PresentationStatus = {
-            if presentation.state == .presented {
-                return .justPresented
-            } else {
-                return .justPresented
-            }
-        }()
+        // Get the lessonID from the presentation
+        guard let lessonIDUUID = presentation.lessonIDUUID,
+              !students.isEmpty else {
+            return AnyView(EmptyView())
+        }
         
-        return UnifiedPostPresentationSheet(
-            students: students,
-            lessonName: lesson?.name ?? "Unknown Lesson",
-            initialStatus: initialStatus,
-            onDone: { status, studentEntries, groupObservation in
-                updatePresentation(status: status, entries: studentEntries, groupObservation: groupObservation)
-                showingEditSheet = false
-            },
-            onCancel: {
-                showingEditSheet = false
-            }
+        return AnyView(
+            UnifiedPresentationWorkflowSheet(
+                students: students,
+                lessonName: lesson?.name ?? "Unknown Lesson",
+                lessonID: lessonIDUUID,
+                onComplete: {
+                    // Work items are created by the workflow sheet
+                    showingEditSheet = false
+                    loadData()
+                },
+                onCancel: {
+                    showingEditSheet = false
+                }
+            )
         )
     }
     
-    @MainActor
-    private func updatePresentation(status: UnifiedPostPresentationSheet.PresentationStatus, entries: [UnifiedPostPresentationSheet.StudentEntry], groupObservation: String) {
-        // Update presentation state
-        switch status {
-        case .justPresented:
-            presentation.state = .presented
-            presentation.presentedAt = Date()
-            presentation.needsAnotherPresentation = false
-        case .previouslyPresented:
-            presentation.state = .presented
-            presentation.needsAnotherPresentation = false
-        case .needsAnother:
-            presentation.state = .scheduled
-            presentation.needsAnotherPresentation = true
-        }
-        
-        // Update notes with group observation
-        if !groupObservation.isEmpty {
-            if presentation.notes.isEmpty {
-                presentation.notes = groupObservation
-            } else {
-                presentation.notes += "\n\n" + groupObservation
-            }
-        }
-        
-        // Save changes
-        try? modelContext.save()
-        
-        // Reload data to reflect changes
-        loadData()
-    }
+
     
     @MainActor
     private func loadData() {

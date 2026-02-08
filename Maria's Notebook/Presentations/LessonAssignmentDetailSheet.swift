@@ -616,22 +616,20 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         let studentList = studentList(for: la)
         let lessonName = title(for: la)
         
-        let initialStatus: UnifiedPostPresentationSheet.PresentationStatus = {
-            if la.state == .presented {
-                return .justPresented
-            } else {
-                return .justPresented
-            }
-        }()
+        // Get the lessonID from the assignment
+        guard let lessonIDString = la.lessonIDUUID else {
+            return AnyView(EmptyView())
+        }
         
         return AnyView(
-            UnifiedPostPresentationSheet(
+            UnifiedPresentationWorkflowSheet(
                 students: studentList,
                 lessonName: lessonName,
-                initialStatus: initialStatus,
-                onDone: { status, studentEntries, groupObservation in
-                    updatePresentation(status: status, entries: studentEntries, groupObservation: groupObservation)
+                lessonID: lessonIDString,
+                onComplete: {
+                    // Work items are created by the workflow sheet
                     showingEditSheet = false
+                    reloadNotes()
                 },
                 onCancel: {
                     showingEditSheet = false
