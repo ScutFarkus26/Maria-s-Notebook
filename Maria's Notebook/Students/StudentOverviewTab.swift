@@ -173,7 +173,7 @@ struct StudentOverviewTab: View {
             WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
         }
         
-        guard let minDate = allDates.min(), let maxDate = allDates.max() else { return }
+        guard let minDate = allDates.min(), let _ = allDates.max() else { return }
         
         // Preload school days cache for entire range
         cache.preloadNonSchoolDays(from: minDate, to: today, using: modelContext, calendar: calendar)

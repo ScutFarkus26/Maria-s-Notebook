@@ -123,6 +123,7 @@ struct MeetingContextPane: View {
 
     @State private var selectedWorkID: UUID? = nil
     @State private var isContextCollapsed: Bool = false
+    @State private var showAllOpenWork: Bool = false
 
     var body: some View {
         ScrollView {
@@ -156,11 +157,22 @@ struct MeetingContextPane: View {
             }
             .padding()
         }
-        .sheet(id: $selectedWorkID) { id in
-            WorkDetailView(workID: id) {
-                selectedWorkID = nil
-            }
+        .sheet(item: Binding(
+            get: { selectedWorkID.map { WorkIDWrapper(id: $0) } },
+            set: { selectedWorkID = $0?.id }
+        )) { wrapper in
+            WorkDetailView(
+                workID: wrapper.id,
+                onDone: { selectedWorkID = nil },
+                showRepresentButton: true
+            )
         }
+    }
+    
+    // MARK: - Helper for sheet binding
+    
+    private struct WorkIDWrapper: Identifiable {
+        let id: UUID
     }
 
     // MARK: - Work Snapshot Section
@@ -177,18 +189,33 @@ struct MeetingContextPane: View {
 
             if !openWork.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Open Work")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    ForEach(openWork.prefix(5)) { work in
-                        workRow(work)
+                    HStack {
+                        Text("Open Work")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        
+                        Spacer()
+                        
+                        if openWork.count > 5 {
+                            Button {
+                                withAnimation {
+                                    showAllOpenWork.toggle()
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(showAllOpenWork ? "Show Less" : "Show All (\(openWork.count))")
+                                        .font(.caption)
+                                    Image(systemName: showAllOpenWork ? "chevron.up" : "chevron.down")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(.accent)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
 
-                    if openWork.count > 5 {
-                        Text("+ \(openWork.count - 5) more")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                    ForEach(showAllOpenWork ? openWork : Array(openWork.prefix(5))) { work in
+                        workRow(work)
                     }
                 }
             }
@@ -391,6 +418,7 @@ struct MeetingFormPane: View {
     @State private var focusText: String = ""
     @State private var requestsText: String = ""
     @State private var guideNotesText: String = ""
+    @State private var showingAddLessonSheet: Bool = false
 
     // Get the active meeting template for placeholder prompts
     private var activeTemplate: MeetingTemplate? {
@@ -463,6 +491,13 @@ struct MeetingFormPane: View {
                         Text("Clear")
                     }
                     .buttonStyle(.bordered)
+                    
+                    Button {
+                        showingAddLessonSheet = true
+                    } label: {
+                        Label("Add Lesson to Inbox", systemImage: "plus.circle")
+                    }
+                    .buttonStyle(.bordered)
 
                     Spacer()
 
@@ -476,6 +511,9 @@ struct MeetingFormPane: View {
                 }
             }
             .padding(24)
+        }
+        .sheet(isPresented: $showingAddLessonSheet) {
+            AddLessonToInboxSheet(student: student)
         }
         .onAppear {
             loadCurrentFromDefaults()

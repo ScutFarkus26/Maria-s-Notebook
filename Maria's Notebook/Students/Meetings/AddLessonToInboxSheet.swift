@@ -4,6 +4,7 @@ import SwiftData
 /// Quick sheet for adding a lesson to a student's inbox from the meetings view
 struct AddLessonToInboxSheet: View {
     let student: Student
+    var preselectedLessonID: UUID? = nil
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -85,6 +86,13 @@ struct AddLessonToInboxSheet: View {
         #else
         .frame(minWidth: 450, minHeight: 400)
         #endif
+        .onAppear {
+            if let preselectedID = preselectedLessonID,
+               let lesson = allLessons.first(where: { $0.id == preselectedID }) {
+                selectedLessonID = preselectedID
+                lessonSearchText = lesson.name
+            }
+        }
     }
     
     // MARK: - Lesson Section
@@ -221,12 +229,7 @@ struct AddLessonToInboxSheet: View {
         )
         
         modelContext.insert(studentLesson)
-        
-        do {
-            saveCoordinator.save(modelContext, reason: "Add Lesson to Inbox from Meeting")
-            dismiss()
-        } catch {
-            isSaving = false
-        }
+        saveCoordinator.save(modelContext, reason: "Add Lesson to Inbox from Meeting")
+        dismiss()
     }
 }

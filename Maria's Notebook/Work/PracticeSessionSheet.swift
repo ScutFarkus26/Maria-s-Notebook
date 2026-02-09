@@ -144,7 +144,7 @@ struct PracticeSessionSheet: View {
                 }
                 return false
             }
-        }.sorted { ($0.date ?? Date.distantPast) > ($1.date ?? Date.distantPast) }
+        }.sorted { $0.date > $1.date }
 
         if let lastSession = practiceSessions.first {
             return CategorizedStudent(
@@ -548,7 +548,7 @@ struct PracticeSessionSheet: View {
     }
 
     private var studentSelectionList: some View {
-        ForEach(Array(groupedStudents.keys.sorted(by: <)), id: \.rawValue) { category in
+        ForEach(Array(groupedStudents.keys.sorted(by: { $0.rawValue < $1.rawValue })), id: \.rawValue) { category in
             if let students = groupedStudents[category], !students.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     // Category header
