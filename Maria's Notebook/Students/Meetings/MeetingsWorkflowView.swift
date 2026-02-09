@@ -434,10 +434,16 @@ struct StudentQueueRow: View {
     let lastMeeting: StudentMeeting?
     var isSelected: Bool = false
     var showCheckmark: Bool = false
+    
+    @Environment(\.modelContext) private var modelContext
 
     private var daysSinceLastMeeting: Int? {
         guard let lastMeeting = lastMeeting else { return nil }
         return Calendar.current.dateComponents([.day], from: lastMeeting.date, to: Date()).day
+    }
+    
+    private var isAbsentToday: Bool {
+        modelContext.attendanceStatus(for: student.id, on: Date()) == .absent
     }
 
     var body: some View {
@@ -451,6 +457,10 @@ struct StudentQueueRow: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.accent)
             }
+            .overlay(
+                Circle()
+                    .stroke(isAbsentToday ? Color.red : Color.clear, lineWidth: 1.5)
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(StudentFormatter.displayName(for: student))
