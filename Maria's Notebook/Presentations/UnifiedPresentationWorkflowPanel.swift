@@ -54,6 +54,7 @@ struct UnifiedPresentationWorkflowPanel: View {
     
     @Query(sort: \Lesson.sortIndex) private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]
+    @Query(sort: \WorkModel.createdAt, order: .reverse) private var allWorkModels: [WorkModel]
     
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -80,6 +81,15 @@ struct UnifiedPresentationWorkflowPanel: View {
     
     private var sortedStudents: [Student] {
         students.sorted(by: StudentSortComparator.byFirstName)
+    }
+    
+    /// Existing work items for this lesson and these students
+    private func existingWorkItems(for studentID: UUID) -> [WorkModel] {
+        let studentIDString = studentID.uuidString
+        let lessonIDString = lessonID.uuidString
+        return allWorkModels.filter { work in
+            work.studentID == studentIDString && work.lessonID == lessonIDString
+        }
     }
     
     var canComplete: Bool {
@@ -737,9 +747,15 @@ struct UnifiedPresentationWorkflowPanel: View {
                 .buttonStyle(.bordered)
             }
             
-            // Existing work drafts
+            // Existing work items from database
+            let existingWork = existingWorkItems(for: student.id)
+            ForEach(existingWork) { work in
+                existingWorkCard(work: work)
+            }
+            
+            // Work drafts (new items being created in this session)
             let drafts = workDrafts[student.id] ?? []
-            if drafts.isEmpty {
+            if drafts.isEmpty && existingWork.isEmpty {
                 Text("No work items yet - add one or use bulk assignment")
                     .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                     .foregroundStyle(.tertiary)
@@ -997,6 +1013,79 @@ struct UnifiedPresentationWorkflowPanel: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+        )
+    }
+    
+    // MARK: - Existing Work Card
+    
+    @ViewBuilder
+    private func existingWorkCard(work: WorkModel) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Title
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(work.title.isEmpty ? lessonName : work.title)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    
+                    Text("Created \(work.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                }
+                
+                Spacer()
+                
+                // Status badge
+                HStack(spacing: 6) {
+                    Image(systemName: work.status.iconName)
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(work.status.displayName)
+                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(work.status.color)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(work.status.color.opacity(0.15))
+                )
+            }
+            
+            // Work kind badge
+            if let kind = work.kind {
+                HStack(spacing: 6) {
+                    Image(systemName: kind.iconName)
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(kind.shortLabel)
+                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(kind.color)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(kind.color.opacity(0.15))
+                )
+            }
+            
+            // Due date if set
+            if let dueAt = work.dueAt {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.exclamationmark")
+                        .font(.system(size: 10))
+                    Text("Due: \(dueAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.blue.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
         )
     }
     
