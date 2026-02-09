@@ -41,6 +41,7 @@ struct MeetingsWorkflowView: View {
     @State private var searchText: String = ""
     @State private var showCompletedThisWeek: Bool = false
     @State private var orderedStudentIDs: [UUID] = []
+    @State private var selectedAgeRanges: Set<AgeRange> = []
 
     // Meeting frequency threshold (persisted)
     @AppStorage("MeetingsWorkflow.daysSinceThreshold") private var daysSinceThreshold: Int = 7
@@ -101,23 +102,45 @@ struct MeetingsWorkflowView: View {
         }
     }
 
-    /// Filter students based on search
+    /// Filter students based on search and age
     private var filteredStudentsNeedingMeeting: [Student] {
-        guard !searchText.isEmpty else { return studentsNeedingMeeting }
-        let search = searchText.lowercased()
-        return studentsNeedingMeeting.filter {
-            $0.firstName.lowercased().contains(search) ||
-            $0.lastName.lowercased().contains(search)
+        var result = studentsNeedingMeeting
+        
+        // Search filter
+        if !searchText.isEmpty {
+            let search = searchText.lowercased()
+            result = result.filter {
+                $0.firstName.lowercased().contains(search) ||
+                $0.lastName.lowercased().contains(search)
+            }
         }
+        
+        // Age filter
+        if !selectedAgeRanges.isEmpty {
+            result = result.filter { AgeRange.matchesAny($0.birthday, in: selectedAgeRanges) }
+        }
+        
+        return result
     }
 
     private var filteredStudentsCompleted: [Student] {
-        guard !searchText.isEmpty else { return studentsWithRecentMeeting }
-        let search = searchText.lowercased()
-        return studentsWithRecentMeeting.filter {
-            $0.firstName.lowercased().contains(search) ||
-            $0.lastName.lowercased().contains(search)
+        var result = studentsWithRecentMeeting
+        
+        // Search filter
+        if !searchText.isEmpty {
+            let search = searchText.lowercased()
+            result = result.filter {
+                $0.firstName.lowercased().contains(search) ||
+                $0.lastName.lowercased().contains(search)
+            }
         }
+        
+        // Age filter
+        if !selectedAgeRanges.isEmpty {
+            result = result.filter { AgeRange.matchesAny($0.birthday, in: selectedAgeRanges) }
+        }
+        
+        return result
     }
 
     private func meetingsFor(_ student: Student) -> [StudentMeeting] {
@@ -140,6 +163,7 @@ struct MeetingsWorkflowView: View {
                 searchText: $searchText,
                 showCompletedThisWeek: $showCompletedThisWeek,
                 daysSinceThreshold: $daysSinceThreshold,
+                selectedAgeRanges: $selectedAgeRanges,
                 lastMeetingFor: lastMeetingFor,
                 onMove: moveStudent
             )
@@ -248,14 +272,16 @@ struct MeetingsQueueSidebar: View {
     @Binding var searchText: String
     @Binding var showCompletedThisWeek: Bool
     @Binding var daysSinceThreshold: Int
+    @Binding var selectedAgeRanges: Set<AgeRange>
     let lastMeetingFor: (Student) -> StudentMeeting?
     let onMove: (IndexSet, Int) -> Void
 
     var body: some View {
         List(selection: $selectedStudentID) {
-            // Threshold picker at top
+            // Threshold picker and age filter at top
             Section {
                 MeetingThresholdPicker(days: $daysSinceThreshold, showCompleted: $showCompletedThisWeek)
+                AgeFilterPicker(selectedAgeRanges: $selectedAgeRanges)
             }
 
             Section("Needs Meeting (\(studentsNeedingMeeting.count))") {
@@ -485,6 +511,71 @@ struct StudentQueueRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Age Filter Picker
+
+struct AgeFilterPicker: View {
+    @Binding var selectedAgeRanges: Set<AgeRange>
+    
+    private var displayText: String {
+        if selectedAgeRanges.isEmpty {
+            return "All Ages"
+        } else if selectedAgeRanges.count == 1, let first = selectedAgeRanges.first {
+            return first.rawValue
+        } else {
+            return "\(selectedAgeRanges.count) Ages"
+        }
+    }
+    
+    var body: some View {
+        Menu {
+            Button("All Ages") {
+                selectedAgeRanges.removeAll()
+            }
+            
+            Divider()
+            
+            ForEach(AgeRange.allCases) { range in
+                Button(action: {
+                    if selectedAgeRanges.contains(range) {
+                        selectedAgeRanges.remove(range)
+                    } else {
+                        selectedAgeRanges.insert(range)
+                    }
+                }) {
+                    HStack {
+                        if selectedAgeRanges.contains(range) {
+                            Image(systemName: "checkmark")
+                        }
+                        Text(range.rawValue)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.caption)
+                
+                Text(displayText)
+                    .font(.subheadline.weight(.medium))
+                
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(selectedAgeRanges.isEmpty ? Color.primary.opacity(0.06) : Color.accentColor.opacity(0.12))
+            )
+            .foregroundStyle(selectedAgeRanges.isEmpty ? Color.secondary : Color.accentColor)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .listRowBackground(Color.clear)
     }
 }
 

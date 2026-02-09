@@ -24,6 +24,7 @@ struct MeetingsLogView: View {
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var selectedCompletion: CompletionFilter = .all
     @State private var searchText: String = ""
+    @State private var selectedAgeRanges: Set<AgeRange> = []
 
     enum CompletionFilter: String, CaseIterable, Identifiable {
         case all = "All"
@@ -46,6 +47,13 @@ struct MeetingsLogView: View {
             if !selectedStudentIDs.isEmpty {
                 guard let studentID = meeting.studentIDUUID else { return false }
                 if !selectedStudentIDs.contains(studentID) { return false }
+            }
+
+            // Age filter
+            if !selectedAgeRanges.isEmpty {
+                guard let studentID = meeting.studentIDUUID,
+                      let student = studentsByID[studentID] else { return false }
+                if !AgeRange.matchesAny(student.birthday, in: selectedAgeRanges) { return false }
             }
 
             // Completion filter
@@ -105,6 +113,16 @@ struct MeetingsLogView: View {
             return "\(selectedStudentIDs.count) Students"
         }
     }
+    
+    private var selectedAgeLabel: String {
+        if selectedAgeRanges.isEmpty {
+            return "All Ages"
+        } else if selectedAgeRanges.count == 1, let first = selectedAgeRanges.first {
+            return first.rawValue
+        } else {
+            return "\(selectedAgeRanges.count) Ages"
+        }
+    }
 
     private func displayName(for student: Student) -> String {
         let first = student.firstName.trimmed()
@@ -145,6 +163,37 @@ struct MeetingsLogView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+            }
+
+            // Age Range Menu (multi-select)
+            Menu {
+                Button("All Ages") { selectedAgeRanges.removeAll() }
+                Divider()
+                ForEach(AgeRange.allCases) { range in
+                    Button(action: {
+                        if selectedAgeRanges.contains(range) {
+                            selectedAgeRanges.remove(range)
+                        } else {
+                            selectedAgeRanges.insert(range)
+                        }
+                    }) {
+                        HStack {
+                            if selectedAgeRanges.contains(range) {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(range.rawValue)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.clock")
+                    Text(selectedAgeLabel)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selectedAgeRanges.isEmpty ? Color.primary.opacity(0.05) : Color.accentColor.opacity(0.12)))
+                .foregroundStyle(selectedAgeRanges.isEmpty ? Color.primary : Color.accentColor)
             }
 
             // Completion Menu

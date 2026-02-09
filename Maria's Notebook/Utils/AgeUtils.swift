@@ -4,6 +4,60 @@
 
 import Foundation
 
+/// Age range filter for filtering students by age groups
+enum AgeRange: String, CaseIterable, Identifiable, Hashable {
+    case under3 = "Under 3"
+    case age3 = "3 years"
+    case age4 = "4 years"
+    case age5 = "5 years"
+    case age6 = "6 years"
+    case age7 = "7 years"
+    case age8 = "8 years"
+    case age9 = "9 years"
+    case age10 = "10 years"
+    case age11 = "11 years"
+    case age12plus = "12+ years"
+    
+    var id: String { rawValue }
+    
+    /// Check if a birthday falls within this age range
+    func contains(_ birthday: Date, calendar: Calendar = .current) -> Bool {
+        let age = AgeUtils.quarterRoundedAgeComponents(birthday: birthday, today: Date(), calendar: calendar)
+        let years = age.years
+        
+        switch self {
+        case .under3:
+            return years < 3
+        case .age3:
+            return years == 3
+        case .age4:
+            return years == 4
+        case .age5:
+            return years == 5
+        case .age6:
+            return years == 6
+        case .age7:
+            return years == 7
+        case .age8:
+            return years == 8
+        case .age9:
+            return years == 9
+        case .age10:
+            return years == 10
+        case .age11:
+            return years == 11
+        case .age12plus:
+            return years >= 12
+        }
+    }
+    
+    /// Check if a birthday matches any of the selected age ranges
+    static func matchesAny(_ birthday: Date, in selectedRanges: Set<AgeRange>, calendar: Calendar = .current) -> Bool {
+        guard !selectedRanges.isEmpty else { return true }
+        return selectedRanges.contains { $0.contains(birthday, calendar: calendar) }
+    }
+}
+
 /// Utilities for computing and formatting ages in different rounding schemes.
 /// All functions are pure and side-effect free.
 struct AgeUtils {
