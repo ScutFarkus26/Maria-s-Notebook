@@ -68,10 +68,7 @@ final class AppDependencies: ObservableObject {
     // MARK: - Data Services
     
     // Work-related services
-    // WorkCompletionService is an enum with static methods, no initialization needed
-    var workCompletionService: WorkCompletionService {
-        fatalError("WorkCompletionService is an enum with static methods, access directly")
-    }
+    // Note: WorkCompletionService is an enum with static methods, access directly (e.g., WorkCompletionService.someMethod())
     
     private var _workCheckInService: WorkCheckInService?
     var workCheckInService: WorkCheckInService {
@@ -201,9 +198,8 @@ final class AppDependencies: ObservableObject {
     
     // MARK: - Migration Services
     
-    private var _dataMigrations: DataMigrations.Type?
     var dataMigrations: DataMigrations.Type {
-        return DataMigrations.self
+        DataMigrations.self
     }
     
     // MARK: - Business Logic Services
@@ -214,6 +210,29 @@ final class AppDependencies: ObservableObject {
             _followUpInboxEngine = FollowUpInboxEngine()
         }
         return _followUpInboxEngine!
+    }
+    
+    // MARK: - MCP Services
+    
+    private var _mcpClient: MCPClientProtocol?
+    var mcpClient: MCPClientProtocol {
+        if _mcpClient == nil {
+            // Use MockMCPClient for development
+            // In production, configure MCPClient with actual server URL
+            _mcpClient = MockMCPClient()
+        }
+        return _mcpClient!
+    }
+    
+    private var _studentAnalysisService: StudentAnalysisService?
+    var studentAnalysisService: StudentAnalysisService {
+        if _studentAnalysisService == nil {
+            _studentAnalysisService = StudentAnalysisService(
+                modelContext: modelContext,
+                mcpClient: mcpClient
+            )
+        }
+        return _studentAnalysisService!
     }
     
     private var _reportGeneratorService: ReportGeneratorService?
@@ -388,26 +407,5 @@ extension EnvironmentValues {
     }
 }
 
-// MARK: - Phase 4 Migration Notes
-
-/*
- Phase 4 Migration Strategy:
- 
- 1. Add all remaining services to this container (target: 118+ services)
- 2. Replace singleton calls with dependency access:
-    - ReminderSyncService.shared → dependencies.reminderSync
-    - AppRouter.shared → dependencies.appRouter
- 
- 3. Update ViewModels to accept dependencies via initializer:
-    - TodayViewModel(dependencies: AppDependencies)
-    - InboxSheetViewModel(dependencies: AppDependencies)
- 
- 4. Services should be protocols for testing:
-    protocol WorkLifecycleService { ... }
-    class WorkLifecycleServiceImpl: WorkLifecycleService { ... }
- 
- 5. Circular dependencies (identified in Phase 1.2 docs):
-    - Break with protocols
-    - Use weak references where appropriate
-    - Consider event bus for loose coupling
- */
+// MARK: - Migration Notes
+// See MIGRATION_PLAN.md for Phase 4 migration strategy and remaining work

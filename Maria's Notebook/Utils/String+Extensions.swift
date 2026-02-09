@@ -23,5 +23,13 @@ extension String {
     nonisolated func normalizedForComparison() -> String {
         self.trimmed().lowercased()
     }
+    
+    /// Tokenizes the string by splitting on spaces and filtering empty results
+    /// - Returns: An array of non-empty, trimmed tokens
+    nonisolated func tokenize() -> [String] {
+        split(separator: " ")
+            .map { String($0).trimmed() }
+            .filter { !$0.isEmpty }
+    }
 }
 

@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		51E891872F399ABD0054B16E /* MIGRATION_PLAN.md in Resources */ = {isa = PBXBuildFile; fileRef = 51E891862F399ABD0054B16E /* MIGRATION_PLAN.md */; };
+		51E891892F399AFD0054B16E /* TECHNICAL_DEBT.md in Resources */ = {isa = PBXBuildFile; fileRef = 51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		51F924312F1C43F900E480A1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -19,6 +24,8 @@
 /* Begin PBXFileReference section */
 		5141E7F52ED77B0F004F918F /* Maria's Notebook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Notebook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5193CB052F0B155C0017A069 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/FoundationModels.framework; sourceTree = DEVELOPER_DIR; };
+		51E891862F399ABD0054B16E /* MIGRATION_PLAN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = MIGRATION_PLAN.md; sourceTree = "<group>"; };
+		51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TECHNICAL_DEBT.md; sourceTree = "<group>"; };
 		51EB8AED2F37B2A2005F1D80 /* StreamingBackupWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingBackupWriterTests.swift; sourceTree = "<group>"; };
 		51EB8AEE2F37B2BE005F1D80 /* BackupValidationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupValidationServiceTests.swift; sourceTree = "<group>"; };
 		51EB8AEF2F37B2D5005F1D80 /* ChecksumVerificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecksumVerificationServiceTests.swift; sourceTree = "<group>"; };
@@ -182,6 +189,8 @@
 				5193CB042F0B155C0017A069 /* Frameworks */,
 				5141E7F62ED77B0F004F918F /* Products */,
 				51EB8AEC2F37B28A005F1D80 /* BackupTests */,
+				51E891862F399ABD0054B16E /* MIGRATION_PLAN.md */,
+				51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -303,6 +312,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				51E891892F399AFD0054B16E /* TECHNICAL_DEBT.md in Resources */,
+				51E891872F399ABD0054B16E /* MIGRATION_PLAN.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

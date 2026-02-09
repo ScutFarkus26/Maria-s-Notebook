@@ -227,8 +227,6 @@ public final class ChecksumVerificationService {
         }.joined(separator: "|")
         
         let data = concatenated.data(using: .utf8) ?? Data()
-        return SHA256.hash(data: data)
-            .compactMap { String(format: "%02x", $0) }
-            .joined()
+        return Data(SHA256.hash(data: data)).hexString
     }
 }

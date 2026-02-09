@@ -49,5 +49,6 @@ struct AppSchema {
         ScheduleSlot.self,
         Issue.self,
         IssueAction.self,
+        DevelopmentSnapshot.self,
     ])
 }

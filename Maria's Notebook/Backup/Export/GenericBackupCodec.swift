@@ -112,7 +112,7 @@ struct BackupMetadata: Codable {
         - Entity types: \(entityCounts.count)
         - Size: \(ByteCountFormatter.string(fromByteCount: totalSize, countStyle: .file))
         - Encrypted: \(encrypted ? "Yes" : "No")
-        - Compression: \(String(format: "%.1f%%", compressionRatio * 100))
+        - Compression: \(compressionRatio.formatAsPercentage())
         
         Entity breakdown:
         \(entityCounts.map { "  - \($0.key): \($0.value)" }.sorted().joined(separator: "\n"))

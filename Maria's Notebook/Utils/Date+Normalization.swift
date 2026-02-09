@@ -29,5 +29,11 @@ extension Date {
     func isAfterDay(_ other: Date) -> Bool {
         self.startOfDay > other.startOfDay
     }
+    
+    /// Calculates the age in years from this date to now
+    /// - Returns: The number of complete years between this date and now, or nil if calculation fails
+    var age: Int? {
+        Calendar.current.dateComponents([.year], from: self, to: Date()).year
+    }
 }
 

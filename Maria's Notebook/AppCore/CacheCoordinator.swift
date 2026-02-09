@@ -122,7 +122,7 @@ final class CacheCoordinator: ObservableObject {
         for metric in allMetrics() {
             lines.append("[\(metric.key)]")
             lines.append("  Hits: \(metric.hitCount) | Misses: \(metric.missCount)")
-            lines.append("  Hit Rate: \(String(format: "%.1f%%", metric.hitRate * 100))")
+            lines.append("  Hit Rate: \(metric.hitRate.formatAsPercentage())")
             lines.append("  Invalidations: \(metric.invalidationCount)")
             lines.append("")
         }
@@ -381,7 +381,7 @@ struct CacheMetricRow: View {
                 Label("\(metric.missCount)", systemImage: "xmark.circle.fill")
                     .foregroundColor(.red)
                 
-                Text("Hit Rate: \(String(format: "%.1f%%", metric.hitRate * 100))")
+                Text("Hit Rate: \(metric.hitRate.formatAsPercentage())")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 

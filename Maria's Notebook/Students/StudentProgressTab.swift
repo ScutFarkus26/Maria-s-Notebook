@@ -44,6 +44,49 @@ struct StudentProgressTab: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // 0. AI-Powered Insights Section
+                NavigationLink(destination: StudentInsightsView(student: student)) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 32))
+                            .foregroundStyle(.white)
+                            .frame(width: 56, height: 56)
+                            .background(
+                                LinearGradient(
+                                    colors: [.purple, .blue],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .cornerRadius(12)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Development Insights")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text("AI-powered analysis of recent progress")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(16)
+                    #if os(iOS)
+                    .background(Color(.systemBackground))
+                    #else
+                    .background(Color(NSColor.controlBackgroundColor))
+                    #endif
+                    .cornerRadius(12)
+                    .shadow(color: .purple.opacity(0.2), radius: 8, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 4)
+                
                 // 1. Projects Section
                 if !viewModel.activeProjects.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {

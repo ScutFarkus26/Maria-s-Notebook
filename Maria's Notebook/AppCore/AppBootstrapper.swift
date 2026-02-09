@@ -151,6 +151,6 @@ final class AppBootstrapper: ObservableObject {
     }
 
     private static func formatSeconds(_ interval: TimeInterval) -> String {
-        String(format: "%.3f", interval)
+        interval.formattedAsDuration
     }
 }
