@@ -7,12 +7,14 @@ import Foundation
 struct WorkDetailView: View {
     let workID: UUID
     var onDone: (() -> Void)? = nil
+    var showRepresentButton: Bool = false
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
     @StateObject private var viewModel: WorkDetailViewModel
+    @State private var showingRepresentSheet: Bool = false
     #if DEBUG
     @Query private var lessonAssignments: [LessonAssignment]
     #endif
@@ -36,9 +38,10 @@ struct WorkDetailView: View {
         viewModel.practiceSessions(allSessions: allPracticeSessions)
     }
 
-    init(workID: UUID, onDone: (() -> Void)? = nil) {
+    init(workID: UUID, onDone: (() -> Void)? = nil, showRepresentButton: Bool = false) {
         self.workID = workID
         self.onDone = onDone
+        self.showRepresentButton = showRepresentButton
         _viewModel = StateObject(wrappedValue: WorkDetailViewModel(workID: workID))
 
         let workIDString = workID.uuidString
@@ -103,28 +106,50 @@ struct WorkDetailView: View {
                 practiceSessionDetailSheet(session: session)
             }
             Divider()
-            HStack(spacing: 12) {
-                        Button {
-                            viewModel.showDeleteAlert = true
-                        } label: {
-                            Image(systemName: "trash")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.red)
-                                .padding(12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.red.opacity(0.1))
-                                )
+            VStack(spacing: 12) {
+                // Top row: Action buttons
+                HStack(spacing: 12) {
+                    Button {
+                        viewModel.showDeleteAlert = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.red)
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.red.opacity(0.1))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        viewModel.showPracticeSessionSheet = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Add Practice")
+                                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
                         }
-                        .buttonStyle(.plain)
-                        
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    
+                    if showRepresentButton {
                         Button {
-                            viewModel.showPracticeSessionSheet = true
+                            showingRepresentSheet = true
                         } label: {
                             HStack(spacing: 6) {
-                                Image(systemName: "person.2.fill")
+                                Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 12, weight: .medium))
-                                Text("Add Practice")
+                                Text("Re-present")
                                     .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
                             }
                             .foregroundStyle(.white)
@@ -132,49 +157,61 @@ struct WorkDetailView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.blue)
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        Button {
-                            close()
-                        } label: {
-                            Text("Cancel")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.primary.opacity(0.05))
-                                )
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            save()
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 14, weight: .semibold))
-                                Text("Save")
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.accentColor)
+                                    .fill(Color.purple)
                             )
                         }
                         .buttonStyle(.plain)
                     }
-                .padding(20)
-                .background(.bar)
+                    
+                    Spacer()
+                }
+                
+                // Bottom row: Cancel and Save buttons
+                HStack(spacing: 12) {
+                    Button {
+                        close()
+                    } label: {
+                        Text("Cancel")
+                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.primary.opacity(0.05))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        save()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Save")
+                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.accentColor)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(20)
+            .background(.bar)
+        }
+        .sheet(isPresented: $showingRepresentSheet) {
+            if let student = viewModel.relatedStudent,
+               let work = viewModel.work,
+               let lessonID = UUID(uuidString: work.lessonID) {
+                AddLessonToInboxSheet(student: student, preselectedLessonID: lessonID)
+            }
         }
         .sheet(isPresented: $viewModel.showScheduleSheet) {
                     WorkModelScheduleNextLessonSheet(work: work) { viewModel.showPlannedBanner = true }
@@ -184,7 +221,8 @@ struct WorkDetailView: View {
                         context: .work(work),
                         initialNote: nil,
                         onSave: { _ in
-                            // Note is automatically saved via relationship
+                            // Reload notes after saving
+                            viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
                             viewModel.showAddNoteSheet = false
                         },
                         onCancel: {
@@ -197,6 +235,8 @@ struct WorkDetailView: View {
                         context: .work(work),
                         initialNote: note,
                         onSave: { _ in
+                            // Reload notes after saving
+                            viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
                             viewModel.noteBeingEdited = nil
                         },
                         onCancel: {
@@ -512,36 +552,147 @@ struct WorkDetailView: View {
     }
 
     @ViewBuilder private func calendarSection() -> some View {
-        DetailSectionCard(title: "Schedule Check-In", icon: "calendar.badge.plus", accentColor: .blue) {
-            HStack(spacing: 12) {
-                DatePicker("", selection: $viewModel.newPlanDate, displayedComponents: .date)
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        addPlan()
+        DetailSectionCard(title: "Scheduled Check-Ins", icon: "calendar.badge.checkmark", accentColor: .blue) {
+            VStack(alignment: .leading, spacing: 16) {
+                // Display existing check-ins
+                if !planItems.isEmpty {
+                    VStack(spacing: 10) {
+                        ForEach(planItems.sorted(by: { $0.scheduledDate < $1.scheduledDate })) { item in
+                            planItemRow(item)
+                        }
                     }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .bold))
-                        Text("Add")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        Capsule()
-                            .fill(Color.blue)
-                    )
+                    .padding(.bottom, 8)
                 }
-                .buttonStyle(.plain)
-
-                Spacer()
+                
+                Divider()
+                
+                // Add new check-in section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Schedule New Check-In")
+                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    
+                    HStack(spacing: 12) {
+                        DatePicker("", selection: $viewModel.newPlanDate, displayedComponents: .date)
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                        
+                        Menu {
+                            ForEach(WorkPlanItem.Reason.allCases) { reason in
+                                Button {
+                                    viewModel.newPlanReason = reason
+                                } label: {
+                                    HStack {
+                                        Image(systemName: reason.icon)
+                                        Text(reason.label)
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: viewModel.newPlanReason.icon)
+                                    .font(.system(size: 12, weight: .medium))
+                                Text(viewModel.newPlanReason.label)
+                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.primary.opacity(0.06))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                addPlan()
+                            }
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    // Optional note field
+                    TextField("Add a note (optional)", text: $viewModel.newPlanNote)
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.primary.opacity(0.04))
+                        )
+                }
             }
         }
+    }
+    
+    @ViewBuilder
+    private func planItemRow(_ item: WorkPlanItem) -> some View {
+        HStack(spacing: 12) {
+            // Date badge
+            VStack(spacing: 2) {
+                Text(item.scheduledDate.formatted(.dateTime.month(.abbreviated)))
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Text(item.scheduledDate.formatted(.dateTime.day()))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+            }
+            .frame(width: 48)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.blue.opacity(0.1))
+            )
+            
+            // Reason and note
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: item.reason?.icon ?? "calendar")
+                        .font(.system(size: 12, weight: .medium))
+                    Text(item.reason?.label ?? "Check-In")
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                }
+                .foregroundStyle(.primary)
+                
+                if let note = item.note, !note.isEmpty {
+                    Text(note)
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            
+            Spacer()
+            
+            // Delete button
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    deletePlanItem(item)
+                }
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.red)
+                    .padding(8)
+                    .background(
+                        Circle()
+                            .fill(Color.red.opacity(0.1))
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.primary.opacity(0.03))
+        )
     }
 
     @ViewBuilder private func practiceOverviewSection() -> some View {
@@ -902,14 +1053,25 @@ struct WorkDetailView: View {
 
                 Spacer()
 
-                Button {
-                    viewModel.noteBeingEdited = note
-                } label: {
-                    Image(systemName: "pencil.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Button {
+                        viewModel.noteBeingEdited = note
+                    } label: {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.blue)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        deleteNote(note)
+                    } label: {
+                        Image(systemName: "trash.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(14)
@@ -1158,9 +1320,33 @@ struct WorkDetailView: View {
 
     private func addPlan() {
         guard let work = viewModel.work else { return }
-        let item = WorkPlanItem(workID: work.id, scheduledDate: viewModel.newPlanDate, reason: viewModel.newPlanReason)
+        let note = viewModel.newPlanNote.trimmed().isEmpty ? nil : viewModel.newPlanNote.trimmed()
+        let item = WorkPlanItem(
+            workID: work.id,
+            scheduledDate: viewModel.newPlanDate,
+            reason: viewModel.newPlanReason,
+            note: note
+        )
         modelContext.insert(item)
         saveCoordinator.save(modelContext, reason: "Adding plan item")
+        
+        // Reset form fields
+        viewModel.newPlanDate = Date()
+        viewModel.newPlanReason = .progressCheck
+        viewModel.newPlanNote = ""
+    }
+    
+    private func deletePlanItem(_ item: WorkPlanItem) {
+        modelContext.delete(item)
+        saveCoordinator.save(modelContext, reason: "Deleting plan item")
+    }
+    
+    private func deleteNote(_ note: Note) {
+        modelContext.delete(note)
+        saveCoordinator.save(modelContext, reason: "Deleting note")
+        
+        // Reload the work to refresh the notes list
+        viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
     }
 
     private func studentName() -> String {
