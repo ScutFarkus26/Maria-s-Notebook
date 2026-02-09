@@ -58,6 +58,10 @@ struct LessonDetailView: View {
                     } else {
                         infoSection
                         
+                        // Attachments Section
+                        LessonAttachmentsSection(lesson: lesson)
+                            .padding(.top, 8)
+                        
                         // Journey Timeline
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Lesson Journey")

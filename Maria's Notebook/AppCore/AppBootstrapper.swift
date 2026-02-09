@@ -40,6 +40,14 @@ final class AppBootstrapper: ObservableObject {
         AppCalendar.adopt(timeZoneFrom: Calendar.current)
         Self.logger.info("Bootstrap: Calendar setup completed in \(Self.formatSeconds(Date().timeIntervalSince(calendarStart)))s")
         
+        // 1.5. Migrate lesson files to iCloud Drive (if needed)
+        let filesMigrationStart = Date()
+        if let migratedCount = LessonFileStorage.migrateToICloudDrive() {
+            Self.logger.info("Bootstrap: Migrated \(migratedCount) lesson files to iCloud Drive in \(Self.formatSeconds(Date().timeIntervalSince(filesMigrationStart)))s")
+        } else {
+            Self.logger.info("Bootstrap: No lesson file migration needed")
+        }
+        
         // 2. Critical Data Repairs
         // (Completed and removed)
         

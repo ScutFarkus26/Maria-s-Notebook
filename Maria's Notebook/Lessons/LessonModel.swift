@@ -86,6 +86,10 @@ final class Lesson: Identifiable {
     // Relationship to LessonAssignment - inverse specified on this side (the "many" side)
     @Relationship(inverse: \LessonAssignment.lesson)
     var lessonAssignments: [LessonAssignment]? = []
+    
+    // Relationship to LessonAttachment - cascade delete attachments when lesson is deleted
+    @Relationship(deleteRule: .cascade, inverse: \LessonAttachment.lesson)
+    var attachments: [LessonAttachment]?
 
     // MARK: - Initializer
 

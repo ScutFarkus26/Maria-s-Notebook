@@ -16,6 +16,18 @@
 	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
 	<key>NSRemindersUsageDescription</key>
 	<string>We need access to your reminders to sync reminders from a specific list to your Today view.</string>
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.$(CFBundleIdentifier)</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Maria's Notebook</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+		</dict>
+	</dict>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

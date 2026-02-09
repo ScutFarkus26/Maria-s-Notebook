@@ -7,6 +7,7 @@ struct AppSchema {
     static let schema = Schema([
         Student.self,
         Lesson.self,
+        LessonAttachment.self,
         StudentLesson.self,
         WorkCompletionRecord.self,
         WorkModel.self,

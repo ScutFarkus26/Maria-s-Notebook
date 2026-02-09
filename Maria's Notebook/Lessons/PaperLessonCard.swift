@@ -47,6 +47,19 @@ struct PaperLessonCard: View {
     private var hasAttachment: Bool {
         lesson.pagesFileBookmark != nil || lesson.pagesFileRelativePath != nil
     }
+    
+    private var attachmentCount: Int {
+        var count = 0
+        // Count legacy Pages file
+        if hasAttachment {
+            count += 1
+        }
+        // Count new attachments
+        if let attachments = lesson.attachments {
+            count += attachments.count
+        }
+        return count
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -102,11 +115,17 @@ struct PaperLessonCard: View {
 
                 Spacer(minLength: 0)
 
-                // Pages file indicator
-                if hasAttachment {
-                    Image(systemName: "doc.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary.opacity(0.7))
+                // Attachment indicator with count
+                if attachmentCount > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "paperclip")
+                            .font(.system(size: 10))
+                        if attachmentCount > 1 {
+                            Text("\(attachmentCount)")
+                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                        }
+                    }
+                    .foregroundStyle(.secondary.opacity(0.7))
                 }
 
                 // Status count badge

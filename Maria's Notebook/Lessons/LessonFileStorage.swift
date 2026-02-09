@@ -1,21 +1,28 @@
 import Foundation
 
 public enum LessonFileStorage {
-    /// Returns the directory URL where lesson files are stored.
-    /// Attempts to use the iCloud container if available, otherwise falls back to the app's Documents directory.
+    /// Returns the root directory URL where lesson files are stored.
+    /// Uses the app's iCloud container Documents folder (visible in Finder as "Maria's Notebook") if available,
+    /// otherwise falls back to the app's local Documents directory.
     /// Ensures the directory exists before returning.
     public static func lessonFilesDirectory() throws -> URL {
         let fm = FileManager.default
 
-        // Attempt iCloud container first
+        // Use the app's iCloud container - this will appear in Finder's iCloud Drive
+        // The CloudDocuments entitlement makes the container visible in Finder
         if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) {
-            let lessonFilesURL = ubiquityURL.appendingPathComponent("Documents", isDirectory: true)
+            let lessonFilesURL = ubiquityURL
+                .appendingPathComponent("Documents", isDirectory: true)
                 .appendingPathComponent("Lesson Files", isDirectory: true)
+            
+            print("📱 Using iCloud container path: \(lessonFilesURL.path)")
+            print("👁️ This should appear in Finder as: iCloud Drive/Maria's Notebook/Lesson Files")
             try createDirectoryIfNeeded(at: lessonFilesURL)
             return lessonFilesURL
         }
 
         // Fallback to local Documents directory
+        print("⚠️ iCloud not available, using local Documents")
         let documentsURL = try fm.url(
             for: .documentDirectory,
             in: .userDomainMask,
@@ -117,6 +124,147 @@ public enum LessonFileStorage {
         let base = try lessonFilesDirectory()
         return base.appendingPathComponent(relativePath, isDirectory: false)
     }
+    
+    // MARK: - Organizational Structure
+    
+    /// Returns the organizational path for a lesson: Subject/Group
+    /// Creates the directory structure if it doesn't exist.
+    static func organizationalDirectory(forLesson lesson: Lesson) throws -> URL {
+        print("🗂️ Getting lesson files directory...")
+        let baseDir = try lessonFilesDirectory()
+        print("✅ Base directory: \(baseDir.path)")
+        
+        // Sanitize subject and group names for filesystem
+        let sanitizedSubject = sanitizeFilenameComponent(lesson.subject, fallback: "General")
+        let sanitizedGroup = sanitizeFilenameComponent(lesson.group, fallback: "Ungrouped")
+        print("📁 Sanitized subject: '\(sanitizedSubject)', group: '\(sanitizedGroup)'")
+        
+        // Create Subject/Group structure
+        let orgDir = baseDir
+            .appendingPathComponent(sanitizedSubject, isDirectory: true)
+            .appendingPathComponent(sanitizedGroup, isDirectory: true)
+        
+        print("📂 Creating directory at: \(orgDir.path)")
+        try createDirectoryIfNeeded(at: orgDir)
+        print("✅ Directory created/exists")
+        return orgDir
+    }
+    
+    /// Returns all attachments for a lesson, including inherited ones from group and subject scope.
+    /// - Parameter lesson: The lesson to get attachments for
+    /// - Parameter includeInherited: Whether to include group and subject-scoped attachments
+    /// - Returns: Array of attachments, with lesson-specific first, then group, then subject
+    static func getAttachments(forLesson lesson: Lesson, includeInherited: Bool = true) -> [LessonAttachment] {
+        guard let allLessonAttachments = lesson.attachments else { return [] }
+        
+        // Always include lesson-specific attachments
+        var result = allLessonAttachments.filter { $0.scope == .lesson }
+        
+        if includeInherited {
+            // Add group-scoped attachments
+            result.append(contentsOf: allLessonAttachments.filter { $0.scope == .group })
+            
+            // Add subject-scoped attachments
+            result.append(contentsOf: allLessonAttachments.filter { $0.scope == .subject })
+        }
+        
+        // Sort by attachment date, most recent first
+        return result.sorted { $0.attachedAt > $1.attachedAt }
+    }
+    
+    // MARK: - Attachment Import
+    
+    /// Imports an attachment file for a lesson with the specified scope.
+    /// The file is stored in the organizational directory structure (Subject/Group/).
+    /// - Parameters:
+    ///   - sourceURL: The source file URL to import
+    ///   - lesson: The lesson to attach the file to
+    ///   - scope: The scope of the attachment (lesson, group, or subject)
+    ///   - customName: Optional custom name for the attachment (if nil, uses source filename)
+    /// - Returns: A tuple containing the destination URL and relative path
+    static func importAttachment(
+        from sourceURL: URL,
+        forLesson lesson: Lesson,
+        scope: AttachmentScope = .lesson,
+        customName: String? = nil
+    ) throws -> (url: URL, relativePath: String) {
+        print("📥 Starting importAttachment for: \(sourceURL.lastPathComponent)")
+        print("📌 Lesson: \(lesson.name), Scope: \(scope.rawValue)")
+        
+        let fm = FileManager.default
+        
+        // Get the organizational directory for this lesson
+        let destDir = try organizationalDirectory(forLesson: lesson)
+        print("📂 Destination directory: \(destDir.path)")
+        
+        // Extract file extension
+        let sourceExt = sourceURL.pathExtension
+        let extWithDot = sourceExt.isEmpty ? "" : "." + sourceExt
+        
+        // Determine base filename
+        let baseName: String
+        if let customName = customName {
+            baseName = sanitizeFilenameComponent(customName, fallback: sourceURL.deletingPathExtension().lastPathComponent)
+        } else {
+            baseName = sanitizeFilenameComponent(sourceURL.deletingPathExtension().lastPathComponent, fallback: "Attachment")
+        }
+        
+        // Add scope prefix for non-lesson attachments
+        let scopePrefix: String
+        switch scope {
+        case .lesson:
+            scopePrefix = ""
+        case .group:
+            scopePrefix = "[Group] "
+        case .subject:
+            scopePrefix = "[Subject] "
+        }
+        
+        // Add lesson UUID suffix for lesson-scoped attachments to ensure uniqueness
+        let uuidString = lesson.id.uuidString.replacingOccurrences(of: "-", with: "")
+        let uuidSuffix = String(uuidString.suffix(8))
+        
+        let baseFilename = scope == .lesson
+            ? "\(baseName)-\(uuidSuffix)\(extWithDot)"
+            : "\(scopePrefix)\(baseName)\(extWithDot)"
+        
+        var destinationURL = destDir.appendingPathComponent(baseFilename, isDirectory: false)
+        
+        // Ensure uniqueness by appending a counter
+        var counter = 1
+        while fm.fileExists(atPath: destinationURL.path) {
+            let numberedFilename = scope == .lesson
+                ? "\(baseName)-\(uuidSuffix)-\(counter)\(extWithDot)"
+                : "\(scopePrefix)\(baseName)-\(counter)\(extWithDot)"
+            destinationURL = destDir.appendingPathComponent(numberedFilename, isDirectory: false)
+            counter += 1
+        }
+        
+        // Copy the file
+        try fm.copyItem(at: sourceURL, to: destinationURL)
+        
+        // Get relative path
+        let relativePath = try self.relativePath(forManagedURL: destinationURL)
+        
+        return (url: destinationURL, relativePath: relativePath)
+    }
+    
+    /// Searches for attachments matching a keyword across subjects, groups, or specific lessons.
+    /// - Parameters:
+    ///   - keyword: Search term to match against filenames and notes
+    ///   - subject: Optional subject filter
+    ///   - group: Optional group filter (requires subject to be set)
+    /// - Returns: Array of matching attachments
+    static func searchAttachments(
+        keyword: String,
+        subject: String? = nil,
+        group: String? = nil
+    ) throws -> [LessonAttachment] {
+        // This is a placeholder for future implementation
+        // Would require access to ModelContext to query all attachments
+        // For now, return empty array
+        return []
+    }
 
     // MARK: - Private Helpers
 
@@ -171,5 +319,108 @@ public enum LessonFileStorage {
         }
 
         return sanitized
+    }
+    
+    // MARK: - Migration
+    
+    /// Migrates files from the old private iCloud container location to the new public iCloud Drive location.
+    /// This should be called once during app startup to move existing files to the user-visible location.
+    /// - Returns: Number of files migrated, or nil if no migration was needed
+    @discardableResult
+    public static func migrateToICloudDrive() -> Int? {
+        let fm = FileManager.default
+        
+        // Get the old location (private container - iCloud~AppID~/Documents/Lesson Files/)
+        guard let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) else {
+            print("⚠️ No iCloud container available for migration")
+            return nil
+        }
+        
+        let oldLocation = ubiquityURL
+            .appendingPathComponent("Documents", isDirectory: true)
+            .appendingPathComponent("Lesson Files", isDirectory: true)
+        
+        // Check if old location exists and has files
+        guard fm.fileExists(atPath: oldLocation.path) else {
+            print("ℹ️ No old files to migrate")
+            return nil
+        }
+        
+        do {
+            // Get the new location (public iCloud Drive)
+            let newLocation = try lessonFilesDirectory()
+            
+            // Check if they're the same (migration already done or not needed)
+            if oldLocation.standardizedFileURL == newLocation.standardizedFileURL {
+                print("ℹ️ Already using new location, no migration needed")
+                return nil
+            }
+            
+            print("🔄 Starting migration from:")
+            print("   Old: \(oldLocation.path)")
+            print("   New: \(newLocation.path)")
+            
+            // Get all items in old location (recursively to handle Subject/Group folders)
+            let contents = try fm.contentsOfDirectory(at: oldLocation, includingPropertiesForKeys: [.isDirectoryKey], options: [])
+            var migratedCount = 0
+            
+            for oldItemURL in contents {
+                let itemName = oldItemURL.lastPathComponent
+                let newItemURL = newLocation.appendingPathComponent(itemName)
+                
+                // Skip .DS_Store files
+                if itemName == ".DS_Store" {
+                    continue
+                }
+                
+                // Check if it's a directory or file
+                let resourceValues = try oldItemURL.resourceValues(forKeys: [.isDirectoryKey])
+                let isDirectory = resourceValues.isDirectory ?? false
+                
+                if isDirectory {
+                    // Recursively migrate directory contents
+                    if !fm.fileExists(atPath: newItemURL.path) {
+                        try fm.createDirectory(at: newItemURL, withIntermediateDirectories: true)
+                    }
+                    
+                    let subContents = try fm.contentsOfDirectory(at: oldItemURL, includingPropertiesForKeys: nil)
+                    for subItemURL in subContents {
+                        let subItemName = subItemURL.lastPathComponent
+                        if subItemName == ".DS_Store" { continue }
+                        
+                        let newSubItemURL = newItemURL.appendingPathComponent(subItemName)
+                        if !fm.fileExists(atPath: newSubItemURL.path) {
+                            try fm.moveItem(at: subItemURL, to: newSubItemURL)
+                            print("✅ Migrated: \(itemName)/\(subItemName)")
+                            migratedCount += 1
+                        }
+                    }
+                } else {
+                    // Move file
+                    if !fm.fileExists(atPath: newItemURL.path) {
+                        try fm.moveItem(at: oldItemURL, to: newItemURL)
+                        print("✅ Migrated: \(itemName)")
+                        migratedCount += 1
+                    } else {
+                        print("⏭️ Skipping \(itemName) - already exists at destination")
+                    }
+                }
+            }
+            
+            // Clean up empty directories in old location
+            let remainingContents = try fm.contentsOfDirectory(at: oldLocation, includingPropertiesForKeys: nil)
+            let nonDSStoreContents = remainingContents.filter { $0.lastPathComponent != ".DS_Store" }
+            if nonDSStoreContents.isEmpty {
+                try? fm.removeItem(at: oldLocation)
+                print("🗑️ Removed empty old location")
+            }
+            
+            print("✅ Migration complete: \(migratedCount) files migrated")
+            return migratedCount
+            
+        } catch {
+            print("❌ Migration failed: \(error)")
+            return nil
+        }
     }
 }
