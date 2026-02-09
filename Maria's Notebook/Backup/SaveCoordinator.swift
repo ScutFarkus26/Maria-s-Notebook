@@ -16,7 +16,37 @@ final class SaveCoordinator: ObservableObject {
 
     /// When true, suppress presenting UI alerts on save failures (used in previews)
     var suppressAlerts: Bool = false
+    
+    // Save batching to reduce database write contention
+    private var pendingSaves: [ObjectIdentifier: (context: ModelContext, reason: String?)] = [:]
+    private var saveTimer: Timer?
+    private let saveBatchInterval: TimeInterval = 0.5 // 500ms debounce
 
+    /// Schedule a batched save operation (debounced by 500ms).
+    /// Multiple save requests for the same context within the debounce window are coalesced.
+    /// - Parameters:
+    ///   - context: The `ModelContext` to save.
+    ///   - reason: Optional, short description of why the save is occurring.
+    func scheduleSave(_ context: ModelContext, reason: String? = nil) {
+        let contextID = ObjectIdentifier(context)
+        pendingSaves[contextID] = (context, reason)
+        
+        saveTimer?.invalidate()
+        saveTimer = Timer.scheduledTimer(withTimeInterval: saveBatchInterval, repeats: false) { [weak self] _ in
+            self?.executePendingSaves()
+        }
+    }
+    
+    /// Execute all pending saves immediately
+    private func executePendingSaves() {
+        let saves = pendingSaves
+        pendingSaves.removeAll()
+        
+        for (_, saveInfo) in saves {
+            save(saveInfo.context, reason: saveInfo.reason)
+        }
+    }
+    
     /// Perform a centralized SwiftData save with consistent error handling.
     /// - Parameters:
     ///   - context: The `ModelContext` to save.

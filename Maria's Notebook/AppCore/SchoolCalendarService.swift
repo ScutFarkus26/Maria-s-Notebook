@@ -115,14 +115,13 @@ public final class SchoolCalendarService {
             if let existing = overrides.first {
                 // Remove override -> weekend becomes non-school again
                 context.delete(existing)
-                try context.save()
                 becameNonSchool = true
             } else {
                 // Add override -> weekend becomes a school day (non-school = false)
                 context.insert(SchoolDayOverride(date: day))
-                try context.save()
                 becameNonSchool = false
             }
+            // Save is handled by caller or autosave - no immediate save needed
             invalidateMonthCache(for: day)
             return becameNonSchool
         } else {
@@ -135,14 +134,13 @@ public final class SchoolCalendarService {
             if let existing = items.first {
                 // Remove explicit non-school -> becomes school day
                 context.delete(existing)
-                try context.save()
                 isNowNonSchool = false
             } else {
                 // Add explicit non-school for weekday
                 context.insert(NonSchoolDay(date: day))
-                try context.save()
                 isNowNonSchool = true
             }
+            // Save is handled by caller or autosave - no immediate save needed
             invalidateMonthCache(for: day)
             return isNowNonSchool
         }

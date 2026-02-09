@@ -85,6 +85,8 @@ struct CalendarMonthGridView: View {
                             DayCell(date: date, calendar: calendar, nonSchoolDates: nonSchoolDates ?? computedNonSchoolDates) { d in
                                 Task {
                                     let toggleResult = try? await SchoolCalendar.toggleNonSchoolDay(d, using: modelContext)
+                                    // Save changes after toggle
+                                    try? modelContext.save()
                                     let newState: Bool
                                     if let result = toggleResult {
                                         newState = result

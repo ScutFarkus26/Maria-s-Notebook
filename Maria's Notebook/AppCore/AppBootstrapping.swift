@@ -424,6 +424,11 @@ final class AppBootstrapping {
             
             // Configure SQLite to suppress detached signature errors
             AppBootstrapping.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
+            
+            // Disable autosave on main context to prevent excessive write contention
+            // We rely on explicit saves via SaveCoordinator instead
+            container.mainContext.autosaveEnabled = false
+            
             _sharedModelContainer = container
             
             // Reset state to idle so bootstrap can start

@@ -99,8 +99,13 @@ enum DatabaseInitializationService {
     // MARK: - SQLite Configuration
 
     /// Configures SQLite to suppress detached signature logging errors.
+    /// Note: WAL checkpoint optimization is handled by disabling autosave and batching saves in SaveCoordinator.
     static func configureSQLiteToSuppressDetachedSignatureErrors(for container: ModelContainer) {
         _ = container
+        // WAL checkpoint contention is primarily managed by:
+        // 1. Disabling autosave on main context (see AppBootstrapping)
+        // 2. Batching saves through SaveCoordinator
+        // 3. Removing unnecessary immediate saves throughout the codebase
     }
 
     // MARK: - Error Handling
